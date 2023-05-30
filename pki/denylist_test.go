@@ -20,6 +20,7 @@
 package pki
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -420,7 +421,7 @@ func TestDenylistedCertificateBlocked(t *testing.T) {
 
 	// Ensure the validation returned an error, meaning the certificate is banned
 	assert.Error(t, err)
-	assert.Equal(t, fmt.Errorf("%w: %s", ErrCertBanned, "baz3"), err)
+	assert.Equal(t, fmt.Errorf("%w: %s", ErrCertBanned, "baz3"), err.(*tls.CertificateVerificationError).Unwrap())
 }
 
 // TestEmptyFieldsDoNotBlock ensures empty fields in a denylist entry cannot block certificates
@@ -451,7 +452,7 @@ func TestEmptyFieldsDoNotBlock(t *testing.T) {
 
 	// Ensure the validation returned an error, meaning the certificate is banned
 	assert.Error(t, err)
-	assert.Equal(t, fmt.Errorf("%w: %s", ErrCertBanned, "baz3"), err)
+	assert.Equal(t, fmt.Errorf("%w: %s", ErrCertBanned, "baz3"), err.(*tls.CertificateVerificationError).Unwrap())
 }
 
 // TestRSACertificateJWKThumbprint ensures ceritficate thumbprints are correctly computed
