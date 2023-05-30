@@ -20,7 +20,6 @@
 package pki
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
@@ -128,14 +127,6 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 	serialNumber := cert.SerialNumber.String()
 	thumbprint := certKeyJWKThumbprint(cert)
 
-	// wrapErr returns an error wrapped in a tls.CertificateVerificationError
-	var wrapErr = func(err error) error {
-		return &tls.CertificateVerificationError{
-			[]*x509.Certificate{cert},
-			err,
-		}
-	}
-
 	// If the denylist has not yet been downloaded, do so now
 	if b.lastUpdated.IsZero() {
 		// Trigger an update of the denylist
@@ -148,7 +139,7 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 				Error("Cert validation failed because the denylist cannot be downloaded")
 
 			// Return an error indicating the denylist cannot be retrieved
-			return wrapErr(ErrDenylistMissing)
+			return ErrDenylistMissing
 		}
 	}
 
@@ -159,7 +150,7 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 	if entriesPtr == nil {
 		// If the entries still cannot be fetched then something is not right so return an error
 		logger().Error("BUG: denylist entries pointer is nil")
-		return wrapErr(ErrDenylistMissing)
+		return ErrDenylistMissing
 	}
 
 	// Check each entry in the denylist for matches
@@ -173,7 +164,7 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 				Debug("Rejecting banned certificate")
 
 			// Return an error indicating the certificate has been denylisted
-			return wrapErr(fmt.Errorf("%w: %s", ErrCertBanned, entry.Reason))
+			return fmt.Errorf("%w: %s", ErrCertBanned, entry.Reason)
 		}
 	}
 

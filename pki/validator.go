@@ -153,17 +153,26 @@ func (v *validator) SetVerifyPeerCertificateFunc(config *tls.Config) error {
 		// This prevents attackers from sending a bunch of certificates hoping one makes it into a verified chain.
 		// TODO: change to use verifiedChains. other checks are not the responsibility of this validator
 
+		// Concatenate all of the provided raw certificates to parse them together
 		var raw []byte
 		for _, rawCert := range rawCerts {
 			raw = append(raw, rawCert...)
 		}
 
+		// Parse the provided certificates
 		certificates, err := x509.ParseCertificates(raw)
 		if err != nil {
 			return err
 		}
 
-		return v.Validate(certificates)
+		// If validation fails, wrap the error before returning it
+		if err := v.Validate(certificates); err != nil {
+			return &tls.CertificateVerificationError{
+				certificates,
+				err,
+			}
+		}
+		return nil
 	}
 	return nil
 }
