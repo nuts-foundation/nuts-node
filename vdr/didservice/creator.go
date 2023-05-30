@@ -151,11 +151,8 @@ func (n Creator) Create(ctx context.Context, options vdr.DIDCreationOptions) (*d
 		return nil, nil, err
 	}
 
-	// The Document DID will be the keyIDStr without the fragment:
-	didID := *keyID
-	didID.Fragment = ""
-
-	// create the bare document
+	// Create the bare document. The Document DID will be the keyIDStr without the fragment.
+	didID, _ := GetDIDFromURL(key.KID())
 	doc := CreateDocument()
 	doc.ID = didID
 	doc.Controller = options.Controllers

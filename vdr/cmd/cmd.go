@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"io"
 	"os"
 	"strings"
@@ -276,10 +277,7 @@ func addKeyAgreementKeyCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("invalid key ID '%s': %w", args[0], err)
 			}
-			targetDID := *kid
-			targetDID.Fragment = ""
-			targetDID.Path = ""
-			targetDID.Query = ""
+			targetDID, _ := didservice.GetDIDFromURL(args[0]) // can't fail because we already parsed the key ID
 
 			clientConfig := core.NewClientConfigForCommand(cmd)
 			client := httpClient(clientConfig)

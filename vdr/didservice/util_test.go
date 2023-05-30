@@ -70,3 +70,30 @@ func Test_ValidateServiceReference(t *testing.T) {
 		assert.ErrorContains(t, err, "endpoint URI with query parameter other than type")
 	})
 }
+
+func TestGetDIDFromURL(t *testing.T) {
+	t.Run("just it", func(t *testing.T) {
+		actual, err := GetDIDFromURL("did:nuts:abc")
+		assert.NoError(t, err)
+		assert.Equal(t, "did:nuts:abc", actual.String())
+	})
+	t.Run("with path", func(t *testing.T) {
+		actual, err := GetDIDFromURL("did:nuts:abc/serviceEndpoint")
+		assert.NoError(t, err)
+		assert.Equal(t, "did:nuts:abc", actual.String())
+	})
+	t.Run("with fragment", func(t *testing.T) {
+		actual, err := GetDIDFromURL("did:nuts:abc#key-1")
+		assert.NoError(t, err)
+		assert.Equal(t, "did:nuts:abc", actual.String())
+	})
+	t.Run("with params", func(t *testing.T) {
+		actual, err := GetDIDFromURL("did:nuts:abc?foo=bar")
+		assert.NoError(t, err)
+		assert.Equal(t, "did:nuts:abc", actual.String())
+	})
+	t.Run("invalid DID", func(t *testing.T) {
+		_, err := GetDIDFromURL("https://example.com")
+		assert.Error(t, err)
+	})
+}

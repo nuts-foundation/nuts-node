@@ -20,19 +20,26 @@ package issuer
 
 import (
 	"context"
+	crypt "crypto"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 )
 
 // ErrUnknownIssuer is returned when the given issuer is unknown.
@@ -51,13 +58,14 @@ type OIDCIssuer interface {
 	// OfferCredential sends a credential offer to the specified wallet. It derives the issuer from the credential.
 	OfferCredential(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error
 	// HandleCredentialRequest requests a credential from the given issuer.
-	HandleCredentialRequest(ctx context.Context, issuer did.DID, accessToken string) (*vc.VerifiableCredential, error)
+	HandleCredentialRequest(ctx context.Context, issuer did.DID, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
 }
 
 // NewOIDCIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewOIDCIssuer(baseURL string) OIDCIssuer {
+func NewOIDCIssuer(baseURL string, keyResolver types.KeyResolver) OIDCIssuer {
 	return &memoryIssuer{
 		baseURL:             baseURL,
+		keyResolver:         keyResolver,
 		state:               make(map[string]vc.VerifiableCredential),
 		accessTokens:        make(map[string]string),
 		mux:                 &sync.Mutex{},
@@ -66,7 +74,8 @@ func NewOIDCIssuer(baseURL string) OIDCIssuer {
 }
 
 type memoryIssuer struct {
-	baseURL string
+	baseURL     string
+	keyResolver types.KeyResolver
 	// state maps a pre-authorized code to a Verifiable Credential
 	state map[string]vc.VerifiableCredential
 	// accessToken maps an access token to a pre-authorized code
@@ -148,15 +157,13 @@ func (i *memoryIssuer) OfferCredential(ctx context.Context, credential vc.Verifi
 	return nil
 }
 
-func (i *memoryIssuer) HandleCredentialRequest(ctx context.Context, issuer did.DID, accessToken string) (*vc.VerifiableCredential, error) {
+func (i *memoryIssuer) HandleCredentialRequest(ctx context.Context, issuer did.DID, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
 	// TODO: Check if issuer is served by this instance
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	i.mux.Lock()
 	defer i.mux.Unlock()
 	// TODO: Verify requested format and credential definition
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
-	// TODO: Verify Proof-of-Possession of private key material
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2036
 	preAuthorizedCode, ok := i.accessTokens[accessToken]
 	if !ok {
 		audit.Log(ctx, log.Logger(), audit.InvalidOAuthTokenEvent).
@@ -169,6 +176,11 @@ func (i *memoryIssuer) HandleCredentialRequest(ctx context.Context, issuer did.D
 	}
 	credential, _ := i.state[preAuthorizedCode]
 	subjectDID, _ := getSubjectDID(credential)
+
+	if err := i.validateProof(request, issuer, subjectDID); err != nil {
+		return nil, err
+	}
+
 	// Important: since we (for now) create the VC even before the wallet requests it, we don't know if every VC is actually retrieved by the wallet.
 	//            This is a temporary shortcut, since changing that requires a lot of refactoring.
 	//            To make actually retrieved VC traceable, we log it to the audit log.
@@ -182,6 +194,95 @@ func (i *memoryIssuer) HandleCredentialRequest(ctx context.Context, issuer did.D
 	delete(i.accessTokens, accessToken)
 	delete(i.state, preAuthorizedCode)
 	return &credential, nil
+}
+
+// validateProof validates the proof of the credential request. Aside from checks as specified by the spec,
+// it verifies the proof signature, and whether the signer is the intended wallet.
+// See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-proof-types
+func (i *memoryIssuer) validateProof(request oidc4vci.CredentialRequest, issuer did.DID, wallet did.DID) error {
+	if request.Proof == nil {
+		return oidc4vci.Error{
+			Err:        errors.New("missing proof"),
+			Code:       oidc4vci.InvalidOrMissingProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+	if request.Proof.ProofType != oidc4vci.ProofTypeJWT {
+		return oidc4vci.Error{
+			Err:        errors.New("proof type not supported"),
+			Code:       oidc4vci.InvalidOrMissingProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+	var signingKeyID string
+	token, err := crypto.ParseJWT(request.Proof.Jwt, func(kid string) (crypt.PublicKey, error) {
+		signingKeyID = kid
+		return i.keyResolver.ResolveSigningKey(kid, nil)
+	}, jwt.WithAcceptableSkew(5*time.Second))
+	if err != nil {
+		return oidc4vci.Error{
+			Err:        err,
+			Code:       oidc4vci.InvalidOrMissingProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	// Proof must be signed by wallet to which it was offered (proof signer == offer receiver)
+	if signerDID, err := didservice.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("credential offer was signed by other DID than intended wallet: %s", signingKeyID),
+			Code:       oidc4vci.InvalidOrMissingProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	// Validate audience
+	audienceMatches := false
+	for _, aud := range token.Audience() {
+		if aud == i.getIdentifier(issuer.String()) {
+			audienceMatches = true
+			break
+		}
+	}
+	if !audienceMatches {
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("audience doesn't match credential issuer (aud=%s)", token.Audience()),
+			Code:       oidc4vci.InvalidOrMissingProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	// Validate JWT type
+	// jwt.Parse does not provide the JWS headers, we have to parse it again as JWS to access those
+	message, err := jws.ParseString(request.Proof.Jwt)
+	if err != nil {
+		// Should not fail
+		return err
+	}
+	if len(message.Signatures()) != 1 {
+		// I think this is impossible
+		return errors.New("expected exactly one signature")
+	}
+	typ := message.Signatures()[0].ProtectedHeaders().Type()
+	if typ == "" {
+		return oidc4vci.Error{
+			Err:        errors.New("missing typ header"),
+			Code:       oidc4vci.InvalidOrMissingProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+	if typ != oidc4vci.JWTTypeOpenID4VCIProof {
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("invalid typ claim (expected: %s): %s", oidc4vci.JWTTypeOpenID4VCIProof, typ),
+			Code:       oidc4vci.InvalidOrMissingProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	// TODO: Check nonce value when we've implemented safe nonce handling
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2051
+
+	return nil
 }
 
 func (i *memoryIssuer) createOffer(credential vc.VerifiableCredential, preAuthorizedCode string) oidc4vci.CredentialOffer {
@@ -209,17 +310,17 @@ func (i *memoryIssuer) createOffer(credential vc.VerifiableCredential, preAuthor
 	return offer
 }
 
-func getSubjectDID(verifiableCredential vc.VerifiableCredential) (string, error) {
+func getSubjectDID(verifiableCredential vc.VerifiableCredential) (did.DID, error) {
 	type subjectType struct {
-		ID string `json:"id"`
+		ID did.DID `json:"id"`
 	}
 	var subject []subjectType
 	err := verifiableCredential.UnmarshalCredentialSubject(&subject)
 	if err != nil {
-		return "", fmt.Errorf("unable to unmarshal credential subject: %w", err)
+		return did.DID{}, fmt.Errorf("unable to unmarshal credential subject: %w", err)
 	}
 	if len(subject) == 0 {
-		return "", errors.New("missing subject ID")
+		return did.DID{}, errors.New("missing subject ID")
 	}
 	return subject[0].ID, err
 }

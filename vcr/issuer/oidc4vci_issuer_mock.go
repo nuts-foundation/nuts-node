@@ -53,18 +53,18 @@ func (mr *MockOIDCIssuerMockRecorder) HandleAccessTokenRequest(ctx, issuer, preA
 }
 
 // HandleCredentialRequest mocks base method.
-func (m *MockOIDCIssuer) HandleCredentialRequest(ctx context.Context, issuer did.DID, accessToken string) (*vc.VerifiableCredential, error) {
+func (m *MockOIDCIssuer) HandleCredentialRequest(ctx context.Context, issuer did.DID, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandleCredentialRequest", ctx, issuer, accessToken)
+	ret := m.ctrl.Call(m, "HandleCredentialRequest", ctx, issuer, request, accessToken)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // HandleCredentialRequest indicates an expected call of HandleCredentialRequest.
-func (mr *MockOIDCIssuerMockRecorder) HandleCredentialRequest(ctx, issuer, accessToken interface{}) *gomock.Call {
+func (mr *MockOIDCIssuerMockRecorder) HandleCredentialRequest(ctx, issuer, request, accessToken interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleCredentialRequest", reflect.TypeOf((*MockOIDCIssuer)(nil).HandleCredentialRequest), ctx, issuer, accessToken)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleCredentialRequest", reflect.TypeOf((*MockOIDCIssuer)(nil).HandleCredentialRequest), ctx, issuer, request, accessToken)
 }
 
 // Metadata mocks base method.

@@ -23,8 +23,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/piprate/json-gold/ld"
 	"strings"
 
@@ -238,12 +238,11 @@ func validOperation(operation string) bool {
 }
 
 func validateNutsCredentialID(credential vc.VerifiableCredential) error {
-	var idWithoutFragment ssi.URI
-	if credential.ID != nil {
-		idWithoutFragment = *credential.ID
-		idWithoutFragment.Fragment = ""
+	id, err := didservice.GetDIDFromURL(credential.ID.String())
+	if err != nil {
+		return err
 	}
-	if idWithoutFragment.String() != credential.Issuer.String() {
+	if id.String() != credential.Issuer.String() {
 		return failure("credential ID must start with issuer")
 	}
 	return nil

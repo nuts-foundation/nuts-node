@@ -43,6 +43,20 @@ func IsServiceReference(endpoint string) bool {
 	return strings.HasPrefix(endpoint, "did:")
 }
 
+// GetDIDFromURL returns the DID from the given URL, stripping any query parameters, path segments and fragments.
+func GetDIDFromURL(didURL string) (did.DID, error) {
+	parsed, err := did.ParseDIDURL(didURL)
+	if err != nil {
+		return did.DID{}, err
+	}
+	parsed.Fragment = ""
+	parsed.Query = ""
+	parsed.Path = ""
+	parsed.Params = nil
+	parsed.PathSegments = nil
+	return *parsed, nil
+}
+
 // DIDServiceQueryError denies the query based on validation constraints.
 type DIDServiceQueryError struct {
 	Err error // cause
