@@ -344,6 +344,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			// organization
 			keyOrg := crypto.NewTestKey("did:nuts:org#keyOrg-1")
 			test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(keyOrg, nil).Times(2)
+			test.mockStore.EXPECT().Resolve(didDocVendor.ID, nil).Return(didDocVendor, &types.DocumentMetadata{}, nil)
 			didDocOrg, keyOrg, err := test.vdr.Create(test.ctx, types.DIDCreationOptions{
 				Controllers: []did.DID{didDocVendor.ID},
 				KeyFlags:    types.AssertionMethodUsage | types.KeyAgreementUsage,
