@@ -251,7 +251,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
-		mocks.Gossip.EXPECT().GossipReceived(connection.ID(), xorPeer)
+		mocks.Gossip.EXPECT().GossipReceived(peer, xorPeer)
 		mocks.Sender.EXPECT().sendTransactionListQuery(connection, []hash.SHA256Hash{xorPeer}).Return(nil)
 
 		err := p.handleGossip(ctx, connection, envelope)
@@ -263,7 +263,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockPeer+1)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
-		mocks.Gossip.EXPECT().GossipReceived(connection.ID(), xorPeer)
+		mocks.Gossip.EXPECT().GossipReceived(peer, xorPeer)
 		mocks.Sender.EXPECT().sendTransactionListQuery(connection, []hash.SHA256Hash{xorPeer}).Return(nil)
 
 		err := p.handleGossip(ctx, connection, envelope)
@@ -277,7 +277,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockPeer+1)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(true, nil)
-		mocks.Gossip.EXPECT().GossipReceived(connection.ID(), xorPeer)
+		mocks.Gossip.EXPECT().GossipReceived(peer, xorPeer)
 		mocks.Sender.EXPECT().sendState(connection, xorLocal, clockPeer+1)
 
 		err := p.handleGossip(ctx, connection, envelope)
@@ -290,7 +290,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
-		mocks.Gossip.EXPECT().GossipReceived(connection.ID(), xorPeer)
+		mocks.Gossip.EXPECT().GossipReceived(peer, xorPeer)
 		mocks.Sender.EXPECT().sendState(connection, xorLocal, clockLocal).Return(nil)
 
 		err := p.handleGossip(ctx, connection, envelope)
@@ -316,7 +316,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorLocal).Return(true, nil)
-		mocks.Gossip.EXPECT().GossipReceived(connection.ID(), xorLocal)
+		mocks.Gossip.EXPECT().GossipReceived(peer, xorLocal)
 		mocks.Sender.EXPECT().sendState(connection, xorLocal, clockLocal).Return(nil)
 
 		err := p.handleGossip(ctx, connection, envelope)
@@ -332,7 +332,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
-		mocks.Gossip.EXPECT().GossipReceived(connection.ID(), xorPeer)
+		mocks.Gossip.EXPECT().GossipReceived(peer, xorPeer)
 
 		mocks.Sender.EXPECT().sendTransactionListQuery(connection, []hash.SHA256Hash{xorPeer}).Return(errors.New("custom"))
 
@@ -345,7 +345,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, errors.New("custom"))
-		mocks.Gossip.EXPECT().GossipReceived(connection.ID(), xorPeer)
+		mocks.Gossip.EXPECT().GossipReceived(peer, xorPeer)
 
 		err := p.handleGossip(ctx, connection, envelope)
 

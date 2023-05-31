@@ -36,7 +36,7 @@ const maxQueueSize = 100
 // The func should send a specific network message within its body.
 // If it's successful it'll return true. This will empty the queue for that peer.
 // All messageSenders must succeed in order for the queue to be emptied.
-type SenderFunc func(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool
+type SenderFunc func(peer transport.Peer, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool
 
 // Manager handles changes in connections, new transactions and updates from other Gossip messages.
 // It keeps track of transaction hashes that still have to be send to a peer in a queue.
@@ -46,7 +46,7 @@ type SenderFunc func(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA25
 type Manager interface {
 	// GossipReceived is to be called each time a peer sends a Gossip message.
 	// All hashes should be removed from the peer's queue and added to the log.
-	GossipReceived(id transport.PeerID, refs ...hash.SHA256Hash)
+	GossipReceived(peer transport.Peer, refs ...hash.SHA256Hash)
 	// PeerConnected is to be called when a new peer connects. A new gossip queue will then be created for this peer.
 	// The initial XOR and clock values must be supplied, because they're only updated when a transaction is added to the DAG.
 	PeerConnected(peer transport.Peer, xor hash.SHA256Hash, clock uint32)
@@ -68,7 +68,7 @@ type manager struct {
 	mutex sync.RWMutex
 	// messageSenders contains all registered functions that should send network messages
 	messageSenders []SenderFunc
-	// peers maps peerID to peerQueue
+	// peers maps peer.Key to peerQueue
 	peers map[string]*peerQueue
 }
 
@@ -82,14 +82,14 @@ func NewManager(ctx context.Context, interval time.Duration) Manager {
 	}
 }
 
-func (m *manager) GossipReceived(id transport.PeerID, refs ...hash.SHA256Hash) {
+func (m *manager) GossipReceived(transportPeer transport.Peer, refs ...hash.SHA256Hash) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	peer, ok := m.peers[string(id)]
+	peer, ok := m.peers[transportPeer.Key()]
 	if !ok {
 		log.Logger().
-			WithField(core.LogFieldPeerID, id).
+			WithField(core.LogFieldPeerID, transportPeer.ID).
 			Error("Received gossip from peer, but gossip administration is missing")
 		return
 	}
@@ -102,14 +102,14 @@ func (m *manager) PeerConnected(transportPeer transport.Peer, xor hash.SHA256Has
 	defer m.mutex.Unlock()
 
 	// ignore adding a peer if it already exists
-	if _, ok := m.peers[string(transportPeer.ID)]; ok {
+	if _, ok := m.peers[transportPeer.Key()]; ok {
 		return
 	}
 
 	pq := newPeerQueue()
 	pq.clock = clock
 	pq.xor = xor
-	m.peers[string(transportPeer.ID)] = &pq
+	m.peers[transportPeer.Key()] = &pq
 
 	// make a subContext
 
@@ -125,19 +125,19 @@ func (m *manager) PeerConnected(transportPeer transport.Peer, xor hash.SHA256Has
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				callSenders(transportPeer.ID, &pq, senders)
+				callSenders(transportPeer, &pq, senders)
 			}
 		}
 	}()
 }
 
-func callSenders(id transport.PeerID, peer *peerQueue, senders []SenderFunc) {
+func callSenders(transportPeer transport.Peer, peer *peerQueue, senders []SenderFunc) {
 	peer.do(func() {
 		refs, xor, clock := peer.enqueued()
 
 		shouldClear := true
 		for _, sender := range senders {
-			if !sender(id, refs, xor, clock) {
+			if !sender(transportPeer, refs, xor, clock) {
 				shouldClear = false
 			}
 		}
@@ -152,7 +152,7 @@ func (m *manager) PeerDisconnected(transportPeer transport.Peer) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	peer, ok := m.peers[string(transportPeer.ID)]
+	peer, ok := m.peers[transportPeer.Key()]
 
 	// ignore removing a peer if it doesn't exists
 	if !ok {
@@ -162,7 +162,7 @@ func (m *manager) PeerDisconnected(transportPeer transport.Peer) {
 	// unregister ticker
 	peer.unregister()
 
-	delete(m.peers, string(transportPeer.ID))
+	delete(m.peers, transportPeer.Key())
 }
 
 func (m *manager) RegisterSender(f SenderFunc) {

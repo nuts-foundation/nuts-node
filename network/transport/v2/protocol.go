@@ -235,8 +235,8 @@ func (p *protocol) gossipTransaction(event dag.Event) (bool, error) {
 	return true, nil
 }
 
-func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
+func (p *protocol) sendGossip(transportPeer transport.Peer, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeer(transportPeer))
 	var err error
 
 	if conn == nil {
@@ -248,7 +248,7 @@ func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor h
 	if err != nil {
 		log.Logger().
 			WithError(err).
-			WithField(core.LogFieldPeerID, id.String()).
+			WithField(core.LogFieldPeerID, transportPeer.ID.String()).
 			Error("failed to send Gossip message")
 		return false
 	}

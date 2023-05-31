@@ -36,9 +36,9 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 }
 
 // GossipReceived mocks base method.
-func (m *MockManager) GossipReceived(id transport.PeerID, refs ...hash.SHA256Hash) {
+func (m *MockManager) GossipReceived(peer transport.Peer, refs ...hash.SHA256Hash) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{id}
+	varargs := []interface{}{peer}
 	for _, a := range refs {
 		varargs = append(varargs, a)
 	}
@@ -46,9 +46,9 @@ func (m *MockManager) GossipReceived(id transport.PeerID, refs ...hash.SHA256Has
 }
 
 // GossipReceived indicates an expected call of GossipReceived.
-func (mr *MockManagerMockRecorder) GossipReceived(id interface{}, refs ...interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) GossipReceived(peer interface{}, refs ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{id}, refs...)
+	varargs := append([]interface{}{peer}, refs...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GossipReceived", reflect.TypeOf((*MockManager)(nil).GossipReceived), varargs...)
 }
 

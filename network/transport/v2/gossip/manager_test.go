@@ -21,6 +21,7 @@ package gossip
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 	"time"
@@ -44,14 +45,15 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestManager_PeerConnected(t *testing.T) {
+	peer := transport.Peer{ID: "1"}
 	t.Run("adds a peer to the administration", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
 
-		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.SHA256Sum([]byte{1, 2, 3}), 5)
+		gMan.PeerConnected(peer, hash.SHA256Sum([]byte{1, 2, 3}), 5)
 
-		assert.NotNil(t, gMan.peers["1"])
-		assert.Equal(t, uint32(5), gMan.peers["1"].clock)
-		assert.Equal(t, hash.SHA256Sum([]byte{1, 2, 3}), gMan.peers["1"].xor)
+		require.NotNil(t, gMan.peers[peer.Key()])
+		assert.Equal(t, uint32(5), gMan.peers[peer.Key()].clock)
+		assert.Equal(t, hash.SHA256Sum([]byte{1, 2, 3}), gMan.peers[peer.Key()].xor)
 	})
 
 	t.Run("skips existing peers", func(t *testing.T) {
@@ -60,8 +62,8 @@ func TestManager_PeerConnected(t *testing.T) {
 		gMan.TransactionRegistered(hash.EmptyHash(), hash.EmptyHash(), 5)
 
 		// doesn't influence queue
-		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.EmptyHash(), 5)
-		pq := gMan.peers["1"]
+		gMan.PeerConnected(peer, hash.EmptyHash(), 5)
+		pq := gMan.peers[peer.Key()]
 
 		assert.Equal(t, 1, pq.queue.Len())
 	})
@@ -82,11 +84,12 @@ func TestManager_PeerDisconnected(t *testing.T) {
 	t.Run("ignores unknown peers", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
 		peer := transport.Peer{ID: "1"}
+		peer2 := transport.Peer{ID: "2"}
 		gMan.PeerConnected(peer, hash.EmptyHash(), 5)
 
-		gMan.PeerDisconnected(transport.Peer{ID: "2"})
-		_, present1 := gMan.peers["1"]
-		_, present2 := gMan.peers["2"]
+		gMan.PeerDisconnected(peer2)
+		_, present1 := gMan.peers[peer.Key()]
+		_, present2 := gMan.peers[peer2.Key()]
 
 		assert.True(t, present1)
 		assert.False(t, present2)
@@ -99,12 +102,13 @@ func TestManager_PeerDisconnected(t *testing.T) {
 		gMan := giveMeAgMan(t)
 		gMan.interval = time.Millisecond
 		peer := transport.Peer{ID: "1"}
-		gMan.peers["2"] = gMan.peers["1"]
+		peer2 := transport.Peer{ID: "2"}
+		gMan.peers[peer2.Key()] = gMan.peers[peer.Key()]
 
 		once := sync.Once{}
 		wg := sync.WaitGroup{}
 		wg.Add(1)
-		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
+		gMan.RegisterSender(func(peer transport.Peer, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
 			once.Do(func() {
 				wg.Done()
 			})
@@ -119,50 +123,54 @@ func TestManager_PeerDisconnected(t *testing.T) {
 }
 
 func TestManager_GossipReceived(t *testing.T) {
-	t.Run("ignores received gossip when administration is missing", func(t *testing.T) {
+	peer := transport.Peer{ID: "1"}
+	t.Run("ignores received g"+
+		"ossip when administration is missing", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
 
-		gMan.GossipReceived("1", hash.EmptyHash())
+		gMan.GossipReceived(peer, hash.EmptyHash())
 
 		// see? nothing exploded!
 	})
 
 	t.Run("updates the log of the peerQueue", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
-		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.EmptyHash(), 5)
+		gMan.PeerConnected(peer, hash.EmptyHash(), 5)
 
-		gMan.GossipReceived("1", hash.EmptyHash())
+		gMan.GossipReceived(peer, hash.EmptyHash())
 
-		pq := gMan.peers["1"]
+		pq := gMan.peers[peer.Key()]
 		assert.Equal(t, 1, pq.log.Len())
 	})
 }
 
 func TestManager_callSenders(t *testing.T) {
+	peer := transport.Peer{ID: "1"}
+
 	t.Run("ok - called and peerQueue cleared", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
 		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.EmptyHash(), 5)
-		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
+		gMan.RegisterSender(func(peer transport.Peer, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
 			return true
 		})
 		gMan.TransactionRegistered(hash.EmptyHash(), hash.EmptyHash(), 5)
 
-		pq := gMan.peers["1"]
-		callSenders("1", pq, gMan.messageSenders)
+		pq := gMan.peers[peer.Key()]
+		callSenders(peer, pq, gMan.messageSenders)
 
 		assert.Equal(t, 0, pq.queue.Len())
 	})
 
 	t.Run("not ok - called and peerQueue not cleared", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
-		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.EmptyHash(), 5)
-		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
+		gMan.PeerConnected(peer, hash.EmptyHash(), 5)
+		gMan.RegisterSender(func(peer transport.Peer, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
 			return false
 		})
 		gMan.TransactionRegistered(hash.EmptyHash(), hash.EmptyHash(), 5)
 
-		pq := gMan.peers["1"]
-		callSenders("1", pq, gMan.messageSenders)
+		pq := gMan.peers[peer.Key()]
+		callSenders(peer, pq, gMan.messageSenders)
 
 		assert.Equal(t, 1, pq.queue.Len())
 	})
