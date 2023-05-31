@@ -92,6 +92,15 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 		}
 	}
 
+	preAuthorizedCode := getPreAuthorizedCodeFromOffer(offer)
+	if preAuthorizedCode == "" {
+		return oidc4vci.Error{
+			Err:        errors.New("couldn't find (valid) pre-authorized code grant in credential offer"),
+			Code:       oidc4vci.InvalidGrant,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
 	issuerClient, err := h.issuerClientCreator(ctx, &http.Client{}, offer.CredentialIssuer)
 	if err != nil {
 		return fmt.Errorf("unable to create issuer client: %w", err)
@@ -100,9 +109,7 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 	// TODO: store offer and perform these requests async
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2040
 	accessTokenResponse, err := issuerClient.RequestAccessToken(oidc4vci.PreAuthorizedCodeGrant, map[string]string{
-		// TODO: The code below is unsafe, validate offered grants and then extract the pre-authorized code
-		//       See https://github.com/nuts-foundation/nuts-node/issues/2038
-		"pre-authorized_code": offer.Grants[0][oidc4vci.PreAuthorizedCodeGrant].(map[string]interface{})["pre-authorized_code"].(string),
+		"pre-authorized_code": preAuthorizedCode,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to request access token: %w", err)
@@ -144,6 +151,23 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 		}
 	}()
 	return nil
+}
+
+func getPreAuthorizedCodeFromOffer(offer oidc4vci.CredentialOffer) string {
+	for _, grant := range offer.Grants {
+		if _, ok := grant[oidc4vci.PreAuthorizedCodeGrant]; !ok {
+			continue
+		}
+		props, ok := grant[oidc4vci.PreAuthorizedCodeGrant].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		preAuthorizedCode, ok := props["pre-authorized_code"].(string)
+		if ok {
+			return preAuthorizedCode
+		}
+	}
+	return ""
 }
 
 func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerAPIClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
