@@ -301,21 +301,6 @@ func (mr *MockKeyResolverMockRecorder) ResolveAssertionKeyID(id interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKeyID", reflect.TypeOf((*MockKeyResolver)(nil).ResolveAssertionKeyID), id)
 }
 
-// ResolveCurrentSigningKey mocks base method.
-func (m *MockKeyResolver) ResolveCurrentSigningKey(keyID string) (crypto.PublicKey, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveCurrentSigningKey", keyID)
-	ret0, _ := ret[0].(crypto.PublicKey)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResolveCurrentSigningKey indicates an expected call of ResolveCurrentSigningKey.
-func (mr *MockKeyResolverMockRecorder) ResolveCurrentSigningKey(keyID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveCurrentSigningKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolveCurrentSigningKey), keyID)
-}
-
 // ResolveKeyAgreementKey mocks base method.
 func (m *MockKeyResolver) ResolveKeyAgreementKey(id did.DID) (crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
