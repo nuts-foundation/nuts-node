@@ -341,10 +341,10 @@ func TestDidman_UpdateCompoundService(t *testing.T) {
 }
 
 func TestDidman_DeleteService(t *testing.T) {
-	didDocStr := `{"service":[{"id":"did:nuts:123#1", "serviceEndpoint": "https://api.example.com"}]}`
-	doc := func() *did.Document {
+	didDocStr := `{"id":"did:nuts:123","service":[{"id":"did:nuts:123#1", "serviceEndpoint": "https://api.example.com", "type": "testType"}]}`
+	doc := func(didDocString string) *did.Document {
 		didDoc := &did.Document{}
-		json.Unmarshal([]byte(didDocStr), didDoc)
+		json.Unmarshal([]byte(didDocString), didDoc)
 		return didDoc
 	}
 	id, _ := did.ParseDID("did:nuts:123")
@@ -354,8 +354,7 @@ func TestDidman_DeleteService(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		var newDoc did.Document
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
-		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(didDocStr), meta, nil)
 		ctx.vdr.EXPECT().Update(ctx.audit, *id, gomock.Any()).DoAndReturn(
 			func(_ context.Context, _ interface{}, doc interface{}) error {
 				newDoc = doc.(did.Document)
@@ -370,8 +369,7 @@ func TestDidman_DeleteService(t *testing.T) {
 
 	t.Run("error - service not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
-		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(didDocStr), meta, nil)
 		nonExistingID := uri
 		nonExistingID.Fragment = "non-existent"
 
@@ -381,9 +379,11 @@ func TestDidman_DeleteService(t *testing.T) {
 	})
 
 	t.Run("error - in use", func(t *testing.T) {
+		didDocStr := `{"id":"did:nuts:123",
+			"service": [{"id":"did:nuts:123#1", "serviceEndpoint": "https://api.example.com", "type": "testType"}, 
+						{"id":"did:nuts:123#2", "serviceEndpoint": "did:nuts:123/serviceEndpoint?type=testType", "type": "refType"}]}`
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
-		ctx.store.EXPECT().Iterate(gomock.Any()).Return(ErrServiceInUse)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(didDocStr), meta, nil)
 
 		err := ctx.instance.DeleteService(ctx.audit, uri)
 
@@ -393,8 +393,7 @@ func TestDidman_DeleteService(t *testing.T) {
 	t.Run("error - update failed", func(t *testing.T) {
 		ctx := newMockContext(t)
 		returnError := errors.New("b00m!")
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
-		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
+		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(didDocStr), meta, nil)
 		ctx.vdr.EXPECT().Update(ctx.audit, *id, gomock.Any()).Return(returnError)
 
 		err := ctx.instance.DeleteService(ctx.audit, uri)
@@ -565,7 +564,6 @@ func TestDidman_DeleteEndpointsByType(t *testing.T) {
 				return nil
 			})
 		// not in use by any other document
-		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
 		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDoc, meta, nil).Times(2)
 		err := ctx.instance.DeleteEndpointsByType(ctx.audit, *id, endpointType)
 		assert.NoError(t, err)
@@ -585,7 +583,6 @@ func TestDidman_DeleteEndpointsByType(t *testing.T) {
 		}
 		didDocWithOtherService := &did.Document{ID: *id, Service: append(endpoints, otherService)}
 		// not in use by any other document
-		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
 		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDocWithOtherService, meta, nil).Times(2)
 		err := ctx.instance.DeleteEndpointsByType(ctx.audit, *id, endpointType)
 		assert.NoError(t, err)
@@ -608,9 +605,17 @@ func TestDidman_DeleteEndpointsByType(t *testing.T) {
 	})
 
 	t.Run("error - in use by other services", func(t *testing.T) {
+		endpointsWithSelfReference := []did.Service{
+			endpoints[0],
+			{
+				ID:              ssi.MustParseURI(id.String() + "#123"),
+				Type:            "refType",
+				ServiceEndpoint: didservice.MakeServiceReference(*id, endpointType),
+			},
+		}
+		didDocErrServiceInUse := &did.Document{ID: *id, Service: endpointsWithSelfReference}
 		ctx := newMockContext(t)
-		ctx.store.EXPECT().Iterate(gomock.Any()).Return(ErrServiceInUse)
-		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDoc, meta, nil).Times(2)
+		ctx.docResolver.EXPECT().Resolve(*id, gomock.Any()).Return(didDocErrServiceInUse, meta, nil).Times(2)
 		err := ctx.instance.DeleteEndpointsByType(ctx.audit, *id, endpointType)
 		assert.ErrorIs(t, err, ErrServiceInUse)
 	})
@@ -937,23 +942,33 @@ func TestGenerateIDForService(t *testing.T) {
 	assert.Equal(t, expectedID, id)
 }
 
-func TestReferencesService(t *testing.T) {
-	t.Run("false", func(t *testing.T) {
-		didDocStr := `{"service":[{"id":"did:nuts:1234#1", "serviceEndpoint": {"ref":"did:nuts:123#2"}}]}`
-		didDoc := did.Document{}
-		json.Unmarshal([]byte(didDocStr), &didDoc)
-		uri := ssi.MustParseURI("did:nuts:123#1")
+func TestReferencedService(t *testing.T) {
+	trueDID := did.MustParseDID("did:nuts:123")
+	falseDID := did.MustParseDID("did:nuts:abc")
+	serviceType := "RefType"
+	serviceRef := didservice.MakeServiceReference(trueDID, serviceType).String()
+	compoundDocStr := `{"service":[{"id":"did:nuts:123#1","serviceEndpoint":{"nested":"%s/serviceEndpoint?type=RefType"},"type":"OtherType"}]}`
+	endpointDocStr := `{"service":[{"id":"did:nuts:123#1","serviceEndpoint":"%s/serviceEndpoint?type=RefType","type":"OtherType"}]}`
+	didDoc := &did.Document{}
 
-		assert.False(t, referencesService(didDoc, uri))
+	t.Run("false - compound service", func(t *testing.T) {
+		json.Unmarshal([]byte(fmt.Sprintf(compoundDocStr, falseDID.String())), didDoc)
+		assert.False(t, referencedService(didDoc, serviceRef))
 	})
 
-	t.Run("true", func(t *testing.T) {
-		didDocStr := `{"service":[{"id":"did:nuts:1234#1", "serviceEndpoint": {"ref":"did:nuts:123#1"}}]}`
-		didDoc := did.Document{}
-		json.Unmarshal([]byte(didDocStr), &didDoc)
-		uri := ssi.MustParseURI("did:nuts:123#1")
+	t.Run("false - endpoint", func(t *testing.T) {
+		json.Unmarshal([]byte(fmt.Sprintf(endpointDocStr, falseDID.String())), didDoc)
+		assert.False(t, referencedService(didDoc, serviceRef))
+	})
 
-		assert.True(t, referencesService(didDoc, uri))
+	t.Run("true - compound service", func(t *testing.T) {
+		json.Unmarshal([]byte(fmt.Sprintf(compoundDocStr, trueDID.String())), didDoc)
+		assert.True(t, referencedService(didDoc, serviceRef))
+	})
+
+	t.Run("true - endpoint", func(t *testing.T) {
+		json.Unmarshal([]byte(fmt.Sprintf(endpointDocStr, trueDID.String())), didDoc)
+		assert.True(t, referencedService(didDoc, serviceRef))
 	})
 }
 

@@ -26,7 +26,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strings"
 	"sync"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -326,16 +325,9 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 		return types.ErrServiceNotFound
 	}
 
-	// check for existing use
-	if err = d.store.Iterate(func(itDoc did.Document, metadata types.DocumentMetadata) error {
-		// itDoc contains the iterator document
-		// doc is the document that contains the service to be deleted
-		if referencesService(itDoc, doc.ID.String(), service.Type) {
-			return ErrServiceInUse
-		}
-		return nil
-	}); err != nil {
-		return err
+	// check for existing use on this document
+	if referencedService(doc, didservice.MakeServiceReference(doc.ID, service.Type).String()) {
+		return ErrServiceInUse
 	}
 
 	// remove service
@@ -619,24 +611,27 @@ func generateIDForService(id did.DID, service did.Service) ssi.URI {
 	return d
 }
 
-func referencesService(doc did.Document, serviceDID, serviceType string) bool {
+// referencedService checks if serviceRef occurs in doc's services.
+// serviceRef is in the form: did:nuts:123/serviceEndpoint?type=oauth_prod
+func referencedService(doc *did.Document, serviceRef string) bool {
 	for _, s := range doc.Service {
-		cs := types.CompoundService{}
-		// ignore structures that can not be parsed to compound endpoints
-		if err := s.UnmarshalServiceEndpoint(&cs); err == nil {
+		switch s.ServiceEndpoint.(type) {
+		case map[string]interface{}: // compound service
+			cs := types.CompoundService{}
+			_ = s.UnmarshalServiceEndpoint(&cs)
 			for _, ref := range cs {
-				// the reference is in the form: did:nuts:123/serviceEndpoint?type=oauth_prod
-				// we need the baseDID and the serviceType
-				parts := strings.Split(ref, "/serviceEndpoint?type=")
-				if len(parts) == 2 {
-					baseDID := parts[0]
-					sType := parts[1]
-
-					if sType == serviceType && baseDID == serviceDID {
-						return true
-					}
+				if ref == serviceRef {
+					return true
 				}
 			}
+		case interface{}: // service endpoint
+			var serviceEndpoint string
+			_ = s.UnmarshalServiceEndpoint(&serviceEndpoint)
+			if serviceEndpoint == serviceRef {
+				return true
+			}
+		default: // sets are not supported
+			// Should this do anything?
 		}
 	}
 	return false
