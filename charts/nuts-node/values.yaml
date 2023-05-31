@@ -82,8 +82,18 @@ tolerations: []
 
 affinity: {}
 
+# if you want to use an existing secret for the redis password, uncomment below
+#storage:
+#  redis: # for normal redis password
+#    existingSecret: nuts-node-redis-auth
+#    existingSecretPasswordKey: redis-password
+#    sentinel: # for redis sentinel password
+#      existingSecret: nuts-node-redis-auth
+#      existingSecretPasswordKey: redis-password
+
 nuts:
   config:
+    strictmode: false
     # Everything below `nuts.config` will be placed into the `nuts.yaml` config file of the Pods
     datadir: /opt/nuts/data
     http:
@@ -98,6 +108,9 @@ nuts:
       certkeyfile: /opt/nuts/ssl/node.nuts.local.key
       enabletls: false
       grpcaddr: :5555
+    storage:
+      redis:
+        address: nuts-node-redis-master.nuts-dev.svc.cluster.local
 
   # Config for the NUTS data mount inside Kubernetes
   data:
