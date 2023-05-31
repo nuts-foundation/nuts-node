@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -193,6 +194,22 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 // Create generates a new DID Document
 func (r *VDR) Create(ctx context.Context, options types.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	log.Logger().Debug("Creating new DID Document.")
+
+	// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
+	// holder for all metadata of the controllers
+	controllerMetadata := make([]types.DocumentMetadata, len(options.Controllers))
+
+	// if any controllers have been added, check if they exist through the docResolver
+	if len(options.Controllers) > 0 {
+		for _, controller := range options.Controllers {
+			_, meta, err := r.didDocResolver.Resolve(controller, nil)
+			if err != nil {
+				return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
+			}
+			controllerMetadata = append(controllerMetadata, *meta)
+		}
+	}
+
 	doc, key, err := r.didDocCreator.Create(ctx, options)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create DID document: %w", err)
@@ -203,7 +220,13 @@ func (r *VDR) Create(ctx context.Context, options types.DIDCreationOptions) (*di
 		return nil, nil, err
 	}
 
-	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAttachKey()
+	// extract the transaction refs from the controller metadata
+	refs := make([]hash.SHA256Hash, 0)
+	for _, meta := range controllerMetadata {
+		refs = append(refs, meta.SourceTransactions...)
+	}
+
+	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
 	_, err = r.network.CreateTransaction(ctx, tx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not store DID document in network: %w", err)
