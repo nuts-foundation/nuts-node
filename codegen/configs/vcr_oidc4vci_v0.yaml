@@ -9,6 +9,7 @@ output-options:
     - OAuth2ClientMetadata
     - ProviderMetadata
     - CredentialOffer
+    - CredentialOfferResponse
     - CredentialRequest
     - CredentialResponse
     - TokenResponse

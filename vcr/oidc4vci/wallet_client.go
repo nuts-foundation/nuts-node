@@ -71,11 +71,15 @@ func (c *defaultWalletAPIClient) OfferCredential(ctx context.Context, offer Cred
 		return err
 	}
 	requestURL := c.metadata.CredentialOfferEndpoint + "?credential_offer=" + url.QueryEscape(string(offerJson))
-	err = httpGet(ctx, c.httpClient, requestURL, nil)
+	response := CredentialOfferResponse{}
+	err = httpGet(ctx, c.httpClient, requestURL, &response)
 	if err != nil {
 		return fmt.Errorf("offer credential error: %w", err)
 	}
-	return err
+	if response.Status != CredentialOfferStatusReceived {
+		return fmt.Errorf("offer credential error: unexpected status: %s", response.Status)
+	}
+	return nil
 }
 
 func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string, httpClient *http.Client) (*OAuth2ClientMetadata, error) {

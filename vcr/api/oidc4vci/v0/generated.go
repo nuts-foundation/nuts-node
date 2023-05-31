@@ -403,14 +403,13 @@ type HandleCredentialOfferResponseObject interface {
 	VisitHandleCredentialOfferResponse(w http.ResponseWriter) error
 }
 
-type HandleCredentialOffer202TextResponse string
+type HandleCredentialOffer200JSONResponse CredentialOfferResponse
 
-func (response HandleCredentialOffer202TextResponse) VisitHandleCredentialOfferResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(202)
+func (response HandleCredentialOffer200JSONResponse) VisitHandleCredentialOfferResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
 
-	_, err := w.Write([]byte(response))
-	return err
+	return json.NewEncoder(w).Encode(response)
 }
 
 type HandleCredentialOffer400JSONResponse ErrorResponse
