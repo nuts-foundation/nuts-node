@@ -108,9 +108,9 @@ nuts:
       certkeyfile: /opt/nuts/ssl/node.nuts.local.key
       enabletls: false
       grpcaddr: :5555
-    storage:
-      redis:
-        address: nuts-node-redis-master.nuts-dev.svc.cluster.local
+    #storage:
+    #  redis:
+    #    address: nuts-node-redis-master.nuts-dev.svc.cluster.local
 
   # Config for the NUTS data mount inside Kubernetes
   data:
