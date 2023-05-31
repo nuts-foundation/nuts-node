@@ -331,6 +331,41 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			assert.Equal(t, "map[owned_count:1 total_count:1]", results[0].String())
 			assert.Equal(t, "1", results[1].String())
 		})
+
+		t.Run("ok - 1 owned conflict in controlled document", func(t *testing.T) {
+			// vendor
+			test := newVDRTestCtx(t)
+			keyVendor := crypto.NewTestKey("did:nuts:vendor#keyVendor-1")
+			test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(keyVendor, nil)
+			test.mockNetwork.EXPECT().CreateTransaction(test.ctx, gomock.Any()).AnyTimes()
+			didDocVendor, keyVendor, err := test.vdr.Create(test.ctx, didservice.DefaultCreationOptions())
+			require.NoError(t, err)
+
+			// organization
+			keyOrg := crypto.NewTestKey("did:nuts:org#keyOrg-1")
+			test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(keyOrg, nil).Times(2)
+			didDocOrg, keyOrg, err := test.vdr.Create(test.ctx, types.DIDCreationOptions{
+				Controllers: []did.DID{didDocVendor.ID},
+				KeyFlags:    types.AssertionMethodUsage | types.KeyAgreementUsage,
+				SelfControl: false,
+			})
+			require.NoError(t, err)
+
+			s := didstore.NewTestStore(t)
+			client := crypto.NewMemoryCryptoInstance()
+			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyVendor.KID()))
+			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyOrg.KID()))
+			vdr := NewVDR(Config{}, client, nil, s, nil)
+
+			_ = s.Add(*didDocVendor, didstore.TestTransaction(*didDocVendor))
+			_ = s.Add(*didDocOrg, didstore.TestTransaction(*didDocOrg))
+			_ = s.Add(*didDocOrg, didstore.TestTransaction(*didDocOrg))
+			results := vdr.Diagnostics()
+
+			require.Len(t, results, 2)
+			assert.Equal(t, "map[owned_count:1 total_count:1]", results[0].String())
+			assert.Equal(t, "2", results[1].String())
+		})
 	})
 	t.Run("list", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
