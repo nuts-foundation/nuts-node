@@ -97,27 +97,39 @@ type Network struct {
 func (n *Network) CheckHealth() map[string]core.Health {
 	results := make(map[string]core.Health)
 	if n.certificate.Leaf != nil {
-		// TLS enabled, verify the configured certificate
-		_, err := n.certificate.Leaf.Verify(x509.VerifyOptions{
-			Roots:         core.NewCertPool(n.trustStore.RootCAs),
-			Intermediates: core.NewCertPool(n.trustStore.IntermediateCAs),
-		})
-		if err != nil {
-			results[healthTLS] = core.Health{
-				Status:  core.HealthStatusDown,
-				Details: err.Error(),
-			}
-		} else {
-			results[healthTLS] = core.Health{
-				Status: core.HealthStatusUp,
-			}
-		}
+		results[healthTLS] = n.checkNodeTLSHealth()
 	}
 
 	// healthAuthConfig checks that the node is correctly configured to be authenticated by others
 	results[healthAuthConfig] = n.checkNodeDIDHealth(context.TODO(), n.nodeDID)
 
 	return results
+}
+
+func (n *Network) checkNodeTLSHealth() core.Health {
+	// TLS enabled, verify the configured certificate
+	_, err := n.certificate.Leaf.Verify(x509.VerifyOptions{
+		Roots:         core.NewCertPool(n.trustStore.RootCAs),
+		Intermediates: core.NewCertPool(n.trustStore.IntermediateCAs),
+	})
+	if err != nil {
+		return core.Health{
+			Status:  core.HealthStatusDown,
+			Details: err.Error(),
+		}
+	}
+	// check if the configured certificate is revoked / denied.
+	err = n.pkiValidator.Validate([]*x509.Certificate{n.certificate.Leaf})
+	if err != nil {
+		return core.Health{
+			Status:  core.HealthStatusDown,
+			Details: err.Error(),
+		}
+	}
+
+	return core.Health{
+		Status: core.HealthStatusUp,
+	}
 }
 
 func (n *Network) Migrate() error {
@@ -178,7 +190,10 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			return err
 		}
 		// set truststore so selfTestNutsCommAddress can verify the endpoint contains a valid certificate
-		n.selfTestDialer.Config = &tls.Config{RootCAs: n.trustStore.CertPool}
+		n.selfTestDialer.Config, err = grpc.NewClientTLSConfig(&n.certificate, n.trustStore.CertPool, n.pkiValidator)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Resolve node DID
@@ -503,7 +518,7 @@ func (n *Network) checkNodeDIDHealth(ctx context.Context, nodeDID did.DID) core.
 	return core.Health{Status: core.HealthStatusUp}
 }
 
-// selfTestNutsCommAddress verifies that the NutsComm address can be reached. The NutsCommURL is expected to have scheme grpc.
+// selfTestNutsCommAddress verifies that the NutsComm address can be reached and returns a valid certificate.
 func (n *Network) selfTestNutsCommAddress(nutsComm transport.NutsCommURL) error {
 	nutsCommAddr := strings.TrimPrefix(nutsComm.String(), "grpc://")
 

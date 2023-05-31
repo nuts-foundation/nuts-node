@@ -136,7 +136,7 @@ func (cfg Config) tlsEnabled() bool {
 }
 
 func newServerTLSConfig(config Config) (*tls.Config, error) {
-	tlsConfig, err := newTLSConfig(config)
+	tlsConfig, err := baseTLSConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +148,17 @@ func newServerTLSConfig(config Config) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
+// NewClientTLSConfig returns the network grpc client tls.Config
+func NewClientTLSConfig(clientCert *tls.Certificate, trustStore *x509.CertPool, pkiValidator pki.Validator) (*tls.Config, error) {
+	return newClientTLSConfig(Config{
+		clientCert:   clientCert,
+		trustStore:   trustStore,
+		pkiValidator: pkiValidator,
+	})
+}
+
 func newClientTLSConfig(config Config) (*tls.Config, error) {
-	tlsConfig, err := newTLSConfig(config)
+	tlsConfig, err := baseTLSConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +169,7 @@ func newClientTLSConfig(config Config) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func newTLSConfig(config Config) (*tls.Config, error) {
+func baseTLSConfig(config Config) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		MinVersion: core.MinTLSVersion,
 	}
