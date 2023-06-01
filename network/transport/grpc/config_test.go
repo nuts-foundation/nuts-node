@@ -72,3 +72,18 @@ func TestNewConfig(t *testing.T) {
 		assert.Same(t, ts.CertPool, cfg.trustStore)
 	})
 }
+
+func Test_NewClientTLSConfig(t *testing.T) {
+	trustStore, _ := core.LoadTrustStore(testTruststoreFile)
+	clientCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
+	clientCert.Leaf, _ = x509.ParseCertificate(clientCert.Certificate[0])
+	pkiMock := pki.NewMockValidator(gomock.NewController(t))
+	pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
+
+	tlsCfg, err := NewClientTLSConfig(&clientCert, trustStore.CertPool, pkiMock)
+
+	require.NoError(t, err)
+	assert.Same(t, trustStore.CertPool, tlsCfg.RootCAs)
+	assert.Equal(t, clientCert, tlsCfg.Certificates[0])
+	assert.Equal(t, core.MinTLSVersion, tlsCfg.MinVersion)
+}
