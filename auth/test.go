@@ -28,10 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 )
 
-func NewTestAuthInstance(t *testing.T) *Auth {
-	return testInstance(t, TestConfig())
-}
-
 func TestConfig() Config {
 	config := DefaultConfig()
 	config.ContractValidators = []string{"dummy"}
@@ -42,8 +38,8 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
 	vcrInstance := vcr.NewTestVCRInstance(t)
 	ctrl := gomock.NewController(t)
-	pkiMock := pki.NewMockValidator(ctrl)
+	pkiMock := pki.NewMockProvider(ctrl)
 	pkiMock.EXPECT().AddTruststore(gomock.Any()).AnyTimes()
-	pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).AnyTimes()
+	pkiMock.EXPECT().CreateClientTLSConfig(gomock.Any()).AnyTimes()
 	return NewAuthInstance(cfg, didstore.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil, pkiMock)
 }

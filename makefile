@@ -32,7 +32,7 @@ gen-mocks:
 	mockgen -destination=network/transport/grpc/interface_mock.go -package=grpc -source=network/transport/grpc/interface.go
 	mockgen -destination=network/transport/v2/senders_mock.go -package=v2 -source=network/transport/v2/senders.go
 	mockgen -destination=network/transport/v2/gossip/mock.go -package=gossip -source=network/transport/v2/gossip/manager.go
-	mockgen -destination=pki/mock.go -package=pki -source=pki/validator.go Validator
+	mockgen -destination=pki/mock.go -package=pki -source=pki/interface.go
 	mockgen -destination=storage/mock.go -package=storage -source=storage/interface.go
 	mockgen -destination=vcr/types/mock.go -package=types -source=vcr/types/interface.go
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
@@ -75,11 +75,11 @@ gen-diagrams:
 	mv ${DIR}/docs/diagrams/export/* ${DIR}/docs/_static/images/diagrams/
 
 # requires python package rst-include. install using `pip install rst-include`
-docs:
+cli-docs:
 	go run ./docs docs
 	rst_include include README_template.rst README.rst
 
-all-docs: docs gen-diagrams
+all-docs: cli-docs gen-diagrams
 
 fix-copyright:
 	go run ./docs copyright

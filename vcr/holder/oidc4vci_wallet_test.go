@@ -41,12 +41,12 @@ var holderDID = did.MustParseDID("did:nuts:holder")
 var issuerDID = did.MustParseDID("did:nuts:issuer")
 
 func TestNewOIDCWallet(t *testing.T) {
-	w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)
+	w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5, nil)
 	assert.NotNil(t, w)
 }
 
 func Test_wallet_Metadata(t *testing.T) {
-	w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)
+	w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5, nil)
 
 	metadata := w.Metadata()
 
@@ -89,7 +89,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
 
-		w := NewOIDCWallet(holderDID, "https://holder.example.com", credentialStore, jwtSigner, keyResolver, time.Second*5).(*wallet)
+		w := NewOIDCWallet(holderDID, "https://holder.example.com", credentialStore, jwtSigner, keyResolver, time.Second*5, nil).(*wallet)
 		w.issuerClientCreator = func(_ context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error) {
 			return issuerAPIClient, nil
 		}
@@ -130,7 +130,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		}, 2*time.Second, "time-out waiting for VC to be stored")
 	})
 	t.Run("pre-authorized code grant", func(t *testing.T) {
-		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5).(*wallet)
+		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5, nil).(*wallet)
 		t.Run("no grants", func(t *testing.T) {
 			offer := oidc4vci.CredentialOffer{Credentials: emptyOfferedCredential()}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)
@@ -164,7 +164,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		})
 	})
 	t.Run("error - too many credentials in offer", func(t *testing.T) {
-		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)
+		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5, nil)
 
 		offer := oidc4vci.CredentialOffer{
 			Credentials: []map[string]interface{}{
@@ -190,7 +190,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
 	})
 	t.Run("error - no credentials in offer", func(t *testing.T) {
-		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)
+		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5, nil)
 
 		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{}).(oidc4vci.Error)
 
@@ -198,7 +198,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
 	})
 	t.Run("error - can't issuer client (metadata can't be loaded)", func(t *testing.T) {
-		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)
+		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5, nil)
 
 		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{
 			CredentialIssuer: "http://localhost:87632",
@@ -217,7 +217,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		})
 
 		assert.EqualError(t, err, "unable to create issuer client: unable to load Credential Issuer Metadata (identifier=http://localhost:87632): "+
-			"http request error (http://localhost:87632/.well-known/openid-credential-issuer): Get \"http://localhost:87632/.well-known/openid-credential-issuer\": dial tcp: address 87632: invalid port")
+			"http request error: Get \"http://localhost:87632/.well-known/openid-credential-issuer\": dial tcp: address 87632: invalid port")
 	})
 }
 

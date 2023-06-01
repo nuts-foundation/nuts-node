@@ -21,6 +21,7 @@ package vcr
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -46,11 +47,58 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestVCR_Configure(t *testing.T) {
+	t.Run("openid4vci", func(t *testing.T) {
+		t.Run("URL not configured", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
+			instance.config.OIDC4VCI.Enabled = true
+
+			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
+
+			assert.EqualError(t, err, "vcr.oidc4vci.url must be configured to enable OIDC4VCI")
+		})
+		t.Run("invalid URL", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
+			instance.config.OIDC4VCI.Enabled = true
+			instance.config.OIDC4VCI.URL = "ftp://example.com"
+
+			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
+
+			assert.EqualError(t, err, "vcr.oidc4vci.url must contain a valid URL (using http:// or https://)")
+		})
+		t.Run("HTTP allowed in non-strict mode", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			ctrl := gomock.NewController(t)
+			pkiProvider := pki.NewMockProvider(ctrl)
+			pkiProvider.EXPECT().CreateClientTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
+			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider).(*vcr)
+			instance.config.OIDC4VCI.Enabled = true
+			instance.config.OIDC4VCI.URL = "http://example.com"
+
+			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
+
+			require.NoError(t, err)
+		})
+		t.Run("HTTP not allowed non-strict mode", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
+			instance.config.OIDC4VCI.Enabled = true
+			instance.config.OIDC4VCI.URL = "http://example.com"
+
+			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
+
+			assert.EqualError(t, err, "vcr.oidc4vci.url must use HTTPS when strictmode is enabled")
+		})
+	})
+}
+
 func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory)).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
 
 		_ = instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
 		err := instance.Start()
@@ -74,6 +122,7 @@ func TestVCR_Start(t *testing.T) {
 			jsonld.NewTestJSONLDManager(t),
 			events.NewTestManager(t),
 			storage.NewTestStorageEngine(testDirectory),
+			nil,
 		).(*vcr)
 		if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 			t.Fatal(err)
@@ -121,6 +170,7 @@ func TestVCR_Diagnostics(t *testing.T) {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
+		nil,
 	).(*vcr)
 	if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 		t.Fatal(err)
