@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/spf13/pflag"
 	"strings"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
@@ -40,6 +41,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Bool("vcr.oidc4vci.url", defs.OIDC4VCI.Enabled, "Base URL for the OIDC4VCI wallet and issuer endpoints (experimental). "+
 		"These are node-to-node (/n2n) endpoints, but only the base path up until (not including) /n2n has to be configured. So typically, only a domain. "+
 		"Must be HTTPS when strict-mode is enabled.")
+	flagSet.Duration("vcr.oidc4vci.timeout", time.Second*10, "Time-out for OpenID4VCI HTTP client operations.")
 	return flagSet
 }
 

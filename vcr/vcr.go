@@ -100,7 +100,7 @@ func (c *vcr) GetOIDCIssuer() issuer.OIDCIssuer {
 
 func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
 	identifier := core.JoinURLPaths(c.baseURL, "n2n", "identity", url.PathEscape(id.String()))
-	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver, c.config.clientTimeout, c.clientTLSConfig)
+	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver, c.config.OIDC4VCI.Timeout, c.clientTLSConfig)
 }
 
 func (c *vcr) Issuer() issuer.Issuer {
@@ -120,7 +120,6 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	// store config parameters for use in Start()
 	c.config.datadir = config.Datadir
-	c.config.clientTimeout = config.HTTP.Client.Timeout
 
 	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
 	issuerBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)

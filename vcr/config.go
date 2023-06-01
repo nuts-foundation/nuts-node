@@ -29,8 +29,7 @@ type Config struct {
 	// OIDC4VCI holds the config for the OIDC4VCI credential issuer and wallet
 	OIDC4VCI OIDC4VCIConfig `koanf:"oidc4vci"`
 	// datadir holds the location the VCR files are stored
-	datadir       string
-	clientTimeout time.Duration
+	datadir string
 }
 
 // OIDC4VCIConfig holds the config for the OIDC4VCI credential issuer and wallet
@@ -39,6 +38,8 @@ type OIDC4VCIConfig struct {
 	Enabled bool `koanf:"enabled"`
 	// URL defines the base URL of the OIDC4VCI issuer and wallet
 	URL string `koanf:"url"`
+	// Timeout defines the timeout for HTTP client operations
+	Timeout time.Duration `koanf:"timeout"`
 }
 
 // DefaultConfig returns a fresh Config filled with default values

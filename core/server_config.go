@@ -24,16 +24,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"reflect"
-	"strings"
-	"time"
-
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
-	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"reflect"
+	"strings"
 )
 
 const defaultConfigFile = "nuts.yaml"
@@ -53,16 +50,15 @@ var redactedConfigKeys = []string{
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
-	Verbosity           string            `koanf:"verbosity"`
-	LoggerFormat        string            `koanf:"loggerformat"`
-	CPUProfile          string            `koanf:"cpuprofile"`
-	Strictmode          bool              `koanf:"strictmode"`
-	InternalRateLimiter bool              `koanf:"internalratelimiter"`
-	Datadir             string            `koanf:"datadir"`
-	PKI                 pkiconfig.Config  `koanf:"pki"`
-	TLS                 TLSConfig         `koanf:"tls"`
-	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
-	HTTP                HTTPConfig        `koanf:"http"`
+	Verbosity           string             `koanf:"verbosity"`
+	LoggerFormat        string             `koanf:"loggerformat"`
+	CPUProfile          string             `koanf:"cpuprofile"`
+	Strictmode          bool               `koanf:"strictmode"`
+	InternalRateLimiter bool               `koanf:"internalratelimiter"`
+	Datadir             string             `koanf:"datadir"`
+	TLS                 TLSConfig          `koanf:"tls"`
+	LegacyTLS           *NetworkTLSConfig  `koanf:"network"`
+	Auth                AuthEndpointConfig `koanf:"auth"`
 	configMap           *koanf.Koanf
 }
 
@@ -161,15 +157,11 @@ type NetworkTLSConfig struct {
 	TrustStoreFile string `koanf:"truststorefile"`
 }
 
-// HTTPConfig specifies global HTTP configuration.
-type HTTPConfig struct {
-	Client HTTPClientConfig `koanf:"client"`
-}
-
-// HTTPClientConfig defines config for HTTP clients.
-type HTTPClientConfig struct {
-	// Timeout specifies the timeout for HTTP requests.
-	Timeout time.Duration `koanf:"timeout"`
+// AuthEndpointConfig is temporarily here so VCR's OIDC4VCI can use the configured auth.publicurl as Wallet/Issuer identifier.
+// This should probably be moved to VCR config, but we need to decide whether the protocol should really be part of VCR.
+// See https://github.com/nuts-foundation/nuts-node/issues/2032
+type AuthEndpointConfig struct {
+	PublicURL string `koanf:"publicurl"`
 }
 
 // TLSOffloadingMode defines configurable modes for TLS offloading.
@@ -294,7 +286,6 @@ func FlagSet() *pflag.FlagSet {
 		"Required when 'network.enabletls' is 'true'.")
 	flagSet.String("network.truststorefile", "", "Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.maxcrlvaliditydays", 0, "Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.")
-	flagSet.Duration("http-client.timeout", time.Second*30, "Time-out for HTTP client operations")
 
 	flagSet.MarkDeprecated("tls.crl.maxvaliditydays", "CRLs can no longer be accepted after the time in NextUpdate has past")
 	flagSet.MarkDeprecated("network.certfile", "use 'tls.certfile' instead")
