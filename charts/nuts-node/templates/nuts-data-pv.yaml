@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: nuts-data-pv
+  name: {{ .Release.Namespace }}-{{ .Release.Name }}-data-pv
   labels:
     type: local
   annotations:
@@ -21,7 +21,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nuts-data-pvc
+  name: {{ .Release.Namespace }}-{{ .Release.Name }}-data-pvc
   annotations:
     "helm.sh/resource-policy": keep
 spec:
