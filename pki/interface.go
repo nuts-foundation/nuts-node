@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package pki
 
 import (
@@ -35,6 +53,6 @@ type Validator interface {
 // Provider is an interface for providing PKI services (e.g. TLS configuration, certificate validation).
 type Provider interface {
 	Validator
-	// CreateTLSConfig creates a tls.Config for outbound and inbound connections. It returns nil (and no error) if TLS is disabled.
+	// CreateTLSConfig creates a tls.Config for outbound connections. It returns nil (and no error) if TLS is disabled.
 	CreateTLSConfig(cfg core.TLSConfig) (*tls.Config, error)
 }

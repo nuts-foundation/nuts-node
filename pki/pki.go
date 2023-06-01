@@ -76,18 +76,22 @@ func (p *PKI) Shutdown() error {
 	return nil
 }
 
-// CreateTLSConfig creates a tls.Config based on the given core.TLSConfig for outbound and inbound connections to other Nuts nodes.
+// CreateTLSConfig creates a tls.Config based on the given core.TLSConfig for outbound connections to other Nuts nodes.
 // It registers the CA certificates in the trust store in the validator which will start fetching their CRLs.
 // It finally registers a VerifyPeerCertificateFunc in the tls.Config which will validate the peer certificate against the validator.
 // If TLS is not enabled, it returns nil (and no error).
 func (p *PKI) CreateTLSConfig(cfg core.TLSConfig) (*tls.Config, error) {
-	tlsConfig, err := cfg.Load()
+	tlsConfig, trustStore, err := cfg.Load()
 	if err != nil {
 		return nil, err
 	}
 	if tlsConfig == nil {
 		// TLS is not enabled
 		return nil, nil
+	}
+	err = p.AddTruststore(trustStore.Certificates())
+	if err != nil {
+		return nil, err
 	}
 	_ = p.SetVerifyPeerCertificateFunc(tlsConfig) // no error can occur
 	return tlsConfig, nil

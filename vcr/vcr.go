@@ -162,7 +162,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity"), c.clientTLSConfig, c.keyResolver)
+		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity"), c.clientTLSConfig, c.config.OIDC4VCI.Timeout, c.keyResolver)
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)

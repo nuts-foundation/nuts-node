@@ -41,7 +41,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("vcr.oidc4vci.url", defs.OIDC4VCI.URL, "Base URL for the OIDC4VCI wallet and issuer endpoints, which ends up in the OAuth2 metadata. "+
 		"These are node-to-node (/n2n) endpoints, but only the base path up until (not including) /n2n has to be configured. So typically, only a domain. "+
 		"Must be HTTPS when strict-mode is enabled.")
-	flagSet.Duration("vcr.oidc4vci.timeout", time.Second*10, "Time-out for OpenID4VCI HTTP client operations.")
+	flagSet.Duration("vcr.oidc4vci.timeout", time.Second*30, "Time-out for OpenID4VCI HTTP client operations.")
 	return flagSet
 }
 

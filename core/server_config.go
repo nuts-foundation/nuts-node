@@ -121,18 +121,18 @@ func (t TLSConfig) LoadTrustStore() (*TrustStore, error) {
 }
 
 // Load creates tls.Config from the given configuration. If TLS is disabled it returns nil.
-func (t TLSConfig) Load() (*tls.Config, error) {
+func (t TLSConfig) Load() (*tls.Config, *TrustStore, error) {
 	if !t.Enabled() {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	certificate, err := t.LoadCertificate()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	trustStore, err := t.LoadTrustStore()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	config := &tls.Config{
 		MinVersion:   MinTLSVersion,
@@ -140,7 +140,7 @@ func (t TLSConfig) Load() (*tls.Config, error) {
 		RootCAs:      trustStore.CertPool,
 		ClientCAs:    trustStore.CertPool,
 	}
-	return config, nil
+	return config, trustStore, nil
 }
 
 // NetworkTLSConfig is temporarily here to support having the network engine's TLS config available to both the network and auth engine.

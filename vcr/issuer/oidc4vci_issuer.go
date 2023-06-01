@@ -63,7 +63,7 @@ type OIDCIssuer interface {
 }
 
 // NewOIDCIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewOIDCIssuer(baseURL string, clientTLSConfig *tls.Config, keyResolver types.KeyResolver) OIDCIssuer {
+func NewOIDCIssuer(baseURL string, clientTLSConfig *tls.Config, clientTimeout time.Duration, keyResolver types.KeyResolver) OIDCIssuer {
 	return &memoryIssuer{
 		baseURL:             baseURL,
 		keyResolver:         keyResolver,
@@ -71,6 +71,7 @@ func NewOIDCIssuer(baseURL string, clientTLSConfig *tls.Config, keyResolver type
 		accessTokens:        make(map[string]string),
 		mux:                 &sync.Mutex{},
 		walletClientCreator: oidc4vci.NewWalletAPIClient,
+		clientTimeout:       clientTimeout,
 		clientTLSConfig:     clientTLSConfig,
 	}
 }
@@ -85,6 +86,7 @@ type memoryIssuer struct {
 	mux                 *sync.Mutex
 	walletClientCreator func(ctx context.Context, httpClient *http.Client, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
 	clientTLSConfig     *tls.Config
+	clientTimeout       time.Duration
 }
 
 func (i *memoryIssuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error) {
@@ -147,6 +149,7 @@ func (i *memoryIssuer) OfferCredential(ctx context.Context, credential vc.Verifi
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
 	httpTransport.TLSClientConfig = i.clientTLSConfig
 	httpClient := &http.Client{
+		Timeout:   i.clientTimeout,
 		Transport: httpTransport,
 	}
 	client, err := i.walletClientCreator(ctx, httpClient, clientMetadataURL)

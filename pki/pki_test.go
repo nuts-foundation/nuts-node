@@ -175,6 +175,9 @@ func TestPKI_CreateTLSConfig(t *testing.T) {
 		assert.Equal(t, core.MinTLSVersion, tlsConfig.MinVersion)
 		assert.NotEmpty(t, tlsConfig.Certificates)
 		assert.NotNil(t, tlsConfig.RootCAs)
+		// Assert the certificate in truststore.pem was loaded into the truststore
+		_, ok := e.truststore.Load("CN=Intermediate A CA")
+		assert.True(t, ok)
 	})
 	t.Run("TLS disabled", func(t *testing.T) {
 		e := New()

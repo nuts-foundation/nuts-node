@@ -108,6 +108,7 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
 	httpTransport.TLSClientConfig = h.clientTLSConfig
 	httpClient := &http.Client{
+		Timeout:   h.clientTimeout,
 		Transport: httpTransport,
 	}
 	issuerClient, err := h.issuerClientCreator(ctx, httpClient, offer.CredentialIssuer)
