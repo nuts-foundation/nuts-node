@@ -14,8 +14,8 @@ github.com/alexandrevicenzi/go-sse v1.6.0 h1:3KvOzpuY7UrbqZgAtOEmub9/V5ykr7Myudw
 github.com/alexandrevicenzi/go-sse v1.6.0/go.mod h1:jdrNAhMgVqP7OfcUuM8eJx0sOY17wc+girs5utpFZUU=
 github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a h1:HbKu58rmZpUGpz5+4FfNmIU+FmZg2P3Xaj2v2bfNWmk=
 github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a/go.mod h1:SGnFV6hVsYE877CKEZ6tDNTjaSXYUk6QqoIK6PrAtcc=
-github.com/alicebob/miniredis/v2 v2.30.2 h1:lc1UAUT9ZA7h4srlfBmBt2aorm5Yftk9nBjxz7EyY9I=
-github.com/alicebob/miniredis/v2 v2.30.2/go.mod h1:b25qWj4fCEsBeAAR2mlb0ufImGC6uH3VlUfb/HS5zKg=
+github.com/alicebob/miniredis/v2 v2.30.3 h1:hrqDB4cHFSHQf4gO3xu6YKQg8PqJpNjLYsQAFYHstqw=
+github.com/alicebob/miniredis/v2 v2.30.3/go.mod h1:b25qWj4fCEsBeAAR2mlb0ufImGC6uH3VlUfb/HS5zKg=
 github.com/alvaroloes/enumer v1.1.2/go.mod h1:FxrjvuXoDAx9isTJrv4c+T410zFi0DtXIT0m65DJ+Wo=
 github.com/andybalholm/cascadia v1.1.0/go.mod h1:GsXiBklL0woXo1j/WYWtSYYC4ouU9PqHO0sqidkEA4Y=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
