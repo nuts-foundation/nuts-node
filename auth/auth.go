@@ -131,7 +131,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	var tlsConfig *tls.Config
 	if tlsEnabled {
 		var err error
-		auth.crlValidator, tlsConfig, err = pki.CreateTLSConfig(config.TLS)
+		auth.crlValidator, tlsConfig, err = pki.CreateClientTLSConfig(config.TLS)
 		if err != nil {
 			return err
 		}

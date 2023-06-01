@@ -24,9 +24,9 @@ import (
 	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 )
 
-// CreateTLSConfig creates a tls.Config and Validator based on the given core.TLSConfig.
+// CreateClientTLSConfig creates a tls.Config and Validator based on the given core.TLSConfig for outbound connections to other Nuts nodes.
 // The Validator still needs to be started before use.
-func CreateTLSConfig(cfg core.TLSConfig) (Validator, *tls.Config, error) {
+func CreateClientTLSConfig(cfg core.TLSConfig) (Validator, *tls.Config, error) {
 	clientCertificate, err := cfg.LoadCertificate()
 	if err != nil {
 		return nil, nil, err

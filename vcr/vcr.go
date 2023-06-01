@@ -159,7 +159,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		var tlsConfig *tls.Config
 		if config.TLS.Enabled() {
 			var err error
-			c.crlValidator, c.clientTLSConfig, err = pki.CreateTLSConfig(config.TLS)
+			c.crlValidator, c.clientTLSConfig, err = pki.CreateClientTLSConfig(config.TLS)
 			if err != nil {
 				return err
 			}

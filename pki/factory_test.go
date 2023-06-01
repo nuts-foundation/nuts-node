@@ -31,7 +31,7 @@ func TestCreateTLSConfig(t *testing.T) {
 	cfg.CertFile = "test/A-valid.pem"
 	cfg.CertKeyFile = "test/A-valid.pem"
 
-	validator, tlsConfig, err := CreateTLSConfig(cfg)
+	validator, tlsConfig, err := CreateClientTLSConfig(cfg)
 
 	require.NoError(t, err)
 	assert.NotNil(t, validator)
