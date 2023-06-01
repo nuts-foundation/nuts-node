@@ -29,7 +29,7 @@ spec:
             secretName: nuts-ssl-secret
         - name: nuts-data-pv
           persistentVolumeClaim:
-            claimName: nuts-data-pvc
+            claimName: {{ .Release.Namespace }}-{{ .Release.Name }}-data-pvc
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -46,6 +46,26 @@ spec:
           env:
             - name: NUTS_CONFIGFILE
               value: "/opt/nuts/nuts.yaml"
+        {{- if .Values.storage}}
+          {{- if .Values.storage.redis }}
+            {{- if .Values.storage.redis.existingSecret }}
+            - name: NUTS_STORAGE_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "redis.secretName" . }}
+                  key: {{ template "redis.secretPasswordKey" . }}
+            {{- end }}
+          {{- if .Values.storage.redis.sentinel}}
+            {{- if .Values.storage.redis.sentinel.existingSecret }}
+            - name: NUTS_STORAGE_REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "redis.sentinel.secretName" . }}
+                  key: {{ template "redis.sentinel.secretPasswordKey" . }}
+            {{- end }}
+          {{- end  }}
+          {{- end }}
+        {{- end }}
           volumeMounts:
             - name: nuts-config
               mountPath: /opt/nuts/nuts.yaml
