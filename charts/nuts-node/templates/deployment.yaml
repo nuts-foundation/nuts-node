@@ -29,7 +29,7 @@ spec:
             secretName: nuts-ssl-secret
         - name: nuts-data-pv
           persistentVolumeClaim:
-            claimName: nuts-data-pvc
+            claimName: {{ .Release.Namespace }}-{{ .Release.Name }}-data-pvc
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
