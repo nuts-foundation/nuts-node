@@ -116,9 +116,9 @@ func (mr *MockProviderMockRecorder) AddTruststore(chain interface{}) *gomock.Cal
 }
 
 // CreateClientTLSConfig mocks base method.
-func (m *MockProvider) CreateClientTLSConfig(cfg core.TLSConfig) (*tls.Config, error) {
+func (m *MockProvider) CreateTLSConfig(cfg core.TLSConfig) (*tls.Config, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateClientTLSConfig", cfg)
+	ret := m.ctrl.Call(m, "CreateTLSConfig", cfg)
 	ret0, _ := ret[0].(*tls.Config)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -127,7 +127,7 @@ func (m *MockProvider) CreateClientTLSConfig(cfg core.TLSConfig) (*tls.Config, e
 // CreateClientTLSConfig indicates an expected call of CreateClientTLSConfig.
 func (mr *MockProviderMockRecorder) CreateClientTLSConfig(cfg interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateClientTLSConfig", reflect.TypeOf((*MockProvider)(nil).CreateClientTLSConfig), cfg)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTLSConfig", reflect.TypeOf((*MockProvider)(nil).CreateTLSConfig), cfg)
 }
 
 // SetVerifyPeerCertificateFunc mocks base method.

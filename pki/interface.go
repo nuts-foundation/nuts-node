@@ -35,6 +35,6 @@ type Validator interface {
 // Provider is an interface for providing PKI services (e.g. TLS configuration, certificate validation).
 type Provider interface {
 	Validator
-	// CreateClientTLSConfig creates a tls.Config for outbound connections.
-	CreateClientTLSConfig(cfg core.TLSConfig) (*tls.Config, error)
+	// CreateTLSConfig creates a tls.Config for outbound and inbound connections. It returns nil (and no error) if TLS is disabled.
+	CreateTLSConfig(cfg core.TLSConfig) (*tls.Config, error)
 }

@@ -158,20 +158,30 @@ func TestPKI_CheckHealth(t *testing.T) {
 	})
 }
 
-func TestPKI_CreateClientTLSConfig(t *testing.T) {
-	e := New()
-	require.NoError(t, e.Configure(core.ServerConfig{}))
-	cfg := core.NewServerConfig().TLS
-	cfg.TrustStoreFile = "test/truststore.pem"
-	cfg.CertFile = "test/A-valid.pem"
-	cfg.CertKeyFile = "test/A-valid.pem"
+func TestPKI_CreateTLSConfig(t *testing.T) {
+	t.Run("TLS enabled", func(t *testing.T) {
+		e := New()
+		require.NoError(t, e.Configure(core.ServerConfig{}))
+		cfg := core.NewServerConfig().TLS
+		cfg.TrustStoreFile = "test/truststore.pem"
+		cfg.CertFile = "test/A-valid.pem"
+		cfg.CertKeyFile = "test/A-valid.pem"
 
-	tlsConfig, err := e.CreateClientTLSConfig(cfg)
+		tlsConfig, err := e.CreateTLSConfig(cfg)
 
-	require.NoError(t, err)
-	require.NotNil(t, tlsConfig)
-	assert.NotNil(t, tlsConfig.VerifyPeerCertificate)
-	assert.Equal(t, core.MinTLSVersion, tlsConfig.MinVersion)
-	assert.NotEmpty(t, tlsConfig.Certificates)
-	assert.NotNil(t, tlsConfig.RootCAs)
+		require.NoError(t, err)
+		require.NotNil(t, tlsConfig)
+		assert.NotNil(t, tlsConfig.VerifyPeerCertificate)
+		assert.Equal(t, core.MinTLSVersion, tlsConfig.MinVersion)
+		assert.NotEmpty(t, tlsConfig.Certificates)
+		assert.NotNil(t, tlsConfig.RootCAs)
+	})
+	t.Run("TLS disabled", func(t *testing.T) {
+		e := New()
+		require.NoError(t, e.Configure(core.ServerConfig{}))
+		tlsConfig, err := e.CreateTLSConfig(core.NewServerConfig().TLS)
+
+		require.NoError(t, err)
+		require.Nil(t, tlsConfig)
+	})
 }

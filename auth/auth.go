@@ -19,7 +19,6 @@
 package auth
 
 import (
-	"crypto/tls"
 	"errors"
 	"path"
 	"time"
@@ -128,13 +127,9 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return errors.New("in strictmode TLS must be enabled")
 	}
 
-	var tlsConfig *tls.Config
-	if tlsEnabled {
-		var err error
-		tlsConfig, err = auth.pkiProvider.CreateClientTLSConfig(config.TLS)
-		if err != nil {
-			return err
-		}
+	tlsConfig, err := auth.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
+	if err != nil {
+		return err
 	}
 
 	if err := auth.contractNotary.Configure(); err != nil {

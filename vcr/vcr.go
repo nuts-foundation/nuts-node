@@ -157,15 +157,12 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			return errors.New("vcr.oidc4vci.url must contain a valid URL (using http:// or https://)")
 		}
 
-		var tlsConfig *tls.Config
-		if config.TLS.Enabled() {
-			c.clientTLSConfig, err = c.pkiProvider.CreateClientTLSConfig(config.TLS)
-			if err != nil {
-				return err
-			}
+		c.clientTLSConfig, err = c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
+		if err != nil {
+			return err
 		}
 
-		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity"), tlsConfig, c.keyResolver)
+		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity"), c.clientTLSConfig, c.keyResolver)
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
