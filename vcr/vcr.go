@@ -55,7 +55,9 @@ import (
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver,
+	network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine,
+	pkiProvider pki.Provider) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -66,6 +68,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		jsonldManager:   jsonldManager,
 		eventManager:    eventManager,
 		storageClient:   storageClient,
+		pkiProvider:     pkiProvider,
 	}
 	return r
 }
@@ -89,8 +92,7 @@ type vcr struct {
 	eventManager    events.Event
 	storageClient   storage.Engine
 	oidcIssuer      issuer.OIDCIssuer
-	baseURL         string
-	crlValidator    pki.Validator
+	pkiProvider     pki.Provider
 	clientTLSConfig *tls.Config
 }
 
@@ -99,7 +101,7 @@ func (c *vcr) GetOIDCIssuer() issuer.OIDCIssuer {
 }
 
 func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
-	identifier := core.JoinURLPaths(c.baseURL, "n2n", "identity", url.PathEscape(id.String()))
+	identifier := core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity", url.PathEscape(id.String()))
 	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver, c.config.OIDC4VCI.Timeout, c.clientTLSConfig)
 }
 
@@ -147,25 +149,23 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			return errors.New("vcr.oidc4vci.url must be configured to enable OIDC4VCI")
 		}
 		// Must be either HTTP or HTTPS, in strict mode HTTPS is required
-		c.baseURL = c.config.OIDC4VCI.URL
-		if strings.HasPrefix(c.baseURL, "http://") {
+		if strings.HasPrefix(c.config.OIDC4VCI.URL, "http://") {
 			if config.Strictmode {
 				return errors.New("vcr.oidc4vci.url must use HTTPS when strictmode is enabled")
 			}
-		} else if !strings.HasPrefix(c.baseURL, "https://") {
+		} else if !strings.HasPrefix(c.config.OIDC4VCI.URL, "https://") {
 			return errors.New("vcr.oidc4vci.url must contain a valid URL (using http:// or https://)")
 		}
 
 		var tlsConfig *tls.Config
 		if config.TLS.Enabled() {
-			var err error
-			c.crlValidator, c.clientTLSConfig, err = pki.CreateClientTLSConfig(config.TLS)
+			c.clientTLSConfig, err = c.pkiProvider.CreateClientTLSConfig(config.TLS)
 			if err != nil {
 				return err
 			}
 		}
 
-		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.baseURL, "n2n", "identity"), tlsConfig)
+		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity"), tlsConfig, c.keyResolver)
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)

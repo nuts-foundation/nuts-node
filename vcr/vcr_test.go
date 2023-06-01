@@ -50,7 +50,7 @@ func TestVCR_Configure(t *testing.T) {
 	t.Run("openid4vci", func(t *testing.T) {
 		t.Run("URL not configured", func(t *testing.T) {
 			testDirectory := io.TestDirectory(t)
-			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory)).(*vcr)
+			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
 			instance.config.OIDC4VCI.Enabled = true
 
 			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
@@ -59,7 +59,7 @@ func TestVCR_Configure(t *testing.T) {
 		})
 		t.Run("invalid URL", func(t *testing.T) {
 			testDirectory := io.TestDirectory(t)
-			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory)).(*vcr)
+			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
 			instance.config.OIDC4VCI.Enabled = true
 			instance.config.OIDC4VCI.URL = "ftp://example.com"
 
@@ -69,7 +69,7 @@ func TestVCR_Configure(t *testing.T) {
 		})
 		t.Run("HTTP allowed in non-strict mode", func(t *testing.T) {
 			testDirectory := io.TestDirectory(t)
-			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory)).(*vcr)
+			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
 			instance.config.OIDC4VCI.Enabled = true
 			instance.config.OIDC4VCI.URL = "http://example.com"
 
@@ -79,7 +79,7 @@ func TestVCR_Configure(t *testing.T) {
 		})
 		t.Run("HTTP not allowed non-strict mode", func(t *testing.T) {
 			testDirectory := io.TestDirectory(t)
-			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory)).(*vcr)
+			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
 			instance.config.OIDC4VCI.Enabled = true
 			instance.config.OIDC4VCI.URL = "http://example.com"
 
@@ -94,7 +94,7 @@ func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory)).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
 
 		_ = instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
 		err := instance.Start()
@@ -118,6 +118,7 @@ func TestVCR_Start(t *testing.T) {
 			jsonld.NewTestJSONLDManager(t),
 			events.NewTestManager(t),
 			storage.NewTestStorageEngine(testDirectory),
+			nil,
 		).(*vcr)
 		if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 			t.Fatal(err)
@@ -165,6 +166,7 @@ func TestVCR_Diagnostics(t *testing.T) {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
+		nil,
 	).(*vcr)
 	if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 		t.Fatal(err)

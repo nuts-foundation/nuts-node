@@ -130,7 +130,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		}, 2*time.Second, "time-out waiting for VC to be stored")
 	})
 	t.Run("pre-authorized code grant", func(t *testing.T) {
-		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5).(*wallet)
+		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5, nil).(*wallet)
 		t.Run("no grants", func(t *testing.T) {
 			offer := oidc4vci.CredentialOffer{Credentials: emptyOfferedCredential()}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)

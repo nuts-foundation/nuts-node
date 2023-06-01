@@ -188,7 +188,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, docResolver, docFinder, eventManager, storageInstance.GetProvider(network.ModuleName), pkiInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore, eventManager)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld, eventManager, storageInstance)
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld, eventManager, storageInstance, pkiInstance)
 	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, jsonld)
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)

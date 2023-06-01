@@ -20,6 +20,7 @@ package pki
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"time"
@@ -34,6 +35,7 @@ const (
 )
 
 var _ Validator = (*PKI)(nil)
+var _ Provider = (*PKI)(nil)
 
 type PKI struct {
 	*validator
@@ -72,6 +74,29 @@ func (p *PKI) Start() error {
 func (p *PKI) Shutdown() error {
 	p.shutdown()
 	return nil
+}
+
+// CreateClientTLSConfig creates a tls.Config based on the given core.TLSConfig for outbound connections to other Nuts nodes.
+// It registers the CA certificates in the trust store in the validator which will start fetching their CRLs.
+// It finally registers a VerifyPeerCertificateFunc in the tls.Config which will validate the peer certificate against the validator.
+func (p *PKI) CreateClientTLSConfig(cfg core.TLSConfig) (*tls.Config, error) {
+	clientCertificate, err := cfg.LoadCertificate()
+	if err != nil {
+		return nil, err
+	}
+	trustStore, err := cfg.LoadTrustStore()
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{clientCertificate},
+		RootCAs:      trustStore.CertPool,
+		MinVersion:   core.MinTLSVersion,
+	}
+	if err = p.SetVerifyPeerCertificateFunc(tlsConfig); err != nil {
+		return nil, err
+	}
+	return tlsConfig, nil
 }
 
 type outdatedCRL struct {
