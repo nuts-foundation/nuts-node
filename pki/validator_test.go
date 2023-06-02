@@ -185,6 +185,8 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 		t.Run("revoked cert", func(t *testing.T) {
 			err := cfg.VerifyPeerCertificate(nil, [][]*x509.Certificate{{store.IntermediateCAs[1], store.RootCAs[0]}})
 			assert.ErrorIs(t, err, ErrCertRevoked)
+			expectedErr := new(tls.CertificateVerificationError)
+			assert.ErrorAs(t, err, &expectedErr)
 		})
 	})
 }
