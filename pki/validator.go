@@ -147,35 +147,8 @@ func (v *validator) Validate(chain []*x509.Certificate) error {
 
 func (v *validator) SetVerifyPeerCertificateFunc(config *tls.Config) error {
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-		// rawCerts contains raw end user certificates presented by the peer during the tls handshake.
-		// It is used together with the tls.Config to generate verifiedChains (includes CAs), but may contain additional certs that are not in a verified chain.
-		// When set the softfail==false, an error is returned if the peer sends ANY invalid certificate, even if it is not part of a verifiedChain.
-		// This prevents attackers from sending a bunch of certificates hoping one makes it into a verified chain.
-
-		// Skip when set to softfail, the rawCerts will not return any other error than already found in the verifiedChains.
-		if !v.softfail {
-			// Concatenate all of the provided raw certificates to parse them together
-			var raw []byte
-			for _, rawCert := range rawCerts {
-				raw = append(raw, rawCert...)
-			}
-
-			// Parse the provided certificates
-			certificates, err := x509.ParseCertificates(raw)
-			if err != nil {
-				return err
-			}
-
-			// Check all certificates provided by peer, including ones that did not make it into a validated chain.
-			if err = v.Validate(certificates); err != nil {
-				return &tls.CertificateVerificationError{
-					UnverifiedCertificates: certificates,
-					Err:                    err,
-				}
-			}
-		}
-
-		// If validation fails, wrap the error before returning it
+		// rawCerts contain all certificates provided by the peer, in our case only the leaf cert, while verifiedChains is guaranteed to include the CA's.
+		// rawCerts are ignored since we would only be checking revocation status on a cert whose issuer is not in the truststore. failure mode is then determined by v.softfail.
 		for _, chain := range verifiedChains {
 			if err := v.Validate(chain); err != nil {
 				return &tls.CertificateVerificationError{
