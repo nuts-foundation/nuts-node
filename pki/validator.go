@@ -147,29 +147,41 @@ func (v *validator) Validate(chain []*x509.Certificate) error {
 
 func (v *validator) SetVerifyPeerCertificateFunc(config *tls.Config) error {
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-		// rawCerts contains raw certificate data presented by the peer during the tls handshake.
-		// It is used together with the tls.Config to generate verifiedChains, but may contain additional certs that are not in a verified chain.
-		// We reject a client if it sends ANY invalid certificate, even if it is not part of a verifiedChain.
+		// rawCerts contains raw end user certificates presented by the peer during the tls handshake.
+		// It is used together with the tls.Config to generate verifiedChains (includes CAs), but may contain additional certs that are not in a verified chain.
+		// When set the softfail==false, an error is returned if the peer sends ANY invalid certificate, even if it is not part of a verifiedChain.
 		// This prevents attackers from sending a bunch of certificates hoping one makes it into a verified chain.
-		// TODO: change to use verifiedChains. other checks are not the responsibility of this validator
 
-		// Concatenate all of the provided raw certificates to parse them together
-		var raw []byte
-		for _, rawCert := range rawCerts {
-			raw = append(raw, rawCert...)
-		}
+		// Skip when set to softfail, the rawCerts will not return any other error than already found in the verifiedChains.
+		if !v.softfail {
+			// Concatenate all of the provided raw certificates to parse them together
+			var raw []byte
+			for _, rawCert := range rawCerts {
+				raw = append(raw, rawCert...)
+			}
 
-		// Parse the provided certificates
-		certificates, err := x509.ParseCertificates(raw)
-		if err != nil {
-			return err
+			// Parse the provided certificates
+			certificates, err := x509.ParseCertificates(raw)
+			if err != nil {
+				return err
+			}
+
+			// Check all certificates provided by peer, including ones that did not make it into a validated chain.
+			if err = v.Validate(certificates); err != nil {
+				return &tls.CertificateVerificationError{
+					UnverifiedCertificates: certificates,
+					Err:                    err,
+				}
+			}
 		}
 
 		// If validation fails, wrap the error before returning it
-		if err := v.Validate(certificates); err != nil {
-			return &tls.CertificateVerificationError{
-				certificates,
-				err,
+		for _, chain := range verifiedChains {
+			if err := v.Validate(chain); err != nil {
+				return &tls.CertificateVerificationError{
+					UnverifiedCertificates: chain,
+					Err:                    err,
+				}
 			}
 		}
 		return nil
