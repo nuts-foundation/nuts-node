@@ -408,7 +408,7 @@ func TestService_validatePurposeOfUse(t *testing.T) {
 		assert.EqualError(t, err, "no purposeOfUse given")
 	})
 
-	t.Run("error - only deprecated claim", func(t *testing.T) {
+	t.Run("ok - only deprecated claim", func(t *testing.T) {
 		ctx := createContext(t)
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Remove(purposeOfUseClaim)
