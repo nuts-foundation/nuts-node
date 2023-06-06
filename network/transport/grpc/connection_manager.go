@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	grpcPeer "google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
@@ -181,6 +182,18 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 	// Chain interceptors. ipInterceptor is added last, so it processes the stream first.
 	serverInterceptors = append(serverInterceptors, ipInterceptor)
 	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(serverInterceptors...))
+
+	// Define the keepalive policy for the grpc server in such a way that connections are not long-lived.
+	// By blocking long-lived connections we ensure that connections are periodically reauthorized, namely
+	// so that a remote host which was authorized at the time of connection can become unauthorized and
+	// this is correctly enforced.
+	//
+	// Configured per https://github.com/grpc/grpc-go/blob/c9d3ea5673252d212c69f3d3c10ce1d7b287a86b/examples/features/keepalive/server/main.go#L43
+	keepaliveParams := keepalive.ServerParameters{
+		MaxConnectionAge:      15 * time.Minute, // If any connection is alive for too long, send a GOAWAY
+		MaxConnectionAgeGrace: 15 * time.Second, // Allow time for pending RPCs to complete before forcibly closing connections
+	}
+	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepaliveParams))
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
 	return grpc.NewServer(serverOpts...), nil
