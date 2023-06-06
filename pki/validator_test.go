@@ -179,16 +179,14 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 		defer cancel()
 		v.start(ctx)
 		t.Run("ok", func(t *testing.T) {
-			err := cfg.VerifyPeerCertificate([][]byte{store.IntermediateCAs[0].Raw, store.RootCAs[0].Raw}, nil)
+			err := cfg.VerifyPeerCertificate(nil, [][]*x509.Certificate{{store.IntermediateCAs[0], store.RootCAs[0]}})
 			assert.NoError(t, err)
 		})
 		t.Run("revoked cert", func(t *testing.T) {
-			err := cfg.VerifyPeerCertificate([][]byte{store.IntermediateCAs[1].Raw, store.RootCAs[0].Raw}, nil)
+			err := cfg.VerifyPeerCertificate(nil, [][]*x509.Certificate{{store.IntermediateCAs[1], store.RootCAs[0]}})
 			assert.ErrorIs(t, err, ErrCertRevoked)
-		})
-		t.Run("invalid cert data", func(t *testing.T) {
-			err := cfg.VerifyPeerCertificate([][]byte{[]byte("definitely not"), []byte("valid certs")}, nil)
-			assert.Error(t, err)
+			expectedErr := new(tls.CertificateVerificationError)
+			assert.ErrorAs(t, err, &expectedErr)
 		})
 	})
 }
