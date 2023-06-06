@@ -27,7 +27,7 @@ import (
 
 // GetOAuth2ClientMetadata returns the OAuth2 client metadata for the given DID.
 func (w Wrapper) GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
-	holderDID, err := w.parseTenant(ctx, request.Did)
+	holderDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (w Wrapper) GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2C
 
 // HandleCredentialOffer handles a credential offer for the given DID.
 func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error) {
-	holderDID, err := w.parseTenant(ctx, request.Did)
+	holderDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}

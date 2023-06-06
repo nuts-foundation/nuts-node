@@ -21,7 +21,6 @@ package v0
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -29,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 )
 
@@ -89,7 +89,8 @@ var _ StrictServerInterface = (*Wrapper)(nil)
 
 // Wrapper wraps the OIDC4VCI API
 type Wrapper struct {
-	VCR vcr.VCR
+	VCR           vcr.VCR
+	DocumentOwner types.DocumentOwner
 }
 
 // Routes registers the API routes
@@ -118,18 +119,17 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 	}))
 }
 
-// parseTenant parsed the given string as DID and checks whether it's a tenant of this node.
-func (w Wrapper) parseTenant(ctx context.Context, holderOrIssuerDID string) (did.DID, error) {
+// validateDIDIsOwned parsed the given string as DID and checks whether it's owned by this node.
+func (w Wrapper) validateDIDIsOwned(ctx context.Context, holderOrIssuerDID string) (did.DID, error) {
 	parsedDID, err := did.ParseDID(holderOrIssuerDID)
 	if err != nil {
 		return did.DID{}, errHolderOrIssuerNotFound
 	}
-	// Check if the holder or issuer is a tenant of this node.
-	isTenant, err := w.VCR.Tenants().IsProbableTenant(ctx, *parsedDID)
+	isOwner, err := w.DocumentOwner.IsOwner(ctx, *parsedDID)
 	if err != nil {
-		return did.DID{}, fmt.Errorf("error checking tenant: %w", err)
+		return did.DID{}, err
 	}
-	if !isTenant {
+	if !isOwner {
 		return did.DID{}, errHolderOrIssuerNotFound
 	}
 	return *parsedDID, nil

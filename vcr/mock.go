@@ -175,44 +175,6 @@ func (mr *MockResolverMockRecorder) Resolve(ID, resolveTime interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), ID, resolveTime)
 }
 
-// MockTenantRegistry is a mock of TenantRegistry interface.
-type MockTenantRegistry struct {
-	ctrl     *gomock.Controller
-	recorder *MockTenantRegistryMockRecorder
-}
-
-// MockTenantRegistryMockRecorder is the mock recorder for MockTenantRegistry.
-type MockTenantRegistryMockRecorder struct {
-	mock *MockTenantRegistry
-}
-
-// NewMockTenantRegistry creates a new mock instance.
-func NewMockTenantRegistry(ctrl *gomock.Controller) *MockTenantRegistry {
-	mock := &MockTenantRegistry{ctrl: ctrl}
-	mock.recorder = &MockTenantRegistryMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockTenantRegistry) EXPECT() *MockTenantRegistryMockRecorder {
-	return m.recorder
-}
-
-// IsProbableTenant mocks base method.
-func (m *MockTenantRegistry) IsProbableTenant(ctx context.Context, id did.DID) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsProbableTenant", ctx, id)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IsProbableTenant indicates an expected call of IsProbableTenant.
-func (mr *MockTenantRegistryMockRecorder) IsProbableTenant(ctx, id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsProbableTenant", reflect.TypeOf((*MockTenantRegistry)(nil).IsProbableTenant), ctx, id)
-}
-
 // MockVCR is a mock of VCR interface.
 type MockVCR struct {
 	ctrl     *gomock.Controller
@@ -348,20 +310,6 @@ func (m *MockVCR) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time
 func (mr *MockVCRMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockVCR)(nil).StoreCredential), vc, validAt)
-}
-
-// Tenants mocks base method.
-func (m *MockVCR) Tenants() TenantRegistry {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Tenants")
-	ret0, _ := ret[0].(TenantRegistry)
-	return ret0
-}
-
-// Tenants indicates an expected call of Tenants.
-func (mr *MockVCRMockRecorder) Tenants() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Tenants", reflect.TypeOf((*MockVCR)(nil).Tenants))
 }
 
 // Trust mocks base method.

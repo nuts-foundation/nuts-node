@@ -113,11 +113,18 @@ type DocIterator func(doc did.Document, metadata DocumentMetadata) error
 
 // VDR defines the public end facing methods for the Verifiable Data Registry.
 type VDR interface {
+	DocumentOwner
 	DocCreator
 	DocUpdater
 
 	// ConflictedDocuments returns the DID Document and metadata of all documents with a conflict.
 	ConflictedDocuments() ([]did.Document, []DocumentMetadata, error)
+}
+
+// DocumentOwner is the interface for checking DID document ownership (presence of private keys).
+type DocumentOwner interface {
+	// IsOwner returns true if the DID Document is owned by the node, meaning there are private keys present for the DID Document.
+	IsOwner(context.Context, did.DID) (bool, error)
 }
 
 // DocManipulator groups several higher level methods to alter the state of a DID document.

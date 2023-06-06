@@ -30,7 +30,7 @@ import (
 
 // GetOIDC4VCIIssuerMetadata returns the OIDC4VCI credential issuer metadata for the given DID.
 func (w Wrapper) GetOIDC4VCIIssuerMetadata(ctx context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error) {
-	issuerDID, err := w.parseTenant(ctx, request.Did)
+	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (w Wrapper) GetOIDC4VCIIssuerMetadata(ctx context.Context, request GetOIDC4
 
 // GetOIDCProviderMetadata returns the OpenID Connect provider metadata for the given DID.
 func (w Wrapper) GetOIDCProviderMetadata(ctx context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
-	issuerDID, err := w.parseTenant(ctx, request.Did)
+	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (w Wrapper) GetOIDCProviderMetadata(ctx context.Context, request GetOIDCPro
 
 // RequestCredential requests a credential from the given DID.
 func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentialRequestObject) (RequestCredentialResponseObject, error) {
-	issuerDID, err := w.parseTenant(ctx, request.Did)
+	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 
 // RequestAccessToken requests an OAuth2 access token from the given DID.
 func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	issuerDID, err := w.parseTenant(ctx, request.Did)
+	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
