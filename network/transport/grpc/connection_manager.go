@@ -183,14 +183,15 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 	serverInterceptors = append(serverInterceptors, ipInterceptor)
 	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(serverInterceptors...))
 
-	// Define the keepalive policy for the grpc server
+	// Define the keepalive policy for the grpc server in such a way that connections are not long-lived.
+	// By blocking long-lived connections we ensure that connections are periodically reauthorized, namely
+	// so that a remote host which was authorized at the time of connection can become unauthorized and
+	// this is correctly enforced.
+	//
 	// Configured per https://github.com/grpc/grpc-go/blob/c9d3ea5673252d212c69f3d3c10ce1d7b287a86b/examples/features/keepalive/server/main.go#L43
 	keepaliveParams := keepalive.ServerParameters{
-		MaxConnectionIdle:     5 * time.Minute, // If a client is idle for too long, send a GOAWAY
 		MaxConnectionAge:      5 * time.Minute, // If any connection is alive for too long, send a GOAWAY
 		MaxConnectionAgeGrace: 15 * time.Second,  // Allow time for pending RPCs to complete before forcibly closing connections
-		Time:                  15 * time.Second,  // Ping the client if it is idle to ensure the connection is still active
-		Timeout:               10 * time.Second,  // Wait for the ping ack before assuming the connection is dead
 	}
 	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepaliveParams))
 
