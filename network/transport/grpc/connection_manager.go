@@ -190,7 +190,7 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 	//
 	// Configured per https://github.com/grpc/grpc-go/blob/c9d3ea5673252d212c69f3d3c10ce1d7b287a86b/examples/features/keepalive/server/main.go#L43
 	keepaliveParams := keepalive.ServerParameters{
-		MaxConnectionAge:      5 * time.Minute,  // If any connection is alive for too long, send a GOAWAY
+		MaxConnectionAge:      15 * time.Minute,  // If any connection is alive for too long, send a GOAWAY
 		MaxConnectionAgeGrace: 15 * time.Second, // Allow time for pending RPCs to complete before forcibly closing connections
 	}
 	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepaliveParams))
