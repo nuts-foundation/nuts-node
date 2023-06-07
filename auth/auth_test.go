@@ -41,8 +41,8 @@ func TestAuth_Configure(t *testing.T) {
 		config := DefaultConfig()
 		config.ContractValidators = []string{"uzi"}
 		pkiMock := pki.NewMockProvider(gomock.NewController(t))
-		pkiMock.EXPECT().AddTruststore(gomock.Any())         // uzi
-		pkiMock.EXPECT().CreateClientTLSConfig(gomock.Any()) // tlsConfig
+		pkiMock.EXPECT().AddTruststore(gomock.Any())   // uzi
+		pkiMock.EXPECT().CreateTLSConfig(gomock.Any()) // tlsConfig
 
 		i := NewAuthInstance(config, didstore.NewTestStore(t), vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
 
@@ -98,7 +98,7 @@ func TestAuth_Configure(t *testing.T) {
 		i := testInstance(t, TestConfig())
 		pkiProvider := pki.NewMockProvider(gomock.NewController(t))
 		i.pkiProvider = pkiProvider
-		pkiProvider.EXPECT().CreateClientTLSConfig(gomock.Any()).Return(nil, assert.AnError)
+		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, assert.AnError)
 		err := i.Configure(tlsServerConfig)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
