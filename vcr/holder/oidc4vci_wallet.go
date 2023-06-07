@@ -164,20 +164,15 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 }
 
 func getPreAuthorizedCodeFromOffer(offer oidc4vci.CredentialOffer) string {
-	for _, grant := range offer.Grants {
-		if _, ok := grant[oidc4vci.PreAuthorizedCodeGrant]; !ok {
-			continue
-		}
-		props, ok := grant[oidc4vci.PreAuthorizedCodeGrant].(map[string]interface{})
-		if !ok {
-			continue
-		}
-		preAuthorizedCode, ok := props["pre-authorized_code"].(string)
-		if ok {
-			return preAuthorizedCode
-		}
+	params, ok := offer.Grants[oidc4vci.PreAuthorizedCodeGrant].(map[string]interface{})
+	if !ok {
+		return ""
 	}
-	return ""
+	preAuthorizedCode, ok := params["pre-authorized_code"].(string)
+	if !ok {
+		return ""
+	}
+	return preAuthorizedCode
 }
 
 func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerAPIClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {

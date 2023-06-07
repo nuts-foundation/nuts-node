@@ -69,11 +69,9 @@ func TestWrapper_HandleCredentialOffer(t *testing.T) {
 				},
 			},
 		},
-		Grants: []map[string]interface{}{
-			{
-				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
-					"pre-authorized_code": "code",
-				},
+		Grants: map[string]interface{}{
+			"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+				"pre-authorized_code": "code",
 			},
 		},
 	}

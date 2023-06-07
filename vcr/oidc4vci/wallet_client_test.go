@@ -100,10 +100,8 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		err = client.OfferCredential(ctx, CredentialOffer{
 			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
 			Credentials:      []map[string]interface{}{{"issuer": "issuer"}},
-			Grants: []map[string]interface{}{
-				{
-					"grant_type": "pre-authorized_code",
-				},
+			Grants: map[string]interface{}{
+				"grant_type": "pre-authorized_code",
 			},
 		})
 

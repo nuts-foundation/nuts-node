@@ -104,14 +104,10 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 					},
 				},
 			},
-			Grants: []map[string]interface{}{
-				{
-					"some-other-grant": map[string]interface{}{},
-				},
-				{
-					"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
-						"pre-authorized_code": "code",
-					},
+			Grants: map[string]interface{}{
+				"some-other-grant": map[string]interface{}{},
+				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+					"pre-authorized_code": "code",
 				},
 			},
 		}
@@ -139,10 +135,8 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		t.Run("no pre-authorized grant", func(t *testing.T) {
 			offer := oidc4vci.CredentialOffer{
 				Credentials: emptyOfferedCredential(),
-				Grants: []map[string]interface{}{
-					{
-						"some-other-grant": nil,
-					},
+				Grants: map[string]interface{}{
+					"some-other-grant": nil,
 				},
 			}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)
@@ -151,11 +145,9 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		t.Run("invalid pre-authorized grant", func(t *testing.T) {
 			offer := oidc4vci.CredentialOffer{
 				Credentials: emptyOfferedCredential(),
-				Grants: []map[string]interface{}{
-					{
-						"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
-							"pre-authorized_code": nil,
-						},
+				Grants: map[string]interface{}{
+					"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+						"pre-authorized_code": nil,
 					},
 				},
 			}
@@ -207,11 +199,9 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
 				},
 			},
-			Grants: []map[string]interface{}{
-				{
-					"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
-						"pre-authorized_code": "foo",
-					},
+			Grants: map[string]interface{}{
+				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+					"pre-authorized_code": "foo",
 				},
 			},
 		})
