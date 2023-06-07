@@ -20,6 +20,9 @@ package grpc
 
 import (
 	"context"
+	"errors"
+	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -54,7 +57,8 @@ invalid
 -----END CERTIFICATE-----`
 
 func Test_tlsOffloadingAuthenticator(t *testing.T) {
-	auth := tlsOffloadingAuthenticator{clientCertHeaderName: "cert"}
+	pkiMock := pki.NewMockValidator(gomock.NewController(t))
+	auth := tlsOffloadingAuthenticator{clientCertHeaderName: "cert", pkiValidator: pkiMock}
 	serverStream := &stubServerStream{}
 
 	encodedCert := url.QueryEscape(certAsPEM)
@@ -70,6 +74,7 @@ func Test_tlsOffloadingAuthenticator(t *testing.T) {
 			var peerInfo *peer.Peer
 			var success bool
 			serverStream.ctx = contextWithMD(encodedCert)
+			pkiMock.EXPECT().Validate(gomock.Any())
 
 			err := auth.intercept(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
 				peerInfo, success = peer.FromContext(wrappedStream.Context())
@@ -84,6 +89,17 @@ func Test_tlsOffloadingAuthenticator(t *testing.T) {
 		})
 		t.Run("auth fails", func(t *testing.T) {
 			serverStream.ctx = contextWithMD("invalid cert")
+
+			err := auth.intercept(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
+				t.Fatal("should not be called")
+				return nil
+			})
+
+			assert.Error(t, err)
+		})
+		t.Run("certificate revoked/banned", func(t *testing.T) {
+			serverStream.ctx = contextWithMD(encodedCert)
+			pkiMock.EXPECT().Validate(gomock.Any()).Return(errors.New("custom error"))
 
 			err := auth.intercept(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
 				t.Fatal("should not be called")

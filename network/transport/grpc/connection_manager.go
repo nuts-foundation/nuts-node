@@ -173,7 +173,7 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsServer)))
 		} else {
 			// TLS offloading for incoming traffic. config.clientCertHeaderName is validated during config creation.
-			serverInterceptors = append(serverInterceptors, newAuthenticationInterceptor(config.clientCertHeaderName))
+			serverInterceptors = append(serverInterceptors, newAuthenticationInterceptor(config.clientCertHeaderName, config.pkiValidator))
 		}
 	} else {
 		log.Logger().Info("TLS is disabled, this is very unsecure and only suitable for demo/development environments.")
