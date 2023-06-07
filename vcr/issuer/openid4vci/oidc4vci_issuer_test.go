@@ -16,7 +16,7 @@
  *
  */
 
-package issuer
+package openid4vci
 
 import (
 	"context"

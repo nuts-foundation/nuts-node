@@ -16,7 +16,7 @@
  *
  */
 
-package issuer
+package openid4vci
 
 import (
 	"context"
@@ -26,6 +26,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -39,13 +40,17 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 )
 
 // ErrUnknownIssuer is returned when the given issuer is unknown.
 var ErrUnknownIssuer = errors.New("unknown OIDC4VCI issuer")
 var _ OIDCIssuer = (*memoryIssuer)(nil)
+
+// ttl is the time-to-live for issuance flows and nonces.
+const ttl = 15 * time.Minute
+const preAuthCodeRefType = "preauthcode"
+const accessTokenRefType = "accesstoken"
 
 // OIDCIssuer defines the interface for an OIDC4VCI credential issuer. It is multi-tenant, accompanying the system
 // managing an arbitrary number of actual issuers.
@@ -67,9 +72,6 @@ func NewOIDCIssuer(baseURL string, clientTLSConfig *tls.Config, clientTimeout ti
 	return &memoryIssuer{
 		baseURL:             baseURL,
 		keyResolver:         keyResolver,
-		state:               make(map[string]vc.VerifiableCredential),
-		accessTokens:        make(map[string]string),
-		mux:                 &sync.Mutex{},
 		walletClientCreator: oidc4vci.NewWalletAPIClient,
 		clientTimeout:       clientTimeout,
 		clientTLSConfig:     clientTLSConfig,
@@ -79,11 +81,8 @@ func NewOIDCIssuer(baseURL string, clientTLSConfig *tls.Config, clientTimeout ti
 type memoryIssuer struct {
 	baseURL     string
 	keyResolver types.KeyResolver
-	// state maps a pre-authorized code to a Verifiable Credential
-	state map[string]vc.VerifiableCredential
-	// accessToken maps an access token to a pre-authorized code
-	accessTokens        map[string]string
-	mux                 *sync.Mutex
+
+	store               FlowStore
 	walletClientCreator func(ctx context.Context, httpClient *http.Client, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
 	clientTLSConfig     *tls.Config
 	clientTimeout       time.Duration
@@ -111,20 +110,34 @@ func (i *memoryIssuer) ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetada
 }
 
 func (i *memoryIssuer) HandleAccessTokenRequest(ctx context.Context, issuer did.DID, preAuthorizedCode string) (string, error) {
-	i.mux.Lock()
-	defer i.mux.Unlock()
-	_, ok := i.state[preAuthorizedCode]
-	if !ok {
-		audit.Log(ctx, log.Logger(), audit.InvalidOAuthTokenEvent).
-			Info("Client tried requesting access token (for OIDC4VCI) with unknown OAuth2 pre-authorized code")
+	flow, err := i.store.FindByReference(ctx, preAuthCodeRefType, preAuthorizedCode)
+	if err != nil {
+		return "", err
+	}
+	if flow == nil {
 		return "", oidc4vci.Error{
 			Err:        errors.New("unknown pre-authorized code"),
 			Code:       oidc4vci.InvalidGrant,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
+	if flow.IssuerID != issuer.String() {
+		return "", oidc4vci.Error{
+			Err:        errors.New("pre-authorized code not issued by this issuer"),
+			Code:       oidc4vci.InvalidGrant,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
 	accessToken := generateCode()
-	i.accessTokens[accessToken] = preAuthorizedCode
+	err = i.store.StoreReference(ctx, flow.ID, accessTokenRefType, accessToken, time.Now().Add(ttl))
+	if err != nil {
+		return "", err
+	}
+	// PreAuthorizedCode is to be used just once
+	err = i.store.DeleteReference(ctx, preAuthCodeRefType, preAuthorizedCode)
+	if err != nil {
+		return "", err
+	}
 	return accessToken, nil
 }
 
@@ -149,9 +162,12 @@ func (i *memoryIssuer) OfferCredential(ctx context.Context, credential vc.Verifi
 		return err
 	}
 
-	offer := i.createOffer(credential, preAuthorizedCode)
+	offer, err := i.createOffer(ctx, credential, preAuthorizedCode)
+	if err != nil {
+		return err
+	}
 
-	err = client.OfferCredential(ctx, offer)
+	err = client.OfferCredential(ctx, *offer)
 	if err != nil {
 		return fmt.Errorf("unable to offer credential (client-metadata-url=%s): %w", client.Metadata().CredentialOfferEndpoint, err)
 	}
@@ -161,20 +177,21 @@ func (i *memoryIssuer) OfferCredential(ctx context.Context, credential vc.Verifi
 func (i *memoryIssuer) HandleCredentialRequest(ctx context.Context, issuer did.DID, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
 	// TODO: Check if issuer is served by this instance
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
-	i.mux.Lock()
-	defer i.mux.Unlock()
 	// TODO: Verify requested format and credential definition
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
-	preAuthorizedCode, ok := i.accessTokens[accessToken]
-	if !ok {
-		audit.Log(ctx, log.Logger(), audit.InvalidOAuthTokenEvent).
-			Info("Client tried retrieving credential over OIDC4VCI with unknown OAuth2 access token")
+	flow, err := i.store.FindByReference(ctx, accessTokenRefType, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	if flow == nil {
+		log.Logger().Warn("Client tried retrieving credential over OIDC4VCI with unknown OAuth2 access token")
 		return nil, oidc4vci.Error{
 			Err:        errors.New("unknown access token"),
 			Code:       oidc4vci.InvalidToken,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
+
 	credential, _ := i.state[preAuthorizedCode]
 	subjectDID, _ := getSubjectDID(credential)
 
@@ -286,7 +303,10 @@ func (i *memoryIssuer) validateProof(request oidc4vci.CredentialRequest, issuer 
 	return nil
 }
 
-func (i *memoryIssuer) createOffer(credential vc.VerifiableCredential, preAuthorizedCode string) oidc4vci.CredentialOffer {
+func (i *memoryIssuer) createOffer(ctx context.Context, credential vc.VerifiableCredential, preAuthorizedCode string) (*oidc4vci.CredentialOffer, error) {
+	grantParams := map[string]interface{}{
+		"pre-authorized_code": preAuthorizedCode,
+	}
 	offer := oidc4vci.CredentialOffer{
 		CredentialIssuer: i.getIdentifier(credential.Issuer.String()),
 		Credentials: []map[string]interface{}{{
@@ -297,16 +317,31 @@ func (i *memoryIssuer) createOffer(credential vc.VerifiableCredential, preAuthor
 			},
 		}},
 		Grants: map[string]interface{}{
-			oidc4vci.PreAuthorizedCodeGrant: map[string]interface{}{
-				"pre-authorized_code": preAuthorizedCode,
+			oidc4vci.PreAuthorizedCodeGrant: grantParams,
+		},
+	}
+	subjectDID, _ := getSubjectDID(credential) // succeeded in previous step, can't fail
+
+	flow := Flow{
+		ID:       uuid.NewString(),
+		IssuerID: credential.Issuer.String(),
+		WalletID: subjectDID.String(),
+		Expiry:   time.Now().Add(ttl),
+		Grants: []Grant{
+			{
+				Type:   oidc4vci.PreAuthorizedCodeGrant,
+				Params: grantParams,
 			},
 		},
 	}
-
-	i.mux.Lock()
-	i.state[preAuthorizedCode] = credential
-	i.mux.Unlock()
-	return offer
+	err := i.store.Store(ctx, flow)
+	if err == nil {
+		err = i.store.StoreReference(ctx, flow.ID, preAuthorizedCode, time.Now().Add(ttl))
+	}
+	if err != nil {
+		return nil, fmt.Errorf("unable to store credential offer: %w", err)
+	}
+	return &offer, nil
 }
 
 func getSubjectDID(verifiableCredential vc.VerifiableCredential) (did.DID, error) {

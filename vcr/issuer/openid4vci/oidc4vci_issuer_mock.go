@@ -2,7 +2,7 @@
 // Source: vcr/issuer/oidc4vci_issuer.go
 
 // Package issuer is a generated GoMock package.
-package issuer
+package openid4vci
 
 import (
 	context "context"
