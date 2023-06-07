@@ -25,28 +25,34 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-	"net/url"
-	"strings"
 )
 
-func newAuthenticationInterceptor(clientCertHeaderName string) grpc.StreamServerInterceptor {
-	return (&tlsOffloadingAuthenticator{clientCertHeaderName: clientCertHeaderName}).intercept
+func newAuthenticationInterceptor(clientCertHeaderName string, pkiValidator pki.Validator) grpc.StreamServerInterceptor {
+	return (&tlsOffloadingAuthenticator{clientCertHeaderName: clientCertHeaderName, pkiValidator: pkiValidator}).intercept
 }
 
 type tlsOffloadingAuthenticator struct {
 	clientCertHeaderName string
+	pkiValidator         pki.Validator
 }
 
 func (t *tlsOffloadingAuthenticator) intercept(srv interface{}, serverStream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	certificates, err := t.authenticate(serverStream)
+	if err == nil {
+		err = t.pkiValidator.Validate(certificates)
+	}
 	if err != nil {
 		log.Logger().
 			WithError(err).
