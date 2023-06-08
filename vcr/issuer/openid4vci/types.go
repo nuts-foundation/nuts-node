@@ -1,6 +1,9 @@
 package openid4vci
 
-import "time"
+import (
+	"github.com/nuts-foundation/go-did/vc"
+	"time"
+)
 
 // Flow is an active OpenID4VCI credential issuance flow.
 type Flow struct {
@@ -13,8 +16,8 @@ type Flow struct {
 	Grants []Grant `json:"grants"`
 	// Credentials is the list of Verifiable Credentials that be issued to the wallet through this flow.
 	// It might be pre-determined (in the issuer-initiated flow) or determined during the flow execution (in the wallet-initiated flow).
-	Credentials []map[string]interface{} `json:"credentials"`
-	Expiry      time.Time                `json:"exp"`
+	Credentials []vc.VerifiableCredential `json:"credentials"`
+	Expiry      time.Time                 `json:"exp"`
 }
 
 // Nonce is a nonce that has been issued for an OpenID4VCI flow, to be used by the wallet when requesting credentials.

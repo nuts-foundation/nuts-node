@@ -23,6 +23,7 @@ import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"time"
 
@@ -67,7 +68,7 @@ type VCR interface {
 	Issuer() issuer.Issuer
 	Holder() holder.Holder
 	Verifier() verifier.Verifier
-	GetOIDCIssuer() issuer.OIDCIssuer
+	GetOIDCIssuer() openid4vci.Issuer
 	GetOIDCWallet(id did.DID) holder.OIDCWallet
 	OIDC4VCIEnabled() bool
 

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"path"
@@ -223,7 +224,7 @@ func Test_issuer_Issue(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
-			oidcIssuer := NewMockOIDCIssuer(ctrl)
+			oidcIssuer := openid4vci.NewMockIssuer(ctrl)
 			oidcIssuer.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletMetadataURL).Return(errors.New("failed"))
 			keyResolver := NewMockkeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
@@ -275,7 +276,7 @@ func Test_issuer_Issue(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
-			oidcIssuer := NewMockOIDCIssuer(ctrl)
+			oidcIssuer := openid4vci.NewMockIssuer(ctrl)
 			keyResolver := NewMockkeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			serviceResolver := didservice.NewMockServiceResolver(ctrl)
@@ -300,7 +301,7 @@ func Test_issuer_Issue(t *testing.T) {
 		})
 		t.Run("ok - publish over OIDC4VCI", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			oidcIssuer := NewMockOIDCIssuer(ctrl)
+			oidcIssuer := openid4vci.NewMockIssuer(ctrl)
 			oidcIssuer.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletMetadataURL)
 			vcrStore := vcr.NewMockWriter(ctrl)
 			vcrStore.EXPECT().StoreCredential(gomock.Any(), gomock.Any())

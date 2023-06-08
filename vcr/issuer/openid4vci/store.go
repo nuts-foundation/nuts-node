@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-type FlowStore interface {
+type Store interface {
 	// Store saves a new Flow in the store.
 	Store(ctx context.Context, flow Flow) error
 	// StoreReference saves a reference to the given Flow, for looking it up later.
@@ -29,13 +29,21 @@ type FlowStore interface {
 	DeleteReference(ctx context.Context, refType string, reference string) error
 }
 
-var _ FlowStore = (*flowStore)(nil)
+// NewStoabsStore creates a new Store backed by a stoabs.KVStore.
+func NewStoabsStore(store stoabs.KVStore) Store {
+	return &stoabsStore{
+		store:    store,
+		pruneMux: &sync.Mutex{},
+	}
+}
+
+var _ Store = (*stoabsStore)(nil)
 
 const flowsShelf = "flows"
 const referencesShelf = "refs"
 const pruneInterval = 10 * time.Minute
 
-type flowStore struct {
+type stoabsStore struct {
 	store     stoabs.KVStore
 	lastPrune atomic.Pointer[time.Time]
 	pruneMux  *sync.Mutex
@@ -46,7 +54,7 @@ type referenceValue struct {
 	Expiry time.Time `json:"exp"`
 }
 
-func (o *flowStore) Store(ctx context.Context, flow Flow) error {
+func (o *stoabsStore) Store(ctx context.Context, flow Flow) error {
 	return o.store.WriteShelf(ctx, flowsShelf, func(writer stoabs.Writer) error {
 		// Check if it doesn't already exist
 		exists, err := o.flowExists(writer, flow.ID)
@@ -56,12 +64,12 @@ func (o *flowStore) Store(ctx context.Context, flow Flow) error {
 		if exists {
 			return errors.New("OAuth2 flow with this ID already exists")
 		}
-		data, _ := json.Marshal(o.store)
+		data, _ := json.Marshal(flow)
 		return writer.Put(stoabs.BytesKey(flow.ID), data)
 	})
 }
 
-func (o *flowStore) StoreReference(ctx context.Context, flowID string, refType string, reference string, expiry time.Time) error {
+func (o *stoabsStore) StoreReference(ctx context.Context, flowID string, refType string, reference string, expiry time.Time) error {
 	o.pruneIfStale(time.Now())
 	if len(reference) == 0 {
 		return errors.New("invalid reference")
@@ -82,7 +90,7 @@ func (o *flowStore) StoreReference(ctx context.Context, flowID string, refType s
 	})
 }
 
-func (o *flowStore) FindByReference(ctx context.Context, refType string, reference string) (*Flow, error) {
+func (o *stoabsStore) FindByReference(ctx context.Context, refType string, reference string) (*Flow, error) {
 	o.pruneIfStale(time.Now())
 	var flowID string
 	err := o.store.ReadShelf(ctx, referencesShelf, func(reader stoabs.Reader) error {
@@ -138,7 +146,7 @@ func (o *flowStore) FindByReference(ctx context.Context, refType string, referen
 	return result, err
 }
 
-func (o *flowStore) DeleteReference(ctx context.Context, refType string, reference string) error {
+func (o *stoabsStore) DeleteReference(ctx context.Context, refType string, reference string) error {
 	o.pruneIfStale(time.Now())
 	return o.store.WriteShelf(ctx, referencesShelf, func(writer stoabs.Writer) error {
 		return writer.Delete(o.refKey(refType, reference))
@@ -147,7 +155,7 @@ func (o *flowStore) DeleteReference(ctx context.Context, refType string, referen
 
 // pruneIfStale checks if the last prune was more than 10 minutes ago and if so, starts a new prune operation.
 // Pruning is only intended to clean up old references, so it's not a problem if it's not done immediately after a flow or reference expired.
-func (o *flowStore) pruneIfStale(moment time.Time) {
+func (o *stoabsStore) pruneIfStale(moment time.Time) {
 	// If TryLock fails, another prune operation is already running and this one can be skipped.
 	if o.pruneMux.TryLock() {
 		defer o.pruneMux.Unlock()
@@ -168,7 +176,7 @@ func (o *flowStore) pruneIfStale(moment time.Time) {
 	}
 }
 
-func (o *flowStore) prune(ctx context.Context) (int, error) {
+func (o *stoabsStore) prune(ctx context.Context) (int, error) {
 	var count int
 	return count, o.store.WriteShelf(ctx, referencesShelf, func(writer stoabs.Writer) error {
 		// Find expired references and delete them
@@ -185,7 +193,7 @@ func (o *flowStore) prune(ctx context.Context) (int, error) {
 	})
 }
 
-func (o *flowStore) validateFlowExists(ctx context.Context, flowID string) error {
+func (o *stoabsStore) validateFlowExists(ctx context.Context, flowID string) error {
 	// There's a small chance for a race condition here,
 	// the flow could be deleted between the existence check and subsequent actions (e.g. writing an access token).
 	// Since there are no foreign keys in the store, the access token will be orphaned.
@@ -202,7 +210,7 @@ func (o *flowStore) validateFlowExists(ctx context.Context, flowID string) error
 	})
 }
 
-func (o *flowStore) flowExists(reader stoabs.Reader, flowID string) (bool, error) {
+func (o *stoabsStore) flowExists(reader stoabs.Reader, flowID string) (bool, error) {
 	if len(flowID) == 0 {
 		return false, errors.New("invalid ID")
 	}
@@ -216,6 +224,6 @@ func (o *flowStore) flowExists(reader stoabs.Reader, flowID string) (bool, error
 	return false, nil
 }
 
-func (o *flowStore) refKey(refType string, reference string) stoabs.BytesKey {
+func (o *stoabsStore) refKey(refType string, reference string) stoabs.BytesKey {
 	return stoabs.BytesKey(refType + ":" + reference)
 }

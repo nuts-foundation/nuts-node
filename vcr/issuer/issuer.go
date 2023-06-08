@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"time"
 
@@ -51,7 +52,7 @@ var TimeFunc = time.Now
 // since that normally happens through receiving the just-issued credential over the network,
 // but that doesn't happen when issuing over OIDC4VCI. Thus, it needs to explicitly save it to the VCR store when issuing over OIDC4VCI.
 // See https://github.com/nuts-foundation/nuts-node/issues/2063
-func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher, oidcIssuer OIDCIssuer, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
+func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher, oidcIssuer openid4vci.Issuer, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
 		store:            store,
@@ -69,7 +70,7 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher, o
 type issuer struct {
 	store            Store
 	networkPublisher Publisher
-	oidcIssuer       OIDCIssuer
+	oidcIssuer       openid4vci.Issuer
 	serviceResolver  didservice.ServiceResolver
 	keyResolver      keyResolver
 	keyStore         crypto.KeyStore
