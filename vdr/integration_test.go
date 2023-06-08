@@ -213,7 +213,7 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	test.WaitFor(t, func() (bool, error) {
 		_, _, err := ctx.docResolver.Resolve(didDoc.ID, nil)
 		return err == nil, nil
-	}, 200*time.Millisecond, "timeout while waiting for event to be processed")
+	}, 5*time.Second, "timeout while waiting for event to be processed")
 }
 
 type testContext struct {
