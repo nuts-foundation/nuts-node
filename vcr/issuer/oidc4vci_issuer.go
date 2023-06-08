@@ -304,11 +304,9 @@ func (i *memoryIssuer) createOffer(credential vc.VerifiableCredential, preAuthor
 				"types":    credential.Type,
 			},
 		}},
-		Grants: []map[string]interface{}{
-			{
-				oidc4vci.PreAuthorizedCodeGrant: map[string]interface{}{
-					"pre-authorized_code": preAuthorizedCode,
-				},
+		Grants: map[string]interface{}{
+			oidc4vci.PreAuthorizedCodeGrant: map[string]interface{}{
+				"pre-authorized_code": preAuthorizedCode,
 			},
 		},
 	}

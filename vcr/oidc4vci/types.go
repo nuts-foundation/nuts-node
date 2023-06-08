@@ -84,7 +84,7 @@ type CredentialOffer struct {
 	// Credentials defines the credentials offered by the issuer to the wallet.
 	Credentials []map[string]interface{} `json:"credentials"`
 	// Grants defines the grants offered by the issuer to the wallet.
-	Grants []map[string]interface{} `json:"grants"`
+	Grants map[string]interface{} `json:"grants"`
 }
 
 // CredentialRequest defines the credential request sent by the wallet to the issuer.
