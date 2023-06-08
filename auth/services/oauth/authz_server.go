@@ -50,7 +50,8 @@ const errInvalidSubjectFmt = "invalid jwt.subject: %w"
 const errInvalidVCClaim = "invalid jwt.vcs: %w"
 
 const vcClaim = "vcs"
-const purposeOfUseClaim = "purposeOfUseClaim"
+const purposeOfUseClaimDeprecated = "purposeOfUseClaim"
+const purposeOfUseClaim = "purposeOfUse"
 const userIdentityClaim = "usi"
 
 // RFC003, §5.3 Access token: Tokens MUST NOT be valid for more than 60 seconds.
@@ -324,11 +325,14 @@ func (s *authzServer) validateRequester(context *validationContext) error {
 	return nil
 }
 
-// check if the purposeOfUser is filled and adds it to the validationContext
+// check if the purposeOfUse is filled and adds it to the validationContext
 func (s *authzServer) validatePurposeOfUse(context *validationContext) error {
 	purposeOfUse := context.stringVal(purposeOfUseClaim)
 	if purposeOfUse == nil {
-		return errors.New("no purposeOfUse given")
+		purposeOfUse = context.stringVal(purposeOfUseClaimDeprecated)
+		if purposeOfUse == nil {
+			return errors.New("no purposeOfUse given")
+		}
 	}
 
 	context.purposeOfUse = *purposeOfUse

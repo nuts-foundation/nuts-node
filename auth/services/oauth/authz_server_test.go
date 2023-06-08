@@ -397,14 +397,35 @@ func TestService_validateSubject(t *testing.T) {
 }
 
 func TestService_validatePurposeOfUse(t *testing.T) {
-	t.Run("error - no purposeOfUser", func(t *testing.T) {
+	t.Run("error - no purposeOfUse", func(t *testing.T) {
+		ctx := createContext(t)
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Remove(purposeOfUseClaimDeprecated)
+		tokenCtx.jwtBearerToken.Remove(purposeOfUseClaim)
+
+		err := ctx.oauthService.validatePurposeOfUse(tokenCtx)
+
+		assert.EqualError(t, err, "no purposeOfUse given")
+	})
+
+	t.Run("ok - only deprecated claim", func(t *testing.T) {
 		ctx := createContext(t)
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Remove(purposeOfUseClaim)
 
 		err := ctx.oauthService.validatePurposeOfUse(tokenCtx)
 
-		assert.EqualError(t, err, "no purposeOfUse given")
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - only correct claim", func(t *testing.T) {
+		ctx := createContext(t)
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Remove(purposeOfUseClaimDeprecated)
+
+		err := ctx.oauthService.validatePurposeOfUse(tokenCtx)
+
+		assert.NoError(t, err)
 	})
 }
 
@@ -759,16 +780,17 @@ func validContext() *validationContext {
 	_ = json.Unmarshal(credString, &credMap)
 
 	claims := map[string]interface{}{
-		jwt.AudienceKey:   expectedAudience,
-		jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
-		jwt.JwtIDKey:      "a005e81c-6749-4967-b01c-495228fcafb4",
-		jwt.IssuedAtKey:   time.Now().UTC(),
-		jwt.IssuerKey:     requesterDID.String(),
-		jwt.NotBeforeKey:  0,
-		jwt.SubjectKey:    authorizerDID.String(),
-		userIdentityClaim: usi,
-		purposeOfUseClaim: expectedService,
-		vcClaim:           []interface{}{credMap},
+		jwt.AudienceKey:             expectedAudience,
+		jwt.ExpirationKey:           time.Now().Add(5 * time.Second).Unix(),
+		jwt.JwtIDKey:                "a005e81c-6749-4967-b01c-495228fcafb4",
+		jwt.IssuedAtKey:             time.Now().UTC(),
+		jwt.IssuerKey:               requesterDID.String(),
+		jwt.NotBeforeKey:            0,
+		jwt.SubjectKey:              authorizerDID.String(),
+		userIdentityClaim:           usi,
+		purposeOfUseClaimDeprecated: expectedService,
+		purposeOfUseClaim:           expectedService,
+		vcClaim:                     []interface{}{credMap},
 	}
 	token := jwt.New()
 	for k, v := range claims {
@@ -787,16 +809,16 @@ func validAccessToken() *validationContext {
 	usi := vc.VerifiablePresentation{Type: []ssi.URI{ssi.MustParseURI("TestPresentation")}}
 
 	claims := map[string]interface{}{
-		jwt.AudienceKey:   expectedAudience,
-		jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
-		jwt.JwtIDKey:      "a005e81c-6749-4967-b01c-495228fcafb4",
-		jwt.IssuedAtKey:   time.Now().UTC(),
-		jwt.SubjectKey:    requesterDID.String(),
-		jwt.NotBeforeKey:  0,
-		jwt.IssuerKey:     authorizerDID.String(),
-		userIdentityClaim: usi,
-		purposeOfUseClaim: expectedService,
-		vcClaim:           []string{"credential"},
+		jwt.AudienceKey:             expectedAudience,
+		jwt.ExpirationKey:           time.Now().Add(5 * time.Second).Unix(),
+		jwt.JwtIDKey:                "a005e81c-6749-4967-b01c-495228fcafb4",
+		jwt.IssuedAtKey:             time.Now().UTC(),
+		jwt.SubjectKey:              requesterDID.String(),
+		jwt.NotBeforeKey:            0,
+		jwt.IssuerKey:               authorizerDID.String(),
+		userIdentityClaim:           usi,
+		purposeOfUseClaimDeprecated: expectedService,
+		vcClaim:                     []string{"credential"},
 	}
 	token := jwt.New()
 	for k, v := range claims {
