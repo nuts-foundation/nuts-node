@@ -49,7 +49,7 @@ func NewStoabsStore(store stoabs.KVStore) Store {
 		store:    store,
 		routines: &sync.WaitGroup{},
 	}
-	result.startPruning()
+	result.startPruning(pruneInterval)
 	return result
 }
 
@@ -160,9 +160,9 @@ func (o *stoabsStore) Close() {
 	o.routines.Wait()
 }
 
-func (o *stoabsStore) startPruning() {
+func (o *stoabsStore) startPruning(interval time.Duration) {
 	o.ctx, o.cancel = context.WithCancel(context.Background())
-	ticker := time.NewTicker(pruneInterval)
+	ticker := time.NewTicker(interval)
 	go func() {
 		select {
 		case <-o.ctx.Done():

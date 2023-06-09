@@ -2,7 +2,9 @@ package openid4vci
 
 import (
 	"context"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -145,6 +147,29 @@ func Test_stoabsStore_Store(t *testing.T) {
 
 func Test_stoabsStore_prune(t *testing.T) {
 	ctx := context.Background()
+	t.Run("automatic", func(t *testing.T) {
+		store := createStore(t)
+		// we call startPruning a second time ourselves, make sure not to leak the original goroutine
+		cancelFunc := store.cancel
+		defer cancelFunc()
+		store.startPruning(10 * time.Millisecond)
+
+		// Feed it something to prune
+		expiredFlow := Flow{
+			ID: "expired",
+		}
+		err := store.Store(ctx, expiredFlow)
+		require.NoError(t, err)
+
+		test.WaitFor(t, func() (bool, error) {
+			var exists bool
+			var err error
+			return !exists, store.store.WriteShelf(ctx, flowsShelf, func(writer stoabs.Writer) error {
+				exists, err = store.flowExists(writer, expiredFlow.ID)
+				return err
+			})
+		}, time.Second, "time-out waiting for flow to be pruned")
+	})
 	t.Run("prunes expired flows", func(t *testing.T) {
 		store := createStore(t)
 
