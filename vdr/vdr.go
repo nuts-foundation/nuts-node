@@ -255,10 +255,10 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 
 	currentDIDDocument, currentMeta, err := r.store.Resolve(id, resolverMetadata)
 	if err != nil {
-		return err
+		return fmt.Errorf("update DID document: %w", err)
 	}
 	if didservice.IsDeactivated(*currentDIDDocument) {
-		return types.ErrDeactivated
+		return fmt.Errorf("update DID document: %w", types.ErrDeactivated)
 	}
 
 	// #1530: add nuts and JWS context if not present
@@ -267,23 +267,23 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 
 	// Validate document. No more changes should be made to the document after this point.
 	if err = ManagedDocumentValidator(didservice.NewServiceResolver(r.didDocResolver)).Validate(next); err != nil {
-		return err
+		return fmt.Errorf("update DID document: %w", err)
 	}
 
 	payload, err := json.Marshal(next)
 	if err != nil {
-		return err
+		return fmt.Errorf("update DID document: %w", err)
 	}
 
 	controller, key, err := r.resolveControllerWithKey(ctx, *currentDIDDocument)
 	if err != nil {
-		return err
+		return fmt.Errorf("update DID document: %w", err)
 	}
 
 	// for the metadata
 	_, controllerMeta, err := r.didDocResolver.Resolve(controller.ID, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("update DID document: %w", err)
 	}
 
 	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
@@ -291,18 +291,19 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 
 	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
 	_, err = r.network.CreateTransaction(ctx, tx)
-	if err == nil {
-		log.Logger().
-			WithField(core.LogFieldDID, id).
-			Info("DID Document updated")
-	} else {
+	if err != nil {
 		log.Logger().WithError(err).Warn("Unable to update DID document")
 		if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
-			return types.ErrDIDNotManagedByThisNode
+			err = types.ErrDIDNotManagedByThisNode
 		}
+		return fmt.Errorf("update DID document: %w", err)
 	}
 
-	return err
+	log.Logger().
+		WithField(core.LogFieldDID, id).
+		Info("DID Document updated")
+
+	return nil
 }
 
 func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {

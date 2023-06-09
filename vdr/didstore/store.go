@@ -164,7 +164,7 @@ func (tl *store) Resolve(id did.DID, resolveMetadata *vdr.ResolveMetadata) (retu
 }
 
 func (tl *store) Iterate(fn vdr.DocIterator) error {
-	err := tl.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
+	return tl.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		latestReader := tx.GetShelfReader(latestShelf)
 
 		return latestReader.Iterate(func(didKey stoabs.Key, metadataRecordRef []byte) error {
@@ -182,10 +182,6 @@ func (tl *store) Iterate(fn vdr.DocIterator) error {
 			return fn(document, metadata.asVDRMetadata())
 		}, stoabs.BytesKey{})
 	})
-	if err != nil {
-		return fmt.Errorf("iterate: database error on Read: %w", err)
-	}
-	return nil
 }
 
 func (tl *store) Conflicted(fn vdr.DocIterator) error {

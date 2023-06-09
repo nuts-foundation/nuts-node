@@ -314,14 +314,20 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 		return err
 	}
 
-	// check for existing use
-	if err = d.store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
-		if referencesService(doc, serviceID) {
-			return ErrServiceInUse
+	var service *did.Service
+	for i, s := range doc.Service {
+		if s.ID == serviceID {
+			service = &doc.Service[i]
+			break
 		}
-		return nil
-	}); err != nil {
-		return err
+	}
+	if service == nil {
+		return types.ErrServiceNotFound
+	}
+
+	// check for existing use on this document
+	if referencedService(doc, didservice.MakeServiceReference(doc.ID, service.Type).String()) {
+		return ErrServiceInUse
 	}
 
 	// remove service
@@ -605,17 +611,27 @@ func generateIDForService(id did.DID, service did.Service) ssi.URI {
 	return d
 }
 
-func referencesService(doc did.Document, serviceID ssi.URI) bool {
-	id := serviceID.String()
+// referencedService checks if serviceRef occurs in doc's services.
+// serviceRef is in the form: did:nuts:123/serviceEndpoint?type=oauth_prod
+func referencedService(doc *did.Document, serviceRef string) bool {
 	for _, s := range doc.Service {
-		cs := types.CompoundService{}
-		// ignore structures that can not be parsed to compound endpoints
-		if err := s.UnmarshalServiceEndpoint(&cs); err == nil {
-			for _, v := range cs {
-				if v == id {
+		switch s.ServiceEndpoint.(type) {
+		case map[string]interface{}: // compound service
+			cs := types.CompoundService{}
+			_ = s.UnmarshalServiceEndpoint(&cs)
+			for _, ref := range cs {
+				if ref == serviceRef {
 					return true
 				}
 			}
+		case interface{}: // service endpoint
+			var serviceEndpoint string
+			_ = s.UnmarshalServiceEndpoint(&serviceEndpoint)
+			if serviceEndpoint == serviceRef {
+				return true
+			}
+		default: // sets are not supported
+			// Should this do anything?
 		}
 	}
 	return false
