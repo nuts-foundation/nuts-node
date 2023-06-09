@@ -8,7 +8,6 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -27,14 +26,8 @@ type Store interface {
 	// DeleteReference deletes the reference from the store.
 	// It does not return an error if it doesn't exist anymore.
 	DeleteReference(ctx context.Context, refType string, reference string) error
-}
-
-// NewStoabsStore creates a new Store backed by a stoabs.KVStore.
-func NewStoabsStore(store stoabs.KVStore) Store {
-	return &stoabsStore{
-		store:    store,
-		pruneMux: &sync.Mutex{},
-	}
+	// Close signals the store to close any owned resources.
+	Close()
 }
 
 var _ Store = (*stoabsStore)(nil)
@@ -44,9 +37,20 @@ const referencesShelf = "refs"
 const pruneInterval = 10 * time.Minute
 
 type stoabsStore struct {
-	store     stoabs.KVStore
-	lastPrune atomic.Pointer[time.Time]
-	pruneMux  *sync.Mutex
+	store    stoabs.KVStore
+	routines *sync.WaitGroup
+	ctx      context.Context
+	cancel   context.CancelFunc
+}
+
+// NewStoabsStore creates a new Store backed by a stoabs.KVStore.
+func NewStoabsStore(store stoabs.KVStore) Store {
+	result := &stoabsStore{
+		store:    store,
+		routines: &sync.WaitGroup{},
+	}
+	result.startPruning()
+	return result
 }
 
 type referenceValue struct {
@@ -70,7 +74,6 @@ func (o *stoabsStore) Store(ctx context.Context, flow Flow) error {
 }
 
 func (o *stoabsStore) StoreReference(ctx context.Context, flowID string, refType string, reference string, expiry time.Time) error {
-	o.pruneIfStale(time.Now())
 	if len(reference) == 0 {
 		return errors.New("invalid reference")
 	}
@@ -91,7 +94,6 @@ func (o *stoabsStore) StoreReference(ctx context.Context, flowID string, refType
 }
 
 func (o *stoabsStore) FindByReference(ctx context.Context, refType string, reference string) (*Flow, error) {
-	o.pruneIfStale(time.Now())
 	var flowID string
 	err := o.store.ReadShelf(ctx, referencesShelf, func(reader stoabs.Reader) error {
 		valueBytes, err := reader.Get(o.refKey(refType, reference))
@@ -147,50 +149,71 @@ func (o *stoabsStore) FindByReference(ctx context.Context, refType string, refer
 }
 
 func (o *stoabsStore) DeleteReference(ctx context.Context, refType string, reference string) error {
-	o.pruneIfStale(time.Now())
 	return o.store.WriteShelf(ctx, referencesShelf, func(writer stoabs.Writer) error {
 		return writer.Delete(o.refKey(refType, reference))
 	})
 }
 
-// pruneIfStale checks if the last prune was more than 10 minutes ago and if so, starts a new prune operation.
-// Pruning is only intended to clean up old references, so it's not a problem if it's not done immediately after a flow or reference expired.
-func (o *stoabsStore) pruneIfStale(moment time.Time) {
-	// If TryLock fails, another prune operation is already running and this one can be skipped.
-	if o.pruneMux.TryLock() {
-		defer o.pruneMux.Unlock()
-		lastPrune := o.lastPrune.Load()
-		if lastPrune == nil || time.Since(*lastPrune) > pruneInterval {
-			o.lastPrune.Store(&moment)
-			// Actual prune is non-blocking
-			go func() {
-				referencesPruned, err := o.prune(context.Background())
-				if err != nil {
-					log.Logger().WithError(err).Errorf("Failed to prune OpenID4VCI flow references")
-				}
-				if referencesPruned > 0 {
-					log.Logger().Debugf("Pruned %d expired OpenID4VCI flow references", referencesPruned)
-				}
-			}()
-		}
-	}
+func (o *stoabsStore) Close() {
+	// Signal pruner to stop and wait for it to finish
+	o.cancel()
+	o.routines.Wait()
 }
 
-func (o *stoabsStore) prune(ctx context.Context) (int, error) {
-	var count int
-	return count, o.store.WriteShelf(ctx, referencesShelf, func(writer stoabs.Writer) error {
-		// Find expired references and delete them
+func (o *stoabsStore) startPruning() {
+	o.ctx, o.cancel = context.WithCancel(context.Background())
+	ticker := time.NewTicker(pruneInterval)
+	go func() {
+		select {
+		case <-o.ctx.Done():
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			flowsPruned, refsPruned, err := o.prune(context.Background(), time.Now())
+			if err != nil {
+				log.Logger().WithError(err).Errorf("Failed to prune OpenID4VCI flows/references")
+			}
+			if flowsPruned > 0 || refsPruned > 0 {
+				log.Logger().Debugf("Pruned %d expired OpenID4VCI flows and %d expired refs", flowsPruned, refsPruned)
+			}
+		}
+	}()
+}
+
+func (o *stoabsStore) prune(ctx context.Context, moment time.Time) (int, int, error) {
+	var flowCount int
+	var refCount int
+	var err error
+	// Find expired references and delete them
+	err = o.store.WriteShelf(ctx, referencesShelf, func(writer stoabs.Writer) error {
 		err := writer.Iterate(func(key stoabs.Key, value []byte) error {
 			var ref referenceValue
 			err := json.Unmarshal(value, &ref)
-			if err == nil && ref.Expiry.Before(time.Now()) {
-				count++
+			if err == nil && ref.Expiry.Before(moment) {
+				refCount++
 				return writer.Delete(key)
 			}
 			return nil
 		}, stoabs.BytesKey{})
 		return err
 	})
+	if err != nil {
+		return flowCount, refCount, err
+	}
+	// Find expired flows and delete them
+	err = o.store.WriteShelf(ctx, flowsShelf, func(writer stoabs.Writer) error {
+		err := writer.Iterate(func(key stoabs.Key, value []byte) error {
+			var flow Flow
+			err := json.Unmarshal(value, &flow)
+			if err == nil && flow.Expiry.Before(moment) {
+				flowCount++
+				return writer.Delete(key)
+			}
+			return nil
+		}, stoabs.BytesKey{})
+		return err
+	})
+	return flowCount, refCount, err
 }
 
 func (o *stoabsStore) validateFlowExists(ctx context.Context, flowID string) error {

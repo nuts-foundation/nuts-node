@@ -5,6 +5,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"path"
 	"testing"
 	"time"
@@ -82,7 +83,7 @@ func Test_stoabsStore_FindByReference(t *testing.T) {
 		err := store.Store(context.Background(), expected)
 		assert.NoError(t, err)
 		// We need a reference to resolve it
-		err = store.StoreReference(context.Background(), expected.ID, refType, ref, time.Now().Add(-time.Hour))
+		err = store.StoreReference(context.Background(), expected.ID, refType, ref, pastExpiry())
 		assert.NoError(t, err)
 
 		actual, err := store.FindByReference(context.Background(), refType, ref)
@@ -92,6 +93,7 @@ func Test_stoabsStore_FindByReference(t *testing.T) {
 }
 
 func Test_stoabsStore_Store(t *testing.T) {
+	ctx := context.Background()
 	t.Run("write, then read", func(t *testing.T) {
 		store := createStore(t)
 		expected := Flow{
@@ -99,13 +101,13 @@ func Test_stoabsStore_Store(t *testing.T) {
 			Expiry: futureExpiry(),
 		}
 
-		err := store.Store(context.Background(), expected)
+		err := store.Store(ctx, expected)
 		assert.NoError(t, err)
 		// We need a reference to resolve it
-		err = store.StoreReference(context.Background(), expected.ID, refType, ref, futureExpiry())
+		err = store.StoreReference(ctx, expected.ID, refType, ref, futureExpiry())
 		assert.NoError(t, err)
 
-		actual, err := store.FindByReference(context.Background(), refType, ref)
+		actual, err := store.FindByReference(ctx, refType, ref)
 		assert.NoError(t, err)
 		assert.Equal(t, expected, *actual)
 	})
@@ -116,9 +118,9 @@ func Test_stoabsStore_Store(t *testing.T) {
 			Expiry: futureExpiry(),
 		}
 
-		err := store.Store(context.Background(), expected)
+		err := store.Store(ctx, expected)
 		assert.NoError(t, err)
-		err = store.Store(context.Background(), expected)
+		err = store.Store(ctx, expected)
 
 		assert.EqualError(t, err, "OAuth2 flow with this ID already exists")
 	})
@@ -126,27 +128,86 @@ func Test_stoabsStore_Store(t *testing.T) {
 		store := createStore(t)
 		expected := Flow{
 			ID:     "flow-id",
-			Expiry: time.Now().Add(-time.Hour),
+			Expiry: pastExpiry(),
 		}
 
-		err := store.Store(context.Background(), expected)
+		err := store.Store(ctx, expected)
 		assert.NoError(t, err)
 		// We need a reference to resolve it
-		err = store.StoreReference(context.Background(), expected.ID, refType, ref, futureExpiry())
+		err = store.StoreReference(ctx, expected.ID, refType, ref, futureExpiry())
 		assert.NoError(t, err)
 
-		actual, err := store.FindByReference(context.Background(), refType, ref)
+		actual, err := store.FindByReference(ctx, refType, ref)
 		assert.NoError(t, err)
 		assert.Nil(t, actual)
 	})
 }
 
-func createStore(t *testing.T) Store {
-	return NewStoabsStore(storage.CreateTestBBoltStore(t, path.Join(io.TestDirectory(t), "test.db")))
+func Test_stoabsStore_prune(t *testing.T) {
+	ctx := context.Background()
+	t.Run("prunes expired flows", func(t *testing.T) {
+		store := createStore(t)
+
+		expiredFlow := Flow{
+			ID: "expired",
+		}
+		unexpiredFlow := Flow{
+			ID:     "unexpired",
+			Expiry: futureExpiry(),
+		}
+		_ = store.Store(ctx, expiredFlow)
+		_ = store.Store(ctx, unexpiredFlow)
+
+		flows, refs, err := store.prune(ctx, time.Now())
+
+		assert.NoError(t, err)
+		assert.Equal(t, 1, flows)
+		assert.Equal(t, 0, refs)
+
+		// Second round to assert there's nothing to prune now
+		flows, refs, err = store.prune(ctx, time.Now())
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, flows)
+		assert.Equal(t, 0, refs)
+	})
+	t.Run("prunes expired refs", func(t *testing.T) {
+		store := createStore(t)
+
+		flow := Flow{
+			ID:     "f",
+			Expiry: futureExpiry(),
+		}
+		err := store.Store(ctx, flow)
+		require.NoError(t, err)
+		err = store.StoreReference(ctx, flow.ID, refType, "expired", pastExpiry())
+		require.NoError(t, err)
+		err = store.StoreReference(ctx, flow.ID, refType, "unexpired", futureExpiry())
+		require.NoError(t, err)
+
+		flows, refs, err := store.prune(ctx, time.Now())
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, flows)
+		assert.Equal(t, 1, refs)
+
+		// Second round to assert there's nothing to prune now
+		flows, refs, err = store.prune(ctx, time.Now())
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, flows)
+		assert.Equal(t, 0, refs)
+	})
 }
 
-func Test_stoabsStore_pruneIfStale(t *testing.T) {
+func createStore(t *testing.T) *stoabsStore {
+	store := NewStoabsStore(storage.CreateTestBBoltStore(t, path.Join(io.TestDirectory(t), "test.db"))).(*stoabsStore)
+	t.Cleanup(store.Close)
+	return store
+}
 
+func pastExpiry() time.Time {
+	return time.Now().Add(-time.Hour)
 }
 
 func futureExpiry() time.Time {
