@@ -19,13 +19,16 @@
 package v0
 
 import (
+	"context"
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 )
 
@@ -86,7 +89,8 @@ var _ StrictServerInterface = (*Wrapper)(nil)
 
 // Wrapper wraps the OIDC4VCI API
 type Wrapper struct {
-	VCR vcr.VCR
+	VCR           vcr.VCR
+	DocumentOwner types.DocumentOwner
 }
 
 // Routes registers the API routes
@@ -113,4 +117,20 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, vcr.ModuleName+"/OIDC4VCI", operationID)
 		},
 	}))
+}
+
+// validateDIDIsOwned parsed the given string as DID and checks whether it's owned by this node.
+func (w Wrapper) validateDIDIsOwned(ctx context.Context, holderOrIssuerDID string) (did.DID, error) {
+	parsedDID, err := did.ParseDID(holderOrIssuerDID)
+	if err != nil {
+		return did.DID{}, errHolderOrIssuerNotFound
+	}
+	isOwner, err := w.DocumentOwner.IsOwner(ctx, *parsedDID)
+	if err != nil {
+		return did.DID{}, err
+	}
+	if !isOwner {
+		return did.DID{}, errHolderOrIssuerNotFound
+	}
+	return *parsedDID, nil
 }

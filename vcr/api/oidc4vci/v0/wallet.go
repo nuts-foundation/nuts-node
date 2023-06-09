@@ -21,25 +21,24 @@ package v0
 import (
 	"context"
 	"encoding/json"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 )
 
 // GetOAuth2ClientMetadata returns the OAuth2 client metadata for the given DID.
-func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
-	id, err := did.ParseDID(request.Did)
+func (w Wrapper) GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
+	holderDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
-		return nil, errHolderOrIssuerNotFound
+		return nil, err
 	}
-	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.GetOIDCWallet(*id).Metadata()), nil
+	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.GetOIDCWallet(holderDID).Metadata()), nil
 }
 
 // HandleCredentialOffer handles a credential offer for the given DID.
 func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error) {
-	id, err := did.ParseDID(request.Did)
+	holderDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
-		return nil, errHolderOrIssuerNotFound
+		return nil, err
 	}
 	offer := oidc4vci.CredentialOffer{}
 	if err := json.Unmarshal([]byte(request.Params.CredentialOffer), &offer); err != nil {
@@ -47,9 +46,7 @@ func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCreden
 		return nil, core.InvalidInputError("unable to unmarshal credential_offer: %w", err)
 	}
 
-	// TODO: If the wallet DID is unknown, it should still return 404 (like with an invalid DID).
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2056
-	err = w.VCR.GetOIDCWallet(*id).HandleCredentialOffer(ctx, offer)
+	err = w.VCR.GetOIDCWallet(holderDID).HandleCredentialOffer(ctx, offer)
 	if err != nil {
 		return nil, err
 	}

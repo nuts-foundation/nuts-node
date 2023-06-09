@@ -42,6 +42,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
+var _ types.VDR = (*VDR)(nil)
+
 // VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
@@ -52,17 +54,20 @@ type VDR struct {
 	networkAmbassador Ambassador
 	didDocCreator     types.DocCreator
 	didDocResolver    types.DocResolver
+	documentOwner     types.DocumentOwner
 	keyStore          crypto.KeyStore
 }
 
 // NewVDR creates a new VDR with provided params
 func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store didstore.Store, eventManager events.Event) *VDR {
+	resolver := didservice.Resolver{Store: store}
 	return &VDR{
 		config:            config,
 		network:           networkClient,
 		store:             store,
 		didDocCreator:     didservice.Creator{KeyStore: cryptoClient},
-		didDocResolver:    didservice.Resolver{Store: store},
+		didDocResolver:    resolver,
+		documentOwner:     newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, resolver),
 		networkAmbassador: NewAmbassador(networkClient, store, eventManager),
 		keyStore:          cryptoClient,
 	}
@@ -116,6 +121,10 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 		return nil
 	})
 	return conflictedDocs, conflictedMeta, err
+}
+
+func (r *VDR) IsOwner(ctx context.Context, id did.DID) (bool, error) {
+	return r.documentOwner.IsOwner(ctx, id)
 }
 
 // newOwnConflictedDocIterator accepts two counters and returns a new DocIterator that counts the total number of

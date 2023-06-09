@@ -473,3 +473,17 @@ func TestWithJSONLDContext(t *testing.T) {
 		assert.EqualValues(t, expected.Context, patched.Context)
 	})
 }
+
+func TestVDR_IsOwner(t *testing.T) {
+	id := did.MustParseDID("did:nuts:123")
+	t.Run("delegates the call to the underlying DocumentOwner", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		owner := types.NewMockDocumentOwner(ctrl)
+		owner.EXPECT().IsOwner(gomock.Any(), id).Return(true, nil)
+
+		result, err := (&VDR{documentOwner: owner}).IsOwner(context.Background(), id)
+
+		assert.NoError(t, err)
+		assert.True(t, result)
+	})
+}
