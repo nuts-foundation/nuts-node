@@ -1040,7 +1040,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 
 			// Assert connection is rejected
 			msg, err := result.Recv()
-			assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = TLS client certificate authentication failed")
+			assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = TLS client certificate validation failed")
 			assert.Nil(t, msg)
 		})
 	})
