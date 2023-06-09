@@ -282,6 +282,19 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken)
 	})
+	t.Run("pre-authorized code issued by other issuer", func(t *testing.T) {
+		issuer := createIssuer(t, nil)
+		_, err := issuer.createOffer(ctx, issuedVC, "code")
+		require.NoError(t, err)
+
+		accessToken, err := issuer.HandleAccessTokenRequest(audit.TestContext(), did.MustParseDID("did:nuts:other"), "code")
+
+		var protocolError oidc4vci.Error
+		require.ErrorAs(t, err, &protocolError)
+		assert.EqualError(t, protocolError, "invalid_grant - pre-authorized code not issued by this issuer")
+		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
+		assert.Empty(t, accessToken)
+	})
 	t.Run("unknown pre-authorized code", func(t *testing.T) {
 		issuer := createIssuer(t, nil)
 		_, err := issuer.createOffer(ctx, issuedVC, "some-other-code")
