@@ -115,7 +115,7 @@ func (mr *MockProviderMockRecorder) AddTruststore(chain interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTruststore", reflect.TypeOf((*MockProvider)(nil).AddTruststore), chain)
 }
 
-// CreateClientTLSConfig mocks base method.
+// CreateTLSConfig mocks base method.
 func (m *MockProvider) CreateTLSConfig(cfg core.TLSConfig) (*tls.Config, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateTLSConfig", cfg)
@@ -124,8 +124,8 @@ func (m *MockProvider) CreateTLSConfig(cfg core.TLSConfig) (*tls.Config, error) 
 	return ret0, ret1
 }
 
-// CreateClientTLSConfig indicates an expected call of CreateClientTLSConfig.
-func (mr *MockProviderMockRecorder) CreateClientTLSConfig(cfg interface{}) *gomock.Call {
+// CreateTLSConfig indicates an expected call of CreateTLSConfig.
+func (mr *MockProviderMockRecorder) CreateTLSConfig(cfg interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTLSConfig", reflect.TypeOf((*MockProvider)(nil).CreateTLSConfig), cfg)
 }

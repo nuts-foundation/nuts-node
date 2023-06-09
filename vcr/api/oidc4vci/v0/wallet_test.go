@@ -86,5 +86,5 @@ func TestWrapper_HandleCredentialOffer(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	assert.Equal(t, "OK", string(response.(HandleCredentialOffer202TextResponse)))
+	assert.Equal(t, "credential_received", string(response.(HandleCredentialOffer200JSONResponse).Status))
 }

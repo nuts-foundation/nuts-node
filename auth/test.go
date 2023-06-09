@@ -40,6 +40,6 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockProvider(ctrl)
 	pkiMock.EXPECT().AddTruststore(gomock.Any()).AnyTimes()
-	pkiMock.EXPECT().CreateClientTLSConfig(gomock.Any()).AnyTimes()
+	pkiMock.EXPECT().CreateTLSConfig(gomock.Any()).AnyTimes()
 	return NewAuthInstance(cfg, didstore.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil, pkiMock)
 }

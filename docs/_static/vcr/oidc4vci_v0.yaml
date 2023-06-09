@@ -225,12 +225,12 @@ paths:
           schema:
             type: string
       responses:
-        "202":
-          description: Accepted
+        "200":
+          description: Credential offer has been processed and the credential been retrieved.
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
+                "$ref": "#/components/schemas/CredentialOfferResponse"
         "404":
           description: Unknown wallet
           content:
@@ -492,4 +492,16 @@ components:
             }
           }
         }
-
+    CredentialOfferResponse:
+      type: object
+      description: |
+        The response to a credential offer, indicating the status of the operation on the wallet's side.
+        It is an extension to the OIDC4VCI specification to better support server-to-server issuance.
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Status of the operation handling the credential offer.
+          enum:
+            - credential_received

@@ -72,7 +72,7 @@ func TestVCR_Configure(t *testing.T) {
 			testDirectory := io.TestDirectory(t)
 			ctrl := gomock.NewController(t)
 			pkiProvider := pki.NewMockProvider(ctrl)
-			pkiProvider.EXPECT().CreateClientTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
+			pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
 			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider).(*vcr)
 			instance.config.OIDC4VCI.Enabled = true
 			instance.config.OIDC4VCI.URL = "http://example.com"

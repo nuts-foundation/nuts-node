@@ -54,5 +54,5 @@ func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCreden
 		return nil, err
 	}
 
-	return HandleCredentialOffer202TextResponse("OK"), nil
+	return HandleCredentialOffer200JSONResponse{Status: oidc4vci.CredentialOfferStatusReceived}, nil
 }

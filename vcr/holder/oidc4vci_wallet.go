@@ -113,53 +113,60 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 	}
 	issuerClient, err := h.issuerClientCreator(ctx, httpClient, offer.CredentialIssuer)
 	if err != nil {
-		return fmt.Errorf("unable to create issuer client: %w", err)
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("unable to create issuer client: %w", err),
+			Code:       oidc4vci.ServerError,
+			StatusCode: http.StatusInternalServerError,
+		}
 	}
 
-	// TODO: store offer and perform these requests async
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2040
 	accessTokenResponse, err := issuerClient.RequestAccessToken(oidc4vci.PreAuthorizedCodeGrant, map[string]string{
 		"pre-authorized_code": preAuthorizedCode,
 	})
 	if err != nil {
-		return fmt.Errorf("unable to request access token: %w", err)
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("unable to request access token: %w", err),
+			Code:       oidc4vci.InvalidToken,
+			StatusCode: http.StatusInternalServerError,
+		}
 	}
 
 	if accessTokenResponse.AccessToken == "" {
-		return fmt.Errorf("access token is empty")
+		return oidc4vci.Error{
+			Err:        errors.New("access_token is missing"),
+			Code:       oidc4vci.InvalidToken,
+			StatusCode: http.StatusInternalServerError,
+		}
 	}
 
 	if accessTokenResponse.CNonce == nil {
-		return fmt.Errorf("c_nonce is missing")
+		return oidc4vci.Error{
+			Err:        errors.New("c_nonce is missing"),
+			Code:       oidc4vci.InvalidToken,
+			StatusCode: http.StatusInternalServerError,
+		}
 	}
 
-	// TODO: we now do this in a goroutine to avoid blocking the issuer's process, needs more orchestration?
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2040
-	go func() {
-		retrieveCtx := audit.Context(context.Background(), "app-oidc4vci", "VCR/OIDC4VCI", "RetrieveCredential")
-		// TODO: How to deal with time-outs?
-		//       See https://github.com/nuts-foundation/nuts-node/issues/2040
-		retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.clientTimeout)
-		defer cancel()
-		credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer, accessTokenResponse)
-		if err != nil {
-			log.Logger().WithError(err).Errorf("Unable to retrieve credential")
-			return
+	retrieveCtx := audit.Context(ctx, "app-oidc4vci", "VCR/OIDC4VCI", "RetrieveCredential")
+	retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.clientTimeout)
+	defer cancel()
+	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer, accessTokenResponse)
+	if err != nil {
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("unable to retrieve credential: %w", err),
+			Code:       oidc4vci.ServerError,
+			StatusCode: http.StatusInternalServerError,
 		}
-		// TODO: Wallet should make sure the VC is of the expected type
-		//       See https://github.com/nuts-foundation/nuts-node/issues/2050
-		var credentialID string
-		if credential.ID != nil {
-			credentialID = credential.ID.String()
-		}
-		log.Logger().
-			WithField("credentialID", credentialID).
-			Infof("Received VC over OIDC4VCI")
-		err = h.credentialStore.StoreCredential(*credential, nil)
-		if err != nil {
-			log.Logger().WithError(err).Error("Unable to store VC")
-		}
-	}()
+	}
+	// TODO: Wallet should make sure the VC is of the expected type
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2050
+	log.Logger().
+		WithField("credentialID", credential.ID).
+		Infof("Received VC over OIDC4VCI")
+	err = h.credentialStore.StoreCredential(*credential, nil)
+	if err != nil {
+		return fmt.Errorf("unable to store credential: %w", err)
+	}
 	return nil
 }
 

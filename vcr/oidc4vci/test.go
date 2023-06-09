@@ -53,7 +53,7 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	clientTest.credentialHandler = clientTest.httpPostHandler(credentialResponse)
 	clientTest.tokenHandler = clientTest.httpPostHandler(TokenResponse{AccessToken: "secret"})
 	clientTest.walletMetadataHandler = clientTest.httpGetHandler(walletMetadata)
-	clientTest.credentialOfferHandler = clientTest.httpGetHandler(nil)
+	clientTest.credentialOfferHandler = clientTest.httpGetHandler(CredentialOfferResponse{CredentialOfferStatusReceived})
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/issuer"+CredentialIssuerMetadataWellKnownPath, func(writer http.ResponseWriter, request *http.Request) {

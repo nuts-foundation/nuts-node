@@ -38,6 +38,9 @@ type CredentialIssuerMetadata = oidc4vci.CredentialIssuerMetadata
 // TokenResponse is the response of the OpenID Connect token endpoint
 type TokenResponse = oidc4vci.TokenResponse
 
+// CredentialOfferResponse is the response to the OIDC4VCI credential offer
+type CredentialOfferResponse = oidc4vci.CredentialOfferResponse
+
 // CredentialRequest is the request to the OIDC4VCI credential request endpoint
 type CredentialRequest = oidc4vci.CredentialRequest
 
