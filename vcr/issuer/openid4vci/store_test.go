@@ -158,14 +158,14 @@ func Test_stoabsStore_prune(t *testing.T) {
 		_ = store.Store(ctx, expiredFlow)
 		_ = store.Store(ctx, unexpiredFlow)
 
-		flows, refs, err := store.prune(ctx, time.Now())
+		flows, refs, err := store.prune(ctx, moment())
 
 		assert.NoError(t, err)
 		assert.Equal(t, 1, flows)
 		assert.Equal(t, 0, refs)
 
 		// Second round to assert there's nothing to prune now
-		flows, refs, err = store.prune(ctx, time.Now())
+		flows, refs, err = store.prune(ctx, moment())
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, flows)
@@ -185,14 +185,14 @@ func Test_stoabsStore_prune(t *testing.T) {
 		err = store.StoreReference(ctx, flow.ID, refType, "unexpired", futureExpiry())
 		require.NoError(t, err)
 
-		flows, refs, err := store.prune(ctx, time.Now())
+		flows, refs, err := store.prune(ctx, moment())
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, flows)
 		assert.Equal(t, 1, refs)
 
 		// Second round to assert there's nothing to prune now
-		flows, refs, err = store.prune(ctx, time.Now())
+		flows, refs, err = store.prune(ctx, moment())
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, flows)
@@ -206,11 +206,15 @@ func createStore(t *testing.T) *stoabsStore {
 	return store
 }
 
+func moment() time.Time {
+	return time.Now().In(time.UTC)
+}
+
 func pastExpiry() time.Time {
-	return time.Now().Add(-time.Hour)
+	return moment().Add(-time.Hour)
 }
 
 func futureExpiry() time.Time {
 	// truncating makes assertion easier
-	return time.Now().Add(time.Hour).Truncate(time.Second)
+	return moment().Add(time.Hour).Truncate(time.Second)
 }
