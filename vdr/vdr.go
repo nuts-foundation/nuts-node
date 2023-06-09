@@ -60,13 +60,14 @@ type VDR struct {
 
 // NewVDR creates a new VDR with provided params
 func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store didstore.Store, eventManager events.Event) *VDR {
+	resolver := didservice.Resolver{Store: store}
 	return &VDR{
 		config:            config,
 		network:           networkClient,
 		store:             store,
 		didDocCreator:     didservice.Creator{KeyStore: cryptoClient},
-		didDocResolver:    didservice.Resolver{Store: store},
-		documentOwner:     newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}),
+		didDocResolver:    resolver,
+		documentOwner:     newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, resolver),
 		networkAmbassador: NewAmbassador(networkClient, store, eventManager),
 		keyStore:          cryptoClient,
 	}
@@ -123,13 +124,6 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 }
 
 func (r *VDR) IsOwner(ctx context.Context, id did.DID) (bool, error) {
-	// First perform a cheap DID existence check (subsequent checks are more expensive)
-	_, _, err := r.store.Resolve(id, nil)
-	if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrDeactivated) {
-		return false, nil
-	} else if err != nil {
-		return false, fmt.Errorf("unable to check ownership of DID: %w", err)
-	}
 	return r.documentOwner.IsOwner(ctx, id)
 }
 

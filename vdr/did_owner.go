@@ -20,6 +20,8 @@ package vdr
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -34,14 +36,18 @@ var _ types.DocumentOwner = (*privateKeyDocumentOwner)(nil)
 // It assumes:
 //   - Positive matches never change until restart (would indicate a DID deactivation, and it being used afterwards).
 //   - Negative matches never change until restart (would indicate an attacker trying DIDs, or a bug/misconfiguration).
+//
+// Before calling the more expensive, underlying types.DocumentOwner, it checks whether the DID actually exists.
 type cachingDocumentOwner struct {
 	underlying   types.DocumentOwner
 	ownedDIDs    *sync.Map
 	notOwnedDIDs *sync.Map
+	docResolver  types.DocResolver
 }
 
-func newCachingDocumentOwner(underlying types.DocumentOwner) *cachingDocumentOwner {
+func newCachingDocumentOwner(underlying types.DocumentOwner, docResolver types.DocResolver) *cachingDocumentOwner {
 	return &cachingDocumentOwner{
+		docResolver:  docResolver,
 		underlying:   underlying,
 		ownedDIDs:    new(sync.Map),
 		notOwnedDIDs: new(sync.Map),
@@ -60,6 +66,15 @@ func (t *cachingDocumentOwner) IsOwner(ctx context.Context, id did.DID) (bool, e
 	_, isATenant := t.ownedDIDs.Load(isAsString)
 	if isATenant {
 		return true, nil
+	}
+
+	// First perform a cheap DID existence check (subsequent checks are more expensive),
+	// without caching it as negative match (would allow unbound number of negative matches).
+	_, _, err := t.docResolver.Resolve(id, nil)
+	if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrDeactivated) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("unable to check ownership of DID: %w", err)
 	}
 
 	result, err := t.underlying.IsOwner(ctx, id)

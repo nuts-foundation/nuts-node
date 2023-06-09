@@ -478,44 +478,12 @@ func TestVDR_IsOwner(t *testing.T) {
 	id := did.MustParseDID("did:nuts:123")
 	t.Run("delegates the call to the underlying DocumentOwner", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		store.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, nil)
 		owner := types.NewMockDocumentOwner(ctrl)
 		owner.EXPECT().IsOwner(gomock.Any(), id).Return(true, nil)
 
-		result, err := (&VDR{documentOwner: owner, store: store}).IsOwner(context.Background(), id)
+		result, err := (&VDR{documentOwner: owner}).IsOwner(context.Background(), id)
 
 		assert.NoError(t, err)
 		assert.True(t, result)
-	})
-	t.Run("DID does not exist", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		store.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, types.ErrNotFound)
-
-		result, err := (&VDR{store: store}).IsOwner(context.Background(), id)
-
-		assert.NoError(t, err)
-		assert.False(t, result)
-	})
-	t.Run("DID is deactivated", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		store.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, types.ErrDeactivated)
-
-		result, err := (&VDR{store: store}).IsOwner(context.Background(), id)
-
-		assert.NoError(t, err)
-		assert.False(t, result)
-	})
-	t.Run("error - DID resolve fails", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		store.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, errors.New("b00m!"))
-
-		result, err := (&VDR{store: store}).IsOwner(context.Background(), id)
-
-		assert.Error(t, err)
-		assert.False(t, result)
 	})
 }
