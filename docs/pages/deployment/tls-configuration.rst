@@ -84,6 +84,10 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
           ssl_verify_depth          1;
 
           location / {
+            # for large messages
+            proxy_buffering off;
+            client_max_body_size 128m;
+
             grpc_pass grpc://nuts-node:5555;
             grpc_set_header X-SSL-CERT $ssl_client_escaped_cert;        # add peer's SSL cert
             grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for; # for correct IP logging
