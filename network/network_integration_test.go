@@ -406,6 +406,62 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 		assert.Len(t, node1.network.connectionManager.Peers(), 2)
 		assert.Len(t, node2.network.connectionManager.Peers(), 2)
 	})
+	t.Run("server disconnects after MaxConnectionAge expired", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(t)
+
+		grpc.SetServerKeepaliveParams(t) // server disconnects after 1 sec
+		// Start 2 nodes: node1 and node2, where each connects to the other
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+
+		// Connect node1 add node2 and wait for them to set up
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{}, nil)
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for nodes to connect") {
+			return
+		}
+
+		// Wait for the connection to close after the server's MaxConnectionAge has expired.
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(node1.network.connectionManager.Peers()) == 0 && len(node2.network.connectionManager.Peers()) == 0, nil
+		}, 4*defaultTimeout, "time-out while waiting for nodes to disconnect") {
+			return
+		}
+	})
+	t.Run("client disconnects after MaxConnectionAge expired", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(t)
+
+		grpc.SetClientKeepaliveParams(t) // client disconnects after 1 sec
+		// Start 2 nodes: node1 and node2, where each connects to the other
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+
+		// Connect node1 add node2 and wait for them to set up
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{}, nil)
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for nodes to connect") {
+			return
+		}
+
+		// Wait for the connection to close after the client's MaxConnectionAge has expired.
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(node1.network.connectionManager.Peers()) == 0 && len(node2.network.connectionManager.Peers()) == 0, nil
+		}, 4*defaultTimeout, "time-out while waiting for nodes to disconnect") {
+			return
+		}
+	})
 }
 
 func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
@@ -943,6 +999,40 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			outgoingMD := metadata.MD{}
 			outgoingMD.Set("peerID", "client")
 			outgoingMD.Set("nodeDID", "did:nuts:node2")
+			outgoingContext := metadata.NewOutgoingContext(ctx, outgoingMD)
+			client := v2.NewProtocolClient(grpcConn)
+			result, err := client.Stream(outgoingContext)
+			require.NoError(t, err)
+
+			// Assert connection is rejected
+			msg, err := result.Recv()
+			assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = TLS client certificate authentication failed")
+			assert.Nil(t, msg)
+		})
+		t.Run("certificate revoked/denied", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			// Start server node (node1)
+			node1 := startNode(t, "node1", testDirectory, func(serverCfg *core.ServerConfig, cfg *Config) {
+				serverCfg.TLS.Offload = core.OffloadIncomingTLS
+				serverCfg.TLS.ClientCertHeaderName = "client-cert"
+			})
+
+			// Load client cert and add it to the denylist
+			clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
+			require.NoError(t, err)
+			cert, err := core.ParseCertificates(clientCertBytes)
+			require.NoError(t, err)
+			pki.TestDenylistWithCert(t, node1.network.pkiValidator, cert[0])
+
+			// Create client (node2) that connects to server node
+			grpcConn, err := grpcLib.Dial(nameToAddress(t, "node1"), grpcLib.WithTransportCredentials(insecure.NewCredentials()))
+			require.NoError(t, err)
+			defer grpcConn.Close()
+			ctx := context.Background()
+			outgoingMD := metadata.MD{}
+			outgoingMD.Set("peerID", "client")
+			outgoingMD.Set("nodeDID", "did:nuts:node2")
+			outgoingMD.Set("client-cert", url.QueryEscape(string(clientCertBytes)))
 			outgoingContext := metadata.NewOutgoingContext(ctx, outgoingMD)
 			client := v2.NewProtocolClient(grpcConn)
 			result, err := client.Stream(outgoingContext)

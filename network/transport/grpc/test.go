@@ -21,8 +21,10 @@ package grpc
 import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 	"testing"
+	"time"
 )
 
 // StubConnectionList is a stub implementation of the transport.ConnectionList interface
@@ -157,4 +159,25 @@ func SetPeerID(t *testing.T, manager transport.ConnectionManager, id transport.P
 		t.Fatalf("expected manager to be of type *grpcConnectionManager, but got %T", manager)
 	}
 	cm.config.peerID = id
+}
+
+// SetServerKeepaliveParams sets the MaxConnectionAge to 1 sec and MaxConnectionAgeGrace to 1 nSec on the keepalive.ServerParameters and restores the default during cleanup.
+func SetServerKeepaliveParams(t *testing.T) {
+	defaultAge := serverKeepaliveParams
+	serverKeepaliveParams = keepalive.ServerParameters{
+		MaxConnectionAge:      time.Second,
+		MaxConnectionAgeGrace: time.Nanosecond,
+	}
+	t.Cleanup(func() {
+		serverKeepaliveParams = defaultAge
+	})
+}
+
+// SetClientKeepaliveParams sets the clientMaxConnectionAge to 1 sec and restores the default during cleanup.
+func SetClientKeepaliveParams(t *testing.T) {
+	defaultAge := clientMaxConnectionAge
+	clientMaxConnectionAge = time.Second
+	t.Cleanup(func() {
+		clientMaxConnectionAge = defaultAge
+	})
 }

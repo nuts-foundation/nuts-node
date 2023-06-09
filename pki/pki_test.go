@@ -102,8 +102,7 @@ func TestPKI_CheckHealth(t *testing.T) {
 	require.NoError(t, e.validator.AddTruststore(store.Certificates()))
 
 	// Add Denylist
-	testServer := denylistTestServer("")
-	defer testServer.Close()
+	testServer := denylistTestServer(t, "")
 	e.denylist, err = testDenylist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
 	require.NotNil(t, e.denylist)

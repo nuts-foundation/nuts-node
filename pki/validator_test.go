@@ -136,16 +136,14 @@ func TestValidator_Validate(t *testing.T) {
 		testSoftHard(t, val, validCertA, nil, ErrCRLExpired)
 	})
 	t.Run("blocked cert", func(t *testing.T) {
-		ts := denylistTestServer(trustedDenylist(t))
-		defer ts.Close()
+		ts := denylistTestServer(t, trustedDenylist(t))
 		val.denylist, err = testDenylist(ts.URL, publicKeyDoNotUse)
 		require.NoError(t, err)
 
 		testSoftHard(t, val, bannedCert, ErrCertBanned, ErrCertBanned)
 	})
 	t.Run("denylist missing", func(t *testing.T) {
-		ts := denylistTestServer("")
-		defer ts.Close()
+		ts := denylistTestServer(t, "")
 		val.denylist, err = testDenylist(ts.URL, publicKeyDoNotUse)
 		require.NoError(t, err)
 

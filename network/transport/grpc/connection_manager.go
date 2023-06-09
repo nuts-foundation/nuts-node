@@ -64,6 +64,21 @@ var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 // defaultInterceptors aids testing
 var defaultInterceptors []grpc.StreamServerInterceptor
 
+// Define the keepalive policy for the grpc server in such a way that connections are not long-lived.
+// By blocking long-lived connections we ensure that connections are periodically reauthorized, namely
+// so that a remote host which was authorized at the time of connection can become unauthorized and
+// this is correctly enforced.
+//
+// Configured per https://github.com/grpc/grpc-go/blob/c9d3ea5673252d212c69f3d3c10ce1d7b287a86b/examples/features/keepalive/server/main.go#L43
+var serverKeepaliveParams = keepalive.ServerParameters{
+	MaxConnectionAge:      15 * time.Minute, // If any connection is alive for too long, send a GOAWAY
+	MaxConnectionAgeGrace: 15 * time.Second, // Allow time for pending RPCs to complete before forcibly closing connections
+}
+
+// clientMaxConnectionAge is the maximum time a client will keep te connection open.
+// Setting it longer than serverKeepaliveParams' MaxConnectionAge allows gRPC to gracefully close the connection from the server side, which is much nicer than our disconnect solution for the client.
+var clientMaxConnectionAge = 20 * time.Minute
+
 var _ transport.ConnectionManager = (*grpcConnectionManager)(nil)
 
 type fatalError struct {
@@ -156,6 +171,7 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
 		grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
+		grpc.KeepaliveParams(serverKeepaliveParams),
 	}
 
 	var serverInterceptors []grpc.StreamServerInterceptor
@@ -182,18 +198,6 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 	// Chain interceptors. ipInterceptor is added last, so it processes the stream first.
 	serverInterceptors = append(serverInterceptors, ipInterceptor)
 	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(serverInterceptors...))
-
-	// Define the keepalive policy for the grpc server in such a way that connections are not long-lived.
-	// By blocking long-lived connections we ensure that connections are periodically reauthorized, namely
-	// so that a remote host which was authorized at the time of connection can become unauthorized and
-	// this is correctly enforced.
-	//
-	// Configured per https://github.com/grpc/grpc-go/blob/c9d3ea5673252d212c69f3d3c10ce1d7b287a86b/examples/features/keepalive/server/main.go#L43
-	keepaliveParams := keepalive.ServerParameters{
-		MaxConnectionAge:      15 * time.Minute, // If any connection is alive for too long, send a GOAWAY
-		MaxConnectionAgeGrace: 15 * time.Second, // Allow time for pending RPCs to complete before forcibly closing connections
-	}
-	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepaliveParams))
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
 	return grpc.NewServer(serverOpts...), nil
@@ -417,6 +421,8 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	if err != nil {
 		return err
 	}
+	connCtx, cancel := context.WithTimeout(s.ctx, clientMaxConnectionAge)
+	defer cancel()
 
 	protocolNum := 0
 	// Call gRPC-enabled protocols, block until they close
@@ -445,7 +451,17 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 
 		go func() {
 			// Waits for the clientStream to be done (other side closed the stream), then we disconnect the connection on our side
-			<-clientStream.Context().Done()
+		OuterLoop:
+			for {
+				select {
+				// stream has been closed
+				case <-clientStream.Context().Done():
+					break OuterLoop
+				// connection has reached the clientMaxConnectionAge, or connection manager context has been canceled
+				case <-connCtx.Done():
+					break OuterLoop
+				}
+			}
 			s.notifyObservers(peer, protocol, transport.StateDisconnected)
 			connection.disconnect()
 		}()

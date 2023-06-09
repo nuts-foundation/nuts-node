@@ -49,15 +49,21 @@ type tlsOffloadingAuthenticator struct {
 }
 
 func (t *tlsOffloadingAuthenticator) intercept(srv interface{}, serverStream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	// Det certificate from header
 	certificates, err := t.authenticate(serverStream)
-	if err == nil {
-		err = t.pkiValidator.Validate(certificates)
-	}
 	if err != nil {
 		log.Logger().
 			WithError(err).
 			Warnf("Unable to authenticate offloaded TLS")
 		return status.Error(codes.Unauthenticated, "TLS client certificate authentication failed")
+	}
+
+	// Validate revocation/deny list status
+	if err = t.pkiValidator.Validate(certificates); err != nil {
+		log.Logger().
+			WithError(err).
+			Warnf("Validation of offloaded TLS certificate failed")
+		return status.Error(codes.Unauthenticated, "TLS client certificate validation failed")
 	}
 
 	// Build TLS info and override in Peer info, which is set on the incoming context

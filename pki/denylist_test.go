@@ -117,10 +117,11 @@ const bannedCertIssuer = `CN=www.example.com,O=Internet Widgits Pty Ltd,L=Amster
 // Do not use this value outside of denylist_test.go
 const bannedCertSerialNumber = `352232997782095055661451877220413401771436182288`
 
-func denylistTestServer(denylist string) *httptest.Server {
+func denylistTestServer(t *testing.T, denylist string) *httptest.Server {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, denylist)
 	}))
+	t.Cleanup(testServer.Close)
 
 	return testServer
 }
@@ -211,8 +212,7 @@ func TestBackslashNInKey(t *testing.T) {
 	denylistJSON := trustedDenylist(t)
 
 	// Setup a denylist server
-	testServer := denylistTestServer(denylistJSON)
-	defer testServer.Close()
+	testServer := denylistTestServer(t, denylistJSON)
 
 	// Trusted signer as PEM with literal \n sequences instead of newlines
 	trustedSigner := `-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAB262IB4Bg7CzZ/kap8gU+16vD9x/mom7WEjIZsBz+LY=\n-----END PUBLIC KEY-----`
@@ -234,8 +234,7 @@ func TestDownloadDenylist(t *testing.T) {
 	denylistJSON := trustedDenylist(t)
 
 	// Setup a denylist server
-	testServer := denylistTestServer(denylistJSON)
-	defer testServer.Close()
+	testServer := denylistTestServer(t, denylistJSON)
 
 	// Use the server in a new denylist
 	denylist, err := NewDenylist(DenylistConfig{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
@@ -259,8 +258,7 @@ func TestDenylistMissing(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup a denylist server
-	testServer := denylistTestServer(string(compactJWS))
-	defer testServer.Close()
+	testServer := denylistTestServer(t, string(compactJWS))
 
 	// Use the server in a new denylist
 	denylist, err := NewDenylist(DenylistConfig{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
@@ -277,8 +275,7 @@ func TestUpdateValidDenylist(t *testing.T) {
 	denylistJSON := trustedDenylist(t)
 
 	// Setup a denylist server
-	testServer := denylistTestServer(denylistJSON)
-	defer testServer.Close()
+	testServer := denylistTestServer(t, denylistJSON)
 
 	// Use the server in a new denylist
 	denylist, err := testDenylist(testServer.URL, publicKeyDoNotUse)
@@ -316,8 +313,7 @@ func TestUpdateInvalidDenylistFails(t *testing.T) {
 	denylistJSON := trustedDenylist(t)
 
 	// Setup a denylist server
-	testServer := denylistTestServer(denylistJSON)
-	defer testServer.Close()
+	testServer := denylistTestServer(t, denylistJSON)
 
 	// Use the server in a new denylist but with the wrong public key
 	denylist, err := testDenylist(testServer.URL, incorrectPublicKey)
@@ -338,8 +334,7 @@ func TestValidCertificateAccepted(t *testing.T) {
 	denylistJSON := trustedDenylist(t)
 
 	// Setup a denylist server
-	testServer := denylistTestServer(denylistJSON)
-	defer testServer.Close()
+	testServer := denylistTestServer(t, denylistJSON)
 
 	// Use the server in a new denylist
 	denylist, err := testDenylist(testServer.URL, publicKeyDoNotUse)
@@ -368,8 +363,7 @@ func TestValidCertificateAcceptedEmptyDenyList(t *testing.T) {
 	denylistJSON := encodeDenylist(t, nil)
 
 	// Setup a denylist server
-	testServer := denylistTestServer(denylistJSON)
-	defer testServer.Close()
+	testServer := denylistTestServer(t, denylistJSON)
 
 	// Use the server in a new denylist
 	denylist, err := testDenylist(testServer.URL, publicKeyDoNotUse)
@@ -398,8 +392,7 @@ func TestDenylistedCertificateBlocked(t *testing.T) {
 	denylistJSON := trustedDenylist(t)
 
 	// Setup a denylist server
-	testServer := denylistTestServer(denylistJSON)
-	defer testServer.Close()
+	testServer := denylistTestServer(t, denylistJSON)
 
 	// Use the server in a new denylist
 	denylist, err := testDenylist(testServer.URL, publicKeyDoNotUse)
@@ -429,8 +422,7 @@ func TestEmptyFieldsDoNotBlock(t *testing.T) {
 	denylistJSON := trustedDenylist(t)
 
 	// Setup a denylist server
-	testServer := denylistTestServer(denylistJSON)
-	defer testServer.Close()
+	testServer := denylistTestServer(t, denylistJSON)
 
 	// Use the server in a new denylist
 	denylist, err := testDenylist(testServer.URL, publicKeyDoNotUse)
@@ -465,4 +457,3 @@ func TestRSACertificateJWKThumbprint(t *testing.T) {
 	keyID := certKeyJWKThumbprint(cert)
 	assert.Equal(t, "PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ", keyID)
 }
-
