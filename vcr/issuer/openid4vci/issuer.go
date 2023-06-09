@@ -52,6 +52,9 @@ const ttl = 15 * time.Minute
 const preAuthCodeRefType = "preauthcode"
 const accessTokenRefType = "accesstoken"
 
+// secretSizeBits is the size of the generated random secrets (access tokens, pre-authorized codes) in bits.
+const secretSizeBits = 128
+
 // Issuer defines the interface for an OIDC4VCI credential issuer. It is multi-tenant, accompanying the system
 // managing an arbitrary number of actual issuers.
 type Issuer interface {
@@ -134,6 +137,8 @@ func (i *issuer) HandleAccessTokenRequest(ctx context.Context, issuer did.DID, p
 		return "", err
 	}
 	// PreAuthorizedCode is to be used just once
+	// See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-4.1.1
+	// "This code MUST be short lived and single-use."
 	err = i.store.DeleteReference(ctx, preAuthCodeRefType, preAuthorizedCode)
 	if err != nil {
 		return "", err
@@ -357,17 +362,15 @@ func getSubjectDID(verifiableCredential vc.VerifiableCredential) (did.DID, error
 	return subject[0].ID, err
 }
 
+func (i *issuer) getIdentifier(issuerDID string) string {
+	return core.JoinURLPaths(i.baseURL, url.PathEscape(issuerDID))
+}
+
 func generateCode() string {
-	// TODO: Replace with something securer?
-	//		 See https://github.com/nuts-foundation/nuts-node/issues/2030
-	buf := make([]byte, 64)
+	buf := make([]byte, secretSizeBits/8)
 	_, err := rand.Read(buf)
 	if err != nil {
 		panic(err)
 	}
 	return base64.URLEncoding.EncodeToString(buf)
-}
-
-func (i *issuer) getIdentifier(issuerDID string) string {
-	return core.JoinURLPaths(i.baseURL, url.PathEscape(issuerDID))
 }

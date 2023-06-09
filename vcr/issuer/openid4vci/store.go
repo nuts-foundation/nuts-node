@@ -163,13 +163,13 @@ func (o *stoabsStore) Close() {
 func (o *stoabsStore) startPruning(interval time.Duration) {
 	o.ctx, o.cancel = context.WithCancel(context.Background())
 	ticker := time.NewTicker(interval)
-	go func() {
+	go func(ctx context.Context) {
 		select {
-		case <-o.ctx.Done():
+		case <-ctx.Done():
 			ticker.Stop()
 			return
 		case <-ticker.C:
-			flowsPruned, refsPruned, err := o.prune(context.Background(), time.Now())
+			flowsPruned, refsPruned, err := o.prune(ctx, time.Now())
 			if err != nil {
 				log.Logger().WithError(err).Errorf("Failed to prune OpenID4VCI flows/references")
 			}
@@ -177,7 +177,7 @@ func (o *stoabsStore) startPruning(interval time.Duration) {
 				log.Logger().Debugf("Pruned %d expired OpenID4VCI flows and %d expired refs", flowsPruned, refsPruned)
 			}
 		}
-	}()
+	}(o.ctx)
 }
 
 func (o *stoabsStore) prune(ctx context.Context, moment time.Time) (int, int, error) {
@@ -187,6 +187,10 @@ func (o *stoabsStore) prune(ctx context.Context, moment time.Time) (int, int, er
 	// Find expired references and delete them
 	err = o.store.WriteShelf(ctx, referencesShelf, func(writer stoabs.Writer) error {
 		err := writer.Iterate(func(key stoabs.Key, value []byte) error {
+			if ctx.Err() != nil {
+				// allow cancellation (e.g. when shutting down)
+				return ctx.Err()
+			}
 			var ref referenceValue
 			err := json.Unmarshal(value, &ref)
 			if err == nil && ref.Expiry.Before(moment) {
@@ -203,6 +207,10 @@ func (o *stoabsStore) prune(ctx context.Context, moment time.Time) (int, int, er
 	// Find expired flows and delete them
 	err = o.store.WriteShelf(ctx, flowsShelf, func(writer stoabs.Writer) error {
 		err := writer.Iterate(func(key stoabs.Key, value []byte) error {
+			if ctx.Err() != nil {
+				// allow cancellation (e.g. when shutting down)
+				return ctx.Err()
+			}
 			var flow Flow
 			err := json.Unmarshal(value, &flow)
 			if err == nil && flow.Expiry.Before(moment) {
