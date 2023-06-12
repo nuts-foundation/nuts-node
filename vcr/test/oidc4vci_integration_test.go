@@ -48,9 +48,11 @@ import (
 func TestOIDC4VCIHappyFlow(t *testing.T) {
 	auditLogs := audit.CaptureLogs(t)
 	ctx := audit.TestContext()
-	httpServerURL, system := node.StartServer(t, func(_ string) {
+	httpServerURL, system := node.StartServer(t, func(serverURL string) {
 		t.Setenv("NUTS_VCR_OIDC4VCI_ENABLED", "true")
+		t.Setenv("NUTS_VCR_OIDC4VCI_URL", serverURL)
 	})
+	println("Server running on ", httpServerURL)
 	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
 	vdrService := system.FindEngineByName("vdr").(vdrTypes.VDR)
 	didmanService := system.FindEngineByName("didman").(didman.Didman)
@@ -68,7 +70,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 		holderDIDDocument, _, err := vdrService.Create(ctx, didservice.DefaultCreationOptions())
 		require.NoError(t, err)
 		holderDID = holderDIDDocument.ID
-		walletMDURL, _ := url.Parse(httpServerURL + "/identity/" + holderDID.String() + "/.well-known/openid-credential-wallet")
+		walletMDURL, _ := url.Parse(httpServerURL + "/n2n/identity/" + holderDID.String() + "/.well-known/openid-credential-wallet")
 		_, err = didmanService.AddEndpoint(ctx, holderDID, "oidc4vci-wallet-metadata", *walletMDURL)
 		require.NoError(t, err)
 	}
@@ -104,7 +106,7 @@ func TestOIDC4VCIDisabled(t *testing.T) {
 		didDocument, _, err := vdrService.Create(ctx, didservice.DefaultCreationOptions())
 		require.NoError(t, err)
 		issuerAndHolderDID = didDocument.ID
-		walletMDURL, _ = url.Parse(httpServerURL + "/identity/" + issuerAndHolderDID.String() + "/.well-known/openid-credential-wallet")
+		walletMDURL, _ = url.Parse(httpServerURL + "/n2n/identity/" + issuerAndHolderDID.String() + "/.well-known/openid-credential-wallet")
 		_, err = didmanService.AddEndpoint(ctx, issuerAndHolderDID, "oidc4vci-wallet-metadata", *walletMDURL)
 		require.NoError(t, err)
 	}
@@ -119,8 +121,9 @@ func TestOIDC4VCIDisabled(t *testing.T) {
 
 // TestOIDC4VCIErrorResponses tests the API returns the correct error responses (as specified in the OIDC4VCI spec, not as Problem types).
 func TestOIDC4VCIErrorResponses(t *testing.T) {
-	_, system := node.StartServer(t, func(_ string) {
+	_, system := node.StartServer(t, func(serverURL string) {
 		t.Setenv("NUTS_VCR_OIDC4VCI_ENABLED", "true")
+		t.Setenv("NUTS_VCR_OIDC4VCI_URL", serverURL)
 	})
 	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
 	vdrService := system.FindEngineByName("vdr").(vdrTypes.VDR)

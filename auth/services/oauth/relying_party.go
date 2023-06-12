@@ -142,6 +142,7 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	result[jwt.IssuerKey] = request.Requester
 	result[jwt.NotBeforeKey] = 0
 	result[jwt.SubjectKey] = request.Authorizer
+	result[purposeOfUseClaimDeprecated] = request.Service
 	result[purposeOfUseClaim] = request.Service
 	if request.IdentityVP != nil {
 		result[userIdentityClaim] = *request.IdentityVP

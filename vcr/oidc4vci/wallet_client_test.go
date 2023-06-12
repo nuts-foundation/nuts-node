@@ -68,10 +68,8 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		err = client.OfferCredential(ctx, CredentialOffer{
 			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
 			Credentials:      []map[string]interface{}{{"issuer": "issuer"}},
-			Grants: []map[string]interface{}{
-				{
-					"grant_type": "pre-authorized_code",
-				},
+			Grants: map[string]interface{}{
+				"grant_type": "pre-authorized_code",
 			},
 		})
 
@@ -87,7 +85,23 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, setup.issuerMetadata.CredentialIssuer, credentialOffer["credential_issuer"])
 		require.Equal(t, []interface{}{map[string]interface{}{"issuer": "issuer"}}, credentialOffer["credentials"])
-		require.Equal(t, []interface{}{map[string]interface{}{"grant_type": "pre-authorized_code"}}, credentialOffer["grants"])
+		require.Equal(t, map[string]interface{}{"grant_type": "pre-authorized_code"}, credentialOffer["grants"])
+	})
+	t.Run("error - invalid response from wallet", func(t *testing.T) {
+		setup := setupClientTest(t)
+		setup.credentialOfferHandler = setup.httpGetHandler(nil)
+		client, err := NewWalletAPIClient(ctx, httpClient, setup.walletMetadataURL)
+		require.NoError(t, err)
+
+		err = client.OfferCredential(ctx, CredentialOffer{
+			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
+			Credentials:      []map[string]interface{}{{"issuer": "issuer"}},
+			Grants: map[string]interface{}{
+				"grant_type": "pre-authorized_code",
+			},
+		})
+
+		require.EqualError(t, err, "offer credential error: unexpected status: ")
 	})
 	t.Run("error", func(t *testing.T) {
 		setup := setupClientTest(t)
@@ -100,10 +114,8 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		err = client.OfferCredential(ctx, CredentialOffer{
 			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
 			Credentials:      []map[string]interface{}{{"issuer": "issuer"}},
-			Grants: []map[string]interface{}{
-				{
-					"grant_type": "pre-authorized_code",
-				},
+			Grants: map[string]interface{}{
+				"grant_type": "pre-authorized_code",
 			},
 		})
 

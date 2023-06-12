@@ -19,7 +19,6 @@
 package auth
 
 import (
-	"crypto/tls"
 	"errors"
 	"path"
 	"time"
@@ -55,7 +54,7 @@ type Auth struct {
 	keyStore        crypto.KeyStore
 	registry        didstore.Store
 	vcr             vcr.VCR
-	pkiValidator    pki.Validator
+	pkiProvider     pki.Provider
 	shutdownFunc    func()
 }
 
@@ -75,14 +74,14 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry didstore.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiValidator pki.Validator) *Auth {
+func NewAuthInstance(config Config, registry didstore.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
 	return &Auth{
 		config:          config,
 		jsonldManager:   jsonldManager,
 		registry:        registry,
 		keyStore:        keyStore,
 		vcr:             vcr,
-		pkiValidator:    pkiValidator,
+		pkiProvider:     pkiProvider,
 		serviceResolver: serviceResolver,
 		shutdownFunc:    func() {},
 	}
@@ -121,41 +120,16 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
 		StrictMode:            config.Strictmode,
-	}, auth.vcr, didservice.KeyResolver{Store: auth.registry}, auth.keyStore, auth.jsonldManager, auth.pkiValidator)
+	}, auth.vcr, didservice.KeyResolver{Store: auth.registry}, auth.keyStore, auth.jsonldManager, auth.pkiProvider)
 
 	tlsEnabled := config.TLS.Enabled()
 	if config.Strictmode && !tlsEnabled {
 		return errors.New("in strictmode TLS must be enabled")
 	}
 
-	var tlsConfig *tls.Config
-	if tlsEnabled {
-		clientCertificate, err := config.TLS.LoadCertificate()
-		if err != nil {
-			return err
-		}
-
-		trustStore, err := config.TLS.LoadTrustStore()
-		if err != nil {
-			return err
-		}
-
-		if err != nil {
-			return err
-		}
-		tlsConfig = &tls.Config{
-			Certificates: []tls.Certificate{clientCertificate},
-			RootCAs:      trustStore.CertPool,
-			MinVersion:   core.MinTLSVersion,
-		}
-		if err = auth.pkiValidator.AddTruststore(trustStore.Certificates()); err != nil {
-			return err
-		}
-
-		if err = auth.pkiValidator.SetVerifyPeerCertificateFunc(tlsConfig); err != nil {
-			return err
-		}
-
+	tlsConfig, err := auth.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
+	if err != nil {
+		return err
 	}
 
 	if err := auth.contractNotary.Configure(); err != nil {

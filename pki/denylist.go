@@ -162,6 +162,7 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 				WithField("S/N", serialNumber).
 				WithField("Thumbprint", thumbprint).
 				Debug("Rejecting banned certificate")
+
 			// Return an error indicating the certificate has been denylisted
 			return fmt.Errorf("%w: %s", ErrCertBanned, entry.Reason)
 		}

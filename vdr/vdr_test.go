@@ -119,7 +119,7 @@ func TestVDR_Update(t *testing.T) {
 		resolvedMetadata := types.DocumentMetadata{}
 		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
-		assert.EqualError(t, err, "DID Document validation failed: invalid context")
+		assert.EqualError(t, err, "update DID document: DID Document validation failed: invalid context")
 	})
 
 	t.Run("error - no controller for document", func(t *testing.T) {
@@ -133,7 +133,7 @@ func TestVDR_Update(t *testing.T) {
 		resolvedMetadata := types.DocumentMetadata{}
 		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&document, &resolvedMetadata, nil)
 		err := test.vdr.Update(test.ctx, *id, document)
-		assert.EqualError(t, err, "the DID document has been deactivated")
+		assert.EqualError(t, err, "update DID document: the DID document has been deactivated")
 	})
 	t.Run("error - could not resolve current document", func(t *testing.T) {
 		test := newVDRTestCtx(t)
@@ -143,7 +143,7 @@ func TestVDR_Update(t *testing.T) {
 		}
 		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
 		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
-		assert.EqualError(t, err, "unable to find the DID document")
+		assert.EqualError(t, err, "update DID document: unable to find the DID document")
 	})
 
 	t.Run("error - document not managed by this node", func(t *testing.T) {
@@ -158,7 +158,8 @@ func TestVDR_Update(t *testing.T) {
 		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "DID document not managed by this node")
+		assert.EqualError(t, err, "update DID document: DID document not managed by this node")
+		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
 		assert.True(t, errors.Is(err, types.ErrDIDNotManagedByThisNode),
 			"expected ErrDIDNotManagedByThisNode error when the document is not managed by this node")
 	})
@@ -471,5 +472,19 @@ func TestWithJSONLDContext(t *testing.T) {
 		patched := withJSONLDContext(expected, didservice.NutsDIDContextV1URI())
 
 		assert.EqualValues(t, expected.Context, patched.Context)
+	})
+}
+
+func TestVDR_IsOwner(t *testing.T) {
+	id := did.MustParseDID("did:nuts:123")
+	t.Run("delegates the call to the underlying DocumentOwner", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		owner := types.NewMockDocumentOwner(ctrl)
+		owner.EXPECT().IsOwner(gomock.Any(), id).Return(true, nil)
+
+		result, err := (&VDR{documentOwner: owner}).IsOwner(context.Background(), id)
+
+		assert.NoError(t, err)
+		assert.True(t, result)
 	})
 }

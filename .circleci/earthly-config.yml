@@ -1,5 +1,0 @@
-global:
-  buildkit_additional_config: |
-    [registry."localhost:5000"]
-      http = true
-      insecure = true

@@ -34,7 +34,6 @@ The following options apply to the server commands below:
       --events.nats.port int                          Port where the NATS server listens on (default 4222)
       --events.nats.storagedir string                 Directory where file-backed streams are stored in the NATS server
       --events.nats.timeout int                       Timeout for NATS server operations (default 30)
-      --http-client.timeout duration                  Time-out for HTTP client operations (default 30s)
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.auth.audience string             Expected audience for JWT tokens (default: hostname)
       --http.default.auth.authorizedkeyspath string   Path to an authorized_keys file for trusted JWT signers
@@ -76,6 +75,8 @@ The following options apply to the server commands below:
       --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --vcr.oidc4vci.enabled                          Enable issuing and receiving credentials over OIDC4VCI (experimental).
+      --vcr.oidc4vci.timeout duration                 Time-out for OpenID4VCI HTTP client operations. (default 30s)
+      --vcr.oidc4vci.url string                       Base URL for the OIDC4VCI wallet and issuer endpoints, which ends up in the OAuth2 metadata. These are node-to-node (/n2n) endpoints, but only the base path up until (not including) /n2n has to be configured. So typically, only a domain. Must be HTTPS when strict-mode is enabled.
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
 
 nuts config

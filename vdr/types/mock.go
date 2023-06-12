@@ -446,6 +446,21 @@ func (mr *MockVDRMockRecorder) Create(ctx, options interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), ctx, options)
 }
 
+// IsOwner mocks base method.
+func (m *MockVDR) IsOwner(arg0 context.Context, arg1 did.DID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsOwner", arg0, arg1)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsOwner indicates an expected call of IsOwner.
+func (mr *MockVDRMockRecorder) IsOwner(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwner", reflect.TypeOf((*MockVDR)(nil).IsOwner), arg0, arg1)
+}
+
 // Update mocks base method.
 func (m *MockVDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	m.ctrl.T.Helper()
@@ -458,6 +473,44 @@ func (m *MockVDR) Update(ctx context.Context, id did.DID, next did.Document) err
 func (mr *MockVDRMockRecorder) Update(ctx, id, next interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), ctx, id, next)
+}
+
+// MockDocumentOwner is a mock of DocumentOwner interface.
+type MockDocumentOwner struct {
+	ctrl     *gomock.Controller
+	recorder *MockDocumentOwnerMockRecorder
+}
+
+// MockDocumentOwnerMockRecorder is the mock recorder for MockDocumentOwner.
+type MockDocumentOwnerMockRecorder struct {
+	mock *MockDocumentOwner
+}
+
+// NewMockDocumentOwner creates a new mock instance.
+func NewMockDocumentOwner(ctrl *gomock.Controller) *MockDocumentOwner {
+	mock := &MockDocumentOwner{ctrl: ctrl}
+	mock.recorder = &MockDocumentOwnerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockDocumentOwner) EXPECT() *MockDocumentOwnerMockRecorder {
+	return m.recorder
+}
+
+// IsOwner mocks base method.
+func (m *MockDocumentOwner) IsOwner(arg0 context.Context, arg1 did.DID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsOwner", arg0, arg1)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsOwner indicates an expected call of IsOwner.
+func (mr *MockDocumentOwnerMockRecorder) IsOwner(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwner", reflect.TypeOf((*MockDocumentOwner)(nil).IsOwner), arg0, arg1)
 }
 
 // MockDocManipulator is a mock of DocManipulator interface.

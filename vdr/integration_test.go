@@ -146,13 +146,13 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// try to deactivate the document again
 	err = docUpdater.Deactivate(ctx.audit, docB.ID)
-	assert.EqualError(t, err, "the DID document has been deactivated",
+	assert.ErrorIs(t, err, types.ErrDeactivated,
 		"expected an error when trying to deactivate an already deactivated document")
 
 	// try to update document A should fail since it no longer has an active controller
 	docA.Service = docA.Service[1:]
 	err = ctx.vdr.Update(ctx.audit, docAID, *docA)
-	assert.EqualError(t, err, "could not find any controllers for document")
+	assert.EqualError(t, err, "update DID document: could not find any controllers for document")
 }
 
 func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
@@ -213,7 +213,7 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	test.WaitFor(t, func() (bool, error) {
 		_, _, err := ctx.docResolver.Resolve(didDoc.ID, nil)
 		return err == nil, nil
-	}, 200*time.Millisecond, "timeout while waiting for event to be processed")
+	}, 5*time.Second, "timeout while waiting for event to be processed")
 }
 
 type testContext struct {

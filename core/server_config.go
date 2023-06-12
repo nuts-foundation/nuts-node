@@ -24,15 +24,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"reflect"
-	"strings"
-	"time"
-
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"reflect"
+	"strings"
 )
 
 const defaultConfigFile = "nuts.yaml"
@@ -61,7 +59,6 @@ type ServerConfig struct {
 	TLS                 TLSConfig          `koanf:"tls"`
 	LegacyTLS           *NetworkTLSConfig  `koanf:"network"`
 	Auth                AuthEndpointConfig `koanf:"auth"`
-	HTTPClient          HTTPClientConfig   `koanf:"http-client"`
 	configMap           *koanf.Koanf
 }
 
@@ -124,18 +121,18 @@ func (t TLSConfig) LoadTrustStore() (*TrustStore, error) {
 }
 
 // Load creates tls.Config from the given configuration. If TLS is disabled it returns nil.
-func (t TLSConfig) Load() (*tls.Config, error) {
+func (t TLSConfig) Load() (*tls.Config, *TrustStore, error) {
 	if !t.Enabled() {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	certificate, err := t.LoadCertificate()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	trustStore, err := t.LoadTrustStore()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	config := &tls.Config{
 		MinVersion:   MinTLSVersion,
@@ -143,7 +140,7 @@ func (t TLSConfig) Load() (*tls.Config, error) {
 		RootCAs:      trustStore.CertPool,
 		ClientCAs:    trustStore.CertPool,
 	}
-	return config, nil
+	return config, trustStore, nil
 }
 
 // NetworkTLSConfig is temporarily here to support having the network engine's TLS config available to both the network and auth engine.
@@ -158,12 +155,6 @@ type NetworkTLSConfig struct {
 	CertFile       string `koanf:"certfile"`
 	CertKeyFile    string `koanf:"certkeyfile"`
 	TrustStoreFile string `koanf:"truststorefile"`
-}
-
-// HTTPClientConfig defines config for HTTP clients.
-type HTTPClientConfig struct {
-	// Timeout specifies the timeout for HTTP requests.
-	Timeout time.Duration `koanf:"timeout"`
 }
 
 // AuthEndpointConfig is temporarily here so VCR's OIDC4VCI can use the configured auth.publicurl as Wallet/Issuer identifier.
@@ -295,7 +286,6 @@ func FlagSet() *pflag.FlagSet {
 		"Required when 'network.enabletls' is 'true'.")
 	flagSet.String("network.truststorefile", "", "Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.maxcrlvaliditydays", 0, "Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.")
-	flagSet.Duration("http-client.timeout", time.Second*30, "Time-out for HTTP client operations")
 
 	flagSet.MarkDeprecated("tls.crl.maxvaliditydays", "CRLs can no longer be accepted after the time in NextUpdate has past")
 	flagSet.MarkDeprecated("network.certfile", "use 'tls.certfile' instead")

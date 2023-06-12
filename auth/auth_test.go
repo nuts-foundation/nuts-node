@@ -40,9 +40,9 @@ func TestAuth_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		config := DefaultConfig()
 		config.ContractValidators = []string{"uzi"}
-		pkiMock := pki.NewMockValidator(gomock.NewController(t))
-		pkiMock.EXPECT().AddTruststore(gomock.Any()).Times(2)                // uzi + tlsConfig
-		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).Times(1) // tlsConfig
+		pkiMock := pki.NewMockProvider(gomock.NewController(t))
+		pkiMock.EXPECT().AddTruststore(gomock.Any())   // uzi
+		pkiMock.EXPECT().CreateTLSConfig(gomock.Any()) // tlsConfig
 
 		i := NewAuthInstance(config, didstore.NewTestStore(t), vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
 
@@ -94,14 +94,13 @@ func TestAuth_Configure(t *testing.T) {
 		assert.EqualError(t, err, "in strictmode TLS must be enabled")
 	})
 
-	t.Run("error - unknown truststore when TLS enabled", func(t *testing.T) {
-		authCfg := TestConfig()
-		invalidTLSServerConfig := tlsServerConfig
-		invalidTLSServerConfig.LegacyTLS.TrustStoreFile = "non-existing"
-
-		i := testInstance(t, authCfg)
-		err := i.Configure(invalidTLSServerConfig)
-		assert.EqualError(t, err, "unable to read trust store (file=non-existing): open non-existing: no such file or directory")
+	t.Run("error - TLS config provider returns error", func(t *testing.T) {
+		i := testInstance(t, TestConfig())
+		pkiProvider := pki.NewMockProvider(gomock.NewController(t))
+		i.pkiProvider = pkiProvider
+		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, assert.AnError)
+		err := i.Configure(tlsServerConfig)
+		assert.ErrorIs(t, err, assert.AnError)
 	})
 }
 

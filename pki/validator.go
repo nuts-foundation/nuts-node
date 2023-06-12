@@ -43,31 +43,6 @@ const syncInterval = time.Hour
 // Must be short-ish since the update can happen during a validation request.
 const syncTimeout = 10 * time.Second
 
-// errors
-var (
-	ErrCRLMissing    = errors.New("crl is missing")
-	ErrCRLExpired    = errors.New("crl has expired")
-	ErrCertRevoked   = errors.New("certificate is revoked")
-	ErrCertUntrusted = errors.New("certificate's issuer is not trusted")
-)
-
-type Validator interface {
-	// Validate returns an error if any of the certificates in the chain has been revoked, or if the request cannot be processed.
-	// ErrCertRevoked and ErrCertUntrusted indicate that at least one of the certificates is revoked, or signed by a CA that is not in the truststore.
-	// ErrCRLMissing and ErrCRLExpired signal that at least one of the certificates cannot be validated reliably.
-	// If the certificate was revoked on an expired CRL, it wil return ErrCertRevoked.
-	// Ignoring all errors except ErrCertRevoked changes the behavior from hard-fail to soft-fail. Without a truststore, the Validator is a noop if set to soft-fail
-	// The certificate chain is expected to be sorted leaf to root.
-	Validate(chain []*x509.Certificate) error
-
-	// SetVerifyPeerCertificateFunc sets config.ValidatePeerCertificate to use Validate.
-	SetVerifyPeerCertificateFunc(config *tls.Config) error
-
-	// AddTruststore adds all CAs to the truststore for validation of CRL signatures. It also adds all CRL Distribution Endpoints found in the chain.
-	// CRL Distribution Points encountered during operation, such as on end user certificates, are only added to the monitored CRLs if their issuer is in the truststore.
-	AddTruststore(chain []*x509.Certificate) error
-}
-
 type validator struct {
 	// httpClient downloads the CRLs
 	httpClient *http.Client
@@ -172,23 +147,17 @@ func (v *validator) Validate(chain []*x509.Certificate) error {
 
 func (v *validator) SetVerifyPeerCertificateFunc(config *tls.Config) error {
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-		// rawCerts contains raw certificate data presented by the peer during the tls handshake.
-		// It is used together with the tls.Config to generate verifiedChains, but may contain additional certs that are not in a verified chain.
-		// We reject a client if it sends ANY invalid certificate, even if it is not part of a verifiedChain.
-		// This prevents attackers from sending a bunch of certificates hoping one makes it into a verified chain.
-		// TODO: change to use verifiedChains. other checks are not the responsibility of this validator
-
-		var raw []byte
-		for _, rawCert := range rawCerts {
-			raw = append(raw, rawCert...)
+		// rawCerts contain all certificates provided by the peer, in our case only the leaf cert, while verifiedChains is guaranteed to include the CA's.
+		// rawCerts are ignored since we would only be checking revocation status on a cert whose issuer is not in the truststore. failure mode is then determined by v.softfail.
+		for _, chain := range verifiedChains {
+			if err := v.Validate(chain); err != nil {
+				return &tls.CertificateVerificationError{
+					UnverifiedCertificates: chain,
+					Err:                    err,
+				}
+			}
 		}
-
-		certificates, err := x509.ParseCertificates(raw)
-		if err != nil {
-			return err
-		}
-
-		return v.Validate(certificates)
+		return nil
 	}
 	return nil
 }

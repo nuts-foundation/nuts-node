@@ -41,6 +41,12 @@ const JWTTypeOpenID4VCIProof = "openid4vci-proof+jwt"
 // ProofTypeJWT defines the Credential Request proof type for JWTs.
 const ProofTypeJWT = "jwt"
 
+// CredentialOfferStatus defines the status of a credential offer flow.
+type CredentialOfferStatus string
+
+// CredentialOfferStatusReceived indicates that the wallet has received the credential.
+const CredentialOfferStatusReceived CredentialOfferStatus = "credential_received"
+
 // CredentialIssuerMetadata defines the OIDC4VCI Credential Issuer Metadata.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata
 type CredentialIssuerMetadata struct {
@@ -84,7 +90,14 @@ type CredentialOffer struct {
 	// Credentials defines the credentials offered by the issuer to the wallet.
 	Credentials []map[string]interface{} `json:"credentials"`
 	// Grants defines the grants offered by the issuer to the wallet.
-	Grants []map[string]interface{} `json:"grants"`
+	Grants map[string]interface{} `json:"grants"`
+}
+
+// CredentialOfferResponse defines the response for credential offer requests.
+// It is an extension to the OIDC4VCI specification to better support server-to-server issuance.
+type CredentialOfferResponse struct {
+	// Status defines the status of the credential offer.
+	Status CredentialOfferStatus `json:"status"`
 }
 
 // CredentialRequest defines the credential request sent by the wallet to the issuer.

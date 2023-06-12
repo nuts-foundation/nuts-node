@@ -42,6 +42,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
+var _ types.VDR = (*VDR)(nil)
+
 // VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
@@ -52,17 +54,20 @@ type VDR struct {
 	networkAmbassador Ambassador
 	didDocCreator     types.DocCreator
 	didDocResolver    types.DocResolver
+	documentOwner     types.DocumentOwner
 	keyStore          crypto.KeyStore
 }
 
 // NewVDR creates a new VDR with provided params
 func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store didstore.Store, eventManager events.Event) *VDR {
+	resolver := didservice.Resolver{Store: store}
 	return &VDR{
 		config:            config,
 		network:           networkClient,
 		store:             store,
 		didDocCreator:     didservice.Creator{KeyStore: cryptoClient},
-		didDocResolver:    didservice.Resolver{Store: store},
+		didDocResolver:    resolver,
+		documentOwner:     newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, resolver),
 		networkAmbassador: NewAmbassador(networkClient, store, eventManager),
 		keyStore:          cryptoClient,
 	}
@@ -116,6 +121,10 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 		return nil
 	})
 	return conflictedDocs, conflictedMeta, err
+}
+
+func (r *VDR) IsOwner(ctx context.Context, id did.DID) (bool, error) {
+	return r.documentOwner.IsOwner(ctx, id)
 }
 
 // newOwnConflictedDocIterator accepts two counters and returns a new DocIterator that counts the total number of
@@ -246,10 +255,10 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 
 	currentDIDDocument, currentMeta, err := r.store.Resolve(id, resolverMetadata)
 	if err != nil {
-		return err
+		return fmt.Errorf("update DID document: %w", err)
 	}
 	if didservice.IsDeactivated(*currentDIDDocument) {
-		return types.ErrDeactivated
+		return fmt.Errorf("update DID document: %w", types.ErrDeactivated)
 	}
 
 	// #1530: add nuts and JWS context if not present
@@ -258,23 +267,23 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 
 	// Validate document. No more changes should be made to the document after this point.
 	if err = ManagedDocumentValidator(didservice.NewServiceResolver(r.didDocResolver)).Validate(next); err != nil {
-		return err
+		return fmt.Errorf("update DID document: %w", err)
 	}
 
 	payload, err := json.Marshal(next)
 	if err != nil {
-		return err
+		return fmt.Errorf("update DID document: %w", err)
 	}
 
 	controller, key, err := r.resolveControllerWithKey(ctx, *currentDIDDocument)
 	if err != nil {
-		return err
+		return fmt.Errorf("update DID document: %w", err)
 	}
 
 	// for the metadata
 	_, controllerMeta, err := r.didDocResolver.Resolve(controller.ID, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("update DID document: %w", err)
 	}
 
 	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
@@ -282,18 +291,19 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 
 	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
 	_, err = r.network.CreateTransaction(ctx, tx)
-	if err == nil {
-		log.Logger().
-			WithField(core.LogFieldDID, id).
-			Info("DID Document updated")
-	} else {
+	if err != nil {
 		log.Logger().WithError(err).Warn("Unable to update DID document")
 		if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
-			return types.ErrDIDNotManagedByThisNode
+			err = types.ErrDIDNotManagedByThisNode
 		}
+		return fmt.Errorf("update DID document: %w", err)
 	}
 
-	return err
+	log.Logger().
+		WithField(core.LogFieldDID, id).
+		Info("DID Document updated")
+
+	return nil
 }
 
 func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {

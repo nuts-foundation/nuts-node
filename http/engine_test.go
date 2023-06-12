@@ -95,7 +95,7 @@ func TestEngine_Configure(t *testing.T) {
 		serverCfg.TLS.CertFile = "../test/pki/certificate-and-key.pem"
 		serverCfg.TLS.CertKeyFile = "../test/pki/certificate-and-key.pem"
 		serverCfg.TLS.TrustStoreFile = "../test/pki/truststore.pem"
-		tlsConfig, _ := serverCfg.TLS.Load()
+		tlsConfig, _, _ := serverCfg.TLS.Load()
 
 		t.Run("error - invalid TLS mode", func(t *testing.T) {
 			engine := New(noop, nil)

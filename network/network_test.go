@@ -212,7 +212,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.pkiValidator.EXPECT().AddTruststore(gomock.Any())
-		ctx.pkiValidator.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
+		ctx.pkiValidator.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).Times(2) // tls.Configs: client, selfTestDialer
 		ctx.network.connectionManager = nil
 
 		cfg := *core.NewServerConfig()
@@ -255,6 +255,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.pkiValidator.EXPECT().AddTruststore(gomock.Any())
+		ctx.pkiValidator.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()) // selftestDialer tls.Config
 		ctx.network.connectionManager = nil
 
 		cfg := *core.NewServerConfig()
@@ -574,7 +575,7 @@ func TestNetwork_selfTestNutsCommAddress(t *testing.T) {
 
 		// new network
 		network := NewNetworkInstance(Config{}, nil, nil, nil, nil, nil, nil, nil)
-		network.selfTestDialer.Config = &tls.Config{RootCAs: truststore.CertPool}
+		network.selfTestDialer.Config = &tls.Config{RootCAs: truststore.CertPool, Certificates: []tls.Certificate{certificate}}
 
 		// new server
 		ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1200,15 +1201,33 @@ func TestNetwork_checkHealth(t *testing.T) {
 	require.NoError(t, err)
 	t.Run("TLS", func(t *testing.T) {
 		t.Run("up", func(t *testing.T) {
+			mockPKIValidator := pki.NewMockValidator(gomock.NewController(t))
+			mockPKIValidator.EXPECT().Validate([]*x509.Certificate{certificate.Leaf})
 			n := Network{
-				trustStore:  trustStore,
-				certificate: certificate,
+				trustStore:   trustStore,
+				certificate:  certificate,
+				pkiValidator: mockPKIValidator,
 			}
 
 			result := n.CheckHealth()
 
 			assert.Equal(t, core.HealthStatusUp, result[healthTLS].Status)
 		})
+		t.Run("revoked/denied certificate", func(t *testing.T) {
+			mockPKIValidator := pki.NewMockValidator(gomock.NewController(t))
+			mockPKIValidator.EXPECT().Validate([]*x509.Certificate{certificate.Leaf}).Return(errors.New("custom error"))
+			n := Network{
+				trustStore:   trustStore,
+				certificate:  certificate,
+				pkiValidator: mockPKIValidator,
+			}
+
+			result := n.CheckHealth()
+
+			assert.Equal(t, core.HealthStatusDown, result[healthTLS].Status)
+			assert.Equal(t, "custom error", result[healthTLS].Details)
+		})
+
 		t.Run("expired", func(t *testing.T) {
 			trustStore, err := core.LoadTrustStore(testTruststoreFile)
 			require.NoError(t, err)
@@ -1252,6 +1271,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			cxt.network.certificate = certificate
 			cxt.network.nodeDID = *nodeDID
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+			cxt.pkiValidator.EXPECT().Validate([]*x509.Certificate{certificate.Leaf})
 
 			health := cxt.network.CheckHealth()
 

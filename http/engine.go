@@ -77,7 +77,7 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	var tlsConfig *tls.Config
 	var err error
 	if serverConfig.TLS.Offload == core.NoOffloading {
-		tlsConfig, err = serverConfig.TLS.Load()
+		tlsConfig, _, err = serverConfig.TLS.Load()
 		if err != nil {
 			return err
 		}

@@ -23,19 +23,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"net/http"
 	"strings"
 )
 
 // GetOIDC4VCIIssuerMetadata returns the OIDC4VCI credential issuer metadata for the given DID.
-func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error) {
-	issuerDID, err := did.ParseDID(request.Did)
+func (w Wrapper) GetOIDC4VCIIssuerMetadata(ctx context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error) {
+	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
-		return nil, errHolderOrIssuerNotFound
+		return nil, err
 	}
-	metadata, err := w.VCR.GetOIDCIssuer().Metadata(*issuerDID)
+	metadata, err := w.VCR.GetOIDCIssuer().Metadata(issuerDID)
 	// Other error cases (will end up as 500)
 	if err != nil {
 		return nil, err
@@ -44,12 +43,12 @@ func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VC
 }
 
 // GetOIDCProviderMetadata returns the OpenID Connect provider metadata for the given DID.
-func (w Wrapper) GetOIDCProviderMetadata(_ context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
-	issuerDID, err := did.ParseDID(request.Did)
+func (w Wrapper) GetOIDCProviderMetadata(ctx context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
+	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
-		return nil, errHolderOrIssuerNotFound
+		return nil, err
 	}
-	metadata, err := w.VCR.GetOIDCIssuer().ProviderMetadata(*issuerDID)
+	metadata, err := w.VCR.GetOIDCIssuer().ProviderMetadata(issuerDID)
 	// Other error cases (will end up as 500)
 	if err != nil {
 		return nil, err
@@ -59,9 +58,9 @@ func (w Wrapper) GetOIDCProviderMetadata(_ context.Context, request GetOIDCProvi
 
 // RequestCredential requests a credential from the given DID.
 func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentialRequestObject) (RequestCredentialResponseObject, error) {
-	issuerDID, err := did.ParseDID(request.Did)
+	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
-		return nil, errHolderOrIssuerNotFound
+		return nil, err
 	}
 	if request.Params.Authorization == nil {
 		return nil, oidc4vci.Error{
@@ -80,7 +79,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 	}
 	accessToken := authHeader[7:]
 	credentialRequest := *request.Body
-	credential, err := w.VCR.GetOIDCIssuer().HandleCredentialRequest(ctx, *issuerDID, credentialRequest, accessToken)
+	credential, err := w.VCR.GetOIDCIssuer().HandleCredentialRequest(ctx, issuerDID, credentialRequest, accessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +97,9 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 
 // RequestAccessToken requests an OAuth2 access token from the given DID.
 func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	issuerDID, err := did.ParseDID(request.Did)
+	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
 	if err != nil {
-		return nil, errHolderOrIssuerNotFound
+		return nil, err
 	}
 	if request.Body.GrantType != oidc4vci.PreAuthorizedCodeGrant {
 		return nil, oidc4vci.Error{
@@ -109,7 +108,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 			StatusCode: http.StatusBadRequest,
 		}
 	}
-	accessToken, err := w.VCR.GetOIDCIssuer().HandleAccessTokenRequest(ctx, *issuerDID, request.Body.PreAuthorizedCode)
+	accessToken, err := w.VCR.GetOIDCIssuer().HandleAccessTokenRequest(ctx, issuerDID, request.Body.PreAuthorizedCode)
 	if err != nil {
 		return nil, err
 	}
