@@ -132,6 +132,8 @@ func (a *Wrapper) GetAddressBook(_ context.Context, _ GetAddressBookRequestObjec
 			Address:     contact.Address,
 			Attempts:    int(contact.Attempts),
 			LastAttempt: contact.LastAttempt,
+			NextAttempt: contact.NextAttempt,
+			Error:       contact.Error,
 		}
 		if !contact.DID.Empty() {
 			result.Did = new(string)

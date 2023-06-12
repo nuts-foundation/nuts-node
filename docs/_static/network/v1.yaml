@@ -312,6 +312,13 @@ components:
           description: Timestamp of the last attempt to contact the address.
           type: string
           format: date-time
+        nextAttempt:
+          description: Timestamp of the next attempt to contact the address.
+          type: string
+          format: date-time
+        error:
+          description: Error message of the last connection attempt.
+          type: string
   securitySchemes:
     jwtBearerAuth:
       type: http
