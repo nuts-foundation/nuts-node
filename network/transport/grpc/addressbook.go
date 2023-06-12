@@ -173,15 +173,28 @@ type contact struct {
 	backoff     Backoff
 	attempts    atomic.Uint32
 	lastAttempt atomic.Pointer[time.Time]
+	error       atomic.Value
 }
 
 func (c *contact) stats() transport.Contact {
 	lastAttempt := c.lastAttempt.Load()
+	var nextAttemptP *time.Time
+	if lastAttempt != nil {
+		nextAttempt := lastAttempt.Add(c.backoff.Value())
+		nextAttemptP = &nextAttempt
+	}
+	var err *string
+	if e := c.error.Load(); e != nil {
+		errString := e.(string)
+		err = &errString
+	}
 	return transport.Contact{
 		Address:     c.peer.Address,
 		DID:         c.peer.NodeDID,
 		Attempts:    c.attempts.Load(),
 		LastAttempt: lastAttempt,
+		NextAttempt: nextAttemptP,
+		Error:       err,
 	}
 }
 

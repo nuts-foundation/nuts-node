@@ -103,6 +103,10 @@ type Contact struct {
 	Attempts uint32
 	// LastAttempt holds the time of the last connection attempt.
 	LastAttempt *time.Time
+	// NextAttempt holds the time of the next connection attempt.
+	NextAttempt *time.Time
+	// Error holds the errors that occurred during the connection attempts.
+	Error *string
 }
 
 // NutsCommServiceType holds the DID document service type that specifies the Nuts network service address of the Nuts node.

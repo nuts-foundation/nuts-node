@@ -326,6 +326,7 @@ func (s *grpcConnectionManager) connect(contact *contact) {
 			// https://github.com/nuts-foundation/nuts-node/issues/1864
 			return
 		}
+		contact.error.Store(err.Error())
 		contact.backoff.Backoff() // backoff store
 		return
 	}
