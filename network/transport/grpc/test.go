@@ -161,8 +161,8 @@ func SetPeerID(t *testing.T, manager transport.ConnectionManager, id transport.P
 	cm.config.peerID = id
 }
 
-// SetServerKeepaliveParams sets the MaxConnectionAge to 1 sec and MaxConnectionAgeGrace to 1 nSec on the keepalive.ServerParameters and restores the default during cleanup.
-func SetServerKeepaliveParams(t *testing.T) {
+// SetServerKeepaliveParamsForTest sets the MaxConnectionAge to 1 sec and MaxConnectionAgeGrace to 1 nSec on the keepalive.ServerParameters and restores the default during cleanup.
+func SetServerKeepaliveParamsForTest(t *testing.T) {
 	defaultAge := serverKeepaliveParams
 	serverKeepaliveParams = keepalive.ServerParameters{
 		MaxConnectionAge:      time.Second,
@@ -173,8 +173,8 @@ func SetServerKeepaliveParams(t *testing.T) {
 	})
 }
 
-// SetClientKeepaliveParams sets the clientMaxConnectionAge to 1 sec and restores the default during cleanup.
-func SetClientKeepaliveParams(t *testing.T) {
+// SetClientKeepaliveParamsForTest sets the clientMaxConnectionAge to 1 sec and restores the default during cleanup.
+func SetClientKeepaliveParamsForTest(t *testing.T) {
 	defaultAge := clientMaxConnectionAge
 	clientMaxConnectionAge = time.Second
 	t.Cleanup(func() {

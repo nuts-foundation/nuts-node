@@ -410,7 +410,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
 
-		grpc.SetServerKeepaliveParams(t) // server disconnects after 1 sec
+		grpc.SetServerKeepaliveParamsForTest(t) // server disconnects after 1 sec
 		// Start 2 nodes: node1 and node2, where each connects to the other
 		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node1"
@@ -438,7 +438,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
 
-		grpc.SetClientKeepaliveParams(t) // client disconnects after 1 sec
+		grpc.SetClientKeepaliveParamsForTest(t) // client disconnects after 1 sec
 		// Start 2 nodes: node1 and node2, where each connects to the other
 		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node1"

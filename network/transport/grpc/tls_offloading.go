@@ -43,13 +43,14 @@ func newAuthenticationInterceptor(clientCertHeaderName string, pkiValidator pki.
 	return (&tlsOffloadingAuthenticator{clientCertHeaderName: clientCertHeaderName, pkiValidator: pkiValidator}).intercept
 }
 
+// tlsOffloadingAuthenticator get the TLS certificate from the 'clientCertHeaderName' header and set it on the grpc.peer.
 type tlsOffloadingAuthenticator struct {
 	clientCertHeaderName string
 	pkiValidator         pki.Validator
 }
 
 func (t *tlsOffloadingAuthenticator) intercept(srv interface{}, serverStream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	// Det certificate from header
+	// Get certificate from header
 	certificates, err := t.authenticate(serverStream)
 	if err != nil {
 		log.Logger().
