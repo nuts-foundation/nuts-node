@@ -329,7 +329,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 			cm, err := NewGRPCConnectionManager(Config{connectionTimeout: time.Second}, createKVStore(t), *nodeDID, dummyAuthenticator{}, &TestProtocol{})
 			require.NoError(t, err)
 			cm.dialer = func(ctx context.Context, target string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
-				return nil, errors.New("not a context calceled error")
+				return nil, errors.New("not a context cancelled error")
 			}
 			now := time.Now()
 
@@ -338,6 +338,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
 			assert.Less(t, now, *cont.stats().LastAttempt)
+			assert.Equal(t, "not a context cancelled error", *cont.stats().Error)
 
 			// backoff is called
 			assert.Equal(t, 1, backoff.backoffCount)
