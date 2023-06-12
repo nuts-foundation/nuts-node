@@ -258,6 +258,10 @@ func (v *validator) AddTruststore(chain []*x509.Certificate) error {
 	return nil
 }
 
+func (v *validator) SubscribeDenied(f func()) {
+	v.denylist.Subscribe(f)
+}
+
 func (v *validator) getCert(subject string) (*x509.Certificate, bool) {
 	issuer, ok := v.truststore.Load(subject)
 	if !ok {

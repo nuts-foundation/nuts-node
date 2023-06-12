@@ -81,9 +81,6 @@ type Connection interface {
 	// IsConnected returns whether the connection is active or not.
 	IsConnected() bool
 
-	// IsProtocolConnected returns whether the given protocol is active on the connection.
-	IsProtocolConnected(protocol Protocol) bool
-
 	// IsAuthenticated returns whether teh given connection is authenticated.
 	IsAuthenticated() bool
 
@@ -152,9 +149,8 @@ func (mc *conn) waitUntilDisconnected() {
 		mc.mux.RUnlock()
 		return
 	}
-	done := mc.ctx.Done()
 	mc.mux.RUnlock()
-	<-done
+	<-mc.ctx.Done()
 }
 
 func (mc *conn) verifyOrSetPeerID(id transport.PeerID) bool {
@@ -210,10 +206,10 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 	mc.startSending(protocol, stream)
 
 	// A connection can have multiple active streams, but if one of them is closed, all of them should be closed, also closing the underlying connection.
-	go func(cancel func()) {
+	go func() {
 		<-stream.Context().Done()
-		cancel()
-	}(mc.cancelCtx)
+		mc.cancelCtx()
+	}()
 
 	return true
 }
@@ -221,11 +217,18 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 	peer := mc.Peer() // copy Peer, because it will be nil when logging after disconnecting.
 	atomic.AddInt32(&mc.activeGoroutines, 1)
-	go func(activeGoroutines *int32, cancel func()) {
+	go func(activeGoroutines *int32) {
 		defer atomic.AddInt32(activeGoroutines, -1)
 		for {
 			message := protocol.CreateEnvelope()
 			err := stream.RecvMsg(message)
+			select {
+			case <-mc.ctx.Done():
+				// disconnect: drop message and stop receiving
+				return
+			default:
+				//non-blocking
+			}
 			if err != nil {
 				errStatus, isStatusError := status.FromError(err)
 				if errors.Is(err, io.EOF) || (isStatusError && errStatus.Code() == codes.Canceled) {
@@ -241,7 +244,7 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 						Warn("Peer connection error")
 				}
 				mc.status.Store(errStatus)
-				cancel()
+				mc.cancelCtx()
 				break
 			}
 
@@ -255,12 +258,11 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 					Warn("Error handling message")
 			}
 		}
-	}(&mc.activeGoroutines, mc.cancelCtx)
+	}(&mc.activeGoroutines)
 }
 
 func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	outbox := mc.outboxes[protocol.MethodName()]
-	done := mc.ctx.Done()
 
 	atomic.AddInt32(&mc.activeGoroutines, 1)
 	go func(activeGoroutines *int32) {
@@ -268,7 +270,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	loop:
 		for {
 			select {
-			case <-done:
+			case <-mc.ctx.Done():
 				break loop
 			case envelope := <-outbox:
 				if envelope == nil {
@@ -313,14 +315,6 @@ func (mc *conn) IsConnected() bool {
 	defer mc.mux.RUnlock()
 
 	return len(mc.streams) > 0
-}
-
-func (mc *conn) IsProtocolConnected(protocol Protocol) bool {
-	mc.mux.RLock()
-	defer mc.mux.RUnlock()
-
-	_, ok := mc.streams[protocol.MethodName()]
-	return ok
 }
 
 func (mc *conn) IsAuthenticated() bool {

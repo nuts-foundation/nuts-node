@@ -142,6 +142,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		pkiMock := pki.NewMockValidator(ctrl)
 		pkiMock.EXPECT().AddTruststore(ts.Certificates())
 		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
+		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 
 		config, err := NewConfig("", "test", WithTLS(clientCert, ts, pkiMock))
 		require.NoError(t, err)
@@ -569,6 +570,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 	t.Run("ok - gRPC server bound, TLS enabled", func(t *testing.T) {
 		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).Times(2)
+		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 		cfg, err := NewConfig(
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
@@ -586,6 +588,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 	t.Run("ok - gRPC server bound, incoming TLS offloaded", func(t *testing.T) {
 		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
+		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 		cfg, err := NewConfig(
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
@@ -632,6 +635,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 				return nil
 			}
 		}).Times(2) // on inbound and outbound TLS config
+		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 
 		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}, pkiMock))
 		require.NoError(t, err)
@@ -644,6 +648,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	t.Run("error - invalid server TLS config", func(t *testing.T) {
 		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}, pkiMock))
 		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
+		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 		cm, err := NewGRPCConnectionManager(cfg, nil, *nodeDID, nil, &TestProtocol{})
 		require.NoError(t, err)
 
@@ -699,16 +704,25 @@ func Test_grpcConnectionManager_Stop(t *testing.T) {
 
 func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 	const peerID = "server-peer-id"
+	testTime := time.Now().UTC().Truncate(time.Second)
 	t.Run("no peers", func(t *testing.T) {
 		cm, err := NewGRPCConnectionManager(Config{peerID: peerID}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 		defer cm.Stop()
-		assert.Equal(t, "0", cm.Diagnostics()[1].String()) // assert number_of_peers
+		cm.lastCertificateValidation.Store(testTime.Unix())
+
+		diag := cm.Diagnostics()
+
+		require.Len(t, diag, 4)
+		assert.Equal(t, testTime.String(), diag[0].String()) // assert certificates_last_validated
+		assert.Equal(t, peerID, diag[1].String())            // assert peer_id
+		assert.Equal(t, "0", diag[2].String())               // assert number_of_peers
 	})
 	t.Run("with peers", func(t *testing.T) {
 		cm, err := NewGRPCConnectionManager(Config{peerID: peerID}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 		defer cm.Stop()
+		cm.lastCertificateValidation.Store(testTime.Unix())
 
 		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer1", ""))
 		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer2", ""))
@@ -717,8 +731,13 @@ func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 			return len(cm.Peers()) == 2, nil
 		}, 5*time.Second, "time-out while waiting for peers to connect")
 
-		assert.Equal(t, "2", cm.Diagnostics()[1].String())                                         // assert number_of_peers
-		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", cm.Diagnostics()[2].String()) // assert peers
+		diag := cm.Diagnostics()
+
+		require.Len(t, diag, 4)
+		assert.Equal(t, testTime.String(), diag[0].String())                           // assert certificates_last_validated
+		assert.Equal(t, peerID, diag[1].String())                                      // assert peer_id
+		assert.Equal(t, "2", diag[2].String())                                         // assert number_of_peers
+		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", diag[3].String()) // assert peers
 	})
 }
 

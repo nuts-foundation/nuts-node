@@ -54,6 +54,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 	expectedPeer := transport.Peer{
 		NodeDID:       nodeDID,
 		Authenticated: true,
+		Certificate:   cert,
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -89,6 +90,11 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 					PeerCertificates: []*x509.Certificate{wildcardCert},
 				},
 			},
+		}
+		expectedPeer := transport.Peer{
+			NodeDID:       nodeDID,
+			Authenticated: true,
+			Certificate:   wildcardCert,
 		}
 
 		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})

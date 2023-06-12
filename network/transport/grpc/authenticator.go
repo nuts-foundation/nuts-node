@@ -19,6 +19,7 @@
 package grpc
 
 import (
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
@@ -83,6 +84,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 		Debug("Connection successfully authenticated")
 	peer.NodeDID = nodeDID
 	peer.Authenticated = true
+	peer.Certificate = peerCertificate
 	return peer, nil
 }
 
@@ -96,5 +98,6 @@ type dummyAuthenticator struct{}
 func (d dummyAuthenticator) Authenticate(nodeDID did.DID, _ grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
 	peer.NodeDID = nodeDID
 	peer.Authenticated = true
+	peer.Certificate = &x509.Certificate{}
 	return peer, nil
 }
