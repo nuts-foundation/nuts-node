@@ -4,6 +4,16 @@ Release notes
 #############
 
 ************************
+Hazelnut update (v5.3.1)
+************************
+
+Release date: 2023-06-13
+
+- Fixed issue where a Reprocess failed due to missing data
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.3.0...v5.3.1
+
+************************
 Hazelnut update (v5.3.0)
 ************************
 
@@ -21,6 +31,16 @@ Release date: 2023-05-26
 - NutsAuthorizationCredentials and NutsOrganizationCredentials now require a valid ``credentialSubject.id`` (meaning it is a DID).
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.0...v5.3.0
+
+************************
+Hazelnut update (v5.2.3)
+************************
+
+Release date: 2023-06-13
+
+- Fixed issue where a Reprocess failed due to missing data
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.2...v5.2.3
 
 ************************
 Hazelnut update (v5.2.2)
@@ -57,6 +77,16 @@ Release date: 2023-04-25
 - Added support for encrypting documents using the JWE standard (for DIDComm support).
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.1.0...v5.2.0
+
+************************
+Hazelnut update (v5.1.2)
+************************
+
+Release date: 2023-06-13
+
+- Fixed issue where a Reprocess failed due to missing data
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.1.1...v5.1.2
 
 ************************
 Hazelnut update (v5.1.1)
