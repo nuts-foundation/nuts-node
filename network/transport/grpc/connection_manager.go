@@ -124,10 +124,9 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator)
 	cm.registerPrometheusMetrics()
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
+	cm.lastCertificateValidation.Store(&time.Time{})
 	if config.tlsEnabled() {
 		config.pkiValidator.SubscribeDenied(cm.revalidatePeers)
-		now := nowFunc()
-		cm.lastCertificateValidation.Store(&now)
 	}
 	return cm, nil
 }
