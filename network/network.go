@@ -740,8 +740,8 @@ func (n *Network) Reprocess(ctx context.Context, contentType string) (*Reprocess
 			// add to Nats
 			subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
 			payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
-			if err != nil {
-				return nil, fmt.Errorf("reprocess abort on transaction %#x payload %#x: %w", tx.Ref(), tx.PayloadHash(), err)
+			if err != nil && !errors.Is(err, dag.ErrPayloadNotFound) {
+				return nil, fmt.Errorf("reprocess abort on transaction %s payload %s: %w", tx.Ref(), tx.PayloadHash(), err)
 			}
 			twp := events.TransactionWithPayload{
 				Transaction: tx,
@@ -754,7 +754,7 @@ func (n *Network) Reprocess(ctx context.Context, contentType string) (*Reprocess
 				Trace("Publishing transaction")
 			_, err = js.PublishAsync(subject, data)
 			if err != nil {
-				return nil, fmt.Errorf("reprocess abort on transaction %#x publish: %w", tx.Ref(), err)
+				return nil, fmt.Errorf("reprocess abort on transaction %s publish: %w", tx.Ref(), err)
 			}
 		}
 
