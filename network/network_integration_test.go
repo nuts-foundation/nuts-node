@@ -953,6 +953,40 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = TLS client certificate authentication failed")
 			assert.Nil(t, msg)
 		})
+		t.Run("certificate revoked/denied", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			// Start server node (node1)
+			node1 := startNode(t, "node1", testDirectory, func(serverCfg *core.ServerConfig, cfg *Config) {
+				serverCfg.TLS.Offload = core.OffloadIncomingTLS
+				serverCfg.TLS.ClientCertHeaderName = "client-cert"
+			})
+
+			// Load client cert and add it to the denylist
+			clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
+			require.NoError(t, err)
+			cert, err := core.ParseCertificates(clientCertBytes)
+			require.NoError(t, err)
+			pki.TestDenylistWithCert(t, node1.network.pkiValidator, cert[0])
+
+			// Create client (node2) that connects to server node
+			grpcConn, err := grpcLib.Dial(nameToAddress(t, "node1"), grpcLib.WithTransportCredentials(insecure.NewCredentials()))
+			require.NoError(t, err)
+			defer grpcConn.Close()
+			ctx := context.Background()
+			outgoingMD := metadata.MD{}
+			outgoingMD.Set("peerID", "client")
+			outgoingMD.Set("nodeDID", "did:nuts:node2")
+			outgoingMD.Set("client-cert", url.QueryEscape(string(clientCertBytes)))
+			outgoingContext := metadata.NewOutgoingContext(ctx, outgoingMD)
+			client := v2.NewProtocolClient(grpcConn)
+			result, err := client.Stream(outgoingContext)
+			require.NoError(t, err)
+
+			// Assert connection is rejected
+			msg, err := result.Recv()
+			assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = TLS client certificate validation failed")
+			assert.Nil(t, msg)
+		})
 	})
 }
 

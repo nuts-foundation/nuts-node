@@ -552,6 +552,7 @@ func (s *grpcConnectionManager) revalidatePeers() {
 		if nowFunc().After(peerCert.NotAfter) {
 			log.Logger().WithError(errors.New("certificate expired while in use")).WithFields(conn.Peer().ToFields()).Info("Disconnected peer")
 			conn.disconnect()
+			return
 		}
 		err = s.config.pkiValidator.Validate([]*x509.Certificate{peerCert})
 		if err != nil {
