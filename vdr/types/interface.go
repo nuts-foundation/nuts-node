@@ -125,6 +125,8 @@ type VDR interface {
 type DocumentOwner interface {
 	// IsOwner returns true if the DID Document is owned by the node, meaning there are private keys present for the DID Document.
 	IsOwner(context.Context, did.DID) (bool, error)
+	// ListOwned returns all the DIDs owned by the node.
+	ListOwned(ctx context.Context) ([]did.DID, error)
 }
 
 // DocManipulator groups several higher level methods to alter the state of a DID document.

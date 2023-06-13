@@ -15,6 +15,43 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
+// MockNodeDIDProvider is a mock of NodeDIDProvider interface.
+type MockNodeDIDProvider struct {
+	ctrl     *gomock.Controller
+	recorder *MockNodeDIDProviderMockRecorder
+}
+
+// MockNodeDIDProviderMockRecorder is the mock recorder for MockNodeDIDProvider.
+type MockNodeDIDProviderMockRecorder struct {
+	mock *MockNodeDIDProvider
+}
+
+// NewMockNodeDIDProvider creates a new mock instance.
+func NewMockNodeDIDProvider(ctrl *gomock.Controller) *MockNodeDIDProvider {
+	mock := &MockNodeDIDProvider{ctrl: ctrl}
+	mock.recorder = &MockNodeDIDProviderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockNodeDIDProvider) EXPECT() *MockNodeDIDProviderMockRecorder {
+	return m.recorder
+}
+
+// NodeDID mocks base method.
+func (m *MockNodeDIDProvider) NodeDID() did.DID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NodeDID")
+	ret0, _ := ret[0].(did.DID)
+	return ret0
+}
+
+// NodeDID indicates an expected call of NodeDID.
+func (mr *MockNodeDIDProviderMockRecorder) NodeDID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NodeDID", reflect.TypeOf((*MockNodeDIDProvider)(nil).NodeDID))
+}
+
 // MockTransactions is a mock of Transactions interface.
 type MockTransactions struct {
 	ctrl     *gomock.Controller

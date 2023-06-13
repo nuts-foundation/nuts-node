@@ -136,3 +136,27 @@ func Test_privateKeyDocumentOwner_IsOwner(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func Test_privateKeyDocumentOwner_ListOwned(t *testing.T) {
+	keyList := []string{
+		"did:nuts:example.com#key-1",
+		"did:nuts:example.com",
+		"",
+		"not a DID",
+		"did:nuts:another-did.com#key-2",
+		"did:nuts:example.com#key-2",
+	}
+	expected := []did.DID{
+		did.MustParseDID("did:nuts:example.com"),
+		did.MustParseDID("did:nuts:another-did.com"),
+	}
+	ctrl := gomock.NewController(t)
+	keyResolver := crypto.NewMockKeyResolver(ctrl)
+	keyResolver.EXPECT().List(gomock.Any()).Return(keyList)
+	documentOwner := privateKeyDocumentOwner{keyResolver: keyResolver}
+
+	result, err := documentOwner.ListOwned(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, expected, result)
+}

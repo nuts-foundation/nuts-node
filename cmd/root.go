@@ -23,6 +23,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/golden_hammer"
+	goldenHammerCmd "github.com/nuts-foundation/nuts-node/golden_hammer/cmd"
 	"io"
 	"os"
 	"runtime/pprof"
@@ -190,6 +192,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
+	goldenHammer := golden_hammer.New(networkInstance, vdrInstance, didmanInstance, docResolver)
 
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})
@@ -229,6 +232,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterEngine(networkInstance)
 	system.RegisterEngine(authInstance)
 	system.RegisterEngine(didmanInstance)
+	system.RegisterEngine(goldenHammer)
 	// HTTP engine MUST be registered last, because when started it dispatches HTTP calls to the registered routes.
 	// Registering is last makes sure all engines are started and ready to accept requests.
 	system.RegisterEngine(httpServerInstance)
@@ -326,6 +330,7 @@ func serverConfigFlags() *pflag.FlagSet {
 	set.AddFlagSet(authCmd.FlagSet())
 	set.AddFlagSet(eventsCmd.FlagSet())
 	set.AddFlagSet(pki.FlagSet())
+	set.AddFlagSet(goldenHammerCmd.FlagSet())
 
 	return set
 }

@@ -32,6 +32,10 @@ import (
 	"time"
 )
 
+func CreateIdentifier(baseURL string, id did.DID) string {
+	return core.JoinURLPaths(baseURL, "n2n", "identity", url.PathEscape(id.String()))
+}
+
 // IdentifierResolver defines the interface for resolving OpenID4VCI identifiers (of wallet and issuer).
 // The identifier is the base URL of the issuer or wallet, at which well-known endpoints can be found.
 type IdentifierResolver interface {
@@ -55,7 +59,7 @@ func (i DIDIdentifierResolver) Resolve(id did.DID) (string, error) {
 	var result string
 	_ = service.UnmarshalServiceEndpoint(&result)
 	if result != "" {
-		result = core.JoinURLPaths(result, "n2n", "identity", url.PathEscape(id.String()))
+		result = CreateIdentifier(result, id)
 	}
 	return result, nil
 }
@@ -121,7 +125,15 @@ func (t tlsIdentifierResolver) resolveFromCertificate(id did.DID) (string, error
 	// Support legacy TLS certificates with host name in Subject.CommonName as well
 	candidateHosts := append(t.config.Certificates[0].Leaf.DNSNames, t.config.Certificates[0].Leaf.Subject.CommonName)
 	for _, host := range candidateHosts {
-		candidateURLs = append(candidateURLs, fmt.Sprintf("https://%s:%d", host, tlsIdentifierResolverPort))
+		var candidateURL string
+		if tlsIdentifierResolverPort == 443 {
+			// Not really required, but makes prettier URLs
+			candidateURL = fmt.Sprintf("https://%s", host)
+		} else {
+			candidateURL = fmt.Sprintf("https://%s:%d", host, tlsIdentifierResolverPort)
+		}
+
+		candidateURLs = append(candidateURLs, candidateURL)
 	}
 
 	// Resolve URLs

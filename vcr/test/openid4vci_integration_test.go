@@ -115,7 +115,7 @@ func TestOpenID4VCIDisabled(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 		data, _ := io.ReadAll(resp.Body)
-		assert.Equal(t, `{"detail":"openid4vci is disabled","status":404,"title":"Operation failed"}`, string(data))
+		assert.Equal(t, `{"detail":"OpenID4VCI is disabled","status":404,"title":"Operation failed"}`, string(data))
 	})
 }
 

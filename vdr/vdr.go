@@ -129,6 +129,10 @@ func (r *VDR) IsOwner(ctx context.Context, id did.DID) (bool, error) {
 	return r.documentOwner.IsOwner(ctx, id)
 }
 
+func (r *VDR) ListOwned(ctx context.Context) ([]did.DID, error) {
+	return r.documentOwner.ListOwned(ctx)
+}
+
 // newOwnConflictedDocIterator accepts two counters and returns a new DocIterator that counts the total number of
 // conflicted documents, both total and owned by this node.
 func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.DocIterator {

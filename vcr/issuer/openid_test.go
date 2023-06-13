@@ -157,7 +157,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, response)
 		assert.Equal(t, issuerDID.URI(), response.Issuer)
-		auditLogs.AssertContains(t, "VCR", "VerifiableCredentialRetrievedEvent", audit.TestActor, "VC retrieved by wallet over OIDC4VCI")
+		auditLogs.AssertContains(t, "VCR", "VerifiableCredentialRetrievedEvent", audit.TestActor, "VC retrieved by wallet over OpenID4VCI")
 	})
 	t.Run("proof validation", func(t *testing.T) {
 		t.Run("unsupported proof type", func(t *testing.T) {

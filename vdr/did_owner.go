@@ -38,11 +38,16 @@ var _ types.DocumentOwner = (*privateKeyDocumentOwner)(nil)
 //   - Negative matches never change until restart (would indicate an attacker trying DIDs, or a bug/misconfiguration).
 //
 // Before calling the more expensive, underlying types.DocumentOwner, it checks whether the DID actually exists.
+// The ListOwned call is not cached.
 type cachingDocumentOwner struct {
 	underlying   types.DocumentOwner
 	ownedDIDs    *sync.Map
 	notOwnedDIDs *sync.Map
 	docResolver  types.DocResolver
+}
+
+func (t *cachingDocumentOwner) ListOwned(ctx context.Context) ([]did.DID, error) {
+	return t.underlying.ListOwned(ctx)
 }
 
 func newCachingDocumentOwner(underlying types.DocumentOwner, docResolver types.DocResolver) *cachingDocumentOwner {
@@ -98,9 +103,24 @@ type privateKeyDocumentOwner struct {
 	keyResolver crypto.KeyResolver
 }
 
+func (p privateKeyDocumentOwner) ListOwned(ctx context.Context) ([]did.DID, error) {
+	return p.listDIDs(ctx), nil
+}
+
 func (p privateKeyDocumentOwner) IsOwner(ctx context.Context, id did.DID) (bool, error) {
-	idAsString := id.String()
+	didList := p.listDIDs(ctx)
+	for _, curr := range didList {
+		if id.Equals(curr) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (p privateKeyDocumentOwner) listDIDs(ctx context.Context) []did.DID {
 	keyList := p.keyResolver.List(ctx)
+	var didList []did.DID
+	didMap := make(map[string]bool, 0)
 	for _, key := range keyList {
 		// Assume format <did>#<keyID>
 		idx := strings.Index(key, "#")
@@ -108,10 +128,16 @@ func (p privateKeyDocumentOwner) IsOwner(ctx context.Context, id did.DID) (bool,
 			// Not a valid key ID
 			continue
 		}
-		ownerDID := key[:idx]
-		if idAsString == ownerDID {
-			return true, nil
+		curr := key[:idx]
+		if didMap[curr] {
+			// Already in list
+			continue
 		}
+		parsedDID, _ := did.ParseDID(curr)
+		if parsedDID != nil {
+			didList = append(didList, *parsedDID)
+		}
+		didMap[curr] = true
 	}
-	return false, nil
+	return didList
 }

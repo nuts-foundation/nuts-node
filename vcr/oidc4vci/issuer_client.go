@@ -123,7 +123,7 @@ func loadCredentialIssuerMetadata(ctx context.Context, identifier string, httpCl
 	// TODO: what about caching?
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2034
 	result := CredentialIssuerMetadata{}
-	err := httpGet(ctx, httpClient, identifier+CredentialIssuerMetadataWellKnownPath, &result)
+	err := httpGet(ctx, httpClient, core.JoinURLPaths(identifier, CredentialIssuerMetadataWellKnownPath), &result)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient
 	// TODO: what about caching?
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2034
 	result := ProviderMetadata{}
-	err := httpGet(ctx, httpClient, identifier+ProviderMetadataWellKnownPath, &result)
+	err := httpGet(ctx, httpClient, core.JoinURLPaths(identifier, ProviderMetadataWellKnownPath), &result)
 	if err != nil {
 		return nil, err
 	}

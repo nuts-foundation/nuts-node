@@ -29,6 +29,10 @@ import (
 // MaxReprocessBufferSize is the maximum number of events for Nats resulting from a Reprocess
 const MaxReprocessBufferSize = 1000000
 
+type NodeDIDProvider interface {
+	NodeDID() did.DID
+}
+
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
 type Transactions interface {
 	// Subscribe registers a receiver for the specified transaction type.

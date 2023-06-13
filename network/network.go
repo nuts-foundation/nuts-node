@@ -138,6 +138,10 @@ func (n *Network) Migrate() error {
 	return n.state.Migrate()
 }
 
+func (n *Network) NodeDID() did.DID {
+	return n.nodeDID
+}
+
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(
 	config Config,
