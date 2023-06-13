@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -133,7 +132,7 @@ func (p networkPublisher) generateParticipants(verifiableCredential vc.Verifiabl
 }
 
 func (p networkPublisher) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, error) {
-	serviceUser := ssi.MustParseURI(fmt.Sprintf("%s/serviceEndpoint?type=%s", DID.String(), transport.NutsCommServiceType))
+	serviceUser := didservice.MakeServiceReference(DID, transport.NutsCommServiceType)
 
 	service, err := p.serviceResolver.Resolve(serviceUser, 5)
 	if err != nil {
