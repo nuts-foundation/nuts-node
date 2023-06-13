@@ -67,6 +67,13 @@ paths:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
   "/n2n/identity/{did}/.well-known/openid-credential-issuer":
+    parameters:
+      - name: did
+        in: path
+        required: true
+        schema:
+          type: string
+          example: did:nuts:123
     get:
       tags:
         - Issuer
@@ -74,13 +81,6 @@ paths:
       description: >
         Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata
       operationId: getOIDC4VCIIssuerMetadata
-      parameters:
-        - name: did
-          in: path
-          required: true
-          schema:
-            type: string
-            example: did:nuts:123
       responses:
         "200":
           description: OK
@@ -94,6 +94,22 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+    head:
+      tags:
+        - Issuer
+      summary: Get the HTTP headers which would be returned when executing a GET request.
+      description: >
+        Can be used to test the existence of the well-known endpoint, used by a Nuts node to discover its own
+        OpenID4VCI identifier.
+      operationId: getOIDC4VCIIssuerMetadataHeaders
+      responses:
+        default:
+          description: Response of the HEAD request, returning HTTP status and headers as if a GET request was performed.
+          headers:
+            'Content-Type':
+              schema:
+                type: string
+                example: application/json
   "/n2n/identity/{did}/oidc/token":
     post:
       tags:

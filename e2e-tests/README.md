@@ -32,14 +32,14 @@ When there are multiple in a test, some will use `IMAGE_NODE_A` and the other `I
 Since tests are asymmetric (the action is only performed from node A to B), you want to run the tests twice with the image variables swapped, e.g.:
 
 ```console
-$ IMAGE_NODE_A=nutsfoundation/nuts-node:v4.3.0 \
+IMAGE_NODE_A=nutsfoundation/nuts-node:v4.3.0 \
 IMAGE_NODE_B=nutsfoundation/nuts-node:v5.0.0 \
 ./run-tests.sh
 ```
 
-And than run again with the values swapped:
+And then run again with the values swapped:
 ```console
-$ IMAGE_NODE_A=nutsfoundation/nuts-node:v5.0.0 \
+IMAGE_NODE_A=nutsfoundation/nuts-node:v5.0.0 \
 IMAGE_NODE_B=nutsfoundation/nuts-node:v4.3.0 \
 ./run-tests.sh
 ```

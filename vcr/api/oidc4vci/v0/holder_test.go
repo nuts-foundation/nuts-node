@@ -33,16 +33,17 @@ import (
 )
 
 var holderDID = did.MustParseDID("did:nuts:holder")
+var walletIdentifier = "http://example.com/" + holderDID.String()
 
 func TestWrapper_GetOAuth2ClientMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wallet := holder.NewMockOIDCWallet(ctrl)
+		wallet := holder.NewMockOpenIDHandler(ctrl)
 		wallet.EXPECT().Metadata().Return(oidc4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "endpoint"})
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
-		service.EXPECT().GetOIDCWallet(holderDID).Return(wallet)
+		service.EXPECT().GetOpenIDHolder(gomock.Any(), holderDID).Return(wallet, nil)
 		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
 		response, err := api.GetOAuth2ClientMetadata(context.Background(), GetOAuth2ClientMetadataRequestObject{
@@ -63,19 +64,19 @@ func TestWrapper_GetOAuth2ClientMetadata(t *testing.T) {
 			Did: holderDID.String(),
 		})
 
-		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+		require.EqualError(t, err, "invalid_request - DID is not owned by this node")
 	})
 }
 
 func TestWrapper_HandleCredentialOffer(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wallet := holder.NewMockOIDCWallet(ctrl)
+		wallet := holder.NewMockOpenIDHandler(ctrl)
 		wallet.EXPECT().HandleCredentialOffer(gomock.Any(), gomock.Any())
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
-		service.EXPECT().GetOIDCWallet(holderDID).Return(wallet)
+		service.EXPECT().GetOpenIDHolder(gomock.Any(), holderDID).Return(wallet, nil)
 		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
 		credentialOffer := oidc4vci.CredentialOffer{
@@ -119,6 +120,6 @@ func TestWrapper_HandleCredentialOffer(t *testing.T) {
 			Did: holderDID.String(),
 		})
 
-		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+		require.EqualError(t, err, "invalid_request - DID is not owned by this node")
 	})
 }

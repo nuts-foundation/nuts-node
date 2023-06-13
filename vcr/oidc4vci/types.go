@@ -29,6 +29,10 @@ import (
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-pre-authorized-code-flow
 const PreAuthorizedCodeGrant = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
 
+// WalletMetadataWellKnownPath defines the well-known path for OpenID4VCI Wallet Metadata.
+// It is NOT specified by the OpenID4VCI specification, we just use it to be consistent with the other well-known paths.
+const WalletMetadataWellKnownPath = "/.well-known/openid-credential-wallet"
+
 // ProviderMetadataWellKnownPath defines the well-known path for retrieving OpenID ProviderMetadata
 // Specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
 const ProviderMetadataWellKnownPath = "/.well-known/oauth-authorization-server"
@@ -150,8 +154,6 @@ type Config struct {
 	DefinitionsDIR string `koanf:"definitionsdir"`
 	// Enabled indicates if issuing and receiving credentials over OIDC4VCI is enabled
 	Enabled bool `koanf:"enabled"`
-	// URL defines the base URL of the OIDC4VCI issuer and wallet
-	URL string `koanf:"url"`
 	// Timeout defines the timeout for HTTP client operations
 	Timeout time.Duration `koanf:"timeout"`
 }

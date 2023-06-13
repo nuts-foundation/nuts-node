@@ -677,3 +677,16 @@ func TestKeyResolver_ResolveRelationKeyID(t *testing.T) {
 		require.Equal(t, ssi.URI{}, keyId)
 	})
 }
+
+func TestIsFunctionalResolveError(t *testing.T) {
+	assert.True(t, IsFunctionalResolveError(types.ErrNotFound))
+	assert.True(t, IsFunctionalResolveError(types.ErrDeactivated))
+	assert.True(t, IsFunctionalResolveError(types.ErrServiceNotFound))
+	assert.True(t, IsFunctionalResolveError(types.ErrServiceReferenceToDeep))
+	assert.True(t, IsFunctionalResolveError(types.ErrNoActiveController))
+	assert.True(t, IsFunctionalResolveError(did.InvalidDIDErr))
+	assert.True(t, IsFunctionalResolveError(DIDServiceQueryError{Err: errors.New("oops")}))
+
+	assert.False(t, IsFunctionalResolveError(errors.New("some error")))
+	assert.False(t, IsFunctionalResolveError(types.ErrDuplicateService))
+}

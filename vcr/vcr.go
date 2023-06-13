@@ -26,10 +26,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"io/fs"
-	"net/url"
+	"net/http"
 	"path"
 	"strings"
 	"time"
@@ -59,7 +58,7 @@ import (
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver,
 	network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine,
-	pkiProvider pki.Provider) VCR {
+	pkiProvider pki.Provider, documentOwner vdr.DocumentOwner) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -71,6 +70,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		eventManager:    eventManager,
 		storageClient:   storageClient,
 		pkiProvider:     pkiProvider,
+		documentOwner:   documentOwner,
 	}
 	return r
 }
@@ -81,41 +81,77 @@ type vcr struct {
 	// strictmode holds a copy of the core.ServerConfig.Strictmode value
 	strictmode bool
 
-	config          Config
-	store           leia.Store
-	keyStore        crypto.KeyStore
-	docResolver     vdr.DocResolver
-	keyResolver     vdr.KeyResolver
-	serviceResolver didservice.ServiceResolver
-	ambassador      Ambassador
-	network         network.Transactions
-	trustConfig     *trust.Config
-	issuer          issuer.Issuer
-	verifier        verifier.Verifier
-	holder          holder.Holder
-	issuerStore     issuer.Store
-	verifierStore   verifier.Store
-	jsonldManager   jsonld.JSONLD
-	eventManager    events.Event
-	storageClient   storage.Engine
-	oidcIssuer      openid4vci.Issuer
-	oidcIssuerStore openid4vci.Store
-	pkiProvider     pki.Provider
-	clientTLSConfig *tls.Config
+	config              Config
+	store               leia.Store
+	keyStore            crypto.KeyStore
+	docResolver         vdr.DocResolver
+	keyResolver         vdr.KeyResolver
+	serviceResolver     didservice.ServiceResolver
+	ambassador          Ambassador
+	network             network.Transactions
+	trustConfig         *trust.Config
+	issuer              issuer.Issuer
+	verifier            verifier.Verifier
+	holder              holder.Holder
+	issuerStore         issuer.Store
+	verifierStore       verifier.Store
+	jsonldManager       jsonld.JSONLD
+	eventManager        events.Event
+	storageClient       storage.Engine
+	openidIsssuerStore  issuer.OpenIDStore
+	localWalletResolver oidc4vci.IdentifierResolver
+	documentOwner       vdr.DocumentOwner
+	pkiProvider         pki.Provider
+	clientTLSConfig     *tls.Config
 }
 
-func (c *vcr) GetOIDCIssuer() openid4vci.Issuer {
-	return c.oidcIssuer
-}
-
-func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
-	identifier := core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity", url.PathEscape(id.String()))
+func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error) {
+	identifier, err := c.resolveOpenID4VCIIdentifier(ctx, id)
+	if err != nil {
+		return nil, err
+	}
 	clientConfig := oidc4vci.ClientConfig{
 		Timeout:   c.config.OIDC4VCI.Timeout,
 		TLS:       c.clientTLSConfig,
 		HTTPSOnly: c.strictmode,
 	}
-	return holder.NewOIDCWallet(clientConfig, id, identifier, c, c.keyStore, c.keyResolver, jsonld.Reader{DocumentLoader: c.jsonldManager.DocumentLoader()})
+	return issuer.NewOpenIDHandler(id, identifier, c.config.OIDC4VCI.DefinitionsDIR, clientConfig, c.keyResolver, c.openidIsssuerStore)
+}
+
+func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHandler, error) {
+	identifier, err := c.resolveOpenID4VCIIdentifier(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	clientConfig := oidc4vci.ClientConfig{
+		Timeout:   c.config.OIDC4VCI.Timeout,
+		TLS:       c.clientTLSConfig,
+		HTTPSOnly: c.strictmode,
+	}
+	return holder.NewOpenIDHandler(clientConfig, id, identifier, c, c.keyStore, c.keyResolver, jsonld.Reader{DocumentLoader: c.jsonldManager.DocumentLoader()}), nil
+}
+
+func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (string, error) {
+	identifier, err := c.localWalletResolver.Resolve(id)
+	if err != nil {
+		return "", oidc4vci.Error{
+			Err:        fmt.Errorf("error resolving OpenID4VCI identifier: %w", err),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusNotFound,
+		}
+	}
+	isOwner, err := c.documentOwner.IsOwner(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if !isOwner {
+		return "", oidc4vci.Error{
+			Err:        errors.New("DID is not owned by this node"),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusNotFound,
+		}
+	}
+	return identifier, nil
 }
 
 func (c *vcr) Issuer() issuer.Issuer {
@@ -161,38 +197,17 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
 	if c.config.OIDC4VCI.Enabled {
-		if c.config.OIDC4VCI.URL == "" {
-			return errors.New("vcr.oidc4vci.url must be configured to enable OIDC4VCI")
-		}
-		// Must be either HTTP or HTTPS, in strict mode HTTPS is required
-		if strings.HasPrefix(c.config.OIDC4VCI.URL, "http://") {
-			if config.Strictmode {
-				return errors.New("vcr.oidc4vci.url must use HTTPS when strictmode is enabled")
-			}
-		} else if !strings.HasPrefix(c.config.OIDC4VCI.URL, "https://") {
-			return errors.New("vcr.oidc4vci.url must contain a valid URL (using http:// or https://)")
-		}
-
 		c.clientTLSConfig, err = c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 		if err != nil {
 			return err
 		}
-
-		c.oidcIssuerStore = openid4vci.NewMemoryStore()
-		baseURL := core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity")
-
-		clientConfig := oidc4vci.ClientConfig{
-			Timeout:   c.config.OIDC4VCI.Timeout,
-			TLS:       c.clientTLSConfig,
-			HTTPSOnly: c.strictmode,
-		}
-
-		c.oidcIssuer, err = openid4vci.New(c.config.OIDC4VCI.DefinitionsDIR, baseURL, clientConfig, c.keyResolver, c.oidcIssuerStore)
-		if err != nil {
-			return err
-		}
+		c.localWalletResolver = oidc4vci.NewTLSIdentifierResolver(
+			oidc4vci.DIDIdentifierResolver{ServiceResolver: c.serviceResolver},
+			c.clientTLSConfig,
+		)
+		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
 	}
-	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.GetOpenIDIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
@@ -226,8 +241,8 @@ func (c *vcr) Start() error {
 }
 
 func (c *vcr) Shutdown() error {
-	if c.oidcIssuerStore != nil {
-		c.oidcIssuerStore.Close()
+	if c.openidIsssuerStore != nil {
+		c.openidIsssuerStore.Close()
 	}
 	err := c.issuerStore.Close()
 	if err != nil {

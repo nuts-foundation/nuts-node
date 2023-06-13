@@ -154,3 +154,13 @@ func startHTTPServer(t *testing.T, mux *http.ServeMux) string {
 	})
 	return httpServerURL
 }
+
+// SetTLSIdentifierResolverPort sets the port used by the TLS identifier resolver to the given port,
+// and restores the original port when the test is done.
+func SetTLSIdentifierResolverPort(t testing.TB, port int) {
+	oldPort := tlsIdentifierResolverPort
+	t.Cleanup(func() {
+		tlsIdentifierResolverPort = oldPort
+	})
+	tlsIdentifierResolverPort = port
+}

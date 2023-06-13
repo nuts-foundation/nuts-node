@@ -16,7 +16,7 @@
  *
  */
 
-package openid4vci
+package issuer
 
 import (
 	"context"
@@ -161,7 +161,7 @@ func Test_memoryStore_Store(t *testing.T) {
 
 func Test_memoryStore_Close(t *testing.T) {
 	t.Run("assert Close() waits for pruning to finish to avoid leaking goroutines", func(t *testing.T) {
-		pruneInterval = 10 * time.Millisecond
+		openidStorePruneInterval = 10 * time.Millisecond
 		store := createStore(t)
 		time.Sleep(50 * time.Millisecond) // make sure pruning is running
 		store.Close()
@@ -243,8 +243,8 @@ func Test_memoryStore_prune(t *testing.T) {
 	})
 }
 
-func createStore(t *testing.T) *memoryStore {
-	store := NewMemoryStore().(*memoryStore)
+func createStore(t *testing.T) *openidMemoryStore {
+	store := NewOpenIDMemoryStore().(*openidMemoryStore)
 	t.Cleanup(store.Close)
 	return store
 }

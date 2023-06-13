@@ -16,7 +16,7 @@
  *
  */
 
-package openid4vci
+package issuer
 
 import (
 	"context"
@@ -26,8 +26,8 @@ import (
 	"time"
 )
 
-// Store defines the storage API for OpenID Credential Issuance flows.
-type Store interface {
+// OpenIDStore defines the storage API for OpenID Credential Issuance flows.
+type OpenIDStore interface {
 	// Store saves a new Flow in the store.
 	Store(ctx context.Context, flow Flow) error
 	// StoreReference saves a reference to the given Flow, for looking it up later.
@@ -46,11 +46,11 @@ type Store interface {
 	Close()
 }
 
-var _ Store = (*memoryStore)(nil)
+var _ OpenIDStore = (*openidMemoryStore)(nil)
 
-var pruneInterval = 10 * time.Minute
+var openidStorePruneInterval = 10 * time.Minute
 
-type memoryStore struct {
+type openidMemoryStore struct {
 	mux      *sync.RWMutex
 	flows    map[string]Flow
 	refs     map[string]map[string]referenceValue
@@ -59,16 +59,16 @@ type memoryStore struct {
 	cancel   context.CancelFunc
 }
 
-// NewMemoryStore creates a new in-memory Store.
-func NewMemoryStore() Store {
-	result := &memoryStore{
+// NewOpenIDMemoryStore creates a new in-memory OpenIDStore.
+func NewOpenIDMemoryStore() OpenIDStore {
+	result := &openidMemoryStore{
 		mux:      &sync.RWMutex{},
 		flows:    map[string]Flow{},
 		refs:     map[string]map[string]referenceValue{},
 		routines: &sync.WaitGroup{},
 	}
 	result.ctx, result.cancel = context.WithCancel(context.Background())
-	result.startPruning(pruneInterval)
+	result.startPruning(openidStorePruneInterval)
 	return result
 }
 
@@ -77,7 +77,7 @@ type referenceValue struct {
 	Expiry time.Time `json:"exp"`
 }
 
-func (o *memoryStore) Store(_ context.Context, flow Flow) error {
+func (o *openidMemoryStore) Store(_ context.Context, flow Flow) error {
 	if len(flow.ID) == 0 {
 		return errors.New("invalid flow ID")
 	}
@@ -90,7 +90,7 @@ func (o *memoryStore) Store(_ context.Context, flow Flow) error {
 	return nil
 }
 
-func (o *memoryStore) StoreReference(_ context.Context, flowID string, refType string, reference string, expiry time.Time) error {
+func (o *openidMemoryStore) StoreReference(_ context.Context, flowID string, refType string, reference string, expiry time.Time) error {
 	if len(reference) == 0 {
 		return errors.New("invalid reference")
 	}
@@ -109,7 +109,7 @@ func (o *memoryStore) StoreReference(_ context.Context, flowID string, refType s
 	return nil
 }
 
-func (o *memoryStore) FindByReference(_ context.Context, refType string, reference string) (*Flow, error) {
+func (o *openidMemoryStore) FindByReference(_ context.Context, refType string, reference string) (*Flow, error) {
 	o.mux.RLock()
 	defer o.mux.RUnlock()
 
@@ -132,7 +132,7 @@ func (o *memoryStore) FindByReference(_ context.Context, refType string, referen
 	return &flow, nil
 }
 
-func (o *memoryStore) DeleteReference(_ context.Context, refType string, reference string) error {
+func (o *openidMemoryStore) DeleteReference(_ context.Context, refType string, reference string) error {
 	o.mux.Lock()
 	defer o.mux.Unlock()
 
@@ -143,13 +143,13 @@ func (o *memoryStore) DeleteReference(_ context.Context, refType string, referen
 	return nil
 }
 
-func (o *memoryStore) Close() {
+func (o *openidMemoryStore) Close() {
 	// Signal pruner to stop and wait for it to finish
 	o.cancel()
 	o.routines.Wait()
 }
 
-func (o *memoryStore) startPruning(interval time.Duration) {
+func (o *openidMemoryStore) startPruning(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	o.routines.Add(1)
 	go func(ctx context.Context) {
@@ -169,7 +169,7 @@ func (o *memoryStore) startPruning(interval time.Duration) {
 	}(o.ctx)
 }
 
-func (o *memoryStore) prune() (int, int) {
+func (o *openidMemoryStore) prune() (int, int) {
 	o.mux.Lock()
 	defer o.mux.Unlock()
 

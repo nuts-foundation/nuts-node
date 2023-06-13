@@ -19,13 +19,13 @@
 package issuer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/stretchr/testify/require"
 	"path"
 	"testing"
@@ -215,31 +215,32 @@ func Test_issuer_Issue(t *testing.T) {
 	})
 
 	t.Run("OIDC4VCI", func(t *testing.T) {
-		const walletMetadataURL = "http://example.com/wallet"
-		walletServiceQuery := ssi.MustParseURI(holderDID.String() + "/serviceEndpoint?type=oidc4vci-wallet-metadata")
-		walletService := did.Service{
-			ServiceEndpoint: walletMetadataURL,
-		}
+		const walletIdentifier = "http://example.com/wallet"
 		t.Run("ok - publish over OIDC4VCI fails - fallback to network", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
-			oidcIssuer := openid4vci.NewMockIssuer(ctrl)
-			oidcIssuer.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletMetadataURL).Return(errors.New("failed"))
+			walletResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+			walletResolver.EXPECT().Resolve(gomock.Any()).Return(walletIdentifier, nil)
+			openidHandler := NewMockOpenIDHandler(ctrl)
+			openidHandler.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier).Return(errors.New("failed"))
 			keyResolver := NewMockkeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
-			serviceResolver := didservice.NewMockServiceResolver(ctrl)
-			serviceResolver.EXPECT().Resolve(walletServiceQuery, gomock.Any()).Return(walletService, nil)
 			store := NewMockStore(ctrl)
 			store.EXPECT().StoreCredential(gomock.Any())
 			sut := issuer{
-				keyResolver:      keyResolver,
-				store:            store,
-				jsonldManager:    jsonldManager,
-				trustConfig:      trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
-				keyStore:         crypto.NewMemoryCryptoInstance(),
-				serviceResolver:  serviceResolver,
-				oidcIssuer:       oidcIssuer,
+				keyResolver:   keyResolver,
+				store:         store,
+				jsonldManager: jsonldManager,
+				trustConfig:   trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:      crypto.NewMemoryCryptoInstance(),
+				openidHandlerFn: func(_ context.Context, id did.DID) (OpenIDHandler, error) {
+					if id.Equals(issuerDID) {
+						return openidHandler, nil
+					}
+					return nil, nil
+				},
+				walletResolver:   walletResolver,
 				networkPublisher: publisher,
 			}
 
@@ -248,7 +249,7 @@ func Test_issuer_Issue(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotNil(t, result)
 		})
-		t.Run("ok - OIDC4VCI not enabled issuer - fallback to network", func(t *testing.T) {
+		t.Run("ok - OIDC4VCI not enabled - fallback to network", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
@@ -262,8 +263,6 @@ func Test_issuer_Issue(t *testing.T) {
 				jsonldManager:    jsonldManager,
 				trustConfig:      trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
 				keyStore:         crypto.NewMemoryCryptoInstance(),
-				serviceResolver:  nil,
-				oidcIssuer:       nil,
 				networkPublisher: publisher,
 			}
 
@@ -274,13 +273,12 @@ func Test_issuer_Issue(t *testing.T) {
 		})
 		t.Run("ok - OIDC4VCI not enabled for holder DID - fallback to network", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
+			walletResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+			walletResolver.EXPECT().Resolve(holderDID).AnyTimes().Return(walletIdentifier, nil)
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
-			oidcIssuer := openid4vci.NewMockIssuer(ctrl)
 			keyResolver := NewMockkeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
-			serviceResolver := didservice.NewMockServiceResolver(ctrl)
-			serviceResolver.EXPECT().Resolve(walletServiceQuery, gomock.Any()).Return(did.Service{}, fmt.Errorf("error: %w", vdr.ErrServiceNotFound))
 			store := NewMockStore(ctrl)
 			store.EXPECT().StoreCredential(gomock.Any())
 			sut := issuer{
@@ -289,8 +287,7 @@ func Test_issuer_Issue(t *testing.T) {
 				jsonldManager:    jsonldManager,
 				trustConfig:      trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
 				keyStore:         crypto.NewMemoryCryptoInstance(),
-				serviceResolver:  serviceResolver,
-				oidcIssuer:       oidcIssuer,
+				walletResolver:   walletResolver,
 				networkPublisher: publisher,
 			}
 
@@ -301,25 +298,30 @@ func Test_issuer_Issue(t *testing.T) {
 		})
 		t.Run("ok - publish over OIDC4VCI", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			oidcIssuer := openid4vci.NewMockIssuer(ctrl)
-			oidcIssuer.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletMetadataURL)
+			walletResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+			walletResolver.EXPECT().Resolve(holderDID).AnyTimes().Return(walletIdentifier, nil)
+			openidIsser := NewMockOpenIDHandler(ctrl)
+			openidIsser.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier)
 			vcrStore := vcr.NewMockWriter(ctrl)
 			vcrStore.EXPECT().StoreCredential(gomock.Any(), gomock.Any())
 			keyResolver := NewMockkeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
-			serviceResolver := didservice.NewMockServiceResolver(ctrl)
-			serviceResolver.EXPECT().Resolve(walletServiceQuery, gomock.Any()).Return(walletService, nil)
 			store := NewMockStore(ctrl)
 			store.EXPECT().StoreCredential(gomock.Any())
 			sut := issuer{
-				keyResolver:     keyResolver,
-				store:           store,
-				jsonldManager:   jsonldManager,
-				trustConfig:     trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
-				keyStore:        crypto.NewMemoryCryptoInstance(),
-				serviceResolver: serviceResolver,
-				oidcIssuer:      oidcIssuer,
-				vcrStore:        vcrStore,
+				keyResolver:    keyResolver,
+				store:          store,
+				jsonldManager:  jsonldManager,
+				trustConfig:    trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:       crypto.NewMemoryCryptoInstance(),
+				walletResolver: walletResolver,
+				openidHandlerFn: func(ctx context.Context, id did.DID) (OpenIDHandler, error) {
+					if id.Equals(issuerDID) {
+						return openidIsser, nil
+					}
+					return nil, nil
+				},
+				vcrStore: vcrStore,
 			}
 
 			result, err := sut.Issue(ctx, credentialOptions, true, false)

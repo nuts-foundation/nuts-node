@@ -37,8 +37,8 @@ import (
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// OIDCWallet is the interface for the credential wallet supporting OpenID4VCI.
-type OIDCWallet interface {
+// OpenIDHandler is the interface for handling issuer operations using OpenID4VCI.
+type OpenIDHandler interface {
 	// Metadata returns the OAuth2 client metadata for the wallet.
 	Metadata() oidc4vci.OAuth2ClientMetadata
 	// HandleCredentialOffer handles a credential offer from an issuer.
@@ -47,11 +47,11 @@ type OIDCWallet interface {
 }
 
 var nowFunc = time.Now
-var _ OIDCWallet = (*wallet)(nil)
+var _ OpenIDHandler = (*openidHandler)(nil)
 
-// NewOIDCWallet creates an OIDCWallet that tries to retrieve offered credentials, to store it in the given credential store.
-func NewOIDCWallet(config oidc4vci.ClientConfig, did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver, jsonldReader jsonld.Reader) OIDCWallet {
-	return &wallet{
+// NewOpenIDHandler creates an OpenIDHandler that tries to retrieve offered credentials, to store it in the given credential store.
+func NewOpenIDHandler(config oidc4vci.ClientConfig, did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver, jsonldReader jsonld.Reader) OpenIDHandler {
+	return &openidHandler{
 		did:                 did,
 		identifier:          identifier,
 		credentialStore:     credentialStore,
@@ -63,7 +63,7 @@ func NewOIDCWallet(config oidc4vci.ClientConfig, did did.DID, identifier string,
 	}
 }
 
-type wallet struct {
+type openidHandler struct {
 	did                 did.DID
 	identifier          string
 	credentialStore     vcrTypes.Writer
@@ -74,7 +74,7 @@ type wallet struct {
 	config              oidc4vci.ClientConfig
 }
 
-func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
+func (h openidHandler) Metadata() oidc4vci.OAuth2ClientMetadata {
 	return oidc4vci.OAuth2ClientMetadata{
 		CredentialOfferEndpoint: core.JoinURLPaths(h.identifier, "/wallet/oidc4vci/credential_offer"),
 	}
@@ -83,9 +83,9 @@ func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
 // HandleCredentialOffer handles a credential offer from an issuer.
 // Error responses on the Credential Offer Endpoint are not defined in the OpenID4VCI spec,
 // so these are inferred of whatever makes sense.
-func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error {
+func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error {
 	// TODO: This check is too simplistic, there can be multiple credential offers,
-	//       but the wallet should only request the one it's interested in.
+	//       but the issuer should only request the one it's interested in.
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2049
 	if len(offer.Credentials) != 1 {
 		return oidc4vci.Error{
@@ -146,7 +146,7 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 		}
 	}
 
-	retrieveCtx := audit.Context(ctx, "app-oidc4vci", "VCR/OIDC4VCI", "RetrieveCredential")
+	retrieveCtx := audit.Context(ctx, "app-openid4vci", "VCR/OpenID4VCI", "RetrieveCredential")
 	retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.config.Timeout)
 	defer cancel()
 	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer, accessTokenResponse)
@@ -228,7 +228,7 @@ func getPreAuthorizedCodeFromOffer(offer oidc4vci.CredentialOffer) string {
 	return preAuthorizedCode
 }
 
-func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerAPIClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
+func (h openidHandler) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerAPIClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
 	keyID, err := h.resolver.ResolveSigningKeyID(h.did, nil)
 	headers := map[string]interface{}{
 		"typ": oidc4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
