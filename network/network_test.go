@@ -880,6 +880,25 @@ func TestNetwork_Reprocess(t *testing.T) {
 		assert.Equal(t, 0, counter)
 	})
 
+	t.Run("missing payload", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		setup, eventManager := newSetup(t)
+		setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, dag.ErrPayloadNotFound)
+		var counter int
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+
+		subscribe(ctx, t, eventManager, &wg, &counter)
+
+		_, err := setup.network.Reprocess(ctx, "application/did+json")
+		require.NoError(t, err)
+		wg.Wait()
+		assert.Equal(t, 1, counter)
+	})
+
 	t.Run("error", func(t *testing.T) {
 		t.Run("query", func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
