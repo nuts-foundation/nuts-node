@@ -158,7 +158,7 @@ func (i issuer) issueUsingOIDC4VCI(ctx context.Context, credential vc.Verifiable
 	subject := subjects[0]
 	// TODO: the service endpoint type must be specified (this is "our" way of client metadata discovery?)
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2042
-	serviceQuery := ssi.MustParseURI(subject.ID + "/serviceEndpoint?type=oidc4vci-wallet-metadata")
+	serviceQuery := didservice.MakeServiceReference(did.MustParseDID(subject.ID), "oidc4vci-wallet-metadata")
 	walletService, err := i.serviceResolver.Resolve(serviceQuery, didservice.DefaultMaxServiceReferenceDepth)
 	if err != nil {
 		return fmt.Errorf("unable to resolve OIDC4VCI wallet metadata URL for DID %s: %w", subject.ID, err)
