@@ -126,8 +126,9 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
 	if config.tlsEnabled() {
 		config.pkiValidator.SubscribeDenied(cm.revalidatePeers)
+		now := nowFunc()
+		cm.lastCertificateValidation.Store(&now)
 	}
-
 	return cm, nil
 }
 
@@ -153,7 +154,7 @@ type grpcConnectionManager struct {
 	dialOptions               []grpc.DialOption
 	connectionTimeout         time.Duration
 	connections               *connectionList
-	lastCertificateValidation atomic.Int64
+	lastCertificateValidation atomic.Pointer[time.Time]
 }
 
 // newGrpcServer configures a new grpc.Server
@@ -394,7 +395,12 @@ func (s *grpcConnectionManager) Contacts() []transport.Contact {
 }
 
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
-	return append([]core.DiagnosticResult{lastCertificateValidation{time.Unix(s.lastCertificateValidation.Load(), 0).UTC()}, ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...)
+	return append(
+		[]core.DiagnosticResult{
+			lastCertificateValidation{*s.lastCertificateValidation.Load()},
+			ownPeerIDStatistic{s.config.peerID},
+		},
+		s.connections.Diagnostics()...)
 }
 
 // RegisterService implements grpc.ServiceRegistrar to register the gRPC services protocols expose.
@@ -540,7 +546,8 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 // revalidatePeers verifies for all peers the x509.Certificate provided during TLS handshake is still valid.
 func (s *grpcConnectionManager) revalidatePeers() {
 	var err error
-	s.lastCertificateValidation.Store(nowFunc().UTC().Unix())
+	now := nowFunc()
+	s.lastCertificateValidation.Store(&now)
 	s.connections.forEach(func(conn Connection) {
 		peerCert := conn.Peer().Certificate
 		if nowFunc().After(peerCert.NotAfter) {

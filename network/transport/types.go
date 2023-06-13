@@ -53,7 +53,7 @@ type Peer struct {
 	// Authenticated is true when NodeDID is set and authentication is successful.
 	Authenticated bool `json:"authenticated"`
 	// Certificate presented by peer during TLS handshake.
-	Certificate *x509.Certificate `json:"certificate,omitempty"`
+	Certificate *x509.Certificate `json:"-" yaml:"-"`
 }
 
 // ToFields returns the peer as a map of fields, to be used when logging the peer details.

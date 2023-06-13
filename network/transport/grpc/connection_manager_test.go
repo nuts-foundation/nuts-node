@@ -704,12 +704,12 @@ func Test_grpcConnectionManager_Stop(t *testing.T) {
 
 func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 	const peerID = "server-peer-id"
-	testTime := time.Now().UTC().Truncate(time.Second)
+	testTime := time.Now()
 	t.Run("no peers", func(t *testing.T) {
 		cm, err := NewGRPCConnectionManager(Config{peerID: peerID}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 		defer cm.Stop()
-		cm.lastCertificateValidation.Store(testTime.Unix())
+		cm.lastCertificateValidation.Store(&testTime)
 
 		diag := cm.Diagnostics()
 
@@ -722,7 +722,7 @@ func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 		cm, err := NewGRPCConnectionManager(Config{peerID: peerID}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 		defer cm.Stop()
-		cm.lastCertificateValidation.Store(testTime.Unix())
+		cm.lastCertificateValidation.Store(&testTime)
 
 		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer1", ""))
 		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer2", ""))
