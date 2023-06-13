@@ -536,7 +536,7 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 				WithError(err).
 				WithFields(peer.ToFields()).
 				WithField(core.LogFieldDID, nodeDID).
-				Warn("Peer node DID could not be authenticated")
+				Debug("Peer node DID could not be authenticated")
 			// Error message is spec'd by RFC017, because it is returned to the peer
 			return transport.Peer{}, ErrNodeDIDAuthFailed
 		}
