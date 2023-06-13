@@ -141,7 +141,9 @@ func (i *issuer) HandleAccessTokenRequest(ctx context.Context, issuer did.DID, p
 	// "This code MUST be short lived and single-use."
 	err = i.store.DeleteReference(ctx, preAuthCodeRefType, preAuthorizedCode)
 	if err != nil {
-		return "", err
+		// Extremely unlikely, but if we return an error here the credential issuance flow will fail without a way to retry it.
+		// Thus just log it, nothing will break (since they'll be pruned after ttl anyway).
+		log.Logger().WithError(err).Error("Failed to delete pre-authorized code")
 	}
 	return accessToken, nil
 }
