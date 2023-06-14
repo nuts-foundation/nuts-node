@@ -112,7 +112,9 @@ nuts:
     auth:
         publicurl: https://chart-example.local
         contractvalidators:
-        - dummy
+        - irma
+        - uzi
+        - employeeid
     #storage:
     #  redis:
     #    address: nuts-node-redis-master.nuts-dev.svc.cluster.local
@@ -127,7 +129,7 @@ nuts:
         - ReadWriteOnce
       storageClassName: ""
     persistedVolumeClaim:
-      enabled: t`rue
+      enabled: true
       capacity: 100Mi
       storageClassName: ""
       accessModes:
