@@ -127,7 +127,8 @@ func TestAddressBook_stats(t *testing.T) {
 	c2 := newContact(transport.Peer{Address: "B"}, backoff)
 	c2.lastAttempt.Store(&lastAttempt)
 	c2.attempts.Add(1)
-	c2.error.Store("timeout")
+	errStr := "timeout"
+	c2.error.Store(&errStr)
 	ab := &addressBook{contacts: []*contact{c1, c2}}
 
 	all := ab.stats()
