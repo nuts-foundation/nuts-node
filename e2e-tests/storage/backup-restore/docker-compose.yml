@@ -1,0 +1,17 @@
+version: "3.7"
+services:
+  nodeA:
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_STORAGE_BBOLT_BACKUP_INTERVAL: ${BACKUP_INTERVAL:-1s}
+    ports:
+      - "11323:1323"
+    volumes:
+      - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "./node-data:/data"
+      - "./node-backup:/backup"
+      - "../../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often

@@ -1,0 +1,22 @@
+verbosity: debug
+internalratelimiter: false
+http:
+  default:
+    address: :1323
+auth:
+  publicurl: http://node-B
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+network:
+  bootstrapnodes: nodeA:5555
+  publicaddr: nodeB:5555
+  grpcaddr:	:5555
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem
+  truststorefile: /opt/nuts/truststore.pem
+tls:
+  truststorefile: /opt/nuts/truststore.pem
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem
