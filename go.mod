@@ -14,7 +14,7 @@ require (
 	github.com/hashicorp/vault/api v1.9.2
 	github.com/knadh/koanf v1.5.0
 	github.com/labstack/echo/v4 v4.10.2
-	github.com/lestrrat-go/jwx v1.2.25
+	github.com/lestrrat-go/jwx v1.2.26
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.1.1
 	github.com/nats-io/nats-server/v2 v2.9.17
@@ -63,7 +63,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/eknkc/basex v1.0.1 // indirect
@@ -110,7 +110,7 @@ require (
 	github.com/lestrrat-go/blackmagic v1.0.1 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
-	github.com/lestrrat-go/option v1.0.0 // indirect
+	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/lib/pq v1.10.6 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
