@@ -30,7 +30,7 @@ The following options apply to the server commands below:
       --crypto.vault.timeout duration                 Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s). (default 5s)
       --crypto.vault.token string                     The Vault token. If set it overwrites the VAULT_TOKEN env var.
       --datadir string                                Directory where the node stores its files. (default "./data")
-      --events.nats.hostname string                   Hostname for the NATS server (default "localhost")
+      --events.nats.hostname string                   Hostname for the NATS server (default "0.0.0.0")
       --events.nats.port int                          Port where the NATS server listens on (default 4222)
       --events.nats.storagedir string                 Directory where file-backed streams are stored in the NATS server
       --events.nats.timeout int                       Timeout for NATS server operations (default 30)
@@ -42,7 +42,7 @@ The following options apply to the server commands below:
       --http.default.log string                       What to log about HTTP requests. Options are 'nothing', 'metadata' (log request method, URI, IP and response code), and 'metadata-and-body' (log the request and response body, in addition to the metadata). (default "metadata")
       --http.default.tls string                       Whether to enable TLS for the default interface, options are 'disabled', 'server', 'server-client'. Leaving it empty is synonymous to 'disabled',
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes strings                List of bootstrap nodes ('<host>:<port>') which the node initially connect to.
