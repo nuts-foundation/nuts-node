@@ -38,7 +38,6 @@ function generateCertificate {
 generateCertificate nodeA
 generateCertificate nodeA-backend
 generateCertificate nodeB
-generateCertificate nodeC
 
 # Cleanup
 rm ca.key
