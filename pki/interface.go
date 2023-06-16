@@ -53,7 +53,7 @@ type Denylist interface {
 	// ValidateCert returns an error if a certificate should not be used
 	ValidateCert(cert *x509.Certificate) error
 
-	// Subscribe calls all subscribers when the denylist is updated
+	// Subscribe registers a callback that is triggered everytime the denylist is updated
 	Subscribe(f func())
 }
 

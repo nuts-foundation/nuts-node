@@ -396,7 +396,7 @@ func (s *grpcConnectionManager) Contacts() []transport.Contact {
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
 	return append(
 		[]core.DiagnosticResult{
-			lastCertificateValidation{*s.lastCertificateValidation.Load()},
+			lastCertificateValidationStatistic{*s.lastCertificateValidation.Load()},
 			ownPeerIDStatistic{s.config.peerID},
 		},
 		s.connections.Diagnostics()...)

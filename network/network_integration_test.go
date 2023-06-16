@@ -966,7 +966,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			require.NoError(t, err)
 			cert, err := core.ParseCertificates(clientCertBytes)
 			require.NoError(t, err)
-			pki.TestDenylistWithCert(t, node1.network.pkiValidator, cert[0])
+			pki.SetNewDenylistWithCert(t, node1.network.pkiValidator, cert[0])
 
 			// Create client (node2) that connects to server node
 			grpcConn, err := grpcLib.Dial(nameToAddress(t, "node1"), grpcLib.WithTransportCredentials(insecure.NewCredentials()))

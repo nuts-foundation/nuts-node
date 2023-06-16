@@ -93,22 +93,22 @@ func (o ownPeerIDStatistic) String() string {
 	return o.peerID.String()
 }
 
-// lastCertificateValidation contains the Unix timestamp of the most recent certificate validation of all peers.
-type lastCertificateValidation struct {
+// lastCertificateValidationStatistic contains the timestamp of the most recent certificate validation of all peers.
+type lastCertificateValidationStatistic struct {
 	lastCheck time.Time
 }
 
-func (o lastCertificateValidation) Result() interface{} {
+func (o lastCertificateValidationStatistic) Result() interface{} {
 	return o.lastCheck
 }
 
 // Name returns the name of the statistic.
-func (o lastCertificateValidation) Name() string {
+func (o lastCertificateValidationStatistic) Name() string {
 	return "certificates_last_validated"
 }
 
 // String returns the statistic as string.
-func (o lastCertificateValidation) String() string {
+func (o lastCertificateValidationStatistic) String() string {
 	return o.lastCheck.String()
 }
 
