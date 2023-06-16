@@ -1,4 +1,3 @@
-This repository contains end-to-end tests for the [nuts-node](https://github.com/nuts-foundation/nuts-node).
 
 # Writing tests
 ## Automated testing
