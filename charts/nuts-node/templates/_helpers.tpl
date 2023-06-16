@@ -71,3 +71,47 @@ NUTS Port helpers
 {{- default 5555}}
 {{- end }}
 {{- end }}
+
+{{/*
+Get the password secret.
+*/}}
+{{- define "redis.secretName" -}}
+{{- if .Values.storage.redis.existingSecret -}}
+{{- printf "%s" (tpl .Values.storage.redis.existingSecret $) -}}
+{{- else -}}
+{{- printf "%s" (include "common.names.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get the password key to be retrieved from Redis&reg; secret.
+*/}}
+{{- define "redis.secretPasswordKey" -}}
+{{- if and .Values.storage.redis.existingSecret .Values.storage.redis.existingSecretPasswordKey -}}
+{{- printf "%s" .Values.storage.redis.existingSecretPasswordKey -}}
+{{- else -}}
+{{- printf "redis-password" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get the password secret.
+*/}}
+{{- define "redis.sentinel.secretName" -}}
+{{- if .Values.storage.redis.sentinel.existingSecret -}}
+{{- printf "%s" (tpl .Values.storage.redis.sentinel.existingSecret $) -}}
+{{- else -}}
+{{- printf "%s" (include "common.names.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get the password key to be retrieved from Redis&reg; secret.
+*/}}
+{{- define "redis.sentinel.secretPasswordKey" -}}
+{{- if and .Values.storage.redis.sentinel.existingSecret .Values.storage.redis.sentinel.existingSecretPasswordKey -}}
+{{- printf "%s" .Values.storage.redis.sentinel.existingSecretPasswordKey -}}
+{{- else -}}
+{{- printf "redis-password" -}}
+{{- end -}}
+{{- end -}}
