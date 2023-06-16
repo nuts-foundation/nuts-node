@@ -45,5 +45,3 @@ IMAGE_NODE_B=nutsfoundation/nuts-node:v4.3.0 \
 ./run-tests.sh
 ```
 
-> **Note**  
-> The tests are updated to the latest node version, they might break when you use an older node version.
