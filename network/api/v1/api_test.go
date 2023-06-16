@@ -250,12 +250,17 @@ func TestWrapper_GetAddressBook(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		wrapper := &Wrapper{Service: networkClient}
+		now := time.Now()
+		next := now.Add(time.Second)
+		lastError := "error"
 		networkClient.EXPECT().AddressBook().Return([]transport.Contact{
 			{
 				Address:     "foo",
 				DID:         did.MustParseDID("did:nuts:A"),
 				Attempts:    1,
-				LastAttempt: new(time.Time),
+				LastAttempt: &now,
+				NextAttempt: &next,
+				Error:       &lastError,
 			},
 			{
 				Address:  "bar",
@@ -273,7 +278,9 @@ func TestWrapper_GetAddressBook(t *testing.T) {
 		assert.Equal(t, "foo", actual[0].Address)
 		assert.Equal(t, "did:nuts:A", *actual[0].Did)
 		assert.Equal(t, 1, actual[0].Attempts)
-		assert.NotNil(t, actual[0].LastAttempt)
+		assert.Equal(t, now, *actual[0].LastAttempt)
+		assert.Equal(t, next, *actual[0].NextAttempt)
+		assert.Equal(t, lastError, *actual[0].Error)
 		// Assert second entry
 		assert.Equal(t, "bar", actual[1].Address)
 		assert.Nil(t, actual[1].Did)

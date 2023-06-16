@@ -119,27 +119,32 @@ func TestAddressBook_update(t *testing.T) {
 }
 
 func TestAddressBook_stats(t *testing.T) {
-	didA := did.MustParseDID("did:nuts:A")
-	c1 := newContact(transport.Peer{Address: "A", NodeDID: didA}, nil)
-	c2 := newContact(transport.Peer{Address: "B"}, nil)
 	lastAttempt := time.Now()
+	didA := did.MustParseDID("did:nuts:A")
+	c1 := newContact(transport.Peer{Address: "A", NodeDID: didA}, newTestBackoff())
+	backoff := newTestBackoff()
+	backoff.Backoff()
+	c2 := newContact(transport.Peer{Address: "B"}, backoff)
 	c2.lastAttempt.Store(&lastAttempt)
 	c2.attempts.Add(1)
+	errStr := "timeout"
+	c2.error.Store(&errStr)
 	ab := &addressBook{contacts: []*contact{c1, c2}}
 
 	all := ab.stats()
 
-	assert.Len(t, all, 2)
+	require.Len(t, all, 2)
 	assert.Contains(t, all, transport.Contact{
 		Address: "A",
 		DID:     didA,
 	})
-	assert.Contains(t, all, transport.Contact{
-		Address:     "B",
-		DID:         did.DID{},
-		Attempts:    1,
-		LastAttempt: &lastAttempt,
-	})
+
+	assert.Equal(t, "B", all[1].Address)
+	assert.Equal(t, did.DID{}, all[1].DID)
+	assert.Equal(t, uint32(1), all[1].Attempts)
+	assert.Equal(t, lastAttempt, *all[1].LastAttempt)
+	assert.Equal(t, lastAttempt.Add(time.Second), *all[1].NextAttempt)
+	assert.Equal(t, "timeout", *all[1].Error)
 }
 
 func TestAddressBook_remove(t *testing.T) {

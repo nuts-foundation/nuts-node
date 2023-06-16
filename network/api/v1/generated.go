@@ -32,8 +32,14 @@ type Contact struct {
 	// Did DID of the node.
 	Did *string `json:"did,omitempty"`
 
+	// Error Error message of the last connection attempt.
+	Error *string `json:"error,omitempty"`
+
 	// LastAttempt Timestamp of the last attempt to contact the address.
 	LastAttempt *time.Time `json:"lastAttempt,omitempty"`
+
+	// NextAttempt Timestamp of the next attempt to contact the address.
+	NextAttempt *time.Time `json:"nextAttempt,omitempty"`
 }
 
 // Event Non-completed event. An event represents a transaction that is of interest to a specific part of the Nuts node.
