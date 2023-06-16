@@ -30,7 +30,7 @@ func Test_DefaultConfig(t *testing.T) {
 		Nats: NatsConfig{
 			Port:     4222,
 			Timeout:  30,
-			Hostname: "localhost",
+			Hostname: "0.0.0.0",
 		},
 	}, DefaultConfig())
 }

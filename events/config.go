@@ -22,6 +22,8 @@ package events
 // Config holds all the configuration params
 type Config struct {
 	Nats NatsConfig `koanf:"nats"`
+	// Verbosity is taken from the core config
+	Verbosity string `koanf:"-"`
 }
 
 // NatsConfig holds the configuration for the NATS server
@@ -38,7 +40,7 @@ func DefaultConfig() Config {
 		Nats: NatsConfig{
 			Port:     4222,
 			Timeout:  30,
-			Hostname: "localhost",
+			Hostname: "0.0.0.0",
 		},
 	}
 }
