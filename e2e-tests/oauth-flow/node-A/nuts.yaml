@@ -1,0 +1,23 @@
+verbosity: debug
+strictmode: false
+internalratelimiter: false
+datadir: /opt/nuts/data
+http:
+  default:
+    address: :1323
+auth:
+  publicurl: http://node-A
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+tls:
+  truststorefile: /opt/nuts/truststore.pem
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem
+network:
+  v2:
+    gossipinterval: 500
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem
+  truststorefile: /opt/nuts/truststore.pem

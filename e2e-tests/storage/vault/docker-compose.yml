@@ -1,0 +1,25 @@
+version: "3.7"
+services:
+  node:
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    ports:
+      - "11323:1323"
+    volumes:
+      - "./nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
+  vault-adapter:
+    image: nutsfoundation/hashicorp-vault-proxy:main
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+  vault:
+    image: vault
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root

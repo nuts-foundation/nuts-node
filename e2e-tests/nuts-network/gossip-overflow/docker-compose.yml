@@ -1,0 +1,22 @@
+version: "3.7"
+services:
+  nodeA:
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    ports:
+      - "11323:1323"
+    volumes:
+      - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
+  nodeB:
+    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    ports:
+      - "21323:1323"
+    volumes:
+      - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
