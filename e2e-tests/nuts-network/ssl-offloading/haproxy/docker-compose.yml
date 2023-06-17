@@ -1,0 +1,32 @@
+version: "3.7"
+services:
+  nodeA-backend:
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    ports:
+      - "11323:1323"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    volumes:
+      - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "../../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+      - "../../../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
+  nodeA:
+    image: haproxy
+    volumes:
+      - "./node-A/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro"
+      - "../../../tls-certs/nodeA-certificate.pem:/certificate.pem:ro"
+      - "../../../tls-certs/truststore.pem:/truststore.pem:ro"
+  nodeB:
+    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
+    ports:
+      - "21323:1323"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    volumes:
+      - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "../../../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
