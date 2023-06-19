@@ -1,0 +1,27 @@
+verbosity: debug
+internalratelimiter: false
+http:
+  default:
+    address: :1323
+auth:
+  publicurl: http://node-A
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+crypto:
+  storage: fs
+network:
+  publicaddr: nodeA:5555
+  grpcaddr:	:5555
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem
+  truststorefile: /opt/nuts/truststore.pem
+tls:
+  truststorefile: /opt/nuts/truststore.pem
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem
+storage:
+  redis:
+    address: redis:6379
+    database: nodeA

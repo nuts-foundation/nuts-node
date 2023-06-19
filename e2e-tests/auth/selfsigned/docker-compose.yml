@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  node:
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    ports:
+      - 1323:1323
+    volumes:
+      - "./config/node/nuts.yaml:/opt/nuts/nuts.yaml"
+      - "./data/node:/opt/nuts/data"
+  chrome-headless-shell:
+    image: chromedp/headless-shell:latest
+    ports:
+      - 9222:9222

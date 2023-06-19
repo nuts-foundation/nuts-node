@@ -1,0 +1,18 @@
+verbosity: debug
+strictmode: false
+internalratelimiter: false
+http:
+  default:
+    address: :1323
+auth:
+  publicurl: http://node-A
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+network:
+  publicaddr: nodeA:5555
+  grpcaddr:	:5555
+  enabletls: false
+  v2:
+    gossipinterval: 10000

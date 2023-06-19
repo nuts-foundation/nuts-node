@@ -1,0 +1,1 @@
+This test suite tests specific storage configurations for the Nuts Node.
