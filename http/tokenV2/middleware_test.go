@@ -25,7 +25,9 @@ import (
 	"crypto/rsa"
 	b64 "encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -214,14 +216,11 @@ func TestAuditLogAccessDenied(t *testing.T) {
 	// Setup audit log capturing
 	capturedAuditLog := audit.CaptureLogs(t)
 
-	// Call the handler, ensuring no error is returned
-	err = handler(testCtx)
-	assert.Error(t, err)
-
-	// Ensure the 401 Unauthorized response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
+	// Call the handler, ensuring the appropriate error is returned
+	httpErr := handler(testCtx).(*echo.HTTPError)
+	assert.Error(t, httpErr)
+	assert.Equal(t, http.StatusUnauthorized, httpErr.Code)
+	assert.Equal(t, unauthorized, httpErr.Message)
 
 	// Ensure the audit logging is working
 	capturedAuditLog.AssertContains(t, "http", audit.AccessDeniedEvent, "unknown", "Access denied: credential not signed by an authorized key")
@@ -446,11 +445,6 @@ func TestInvalidSingleAudience(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: aud not satisfied")
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestValidIssProxiedSub ensures a valid JWT containing a subject mentioning a proxied username results in a 200 OK
@@ -534,11 +528,6 @@ func TestInvalidIss(t *testing.T) {
 	require.Error(t, err)
 	expectedErrorMessage := fmt.Sprintf("expected issuer (%s) does not match iss", validUser)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), expectedErrorMessage)
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestEmptySub ensures a valid JWT containing an empty subject results in a 401 Unauthorized
@@ -578,11 +567,6 @@ func TestEmptySub(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: sub must not be empty")
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestValidJWTCaseInsensitiveBearer ensures a valid JWT placed in a strangely cased authorization header authorizes a request
@@ -620,11 +604,6 @@ func TestValidJWTCaseInsensitiveBearer(t *testing.T) {
 	// Call the handler, ensuring no error is returned
 	err = handler(testCtx)
 	assert.NoError(t, err)
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
-	assert.Equal(t, ok, recorder.Body.String())
 }
 
 // TestValidJWTECDSAES256 ensures a valid JWT signed by an ECDSA 256-bit key authorizes a request
@@ -662,11 +641,6 @@ func TestValidJWTECDSAES256(t *testing.T) {
 	// Call the handler, ensuring no error is returned
 	err = handler(testCtx)
 	assert.NoError(t, err)
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
-	assert.Equal(t, ok, recorder.Body.String())
 }
 
 // TestValidJWTECDSAES384 ensures a valid JWT signed by an ECDSA 384-bit key authorizes a request
@@ -704,11 +678,6 @@ func TestValidJWTECDSAES384(t *testing.T) {
 	// Call the handler, ensuring no error is returned
 	err = handler(testCtx)
 	assert.NoError(t, err)
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
-	assert.Equal(t, ok, recorder.Body.String())
 }
 
 // TestValidJWTECDSAES384 ensures a valid JWT signed by an ECDSA 384-bit key authorizes a request
@@ -746,11 +715,6 @@ func TestValidJWTECDSAES512(t *testing.T) {
 	// Call the handler, ensuring no error is returned
 	err = handler(testCtx)
 	assert.NoError(t, err)
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
-	assert.Equal(t, ok, recorder.Body.String())
 }
 
 // TestWrongAudienceJWT ensures a JWT with the wrong audience from an authorized key causes 401 Unauthorized
@@ -790,11 +754,6 @@ func TestWrongAudienceJWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: aud not satisfied")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestWrongKeyID ensures a JWT with the wrong kid from an authorized key causes 401 Unauthorized
@@ -837,11 +796,6 @@ func TestWrongKeyID(t *testing.T) {
 	err = handler(testCtx)
 	assert.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "credential not signed by an authorized key")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestCorrectKeyIDWithIncorrectSignature ensures a JWT signed by an unknown key but claiming to be signed by a known key results in 401 Unauthorized
@@ -886,11 +840,6 @@ func TestCorrectKeyIDWithIncorrectSignature(t *testing.T) {
 	err = handler(testCtx)
 	assert.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "credential not signed by an authorized key")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestExpiredJWT ensures an expired JWT from an authorized key causes 401 Unauthorized
@@ -932,11 +881,6 @@ func TestExpiredJWT(t *testing.T) {
 	err = handler(testCtx)
 	assert.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: exp not satisfied")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestFutureIATJWT ensures a not yet valid (iat = future) JWT from an authorized key causes 401 Unauthorized
@@ -980,11 +924,6 @@ func TestFutureIATJWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: iat not satisfied")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestFutureNBFJWT ensures a not yet valid (nbf = future) JWT from an authorized key causes 401 Unauthorized
@@ -1028,11 +967,6 @@ func TestFutureNBFJWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: nbf not satisfied")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestUnauthorizedKey ensures a valid JWT signed by an unauthorized key is rejected with 401 Unauthorized
@@ -1074,11 +1008,6 @@ func TestUnauthorizedKey(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "credential not signed by an authorized key")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestNoAuthorizedKeys ensures middleware with an empty authorized keys rejects a signed JWT
@@ -1117,11 +1046,6 @@ func TestNoAuthorizedKeys(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "credential not signed by an authorized key")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestMissingAuthorizationHeader ensures a request with a missing authorization header gets a 401 Unauthorized response
@@ -1156,11 +1080,6 @@ func TestMissingAuthorizationHeader(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "missing/malformed credential")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestMalformedAuthorizationHeader ensures a request with a malformed authorization header gets a 401 Unauthorized response
@@ -1199,11 +1118,6 @@ func TestMalformedAuthorizationHeader(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "missing/malformed credential")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestNonBearerToken ensures a request with a non-bearer authorization header gets a 401 Unauthorized response
@@ -1242,11 +1156,6 @@ func TestNonBearerToken(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "missing/malformed credential")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestInsecureRS256JWT ensures a JWT signed insecurely with an RS256 signing algorithm is rejected with a 401 Unauthorized response.
@@ -1286,11 +1195,6 @@ func TestInsecureRS256JWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: signing algorithm RS256 is not permitted")
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestInsecureRS384JWT ensures a JWT signed insecurely with an RS384 signing algorithm is rejected with a 401 Unauthorized response.
@@ -1330,11 +1234,6 @@ func TestInsecureRS384JWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: signing algorithm RS384 is not permitted")
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestInsecure1024BitRS512JWT ensures a JWT signed securely with an RS512 signing algorithm but using an insecure 1024-bit RSA key is rejected with a 401 Unauthorized response
@@ -1380,11 +1279,6 @@ func TestInsecure1024BitRS512JWT(t *testing.T) {
 	// we are careful when modifying this test, this should be sufficient along with the tests in authorized_keys_test.go which
 	// ensure the keys are rejected at that level.
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "credential not signed by an authorized key")
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestSecureRS512JWT ensures a JWT signed securely with an RS512 signing algorithm and a 4096-bit RSA key is accepted with a 200 OK response
@@ -1467,11 +1361,6 @@ func TestPS256JWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: signing algorithm PS256 is not permitted")
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestPS384JWT ensures a JWT signed with a PS384 signing algorithm results in a 401 Unauthorized response.
@@ -1512,11 +1401,6 @@ func TestPS384JWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: signing algorithm PS384 is not permitted")
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestSecurePS512JWT ensures a JWT signed securely with an RS512 signing algorithm and a 4096-bit RSA key is accepted with a 200 OK response
@@ -1587,11 +1471,6 @@ func TestHS256JWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: signing algorithm HS256 is not permitted")
-
-	// Ensure the 401 Unauthorized response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestHS384JWT ensures an HS384 signed JWT is rejected with a 401 Unauthorized response
@@ -1620,11 +1499,6 @@ func TestHS384JWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: signing algorithm HS384 is not permitted")
-
-	// Ensure the 401 Unauthorized response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestHS512JWT ensures an HS384 signed JWT is rejected with a 401 Unauthorized response
@@ -1653,11 +1527,6 @@ func TestHS512JWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: signing algorithm HS512 is not permitted")
-
-	// Ensure the 401 Unauthorized response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestNoneAlgUnsignedJWT ensures a JWT signed with the "none" algorithm is rejected with a 401 Unauthorized response
@@ -1689,11 +1558,6 @@ func TestNoneAlgUnsignedJWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: signing algorithm none is not permitted")
-
-	// Ensure the 200 OK response is present
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestMissingAud ensures a JWT with a missing audience is rejected with 401 Unauthorized
@@ -1734,11 +1598,6 @@ func TestMissingAud(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: claim \"aud\" not found")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestMissingIss ensures a JWT with a missing issuer is rejected with 401 Unauthorized
@@ -1779,11 +1638,6 @@ func TestMissingIss(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: iss")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestMissingSub ensures a JWT with a missing subject is rejected with 401 Unauthorized
@@ -1824,11 +1678,6 @@ func TestMissingSub(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: sub")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestMissingJTI ensures a JWT with a missing JwtID is rejected with 401 Unauthorized
@@ -1869,11 +1718,6 @@ func TestMissingJTI(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: jti")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestNonUUIDJTI ensures a JWT with a non-UUID jti results in 401 Unauthorized
@@ -1914,11 +1758,6 @@ func TestNonUUIDJTI(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: token jti is not a valid uuid")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestMissingIAT ensures a JWT with a missing IssuedAt is rejected with 401 Unauthorized
@@ -1959,11 +1798,6 @@ func TestMissingIAT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: iat")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestMissingEXP ensures a JWT with a missing Expiration is rejected with 401 Unauthorized
@@ -2004,11 +1838,6 @@ func TestMissingEXP(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: exp")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestMissingNBF ensures a JWT with a missing NotBefore is rejected with 401 Unauthorized
@@ -2049,11 +1878,6 @@ func TestMissingNBF(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: nbf")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestExpiresLongAfterNotBeforeJWT ensures a JWT with a long duration (Expiration-NotBefore) is rejected with 401 Unauthorized
@@ -2100,11 +1924,6 @@ func TestExpiresLongAfterNotBeforeJWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: token expires too long after nbf")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestExpiresLongAfterIssuedAtJWT ensures a JWT with a long duration (Expiration-IssuedAt) is rejected with 401 Unauthorized
@@ -2151,11 +1970,6 @@ func TestExpiresLongAfterIssuedAtJWT(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: token expires too long after iat")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestNotBeforePriorToIssuedAt ensures a JWT with a NotBefore date prior to the IssuedAt date is rejected with 401 Unauthorized
@@ -2202,11 +2016,6 @@ func TestNotBeforePriorToIssuedAt(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: token nbf occurs before iat")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestRepeatedACharAuthorizationHeader ensures a request with a very long Authorization header (lots of A characters) results in a 401 Unauthorized response
@@ -2238,11 +2047,6 @@ func TestRepeatedACharAuthorizationHeader(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: credential is too long")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestNOPSledAuthorizationHeader ensures a request with a very long Authorization header (repeated 0x90 bytes) results in a 401 Unauthorized response
@@ -2275,11 +2079,6 @@ func TestNOPSledAuthorizationHeader(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "missing/malformed credential")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestLongB64TripletAuthorizationHeader ensures a request with a very long Authorization header (a long base64 triplet) results in a 401 Unauthorized response
@@ -2316,11 +2115,6 @@ func TestLongB64TripletAuthorizationHeader(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: credential is too long")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestB64JSONNOPSledAuthorizationHeader ensures a request with a Base64+JSON encoded NOP sled Authorization header results in a 401 Unauthorized response
@@ -2357,11 +2151,6 @@ func TestB64JSONNOPSledAuthorizationHeader(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: credential is too long")
-
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
 // TestB64NOPSledAuthorizationHeader ensures a request with a Base64 encoded NOP sled Authorization header results in a 401 Unauthorized response
@@ -2395,9 +2184,23 @@ func TestB64NOPSledAuthorizationHeader(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: credential is too long")
+}
 
-	// Check for a 401 Unauthorized response
-	require.NotNil(t, testCtx.Response())
-	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
-	assert.Equal(t, unauthorized, recorder.Body.String())
+func Test_unauthorizedError(t *testing.T) {
+	// Create a test GET request
+	request, _ := http.NewRequest("GET", "/", nil)
+
+	// Create a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Call the unauthorizedError function, ensuring the appropriate error is returned
+	err := unauthorizedError(testCtx, errors.New("error"))
+	require.Error(t, err)
+	errorWriter := testCtx.Get(core.ErrorWriterContextKey)
+	require.NotNil(t, errorWriter)
+	assert.Equal(t, unauthorizedErrorWriter{}, *errorWriter.(*unauthorizedErrorWriter))
+	assert.Equal(t, http.StatusUnauthorized, err.Code)
+	assert.Equal(t, "Unauthorized", err.Message)
+	assert.Contains(t, err.Internal.Error(), "error")
 }

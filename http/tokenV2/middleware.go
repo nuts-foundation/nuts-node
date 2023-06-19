@@ -392,10 +392,17 @@ func authenticationCredential(context echo.Context) string {
 	return fields[1]
 }
 
+type unauthorizedErrorWriter struct{}
+
+func (p unauthorizedErrorWriter) Write(echoContext echo.Context, _ int, _ string, _ error) error {
+	// always return 401 unauthorized regardless of error. It's a security error, so we don't want to leak any information
+	return echoContext.String(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+}
+
 // unauthorizedError returns an echo unauthorized error
 func unauthorizedError(context echo.Context, reason error) *echo.HTTPError {
-	// Explicitly set the response to 401 Unauthorized rather than relying on any default behaviour
-	context.String(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+	// set the error writer to the unauthorized error writer so the error response follow the default control logic
+	context.Set(core.ErrorWriterContextKey, &unauthorizedErrorWriter{})
 
 	// Set an empty username for this context
 	context.Set(core.UserContextKey, "")
