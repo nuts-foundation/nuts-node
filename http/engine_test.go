@@ -175,7 +175,7 @@ func TestEngine_Configure(t *testing.T) {
 				engine.config.InterfaceConfig = InterfaceConfig{
 					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
 					CORS: CORSConfig{
-						Origin: []string{"test.nl"},
+						Origin: []string{"https://example.com"},
 					},
 				}
 
@@ -186,7 +186,8 @@ func TestEngine_Configure(t *testing.T) {
 				defer engine.Shutdown()
 
 				assertServerStarted(t, engine.config.InterfaceConfig.Address)
-				assertHTTPHeader(t, engine.config.InterfaceConfig.Address, "Vary", "Origin")
+				assertHTTPHeader(t, engine.config.InterfaceConfig.Address, "access-control-allow-origin", "https://example.com")
+				assertHTTPHeader(t, engine.config.InterfaceConfig.Address, "access-control-allow-methods", "GET,HEAD,PUT,PATCH,POST,DELETE")
 
 				err = engine.Shutdown()
 				assert.NoError(t, err)
@@ -757,7 +758,8 @@ func assertHTTPRequest(t *testing.T, address string) {
 
 func assertHTTPHeader(t *testing.T, address string, headerName string, headerValue string) {
 	t.Helper()
-	request, _ := http.NewRequest(http.MethodGet, "http://localhost"+address, nil)
+	request, _ := http.NewRequest(http.MethodOptions, "http://localhost"+address, nil)
+	request.Header.Set("Origin", "https://example.com")
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		t.Fatal(err)
