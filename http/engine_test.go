@@ -170,12 +170,23 @@ func TestEngine_Configure(t *testing.T) {
 	})
 	t.Run("middleware", func(t *testing.T) {
 		t.Run("CORS", func(t *testing.T) {
+			assertHTTPHeader := func(t *testing.T, address string, headerName string, headerValue string) {
+				t.Helper()
+				request, _ := http.NewRequest(http.MethodOptions, "http://localhost"+address, nil)
+				request.Header.Set("Origin", "example.com")
+				response, err := http.DefaultClient.Do(request)
+				if err != nil {
+					t.Fatal(err)
+				}
+				assert.Equal(t, headerValue, response.Header.Get(headerName))
+			}
+
 			t.Run("enabled", func(t *testing.T) {
 				engine := New(noop, nil)
 				engine.config.InterfaceConfig = InterfaceConfig{
 					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
 					CORS: CORSConfig{
-						Origin: []string{"https://example.com"},
+						Origin: []string{"example.com"},
 					},
 				}
 
@@ -186,7 +197,7 @@ func TestEngine_Configure(t *testing.T) {
 				defer engine.Shutdown()
 
 				assertServerStarted(t, engine.config.InterfaceConfig.Address)
-				assertHTTPHeader(t, engine.config.InterfaceConfig.Address, "access-control-allow-origin", "https://example.com")
+				assertHTTPHeader(t, engine.config.InterfaceConfig.Address, "access-control-allow-origin", "example.com")
 				assertHTTPHeader(t, engine.config.InterfaceConfig.Address, "access-control-allow-methods", "GET,HEAD,PUT,PATCH,POST,DELETE")
 
 				err = engine.Shutdown()
@@ -754,17 +765,6 @@ func assertHTTPRequest(t *testing.T, address string) {
 		t.Fatal(err)
 	}
 	_, _ = io.ReadAll(response.Body)
-}
-
-func assertHTTPHeader(t *testing.T, address string, headerName string, headerValue string) {
-	t.Helper()
-	request, _ := http.NewRequest(http.MethodOptions, "http://localhost"+address, nil)
-	request.Header.Set("Origin", "https://example.com")
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, headerValue, response.Header.Get(headerName))
 }
 
 func assertNotHTTPHeader(t *testing.T, address string, headerName string) {
