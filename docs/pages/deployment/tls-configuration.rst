@@ -86,6 +86,7 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
           location / {
             # During synchronization of a new Nuts node it is possible that the gRPC stream contains messages larger than NGINX is willing to accept.
             # The following config disables buffering and increases the max. message a client can send to some sanely large number.
+            # If not configured, NGINX will drop the connection when syncing lots of transactions at once.
             proxy_buffering off;
             client_max_body_size 128m;
 
