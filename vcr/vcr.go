@@ -164,11 +164,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		flowKVStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("openid4vci_issuer", storage.PersistentStorageClass)
-		if err != nil {
-			return err
-		}
-		c.oidcIssuerStore = openid4vci.NewStoabsStore(flowKVStore)
+		c.oidcIssuerStore = openid4vci.NewMemoryStore()
 		baseURL := core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity")
 		c.oidcIssuer = openid4vci.New(baseURL, c.clientTLSConfig, c.config.OIDC4VCI.Timeout, c.keyResolver, c.oidcIssuerStore)
 	}

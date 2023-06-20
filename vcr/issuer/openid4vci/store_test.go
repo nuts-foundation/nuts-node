@@ -20,13 +20,9 @@ package openid4vci
 
 import (
 	"context"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"path"
 	"testing"
 	"time"
 )
@@ -180,12 +176,10 @@ func Test_stoabsStore_prune(t *testing.T) {
 		require.NoError(t, err)
 
 		test.WaitFor(t, func() (bool, error) {
-			var exists bool
-			var err error
-			return !exists, store.store.WriteShelf(ctx, flowsShelf, func(writer stoabs.Writer) error {
-				exists, err = store.flowExists(writer, expiredFlow.ID)
-				return err
-			})
+			store.mux.Lock()
+			defer store.mux.Unlock()
+			_, exists := store.flows[expiredFlow.ID]
+			return !exists, nil
 		}, time.Second, "time-out waiting for flow to be pruned")
 	})
 	t.Run("prunes expired flows", func(t *testing.T) {
@@ -201,16 +195,14 @@ func Test_stoabsStore_prune(t *testing.T) {
 		_ = store.Store(ctx, expiredFlow)
 		_ = store.Store(ctx, unexpiredFlow)
 
-		flows, refs, err := store.prune(ctx, moment())
+		flows, refs := store.prune(moment())
 
-		assert.NoError(t, err)
 		assert.Equal(t, 1, flows)
 		assert.Equal(t, 0, refs)
 
 		// Second round to assert there's nothing to prune now
-		flows, refs, err = store.prune(ctx, moment())
+		flows, refs = store.prune(moment())
 
-		assert.NoError(t, err)
 		assert.Equal(t, 0, flows)
 		assert.Equal(t, 0, refs)
 	})
@@ -228,14 +220,13 @@ func Test_stoabsStore_prune(t *testing.T) {
 		err = store.StoreReference(ctx, flow.ID, refType, "unexpired", futureExpiry())
 		require.NoError(t, err)
 
-		flows, refs, err := store.prune(ctx, moment())
+		flows, refs := store.prune(moment())
 
-		assert.NoError(t, err)
 		assert.Equal(t, 0, flows)
 		assert.Equal(t, 1, refs)
 
 		// Second round to assert there's nothing to prune now
-		flows, refs, err = store.prune(ctx, moment())
+		flows, refs = store.prune(moment())
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, flows)
@@ -243,8 +234,8 @@ func Test_stoabsStore_prune(t *testing.T) {
 	})
 }
 
-func createStore(t *testing.T) *stoabsStore {
-	store := NewStoabsStore(storage.CreateTestBBoltStore(t, path.Join(io.TestDirectory(t), "test.db"))).(*stoabsStore)
+func createStore(t *testing.T) *memoryStore {
+	store := NewMemoryStore().(*memoryStore)
 	t.Cleanup(store.Close)
 	return store
 }
