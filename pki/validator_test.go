@@ -27,6 +27,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"go.uber.org/goleak"
 	"math/big"
@@ -221,6 +222,17 @@ func TestValidator_AddTruststore(t *testing.T) {
 			assert.ErrorContains(t, err, "certificate's issuer is not in the trust store")
 		})
 	})
+}
+
+func TestValidator_SubscribeDenied(t *testing.T) {
+	mockDenylist := NewMockDenylist(gomock.NewController(t))
+	mockDenylist.EXPECT().Subscribe(gomock.Any())
+
+	val, err := newValidator(DefaultConfig())
+	require.NoError(t, err)
+	val.denylist = mockDenylist
+
+	val.SubscribeDenied(func() { _ = "functions handles cannot be tested for equality" })
 }
 
 func Test_NewValidator(t *testing.T) {

@@ -29,6 +29,7 @@ import (
 	"hash/crc32"
 	"io"
 	"net"
+	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -142,6 +143,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		pkiMock := pki.NewMockValidator(ctrl)
 		pkiMock.EXPECT().AddTruststore(ts.Certificates())
 		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
+		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 
 		config, err := NewConfig("", "test", WithTLS(clientCert, ts, pkiMock))
 		require.NoError(t, err)
@@ -570,6 +572,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 	t.Run("ok - gRPC server bound, TLS enabled", func(t *testing.T) {
 		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).Times(2)
+		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 		cfg, err := NewConfig(
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
@@ -587,6 +590,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 	t.Run("ok - gRPC server bound, incoming TLS offloaded", func(t *testing.T) {
 		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
+		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 		cfg, err := NewConfig(
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
@@ -633,6 +637,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 				return nil
 			}
 		}).Times(2) // on inbound and outbound TLS config
+		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 
 		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}, pkiMock))
 		require.NoError(t, err)
@@ -645,6 +650,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	t.Run("error - invalid server TLS config", func(t *testing.T) {
 		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}, pkiMock))
 		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
+		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 		cm, err := NewGRPCConnectionManager(cfg, nil, *nodeDID, nil, &TestProtocol{})
 		require.NoError(t, err)
 
@@ -700,16 +706,25 @@ func Test_grpcConnectionManager_Stop(t *testing.T) {
 
 func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 	const peerID = "server-peer-id"
+	testTime := time.Now()
 	t.Run("no peers", func(t *testing.T) {
 		cm, err := NewGRPCConnectionManager(Config{peerID: peerID}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 		defer cm.Stop()
-		assert.Equal(t, "0", cm.Diagnostics()[1].String()) // assert number_of_peers
+		cm.lastCertificateValidation.Store(&testTime)
+
+		diag := cm.Diagnostics()
+
+		require.Len(t, diag, 4)
+		assert.Equal(t, testTime.String(), diag[0].String()) // assert certificates_last_validated
+		assert.Equal(t, peerID, diag[1].String())            // assert peer_id
+		assert.Equal(t, "0", diag[2].String())               // assert number_of_peers
 	})
 	t.Run("with peers", func(t *testing.T) {
 		cm, err := NewGRPCConnectionManager(Config{peerID: peerID}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 		defer cm.Stop()
+		cm.lastCertificateValidation.Store(&testTime)
 
 		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer1", ""))
 		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer2", ""))
@@ -718,8 +733,13 @@ func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 			return len(cm.Peers()) == 2, nil
 		}, 5*time.Second, "time-out while waiting for peers to connect")
 
-		assert.Equal(t, "2", cm.Diagnostics()[1].String())                                         // assert number_of_peers
-		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", cm.Diagnostics()[2].String()) // assert peers
+		diag := cm.Diagnostics()
+
+		require.Len(t, diag, 4)
+		assert.Equal(t, testTime.String(), diag[0].String())                           // assert certificates_last_validated
+		assert.Equal(t, peerID, diag[1].String())                                      // assert peer_id
+		assert.Equal(t, "2", diag[2].String())                                         // assert number_of_peers
+		assert.Equal(t, "peer2@127.0.0.1:1028 peer1@127.0.0.1:6718", diag[3].String()) // assert peers
 	})
 }
 
@@ -1154,6 +1174,63 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 			defer cm.connections.mux.Unlock()
 			return len(cm.connections.list) == 0, nil
 		}, time.Second*2, "time-out while waiting for closed inbound connection to be removed")
+	})
+}
+
+func Test_grpcConnectionManager_revalidatePeers(t *testing.T) {
+	mockValidator := pki.NewMockValidator(gomock.NewController(t))
+	clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
+	require.NoError(t, err)
+	certs, err := core.ParseCertificates(clientCertBytes)
+	cert := certs[0]
+	require.NoError(t, err)
+
+	t.Run("ok", func(t *testing.T) {
+		mockValidator.EXPECT().Validate([]*x509.Certificate{cert})
+		cm, err := NewGRPCConnectionManager(Config{pkiValidator: mockValidator}, nil, *nodeDID, nil)
+		require.NoError(t, err)
+		connection := NewStubConnection(transport.Peer{Certificate: cert})
+		cm.connections.list = append(cm.connections.list, connection)
+
+		cm.revalidatePeers()
+
+		assert.Equal(t, 0, connection.disconnectCalls)
+	})
+	t.Run("denied", func(t *testing.T) {
+		mockValidator.EXPECT().Validate([]*x509.Certificate{cert}).Return(pki.ErrCertBanned)
+		cm, err := NewGRPCConnectionManager(Config{pkiValidator: mockValidator}, nil, *nodeDID, nil)
+		require.NoError(t, err)
+		connection := NewStubConnection(transport.Peer{Certificate: cert})
+		cm.connections.list = append(cm.connections.list, connection)
+
+		cm.revalidatePeers()
+
+		assert.Equal(t, 1, connection.disconnectCalls)
+	})
+	t.Run("denied multiple", func(t *testing.T) {
+		mockValidator.EXPECT().Validate([]*x509.Certificate{cert}).Return(pki.ErrCertBanned).Times(3)
+		cm, err := NewGRPCConnectionManager(Config{pkiValidator: mockValidator}, nil, *nodeDID, nil)
+		require.NoError(t, err)
+		connection := NewStubConnection(transport.Peer{Certificate: cert})
+		cm.connections.list = append(cm.connections.list, connection, connection, connection)
+
+		cm.revalidatePeers()
+
+		assert.Equal(t, 3, connection.disconnectCalls)
+	})
+	t.Run("expired", func(t *testing.T) {
+		nowFunc = func() time.Time {
+			return time.Now().AddDate(50, 0, 0)
+		}
+		defer func() { nowFunc = time.Now }()
+		cm, err := NewGRPCConnectionManager(Config{pkiValidator: mockValidator}, nil, *nodeDID, nil)
+		require.NoError(t, err)
+		connection := NewStubConnection(transport.Peer{Certificate: cert})
+		cm.connections.list = append(cm.connections.list, connection)
+
+		cm.revalidatePeers()
+
+		assert.Equal(t, 1, connection.disconnectCalls)
 	})
 }
 

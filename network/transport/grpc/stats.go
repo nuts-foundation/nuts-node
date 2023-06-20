@@ -25,6 +25,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"sort"
 	"strings"
+	"time"
 )
 
 // numberOfPeersStatistic contains node's number of peers it's connected to.
@@ -90,6 +91,25 @@ func (o ownPeerIDStatistic) Name() string {
 // String returns the statistic as string.
 func (o ownPeerIDStatistic) String() string {
 	return o.peerID.String()
+}
+
+// lastCertificateValidationStatistic contains the timestamp of the most recent certificate validation of all peers.
+type lastCertificateValidationStatistic struct {
+	lastCheck time.Time
+}
+
+func (o lastCertificateValidationStatistic) Result() interface{} {
+	return o.lastCheck
+}
+
+// Name returns the name of the statistic.
+func (o lastCertificateValidationStatistic) Name() string {
+	return "certificates_last_validated"
+}
+
+// String returns the statistic as string.
+func (o lastCertificateValidationStatistic) String() string {
+	return o.lastCheck.String()
 }
 
 type prometheusStreamWrapper struct {

@@ -19,6 +19,7 @@
 package transport
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,6 +52,8 @@ type Peer struct {
 	NodeDID did.DID `json:"nodedid"`
 	// Authenticated is true when NodeDID is set and authentication is successful.
 	Authenticated bool `json:"authenticated"`
+	// Certificate presented by peer during TLS handshake.
+	Certificate *x509.Certificate `json:"-" yaml:"-"`
 }
 
 // ToFields returns the peer as a map of fields, to be used when logging the peer details.

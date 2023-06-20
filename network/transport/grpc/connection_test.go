@@ -55,19 +55,6 @@ func Test_conn_disconnect(t *testing.T) {
 	})
 }
 
-func Test_conn_IsProtocolConnected(t *testing.T) {
-	p := &TestProtocol{}
-	t.Run("not connected", func(t *testing.T) {
-		conn := createConnection(context.Background(), transport.Peer{})
-		assert.False(t, conn.IsProtocolConnected(p))
-	})
-	t.Run("connected", func(t *testing.T) {
-		conn := createConnection(context.Background(), transport.Peer{}).(*conn)
-		conn.streams[p.MethodName()] = &MockStream{}
-		assert.True(t, conn.IsProtocolConnected(p))
-	})
-}
-
 func Test_conn_waitUntilDisconnected(t *testing.T) {
 	t.Run("never open, should return immediately", func(t *testing.T) {
 		conn := createConnection(context.Background(), transport.Peer{})
@@ -118,10 +105,7 @@ func Test_conn_registerStream(t *testing.T) {
 }
 
 func Test_conn_startSending(t *testing.T) {
-	t.Run("disconnect causes panic in startSending", func(t *testing.T) {
-		// startSending reads from the outbox channel, which is closed when disconnect() is called. Closing the channel
-		// causes startSending to read a nil message from the channel, which causes a panic.
-		// If the message to be sent is nil, it indicates the connection is closing and the loop should exit.
+	t.Run("disconnect does not panic", func(t *testing.T) {
 		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
 		stream := newServerStream("foo", "")
 
@@ -139,8 +123,8 @@ func Test_conn_startSending(t *testing.T) {
 			return atomic.LoadInt32(&connection.activeGoroutines) == 0, nil
 		}, 5*time.Second, "waiting for all goroutines to exit")
 
-		// err status is set on connection. Due to EOF it's an unknown error
-		assert.Equal(t, codes.Unknown, connection.status.Load().Code())
+		// Last received message is dropped and no status is set. Default value is OK.
+		assert.Equal(t, codes.OK, connection.status.Load().Code())
 	})
 }
 

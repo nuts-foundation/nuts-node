@@ -22,7 +22,6 @@ package pki
 import (
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -34,29 +33,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 )
-
-var (
-	// ErrDenylistMissing occurs when the denylist cannot be downloaded
-	ErrDenylistMissing = errors.New("denylist cannot be retrieved")
-
-	// ErrCertBanned means the certificate was banned by a denylist rather than revoked by a CRL
-	ErrCertBanned = errors.New("certificate is banned")
-)
-
-// Denylist implements a global certificate rejection
-type Denylist interface {
-	// LastUpdated provides the time at which the denylist was last retrieved
-	LastUpdated() time.Time
-
-	// Update fetches a new copy of the denylist
-	Update() error
-
-	// URL returns the URL of the denylist
-	URL() string
-
-	// ValidateCert returns an error if a certificate should not be used
-	ValidateCert(cert *x509.Certificate) error
-}
 
 // denylistImpl implements arbitrary certificate rejection using issuer and serial number tuples
 type denylistImpl struct {
@@ -71,6 +47,9 @@ type denylistImpl struct {
 
 	// lastUpdated contains the time the certificate was last updated
 	lastUpdated time.Time
+
+	// subscribers for denylist updates
+	subscribers []func()
 }
 
 // denylistEntry contains parameters for an X.509 certificate that must not be accepted for TLS connections
@@ -224,8 +203,17 @@ func (b *denylistImpl) Update() error {
 	// Log when the denylist is updated
 	logger().Debug("Denylist updated successfully")
 
+	// Notify all subscribers synchronously
+	for _, sub := range b.subscribers {
+		sub()
+	}
+
 	// Return a nil error as the denylist was successfully updated
 	return nil
+}
+
+func (b *denylistImpl) Subscribe(f func()) {
+	b.subscribers = append(b.subscribers, f)
 }
 
 // download retrieves and parses the denylist

@@ -43,21 +43,28 @@ func newAuthenticationInterceptor(clientCertHeaderName string, pkiValidator pki.
 	return (&tlsOffloadingAuthenticator{clientCertHeaderName: clientCertHeaderName, pkiValidator: pkiValidator}).intercept
 }
 
+// tlsOffloadingAuthenticator get the TLS certificate from the 'clientCertHeaderName' header and set it on the grpc.peer.
 type tlsOffloadingAuthenticator struct {
 	clientCertHeaderName string
 	pkiValidator         pki.Validator
 }
 
 func (t *tlsOffloadingAuthenticator) intercept(srv interface{}, serverStream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	// Get certificate from header
 	certificates, err := t.authenticate(serverStream)
-	if err == nil {
-		err = t.pkiValidator.Validate(certificates)
-	}
 	if err != nil {
 		log.Logger().
 			WithError(err).
 			Warnf("Unable to authenticate offloaded TLS")
 		return status.Error(codes.Unauthenticated, "TLS client certificate authentication failed")
+	}
+
+	// Validate revocation/deny list status
+	if err = t.pkiValidator.Validate(certificates); err != nil {
+		log.Logger().
+			WithError(err).
+			Warnf("Validation of offloaded TLS certificate failed")
+		return status.Error(codes.Unauthenticated, "TLS client certificate validation failed")
 	}
 
 	// Build TLS info and override in Peer info, which is set on the incoming context

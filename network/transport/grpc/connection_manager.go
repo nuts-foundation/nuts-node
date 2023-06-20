@@ -20,10 +20,12 @@ package grpc
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -36,7 +38,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	grpcPeer "google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
@@ -123,7 +124,10 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator)
 	cm.registerPrometheusMetrics()
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
-
+	cm.lastCertificateValidation.Store(&time.Time{})
+	if config.tlsEnabled() {
+		config.pkiValidator.SubscribeDenied(cm.revalidatePeers)
+	}
 	return cm, nil
 }
 
@@ -145,10 +149,11 @@ type grpcConnectionManager struct {
 	addressBook *addressBook
 
 	dialer
-	connectLoopWG     sync.WaitGroup
-	dialOptions       []grpc.DialOption
-	connectionTimeout time.Duration
-	connections       *connectionList
+	connectLoopWG             sync.WaitGroup
+	dialOptions               []grpc.DialOption
+	connectionTimeout         time.Duration
+	connections               *connectionList
+	lastCertificateValidation atomic.Pointer[time.Time]
 }
 
 // newGrpcServer configures a new grpc.Server
@@ -182,18 +187,6 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 	// Chain interceptors. ipInterceptor is added last, so it processes the stream first.
 	serverInterceptors = append(serverInterceptors, ipInterceptor)
 	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(serverInterceptors...))
-
-	// Define the keepalive policy for the grpc server in such a way that connections are not long-lived.
-	// By blocking long-lived connections we ensure that connections are periodically reauthorized, namely
-	// so that a remote host which was authorized at the time of connection can become unauthorized and
-	// this is correctly enforced.
-	//
-	// Configured per https://github.com/grpc/grpc-go/blob/c9d3ea5673252d212c69f3d3c10ce1d7b287a86b/examples/features/keepalive/server/main.go#L43
-	keepaliveParams := keepalive.ServerParameters{
-		MaxConnectionAge:      15 * time.Minute, // If any connection is alive for too long, send a GOAWAY
-		MaxConnectionAgeGrace: 15 * time.Second, // Allow time for pending RPCs to complete before forcibly closing connections
-	}
-	serverOpts = append(serverOpts, grpc.KeepaliveParams(keepaliveParams))
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
 	return grpc.NewServer(serverOpts...), nil
@@ -403,7 +396,12 @@ func (s *grpcConnectionManager) Contacts() []transport.Contact {
 }
 
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
-	return append(append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...))
+	return append(
+		[]core.DiagnosticResult{
+			lastCertificateValidationStatistic{*s.lastCertificateValidation.Load()},
+			ownPeerIDStatistic{s.config.peerID},
+		},
+		s.connections.Diagnostics()...)
 }
 
 // RegisterService implements grpc.ServiceRegistrar to register the gRPC services protocols expose.
@@ -544,6 +542,26 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 		}
 	}
 	return peer, nil
+}
+
+// revalidatePeers verifies for all peers the x509.Certificate provided during TLS handshake is still valid.
+func (s *grpcConnectionManager) revalidatePeers() {
+	var err error
+	now := nowFunc()
+	s.lastCertificateValidation.Store(&now)
+	s.connections.forEach(func(conn Connection) {
+		peerCert := conn.Peer().Certificate
+		if nowFunc().After(peerCert.NotAfter) {
+			log.Logger().WithError(errors.New("certificate expired while in use")).WithFields(conn.Peer().ToFields()).Info("Disconnected peer")
+			conn.disconnect()
+			return
+		}
+		err = s.config.pkiValidator.Validate([]*x509.Certificate{peerCert})
+		if err != nil {
+			log.Logger().WithError(err).WithFields(conn.Peer().ToFields()).Warn("Disconnected peer")
+			conn.disconnect()
+		}
+	})
 }
 
 func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundStream grpc.ServerStream) error {

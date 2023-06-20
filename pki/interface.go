@@ -23,6 +23,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
+	"time"
 )
 
 // errors
@@ -31,7 +32,30 @@ var (
 	ErrCRLExpired    = errors.New("crl has expired")
 	ErrCertRevoked   = errors.New("certificate is revoked")
 	ErrCertUntrusted = errors.New("certificate's issuer is not trusted")
+	// ErrDenylistMissing occurs when the denylist cannot be downloaded
+	ErrDenylistMissing = errors.New("denylist cannot be retrieved")
+
+	// ErrCertBanned means the certificate was banned by a denylist rather than revoked by a CRL
+	ErrCertBanned = errors.New("certificate is banned")
 )
+
+// Denylist implements a global certificate rejection
+type Denylist interface {
+	// LastUpdated provides the time at which the denylist was last retrieved
+	LastUpdated() time.Time
+
+	// Update fetches a new copy of the denylist
+	Update() error
+
+	// URL returns the URL of the denylist
+	URL() string
+
+	// ValidateCert returns an error if a certificate should not be used
+	ValidateCert(cert *x509.Certificate) error
+
+	// Subscribe registers a callback that is triggered everytime the denylist is updated
+	Subscribe(f func())
+}
 
 type Validator interface {
 	// Validate returns an error if any of the certificates in the chain has been revoked, or if the request cannot be processed.
@@ -48,6 +72,10 @@ type Validator interface {
 	// AddTruststore adds all CAs to the truststore for validation of CRL signatures. It also adds all CRL Distribution Endpoints found in the chain.
 	// CRL Distribution Points encountered during operation, such as on end user certificates, are only added to the monitored CRLs if their issuer is in the truststore.
 	AddTruststore(chain []*x509.Certificate) error
+
+	// SubscribeDenied registers a callback that is triggered everytime the denylist is updated.
+	// This can be used to revalidate all certificates on long-lasting connections by calling Validate on them again.
+	SubscribeDenied(f func())
 }
 
 // Provider is an interface for providing PKI services (e.g. TLS configuration, certificate validation).

@@ -63,20 +63,6 @@ func (mr *MockConnectionMockRecorder) IsConnected() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsConnected", reflect.TypeOf((*MockConnection)(nil).IsConnected))
 }
 
-// IsProtocolConnected mocks base method.
-func (m *MockConnection) IsProtocolConnected(protocol Protocol) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsProtocolConnected", protocol)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsProtocolConnected indicates an expected call of IsProtocolConnected.
-func (mr *MockConnectionMockRecorder) IsProtocolConnected(protocol interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsProtocolConnected", reflect.TypeOf((*MockConnection)(nil).IsProtocolConnected), protocol)
-}
-
 // Peer mocks base method.
 func (m *MockConnection) Peer() transport.Peer {
 	m.ctrl.T.Helper()

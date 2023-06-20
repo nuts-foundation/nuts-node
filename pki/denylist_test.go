@@ -288,9 +288,14 @@ func TestUpdateValidDenylist(t *testing.T) {
 	// Ensure the new denylist update time is zero
 	assert.True(t, denylist.LastUpdated().IsZero())
 
+	// Ensure that subscribers are notified
+	var iscalled bool
+	denylist.Subscribe(func() { iscalled = true })
+
 	// Update the denylist data and ensure there are no errors
 	err = denylist.Update()
 	require.NoError(t, err)
+	assert.True(t, iscalled)
 
 	// Ensure the entries are present as expected in the denylist structure
 	entriesPtr := denylist.(*denylistImpl).entries.Load()
@@ -465,4 +470,3 @@ func TestRSACertificateJWKThumbprint(t *testing.T) {
 	keyID := certKeyJWKThumbprint(cert)
 	assert.Equal(t, "PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ", keyID)
 }
-

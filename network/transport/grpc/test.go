@@ -19,6 +19,7 @@
 package grpc
 
 import (
+	"crypto/x509"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc/status"
@@ -69,12 +70,14 @@ var _ Connection = (*StubConnection)(nil)
 
 // StubConnection is a stub implementation of the Connection interface
 type StubConnection struct {
-	Open          bool
-	NodeDID       did.DID
-	SentMsgs      []interface{}
-	PeerID        transport.PeerID
-	Authenticated bool
-	Address       string
+	Open            bool
+	NodeDID         did.DID
+	SentMsgs        []interface{}
+	PeerID          transport.PeerID
+	Authenticated   bool
+	Address         string
+	Certificate     *x509.Certificate
+	disconnectCalls int
 }
 
 func NewStubConnection(peer transport.Peer) *StubConnection {
@@ -83,7 +86,8 @@ func NewStubConnection(peer transport.Peer) *StubConnection {
 		PeerID:        peer.ID,
 		NodeDID:       peer.NodeDID,
 		Authenticated: peer.Authenticated,
-		Address:       peer.Address}
+		Address:       peer.Address,
+		Certificate:   peer.Certificate}
 }
 
 func (s *StubConnection) ID() transport.PeerID {
@@ -104,6 +108,7 @@ func (s *StubConnection) Peer() transport.Peer {
 		NodeDID:       s.NodeDID,
 		Authenticated: s.Authenticated,
 		Address:       s.Address,
+		Certificate:   s.Certificate,
 	}
 }
 
@@ -131,7 +136,7 @@ func (s *StubConnection) SetErrorStatus(_ *status.Status) {
 }
 
 func (s *StubConnection) disconnect() {
-	panic("implement me")
+	s.disconnectCalls++
 }
 
 func (s *StubConnection) waitUntilDisconnected() {
