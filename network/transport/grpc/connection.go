@@ -221,13 +221,10 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 		defer atomic.AddInt32(activeGoroutines, -1)
 		for {
 			message := protocol.CreateEnvelope()
-			err := stream.RecvMsg(message)
-			select {
-			case <-mc.ctx.Done():
-				// disconnect: drop message and stop receiving
+			err := stream.RecvMsg(message) // blocking
+			if mc.ctx.Err() != nil {
+				// connection has been closed: drop message and stop receiving
 				return
-			default:
-				//non-blocking
 			}
 			if err != nil {
 				errStatus, isStatusError := status.FromError(err)
