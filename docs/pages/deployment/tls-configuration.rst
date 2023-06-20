@@ -84,7 +84,8 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
           ssl_verify_depth          1;
 
           location / {
-            # for large messages
+            # During synchronization of a new Nuts node it is possible that the gRPC stream contains messages larger than NGINX is willing to accept.
+            # The following config disables buffering and increases the max. message a client can send to some sanely large number.
             proxy_buffering off;
             client_max_body_size 128m;
 
@@ -122,11 +123,6 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
           }
         }
     }
-
-.. note::
-
-    During synchronization of a new Nuts node it is possible that the gRPC stream contains messages larger than NGINX is willing to accept.
-    To limit these issues add ``proxy_buffering off`` to the gRPC config section, and increase the buffer size to some sanely large number e.g., ``client_max_body_size 128m``.
 
 For `HAProxy <https://www.haproxy.com/>`_ the proxy configuration could look as follows:
 
