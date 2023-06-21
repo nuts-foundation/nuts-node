@@ -39,7 +39,7 @@ const (
 	CryptoEncryptJWEEvent = "EncryptJWE"
 	// CryptoDecryptJWEEvent occurs when decryping a JWE
 	CryptoDecryptJWEEvent = "DecryptJWE"
-	// AccessDeniedEvent occurs when access to a protected API endpoint was granted
+	// AccessGrantedEvent occurs when access to a protected API endpoint was granted
 	AccessGrantedEvent = "AccessGranted"
 	// AccessDeniedEvent occurs when access to a protected API endpoint was denied
 	AccessDeniedEvent = "AccessDenied"
