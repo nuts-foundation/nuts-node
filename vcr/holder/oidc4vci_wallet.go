@@ -184,8 +184,6 @@ func getPreAuthorizedCodeFromOffer(offer oidc4vci.CredentialOffer) string {
 
 func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerAPIClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
 	keyID, err := h.resolver.ResolveSigningKeyID(h.did, nil)
-	// TODO: typ gets overwritten, audience somehow becomes an array.
-	//		 See https://github.com/nuts-foundation/nuts-node/issues/2035
 	headers := map[string]interface{}{
 		"typ": oidc4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
 		"kid": keyID,                           // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
