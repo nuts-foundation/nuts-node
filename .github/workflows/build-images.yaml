@@ -26,11 +26,18 @@ jobs:
           echo "::set-output name=git_branch::$(echo ${GITHUB_REF#refs/heads/})"
           echo "::set-output name=git_version::$(git name-rev --tags --name-only $(git rev-parse HEAD))"
 
+      - uses: actions-ecosystem/action-get-latest-tag@v1
+        id: get-latest-tag
+        with:
+          semver_only: true
+
       - name: Print version params
         run: |
           echo "Commit: ${{ steps.version.outputs.git_commit }}"
           echo "Branch: ${{ steps.version.outputs.git_branch }}"
           echo "Version: ${{ steps.version.outputs.git_version }}"
+          echo "Latest tag: ${{ steps.get-latest-tag.outputs.tag }}"
+          echo "This tag: ${{ github.ref }}"
 
       - name: Docker meta
         id: docker_meta
@@ -45,7 +52,7 @@ jobs:
             # generate v5 tag
             type=semver,pattern={{major}}
           flavor: |
-            latest=auto
+            latest=auto,enable=${{ github.ref == steps.get-latest-tag.outputs.tag }}
             prefix=v,onlatest=false
 
       - name: Set up QEMU
