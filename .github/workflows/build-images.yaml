@@ -52,7 +52,7 @@ jobs:
             # generate v5 tag
             type=semver,pattern={{major}}
           flavor: |
-            latest=auto,enable=${{ github.ref == steps.get-latest-tag.outputs.tag }}
+            latest=${{ github.ref == steps.get-latest-tag.outputs.tag }}
             prefix=v,onlatest=false
 
       - name: Set up QEMU
