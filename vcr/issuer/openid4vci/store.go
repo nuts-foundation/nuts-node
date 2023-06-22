@@ -152,8 +152,8 @@ func (o *memoryStore) Close() {
 func (o *memoryStore) startPruning(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	o.routines.Add(1)
-	defer o.routines.Done()
 	go func(ctx context.Context) {
+		defer o.routines.Done()
 		for {
 			select {
 			case <-ctx.Done():
