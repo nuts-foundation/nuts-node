@@ -23,6 +23,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"testing"
 	"time"
 )
@@ -30,7 +31,7 @@ import (
 const refType = "ref-type"
 const ref = "ref-value"
 
-func Test_stoabsStore_DeleteReference(t *testing.T) {
+func Test_memoryStore_DeleteReference(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		store := createStore(t)
 		expected := Flow{
@@ -59,7 +60,7 @@ func Test_stoabsStore_DeleteReference(t *testing.T) {
 	})
 }
 
-func Test_stoabsStore_FindByReference(t *testing.T) {
+func Test_memoryStore_FindByReference(t *testing.T) {
 	t.Run("reference already exists", func(t *testing.T) {
 		store := createStore(t)
 		expected := Flow{
@@ -108,7 +109,7 @@ func Test_stoabsStore_FindByReference(t *testing.T) {
 	})
 }
 
-func Test_stoabsStore_Store(t *testing.T) {
+func Test_memoryStore_Store(t *testing.T) {
 	ctx := context.Background()
 	t.Run("write, then read", func(t *testing.T) {
 		store := createStore(t)
@@ -159,7 +160,17 @@ func Test_stoabsStore_Store(t *testing.T) {
 	})
 }
 
-func Test_stoabsStore_prune(t *testing.T) {
+func Test_memoryStore_Close(t *testing.T) {
+	t.Run("assert Close() waits for pruning to finish to avoid leaking goroutines", func(t *testing.T) {
+		defer goleak.VerifyNone(t)
+		pruneInterval = 10 * time.Millisecond
+		store := createStore(t)
+		time.Sleep(50 * time.Millisecond) // make sure pruning is running
+		store.Close()
+	})
+}
+
+func Test_memoryStore_prune(t *testing.T) {
 	ctx := context.Background()
 	t.Run("automatic", func(t *testing.T) {
 		store := createStore(t)
@@ -195,13 +206,13 @@ func Test_stoabsStore_prune(t *testing.T) {
 		_ = store.Store(ctx, expiredFlow)
 		_ = store.Store(ctx, unexpiredFlow)
 
-		flows, refs := store.prune(moment())
+		flows, refs := store.prune()
 
 		assert.Equal(t, 1, flows)
 		assert.Equal(t, 0, refs)
 
 		// Second round to assert there's nothing to prune now
-		flows, refs = store.prune(moment())
+		flows, refs = store.prune()
 
 		assert.Equal(t, 0, flows)
 		assert.Equal(t, 0, refs)
@@ -220,13 +231,13 @@ func Test_stoabsStore_prune(t *testing.T) {
 		err = store.StoreReference(ctx, flow.ID, refType, "unexpired", futureExpiry())
 		require.NoError(t, err)
 
-		flows, refs := store.prune(moment())
+		flows, refs := store.prune()
 
 		assert.Equal(t, 0, flows)
 		assert.Equal(t, 1, refs)
 
 		// Second round to assert there's nothing to prune now
-		flows, refs = store.prune(moment())
+		flows, refs = store.prune()
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, flows)

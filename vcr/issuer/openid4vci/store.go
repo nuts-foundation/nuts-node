@@ -48,7 +48,7 @@ type Store interface {
 
 var _ Store = (*memoryStore)(nil)
 
-const pruneInterval = 10 * time.Minute
+var pruneInterval = 10 * time.Minute
 
 type memoryStore struct {
 	mux      *sync.RWMutex
@@ -67,6 +67,7 @@ func NewMemoryStore() Store {
 		refs:     map[string]map[string]referenceValue{},
 		routines: &sync.WaitGroup{},
 	}
+	result.ctx, result.cancel = context.WithCancel(context.Background())
 	result.startPruning(pruneInterval)
 	return result
 }
@@ -149,8 +150,9 @@ func (o *memoryStore) Close() {
 }
 
 func (o *memoryStore) startPruning(interval time.Duration) {
-	o.ctx, o.cancel = context.WithCancel(context.Background())
 	ticker := time.NewTicker(interval)
+	o.routines.Add(1)
+	defer o.routines.Done()
 	go func(ctx context.Context) {
 		for {
 			select {
@@ -158,7 +160,7 @@ func (o *memoryStore) startPruning(interval time.Duration) {
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				flowsPruned, refsPruned := o.prune(time.Now())
+				flowsPruned, refsPruned := o.prune()
 				if flowsPruned > 0 || refsPruned > 0 {
 					log.Logger().Debugf("Pruned %d expired OpenID4VCI flows and %d expired refs", flowsPruned, refsPruned)
 				}
@@ -167,9 +169,11 @@ func (o *memoryStore) startPruning(interval time.Duration) {
 	}(o.ctx)
 }
 
-func (o *memoryStore) prune(moment time.Time) (int, int) {
+func (o *memoryStore) prune() (int, int) {
 	o.mux.Lock()
 	defer o.mux.Unlock()
+
+	moment := time.Now()
 
 	// Find expired flows and delete them
 	var flowCount int
