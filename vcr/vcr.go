@@ -104,7 +104,7 @@ func (c *vcr) GetOIDCIssuer() openid4vci.Issuer {
 
 func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
 	identifier := core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity", url.PathEscape(id.String()))
-	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver, c.config.OIDC4VCI.Timeout, c.clientTLSConfig)
+	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver, c.config.OIDC4VCI.Timeout, c.clientTLSConfig, jsonld.Reader{DocumentLoader: c.jsonldManager.DocumentLoader()})
 }
 
 func (c *vcr) Issuer() issuer.Issuer {

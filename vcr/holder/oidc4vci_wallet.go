@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
@@ -50,8 +51,7 @@ var nowFunc = time.Now
 var _ OIDCWallet = (*wallet)(nil)
 
 // NewOIDCWallet creates an OIDCWallet that tries to retrieve offered credentials, to store it in the given credential store.
-func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver,
-	clientTimeout time.Duration, clientTLSConfig *tls.Config) OIDCWallet {
+func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver, clientTimeout time.Duration, clientTLSConfig *tls.Config, jsonldReader jsonld.Reader) OIDCWallet {
 	return &wallet{
 		did:                 did,
 		identifier:          identifier,
@@ -61,6 +61,7 @@ func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writ
 		clientTimeout:       clientTimeout,
 		clientTLSConfig:     clientTLSConfig,
 		issuerClientCreator: oidc4vci.NewIssuerAPIClient,
+		jsonldReader:        jsonldReader,
 	}
 }
 
@@ -73,6 +74,7 @@ type wallet struct {
 	clientTimeout       time.Duration
 	clientTLSConfig     *tls.Config
 	issuerClientCreator func(ctx context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error)
+	jsonldReader        jsonld.Reader
 }
 
 func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
@@ -92,6 +94,13 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 		return oidc4vci.Error{
 			Err:        errors.New("there must be exactly 1 credential in credential offer"),
 			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+	if !supportedCredentialFormat(offer.Credentials[0]) {
+		return oidc4vci.Error{
+			Err:        nil,
+			Code:       oidc4vci.UnsupportedCredentialFormat,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -158,8 +167,13 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
-	// TODO: Wallet should make sure the VC is of the expected type
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2050
+	if err = credentialTypesMatchOffer(h.jsonldReader, *credential, offer.Credentials[0]); err != nil {
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("received credential does not match offer: %w", err),
+			Code:       oidc4vci.UnsupportedCredentialType,
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
 	log.Logger().
 		WithField("credentialID", credential.ID).
 		Infof("Received VC over OIDC4VCI")
@@ -168,6 +182,57 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 		return fmt.Errorf("unable to store credential: %w", err)
 	}
 	return nil
+}
+
+func supportedCredentialFormat(offeredCredential map[string]interface{}) bool {
+	switch offeredCredential["format"] {
+	case oidc4vci.VerifiableCredentialJSONLDFormat:
+		return true
+	default:
+		return false
+	}
+}
+
+// credentialTypesMatchOffer performs format specific validation.
+func credentialTypesMatchOffer(reader jsonld.Reader, credential vc.VerifiableCredential, offeredCredential map[string]interface{}) error {
+	switch offeredCredential["format"] {
+	case oidc4vci.VerifiableCredentialJSONLDFormat:
+		// In json-LD format the types need to be compared in expanded format
+		document, err := reader.Read(offeredCredential["credential_definition"])
+		if err != nil {
+			return fmt.Errorf("invalid credential_definition in offer: %w", err)
+		}
+		// TODO: can credentialDefinition contain invalid values that makes this panic?
+		expectedTypes := document.ValueAt(jsonld.NewPath("@type"))
+
+		document, err = reader.Read(credential)
+		if err != nil {
+			return fmt.Errorf("invalid credential: %w", err)
+		}
+		receivedTypes := document.ValueAt(jsonld.NewPath("@type"))
+
+		if !equal(expectedTypes, receivedTypes) {
+			return errors.New("credential Type do not match")
+		}
+
+		return nil
+	default:
+		return errors.New("unsupported credential format")
+	}
+}
+
+// equal returns true if both slices have the same values in the same order.
+// Note: JSON arrays are ordered, JSON object elements are not.
+func equal(a, b []jsonld.Scalar) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !a[i].Equal(b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func getPreAuthorizedCodeFromOffer(offer oidc4vci.CredentialOffer) string {
