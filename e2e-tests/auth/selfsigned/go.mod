@@ -162,5 +162,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	schneider.vip/problem v1.8.1 // indirect
 )
-
-replace github.com/nuts-foundation/nuts-node => ../../../
