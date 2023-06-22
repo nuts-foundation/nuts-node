@@ -15,7 +15,6 @@ docker compose up -d
 
 waitForDCService node
 
-go mod tidy
 go test -v .
 
 docker compose stop
