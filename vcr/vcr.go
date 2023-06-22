@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
 	"io/fs"
 	"net/url"
 	"path"
@@ -91,12 +92,13 @@ type vcr struct {
 	jsonldManager   jsonld.JSONLD
 	eventManager    events.Event
 	storageClient   storage.Engine
-	oidcIssuer      issuer.OIDCIssuer
+	oidcIssuer      openid4vci.Issuer
+	oidcIssuerStore openid4vci.Store
 	pkiProvider     pki.Provider
 	clientTLSConfig *tls.Config
 }
 
-func (c *vcr) GetOIDCIssuer() issuer.OIDCIssuer {
+func (c *vcr) GetOIDCIssuer() openid4vci.Issuer {
 	return c.oidcIssuer
 }
 
@@ -162,7 +164,9 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity"), c.clientTLSConfig, c.config.OIDC4VCI.Timeout, c.keyResolver)
+		c.oidcIssuerStore = openid4vci.NewMemoryStore()
+		baseURL := core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity")
+		c.oidcIssuer = openid4vci.New(baseURL, c.clientTLSConfig, c.config.OIDC4VCI.Timeout, c.keyResolver, c.oidcIssuerStore)
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
@@ -198,6 +202,9 @@ func (c *vcr) Start() error {
 }
 
 func (c *vcr) Shutdown() error {
+	if c.oidcIssuerStore != nil {
+		c.oidcIssuerStore.Close()
+	}
 	err := c.issuerStore.Close()
 	if err != nil {
 		log.Logger().

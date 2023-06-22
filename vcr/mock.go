@@ -15,6 +15,7 @@ import (
 	vc "github.com/nuts-foundation/go-did/vc"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
+	openid4vci "github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
 	verifier "github.com/nuts-foundation/nuts-node/vcr/verifier"
 )
 
@@ -199,10 +200,10 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 }
 
 // GetOIDCIssuer mocks base method.
-func (m *MockVCR) GetOIDCIssuer() issuer.OIDCIssuer {
+func (m *MockVCR) GetOIDCIssuer() openid4vci.Issuer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOIDCIssuer")
-	ret0, _ := ret[0].(issuer.OIDCIssuer)
+	ret0, _ := ret[0].(openid4vci.Issuer)
 	return ret0
 }
 

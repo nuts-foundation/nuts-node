@@ -16,7 +16,7 @@
  *
  */
 
-package issuer
+package openid4vci
 
 import (
 	"context"
@@ -53,7 +53,7 @@ var issuedVC = vc.VerifiableCredential{
 }
 
 func Test_memoryIssuer_Metadata(t *testing.T) {
-	metadata, err := NewOIDCIssuer(baseURL, nil, time.Second, nil).Metadata(issuerDID)
+	metadata, err := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer).Metadata(issuerDID)
 
 	require.NoError(t, err)
 	assert.Equal(t, oidc4vci.CredentialIssuerMetadata{
@@ -64,7 +64,7 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 }
 
 func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
-	metadata, err := NewOIDCIssuer(baseURL, nil, time.Second, nil).ProviderMetadata(issuerDID)
+	metadata, err := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer).ProviderMetadata(issuerDID)
 
 	require.NoError(t, err)
 	assert.Equal(t, oidc4vci.ProviderMetadata{
@@ -109,13 +109,17 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	}
 	validRequest := createRequest(createHeaders(), createClaims())
 
-	t.Run("ok", func(t *testing.T) {
-		issuer := NewOIDCIssuer(baseURL, nil, time.Second, keyResolver).(*memoryIssuer)
-		issuer.createOffer(issuedVC, "secret")
-		issuer.accessTokens["access-token"] = "secret"
+	const preAuthCode = "some-secret-code"
 
+	service := New(baseURL, nil, time.Second, keyResolver, NewMemoryStore()).(*issuer)
+	_, err := service.createOffer(ctx, issuedVC, preAuthCode)
+	require.NoError(t, err)
+	accessToken, err := service.HandleAccessTokenRequest(ctx, issuerDID, preAuthCode)
+	require.NoError(t, err)
+
+	t.Run("ok", func(t *testing.T) {
 		auditLogs := audit.CaptureLogs(t)
-		response, err := issuer.HandleCredentialRequest(ctx, issuerDID, validRequest, "access-token")
+		response, err := service.HandleCredentialRequest(ctx, issuerDID, validRequest, accessToken)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -124,41 +128,29 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	})
 	t.Run("proof validation", func(t *testing.T) {
 		t.Run("unsupported proof type", func(t *testing.T) {
-			issuer := NewOIDCIssuer(baseURL, nil, time.Second, keyResolver).(*memoryIssuer)
-			issuer.createOffer(issuedVC, "secret")
-			issuer.accessTokens["access-token"] = "secret"
-
 			invalidRequest := createRequest(createHeaders(), createClaims())
 			invalidRequest.Proof.ProofType = "not-supported"
 
-			response, err := issuer.HandleCredentialRequest(ctx, issuerDID, invalidRequest, "access-token")
+			response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
 			assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - proof type not supported")
 			assert.Nil(t, response)
 		})
 		t.Run("jwt", func(t *testing.T) {
 			t.Run("missing proof", func(t *testing.T) {
-				issuer := NewOIDCIssuer(baseURL, nil, time.Second, keyResolver).(*memoryIssuer)
-				issuer.createOffer(issuedVC, "secret")
-				issuer.accessTokens["access-token"] = "secret"
-
 				invalidRequest := createRequest(createHeaders(), createClaims())
 				invalidRequest.Proof = nil
 
-				response, err := issuer.HandleCredentialRequest(ctx, issuerDID, invalidRequest, "access-token")
+				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
 				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - missing proof")
 				assert.Nil(t, response)
 			})
 			t.Run("invalid JWT", func(t *testing.T) {
-				issuer := NewOIDCIssuer(baseURL, nil, time.Second, keyResolver).(*memoryIssuer)
-				issuer.createOffer(issuedVC, "secret")
-				issuer.accessTokens["access-token"] = "secret"
-
 				invalidRequest := createRequest(createHeaders(), createClaims())
 				invalidRequest.Proof.Jwt = "not a JWT"
 
-				response, err := issuer.HandleCredentialRequest(ctx, issuerDID, invalidRequest, "access-token")
+				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
 				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - invalid compact serialization format: invalid number of segments")
 				assert.Nil(t, response)
@@ -173,13 +165,15 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 					},
 				}
 
-				issuer := NewOIDCIssuer(baseURL, nil, time.Second, keyResolver).(*memoryIssuer)
-				issuer.createOffer(otherIssuedVC, "secret")
-				issuer.accessTokens["access-token"] = "secret"
+				service := New(baseURL, nil, time.Second, keyResolver, NewMemoryStore()).(*issuer)
+				_, err := service.createOffer(ctx, otherIssuedVC, preAuthCode)
+				require.NoError(t, err)
+				accessToken, err := service.HandleAccessTokenRequest(ctx, issuerDID, preAuthCode)
+				require.NoError(t, err)
 
 				invalidRequest := createRequest(createHeaders(), createClaims())
 
-				response, err := issuer.HandleCredentialRequest(ctx, issuerDID, invalidRequest, "access-token")
+				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
 				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - credential offer was signed by other DID than intended wallet: did:nuts:holder#1")
 				assert.Nil(t, response)
@@ -187,55 +181,45 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("signing key is unknown", func(t *testing.T) {
 				keyResolver := types.NewMockKeyResolver(ctrl)
 				keyResolver.EXPECT().ResolveSigningKey(keyID, nil).AnyTimes().Return(nil, types.ErrKeyNotFound)
-				issuer := NewOIDCIssuer(baseURL, nil, time.Second, keyResolver).(*memoryIssuer)
-				issuer.createOffer(issuedVC, "secret")
-				issuer.accessTokens["access-token"] = "secret"
+				service := New(baseURL, nil, time.Second, keyResolver, NewMemoryStore()).(*issuer)
+				_, err := service.createOffer(ctx, issuedVC, preAuthCode)
+				require.NoError(t, err)
+				accessToken, err := service.HandleAccessTokenRequest(ctx, issuerDID, preAuthCode)
+				require.NoError(t, err)
 
 				invalidRequest := createRequest(createHeaders(), createClaims())
 
-				response, err := issuer.HandleCredentialRequest(ctx, issuerDID, invalidRequest, "access-token")
+				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
 				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - key not found in DID document")
 				assert.Nil(t, response)
 			})
 			t.Run("typ header missing", func(t *testing.T) {
-				issuer := NewOIDCIssuer(baseURL, nil, time.Second, keyResolver).(*memoryIssuer)
-				issuer.createOffer(issuedVC, "secret")
-				issuer.accessTokens["access-token"] = "secret"
-
 				headers := createHeaders()
 				headers["typ"] = ""
 				invalidRequest := createRequest(headers, createClaims())
 
-				response, err := issuer.HandleCredentialRequest(ctx, issuerDID, invalidRequest, "access-token")
+				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
 				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - missing typ header")
 				assert.Nil(t, response)
 			})
 			t.Run("typ header invalid", func(t *testing.T) {
-				issuer := NewOIDCIssuer(baseURL, nil, time.Second, keyResolver).(*memoryIssuer)
-				issuer.createOffer(issuedVC, "secret")
-				issuer.accessTokens["access-token"] = "secret"
-
 				headers := createHeaders()
 				delete(headers, "typ") // causes JWT library to set it to default ("JWT")
 				invalidRequest := createRequest(headers, createClaims())
 
-				response, err := issuer.HandleCredentialRequest(ctx, issuerDID, invalidRequest, "access-token")
+				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
 				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - invalid typ claim (expected: openid4vci-proof+jwt): JWT")
 				assert.Nil(t, response)
 			})
 			t.Run("aud header doesn't match issuer identifier", func(t *testing.T) {
-				issuer := NewOIDCIssuer(baseURL, nil, time.Second, keyResolver).(*memoryIssuer)
-				issuer.createOffer(issuedVC, "secret")
-				issuer.accessTokens["access-token"] = "secret"
-
 				claims := createClaims()
 				claims["aud"] = "https://example.com/someone-else"
 				invalidRequest := createRequest(createHeaders(), claims)
 
-				response, err := issuer.HandleCredentialRequest(ctx, issuerDID, invalidRequest, "access-token")
+				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
 				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - audience doesn't match credential issuer (aud=[https://example.com/someone-else])")
 				assert.Nil(t, response)
@@ -244,14 +228,12 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	})
 
 	t.Run("unknown access token", func(t *testing.T) {
-		issuer := NewOIDCIssuer(baseURL, nil, time.Second, nil)
+		service := New(baseURL, nil, time.Second, keyResolver, NewMemoryStore()).(*issuer)
 
-		auditLogs := audit.CaptureLogs(t)
-		response, err := issuer.HandleCredentialRequest(ctx, issuerDID, validRequest, "access-token")
+		response, err := service.HandleCredentialRequest(ctx, issuerDID, validRequest, accessToken)
 
 		assertProtocolError(t, err, http.StatusBadRequest, "invalid_token - unknown access token")
 		assert.Nil(t, response)
-		auditLogs.AssertContains(t, "VCR", "InvalidOAuthToken", audit.TestActor, "Client tried retrieving credential over OIDC4VCI with unknown OAuth2 access token")
 	})
 }
 
@@ -260,12 +242,12 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(nil)
-		issuer := NewOIDCIssuer(baseURL, nil, time.Second, nil).(*memoryIssuer)
-		issuer.walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
+		service := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer)
+		service.walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
 
-		err := issuer.OfferCredential(audit.TestContext(), issuedVC, "access-token")
+		err := service.OfferCredential(audit.TestContext(), issuedVC, "access-token")
 
 		require.NoError(t, err)
 	})
@@ -274,40 +256,54 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().Metadata().Return(oidc4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "here-please"})
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(errors.New("failed"))
-		issuer := NewOIDCIssuer(baseURL, nil, time.Second, nil).(*memoryIssuer)
-		issuer.walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
+		service := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer)
+		service.walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
 
-		err := issuer.OfferCredential(audit.TestContext(), issuedVC, "access-token")
+		err := service.OfferCredential(audit.TestContext(), issuedVC, "access-token")
 
 		require.EqualError(t, err, "unable to offer credential (client-metadata-url=here-please): failed")
 	})
 }
 
 func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
+	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
-		issuer := NewOIDCIssuer(baseURL, nil, time.Second, nil).(*memoryIssuer)
-		_ = issuer.createOffer(issuedVC, "code")
+		service := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer)
+		_, err := service.createOffer(ctx, issuedVC, "code")
+		require.NoError(t, err)
 
-		accessToken, err := issuer.HandleAccessTokenRequest(audit.TestContext(), issuerDID, "code")
+		accessToken, err := service.HandleAccessTokenRequest(audit.TestContext(), issuerDID, "code")
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken)
 	})
-	t.Run("unknown pre-authorized code", func(t *testing.T) {
-		issuer := NewOIDCIssuer(baseURL, nil, time.Second, nil).(*memoryIssuer)
-		_ = issuer.createOffer(issuedVC, "some-other-code")
+	t.Run("pre-authorized code issued by other issuer", func(t *testing.T) {
+		service := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer)
+		_, err := service.createOffer(ctx, issuedVC, "code")
+		require.NoError(t, err)
 
-		auditLog := audit.CaptureLogs(t)
-		accessToken, err := issuer.HandleAccessTokenRequest(audit.TestContext(), issuerDID, "code")
+		accessToken, err := service.HandleAccessTokenRequest(audit.TestContext(), did.MustParseDID("did:nuts:other"), "code")
+
+		var protocolError oidc4vci.Error
+		require.ErrorAs(t, err, &protocolError)
+		assert.EqualError(t, protocolError, "invalid_grant - pre-authorized code not issued by this issuer")
+		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
+		assert.Empty(t, accessToken)
+	})
+	t.Run("unknown pre-authorized code", func(t *testing.T) {
+		service := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer)
+		_, err := service.createOffer(ctx, issuedVC, "some-other-code")
+		require.NoError(t, err)
+
+		accessToken, err := service.HandleAccessTokenRequest(audit.TestContext(), issuerDID, "code")
 
 		var protocolError oidc4vci.Error
 		require.ErrorAs(t, err, &protocolError)
 		assert.EqualError(t, protocolError, "invalid_grant - unknown pre-authorized code")
 		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
 		assert.Empty(t, accessToken)
-		auditLog.AssertContains(t, "VCR", "InvalidOAuthToken", audit.TestActor, "Client tried requesting access token (for OIDC4VCI) with unknown OAuth2 pre-authorized code")
 	})
 }
 

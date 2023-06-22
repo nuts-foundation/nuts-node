@@ -24,7 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +38,7 @@ var issuerDID = did.MustParseDID("did:nuts:issuer")
 func TestWrapper_GetOIDC4VCIIssuerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
+		oidcIssuer := openid4vci.NewMockIssuer(ctrl)
 		oidcIssuer.EXPECT().Metadata(issuerDID).Return(oidc4vci.CredentialIssuerMetadata{
 			CredentialIssuer: issuerDID.String(),
 		}, nil)
@@ -68,7 +68,7 @@ func TestWrapper_GetOIDC4VCIIssuerMetadata(t *testing.T) {
 func TestWrapper_GetOIDCProviderMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
+		oidcIssuer := openid4vci.NewMockIssuer(ctrl)
 		oidcIssuer.EXPECT().ProviderMetadata(issuerDID).Return(oidc4vci.ProviderMetadata{
 			Issuer: issuerDID.String(),
 		}, nil)
@@ -98,7 +98,7 @@ func TestWrapper_GetOIDCProviderMetadata(t *testing.T) {
 func TestWrapper_RequestAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
+		oidcIssuer := openid4vci.NewMockIssuer(ctrl)
 		oidcIssuer.EXPECT().HandleAccessTokenRequest(gomock.Any(), issuerDID, "code").Return("access-token", nil)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
@@ -153,7 +153,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 func TestWrapper_RequestCredential(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
+		oidcIssuer := openid4vci.NewMockIssuer(ctrl)
 		oidcIssuer.EXPECT().HandleCredentialRequest(gomock.Any(), issuerDID, gomock.Any(), "access-token").Return(&vc.VerifiableCredential{}, nil)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
