@@ -162,7 +162,6 @@ func Test_memoryStore_Store(t *testing.T) {
 
 func Test_memoryStore_Close(t *testing.T) {
 	t.Run("assert Close() waits for pruning to finish to avoid leaking goroutines", func(t *testing.T) {
-		defer goleak.VerifyNone(t)
 		pruneInterval = 10 * time.Millisecond
 		store := createStore(t)
 		time.Sleep(50 * time.Millisecond) // make sure pruning is running
@@ -246,6 +245,9 @@ func Test_memoryStore_prune(t *testing.T) {
 }
 
 func createStore(t *testing.T) *memoryStore {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	store := NewMemoryStore().(*memoryStore)
 	t.Cleanup(store.Close)
 	return store
