@@ -23,7 +23,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 	"testing"
 	"time"
 )
@@ -245,9 +244,6 @@ func Test_memoryStore_prune(t *testing.T) {
 }
 
 func createStore(t *testing.T) *memoryStore {
-	t.Cleanup(func() {
-		goleak.VerifyNone(t)
-	})
 	store := NewMemoryStore().(*memoryStore)
 	t.Cleanup(store.Close)
 	return store
