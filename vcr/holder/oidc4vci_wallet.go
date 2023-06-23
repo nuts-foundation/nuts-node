@@ -97,13 +97,6 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 			StatusCode: http.StatusBadRequest,
 		}
 	}
-	if !supportedCredentialFormat(offer.Credentials[0]) {
-		return oidc4vci.Error{
-			Err:        nil,
-			Code:       oidc4vci.UnsupportedCredentialFormat,
-			StatusCode: http.StatusBadRequest,
-		}
-	}
 
 	preAuthorizedCode := getPreAuthorizedCodeFromOffer(offer)
 	if preAuthorizedCode == "" {
@@ -182,15 +175,6 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 		return fmt.Errorf("unable to store credential: %w", err)
 	}
 	return nil
-}
-
-func supportedCredentialFormat(offeredCredential map[string]interface{}) bool {
-	switch offeredCredential["format"] {
-	case oidc4vci.VerifiableCredentialJSONLDFormat:
-		return true
-	default:
-		return false
-	}
 }
 
 // credentialTypesMatchOffer performs format specific validation.

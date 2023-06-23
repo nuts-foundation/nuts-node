@@ -127,11 +127,6 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		require.NoError(t, err)
 	})
-	t.Run("unsupported credential format", func(t *testing.T) {
-		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5, nil, jsonldReader).(*wallet)
-		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{Credentials: []map[string]interface{}{{}}})
-		assert.EqualError(t, err, "unsupported_credential_format")
-	})
 	t.Run("pre-authorized code grant", func(t *testing.T) {
 		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5, nil, jsonldReader).(*wallet)
 		t.Run("no grants", func(t *testing.T) {
@@ -281,19 +276,6 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		require.EqualError(t, err, "unsupported_credential_type - received credential does not match offer: credential Type do not match")
 	})
-}
-
-func Test_supportedCredentialFormat(t *testing.T) {
-	formats := map[string]bool{
-		"jwt_vc_json":    false,
-		"jwt_vc_json-ld": false,
-		oidc4vci.VerifiableCredentialJSONLDFormat: true,
-		"mso_mdoc": false,
-	}
-
-	for format, expected := range formats {
-		assert.Equal(t, expected, supportedCredentialFormat(map[string]interface{}{"format": format}), "format=%s, should be supported=%t", format, expected)
-	}
 }
 
 func Test_credentialTypesMatchOffer(t *testing.T) {
