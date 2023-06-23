@@ -1,3 +1,5 @@
+//go:build e2e_tests
+
 /*
  * Copyright (C) 2023 Nuts community
  *
@@ -24,7 +26,6 @@ import (
 	"github.com/chromedp/chromedp"
 	authAPI "github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/rs/zerolog/log"
 )
 
 var NodeClientConfig = core.ClientConfig{Address: "http://localhost:1323"}
@@ -54,7 +55,6 @@ func (s SelfSigned) Start(organizationDID string, employee EmployeeInfo) (*SelfS
 	if err != nil {
 		return nil, err
 	}
-	log.Logger.Info().Msgf("Navigating to %s", webURL)
 	result := SelfSignedSession{ID: sessionID}
 	err = chromedp.Run(s.Context,
 		chromedp.Navigate(webURL),
