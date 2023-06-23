@@ -351,7 +351,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			authenticator := NewMockAuthenticator(ctrl)
-			authenticator.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil).Times(2)
+			authenticator.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{}, nil).Times(2)
 
 			// server
 			serverCfg, listener := newBufconnConfig(transport.PeerID(t.Name()))
@@ -489,9 +489,9 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 	})
 	t.Run("1 peer (1 connection)", func(t *testing.T) {
 		_, authenticator1, _, listener := create(t)
-		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
+		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{}, nil)
 		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
-		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
+		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{}, nil)
 		cm2.Connect("bufnet", *nodeDID, nil)
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm2.Peers()) > 0, nil
@@ -500,8 +500,8 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 	t.Run("outbound stream triggers observer", func(t *testing.T) {
 		_, authenticator1, _, listener := create(t)
 		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
-		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{ID: "1"}, nil)
-		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{ID: "2"}, nil)
+		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{ID: "1"}, nil)
+		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{ID: "2"}, nil)
 		var capturedPeer atomic.Value
 		var capturedState atomic.Value
 		cm2.RegisterObserver(func(peer transport.Peer, state transport.StreamState, protocol transport.Protocol) {
@@ -526,8 +526,8 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 	t.Run("inbound stream triggers observer", func(t *testing.T) {
 		cm1, authenticator1, _, listener := create(t)
 		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
-		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{ID: "1"}, nil)
-		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{ID: "2"}, nil)
+		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{ID: "1"}, nil)
+		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{ID: "2"}, nil)
 		var capturedPeer atomic.Value
 		var capturedState atomic.Value
 		cm1.RegisterObserver(func(peer transport.Peer, state transport.StreamState, protocol transport.Protocol) {
@@ -879,7 +879,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		}
 
 		authenticator := NewMockAuthenticator(ctrl)
-		authenticator.EXPECT().Authenticate(*nodeDID, *grpcPeer, peerInfo).Return(peerInfo, nil)
+		authenticator.EXPECT().Authenticate(*nodeDID, peerInfo).Return(peerInfo, nil)
 
 		cm, err := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, *nodeDID, nil)
 		cm.authenticator = authenticator
@@ -993,7 +993,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		ctrl := gomock.NewController(t)
 		authenticator := NewMockAuthenticator(ctrl)
-		authenticator.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, ErrNodeDIDAuthFailed)
+		authenticator.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{}, ErrNodeDIDAuthFailed)
 		client, err := NewGRPCConnectionManager(clientCfg, nil, did.DID{}, authenticator, &TestProtocol{})
 		require.NoError(t, err)
 		c := createConnection(context.Background(), transport.Peer{NodeDID: *nodeDID})
@@ -1066,7 +1066,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String())
 		ctrl := gomock.NewController(t)
 		authenticator := NewMockAuthenticator(ctrl)
-		authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedPeer, nil)
+		authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Any()).Return(expectedPeer, nil)
 		cm, err := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, *nodeDID, authenticator)
 		require.NoError(t, err)
 		defer cm.Stop()
@@ -1130,7 +1130,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String())
 		ctrl := gomock.NewController(t)
 		authenticator := NewMockAuthenticator(ctrl)
-		authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedPeer, errors.New("failed"))
+		authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Any()).Return(expectedPeer, errors.New("failed"))
 		cm, err := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, *nodeDID, authenticator)
 		require.NoError(t, err)
 

@@ -19,7 +19,6 @@
 package grpc
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
@@ -32,8 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/peer"
 )
 
 func Test_tlsAuthenticator_Authenticate(t *testing.T) {
@@ -41,13 +38,6 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 	cert, _ := x509.ParseCertificate(certData)
 	wildcardCertData, _ := os.ReadFile("test/wildcard.nuts.nl.cer")
 	wildcardCert, _ := x509.ParseCertificate(wildcardCertData)
-	grpcPeer := peer.Peer{
-		AuthInfo: credentials.TLSInfo{
-			State: tls.ConnectionState{
-				PeerCertificates: []*x509.Certificate{cert},
-			},
-		},
-	}
 
 	nodeDID := *nodeDID
 	query := ssi.MustParseURI(nodeDID.String() + "/serviceEndpoint?type=NutsComm")
@@ -63,7 +53,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nuts.nl:5555"}, nil)
 		authenticator := NewTLSAuthenticator(serviceResolver)
 
-		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
+		authenticatedPeer, err := authenticator.Authenticate(nodeDID, transport.Peer{Certificate: cert})
 
 		require.NoError(t, err)
 		assert.Equal(t, expectedPeer, authenticatedPeer)
@@ -74,7 +64,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://Nuts.nl:5555"}, nil)
 		authenticator := NewTLSAuthenticator(serviceResolver)
 
-		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
+		authenticatedPeer, err := authenticator.Authenticate(nodeDID, transport.Peer{Certificate: cert})
 
 		require.NoError(t, err)
 		assert.Equal(t, expectedPeer, authenticatedPeer)
@@ -84,39 +74,33 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		serviceResolver := didservice.NewMockServiceResolver(ctrl)
 		serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://node.nuts.nl:5555"}, nil)
 		authenticator := NewTLSAuthenticator(serviceResolver)
-		grpcPeer := peer.Peer{
-			AuthInfo: credentials.TLSInfo{
-				State: tls.ConnectionState{
-					PeerCertificates: []*x509.Certificate{wildcardCert},
-				},
-			},
-		}
 		expectedPeer := transport.Peer{
 			NodeDID:       nodeDID,
 			Authenticated: true,
 			Certificate:   wildcardCert,
 		}
 
-		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
+		authenticatedPeer, err := authenticator.Authenticate(nodeDID, transport.Peer{Certificate: wildcardCert})
 
 		require.NoError(t, err)
 		assert.Equal(t, expectedPeer, authenticatedPeer)
 	})
 	t.Run("authentication fails", func(t *testing.T) {
-		transportPeer := transport.Peer{ID: "peer"}
+		transportPeer := transport.Peer{ID: "peer", Certificate: cert}
 		t.Run("DNS names do not match", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			serviceResolver := didservice.NewMockServiceResolver(ctrl)
 			serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nootjes.nl:5555"}, nil)
 			authenticator := NewTLSAuthenticator(serviceResolver)
 
-			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
+			authenticatedPeer, err := authenticator.Authenticate(nodeDID, transportPeer)
 
 			assert.EqualError(t, err, "none of the DNS names in the peer's TLS certificate match the NutsComm endpoint")
 			assert.Equal(t, transportPeer, authenticatedPeer)
 		})
 		t.Run("no TLS info", func(t *testing.T) {
-			authenticatedPeer, err := NewTLSAuthenticator(nil).Authenticate(nodeDID, peer.Peer{}, transportPeer)
+			transportPeer := transport.Peer{ID: "peer"}
+			authenticatedPeer, err := NewTLSAuthenticator(nil).Authenticate(nodeDID, transportPeer)
 			assert.EqualError(t, err, "missing TLS info")
 			assert.Equal(t, transportPeer, authenticatedPeer)
 		})
@@ -126,7 +110,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 			serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{}, types.ErrNotFound)
 			authenticator := NewTLSAuthenticator(serviceResolver)
 
-			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
+			authenticatedPeer, err := authenticator.Authenticate(nodeDID, transportPeer)
 
 			assert.EqualError(t, err, "can't resolve NutsComm service: unable to find the DID document")
 			assert.Equal(t, transportPeer, authenticatedPeer)
@@ -138,7 +122,7 @@ func TestDummyAuthenticator_Authenticate(t *testing.T) {
 	t.Run("always ok", func(t *testing.T) {
 		authenticator := NewDummyAuthenticator(nil)
 
-		peer, err := authenticator.Authenticate(*nodeDID, peer.Peer{}, transport.Peer{})
+		peer, err := authenticator.Authenticate(*nodeDID, transport.Peer{})
 
 		assert.NoError(t, err)
 		assert.Equal(t, *nodeDID, peer.NodeDID)
