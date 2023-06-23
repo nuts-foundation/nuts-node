@@ -19,12 +19,12 @@
 package grpc
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/pki"
+	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -36,7 +36,7 @@ func TestConfig_tlsEnabled(t *testing.T) {
 }
 
 func TestNewConfig(t *testing.T) {
-	tlsCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
+	tlsCert := testPKI.Certificate()
 	x509Cert, _ := x509.ParseCertificates(tlsCert.Certificate[0])
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockValidator(ctrl)
@@ -74,9 +74,8 @@ func TestNewConfig(t *testing.T) {
 }
 
 func Test_NewClientTLSConfig(t *testing.T) {
-	trustStore, _ := core.LoadTrustStore(testTruststoreFile)
-	clientCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
-	clientCert.Leaf, _ = x509.ParseCertificate(clientCert.Certificate[0])
+	trustStore, _ := core.ParseTrustStore(testPKI.TruststoreData)
+	clientCert := testPKI.Certificate()
 	pkiMock := pki.NewMockValidator(gomock.NewController(t))
 	pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
 

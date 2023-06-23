@@ -27,6 +27,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -54,12 +55,6 @@ import (
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	testTruststoreFile        = "../test/pki/truststore.pem"
-	testCertAndKeyFile        = "../test/pki/certificate-and-key.pem"
-	testInvalidCertAndKeyFile = "../test/pki/invalid-cert.pem"
 )
 
 var nodeDID, _ = did.ParseDID("did:nuts:test")
@@ -173,6 +168,9 @@ func TestNetwork_Diagnostics(t *testing.T) {
 
 //nolint:funlen
 func TestNetwork_Configure(t *testing.T) {
+	certFile := testPKI.CertificateFile(t)
+	truststoreFile := testPKI.TruststoreFile(t)
+
 	t.Run("ok - configured node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
@@ -220,9 +218,9 @@ func TestNetwork_Configure(t *testing.T) {
 		cfg.Datadir = io.TestDirectory(t)
 		*cfg.LegacyTLS = core.NetworkTLSConfig{
 			Enabled:        true,
-			TrustStoreFile: testTruststoreFile,
-			CertFile:       testCertAndKeyFile,
-			CertKeyFile:    testCertAndKeyFile,
+			TrustStoreFile: truststoreFile,
+			CertFile:       certFile,
+			CertKeyFile:    certFile,
 		}
 		err := ctx.network.Configure(cfg)
 
@@ -263,9 +261,9 @@ func TestNetwork_Configure(t *testing.T) {
 		cfg.Datadir = io.TestDirectory(t)
 		*cfg.LegacyTLS = core.NetworkTLSConfig{
 			Enabled:        true,
-			TrustStoreFile: testTruststoreFile,
-			CertFile:       testCertAndKeyFile,
-			CertKeyFile:    testCertAndKeyFile,
+			TrustStoreFile: truststoreFile,
+			CertFile:       certFile,
+			CertKeyFile:    certFile,
 		}
 		cfg.TLS.Offload = core.OffloadIncomingTLS
 		err := ctx.network.Configure(cfg)
@@ -568,15 +566,10 @@ func TestNetwork_Start(t *testing.T) {
 
 func TestNetwork_selfTestNutsCommAddress(t *testing.T) {
 	t.Run("TLS", func(t *testing.T) {
-		// trust config
-		truststore, err := core.LoadTrustStore(testTruststoreFile)
-		require.NoError(t, err)
-		certificate, err := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
-		require.NoError(t, err)
-
+		certificate := testPKI.Certificate()
 		// new network
 		network := NewNetworkInstance(Config{}, nil, nil, nil, nil, nil, nil, nil)
-		network.selfTestDialer.Config = &tls.Config{RootCAs: truststore.CertPool, Certificates: []tls.Certificate{certificate}}
+		network.selfTestDialer.Config = &tls.Config{RootCAs: testPKI.Truststore(), Certificates: []tls.Certificate{certificate}}
 
 		// new server
 		ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -638,10 +631,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 			},
 		},
 	}
-	certificate, err := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
-	require.NoError(t, err)
-	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
-	require.NoError(t, err)
+	certificate := testPKI.Certificate()
 	t.Run("ok - no node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
@@ -1213,12 +1203,8 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 }
 
 func TestNetwork_checkHealth(t *testing.T) {
-	trustStore, err := core.LoadTrustStore(testTruststoreFile)
-	require.NoError(t, err)
-	certificate, err := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
-	require.NoError(t, err)
-	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
-	require.NoError(t, err)
+	certificate := testPKI.Certificate()
+	trustStore, _ := core.ParseTrustStore(testPKI.TruststoreData)
 	t.Run("TLS", func(t *testing.T) {
 		t.Run("up", func(t *testing.T) {
 			mockPKIValidator := pki.NewMockValidator(gomock.NewController(t))
@@ -1249,12 +1235,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 		})
 
 		t.Run("expired", func(t *testing.T) {
-			trustStore, err := core.LoadTrustStore(testTruststoreFile)
-			require.NoError(t, err)
-			certificate, err := tls.LoadX509KeyPair(testInvalidCertAndKeyFile, testInvalidCertAndKeyFile)
-			require.NoError(t, err)
-			certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
-			require.NoError(t, err)
+			certificate := testPKI.InvalidCertificate()
 			n := Network{
 				trustStore:  trustStore,
 				certificate: certificate,

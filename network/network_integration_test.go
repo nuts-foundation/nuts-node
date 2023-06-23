@@ -23,10 +23,10 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
+	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
 	"hash/crc32"
 	"math/rand"
 	"net/url"
-	"os"
 	"path"
 	"sync"
 	"testing"
@@ -893,6 +893,8 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 	resetIntegrationTest(t)
 
+	clientCertBytes := testPKI.CertificateData
+
 	t.Run("server offloads incoming TLS", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			testDirectory := io.TestDirectory(t)
@@ -911,8 +913,6 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			outgoingMD.Set("peerID", "client")
 			outgoingMD.Set("nodeDID", "did:nuts:node2")
 			// Load client cert and set as HTTP request header, as will be done by a TLS terminator
-			clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
-			require.NoError(t, err)
 
 			xffHeader := "8.8.8.8,8.8.4.4,127.0.0.1"
 			outgoingMD.Set("X-Forwarded-For", xffHeader)
@@ -962,11 +962,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			})
 
 			// Load client cert and add it to the denylist
-			clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
-			require.NoError(t, err)
-			cert, err := core.ParseCertificates(clientCertBytes)
-			require.NoError(t, err)
-			pki.SetNewDenylistWithCert(t, node1.network.pkiValidator, cert[0])
+			pki.SetNewDenylistWithCert(t, node1.network.pkiValidator, testPKI.Certificate().Leaf)
 
 			// Create client (node2) that connects to server node
 			grpcConn, err := grpcLib.Dial(nameToAddress(t, "node1"), grpcLib.WithTransportCredentials(insecure.NewCredentials()))
@@ -1067,9 +1063,9 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	_ = serverConfig.Load(core.FlagSet())
 	serverConfig.Datadir = path.Join(testDirectory, name)
 	serverConfig.LegacyTLS.Enabled = true
-	serverConfig.TLS.CertFile = testCertAndKeyFile
-	serverConfig.TLS.CertKeyFile = testCertAndKeyFile
-	serverConfig.TLS.TrustStoreFile = testTruststoreFile
+	serverConfig.TLS.CertFile = testPKI.CertificateFile(t)
+	serverConfig.TLS.CertKeyFile = serverConfig.TLS.CertFile
+	serverConfig.TLS.TrustStoreFile = testPKI.TruststoreFile(t)
 
 	// Create Network instance
 	config := Config{

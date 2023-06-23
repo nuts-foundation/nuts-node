@@ -21,11 +21,10 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/test/pki"
 	"net/http"
 	"os"
 	"path"
-	"path/filepath"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -72,17 +71,10 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 	t.Setenv("NUTS_EVENTS_NATS_PORT", natsPort)
 	t.Setenv("NUTS_EVENTS_NATS_HOSTNAME", "localhost")
 	t.Setenv("NUTS_AUTH_PUBLICURL", httpServerURL)
-
-	// relative paths are defined from the location source 't', find absolute path of current function to fix this
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("Unable to get the current filename")
-	}
-	dirname := filepath.Dir(filename)
-
-	t.Setenv("NUTS_TLS_CERTFILE", fmt.Sprintf("%s/../pki/certificate-and-key.pem", dirname))
-	t.Setenv("NUTS_TLS_CERTKEYFILE", fmt.Sprintf("%s/../pki/certificate-and-key.pem", dirname))
-	t.Setenv("NUTS_TLS_TRUSTSTOREFILE", fmt.Sprintf("%s/../pki/truststore.pem", dirname))
+	certFile := pki.CertificateFile(t)
+	t.Setenv("NUTS_TLS_CERTFILE", certFile)
+	t.Setenv("NUTS_TLS_CERTKEYFILE", certFile)
+	t.Setenv("NUTS_TLS_TRUSTSTOREFILE", pki.TruststoreFile(t))
 
 	for _, fn := range configFunc {
 		fn(httpServerURL)

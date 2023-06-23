@@ -20,17 +20,16 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/credentials"
 	"hash/crc32"
 	"io"
 	"net"
-	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -56,11 +55,6 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
-)
-
-const (
-	testTruststoreFile = "../../../test/pki/truststore.pem"
-	testCertAndKeyFile = "../../../test/pki/certificate-and-key.pem"
 )
 
 // newBufconnConfig creates a new Config like NewConfig, but configures an in-memory bufconn listener instead of a TCP listener.
@@ -138,8 +132,8 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 
 	t.Run("ok - with TLS", func(t *testing.T) {
 		p := &TestProtocol{}
-		ts, _ := core.LoadTrustStore(testTruststoreFile)
-		clientCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
+		ts, _ := core.ParseTrustStore(testPKI.TruststoreData)
+		clientCert := testPKI.Certificate()
 		ctrl := gomock.NewController(t)
 		pkiMock := pki.NewMockValidator(ctrl)
 		pkiMock.EXPECT().AddTruststore(ts.Certificates())
@@ -558,8 +552,8 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 }
 
 func Test_grpcConnectionManager_Start(t *testing.T) {
-	trustStore, _ := core.LoadTrustStore(testTruststoreFile)
-	serverCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
+	trustStore, _ := core.ParseTrustStore(testPKI.TruststoreData)
+	serverCert := testPKI.Certificate()
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockValidator(ctrl)
 	pkiMock.EXPECT().AddTruststore(gomock.Any()).AnyTimes()
@@ -1229,11 +1223,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 
 func Test_grpcConnectionManager_revalidatePeers(t *testing.T) {
 	mockValidator := pki.NewMockValidator(gomock.NewController(t))
-	clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
-	require.NoError(t, err)
-	certs, err := core.ParseCertificates(clientCertBytes)
-	cert := certs[0]
-	require.NoError(t, err)
+	cert := testPKI.Certificate().Leaf
 
 	t.Run("ok", func(t *testing.T) {
 		mockValidator.EXPECT().Validate([]*x509.Certificate{cert})

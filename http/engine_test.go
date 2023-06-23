@@ -28,6 +28,7 @@ import (
 	"crypto/tls"
 	b64 "encoding/base64"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/test/pki"
 	"io"
 	"net"
 	"net/http"
@@ -92,9 +93,9 @@ func TestEngine_Configure(t *testing.T) {
 	})
 	t.Run("TLS", func(t *testing.T) {
 		serverCfg := core.NewServerConfig()
-		serverCfg.TLS.CertFile = "../test/pki/certificate-and-key.pem"
-		serverCfg.TLS.CertKeyFile = "../test/pki/certificate-and-key.pem"
-		serverCfg.TLS.TrustStoreFile = "../test/pki/truststore.pem"
+		serverCfg.TLS.CertFile = pki.CertificateFile(t)
+		serverCfg.TLS.CertKeyFile = serverCfg.TLS.CertFile
+		serverCfg.TLS.TrustStoreFile = pki.TruststoreFile(t)
 		tlsConfig, _, _ := serverCfg.TLS.Load()
 
 		t.Run("error - invalid TLS mode", func(t *testing.T) {
