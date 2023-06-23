@@ -32,7 +32,7 @@ type peerDiagnosticsManager struct {
 	provider func() transport.Diagnostics
 	sender   func(diagnostics transport.Diagnostics)
 	mux      *sync.RWMutex
-	received map[transport.PeerID]transport.Diagnostics
+	received map[string]transport.Diagnostics
 }
 
 func newPeerDiagnosticsManager(provider func() transport.Diagnostics, sender func(diagnostics transport.Diagnostics)) *peerDiagnosticsManager {
@@ -40,7 +40,7 @@ func newPeerDiagnosticsManager(provider func() transport.Diagnostics, sender fun
 		sender:   sender,
 		provider: provider,
 		mux:      &sync.RWMutex{},
-		received: make(map[transport.PeerID]transport.Diagnostics),
+		received: make(map[string]transport.Diagnostics),
 	}
 }
 
@@ -57,25 +57,30 @@ func (m *peerDiagnosticsManager) start(ctx context.Context, broadcastInterval ti
 	}
 }
 
-func (m *peerDiagnosticsManager) handleReceived(peerID transport.PeerID, received *Diagnostics) {
+func (m *peerDiagnosticsManager) handleReceived(peer transport.Peer, received *Diagnostics) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
+
 	diagnostics := transport.Diagnostics{
 		Uptime:               time.Duration(received.Uptime) * time.Second,
 		NumberOfTransactions: received.NumberOfTransactions,
 		SoftwareVersion:      received.SoftwareVersion,
 		SoftwareID:           received.SoftwareID,
 	}
-	for _, peer := range received.Peers {
-		diagnostics.Peers = append(diagnostics.Peers, transport.PeerID(peer))
+	for _, p := range received.Peers {
+		diagnostics.Peers = append(diagnostics.Peers, transport.PeerID(p))
 	}
-	m.received[peerID] = diagnostics
+
+	if certPem := peer.CertificateAsPem(); certPem != "" {
+		diagnostics.Certificate = &certPem
+	}
+	m.received[peer.Key()] = diagnostics
 }
 
-func (m *peerDiagnosticsManager) get() map[transport.PeerID]transport.Diagnostics {
+func (m *peerDiagnosticsManager) get() map[string]transport.Diagnostics {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
-	result := make(map[transport.PeerID]transport.Diagnostics)
+	result := make(map[string]transport.Diagnostics)
 	for key, value := range m.received {
 		// Make sure we copy the Peers slice to avoid data race when its used
 		peers := append([]transport.PeerID{}, value.Peers...)
@@ -85,14 +90,18 @@ func (m *peerDiagnosticsManager) get() map[transport.PeerID]transport.Diagnostic
 	return result
 }
 
-func (m *peerDiagnosticsManager) remove(peerID transport.PeerID) {
+func (m *peerDiagnosticsManager) remove(peer transport.Peer) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	delete(m.received, peerID)
+	delete(m.received, peer.Key())
 }
 
-func (m *peerDiagnosticsManager) add(peerID transport.PeerID) {
+func (m *peerDiagnosticsManager) add(peer transport.Peer) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	m.received[peerID] = transport.Diagnostics{}
+	newDiagnostics := transport.Diagnostics{}
+	if certPem := peer.CertificateAsPem(); certPem != "" {
+		newDiagnostics.Certificate = &certPem
+	}
+	m.received[peer.Key()] = newDiagnostics
 }

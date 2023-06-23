@@ -217,9 +217,9 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 		case transport.StateConnected:
 			xor, clock := p.state.XOR(dag.MaxLamportClock)
 			p.gManager.PeerConnected(peer, xor, clock)
-			p.diagnosticsMan.add(peer.ID)
+			p.diagnosticsMan.add(peer)
 		case transport.StateDisconnected:
-			p.diagnosticsMan.remove(peer.ID)
+			p.diagnosticsMan.remove(peer)
 			p.gManager.PeerDisconnected(peer)
 		}
 	}
@@ -346,7 +346,7 @@ func (p *protocol) Diagnostics() []core.DiagnosticResult {
 	}}
 }
 
-func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
+func (p *protocol) PeerDiagnostics() map[string]transport.Diagnostics {
 	return p.diagnosticsMan.get()
 }
 

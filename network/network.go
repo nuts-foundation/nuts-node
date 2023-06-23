@@ -747,15 +747,15 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 }
 
 // PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
-func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
-	result := make(map[transport.PeerID]transport.Diagnostics, 0)
+func (n *Network) PeerDiagnostics() map[string]transport.Diagnostics {
+	result := make(map[string]transport.Diagnostics, 0)
 	// We assume higher protocol versions (later in the slice) have better/more accurate diagnostics,
 	// so for now they're copied over diagnostics of earlier versions, unless the entry is empty for that peer.
 	// We assume the diagnostic result is empty when it lists no peers (since it has at least 1 peer: the local node).
 	for _, prot := range n.protocols {
-		for peerID, peerDiagnostics := range prot.PeerDiagnostics() {
-			if _, exists := result[peerID]; !exists || len(peerDiagnostics.Peers) > 0 {
-				result[peerID] = peerDiagnostics
+		for peerKey, peerDiagnostics := range prot.PeerDiagnostics() {
+			if _, exists := result[peerKey]; !exists || len(peerDiagnostics.Peers) > 0 {
+				result[peerKey] = peerDiagnostics
 			}
 		}
 	}

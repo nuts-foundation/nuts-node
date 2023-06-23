@@ -19,8 +19,10 @@
 package transport
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net"
@@ -81,6 +83,18 @@ func (p Peer) String() string {
 	return fmt.Sprintf("%s(%s)@%s", p.ID, p.NodeDID.String(), p.Address)
 }
 
+func (p Peer) CertificateAsPem() string {
+	if p.Certificate == nil || len(p.Certificate.Raw) == 0 {
+		return ""
+	}
+	caPEM := new(bytes.Buffer)
+	_ = pem.Encode(caPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: p.Certificate.Raw,
+	})
+	return caPEM.String()
+}
+
 // Diagnostics contains information that is shared to this node's peers on request.
 type Diagnostics struct {
 	// Uptime the uptime (time since the node started) in seconds.
@@ -94,6 +108,8 @@ type Diagnostics struct {
 	// SoftwareID contains an indication of the vendor of the software of the node. For open source implementations it's recommended to specify URL to the public, open source repository.
 	// Proprietary implementations could specify the product's or vendor's name.
 	SoftwareID string `json:"softwareID"`
+	// Certificate contains the certificate presented by the peer during the TLS handshake.
+	Certificate *string `json:"certificate,omitempty"`
 }
 
 // Contact holds statistics of an outbound connector.

@@ -51,7 +51,7 @@ type Transactions interface {
 	// endExclusive must be larger than startInclusive.
 	ListTransactionsInRange(startInclusive uint32, endExclusive uint32) ([]dag.Transaction, error)
 	// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
-	PeerDiagnostics() map[transport.PeerID]transport.Diagnostics
+	PeerDiagnostics() map[string]transport.Diagnostics
 	// Reprocess walks the DAG and publishes all transactions matching the contentType via Nats
 	Reprocess(ctx context.Context, contentType string) (*ReprocessReport, error)
 	// WithPersistency returns a SubscriberOption for persistency. It allows the DAG KVStore to be used as persistent store for notifications.

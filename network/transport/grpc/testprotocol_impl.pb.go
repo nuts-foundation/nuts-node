@@ -94,6 +94,6 @@ func (s TestProtocol) Diagnostics() []core.DiagnosticResult {
 	return nil
 }
 
-func (s TestProtocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
+func (s TestProtocol) PeerDiagnostics() map[string]transport.Diagnostics {
 	return nil
 }

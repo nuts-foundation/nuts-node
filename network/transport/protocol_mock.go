@@ -63,10 +63,10 @@ func (mr *MockProtocolMockRecorder) Diagnostics() *gomock.Call {
 }
 
 // PeerDiagnostics mocks base method.
-func (m *MockProtocol) PeerDiagnostics() map[PeerID]Diagnostics {
+func (m *MockProtocol) PeerDiagnostics() map[string]Diagnostics {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PeerDiagnostics")
-	ret0, _ := ret[0].(map[PeerID]Diagnostics)
+	ret0, _ := ret[0].(map[string]Diagnostics)
 	return ret0
 }
 
