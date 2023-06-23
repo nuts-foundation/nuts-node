@@ -131,7 +131,7 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 				log.Logger().
 					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
 					WithError(err).
-					Warnf("Could publish credential over OIDC4VCI, fallback to publish over Nuts network")
+					Warnf("Could not publish credential over OIDC4VCI, fallback to publish over Nuts network")
 			}
 		}
 		if err := i.networkPublisher.PublishCredential(ctx, *createdVC, public); err != nil {
