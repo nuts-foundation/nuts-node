@@ -33,7 +33,7 @@ type Protocol interface {
 	// Diagnostics collects and returns diagnostical information on the protocol.
 	Diagnostics() []core.DiagnosticResult
 	// PeerDiagnostics collects and returns diagnostical information on the peers the protocol is communicating with.
-	PeerDiagnostics() map[string]Diagnostics
+	PeerDiagnostics() map[PeerKey]Diagnostics
 	// Version returns the version of the protocol
 	Version() int
 }

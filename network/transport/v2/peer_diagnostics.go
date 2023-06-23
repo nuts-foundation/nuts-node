@@ -32,7 +32,7 @@ type peerDiagnosticsManager struct {
 	provider func() transport.Diagnostics
 	sender   func(diagnostics transport.Diagnostics)
 	mux      *sync.RWMutex
-	received map[string]transport.Diagnostics
+	received map[transport.PeerKey]transport.Diagnostics
 }
 
 func newPeerDiagnosticsManager(provider func() transport.Diagnostics, sender func(diagnostics transport.Diagnostics)) *peerDiagnosticsManager {
@@ -40,7 +40,7 @@ func newPeerDiagnosticsManager(provider func() transport.Diagnostics, sender fun
 		sender:   sender,
 		provider: provider,
 		mux:      &sync.RWMutex{},
-		received: make(map[string]transport.Diagnostics),
+		received: make(map[transport.PeerKey]transport.Diagnostics),
 	}
 }
 
@@ -77,10 +77,10 @@ func (m *peerDiagnosticsManager) handleReceived(peer transport.Peer, received *D
 	m.received[peer.Key()] = diagnostics
 }
 
-func (m *peerDiagnosticsManager) get() map[string]transport.Diagnostics {
+func (m *peerDiagnosticsManager) get() map[transport.PeerKey]transport.Diagnostics {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
-	result := make(map[string]transport.Diagnostics)
+	result := make(map[transport.PeerKey]transport.Diagnostics)
 	for key, value := range m.received {
 		// Make sure we copy the Peers slice to avoid data race when its used
 		peers := append([]transport.PeerID{}, value.Peers...)

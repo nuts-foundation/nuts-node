@@ -138,10 +138,10 @@ func (mr *MockProtocolMockRecorder) MethodName() *gomock.Call {
 }
 
 // PeerDiagnostics mocks base method.
-func (m *MockProtocol) PeerDiagnostics() map[string]transport.Diagnostics {
+func (m *MockProtocol) PeerDiagnostics() map[transport.PeerKey]transport.Diagnostics {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PeerDiagnostics")
-	ret0, _ := ret[0].(map[string]transport.Diagnostics)
+	ret0, _ := ret[0].(map[transport.PeerKey]transport.Diagnostics)
 	return ret0
 }
 

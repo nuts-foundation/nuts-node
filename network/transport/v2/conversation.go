@@ -82,14 +82,14 @@ type conversationManager struct {
 	mutex                  sync.RWMutex
 	conversations          map[string]*conversation
 	validity               time.Duration
-	lastPeerConversationID map[string]conversationID
+	lastPeerConversationID map[transport.PeerKey]conversationID
 }
 
 func newConversationManager(validity time.Duration) *conversationManager {
 	return &conversationManager{
 		conversations:          map[string]*conversation{},
 		validity:               validity,
-		lastPeerConversationID: map[string]conversationID{},
+		lastPeerConversationID: map[transport.PeerKey]conversationID{},
 	}
 }
 

@@ -139,10 +139,10 @@ func (mr *MockTransactionsMockRecorder) ListTransactionsInRange(startInclusive, 
 }
 
 // PeerDiagnostics mocks base method.
-func (m *MockTransactions) PeerDiagnostics() map[string]transport.Diagnostics {
+func (m *MockTransactions) PeerDiagnostics() map[transport.PeerKey]transport.Diagnostics {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PeerDiagnostics")
-	ret0, _ := ret[0].(map[string]transport.Diagnostics)
+	ret0, _ := ret[0].(map[transport.PeerKey]transport.Diagnostics)
 	return ret0
 }
 

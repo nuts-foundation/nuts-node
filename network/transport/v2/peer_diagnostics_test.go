@@ -55,7 +55,7 @@ func Test_PeerDiagnosticsManager_HandleReceived(t *testing.T) {
 		SoftwareVersion:      "abc",
 		SoftwareID:           "def",
 	}
-	manager.handleReceived("1234", &Diagnostics{
+	manager.handleReceived(testPeer, &Diagnostics{
 		Uptime:               10,
 		PeerID:               "1234",
 		Peers:                []string{"1", "2"},
@@ -64,23 +64,23 @@ func Test_PeerDiagnosticsManager_HandleReceived(t *testing.T) {
 		SoftwareID:           "def",
 	})
 
-	assert.Equal(t, expected, manager.get()["1234"])
+	assert.Equal(t, expected, manager.get()[testPeer.Key()])
 }
 
 func Test_PeerDiagnosticsManager_Add(t *testing.T) {
 	manager := newPeerDiagnosticsManager(nil, nil)
-	manager.add("1234")
+	manager.add(transport.Peer{ID: "1234"})
 	assert.NotNil(t, manager.get()["1234"])
 }
 
 func Test_PeerDiagnosticsManager_Remove(t *testing.T) {
 	manager := newPeerDiagnosticsManager(nil, nil)
-	manager.add("1234")
-	_, present := manager.get()["1234"]
+	manager.add(testPeer)
+	_, present := manager.get()[testPeer.Key()]
 	assert.True(t, present)
 
 	// Now remove
-	manager.remove("1234")
-	_, present = manager.get()["1234"]
+	manager.remove(testPeer)
+	_, present = manager.get()[testPeer.Key()]
 	assert.False(t, present)
 }

@@ -120,7 +120,7 @@ func (a *Wrapper) GetPeerDiagnostics(_ context.Context, _ GetPeerDiagnosticsRequ
 	diagnostics := a.Service.PeerDiagnostics()
 	result := make(GetPeerDiagnostics200JSONResponse, len(diagnostics))
 	for k, v := range diagnostics {
-		result[k] = PeerDiagnostics(v)
+		result[k.String()] = PeerDiagnostics(v)
 	}
 	return result, nil
 }
