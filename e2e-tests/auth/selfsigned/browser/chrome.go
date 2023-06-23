@@ -1,3 +1,5 @@
+//go:build e2e_tests
+
 /*
  * Copyright (C) 2023 Nuts community
  *

@@ -1,3 +1,5 @@
+//go:build e2e_tests
+
 /*
  * Copyright (C) 2023 Nuts community
  *
@@ -16,17 +18,15 @@
  *
  */
 
-package main
+package selfsigned
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-go-e2e-test/apps"
-	"github.com/nuts-foundation/nuts-go-e2e-test/browser"
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
+	"github.com/nuts-foundation/nuts-node/e2e-tests/auth/selfsigned/apps"
+	"github.com/nuts-foundation/nuts-node/e2e-tests/auth/selfsigned/browser"
 	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 	didAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -35,17 +35,14 @@ import (
 )
 
 func Test_LoginWithSelfSignedMeans(t *testing.T) {
-
 	const purposeOfUse = "zorgtoepassing"
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	headless := os.Getenv("SHOW_BROWSER") != "true"
 	ctx, cancel := browser.NewChrome(headless)
 	defer func() {
 		if t.Failed() && !headless {
 			duration := 10 * time.Second
-			log.Info().Msgf("Test failed, keeping browser open for %s", duration)
+			t.Logf("Test failed, keeping browser open for %s", duration)
 			time.Sleep(duration)
 		}
 		cancel()
@@ -100,7 +97,7 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 
 	if os.Getenv("KEEP_BROWSER_OPEN") == "true" {
 		timeout := time.Minute
-		log.Info().Msgf("Keeping browser open for %s", timeout)
+		t.Logf("Keeping browser open for %s", timeout)
 		time.Sleep(timeout)
 	}
 }

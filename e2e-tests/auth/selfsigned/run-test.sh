@@ -15,6 +15,6 @@ docker compose up -d
 
 waitForDCService node
 
-go test -v .
+go test -v --tags=e2e_tests .
 
 docker compose stop
