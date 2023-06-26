@@ -75,8 +75,8 @@ type Issuer interface {
 }
 
 // New creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func New(definitionsDIR string, baseURL string, config oidc4vci.ClientConfig, keyResolver types.KeyResolver, store Store) Issuer {
-	return &issuer{
+func New(definitionsDIR string, baseURL string, config oidc4vci.ClientConfig, keyResolver types.KeyResolver, store Store) (Issuer, error) {
+	i := &issuer{
 		baseURL:             baseURL,
 		definitionsDIR:      definitionsDIR,
 		config:              config,
@@ -84,15 +84,21 @@ func New(definitionsDIR string, baseURL string, config oidc4vci.ClientConfig, ke
 		walletClientCreator: oidc4vci.NewWalletAPIClient,
 		store:               store,
 	}
+
+	// load the credential definitions. This is done to halt startup procedure if needed.
+	err := i.loadCredentialDefinitions()
+
+	return i, err
 }
 
 type issuer struct {
-	baseURL             string
-	definitionsDIR      string
-	keyResolver         types.KeyResolver
-	store               Store
-	walletClientCreator func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
-	config              oidc4vci.ClientConfig
+	baseURL              string
+	definitionsDIR       string
+	credentialsSupported []map[string]interface{}
+	config               oidc4vci.ClientConfig
+	keyResolver          types.KeyResolver
+	store                Store
+	walletClientCreator  func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
 }
 
 func (i *issuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error) {
@@ -100,46 +106,11 @@ func (i *issuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, er
 		CredentialIssuer:   i.getIdentifier(issuer.String()),
 		CredentialEndpoint: i.getIdentifier(issuer.String()) + "/issuer/oidc4vci/credential",
 	}
-	// retrieve the definitions from assets and add to the list of CredentialsSupported
-	definitionsDir, err := assets.FS.ReadDir("definitions")
-	if err != nil {
-		return metadata, err
-	}
-	for _, definition := range definitionsDir {
-		definitionData, err := assets.FS.ReadFile(fmt.Sprintf("definitions/%s", definition.Name()))
-		if err != nil {
-			return metadata, err
-		}
-		var definitionMap map[string]interface{}
-		err = json.Unmarshal(definitionData, &definitionMap)
-		if err != nil {
-			return metadata, err
-		}
-		metadata.CredentialsSupported = append(metadata.CredentialsSupported, definitionMap)
-	}
 
-	// now add all credential definition from config.DefinitionsDIR
-	if i.definitionsDIR != "" {
-		err = filepath.WalkDir(i.definitionsDIR, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return fmt.Errorf("failed to load credential definitions: %w", err)
-			}
-			if !d.IsDir() && filepath.Ext(path) == ".json" {
-				definitionData, err := os.ReadFile(path)
-				if err != nil {
-					return fmt.Errorf("failed to read credential definition from %s: %w", path, err)
-				}
-				var definitionMap map[string]interface{}
-				err = json.Unmarshal(definitionData, &definitionMap)
-				if err != nil {
-					return fmt.Errorf("failed to parse credential definition from %s: %w", path, err)
-				}
-				metadata.CredentialsSupported = append(metadata.CredentialsSupported, definitionMap)
-			}
-			return nil
-		})
-	}
-	return metadata, err
+	// deepcopy the i.credentialsSupported slice to prevent concurrent access to the slice.
+	metadata.CredentialsSupported = deepcopy(i.credentialsSupported)
+
+	return metadata, nil
 }
 
 func (i *issuer) ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetadata, error) {
@@ -390,6 +361,52 @@ func (i *issuer) createOffer(ctx context.Context, credential vc.VerifiableCreden
 	return &offer, nil
 }
 
+func (i *issuer) loadCredentialDefinitions() error {
+
+	// retrieve the definitions from assets and add to the list of CredentialsSupported
+	definitionsDir, err := assets.FS.ReadDir("definitions")
+	if err != nil {
+		return err
+	}
+	for _, definition := range definitionsDir {
+		definitionData, err := assets.FS.ReadFile(fmt.Sprintf("definitions/%s", definition.Name()))
+		if err != nil {
+			return err
+		}
+		var definitionMap map[string]interface{}
+		err = json.Unmarshal(definitionData, &definitionMap)
+		if err != nil {
+			return err
+		}
+		i.credentialsSupported = append(i.credentialsSupported, definitionMap)
+	}
+
+	// now add all credential definition from config.DefinitionsDIR
+	if i.definitionsDIR != "" {
+		err = filepath.WalkDir(i.definitionsDIR, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return fmt.Errorf("failed to load credential definitions: %w", err)
+			}
+			if !d.IsDir() && filepath.Ext(path) == ".json" {
+				definitionData, err := os.ReadFile(path)
+				if err != nil {
+					return fmt.Errorf("failed to read credential definition from %s: %w", path, err)
+				}
+				var definitionMap map[string]interface{}
+				err = json.Unmarshal(definitionData, &definitionMap)
+				if err != nil {
+					return fmt.Errorf("failed to parse credential definition from %s: %w", path, err)
+				}
+				i.credentialsSupported = append(i.credentialsSupported, definitionMap)
+			}
+			return nil
+		})
+	}
+
+	return err
+
+}
+
 func getSubjectDID(verifiableCredential vc.VerifiableCredential) (did.DID, error) {
 	type subjectType struct {
 		ID did.DID `json:"id"`
@@ -416,4 +433,15 @@ func generateCode() string {
 		panic(err)
 	}
 	return base64.URLEncoding.EncodeToString(buf)
+}
+
+func deepcopy(src []map[string]interface{}) []map[string]interface{} {
+	dst := make([]map[string]interface{}, len(src))
+	for i := range src {
+		dst[i] = make(map[string]interface{})
+		for k, v := range src[i] {
+			dst[i][k] = v
+		}
+	}
+	return dst
 }
