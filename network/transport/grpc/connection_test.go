@@ -83,7 +83,7 @@ func Test_conn_waitUntilDisconnected(t *testing.T) {
 func Test_conn_registerStream(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
-		stream := newServerStream("foo", "")
+		stream := newServerStream("foo", "", nil)
 		defer stream.cancelFunc()
 
 		assert.False(t, connection.IsConnected())
@@ -93,7 +93,7 @@ func Test_conn_registerStream(t *testing.T) {
 	})
 	t.Run("already connected (same protocol)", func(t *testing.T) {
 		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
-		stream := newServerStream("foo", "")
+		stream := newServerStream("foo", "", nil)
 		defer stream.cancelFunc()
 
 		accepted := connection.registerStream(&TestProtocol{}, stream)
@@ -107,7 +107,7 @@ func Test_conn_registerStream(t *testing.T) {
 func Test_conn_startSending(t *testing.T) {
 	t.Run("disconnect does not panic", func(t *testing.T) {
 		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
-		stream := newServerStream("foo", "")
+		stream := newServerStream("foo", "", nil)
 
 		defer stream.cancelFunc()
 
@@ -131,7 +131,7 @@ func Test_conn_startSending(t *testing.T) {
 func TestConn_Send(t *testing.T) {
 	t.Run("buffer overflow softlimit", func(t *testing.T) {
 		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
-		stream := newServerStream("foo", "")
+		stream := newServerStream("foo", "", nil)
 		protocol := &TestProtocol{}
 		_ = connection.registerStream(protocol, stream)
 		connection.cancelCtx()
@@ -157,7 +157,7 @@ func TestConn_Send(t *testing.T) {
 
 	t.Run("buffer overflow hardLimit", func(t *testing.T) {
 		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
-		stream := newServerStream("foo", "")
+		stream := newServerStream("foo", "", nil)
 		protocol := &TestProtocol{}
 		_ = connection.registerStream(protocol, stream)
 		connection.cancelCtx()

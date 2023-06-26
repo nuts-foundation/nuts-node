@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"go.uber.org/goleak"
+	"google.golang.org/grpc/credentials"
 	"hash/crc32"
 	"io"
 	"net"
@@ -668,7 +669,7 @@ func Test_grpcConnectionManager_Stop(t *testing.T) {
 		cm, err := NewGRPCConnectionManager(Config{peerID: "12345"}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 
-		go cm.handleInboundStream(&TestProtocol{}, newServerStream("1234", ""))
+		go cm.handleInboundStream(&TestProtocol{}, newServerStream("1234", "", nil))
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm.Peers()) == 1, nil
 		}, 5*time.Second, "time-out while waiting for connection")
@@ -688,7 +689,7 @@ func Test_grpcConnectionManager_Stop(t *testing.T) {
 
 		go func() {
 			time.Sleep(10 * time.Millisecond) // make sure handleInboundStream is called after ConnectionManager.Stop()
-			err := cm.handleInboundStream(&TestProtocol{}, newServerStream("1234", ""))
+			err := cm.handleInboundStream(&TestProtocol{}, newServerStream("1234", "", nil))
 			if err != nil {
 				panic(err) // can't use t.Fatal in goroutines
 			}
@@ -726,8 +727,8 @@ func Test_grpcConnectionManager_Diagnostics(t *testing.T) {
 		defer cm.Stop()
 		cm.lastCertificateValidation.Store(&testTime)
 
-		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer1", ""))
-		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer2", ""))
+		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer1", "", nil))
+		go cm.handleInboundStream(&TestProtocol{}, newServerStream("peer2", "", nil))
 
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm.Peers()) == 2, nil
@@ -866,20 +867,30 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 
 func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 	protocol := &TestProtocol{}
+	clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
+	require.NoError(t, err)
+	certs, err := core.ParseCertificates(clientCertBytes)
+
+	grpcPeer := &peer.Peer{
+		AuthInfo: credentials.TLSInfo{State: tls.ConnectionState{PeerCertificates: certs}},
+	}
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		grpcPeer := &peer.Peer{}
 		ctx := peer.NewContext(context.TODO(), grpcPeer)
 		nodeDID, _ := did.ParseDID("did:nuts:test")
 
-		peerInfo := transport.Peer{
-			NodeDID: *nodeDID,
+		initialPeer := transport.Peer{
+			NodeDID: *nodeDID, // non-bootstrap node
+		}
+		savedPeer := transport.Peer{
+			NodeDID:     *nodeDID,
+			Certificate: certs[0],
 		}
 
 		authenticator := NewMockAuthenticator(ctrl)
-		authenticator.EXPECT().Authenticate(*nodeDID, peerInfo).Return(peerInfo, nil)
+		authenticator.EXPECT().Authenticate(*nodeDID, savedPeer).Return(savedPeer, nil)
 
 		cm, err := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, *nodeDID, nil)
 		cm.authenticator = authenticator
@@ -897,8 +908,43 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 
 		conn := NewMockConnection(ctrl)
 		conn.EXPECT().verifyOrSetPeerID(transport.PeerID("server-peer-id")).Return(true)
-		conn.EXPECT().Peer().Return(peerInfo)
-		conn.EXPECT().setPeer(peerInfo)
+		conn.EXPECT().Peer().Return(initialPeer)
+		conn.EXPECT().setPeer(savedPeer)
+		conn.EXPECT().registerStream(gomock.Any(), gomock.Any()).Return(true)
+
+		stream, err := cm.openOutboundStream(conn, protocol, grpcConn, metadata.MD{})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, stream)
+	})
+	t.Run("ok - bootstrap", func(t *testing.T) {
+		// setPeer contains cert, peer is not authenticated.
+		ctrl := gomock.NewController(t)
+
+		ctx := peer.NewContext(context.TODO(), grpcPeer)
+
+		initialPeer := transport.Peer{}
+		savedPeer := transport.Peer{
+			Certificate: certs[0],
+		}
+
+		cm, err := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, *nodeDID, nil)
+
+		defer cm.Stop()
+
+		meta, _ := cm.constructMetadata(false)
+
+		grpcStream := NewMockClientStream(ctrl)
+		grpcStream.EXPECT().Header().Return(meta, nil)
+		grpcStream.EXPECT().Context().Return(ctx)
+
+		grpcConn := NewMockConn(ctrl)
+		grpcConn.EXPECT().NewStream(gomock.Any(), gomock.Any(), "/grpc.Test/DoStuff", gomock.Any()).Return(grpcStream, nil)
+
+		conn := NewMockConnection(ctrl)
+		conn.EXPECT().verifyOrSetPeerID(transport.PeerID("server-peer-id")).Return(true)
+		conn.EXPECT().Peer().Return(initialPeer)
+		conn.EXPECT().setPeer(savedPeer)
 		conn.EXPECT().registerStream(gomock.Any(), gomock.Any()).Return(true)
 
 		stream, err := cm.openOutboundStream(conn, protocol, grpcConn, metadata.MD{})
@@ -1055,18 +1101,25 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 
 func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 	protocol := &TestProtocol{}
+	clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
+	require.NoError(t, err)
+	certs, err := core.ParseCertificates(clientCertBytes)
 	t.Run("new client", func(t *testing.T) {
-		expectedPeer := transport.Peer{
-			ID:      "client-peer-id",
-			Address: "127.0.0.1:9522",
-			NodeDID: did.DID{},
+		preAuthenticatedPeer := transport.Peer{
+			ID:          "client-peer-id",
+			Address:     "127.0.0.1:9522",
+			Certificate: certs[0],
 		}
-		clientDID, _ := did.ParseDID("did:nuts:client")
-		expectedPeer.NodeDID = *clientDID
-		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String())
+		expectedPeer := transport.Peer{
+			ID:          "client-peer-id",
+			Address:     "127.0.0.1:9522",
+			NodeDID:     did.MustParseDID("did:nuts:client"),
+			Certificate: certs[0],
+		}
+		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String(), certs[0])
 		ctrl := gomock.NewController(t)
 		authenticator := NewMockAuthenticator(ctrl)
-		authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Any()).Return(expectedPeer, nil)
+		authenticator.EXPECT().Authenticate(gomock.Any(), preAuthenticatedPeer).Return(expectedPeer, nil)
 		cm, err := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, *nodeDID, authenticator)
 		require.NoError(t, err)
 		defer cm.Stop()
@@ -1081,10 +1134,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 			return len(cm.Peers()) == 1, nil
 		}, 5*time.Second, "time-out while waiting for peer")
 
-		peerInfo := cm.Peers()[0]
-		assert.Equal(t, transport.PeerID("client-peer-id"), peerInfo.ID)
-		assert.Equal(t, "127.0.0.1:9522", peerInfo.Address)
-		assert.Equal(t, "did:nuts:client", peerInfo.NodeDID.String())
+		assert.Equal(t, expectedPeer, cm.Peers()[0])
 
 		// Assert headers sent to client
 		assert.Equal(t, "server-peer-id", serverStream.sentHeaders.Get("peerID")[0])
@@ -1111,7 +1161,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 			ID:      "", // Empty
 			Address: "127.0.0.1:9522",
 		}
-		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String())
+		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String(), nil)
 		cm, err := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 
@@ -1127,7 +1177,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		}
 		clientDID, _ := did.ParseDID("did:nuts:client")
 		expectedPeer.NodeDID = *clientDID
-		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String())
+		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String(), nil)
 		ctrl := gomock.NewController(t)
 		authenticator := NewMockAuthenticator(ctrl)
 		authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Any()).Return(expectedPeer, errors.New("failed"))
@@ -1143,13 +1193,13 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		defer cm.Stop()
 		require.NoError(t, err)
 
-		go cm.handleInboundStream(protocol, newServerStream("client-peer-id", ""))
+		go cm.handleInboundStream(protocol, newServerStream("client-peer-id", "", nil))
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm.Peers()) == 1, nil
 		}, 5*time.Second, "time-out while waiting for peer")
 
 		// Second connection with same peer ID is rejected
-		err = cm.handleInboundStream(protocol, newServerStream("client-peer-id", ""))
+		err = cm.handleInboundStream(protocol, newServerStream("client-peer-id", "", nil))
 		assert.ErrorIs(t, err, ErrAlreadyConnected)
 
 		// Assert only first connection was registered
@@ -1160,7 +1210,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		defer cm.Stop()
 		require.NoError(t, err)
 
-		stream := newServerStream("client-peer-id", "")
+		stream := newServerStream("client-peer-id", "", nil)
 		go cm.handleInboundStream(protocol, stream)
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm.Peers()) == 1, nil
@@ -1234,13 +1284,18 @@ func Test_grpcConnectionManager_revalidatePeers(t *testing.T) {
 	})
 }
 
-func newServerStream(clientPeerID transport.PeerID, nodeDID string) *stubServerStream {
+func newServerStream(clientPeerID transport.PeerID, nodeDID string, cert *x509.Certificate) *stubServerStream {
 	md := metadata.New(map[string]string{peerIDHeader: clientPeerID.String()})
 	if nodeDID != "" {
 		md.Set(nodeDIDHeader, nodeDID)
 	}
+	grpcPeer := &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: int(crc32.ChecksumIEEE([]byte(clientPeerID))%9000 + 1000)}}
+	if cert != nil {
+		grpcPeer.AuthInfo = credentials.TLSInfo{State: tls.ConnectionState{PeerCertificates: []*x509.Certificate{cert}}}
+	}
 	ctx := metadata.NewIncomingContext(context.Background(), md)
-	ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: int(crc32.ChecksumIEEE([]byte(clientPeerID))%9000 + 1000)}})
+	ctx = peer.NewContext(ctx, grpcPeer)
+
 	ctx = grpc.NewContextWithServerTransportStream(ctx, &stubServerTransportStream{method: "/unit/test"})
 	ctx, cancelFunc := context.WithCancel(ctx)
 
