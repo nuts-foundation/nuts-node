@@ -1086,6 +1086,8 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	}
 
 	eventPublisher := events.NewManager()
+	eventsConfig := eventPublisher.(core.Injectable).Config().(*events.Config)
+	eventsConfig.Nats.Hostname = "localhost"
 	if err := eventPublisher.(core.Configurable).Configure(*serverConfig); err != nil {
 		t.Fatal(err)
 	}

@@ -223,6 +223,7 @@ func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleCo
 
 	eventsConfig := events.DefaultConfig()
 	eventsConfig.Nats.Port = test.FreeTCPPort()
+	eventsConfig.Nats.Hostname = "localhost"
 
 	httpConfig := httpEngine.DefaultConfig()
 	httpConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())

@@ -58,7 +58,7 @@ func TestEngine_Configure(t *testing.T) {
 
 	t.Run("ok, no TLS (default)", func(t *testing.T) {
 		engine := New(noop, nil)
-		engine.config.InterfaceConfig.Address = fmt.Sprintf(":%d", test.FreeTCPPort())
+		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 		engine.config.InterfaceConfig.TLSMode = ""
 
 		err := engine.Configure(*core.NewServerConfig())
@@ -75,7 +75,7 @@ func TestEngine_Configure(t *testing.T) {
 	})
 	t.Run("ok, no TLS (explicitly disabled)", func(t *testing.T) {
 		engine := New(noop, nil)
-		engine.config.InterfaceConfig.Address = fmt.Sprintf(":%d", test.FreeTCPPort())
+		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 		engine.config.InterfaceConfig.TLSMode = TLSDisabledMode
 
 		err := engine.Configure(*core.NewServerConfig())
@@ -118,7 +118,7 @@ func TestEngine_Configure(t *testing.T) {
 			engine := New(noop, nil)
 			engine.config.AltBinds["alt"] = InterfaceConfig{
 				TLSMode: TLSServerCertMode,
-				Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+				Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
 			}
 
 			err := engine.Configure(*core.NewServerConfig())
@@ -127,7 +127,7 @@ func TestEngine_Configure(t *testing.T) {
 		})
 		t.Run("server certificate", func(t *testing.T) {
 			engine := New(noop, nil)
-			engine.config.InterfaceConfig.Address = fmt.Sprintf(":%d", test.FreeTCPPort())
+			engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 			engine.config.InterfaceConfig.TLSMode = TLSServerCertMode
 
 			err := engine.Configure(*serverCfg)
@@ -146,7 +146,7 @@ func TestEngine_Configure(t *testing.T) {
 		})
 		t.Run("server and client certificate", func(t *testing.T) {
 			engine := New(noop, nil)
-			engine.config.InterfaceConfig.Address = fmt.Sprintf(":%d", test.FreeTCPPort())
+			engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 			engine.config.InterfaceConfig.TLSMode = TLServerClientCertMode
 
 			err := engine.Configure(*serverCfg)
@@ -172,7 +172,7 @@ func TestEngine_Configure(t *testing.T) {
 		t.Run("CORS", func(t *testing.T) {
 			assertHTTPHeader := func(t *testing.T, address string, headerName string, headerValue string) {
 				t.Helper()
-				request, _ := http.NewRequest(http.MethodOptions, "http://localhost"+address, nil)
+				request, _ := http.NewRequest(http.MethodOptions, "http://"+address, nil)
 				request.Header.Set("Origin", "example.com")
 				response, err := http.DefaultClient.Do(request)
 				if err != nil {
@@ -184,7 +184,7 @@ func TestEngine_Configure(t *testing.T) {
 			t.Run("enabled", func(t *testing.T) {
 				engine := New(noop, nil)
 				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
 					CORS: CORSConfig{
 						Origin: []string{"example.com"},
 					},
@@ -223,7 +223,7 @@ func TestEngine_Configure(t *testing.T) {
 			t.Run("not enabled in alt bind", func(t *testing.T) {
 				engine := New(noop, nil)
 				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
 					CORS: CORSConfig{
 						Origin: []string{"test.nl"},
 					},
@@ -261,7 +261,7 @@ func TestEngine_Configure(t *testing.T) {
 
 				engine := New(noop, keyResolver)
 				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
 					Auth: AuthConfig{
 						Type: BearerTokenAuth,
 					},
@@ -281,7 +281,7 @@ func TestEngine_Configure(t *testing.T) {
 				tokenBytes, _ := jwt.Sign(claims, jwa.ES256, signingKey)
 				token := string(tokenBytes)
 
-				request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address, nil)
+				request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address, nil)
 				request.Header.Set("Authorization", "Bearer "+token)
 				response, err := http.DefaultClient.Do(request)
 
@@ -311,7 +311,7 @@ func TestEngine_Configure(t *testing.T) {
 
 				engine := New(noop, keyResolver)
 				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
 				}
 				engine.config.AltBinds["default-with-auth"] = InterfaceConfig{
 					Auth: AuthConfig{
@@ -319,7 +319,7 @@ func TestEngine_Configure(t *testing.T) {
 					},
 				}
 				engine.config.AltBinds["alt-with-auth"] = InterfaceConfig{
-					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
 					Auth: AuthConfig{
 						Type: BearerTokenAuth,
 					},
@@ -345,7 +345,7 @@ func TestEngine_Configure(t *testing.T) {
 
 				t.Run("success - no auth on default bind root path", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address, nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address, nil)
 					response, err := http.DefaultClient.Do(request)
 
 					assert.NoError(t, err)
@@ -354,7 +354,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("success - auth on default bind subpath path", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					request.Header.Set("Authorization", "Bearer "+token)
 					response, err := http.DefaultClient.Do(request)
 
@@ -364,7 +364,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("success - auth on alt bind", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.AltBinds["alt-with-auth"].Address+"/alt-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.AltBinds["alt-with-auth"].Address+"/alt-with-auth", nil)
 					request.Header.Set("Authorization", "Bearer "+token)
 					response, err := http.DefaultClient.Do(request)
 
@@ -374,7 +374,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("no token", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					response, err := http.DefaultClient.Do(request)
 
 					assert.NoError(t, err)
@@ -383,7 +383,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("invalid token", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer invalid")
 
@@ -393,7 +393,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("invalid token (incorrect signing key)", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer "+attackerToken)
 
@@ -429,7 +429,7 @@ func TestEngine_Configure(t *testing.T) {
 
 				// Configure the default interface without authentication
 				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
 					Auth: AuthConfig{
 						Type:               BearerTokenAuthV2,
 						AuthorizedKeysPath: authorizedKeysFile.Name(),
@@ -465,7 +465,7 @@ func TestEngine_Configure(t *testing.T) {
 				// Make a test request
 				t.Run("success - auth on default bind root", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/", nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
 					response, err := http.DefaultClient.Do(request)
@@ -501,7 +501,7 @@ func TestEngine_Configure(t *testing.T) {
 
 				// Configure the default interface without authentication
 				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
 				}
 
 				// Configure an alt bind with authentication
@@ -515,7 +515,7 @@ func TestEngine_Configure(t *testing.T) {
 
 				// Configure another alt bind with authentication
 				engine.config.AltBinds["alt-with-auth"] = InterfaceConfig{
-					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
 					Auth: AuthConfig{
 						Type:               BearerTokenAuthV2,
 						Audience:           "foo",
@@ -554,7 +554,7 @@ func TestEngine_Configure(t *testing.T) {
 				// Start running some tests against the server
 				t.Run("success - no auth on default bind root path", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address, nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address, nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 
@@ -564,7 +564,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("success - auth on default bind subpath path", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
 					response, err := http.DefaultClient.Do(request)
@@ -575,7 +575,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("success - auth on alt bind", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.AltBinds["alt-with-auth"].Address+"/alt-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.AltBinds["alt-with-auth"].Address+"/alt-with-auth", nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
 					response, err := http.DefaultClient.Do(request)
@@ -586,7 +586,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("no token", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 
@@ -596,7 +596,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("invalid token", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer invalid")
@@ -607,7 +607,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("invalid token (incorrect signing key)", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer "+string(serializedAttackerToken))
@@ -754,13 +754,13 @@ func assertHTTPSRequest(t *testing.T, address string, tlsConfig *tls.Config) {
 func doHTTPSRequest(tlsConfig *tls.Config, address string) (*http.Response, error) {
 	response, err := (&http.Client{Transport: &http.Transport{
 		TLSClientConfig: tlsConfig,
-	}}).Get("https://localhost" + address)
+	}}).Get("https://" + address)
 	return response, err
 }
 
 func assertHTTPRequest(t *testing.T, address string) {
 	t.Helper()
-	response, err := http.Get("http://localhost" + address)
+	response, err := http.Get("http://" + address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -769,7 +769,7 @@ func assertHTTPRequest(t *testing.T, address string) {
 
 func assertNotHTTPHeader(t *testing.T, address string, headerName string) {
 	t.Helper()
-	request, _ := http.NewRequest(http.MethodGet, "http://localhost"+address, nil)
+	request, _ := http.NewRequest(http.MethodGet, "http://"+address, nil)
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		t.Fatal(err)

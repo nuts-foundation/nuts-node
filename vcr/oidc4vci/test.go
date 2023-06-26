@@ -132,7 +132,7 @@ type oidcClientTestContext struct {
 
 func startHTTPServer(t *testing.T, mux *http.ServeMux) string {
 	httpPort := test.FreeTCPPort()
-	server := &http.Server{Addr: fmt.Sprintf(":%d", httpPort), Handler: mux}
+	server := &http.Server{Addr: fmt.Sprintf("localhost:%d", httpPort), Handler: mux}
 	httpServerURL := fmt.Sprintf("http://localhost:%d", httpPort)
 	startErrorChannel := make(chan error)
 	go func() {

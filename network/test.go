@@ -64,6 +64,7 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 // TestNetworkConfig creates new network config with a test directory as data path.
 func TestNetworkConfig() Config {
 	config := DefaultConfig()
+	config.GrpcAddr = "localhost:5555"
 	config.EnableDiscovery = false
 	return config
 }

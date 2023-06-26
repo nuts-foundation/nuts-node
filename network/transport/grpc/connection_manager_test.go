@@ -639,7 +639,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		}).Times(2) // on inbound and outbound TLS config
 		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 
-		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}, pkiMock))
+		cfg, err := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}, pkiMock))
 		require.NoError(t, err)
 		cm, _ := NewGRPCConnectionManager(cfg, nil, *nodeDID, nil, &TestProtocol{})
 		defer cm.Stop()
@@ -648,7 +648,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 
 	t.Run("error - invalid server TLS config", func(t *testing.T) {
-		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}, pkiMock))
+		cfg, err := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}, pkiMock))
 		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
 		pkiMock.EXPECT().SubscribeDenied(gomock.Any())
 		cm, err := NewGRPCConnectionManager(cfg, nil, *nodeDID, nil, &TestProtocol{})
