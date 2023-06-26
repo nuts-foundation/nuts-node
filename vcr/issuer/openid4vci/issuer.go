@@ -317,7 +317,7 @@ func (i *issuer) createOffer(ctx context.Context, credential vc.VerifiableCreden
 			"format": oidc4vci.VerifiableCredentialJSONLDFormat,
 			"credential_definition": map[string]interface{}{
 				"@context": credential.Context,
-				"types":    credential.Type,
+				"type":     credential.Type,
 			},
 		}},
 		Grants: map[string]interface{}{
