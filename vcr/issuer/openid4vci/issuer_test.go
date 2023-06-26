@@ -133,7 +133,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 			response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
-			assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - proof type not supported")
+			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - proof type not supported")
 			assert.Nil(t, response)
 		})
 		t.Run("jwt", func(t *testing.T) {
@@ -143,7 +143,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - missing proof")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - missing proof")
 				assert.Nil(t, response)
 			})
 			t.Run("invalid JWT", func(t *testing.T) {
@@ -152,7 +152,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - invalid compact serialization format: invalid number of segments")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - invalid compact serialization format: invalid number of segments")
 				assert.Nil(t, response)
 			})
 			t.Run("not signed by intended wallet (DID differs)", func(t *testing.T) {
@@ -175,7 +175,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - credential offer was signed by other DID than intended wallet: did:nuts:holder#1")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - credential offer was signed by other DID than intended wallet: did:nuts:holder#1")
 				assert.Nil(t, response)
 			})
 			t.Run("signing key is unknown", func(t *testing.T) {
@@ -191,7 +191,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - key not found in DID document")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - key not found in DID document")
 				assert.Nil(t, response)
 			})
 			t.Run("typ header missing", func(t *testing.T) {
@@ -201,7 +201,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - missing typ header")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - missing typ header")
 				assert.Nil(t, response)
 			})
 			t.Run("typ header invalid", func(t *testing.T) {
@@ -211,7 +211,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - invalid typ claim (expected: openid4vci-proof+jwt): JWT")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - invalid typ claim (expected: openid4vci-proof+jwt): JWT")
 				assert.Nil(t, response)
 			})
 			t.Run("aud header doesn't match issuer identifier", func(t *testing.T) {
@@ -221,7 +221,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - audience doesn't match credential issuer (aud=[https://example.com/someone-else])")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - audience doesn't match credential issuer (aud=[https://example.com/someone-else])")
 				assert.Nil(t, response)
 			})
 		})

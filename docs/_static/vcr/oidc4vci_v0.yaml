@@ -182,7 +182,7 @@ paths:
                 "$ref": "#/components/schemas/ErrorResponse"
         "400":
           description: >
-            Invalid request. Code can be "invalid_request", "unsupported_credential_type", "unsupported_credential_format" or "invalid_or_missing_proof".
+            Invalid request. Code can be "invalid_request", "unsupported_credential_type", "unsupported_credential_format" or "invalid_proof".
             Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
           content:
             application/json:
