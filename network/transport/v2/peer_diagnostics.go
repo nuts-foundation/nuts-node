@@ -66,13 +66,10 @@ func (m *peerDiagnosticsManager) handleReceived(peer transport.Peer, received *D
 		NumberOfTransactions: received.NumberOfTransactions,
 		SoftwareVersion:      received.SoftwareVersion,
 		SoftwareID:           received.SoftwareID,
+		Certificate:          peer.CertificateAsPem(),
 	}
 	for _, p := range received.Peers {
 		diagnostics.Peers = append(diagnostics.Peers, transport.PeerID(p))
-	}
-
-	if certPem := peer.CertificateAsPem(); certPem != "" {
-		diagnostics.Certificate = &certPem
 	}
 	m.received[peer.Key()] = diagnostics
 }
@@ -99,9 +96,8 @@ func (m *peerDiagnosticsManager) remove(peer transport.Peer) {
 func (m *peerDiagnosticsManager) add(peer transport.Peer) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	newDiagnostics := transport.Diagnostics{}
-	if certPem := peer.CertificateAsPem(); certPem != "" {
-		newDiagnostics.Certificate = &certPem
+	newDiagnostics := transport.Diagnostics{
+		Certificate: peer.CertificateAsPem(),
 	}
 	m.received[peer.Key()] = newDiagnostics
 }

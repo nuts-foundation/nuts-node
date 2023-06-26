@@ -20,8 +20,10 @@ package v2
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 	"time"
@@ -46,7 +48,32 @@ func Test_PeerDiagnosticsManager(t *testing.T) {
 	})
 }
 
+const certBytes = `-----BEGIN CERTIFICATE-----
+MIIDMTCCAhmgAwIBAgIJAPhraNcUMXs4MA0GCSqGSIb3DQEBCwUAMBIxEDAOBgNV
+BAMMB1Jvb3QgQ0EwHhcNMjIxMTI4MTYwMzE5WhcNMjUwMzAyMTYwMzE5WjAUMRIw
+EAYDVQQDDAlsb2NhbGhvc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIB
+AQCxexjr0YvSDQUG19sSogI93UF6tsGW9gyJbpko86EPb/MAzmvU2/6Hb+Kbreil
+MzEhSvtk+A8Vkgf7+NfW4tkrdyFBu6aAqW3jihvSbE7ptd+Gz75BS3j9iMAayy2p
+085IJZtW85j497aO5qzJVTgFW2FwbQ9z38TJCuUkoeiJw/hElCYgDRATM7OUNA4i
+Pu+3txUlYbTmPY4HDAG+Zhfm7WnaPXJsLLduxCpFZzi4oK0E2jrk1Epoku+FFxmP
+EZUFRa684oEPJUEqKDS1q3QHTQdJChjZ80fmwtpPd1BCOaWAERTn1nFvrK2DL7LY
+kK1Ag7d2wN00T/YVw8tThE45AgMBAAGjgYcwgYQwLAYDVR0jBCUwI6EWpBQwEjEQ
+MA4GA1UEAwwHUm9vdCBDQYIJAJ2bDsozINJTMAkGA1UdEwQCMAAwCwYDVR0PBAQD
+AgTwMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAdBgNVHREEFjAUggls
+b2NhbGhvc3SCB251dHMubmwwDQYJKoZIhvcNAQELBQADggEBAKFxNP1p6S4uQXoF
+l5KzF8fl6pG3eRTWUehUgQe5cP4PwiT5v/zBpZy3nIqVQXW360B3xmS+TpkIsa5h
+cR8krOcC6AtVP64efIAnplEmz+pbbiZ0kJsyWVH0fl4VxKOMLF7jTvnFvAhC3ad5
+kONPGln7eoxs7FFTdnAEK1LfCxsCTujVe/0xnjj9DLgPf0etehoSsZmfc2ukLlNR
+p21P9o/yY3Rz1y9XhXBttE0L0Cx434rIZ6fSY4hDbOYfM8Y5sra47P9GyNMcqQIY
+6V1iHNN1bqrjT/4WplTy0lMgRt0+EtevWhKKqXQi6vPKvWeQQEyphx3wIEfYAFrE
+tyJ+7iY=
+-----END CERTIFICATE-----
+`
+
 func Test_PeerDiagnosticsManager_HandleReceived(t *testing.T) {
+	certs, err := core.ParseCertificates([]byte(certBytes))
+	require.NoError(t, err)
+
 	manager := newPeerDiagnosticsManager(nil, nil)
 	expected := transport.Diagnostics{
 		Uptime:               10 * time.Second,
@@ -54,8 +81,9 @@ func Test_PeerDiagnosticsManager_HandleReceived(t *testing.T) {
 		NumberOfTransactions: 1000,
 		SoftwareVersion:      "abc",
 		SoftwareID:           "def",
+		Certificate:          certBytes,
 	}
-	manager.handleReceived(testPeer, &Diagnostics{
+	manager.handleReceived(transport.Peer{ID: "peer", Certificate: certs[0]}, &Diagnostics{
 		Uptime:               10,
 		PeerID:               "1234",
 		Peers:                []string{"1", "2"},
@@ -68,9 +96,15 @@ func Test_PeerDiagnosticsManager_HandleReceived(t *testing.T) {
 }
 
 func Test_PeerDiagnosticsManager_Add(t *testing.T) {
+	certs, err := core.ParseCertificates([]byte(certBytes))
+	require.NoError(t, err)
+
+	peer := transport.Peer{ID: "1234", Certificate: certs[0]}
+	expected := transport.Diagnostics{Peers: []transport.PeerID{}, Certificate: certBytes}
+
 	manager := newPeerDiagnosticsManager(nil, nil)
-	manager.add(transport.Peer{ID: "1234"})
-	assert.NotNil(t, manager.get()["1234"])
+	manager.add(peer)
+	assert.Equal(t, expected, manager.get()[peer.Key()])
 }
 
 func Test_PeerDiagnosticsManager_Remove(t *testing.T) {

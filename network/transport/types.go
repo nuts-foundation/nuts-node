@@ -117,7 +117,7 @@ type Diagnostics struct {
 	// Proprietary implementations could specify the product's or vendor's name.
 	SoftwareID string `json:"softwareID"`
 	// Certificate contains the certificate presented by the peer during the TLS handshake.
-	Certificate *string `json:"certificate,omitempty"`
+	Certificate string `json:"certificate"`
 }
 
 // Contact holds statistics of an outbound connector.
