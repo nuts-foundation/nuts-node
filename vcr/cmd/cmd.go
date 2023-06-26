@@ -37,7 +37,7 @@ import (
 func FlagSet() *pflag.FlagSet {
 	defs := vcr.DefaultConfig()
 	flagSet := pflag.NewFlagSet("vcr", pflag.ContinueOnError)
-	flagSet.String("vcr.oidc4vci.definitionsdir", defs.OIDC4VCI.DefinitionsDIR, "Directory where the credential definitions are stored.")
+	flagSet.String("vcr.oidc4vci.definitionsdir", defs.OIDC4VCI.DefinitionsDIR, "Directory with the additional credential definitions the node could issue.")
 	flagSet.Bool("vcr.oidc4vci.enabled", defs.OIDC4VCI.Enabled, "Enable issuing and receiving credentials over OIDC4VCI (experimental).")
 	flagSet.String("vcr.oidc4vci.url", defs.OIDC4VCI.URL, "Base URL for the OIDC4VCI wallet and issuer endpoints, which ends up in the OAuth2 metadata. "+
 		"These are node-to-node (/n2n) endpoints, but only the base path up until (not including) /n2n has to be configured. So typically, only a domain. "+

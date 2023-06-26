@@ -19,7 +19,7 @@
 
 package vcr
 
-import "time"
+import "github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 
 // ModuleName is the name of this module.
 const ModuleName = "VCR"
@@ -27,19 +27,7 @@ const ModuleName = "VCR"
 // Config holds the config for the vcr engine
 type Config struct {
 	// OIDC4VCI holds the config for the OIDC4VCI credential issuer and wallet
-	OIDC4VCI OIDC4VCIConfig `koanf:"oidc4vci"`
-}
-
-// OIDC4VCIConfig holds the config for the OIDC4VCI credential issuer and wallet
-type OIDC4VCIConfig struct {
-	// DefinitionsDIR defines the directory where the credential definitions are stored
-	DefinitionsDIR string `koanf:"definitionsdir"`
-	// Enabled indicates if issuing and receiving credentials over OIDC4VCI is enabled
-	Enabled bool `koanf:"enabled"`
-	// URL defines the base URL of the OIDC4VCI issuer and wallet
-	URL string `koanf:"url"`
-	// Timeout defines the timeout for HTTP client operations
-	Timeout time.Duration `koanf:"timeout"`
+	OIDC4VCI oidc4vci.Config `koanf:"oidc4vci"`
 }
 
 // DefaultConfig returns a fresh Config filled with default values

@@ -39,8 +39,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"io/fs"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -72,18 +75,20 @@ type Issuer interface {
 }
 
 // New creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func New(baseURL string, config oidc4vci.ClientConfig, keyResolver types.KeyResolver, store Store) Issuer {
+func New(definitionsDIR string, baseURL string, config oidc4vci.ClientConfig, keyResolver types.KeyResolver, store Store) Issuer {
 	return &issuer{
 		baseURL:             baseURL,
+		definitionsDIR:      definitionsDIR,
+		config:              config,
 		keyResolver:         keyResolver,
 		walletClientCreator: oidc4vci.NewWalletAPIClient,
-		config:              config,
 		store:               store,
 	}
 }
 
 type issuer struct {
 	baseURL             string
+	definitionsDIR      string
 	keyResolver         types.KeyResolver
 	store               Store
 	walletClientCreator func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
@@ -101,7 +106,6 @@ func (i *issuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, er
 		return metadata, err
 	}
 	for _, definition := range definitionsDir {
-		// load into a map[string]interface{}
 		definitionData, err := assets.FS.ReadFile(fmt.Sprintf("definitions/%s", definition.Name()))
 		if err != nil {
 			return metadata, err
@@ -114,7 +118,28 @@ func (i *issuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, er
 		metadata.CredentialsSupported = append(metadata.CredentialsSupported, definitionMap)
 	}
 
-	return metadata, nil
+	// now add all credential definition from config.DefinitionsDIR
+	if i.definitionsDIR != "" {
+		err = filepath.WalkDir(i.definitionsDIR, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return fmt.Errorf("failed to load credential definitions: %w", err)
+			}
+			if !d.IsDir() && filepath.Ext(path) == ".json" {
+				definitionData, err := os.ReadFile(path)
+				if err != nil {
+					return fmt.Errorf("failed to read credential definition from %s: %w", path, err)
+				}
+				var definitionMap map[string]interface{}
+				err = json.Unmarshal(definitionData, &definitionMap)
+				if err != nil {
+					return fmt.Errorf("failed to parse credential definition from %s: %w", path, err)
+				}
+				metadata.CredentialsSupported = append(metadata.CredentialsSupported, definitionMap)
+			}
+			return nil
+		})
+	}
+	return metadata, err
 }
 
 func (i *issuer) ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetadata, error) {

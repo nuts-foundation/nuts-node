@@ -43,6 +43,7 @@ var issuerIdentifier = baseURL + "/" + issuerDID.String()
 var keyID = holderDID.String() + "#1"
 
 const baseURL = "https://example.com"
+const definitionsDIR = "./test/valid"
 
 var issuedVC = vc.VerifiableCredential{
 	Issuer: issuerDID.URI(),
@@ -54,23 +55,46 @@ var issuedVC = vc.VerifiableCredential{
 }
 
 func Test_memoryIssuer_Metadata(t *testing.T) {
-	metadata, err := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer).Metadata(issuerDID)
+	t.Run("default definitions", func(t *testing.T) {
+		metadata, err := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer).Metadata(issuerDID)
 
-	require.NoError(t, err)
-	assert.Equal(t, "https://example.com/did:nuts:issuer", metadata.CredentialIssuer)
-	assert.Equal(t, "https://example.com/did:nuts:issuer/issuer/oidc4vci/credential", metadata.CredentialEndpoint)
-	require.Len(t, metadata.CredentialsSupported, 2)
-	assert.Equal(t, "ldp_vc", metadata.CredentialsSupported[0]["format"])
-	require.Len(t, metadata.CredentialsSupported[0]["cryptographic_binding_methods_supported"], 1)
-	assert.Equal(t, metadata.CredentialsSupported[0]["credentials_definition"],
-		map[string]interface{}{
-			"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://www.nuts.nl/credentials/v1"},
-			"type":     []interface{}{"VerifiableCredential", "NutsAuthorizationCredential"},
-		})
+		require.NoError(t, err)
+		assert.Equal(t, "https://example.com/did:nuts:issuer", metadata.CredentialIssuer)
+		assert.Equal(t, "https://example.com/did:nuts:issuer/issuer/oidc4vci/credential", metadata.CredentialEndpoint)
+		require.Len(t, metadata.CredentialsSupported, 2)
+		assert.Equal(t, "ldp_vc", metadata.CredentialsSupported[0]["format"])
+		require.Len(t, metadata.CredentialsSupported[0]["cryptographic_binding_methods_supported"], 1)
+		assert.Equal(t, metadata.CredentialsSupported[0]["credentials_definition"],
+			map[string]interface{}{
+				"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://www.nuts.nl/credentials/v1"},
+				"type":     []interface{}{"VerifiableCredential", "NutsAuthorizationCredential"},
+			})
+	})
+
+	t.Run("custom definitions", func(t *testing.T) {
+		metadata, err := New("./test/valid", baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer).Metadata(issuerDID)
+
+		require.NoError(t, err)
+		assert.Len(t, metadata.CredentialsSupported, 3)
+	})
+
+	t.Run("error - invalid json", func(t *testing.T) {
+		_, err := New("./test/invalid", baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer).Metadata(issuerDID)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "failed to parse credential definition from test/invalid/invalid.json: unexpected end of JSON input")
+	})
+
+	t.Run("error - invalid directory", func(t *testing.T) {
+		_, err := New("./test/non_existing", baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer).Metadata(issuerDID)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "failed to load credential definitions: lstat ./test/non_existing: no such file or directory")
+	})
 }
 
 func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
-	metadata, err := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer).ProviderMetadata(issuerDID)
+	metadata, err := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer).ProviderMetadata(issuerDID)
 
 	require.NoError(t, err)
 	assert.Equal(t, oidc4vci.ProviderMetadata{
@@ -117,7 +141,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 	const preAuthCode = "some-secret-code"
 
-	service := New(baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
+	service := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
 	_, err := service.createOffer(ctx, issuedVC, preAuthCode)
 	require.NoError(t, err)
 	accessToken, err := service.HandleAccessTokenRequest(ctx, issuerDID, preAuthCode)
@@ -171,7 +195,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 					},
 				}
 
-				service := New(baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
+				service := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
 				_, err := service.createOffer(ctx, otherIssuedVC, preAuthCode)
 				require.NoError(t, err)
 				accessToken, err := service.HandleAccessTokenRequest(ctx, issuerDID, preAuthCode)
@@ -187,7 +211,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("signing key is unknown", func(t *testing.T) {
 				keyResolver := types.NewMockKeyResolver(ctrl)
 				keyResolver.EXPECT().ResolveSigningKey(keyID, nil).AnyTimes().Return(nil, types.ErrKeyNotFound)
-				service := New(baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
+				service := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
 				_, err := service.createOffer(ctx, issuedVC, preAuthCode)
 				require.NoError(t, err)
 				accessToken, err := service.HandleAccessTokenRequest(ctx, issuerDID, preAuthCode)
@@ -234,7 +258,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	})
 
 	t.Run("unknown access token", func(t *testing.T) {
-		service := New(baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
+		service := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
 
 		response, err := service.HandleCredentialRequest(ctx, issuerDID, validRequest, accessToken)
 
@@ -248,7 +272,7 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(nil)
-		service := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
+		service := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
 		service.walletClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (oidc4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
@@ -262,7 +286,7 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().Metadata().Return(oidc4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "here-please"})
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(errors.New("failed"))
-		service := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
+		service := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
 		service.walletClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (oidc4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
@@ -276,7 +300,7 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
-		service := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
+		service := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
 		_, err := service.createOffer(ctx, issuedVC, "code")
 		require.NoError(t, err)
 
@@ -286,7 +310,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		assert.NotEmpty(t, accessToken)
 	})
 	t.Run("pre-authorized code issued by other issuer", func(t *testing.T) {
-		service := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
+		service := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
 		_, err := service.createOffer(ctx, issuedVC, "code")
 		require.NoError(t, err)
 
@@ -299,7 +323,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		assert.Empty(t, accessToken)
 	})
 	t.Run("unknown pre-authorized code", func(t *testing.T) {
-		service := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
+		service := New(definitionsDIR, baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
 		_, err := service.createOffer(ctx, issuedVC, "some-other-code")
 		require.NoError(t, err)
 
