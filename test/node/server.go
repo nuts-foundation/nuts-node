@@ -60,16 +60,17 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 	// command line arguments
 	configFile := path.Join(testDir, "nuts.yaml")
 	_ = os.WriteFile(configFile, []byte(testServerConfig), os.ModePerm)
-	grpcPort := fmt.Sprintf(":%d", test.FreeTCPPort())
+	grpcPort := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 	natsPort := fmt.Sprintf("%d", test.FreeTCPPort())
-	httpPort := fmt.Sprintf(":%d", test.FreeTCPPort())
-	httpServerURL := "http://localhost" + httpPort
+	httpPort := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	httpServerURL := "http://" + httpPort
 
 	t.Setenv("NUTS_DATADIR", testDir)
 	t.Setenv("NUTS_CONFIGFILE", configFile)
 	t.Setenv("NUTS_HTTP_DEFAULT_ADDRESS", httpPort)
 	t.Setenv("NUTS_NETWORK_GRPCADDR", grpcPort)
 	t.Setenv("NUTS_EVENTS_NATS_PORT", natsPort)
+	t.Setenv("NUTS_EVENTS_NATS_HOSTNAME", "localhost")
 	t.Setenv("NUTS_AUTH_PUBLICURL", httpServerURL)
 
 	// relative paths are defined from the location source 't', find absolute path of current function to fix this

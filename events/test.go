@@ -30,6 +30,7 @@ import (
 func NewTestManager(t *testing.T) Event {
 	config := DefaultConfig()
 	config.Nats.Port = test.FreeTCPPort()
+	config.Nats.Hostname = "localhost"
 	testDir := io.TestDirectory(t)
 
 	eventManager := &manager{

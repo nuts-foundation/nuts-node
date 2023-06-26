@@ -267,6 +267,7 @@ func setup(t *testing.T) testContext {
 
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
+	networkCfg.GrpcAddr = "localhost:5555"
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
 		didservice.KeyResolver{Store: didStore},
