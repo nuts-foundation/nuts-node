@@ -24,7 +24,7 @@ func CertificateFile(t *testing.T) string {
 }
 
 func InvalidCertificate() tls.Certificate {
-	cert, err := tls.X509KeyPair(CertificateData, CertificateData)
+	cert, err := tls.X509KeyPair(InvalidCertificateData, InvalidCertificateData)
 	if err != nil {
 		panic(err)
 	}
