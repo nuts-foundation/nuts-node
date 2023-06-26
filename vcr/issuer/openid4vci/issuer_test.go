@@ -57,11 +57,16 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 	metadata, err := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer).Metadata(issuerDID)
 
 	require.NoError(t, err)
-	assert.Equal(t, oidc4vci.CredentialIssuerMetadata{
-		CredentialIssuer:     "https://example.com/did:nuts:issuer",
-		CredentialEndpoint:   "https://example.com/did:nuts:issuer/issuer/oidc4vci/credential",
-		CredentialsSupported: []map[string]interface{}{{"NutsAuthorizationCredential": map[string]interface{}{}}},
-	}, metadata)
+	assert.Equal(t, "https://example.com/did:nuts:issuer", metadata.CredentialIssuer)
+	assert.Equal(t, "https://example.com/did:nuts:issuer/issuer/oidc4vci/credential", metadata.CredentialEndpoint)
+	require.Len(t, metadata.CredentialsSupported, 2)
+	assert.Equal(t, "ldp_vc", metadata.CredentialsSupported[0]["format"])
+	require.Len(t, metadata.CredentialsSupported[0]["cryptographic_binding_methods_supported"], 1)
+	assert.Equal(t, metadata.CredentialsSupported[0]["credentials_definition"],
+		map[string]interface{}{
+			"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://www.nuts.nl/credentials/v1"},
+			"type":     []interface{}{"VerifiableCredential", "NutsAuthorizationCredential"},
+		})
 }
 
 func Test_memoryIssuer_ProviderMetadata(t *testing.T) {

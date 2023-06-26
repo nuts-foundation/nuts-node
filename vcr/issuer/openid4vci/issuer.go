@@ -23,6 +23,7 @@ import (
 	crypt "crypto"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
@@ -33,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
@@ -89,13 +91,30 @@ type issuer struct {
 }
 
 func (i *issuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error) {
-	return oidc4vci.CredentialIssuerMetadata{
+	metadata := oidc4vci.CredentialIssuerMetadata{
 		CredentialIssuer:   i.getIdentifier(issuer.String()),
 		CredentialEndpoint: i.getIdentifier(issuer.String()) + "/issuer/oidc4vci/credential",
-		// TODO: This must be configured
-		//       See https://github.com/nuts-foundation/nuts-node/issues/2058
-		CredentialsSupported: []map[string]interface{}{{"NutsAuthorizationCredential": map[string]interface{}{}}},
-	}, nil
+	}
+	// retrieve the definitions from assets and add to the list of CredentialsSupported
+	definitionsDir, err := assets.FS.ReadDir("definitions")
+	if err != nil {
+		return metadata, err
+	}
+	for _, definition := range definitionsDir {
+		// load into a map[string]interface{}
+		definitionData, err := assets.FS.ReadFile(fmt.Sprintf("definitions/%s", definition.Name()))
+		if err != nil {
+			return metadata, err
+		}
+		var definitionMap map[string]interface{}
+		err = json.Unmarshal(definitionData, &definitionMap)
+		if err != nil {
+			return metadata, err
+		}
+		metadata.CredentialsSupported = append(metadata.CredentialsSupported, definitionMap)
+	}
+
+	return metadata, nil
 }
 
 func (i *issuer) ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetadata, error) {
