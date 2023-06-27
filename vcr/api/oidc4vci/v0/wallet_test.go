@@ -85,7 +85,7 @@ func TestWrapper_HandleCredentialOffer(t *testing.T) {
 					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
 					"credential_definition": map[string]interface{}{
 						"@context": []string{"a", "b"},
-						"types":    []string{"VerifiableCredential", "HumanCredential"},
+						"type":     []string{"VerifiableCredential", "HumanCredential"},
 					},
 				},
 			},

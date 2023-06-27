@@ -40,7 +40,7 @@ Step described in [OIDC4VCI 4.1. Credential Offer]( https://openid.net/specs/ope
           "https://www.w3.org/2018/credentials/v1",
           "https://nuts.nl/credentials/v1"
         ],
-        "types": [
+        "type": [
           "VerifiableCredential",
           "NutsAuthorizationCredential"
         ]
@@ -119,7 +119,7 @@ The issuer responds with the metadata (`application/json`):
         "https://www.w3.org/2018/credentials/v1",
         "https://nuts.nl/credentials/v1"
       ],
-      "types": [
+      "type": [
         "VerifiableCredential",
         "NutsAuthorizationCredential"
       ],
@@ -174,7 +174,7 @@ POST https://issuer.example/credential
          "https://www.w3.org/2018/credentials/v1",
          "https://nuts.nl/credentials/v1"
       ],
-      "types": [
+      "type": [
          "VerifiableCredential",
          "NutsAuthorizationCredential"
       ],

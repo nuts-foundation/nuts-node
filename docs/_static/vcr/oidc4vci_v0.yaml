@@ -272,7 +272,7 @@ components:
                   "https://www.w3.org/2018/credentials/v1",
                   "https://nuts.nl/credentials/v1"
                 ],
-                "types": [
+                "type": [
                   "VerifiableCredential",
                   "NutsAuthorizationCredential"
                 ],
@@ -392,7 +392,7 @@ components:
               "https://www.w3.org/2018/credentials/v1",
               "https://nuts.nl/credentials/v1"
             ],
-            "types": [
+            "type": [
               "VerifiableCredential",
               "NutsAuthorizationCredential"
             ],
@@ -479,7 +479,7 @@ components:
                   "https://www.w3.org/2018/credentials/v1",
                   "https://nuts.nl/credentials/v1"
                 ],
-                "types": [
+                "type": [
                   "VerifiableCredential",
                   "NutsAuthorizationCredential"
                 ]
