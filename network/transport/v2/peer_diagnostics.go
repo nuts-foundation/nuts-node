@@ -66,7 +66,7 @@ func (m *peerDiagnosticsManager) handleReceived(peer transport.Peer, received *D
 		NumberOfTransactions: received.NumberOfTransactions,
 		SoftwareVersion:      received.SoftwareVersion,
 		SoftwareID:           received.SoftwareID,
-		Certificate:          peer.CertificateAsPem(),
+		Certificate:          peer.CertificateAsPem(), // enriches received diagnostics (not sent by peer)
 	}
 	for _, p := range received.Peers {
 		diagnostics.Peers = append(diagnostics.Peers, transport.PeerID(p))
