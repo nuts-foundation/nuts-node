@@ -18,7 +18,7 @@ services:
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: root
   vault:
-    image: vault
+    image: hashicorp/vault
     cap_add:
       - IPC_LOCK
     environment:
