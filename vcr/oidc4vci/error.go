@@ -45,9 +45,9 @@ const (
 	UnsupportedCredentialType ErrorCode = "unsupported_credential_type"
 	// UnsupportedCredentialFormat is returned when the credential issuer does not support the requested credential format.
 	UnsupportedCredentialFormat ErrorCode = "unsupported_credential_format"
-	// InvalidOrMissingProof is returned when the Credential Request did not contain a proof,
+	// InvalidProof is returned when the Credential Request did not contain a proof,
 	// or proof was invalid, i.e. it was not bound to a Credential Issuer provided nonce
-	InvalidOrMissingProof ErrorCode = "invalid_or_missing_proof"
+	InvalidProof ErrorCode = "invalid_proof"
 )
 
 // Error is an error that signals the error was (probably) caused by the client (e.g. bad request),

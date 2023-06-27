@@ -225,14 +225,14 @@ func (i *issuer) validateProof(request oidc4vci.CredentialRequest, issuer did.DI
 	if request.Proof == nil {
 		return oidc4vci.Error{
 			Err:        errors.New("missing proof"),
-			Code:       oidc4vci.InvalidOrMissingProof,
+			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	if request.Proof.ProofType != oidc4vci.ProofTypeJWT {
 		return oidc4vci.Error{
 			Err:        errors.New("proof type not supported"),
-			Code:       oidc4vci.InvalidOrMissingProof,
+			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -244,7 +244,7 @@ func (i *issuer) validateProof(request oidc4vci.CredentialRequest, issuer did.DI
 	if err != nil {
 		return oidc4vci.Error{
 			Err:        err,
-			Code:       oidc4vci.InvalidOrMissingProof,
+			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -253,7 +253,7 @@ func (i *issuer) validateProof(request oidc4vci.CredentialRequest, issuer did.DI
 	if signerDID, err := didservice.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
 		return oidc4vci.Error{
 			Err:        fmt.Errorf("credential offer was signed by other DID than intended wallet: %s", signingKeyID),
-			Code:       oidc4vci.InvalidOrMissingProof,
+			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -269,7 +269,7 @@ func (i *issuer) validateProof(request oidc4vci.CredentialRequest, issuer did.DI
 	if !audienceMatches {
 		return oidc4vci.Error{
 			Err:        fmt.Errorf("audience doesn't match credential issuer (aud=%s)", token.Audience()),
-			Code:       oidc4vci.InvalidOrMissingProof,
+			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -289,14 +289,14 @@ func (i *issuer) validateProof(request oidc4vci.CredentialRequest, issuer did.DI
 	if typ == "" {
 		return oidc4vci.Error{
 			Err:        errors.New("missing typ header"),
-			Code:       oidc4vci.InvalidOrMissingProof,
+			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	if typ != oidc4vci.JWTTypeOpenID4VCIProof {
 		return oidc4vci.Error{
 			Err:        fmt.Errorf("invalid typ claim (expected: %s): %s", oidc4vci.JWTTypeOpenID4VCIProof, typ),
-			Code:       oidc4vci.InvalidOrMissingProof,
+			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
