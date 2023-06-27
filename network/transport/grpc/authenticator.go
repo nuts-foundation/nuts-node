@@ -19,7 +19,6 @@
 package grpc
 
 import (
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
@@ -27,8 +26,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"google.golang.org/grpc/credentials"
-	grpcPeer "google.golang.org/grpc/peer"
 	"net/url"
 	"strings"
 )
@@ -38,7 +35,7 @@ type Authenticator interface {
 	// Authenticate verifies the given nodeDID using the given grpc.Peer.
 	// When authentication is successful adds authenticated peer info to the given transport.Peer and returns it.
 	// When authentication fails, an error is returned.
-	Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error)
+	Authenticate(nodeDID did.DID, peer transport.Peer) (transport.Peer, error)
 }
 
 // NewTLSAuthenticator creates an Authenticator that verifies node identities using TLS certificates.
@@ -50,13 +47,11 @@ type tlsAuthenticator struct {
 	serviceResolver didservice.ServiceResolver
 }
 
-func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
+func (t tlsAuthenticator) Authenticate(nodeDID did.DID, peer transport.Peer) (transport.Peer, error) {
 	// Resolve peer TLS certificate DNS names
-	tlsInfo, isTLS := grpcPeer.AuthInfo.(credentials.TLSInfo)
-	if !isTLS || len(tlsInfo.State.PeerCertificates) == 0 {
+	if peer.Certificate == nil {
 		return peer, errors.New("missing TLS info")
 	}
-	peerCertificate := tlsInfo.State.PeerCertificates[0]
 
 	// Resolve NutsComm endpoint of contained in DID document associated with node DID
 	nutsCommService, err := t.serviceResolver.Resolve(didservice.MakeServiceReference(nodeDID, transport.NutsCommServiceType), didservice.DefaultMaxServiceReferenceDepth)
@@ -71,11 +66,11 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	}
 
 	// Check whether one of the DNS names matches one of the NutsComm endpoints
-	err = peerCertificate.VerifyHostname(nutsCommURL.Hostname())
+	err = peer.Certificate.VerifyHostname(nutsCommURL.Hostname())
 	if err != nil {
 		log.Logger().
 			WithField(core.LogFieldDID, nodeDID).
-			Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
+			Debugf("DNS names in peer certificate: %s", strings.Join(peer.Certificate.DNSNames, ", "))
 		return peer, errors.New("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint")
 	}
 
@@ -84,7 +79,6 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 		Debug("Connection successfully authenticated")
 	peer.NodeDID = nodeDID
 	peer.Authenticated = true
-	peer.Certificate = peerCertificate
 	return peer, nil
 }
 
@@ -95,9 +89,8 @@ func NewDummyAuthenticator(_ didservice.ServiceResolver) Authenticator {
 
 type dummyAuthenticator struct{}
 
-func (d dummyAuthenticator) Authenticate(nodeDID did.DID, _ grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
+func (d dummyAuthenticator) Authenticate(nodeDID did.DID, peer transport.Peer) (transport.Peer, error) {
 	peer.NodeDID = nodeDID
 	peer.Authenticated = true
-	peer.Certificate = &x509.Certificate{}
 	return peer, nil
 }

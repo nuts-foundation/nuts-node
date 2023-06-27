@@ -173,7 +173,7 @@ func TestConnectionList_Diagnostics(t *testing.T) {
 		assert.Empty(t, diagnostics[idx].(peersStatistic).peers)
 	})
 	t.Run("connections", func(t *testing.T) {
-		stream := newServerStream("foo", "")
+		stream := newServerStream("foo", "", nil)
 		defer stream.cancelFunc()
 		cn := connectionList{}
 		// 2 connections: 1 disconnected, 1 connected, 1 trying to connect outbound

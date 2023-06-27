@@ -10,7 +10,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
-	peer "google.golang.org/grpc/peer"
 )
 
 // MockAuthenticator is a mock of Authenticator interface.
@@ -37,16 +36,16 @@ func (m *MockAuthenticator) EXPECT() *MockAuthenticatorMockRecorder {
 }
 
 // Authenticate mocks base method.
-func (m *MockAuthenticator) Authenticate(nodeDID did.DID, grpcPeer peer.Peer, peer transport.Peer) (transport.Peer, error) {
+func (m *MockAuthenticator) Authenticate(nodeDID did.DID, peer transport.Peer) (transport.Peer, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Authenticate", nodeDID, grpcPeer, peer)
+	ret := m.ctrl.Call(m, "Authenticate", nodeDID, peer)
 	ret0, _ := ret[0].(transport.Peer)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Authenticate indicates an expected call of Authenticate.
-func (mr *MockAuthenticatorMockRecorder) Authenticate(nodeDID, grpcPeer, peer interface{}) *gomock.Call {
+func (mr *MockAuthenticatorMockRecorder) Authenticate(nodeDID, peer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authenticate", reflect.TypeOf((*MockAuthenticator)(nil).Authenticate), nodeDID, grpcPeer, peer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authenticate", reflect.TypeOf((*MockAuthenticator)(nil).Authenticate), nodeDID, peer)
 }

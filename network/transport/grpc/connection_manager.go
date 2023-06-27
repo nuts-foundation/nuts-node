@@ -54,7 +54,7 @@ var ErrNodeDIDAuthFailed = status.Error(codes.Unauthenticated, "nodeDID authenti
 
 // ErrUnexpectedNodeDID is the error used in outbound calling to signal that the peer sent a different NodeDID than expected.
 // The DID has moved on, do not call it again until notified of its new address.
-var ErrUnexpectedNodeDID = errors.New("call answered by other node DID than expected")
+var ErrUnexpectedNodeDID = fmt.Errorf("call answered by other node DID than expected: %w", ErrNodeDIDAuthFailed)
 
 // ErrAlreadyConnected indicates the node is already connected to the peer.
 var ErrAlreadyConnected = errors.New("already connected")
@@ -495,25 +495,27 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 		return nil, fatalError{error: fmt.Errorf("peer sent invalid ID (id=%s)", peerID)}
 	}
 	peerFromCtx, _ := grpcPeer.FromContext(clientStream.Context())
-	expectedPeer := connection.Peer()
+	peer := connection.Peer()
+
+	// Add certificate so it is available during authentication
+	peer.Certificate = extractCertificate(peerFromCtx)
 
 	// Authenticate expected DID
-	if !expectedPeer.NodeDID.Empty() { // do not authenticate bootstrap connections
+	if !peer.NodeDID.Empty() { // do not authenticate bootstrap connections
 		if nodeDID.Empty() {
 			// Peer might be in maintenance mode, try again later
 			return nil, fatalError{ErrNodeDIDAuthFailed}
 		}
-		if !expectedPeer.NodeDID.Equals(nodeDID) {
+		if !peer.NodeDID.Equals(nodeDID) {
 			// DID no longer lives at this address, don't call this DID again!
-			return nil, fatalError{ErrUnexpectedNodeDID} // TODO: should this also wrap ErrNodeDIDAuthFailed?
+			return nil, fatalError{ErrUnexpectedNodeDID}
 		}
-		// Call answered by the DID we are looking for. Try to authenticate.
-		authenticatedPeer, err := s.authenticate(nodeDID, expectedPeer, peerFromCtx)
+		peer, err = s.authenticate(nodeDID, peer)
 		if err != nil {
 			return nil, fatalError{err}
 		}
-		connection.setPeer(authenticatedPeer)
 	}
+	connection.setPeer(peer)
 
 	wrappedStream := s.wrapStream(clientStream, protocol)
 	if !connection.registerStream(protocol, wrappedStream) {
@@ -527,10 +529,10 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 	return clientStream, nil
 }
 
-func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Peer, peerFromCtx *grpcPeer.Peer) (transport.Peer, error) {
+func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Peer) (transport.Peer, error) {
 	if !nodeDID.Empty() {
 		var err error
-		peer, err = s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
+		peer, err = s.authenticator.Authenticate(nodeDID, peer)
 		if err != nil {
 			log.Logger().
 				WithError(err).
@@ -542,6 +544,14 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 		}
 	}
 	return peer, nil
+}
+
+func extractCertificate(peerFromCtx *grpcPeer.Peer) *x509.Certificate {
+	tlsInfo, isTLS := peerFromCtx.AuthInfo.(credentials.TLSInfo)
+	if !isTLS || len(tlsInfo.State.PeerCertificates) == 0 {
+		return nil
+	}
+	return tlsInfo.State.PeerCertificates[0]
 }
 
 // revalidatePeers verifies for all peers the x509.Certificate provided during TLS handshake is still valid.
@@ -594,14 +604,15 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 		return errors.New("unable to read peer ID")
 	}
 	peer := transport.Peer{
-		ID:      peerID,
-		Address: peerFromCtx.Addr.String(), // this is including port number, so a unique value for inbound
+		ID:          peerID,
+		Address:     peerFromCtx.Addr.String(), // this is including port number, so a unique value for inbound
+		Certificate: extractCertificate(peerFromCtx),
 	}
 	log.Logger().
 		WithFields(peer.ToFields()).
 		WithField(core.LogFieldProtocolVersion, protocol.Version()).
 		Debug("New inbound stream from peer")
-	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
+	peer, err = s.authenticate(nodeDID, peer)
 	if err != nil {
 		return err
 	}
