@@ -20,6 +20,7 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -861,12 +862,10 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 
 func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 	protocol := &TestProtocol{}
-	clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
-	require.NoError(t, err)
-	certs, err := core.ParseCertificates(clientCertBytes)
 
+	cert := testPKI.Certificate().Leaf
 	grpcPeer := &peer.Peer{
-		AuthInfo: credentials.TLSInfo{State: tls.ConnectionState{PeerCertificates: certs}},
+		AuthInfo: credentials.TLSInfo{State: tls.ConnectionState{PeerCertificates: []*x509.Certificate{cert}}},
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -880,7 +879,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		}
 		savedPeer := transport.Peer{
 			NodeDID:     *nodeDID,
-			Certificate: certs[0],
+			Certificate: cert,
 		}
 
 		authenticator := NewMockAuthenticator(ctrl)
@@ -919,7 +918,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 
 		initialPeer := transport.Peer{}
 		savedPeer := transport.Peer{
-			Certificate: certs[0],
+			Certificate: cert,
 		}
 
 		cm, err := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, *nodeDID, nil)
@@ -1095,22 +1094,20 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 
 func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 	protocol := &TestProtocol{}
-	clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
-	require.NoError(t, err)
-	certs, err := core.ParseCertificates(clientCertBytes)
+	cert := testPKI.Certificate().Leaf
 	t.Run("new client", func(t *testing.T) {
 		preAuthenticatedPeer := transport.Peer{
 			ID:          "client-peer-id",
 			Address:     "127.0.0.1:9522",
-			Certificate: certs[0],
+			Certificate: cert,
 		}
 		expectedPeer := transport.Peer{
 			ID:          "client-peer-id",
 			Address:     "127.0.0.1:9522",
 			NodeDID:     did.MustParseDID("did:nuts:client"),
-			Certificate: certs[0],
+			Certificate: cert,
 		}
-		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String(), certs[0])
+		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String(), cert)
 		ctrl := gomock.NewController(t)
 		authenticator := NewMockAuthenticator(ctrl)
 		authenticator.EXPECT().Authenticate(gomock.Any(), preAuthenticatedPeer).Return(expectedPeer, nil)
