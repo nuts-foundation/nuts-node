@@ -58,6 +58,11 @@ func InvalidCertificate() tls.Certificate {
 	return cert
 }
 
+// InvalidCertificateFile returns the path to a file containing an invalid test certificate and its key.
+func InvalidCertificateFile(t *testing.T) string {
+	return writeToTemp(t, "invalid-cert.pem", InvalidCertificateData)
+}
+
 // Certificate returns a valid test certificate.
 func Certificate() tls.Certificate {
 	cert, err := tls.X509KeyPair(CertificateData, CertificateData)
