@@ -19,9 +19,9 @@
 package core
 
 import (
+	"github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
 	"testing"
 )
 
@@ -46,8 +46,7 @@ func TestLoadTrustStore(t *testing.T) {
 		assert.Nil(t, store)
 	})
 	t.Run("incomplete chain", func(t *testing.T) {
-		leafCert, err := os.ReadFile("../test/pki/certificate-and-key.pem")
-		cert, err := ParseCertificates(leafCert)
+		cert, err := ParseCertificates(pki.CertificateData)
 		require.NoError(t, err)
 
 		err = validate(&TrustStore{certificates: cert})

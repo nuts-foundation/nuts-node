@@ -33,6 +33,7 @@ import (
 	httpEngine "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/test/pki"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,7 +56,7 @@ func Test_ServerLifecycle(t *testing.T) {
 	testDirectory := t.TempDir()
 
 	runningCtx, nodeStoppedCallback := context.WithCancel(context.Background())
-	serverConfig, moduleConfig := getIntegrationTestConfig(testDirectory)
+	serverConfig, moduleConfig := getIntegrationTestConfig(t, testDirectory)
 	startCtx := startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)
 
 	// Wait for the Nuts node to start
@@ -83,7 +84,7 @@ func Test_LoadExistingDAG(t *testing.T) {
 
 	// Start Nuts node
 	runningCtx, nodeStoppedCallback := context.WithCancel(context.Background())
-	serverConfig, moduleConfig := getIntegrationTestConfig(testDirectory)
+	serverConfig, moduleConfig := getIntegrationTestConfig(t, testDirectory)
 	startCtx := startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)
 	<-startCtx.Done()
 	if !errors.Is(startCtx.Err(), context.Canceled) {
@@ -102,7 +103,7 @@ func Test_LoadExistingDAG(t *testing.T) {
 	stopNode(t, runningCtx)
 	_, nodeStoppedCallback = context.WithCancel(context.Background())
 	// Make sure we get "fresh" ports since the OS might not immediately free closed sockets
-	serverConfig, moduleConfig = getIntegrationTestConfig(testDirectory)
+	serverConfig, moduleConfig = getIntegrationTestConfig(t, testDirectory)
 	startCtx = startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)
 	<-startCtx.Done()
 	if !errors.Is(startCtx.Err(), context.Canceled) {
@@ -193,7 +194,7 @@ func isHttpRunning(address string) bool {
 	return response.StatusCode == http.StatusOK
 }
 
-func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleConfig) {
+func getIntegrationTestConfig(t *testing.T, testDirectory string) (core.ServerConfig, ModuleConfig) {
 	system := cmd.CreateSystem(func() {
 		panic("test error")
 	})
@@ -206,9 +207,9 @@ func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleCo
 
 	config := *system.Config
 	config.LegacyTLS.Enabled = true
-	config.TLS.CertFile = "test/pki/certificate-and-key.pem"
-	config.TLS.CertKeyFile = "test/pki/certificate-and-key.pem"
-	config.TLS.TrustStoreFile = "test/pki/truststore.pem"
+	config.TLS.CertFile = pki.CertificateFile(t)
+	config.TLS.CertKeyFile = config.TLS.CertFile
+	config.TLS.TrustStoreFile = pki.TruststoreFile(t)
 
 	config.Datadir = testDirectory
 
