@@ -28,10 +28,6 @@ const ModuleName = "VCR"
 type Config struct {
 	// OIDC4VCI holds the config for the OIDC4VCI credential issuer and wallet
 	OIDC4VCI OIDC4VCIConfig `koanf:"oidc4vci"`
-	// datadir holds the location the VCR files are stored
-	datadir string
-	// strictmode holds a copy of the core.ServerConfig.Strictmode value
-	strictmode bool
 }
 
 // OIDC4VCIConfig holds the config for the OIDC4VCI credential issuer and wallet

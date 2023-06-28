@@ -156,9 +156,9 @@ func (i *issuer) OfferCredential(ctx context.Context, credential vc.VerifiableCr
 		Infof("Offering credential using OIDC4VCI (client-metadata-url=%s)", clientMetadataURL)
 
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
-	httpTransport.TLSClientConfig = i.config.ClientTLSConfig
-	httpClient := core.NewStrictHTTPClient(i.config.Strictmode, &http.Client{
-		Timeout:   i.config.ClientTimeout,
+	httpTransport.TLSClientConfig = i.config.TLS
+	httpClient := core.NewStrictHTTPClient(i.config.HTTPSOnly, &http.Client{
+		Timeout:   i.config.Timeout,
 		Transport: httpTransport,
 	})
 	client, err := i.walletClientCreator(ctx, httpClient, clientMetadataURL)

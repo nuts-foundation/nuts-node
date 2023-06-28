@@ -48,8 +48,6 @@ func NewWalletAPIClient(ctx context.Context, httpClient core.HTTPRequestDoer, wa
 		return nil, fmt.Errorf("unable to load OAuth2 credential client metadata (url=%s): %w", walletMetadataURL, err)
 	}
 
-	// TODO: check for https in strictmode
-
 	return &defaultWalletAPIClient{
 		httpClient: httpClient,
 		metadata:   *metadata,

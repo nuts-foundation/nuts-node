@@ -76,6 +76,11 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 }
 
 type vcr struct {
+	// datadir holds the location the VCR files are stored
+	datadir string
+	// strictmode holds a copy of the core.ServerConfig.Strictmode value
+	strictmode bool
+
 	config          Config
 	store           leia.Store
 	keyStore        crypto.KeyStore
@@ -106,9 +111,9 @@ func (c *vcr) GetOIDCIssuer() openid4vci.Issuer {
 func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
 	identifier := core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity", url.PathEscape(id.String()))
 	clientConfig := oidc4vci.ClientConfig{
-		ClientTimeout:   c.config.OIDC4VCI.Timeout,
-		ClientTLSConfig: c.clientTLSConfig,
-		Strictmode:      c.config.strictmode,
+		Timeout:   c.config.OIDC4VCI.Timeout,
+		TLS:       c.clientTLSConfig,
+		HTTPSOnly: c.strictmode,
 	}
 	return holder.NewOIDCWallet(clientConfig, id, identifier, c, c.keyStore, c.keyResolver, jsonld.Reader{DocumentLoader: c.jsonldManager.DocumentLoader()})
 }
@@ -129,12 +134,12 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 
 	// store config parameters for use in Start()
-	c.config.datadir = config.Datadir
+	c.datadir = config.Datadir
 
 	// copy strictmode for openid4vci usage
-	c.config.strictmode = config.Strictmode
+	c.strictmode = config.Strictmode
 
-	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
+	issuerStorePath := path.Join(c.datadir, "vcr", "issued-credentials.db")
 	issuerBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
 	if err != nil {
 		return err
@@ -144,7 +149,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	verifierStorePath := path.Join(c.config.datadir, "vcr", "verifier-store.db")
+	verifierStorePath := path.Join(c.datadir, "vcr", "verifier-store.db")
 	c.verifierStore, err = verifier.NewLeiaVerifierStore(verifierStorePath)
 	if err != nil {
 		return err
@@ -177,9 +182,9 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		baseURL := core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity")
 
 		clientConfig := oidc4vci.ClientConfig{
-			ClientTimeout:   c.config.OIDC4VCI.Timeout,
-			ClientTLSConfig: c.clientTLSConfig,
-			Strictmode:      config.Strictmode,
+			Timeout:   c.config.OIDC4VCI.Timeout,
+			TLS:       c.clientTLSConfig,
+			HTTPSOnly: c.strictmode,
 		}
 
 		c.oidcIssuer = openid4vci.New(baseURL, clientConfig, c.keyResolver, c.oidcIssuerStore)
@@ -195,7 +200,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 }
 
 func (c *vcr) credentialsDBPath() string {
-	return path.Join(c.config.datadir, "vcr", "credentials.db")
+	return path.Join(c.datadir, "vcr", "credentials.db")
 }
 
 func (c *vcr) Start() error {

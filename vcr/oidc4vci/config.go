@@ -25,7 +25,7 @@ import (
 
 // ClientConfig holds openid4vci client configuration
 type ClientConfig struct {
-	ClientTimeout   time.Duration
-	ClientTLSConfig *tls.Config
-	Strictmode      bool
+	Timeout   time.Duration
+	TLS       *tls.Config
+	HTTPSOnly bool
 }

@@ -105,9 +105,9 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 	}
 
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
-	httpTransport.TLSClientConfig = h.config.ClientTLSConfig
-	httpClient := core.NewStrictHTTPClient(h.config.Strictmode, &http.Client{
-		Timeout:   h.config.ClientTimeout,
+	httpTransport.TLSClientConfig = h.config.TLS
+	httpClient := core.NewStrictHTTPClient(h.config.HTTPSOnly, &http.Client{
+		Timeout:   h.config.Timeout,
 		Transport: httpTransport,
 	})
 	issuerClient, err := h.issuerClientCreator(ctx, httpClient, offer.CredentialIssuer)
@@ -147,7 +147,7 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 	}
 
 	retrieveCtx := audit.Context(ctx, "app-oidc4vci", "VCR/OIDC4VCI", "RetrieveCredential")
-	retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.config.ClientTimeout)
+	retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.config.Timeout)
 	defer cancel()
 	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer, accessTokenResponse)
 	if err != nil {
