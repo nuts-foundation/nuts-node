@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"io/fs"
 	"net/url"
 	"path"
@@ -104,7 +105,12 @@ func (c *vcr) GetOIDCIssuer() openid4vci.Issuer {
 
 func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
 	identifier := core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity", url.PathEscape(id.String()))
-	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver, c.config.OIDC4VCI.Timeout, c.clientTLSConfig, jsonld.Reader{DocumentLoader: c.jsonldManager.DocumentLoader()})
+	clientConfig := oidc4vci.ClientConfig{
+		ClientTimeout:   c.config.OIDC4VCI.Timeout,
+		ClientTLSConfig: c.clientTLSConfig,
+		Strictmode:      c.config.strictmode,
+	}
+	return holder.NewOIDCWallet(clientConfig, id, identifier, c, c.keyStore, c.keyResolver, jsonld.Reader{DocumentLoader: c.jsonldManager.DocumentLoader()})
 }
 
 func (c *vcr) Issuer() issuer.Issuer {
@@ -124,6 +130,9 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	// store config parameters for use in Start()
 	c.config.datadir = config.Datadir
+
+	// copy strictmode for openid4vci usage
+	c.config.strictmode = config.Strictmode
 
 	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
 	issuerBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
@@ -166,7 +175,14 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 		c.oidcIssuerStore = openid4vci.NewMemoryStore()
 		baseURL := core.JoinURLPaths(c.config.OIDC4VCI.URL, "n2n", "identity")
-		c.oidcIssuer = openid4vci.New(baseURL, c.clientTLSConfig, c.config.OIDC4VCI.Timeout, c.keyResolver, c.oidcIssuerStore)
+
+		clientConfig := oidc4vci.ClientConfig{
+			ClientTimeout:   c.config.OIDC4VCI.Timeout,
+			ClientTLSConfig: c.clientTLSConfig,
+			Strictmode:      config.Strictmode,
+		}
+
+		c.oidcIssuer = openid4vci.New(baseURL, clientConfig, c.keyResolver, c.oidcIssuerStore)
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)

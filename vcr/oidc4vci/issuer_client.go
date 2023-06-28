@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"io"
 	"net/http"
@@ -44,7 +45,7 @@ type IssuerAPIClient interface {
 
 // NewIssuerAPIClient resolves the Credential Issuer Metadata from the well-known endpoint
 // and returns a client that can be used to communicate with the issuer.
-func NewIssuerAPIClient(ctx context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (IssuerAPIClient, error) {
+func NewIssuerAPIClient(ctx context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (IssuerAPIClient, error) {
 	if credentialIssuerIdentifier == "" {
 		return nil, errors.New("empty Credential Issuer Identifier")
 	}
@@ -59,11 +60,12 @@ func NewIssuerAPIClient(ctx context.Context, httpClient *http.Client, credential
 	if err != nil {
 		return nil, fmt.Errorf("unable to load OIDC Provider Metadata (identifier=%s): %w", credentialIssuerIdentifier, err)
 	}
+
 	return newIssuerClientFromMD(httpClient, *providerMetadata, *metadata)
 }
 
 // newIssuerClientFromMD creates a new IssuerAPIClient from preloaded metadata.
-func newIssuerClientFromMD(httpClient *http.Client, oidcProvider ProviderMetadata, credentialIssuer CredentialIssuerMetadata) (IssuerAPIClient, error) {
+func newIssuerClientFromMD(httpClient core.HTTPRequestDoer, oidcProvider ProviderMetadata, credentialIssuer CredentialIssuerMetadata) (IssuerAPIClient, error) {
 	return &defaultIssuerAPIClient{
 		httpOAuth2Client: httpOAuth2Client{
 			httpClient: httpClient,
@@ -81,7 +83,7 @@ type defaultIssuerAPIClient struct {
 	httpOAuth2Client
 
 	identifier       string
-	httpClient       *http.Client
+	httpClient       core.HTTPRequestDoer
 	metadata         CredentialIssuerMetadata
 	providerMetadata ProviderMetadata
 }
@@ -115,7 +117,7 @@ func (h defaultIssuerAPIClient) Metadata() CredentialIssuerMetadata {
 	return h.metadata
 }
 
-func loadCredentialIssuerMetadata(ctx context.Context, identifier string, httpClient *http.Client) (*CredentialIssuerMetadata, error) {
+func loadCredentialIssuerMetadata(ctx context.Context, identifier string, httpClient core.HTTPRequestDoer) (*CredentialIssuerMetadata, error) {
 	// TODO: Support HTTPS (which truststore?)
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
 	// TODO: what about caching?
@@ -134,7 +136,7 @@ func loadCredentialIssuerMetadata(ctx context.Context, identifier string, httpCl
 	return &result, nil
 }
 
-func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient *http.Client) (*ProviderMetadata, error) {
+func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient core.HTTPRequestDoer) (*ProviderMetadata, error) {
 	// TODO: Support HTTPS (which truststore?)
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
 	// TODO: what about caching?
@@ -153,12 +155,12 @@ func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient
 	return &result, nil
 }
 
-func httpGet(ctx context.Context, httpClient *http.Client, targetURL string, result interface{}) error {
+func httpGet(ctx context.Context, httpClient core.HTTPRequestDoer, targetURL string, result interface{}) error {
 	httpRequest, _ := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 	return httpDo(httpClient, httpRequest, result)
 }
 
-func httpDo(httpClient *http.Client, httpRequest *http.Request, result interface{}) error {
+func httpDo(httpClient core.HTTPRequestDoer, httpRequest *http.Request, result interface{}) error {
 	httpResponse, err := httpClient.Do(httpRequest)
 	if err != nil {
 		return fmt.Errorf("http request error: %w", err)
@@ -195,7 +197,7 @@ var _ OAuth2Client = &httpOAuth2Client{}
 
 type httpOAuth2Client struct {
 	metadata   ProviderMetadata
-	httpClient *http.Client
+	httpClient core.HTTPRequestDoer
 }
 
 func (c httpOAuth2Client) RequestAccessToken(grantType string, params map[string]string) (*TokenResponse, error) {

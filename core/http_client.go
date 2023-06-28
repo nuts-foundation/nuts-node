@@ -21,6 +21,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -136,4 +137,24 @@ func newEmptyTokenGenerator() AuthorizationTokenGenerator {
 	return func() (string, error) {
 		return "", nil
 	}
+}
+
+// StrictHTTPClient creates a HTTPRequestDoer that only allows HTTPS calls when strictmode is enabled.
+func StrictHTTPClient(strictmode bool, client *http.Client) HTTPRequestDoer {
+	return &strictHTTPClient{
+		client:     client,
+		strictmode: strictmode,
+	}
+}
+
+type strictHTTPClient struct {
+	client     *http.Client
+	strictmode bool
+}
+
+func (s *strictHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	if s.strictmode && req.URL.Scheme != "https" {
+		return nil, errors.New("strictmode is enabled, but request is not over HTTPS")
+	}
+	return s.client.Do(req)
 }

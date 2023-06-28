@@ -20,7 +20,6 @@ package holder
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -51,15 +50,14 @@ var nowFunc = time.Now
 var _ OIDCWallet = (*wallet)(nil)
 
 // NewOIDCWallet creates an OIDCWallet that tries to retrieve offered credentials, to store it in the given credential store.
-func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver, clientTimeout time.Duration, clientTLSConfig *tls.Config, jsonldReader jsonld.Reader) OIDCWallet {
+func NewOIDCWallet(config oidc4vci.ClientConfig, did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver, jsonldReader jsonld.Reader) OIDCWallet {
 	return &wallet{
 		did:                 did,
 		identifier:          identifier,
 		credentialStore:     credentialStore,
 		signer:              signer,
 		resolver:            resolver,
-		clientTimeout:       clientTimeout,
-		clientTLSConfig:     clientTLSConfig,
+		config:              config,
 		issuerClientCreator: oidc4vci.NewIssuerAPIClient,
 		jsonldReader:        jsonldReader,
 	}
@@ -71,10 +69,9 @@ type wallet struct {
 	credentialStore     vcrTypes.Writer
 	signer              crypto.JWTSigner
 	resolver            vdr.KeyResolver
-	clientTimeout       time.Duration
-	clientTLSConfig     *tls.Config
-	issuerClientCreator func(ctx context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error)
+	issuerClientCreator func(ctx context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error)
 	jsonldReader        jsonld.Reader
+	config              oidc4vci.ClientConfig
 }
 
 func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
@@ -108,11 +105,11 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 	}
 
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
-	httpTransport.TLSClientConfig = h.clientTLSConfig
-	httpClient := &http.Client{
-		Timeout:   h.clientTimeout,
+	httpTransport.TLSClientConfig = h.config.ClientTLSConfig
+	httpClient := core.StrictHTTPClient(h.config.Strictmode, &http.Client{
+		Timeout:   h.config.ClientTimeout,
 		Transport: httpTransport,
-	}
+	})
 	issuerClient, err := h.issuerClientCreator(ctx, httpClient, offer.CredentialIssuer)
 	if err != nil {
 		return oidc4vci.Error{
@@ -150,7 +147,7 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 	}
 
 	retrieveCtx := audit.Context(ctx, "app-oidc4vci", "VCR/OIDC4VCI", "RetrieveCredential")
-	retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.clientTimeout)
+	retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.config.ClientTimeout)
 	defer cancel()
 	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer, accessTokenResponse)
 	if err != nil {

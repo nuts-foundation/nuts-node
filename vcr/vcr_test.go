@@ -20,6 +20,7 @@
 package vcr
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -90,6 +91,27 @@ func TestVCR_Configure(t *testing.T) {
 			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
 
 			assert.EqualError(t, err, "vcr.oidc4vci.url must use HTTPS when strictmode is enabled")
+		})
+		t.Run("strictmode passed to client APIs", func(t *testing.T) {
+			// load test VC
+			testVC := vc.VerifiableCredential{}
+			vcJSON, _ := os.ReadFile("test/vc.json")
+			_ = json.Unmarshal(vcJSON, &testVC)
+
+			testDirectory := io.TestDirectory(t)
+			ctrl := gomock.NewController(t)
+			pkiProvider := pki.NewMockProvider(ctrl)
+			pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
+			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider).(*vcr)
+			instance.config.OIDC4VCI.Enabled = true
+			instance.config.OIDC4VCI.URL = "https://example.com"
+
+			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
+			require.NoError(t, err)
+			// test simulates an offer call which will not be executed since the target wallet does not have an HTTPS endpoint
+			err = instance.oidcIssuer.OfferCredential(context.Background(), testVC, "http://example.com")
+
+			assert.ErrorContains(t, err, "http request error: strictmode is enabled, but request is not over HTTPS")
 		})
 	})
 }

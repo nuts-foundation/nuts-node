@@ -87,6 +87,17 @@ func TestHTTPClient(t *testing.T) {
 	})
 }
 
+func TestStrictHTTPClient_Do(t *testing.T) {
+	t.Run("error on HTTP call when strictmode is enabled", func(t *testing.T) {
+		client := StrictHTTPClient(true, &stdHttp.Client{})
+		httpRequest, _ := stdHttp.NewRequest("GET", "http://example.com", nil)
+
+		_, err := client.Do(httpRequest)
+
+		assert.Error(t, err)
+	})
+}
+
 func TestUserAgentRequestEditor(t *testing.T) {
 	GitVersion = ""
 	req := &stdHttp.Request{Header: map[string][]string{}}
