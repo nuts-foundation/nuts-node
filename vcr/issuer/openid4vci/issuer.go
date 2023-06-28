@@ -157,7 +157,7 @@ func (i *issuer) OfferCredential(ctx context.Context, credential vc.VerifiableCr
 
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
 	httpTransport.TLSClientConfig = i.config.ClientTLSConfig
-	httpClient := core.StrictHTTPClient(i.config.Strictmode, &http.Client{
+	httpClient := core.NewStrictHTTPClient(i.config.Strictmode, &http.Client{
 		Timeout:   i.config.ClientTimeout,
 		Transport: httpTransport,
 	})

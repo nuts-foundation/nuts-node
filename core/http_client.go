@@ -139,8 +139,8 @@ func newEmptyTokenGenerator() AuthorizationTokenGenerator {
 	}
 }
 
-// StrictHTTPClient creates a HTTPRequestDoer that only allows HTTPS calls when strictmode is enabled.
-func StrictHTTPClient(strictmode bool, client *http.Client) HTTPRequestDoer {
+// NewStrictHTTPClient creates a HTTPRequestDoer that only allows HTTPS calls when strictmode is enabled.
+func NewStrictHTTPClient(strictmode bool, client *http.Client) HTTPRequestDoer {
 	return &strictHTTPClient{
 		client:     client,
 		strictmode: strictmode,
