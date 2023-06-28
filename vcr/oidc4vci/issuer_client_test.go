@@ -84,7 +84,7 @@ func TestNewIssuerClient(t *testing.T) {
 	})
 }
 
-func Test_httpIssuerClient_GetCredential(t *testing.T) {
+func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 	ctx := context.Background()
 	httpClient := &http.Client{}
 	credentialRequest := CredentialRequest{
