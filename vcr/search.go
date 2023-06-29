@@ -25,7 +25,9 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/sirupsen/logrus"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -79,6 +81,7 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 	if err != nil {
 		return nil, err
 	}
+	verifyErrors := make(map[string]int, 0)
 	for _, doc := range docs {
 		foundCredential := vc.VerifiableCredential{}
 		err = json.Unmarshal(doc, &foundCredential)
@@ -92,9 +95,27 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 			log.Logger().
 				WithError(err).
 				WithField(core.LogFieldCredentialID, foundCredential.ID).
-				Debug("Encountered invalid VC, omitting from search results.")
+				Trace("Encountered invalid VC, omitting from search results.")
+			verifyErrors[err.Error()]++
 		}
 	}
 
+	// Print debug log if we found invalid credentials, make a distinction between different errors
+	if len(verifyErrors) > 0 && log.Logger().Level >= logrus.DebugLevel {
+		log.Logger().Debug(formatFilteredVCsLogMessage(verifyErrors))
+	}
+
 	return VCs, nil
+}
+
+func formatFilteredVCsLogMessage(verifyErrors map[string]int) string {
+	parts := make([]string, 0, len(verifyErrors))
+	numFiltered := 0
+	for err, count := range verifyErrors {
+		parts = append(parts, fmt.Sprintf("'%s' (%d times)", err, count))
+		sort.Strings(parts)
+		numFiltered += count
+	}
+	msg := fmt.Sprintf("Filtered %d invalid VCs from search results (more info on TRACE): %s", numFiltered, strings.Join(parts, ", "))
+	return msg
 }

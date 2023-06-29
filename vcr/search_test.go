@@ -22,6 +22,7 @@ package vcr
 import (
 	"context"
 	"github.com/stretchr/testify/require"
+	"io"
 	"testing"
 	"time"
 
@@ -160,4 +161,14 @@ func TestVCR_Search(t *testing.T) {
 
 		assert.Len(t, creds, 0)
 	})
+}
+
+func Test_formatFilteredVCsLogMessage(t *testing.T) {
+	input := map[string]int{
+		types.ErrRevoked.Error():   2,
+		types.ErrUntrusted.Error(): 10,
+		io.EOF.Error():             1,
+	}
+	msg := formatFilteredVCsLogMessage(input)
+	assert.Equal(t, "Filtered 13 invalid VCs from search results (more info on TRACE): 'EOF' (1 times), 'credential is revoked' (2 times), 'credential issuer is untrusted' (10 times)", msg)
 }
