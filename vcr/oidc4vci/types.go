@@ -146,7 +146,7 @@ type TokenResponse struct {
 
 // Config holds the config for the OIDC4VCI credential issuer and wallet
 type Config struct {
-	// DefinitionsDIR defines the directory where the credential definitions are stored
+	// DefinitionsDIR defines the directory where the additional credential definitions are stored
 	DefinitionsDIR string `koanf:"definitionsdir"`
 	// Enabled indicates if issuing and receiving credentials over OIDC4VCI is enabled
 	Enabled bool `koanf:"enabled"`
