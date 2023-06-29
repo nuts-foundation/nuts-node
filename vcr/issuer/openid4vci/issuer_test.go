@@ -89,7 +89,7 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 		require.Len(t, metadata.CredentialsSupported, 3)
 		assert.Equal(t, "ldp_vc", metadata.CredentialsSupported[0]["format"])
 		require.Len(t, metadata.CredentialsSupported[0]["cryptographic_binding_methods_supported"], 1)
-		assert.Equal(t, metadata.CredentialsSupported[0]["credentials_definition"],
+		assert.Equal(t, metadata.CredentialsSupported[0]["credential_definition"],
 			map[string]interface{}{
 				"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://www.nuts.nl/credentials/v1"},
 				"type":     []interface{}{"VerifiableCredential", "NutsAuthorizationCredential"},
