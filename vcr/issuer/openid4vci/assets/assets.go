@@ -16,16 +16,13 @@
  *
  */
 
-package oidc4vci
+package assets
 
 import (
-	"crypto/tls"
-	"time"
+	"embed"
 )
 
-// ClientConfig holds openid4vci client configuration
-type ClientConfig struct {
-	Timeout   time.Duration
-	TLS       *tls.Config
-	HTTPSOnly bool
-}
+// FS can be used to access the embedded assets.
+//
+//go:embed definitions
+var FS embed.FS

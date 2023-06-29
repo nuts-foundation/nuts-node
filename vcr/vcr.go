@@ -187,7 +187,10 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			HTTPSOnly: c.strictmode,
 		}
 
-		c.oidcIssuer = openid4vci.New(baseURL, clientConfig, c.keyResolver, c.oidcIssuerStore)
+		c.oidcIssuer, err = openid4vci.New(c.config.OIDC4VCI.DefinitionsDIR, baseURL, clientConfig, c.keyResolver, c.oidcIssuerStore)
+		if err != nil {
+			return err
+		}
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)

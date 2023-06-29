@@ -20,6 +20,11 @@
 
 package oidc4vci
 
+import (
+	"crypto/tls"
+	"time"
+)
+
 // PreAuthorizedCodeGrant is the grant type used for pre-authorized code grant from the OIDC4VCI specification.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-pre-authorized-code-flow
 const PreAuthorizedCodeGrant = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
@@ -137,4 +142,23 @@ type TokenResponse struct {
 
 	// TokenType defines the type of the token issued as described in [RFC6749].
 	TokenType string `json:"token_type"`
+}
+
+// Config holds the config for the OIDC4VCI credential issuer and wallet
+type Config struct {
+	// DefinitionsDIR defines the directory where the additional credential definitions are stored
+	DefinitionsDIR string `koanf:"definitionsdir"`
+	// Enabled indicates if issuing and receiving credentials over OIDC4VCI is enabled
+	Enabled bool `koanf:"enabled"`
+	// URL defines the base URL of the OIDC4VCI issuer and wallet
+	URL string `koanf:"url"`
+	// Timeout defines the timeout for HTTP client operations
+	Timeout time.Duration `koanf:"timeout"`
+}
+
+// ClientConfig holds openid4vci client configuration
+type ClientConfig struct {
+	Timeout   time.Duration
+	TLS       *tls.Config
+	HTTPSOnly bool
 }
