@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/sirupsen/logrus"
 	"reflect"
 	"sort"
 	"strings"
@@ -100,7 +101,7 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 	}
 
 	// Print debug log if we found invalid credentials, make a distinction between different errors
-	if len(verifyErrors) > 0 {
+	if len(verifyErrors) > 0 && log.Logger().Level >= logrus.DebugLevel {
 		log.Logger().Debug(formatFilteredVCsLogMessage(verifyErrors))
 	}
 
