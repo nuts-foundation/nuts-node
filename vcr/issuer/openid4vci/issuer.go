@@ -22,7 +22,6 @@ import (
 	"context"
 	crypt "crypto"
 	"crypto/rand"
-	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -71,13 +70,12 @@ type Issuer interface {
 }
 
 // New creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func New(baseURL string, clientTLSConfig *tls.Config, clientTimeout time.Duration, keyResolver types.KeyResolver, store Store) Issuer {
+func New(baseURL string, config oidc4vci.ClientConfig, keyResolver types.KeyResolver, store Store) Issuer {
 	return &issuer{
 		baseURL:             baseURL,
 		keyResolver:         keyResolver,
 		walletClientCreator: oidc4vci.NewWalletAPIClient,
-		clientTimeout:       clientTimeout,
-		clientTLSConfig:     clientTLSConfig,
+		config:              config,
 		store:               store,
 	}
 }
@@ -86,9 +84,8 @@ type issuer struct {
 	baseURL             string
 	keyResolver         types.KeyResolver
 	store               Store
-	walletClientCreator func(ctx context.Context, httpClient *http.Client, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
-	clientTLSConfig     *tls.Config
-	clientTimeout       time.Duration
+	walletClientCreator func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
+	config              oidc4vci.ClientConfig
 }
 
 func (i *issuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error) {
@@ -159,11 +156,11 @@ func (i *issuer) OfferCredential(ctx context.Context, credential vc.VerifiableCr
 		Infof("Offering credential using OIDC4VCI (client-metadata-url=%s)", clientMetadataURL)
 
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
-	httpTransport.TLSClientConfig = i.clientTLSConfig
-	httpClient := &http.Client{
-		Timeout:   i.clientTimeout,
+	httpTransport.TLSClientConfig = i.config.TLS
+	httpClient := core.NewStrictHTTPClient(i.config.HTTPSOnly, &http.Client{
+		Timeout:   i.config.Timeout,
 		Transport: httpTransport,
-	}
+	})
 	client, err := i.walletClientCreator(ctx, httpClient, clientMetadataURL)
 	if err != nil {
 		return err

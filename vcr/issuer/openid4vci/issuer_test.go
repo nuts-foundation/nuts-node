@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -53,7 +54,7 @@ var issuedVC = vc.VerifiableCredential{
 }
 
 func Test_memoryIssuer_Metadata(t *testing.T) {
-	metadata, err := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer).Metadata(issuerDID)
+	metadata, err := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer).Metadata(issuerDID)
 
 	require.NoError(t, err)
 	assert.Equal(t, oidc4vci.CredentialIssuerMetadata{
@@ -64,7 +65,7 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 }
 
 func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
-	metadata, err := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer).ProviderMetadata(issuerDID)
+	metadata, err := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer).ProviderMetadata(issuerDID)
 
 	require.NoError(t, err)
 	assert.Equal(t, oidc4vci.ProviderMetadata{
@@ -111,7 +112,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 	const preAuthCode = "some-secret-code"
 
-	service := New(baseURL, nil, time.Second, keyResolver, NewMemoryStore()).(*issuer)
+	service := New(baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
 	_, err := service.createOffer(ctx, issuedVC, preAuthCode)
 	require.NoError(t, err)
 	accessToken, err := service.HandleAccessTokenRequest(ctx, issuerDID, preAuthCode)
@@ -165,7 +166,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 					},
 				}
 
-				service := New(baseURL, nil, time.Second, keyResolver, NewMemoryStore()).(*issuer)
+				service := New(baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
 				_, err := service.createOffer(ctx, otherIssuedVC, preAuthCode)
 				require.NoError(t, err)
 				accessToken, err := service.HandleAccessTokenRequest(ctx, issuerDID, preAuthCode)
@@ -181,7 +182,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("signing key is unknown", func(t *testing.T) {
 				keyResolver := types.NewMockKeyResolver(ctrl)
 				keyResolver.EXPECT().ResolveSigningKey(keyID, nil).AnyTimes().Return(nil, types.ErrKeyNotFound)
-				service := New(baseURL, nil, time.Second, keyResolver, NewMemoryStore()).(*issuer)
+				service := New(baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
 				_, err := service.createOffer(ctx, issuedVC, preAuthCode)
 				require.NoError(t, err)
 				accessToken, err := service.HandleAccessTokenRequest(ctx, issuerDID, preAuthCode)
@@ -228,7 +229,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	})
 
 	t.Run("unknown access token", func(t *testing.T) {
-		service := New(baseURL, nil, time.Second, keyResolver, NewMemoryStore()).(*issuer)
+		service := New(baseURL, oidc4vci.ClientConfig{}, keyResolver, NewMemoryStore()).(*issuer)
 
 		response, err := service.HandleCredentialRequest(ctx, issuerDID, validRequest, accessToken)
 
@@ -242,8 +243,8 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(nil)
-		service := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer)
-		service.walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
+		service := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
+		service.walletClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (oidc4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
 
@@ -256,8 +257,8 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().Metadata().Return(oidc4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "here-please"})
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(errors.New("failed"))
-		service := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer)
-		service.walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
+		service := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
+		service.walletClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (oidc4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
 
@@ -270,7 +271,7 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
-		service := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer)
+		service := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
 		_, err := service.createOffer(ctx, issuedVC, "code")
 		require.NoError(t, err)
 
@@ -280,7 +281,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		assert.NotEmpty(t, accessToken)
 	})
 	t.Run("pre-authorized code issued by other issuer", func(t *testing.T) {
-		service := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer)
+		service := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
 		_, err := service.createOffer(ctx, issuedVC, "code")
 		require.NoError(t, err)
 
@@ -293,7 +294,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		assert.Empty(t, accessToken)
 	})
 	t.Run("unknown pre-authorized code", func(t *testing.T) {
-		service := New(baseURL, nil, time.Second, nil, NewMemoryStore()).(*issuer)
+		service := New(baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore()).(*issuer)
 		_, err := service.createOffer(ctx, issuedVC, "some-other-code")
 		require.NoError(t, err)
 

@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/url"
 )
 
@@ -38,7 +38,7 @@ type WalletAPIClient interface {
 var _ WalletAPIClient = (*defaultWalletAPIClient)(nil)
 
 // NewWalletAPIClient resolves the OAuth2 credential client metadata from the given URL.
-func NewWalletAPIClient(ctx context.Context, httpClient *http.Client, walletMetadataURL string) (WalletAPIClient, error) {
+func NewWalletAPIClient(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (WalletAPIClient, error) {
 	if walletMetadataURL == "" {
 		return nil, errors.New("empty wallet metadata URL")
 	}
@@ -58,7 +58,7 @@ var _ WalletAPIClient = (*defaultWalletAPIClient)(nil)
 
 type defaultWalletAPIClient struct {
 	metadata   OAuth2ClientMetadata
-	httpClient *http.Client
+	httpClient core.HTTPRequestDoer
 }
 
 func (c *defaultWalletAPIClient) Metadata() OAuth2ClientMetadata {
@@ -82,7 +82,7 @@ func (c *defaultWalletAPIClient) OfferCredential(ctx context.Context, offer Cred
 	return nil
 }
 
-func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string, httpClient *http.Client) (*OAuth2ClientMetadata, error) {
+func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string, httpClient core.HTTPRequestDoer) (*OAuth2ClientMetadata, error) {
 	// TODO: Support HTTPS (which truststore?)
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
 	// TODO: what about caching?
