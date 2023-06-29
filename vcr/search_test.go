@@ -170,5 +170,5 @@ func Test_formatFilteredVCsLogMessage(t *testing.T) {
 		io.EOF.Error():             1,
 	}
 	msg := formatFilteredVCsLogMessage(input)
-	assert.Equal(t, "Filtered 3 invalid VCs from search results (more info on TRACE): 'EOF' (1 times), 'credential is revoked' (2 times), 'credential issuer is untrusted' (10 times)", msg)
+	assert.Equal(t, "Filtered 13 invalid VCs from search results (more info on TRACE): 'EOF' (1 times), 'credential is revoked' (2 times), 'credential issuer is untrusted' (10 times)", msg)
 }

@@ -115,6 +115,6 @@ func formatFilteredVCsLogMessage(verifyErrors map[string]int) string {
 		sort.Strings(parts)
 		numFiltered += count
 	}
-	msg := fmt.Sprintf("Filtered %d invalid VCs from search results (more info on TRACE): %s", len(verifyErrors), strings.Join(parts, ", "))
+	msg := fmt.Sprintf("Filtered %d invalid VCs from search results (more info on TRACE): %s", numFiltered, strings.Join(parts, ", "))
 	return msg
 }
