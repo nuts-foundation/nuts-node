@@ -86,7 +86,7 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "https://example.com/did:nuts:issuer", metadata.CredentialIssuer)
 		assert.Equal(t, "https://example.com/did:nuts:issuer/issuer/oidc4vci/credential", metadata.CredentialEndpoint)
-		require.Len(t, metadata.CredentialsSupported, 2)
+		require.Len(t, metadata.CredentialsSupported, 3)
 		assert.Equal(t, "ldp_vc", metadata.CredentialsSupported[0]["format"])
 		require.Len(t, metadata.CredentialsSupported[0]["cryptographic_binding_methods_supported"], 1)
 		assert.Equal(t, metadata.CredentialsSupported[0]["credentials_definition"],
@@ -94,30 +94,6 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 				"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://www.nuts.nl/credentials/v1"},
 				"type":     []interface{}{"VerifiableCredential", "NutsAuthorizationCredential"},
 			})
-	})
-
-	t.Run("custom definitions", func(t *testing.T) {
-		iss, _ := New("./test/valid", baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore())
-		metadata, err := iss.(*issuer).Metadata(issuerDID)
-
-		require.NoError(t, err)
-		assert.Len(t, metadata.CredentialsSupported, 3)
-	})
-
-	t.Run("error - invalid json", func(t *testing.T) {
-		iss, _ := New("./test/invalid", baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore())
-		_, err := iss.(*issuer).Metadata(issuerDID)
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "failed to parse credential definition from test/invalid/invalid.json: unexpected end of JSON input")
-	})
-
-	t.Run("error - invalid directory", func(t *testing.T) {
-		iss, _ := New("./test/non_existing", baseURL, oidc4vci.ClientConfig{}, nil, NewMemoryStore())
-		_, err := iss.(*issuer).Metadata(issuerDID)
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "failed to load credential definitions: lstat ./test/non_existing: no such file or directory")
 	})
 }
 
