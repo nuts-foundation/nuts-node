@@ -277,19 +277,31 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	credential := flow.Credentials[0] // there's always just one (at least for now)
 	wallet, _ := getSubjectDID(credential)
 
+	// augment invalid_proof errors according to §7.3.2 of openid4vci spec
+	generateProofError := func(err oidc4vci.Error) error {
+		cnonce := generateCode()
+		if err := i.store.StoreReference(ctx, flow.ID, cNonceRefType, cnonce, time.Now().Add(TokenTTL)); err != nil {
+			return err
+		}
+		expiry := int(TokenTTL.Seconds())
+		err.CNonce = &cnonce
+		err.CNonceExpiresIn = &expiry
+		return err
+	}
+
 	if request.Proof == nil {
-		return oidc4vci.Error{
+		return generateProofError(oidc4vci.Error{
 			Err:        errors.New("missing proof"),
 			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		}
+		})
 	}
 	if request.Proof.ProofType != oidc4vci.ProofTypeJWT {
-		return oidc4vci.Error{
+		return generateProofError(oidc4vci.Error{
 			Err:        errors.New("proof type not supported"),
 			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		}
+		})
 	}
 	var signingKeyID string
 	token, err := crypto.ParseJWT(request.Proof.Jwt, func(kid string) (crypt.PublicKey, error) {
@@ -297,20 +309,20 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 		return i.keyResolver.ResolveSigningKey(kid, nil)
 	}, jwt.WithAcceptableSkew(5*time.Second))
 	if err != nil {
-		return oidc4vci.Error{
+		return generateProofError(oidc4vci.Error{
 			Err:        err,
 			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		}
+		})
 	}
 
 	// Proof must be signed by wallet to which it was offered (proof signer == offer receiver)
 	if signerDID, err := didservice.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
-		return oidc4vci.Error{
+		return generateProofError(oidc4vci.Error{
 			Err:        fmt.Errorf("credential offer was signed by other DID than intended wallet: %s", signingKeyID),
 			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		}
+		})
 	}
 
 	// Validate audience
@@ -322,11 +334,11 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 		}
 	}
 	if !audienceMatches {
-		return oidc4vci.Error{
+		return generateProofError(oidc4vci.Error{
 			Err:        fmt.Errorf("audience doesn't match credential issuer (aud=%s)", token.Audience()),
 			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		}
+		})
 	}
 
 	// Validate JWT type
@@ -342,28 +354,28 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	}
 	typ := message.Signatures()[0].ProtectedHeaders().Type()
 	if typ == "" {
-		return oidc4vci.Error{
+		return generateProofError(oidc4vci.Error{
 			Err:        errors.New("missing typ header"),
 			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		}
+		})
 	}
 	if typ != oidc4vci.JWTTypeOpenID4VCIProof {
-		return oidc4vci.Error{
+		return generateProofError(oidc4vci.Error{
 			Err:        fmt.Errorf("invalid typ claim (expected: %s): %s", oidc4vci.JWTTypeOpenID4VCIProof, typ),
 			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		}
+		})
 	}
 
 	// given the JWT typ, the nonce is in the 'nonce' claim
 	nonce, ok := token.Get("nonce")
 	if !ok {
-		return oidc4vci.Error{
+		return generateProofError(oidc4vci.Error{
 			Err:        errors.New("missing nonce claim"),
 			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		}
+		})
 	}
 
 	// check if the nonce matches the one we sent in the offer

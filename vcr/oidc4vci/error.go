@@ -52,7 +52,12 @@ const (
 
 // Error is an error that signals the error was (probably) caused by the client (e.g. bad request),
 // or that the client can recover from the error (e.g. retry). Errors are specified by the OpenID4VCI specification.
+// Invalid proof errors may also add a new c_nonce that the client must use in the next credential request.
 type Error struct {
+	// CNonce is a random string that the client must send in the next credential request.
+	CNonce *string `json:"c_nonce,omitempty"`
+	// CNonceExpiresIn is the number of seconds until the c_nonce expires.
+	CNonceExpiresIn *int `json:"c_nonce_expires_in,omitempty"`
 	// Code is the error code as defined by the OpenID4VCI spec.
 	Code ErrorCode `json:"error"`
 	// Err is the underlying error, may be omitted. It is not intended to be returned to the client.

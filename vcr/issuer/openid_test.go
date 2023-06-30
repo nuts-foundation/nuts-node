@@ -179,6 +179,21 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - missing proof")
 				assert.Nil(t, response)
 			})
+			t.Run("missing proof returns error with new c_nonce", func(t *testing.T) {
+				invalidRequest := createRequest(createHeaders(), createClaims(""))
+				invalidRequest.Proof = nil
+
+				_, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
+
+				require.ErrorAs(t, err, new(oidc4vci.Error))
+				cNonce := err.(oidc4vci.Error).CNonce
+				assert.NotNil(t, cNonce)
+				assert.NotNil(t, err.(oidc4vci.Error).CNonceExpiresIn)
+
+				flow, err := service.store.FindByReference(ctx, cNonceRefType, *cNonce)
+				require.NoError(t, err)
+				assert.NotNil(t, flow)
+			})
 			t.Run("invalid JWT", func(t *testing.T) {
 				invalidRequest := createRequest(createHeaders(), createClaims(""))
 				invalidRequest.Proof.Jwt = "not a JWT"

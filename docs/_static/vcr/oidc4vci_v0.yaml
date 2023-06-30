@@ -424,9 +424,17 @@ components:
         - error
       properties:
         error:
-            type: string
-            description: Code identifying the error that occurred.
-            example: "invalid_request"
+          type: string
+          description: Code identifying the error that occurred.
+          example: "invalid_request"
+        c_nonce:
+          type: string
+          description: a string containing a new nonce value to be used for subsequent requests.
+          example: "tZignsnFbp"
+        c_nonce_expires_in:
+          type: integer
+          description: The lifetime in seconds of the nonce value.
+          example: 900
     CredentialResponse:
       type: object
       required:
