@@ -300,8 +300,8 @@ func Test_issuer_Issue(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			walletResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
 			walletResolver.EXPECT().Resolve(holderDID).AnyTimes().Return(walletIdentifier, nil)
-			openidIsser := NewMockOpenIDHandler(ctrl)
-			openidIsser.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier)
+			openidIssuer := NewMockOpenIDHandler(ctrl)
+			openidIssuer.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier)
 			vcrStore := vcr.NewMockWriter(ctrl)
 			vcrStore.EXPECT().StoreCredential(gomock.Any(), gomock.Any())
 			keyResolver := NewMockkeyResolver(ctrl)
@@ -317,7 +317,7 @@ func Test_issuer_Issue(t *testing.T) {
 				walletResolver: walletResolver,
 				openidHandlerFn: func(ctx context.Context, id did.DID) (OpenIDHandler, error) {
 					if id.Equals(issuerDID) {
-						return openidIsser, nil
+						return openidIssuer, nil
 					}
 					return nil, nil
 				},

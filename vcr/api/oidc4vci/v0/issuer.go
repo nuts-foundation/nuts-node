@@ -113,7 +113,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 
 // RequestAccessToken requests an OAuth2 access token from the given DID.
 func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	issuer, err := w.getIssuerHandler(ctx, request.Did)
+	issuerHandler, err := w.getIssuerHandler(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -125,18 +125,14 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 			StatusCode: http.StatusBadRequest,
 		}
 	}
-	accessToken, err := issuer.HandleAccessTokenRequest(ctx, request.Body.PreAuthorizedCode)
+	accessToken, cNonce, err := issuerHandler.HandleAccessTokenRequest(ctx, request.Body.PreAuthorizedCode)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Revisit expires and nonce values
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2051
-	expiresIn := 300
-	cNonce := "nonsens"
 	return RequestAccessToken200JSONResponse(TokenResponse{
 		AccessToken: accessToken,
-		CNonce:      &cNonce,
-		ExpiresIn:   &expiresIn,
+		CNonce:      cNonce,
+		ExpiresIn:   int(issuer.TokenTTL.Seconds()),
 		TokenType:   "bearer",
 	}), nil
 }

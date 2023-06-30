@@ -138,7 +138,7 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 		}
 	}
 
-	if accessTokenResponse.CNonce == nil {
+	if accessTokenResponse.CNonce == "" {
 		return oidc4vci.Error{
 			Err:        errors.New("c_nonce is missing"),
 			Code:       oidc4vci.InvalidToken,
@@ -237,7 +237,7 @@ func (h openidHandler) retrieveCredential(ctx context.Context, issuerClient oidc
 	claims := map[string]interface{}{
 		"aud":   issuerClient.Metadata().CredentialIssuer,
 		"iat":   nowFunc().Unix(),
-		"nonce": *tokenResponse.CNonce,
+		"nonce": tokenResponse.CNonce,
 	}
 
 	proof, err := h.signer.SignJWT(ctx, claims, headers, keyID)

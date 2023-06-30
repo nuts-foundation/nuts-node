@@ -93,8 +93,8 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			"pre-authorized_code": "code",
 		}).Return(&oidc4vci.TokenResponse{
 			AccessToken: "access-token",
-			CNonce:      &nonce,
-			ExpiresIn:   new(int),
+			CNonce:      nonce,
+			ExpiresIn:   0,
 			TokenType:   "bearer",
 		}, nil)
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
@@ -258,7 +258,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := oidc4vci.NewMockIssuerAPIClient(ctrl)
 		issuerAPIClient.EXPECT().Metadata().Return(metadata)
-		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oidc4vci.TokenResponse{AccessToken: "access-token", CNonce: new(string)}, nil)
+		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oidc4vci.TokenResponse{AccessToken: "access-token", CNonce: "c_nonce"}, nil)
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), gomock.Any()).Return(&vc.VerifiableCredential{
 			Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
 			Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential")},
