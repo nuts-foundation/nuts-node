@@ -12,7 +12,6 @@ auth:
     autoupdateschemas: false
 network:
   bootstrapnodes: nodeA:5555
-  publicaddr: nodeB:5555
   grpcaddr:	:5555
   enabletls: false
   v2:

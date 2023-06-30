@@ -16,7 +16,6 @@ tls:
   certheader: X-SSL-CERT
 network:
   bootstrapnodes: nodeA:443
-  publicaddr: nodeB:5555
   grpcaddr:	:5555
   v2:
     gossipinterval: 250

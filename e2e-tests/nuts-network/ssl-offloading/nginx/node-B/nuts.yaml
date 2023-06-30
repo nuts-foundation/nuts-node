@@ -19,7 +19,6 @@ network:
   certkeyfile: /opt/nuts/certificate-and-key.pem
   truststorefile: /opt/nuts/truststore.pem
   bootstrapnodes: nodeA:443
-  publicaddr: nodeB:5555
   grpcaddr:	:5555
   v2:
     gossipinterval: 250
