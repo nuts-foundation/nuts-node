@@ -95,6 +95,7 @@ type OpenIDHandler interface {
 	// ProviderMetadata returns the OpenID Connect provider metadata.
 	ProviderMetadata() oidc4vci.ProviderMetadata
 	// HandleAccessTokenRequest handles an OAuth2 access token request for the given issuer and pre-authorized code.
+	// It returns the access token and a c_nonce.
 	HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, string, error)
 	// Metadata returns the OpenID4VCI credential issuer metadata for the given issuer.
 	Metadata() oidc4vci.CredentialIssuerMetadata
