@@ -100,7 +100,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
-		oidcIssuer.EXPECT().HandleAccessTokenRequest(gomock.Any(), "code").Return("access-token", nil)
+		oidcIssuer.EXPECT().HandleAccessTokenRequest(gomock.Any(), "code").Return("access-token", "c_nonce", nil)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
@@ -116,6 +116,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "access-token", response.(RequestAccessToken200JSONResponse).AccessToken)
+		assert.Equal(t, "c_nonce", response.(RequestAccessToken200JSONResponse).CNonce)
 	})
 	t.Run("unknown tenant", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

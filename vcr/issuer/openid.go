@@ -80,10 +80,12 @@ type Grant struct {
 var ErrUnknownIssuer = errors.New("unknown OpenID4VCI issuer")
 var _ OpenIDHandler = (*openidHandler)(nil)
 
-// ttl is the time-to-live for issuance flows and nonces.
-const ttl = 15 * time.Minute
+// TokenTTL is the time-to-live for issuance flows, access tokens and nonces.
+const TokenTTL = 15 * time.Minute
+
 const preAuthCodeRefType = "preauthcode"
 const accessTokenRefType = "accesstoken"
+const cNonceRefType = "c_nonce"
 
 // openidSecretSizeBits is the size of the generated random secrets (access tokens, pre-authorized codes) in bits.
 const openidSecretSizeBits = 128
@@ -93,7 +95,7 @@ type OpenIDHandler interface {
 	// ProviderMetadata returns the OpenID Connect provider metadata.
 	ProviderMetadata() oidc4vci.ProviderMetadata
 	// HandleAccessTokenRequest handles an OAuth2 access token request for the given issuer and pre-authorized code.
-	HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, error)
+	HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, string, error)
 	// Metadata returns the OpenID4VCI credential issuer metadata for the given issuer.
 	Metadata() oidc4vci.CredentialIssuerMetadata
 	// OfferCredential sends a credential offer to the specified wallet. It derives the issuer from the credential.
@@ -152,40 +154,46 @@ func (i *openidHandler) ProviderMetadata() oidc4vci.ProviderMetadata {
 	}
 }
 
-func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, error) {
+func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, string, error) {
 	flow, err := i.store.FindByReference(ctx, preAuthCodeRefType, preAuthorizedCode)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if flow == nil {
-		return "", oidc4vci.Error{
+		return "", "", oidc4vci.Error{
 			Err:        errors.New("unknown pre-authorized code"),
 			Code:       oidc4vci.InvalidGrant,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	if flow.IssuerID != i.issuerDID.String() {
-		return "", oidc4vci.Error{
+		return "", "", oidc4vci.Error{
 			Err:        errors.New("pre-authorized code not issued by this issuer"),
 			Code:       oidc4vci.InvalidGrant,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	accessToken := generateCode()
-	err = i.store.StoreReference(ctx, flow.ID, accessTokenRefType, accessToken, time.Now().Add(ttl))
+	err = i.store.StoreReference(ctx, flow.ID, accessTokenRefType, accessToken, time.Now().Add(TokenTTL))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
+	cNonce := generateCode()
+	err = i.store.StoreReference(ctx, flow.ID, cNonceRefType, cNonce, time.Now().Add(TokenTTL))
+	if err != nil {
+		return "", "", err
+	}
+
 	// PreAuthorizedCode is to be used just once
 	// See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-4.1.1
-	// "This code MUST be short lived and single-use."
+	// "This code MUST be short-lived and single-use."
 	err = i.store.DeleteReference(ctx, preAuthCodeRefType, preAuthorizedCode)
 	if err != nil {
 		// Extremely unlikely, but if we return an error here the credential issuance flow will fail without a way to retry it.
-		// Thus just log it, nothing will break (since they'll be pruned after ttl anyway).
+		// Just log it, nothing will break (since they'll be pruned after ttl anyway).
 		log.Logger().WithError(err).Error("Failed to delete pre-authorized code")
 	}
-	return accessToken, nil
+	return accessToken, cNonce, nil
 }
 
 func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.VerifiableCredential, walletIdentifier string) error {
@@ -219,8 +227,6 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 }
 
 func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
-	// TODO: Check if issuer is served by this instance
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	// TODO: Verify requested format and credential definition
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
 	flow, err := i.store.FindByReference(ctx, accessTokenRefType, accessToken)
@@ -239,7 +245,16 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 	credential := flow.Credentials[0] // there's always just one (at least for now)
 	subjectDID, _ := getSubjectDID(credential)
 
-	if err := i.validateProof(request, subjectDID); err != nil {
+	// check credential.Issuer against given issuer
+	if credential.Issuer.String() != i.issuerDID.String() {
+		return nil, oidc4vci.Error{
+			Err:        errors.New("credential issuer does not match given issuer"),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	if err = i.validateProof(ctx, flow, request); err != nil {
 		return nil, err
 	}
 
@@ -258,7 +273,10 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 // validateProof validates the proof of the credential request. Aside from checks as specified by the spec,
 // it verifies the proof signature, and whether the signer is the intended wallet.
 // See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-proof-types
-func (i *openidHandler) validateProof(request oidc4vci.CredentialRequest, wallet did.DID) error {
+func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request oidc4vci.CredentialRequest) error {
+	credential := flow.Credentials[0] // there's always just one (at least for now)
+	wallet, _ := getSubjectDID(credential)
+
 	if request.Proof == nil {
 		return oidc4vci.Error{
 			Err:        errors.New("missing proof"),
@@ -338,8 +356,35 @@ func (i *openidHandler) validateProof(request oidc4vci.CredentialRequest, wallet
 		}
 	}
 
-	// TODO: Check nonce value when we've implemented safe nonce handling
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2051
+	// given the JWT typ, the nonce is in the 'nonce' claim
+	nonce, ok := token.Get("nonce")
+	if !ok {
+		return oidc4vci.Error{
+			Err:        errors.New("missing nonce claim"),
+			Code:       oidc4vci.InvalidProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	// check if the nonce matches the one we sent in the offer
+	flowFromNonce, err := i.store.FindByReference(ctx, cNonceRefType, nonce.(string))
+	if err != nil {
+		return err
+	}
+	if flowFromNonce == nil {
+		return oidc4vci.Error{
+			Err:        errors.New("unknown nonce"),
+			Code:       oidc4vci.InvalidToken,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+	if flowFromNonce.ID != flow.ID {
+		return oidc4vci.Error{
+			Err:        errors.New("nonce not valid for access token"),
+			Code:       oidc4vci.InvalidToken,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
 
 	return nil
 }
@@ -367,7 +412,7 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 		ID:          uuid.NewString(),
 		IssuerID:    credential.Issuer.String(),
 		WalletID:    subjectDID.String(),
-		Expiry:      time.Now().Add(ttl),
+		Expiry:      time.Now().Add(TokenTTL),
 		Credentials: []vc.VerifiableCredential{credential},
 		Grants: []Grant{
 			{
@@ -378,7 +423,7 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 	}
 	err := i.store.Store(ctx, flow)
 	if err == nil {
-		err = i.store.StoreReference(ctx, flow.ID, preAuthCodeRefType, preAuthorizedCode, time.Now().Add(ttl))
+		err = i.store.StoreReference(ctx, flow.ID, preAuthCodeRefType, preAuthorizedCode, time.Now().Add(TokenTTL))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("unable to store credential offer: %w", err)
