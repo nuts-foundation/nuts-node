@@ -23,11 +23,13 @@ import (
 	crypt "crypto"
 	"errors"
 	"github.com/golang/mock/gomock"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -46,6 +48,14 @@ var keyID = holderDID.String() + "#1"
 const definitionsDIR = "./test/valid"
 
 var issuedVC = vc.VerifiableCredential{
+	Context: []ssi.URI{
+		ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
+		ssi.MustParseURI("http://example.org/credentials/V1"),
+	},
+	Type: []ssi.URI{
+		ssi.MustParseURI("VerifiableCredential"),
+		ssi.MustParseURI("HumanCredential"),
+	},
 	Issuer: issuerDID.URI(),
 	CredentialSubject: []interface{}{
 		map[string]interface{}{
@@ -56,21 +66,21 @@ var issuedVC = vc.VerifiableCredential{
 
 func TestNew(t *testing.T) {
 	t.Run("custom definitions", func(t *testing.T) {
-		iss, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/valid", oidc4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
+		iss, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/valid", oidc4vci.ClientConfig{}, nil, NewOpenIDMemoryStore(), jsonld.Reader{})
 
 		require.NoError(t, err)
 		assert.Len(t, iss.(*openidHandler).credentialsSupported, 3)
 	})
 
 	t.Run("error - invalid json", func(t *testing.T) {
-		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/invalid", oidc4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
+		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/invalid", oidc4vci.ClientConfig{}, nil, NewOpenIDMemoryStore(), jsonld.Reader{})
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to parse credential definition from test/invalid/invalid.json: unexpected end of JSON input")
 	})
 
 	t.Run("error - invalid directory", func(t *testing.T) {
-		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/non_existing", oidc4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
+		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/non_existing", oidc4vci.ClientConfig{}, nil, NewOpenIDMemoryStore(), jsonld.Reader{})
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to load credential definitions: lstat ./test/non_existing: no such file or directory")
@@ -129,11 +139,24 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			"nonce": nonce,
 		}
 	}
-	createRequest := func(headers, claims map[string]interface{}) oidc4vci.CredentialRequest {
+	createCredentialDefinition := func() map[string]any {
+		return map[string]interface{}{
+			"@context": []string{
+				"https://www.w3.org/2018/credentials/v1",
+				"http://example.org/credentials/V1",
+			},
+			"type": []string{"VerifiableCredential", "HumanCredential"},
+			"credentialSubject": map[string]interface{}{
+				"id": holderDID.String(),
+			},
+		}
+	}
+	createRequest := func(headers, claims, credentialDefinition map[string]interface{}) oidc4vci.CredentialRequest {
 		proof, err := keyStore.SignJWT(ctx, claims, headers, headers["kid"])
 		require.NoError(t, err)
 		return oidc4vci.CredentialRequest{
-			Format: oidc4vci.VerifiableCredentialJSONLDFormat,
+			Format:               oidc4vci.VerifiableCredentialJSONLDFormat,
+			CredentialDefinition: &credentialDefinition,
 			Proof: &oidc4vci.CredentialRequestProof{
 				Jwt:       proof,
 				ProofType: oidc4vci.ProofTypeJWT,
@@ -148,7 +171,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	require.NoError(t, err)
 	accessToken, cNonce, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
 	require.NoError(t, err)
-	validRequest := createRequest(createHeaders(), createClaims(cNonce))
+	validRequest := createRequest(createHeaders(), createClaims(cNonce), createCredentialDefinition())
 
 	t.Run("ok", func(t *testing.T) {
 		auditLogs := audit.CaptureLogs(t)
@@ -161,7 +184,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	})
 	t.Run("proof validation", func(t *testing.T) {
 		t.Run("unsupported proof type", func(t *testing.T) {
-			invalidRequest := createRequest(createHeaders(), createClaims(""))
+			invalidRequest := createRequest(createHeaders(), createClaims(""), createCredentialDefinition())
 			invalidRequest.Proof.ProofType = "not-supported"
 
 			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
@@ -171,7 +194,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		})
 		t.Run("jwt", func(t *testing.T) {
 			t.Run("missing proof", func(t *testing.T) {
-				invalidRequest := createRequest(createHeaders(), createClaims(""))
+				invalidRequest := createRequest(createHeaders(), createClaims(""), createCredentialDefinition())
 				invalidRequest.Proof = nil
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
@@ -180,7 +203,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				assert.Nil(t, response)
 			})
 			t.Run("missing proof returns error with new c_nonce", func(t *testing.T) {
-				invalidRequest := createRequest(createHeaders(), createClaims(""))
+				invalidRequest := createRequest(createHeaders(), createClaims(""), createCredentialDefinition())
 				invalidRequest.Proof = nil
 
 				_, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
@@ -195,7 +218,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				assert.NotNil(t, flow)
 			})
 			t.Run("invalid JWT", func(t *testing.T) {
-				invalidRequest := createRequest(createHeaders(), createClaims(""))
+				invalidRequest := createRequest(createHeaders(), createClaims(""), createCredentialDefinition())
 				invalidRequest.Proof.Jwt = "not a JWT"
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
@@ -219,7 +242,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				accessToken, _, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
 				require.NoError(t, err)
 
-				invalidRequest := createRequest(createHeaders(), createClaims(""))
+				invalidRequest := createRequest(createHeaders(), createClaims(""), createCredentialDefinition())
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -235,7 +258,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				accessToken, _, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
 				require.NoError(t, err)
 
-				invalidRequest := createRequest(createHeaders(), createClaims(""))
+				invalidRequest := createRequest(createHeaders(), createClaims(""), createCredentialDefinition())
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -245,7 +268,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("typ header missing", func(t *testing.T) {
 				headers := createHeaders()
 				headers["typ"] = ""
-				invalidRequest := createRequest(headers, createClaims(""))
+				invalidRequest := createRequest(headers, createClaims(""), createCredentialDefinition())
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -255,7 +278,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("typ header invalid", func(t *testing.T) {
 				headers := createHeaders()
 				delete(headers, "typ") // causes JWT library to set it to default ("JWT")
-				invalidRequest := createRequest(headers, createClaims(""))
+				invalidRequest := createRequest(headers, createClaims(""), createCredentialDefinition())
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -265,7 +288,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("aud header doesn't match issuer identifier", func(t *testing.T) {
 				claims := createClaims("")
 				claims["aud"] = "https://example.com/someone-else"
-				invalidRequest := createRequest(createHeaders(), claims)
+				invalidRequest := createRequest(createHeaders(), claims, createCredentialDefinition())
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -274,7 +297,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			})
 		})
 		t.Run("unknown nonce", func(t *testing.T) {
-			invalidRequest := createRequest(createHeaders(), createClaims("other"))
+			invalidRequest := createRequest(createHeaders(), createClaims("other"), createCredentialDefinition())
 
 			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -286,7 +309,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			require.NoError(t, err)
 			_, cNonce, err := service.HandleAccessTokenRequest(ctx, "other")
 			require.NoError(t, err)
-			invalidRequest := createRequest(createHeaders(), createClaims(cNonce))
+			invalidRequest := createRequest(createHeaders(), createClaims(cNonce), createCredentialDefinition())
 
 			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -349,12 +372,12 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("pre-authorized code issued by other issuer", func(t *testing.T) {
 		store := NewOpenIDMemoryStore()
-		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, oidc4vci.ClientConfig{}, nil, store)
+		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, oidc4vci.ClientConfig{}, nil, store, jsonld.Reader{})
 		require.NoError(t, err)
 		_, err = service.(*openidHandler).createOffer(ctx, issuedVC, "code")
 		require.NoError(t, err)
 
-		otherService, err := NewOpenIDHandler(did.MustParseDID("did:nuts:other"), "http://example.com/other", definitionsDIR, oidc4vci.ClientConfig{}, nil, store)
+		otherService, err := NewOpenIDHandler(did.MustParseDID("did:nuts:other"), "http://example.com/other", definitionsDIR, oidc4vci.ClientConfig{}, nil, store, jsonld.Reader{})
 		require.NoError(t, err)
 		accessToken, _, err := otherService.HandleAccessTokenRequest(audit.TestContext(), "code")
 
@@ -387,7 +410,7 @@ func assertProtocolError(t *testing.T, err error, statusCode int, message string
 }
 
 func requireNewTestHandler(t *testing.T, keyResolver types.KeyResolver) *openidHandler {
-	service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, oidc4vci.ClientConfig{}, keyResolver, NewOpenIDMemoryStore())
+	service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, oidc4vci.ClientConfig{}, keyResolver, NewOpenIDMemoryStore(), jsonld.Reader{DocumentLoader: jsonld.NewTestJSONLDManager(t).DocumentLoader()})
 	require.NoError(t, err)
 	return service.(*openidHandler)
 }

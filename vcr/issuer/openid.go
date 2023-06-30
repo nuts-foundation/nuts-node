@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
@@ -106,7 +107,7 @@ type OpenIDHandler interface {
 }
 
 // NewOpenIDHandler creates a new OpenIDHandler instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, config oidc4vci.ClientConfig, keyResolver types.KeyResolver, store OpenIDStore) (OpenIDHandler, error) {
+func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, config oidc4vci.ClientConfig, keyResolver types.KeyResolver, store OpenIDStore, jsonldReader jsonld.Reader) (OpenIDHandler, error) {
 	i := &openidHandler{
 		issuerIdentifierURL: issuerIdentifierURL,
 		issuerDID:           issuerDID,
@@ -115,6 +116,7 @@ func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitions
 		keyResolver:         keyResolver,
 		walletClientCreator: oidc4vci.NewWalletAPIClient,
 		store:               store,
+		jsonldReader:        jsonldReader,
 	}
 
 	// load the credential definitions. This is done to halt startup procedure if needed.
@@ -130,6 +132,7 @@ type openidHandler struct {
 	keyResolver          types.KeyResolver
 	store                OpenIDStore
 	walletClientCreator  func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
+	jsonldReader         jsonld.Reader
 }
 
 func (i *openidHandler) Metadata() oidc4vci.CredentialIssuerMetadata {
@@ -228,8 +231,6 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 }
 
 func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
-	// TODO: Verify requested format and credential definition
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
 	flow, err := i.store.FindByReference(ctx, accessTokenRefType, accessToken)
 	if err != nil {
 		return nil, err
@@ -259,6 +260,10 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 		return nil, err
 	}
 
+	if err = i.validateRequestedCredential(credential, request); err != nil {
+		return nil, err
+	}
+
 	// Important: since we (for now) create the VC even before the wallet requests it, we don't know if every VC is actually retrieved by the wallet.
 	//            This is a temporary shortcut, since changing that requires a lot of refactoring.
 	//            To make actually retrieved VC traceable, we log it to the audit log.
@@ -269,6 +274,62 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 		Info("VC retrieved by wallet over OIDC4VCI")
 
 	return &credential, nil
+}
+
+// validateRequestedCredential validates that the CredentialRequest matches the offer
+func (i *openidHandler) validateRequestedCredential(offer vc.VerifiableCredential, request oidc4vci.CredentialRequest) error {
+	// currently only supports ldp_vc
+	if request.Format != oidc4vci.VerifiableCredentialJSONLDFormat {
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("credential format '%s' not supported", request.Format),
+			Code:       oidc4vci.UnsupportedCredentialFormat,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	// Must have a credential_definition
+	if request.CredentialDefinition == nil {
+		return oidc4vci.Error{
+			Err:        errors.New("missing credential_definition"),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	// Compare credential subjects
+	cdBytes, _ := json.Marshal(request.CredentialDefinition)
+	requestedCredential := vc.VerifiableCredential{}
+	err := json.Unmarshal(cdBytes, &requestedCredential)
+	if err != nil {
+		return oidc4vci.Error{
+			Err:        errors.New("invalid credential_definition"),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	requestSubjectDID, _ := getSubjectDID(requestedCredential)
+	offerSubjectDID, _ := getSubjectDID(offer)
+	if !offerSubjectDID.Equals(requestSubjectDID) {
+		return oidc4vci.Error{
+			Err:        errors.New("requested subject does not match offer"),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	// Compare credential types
+	err = oidc4vci.CredentialTypesMatchDefinition(i.jsonldReader, offer, *request.CredentialDefinition)
+	if err != nil {
+		return oidc4vci.Error{
+			Err:        errors.New("requested credential type does not match offer"),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	// valid request
+	return nil
 }
 
 // validateProof validates the proof of the credential request. Aside from checks as specified by the spec,
