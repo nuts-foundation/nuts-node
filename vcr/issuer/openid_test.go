@@ -183,7 +183,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				invalidRequest := createRequest(createHeaders(), createClaims(""))
 				invalidRequest.Proof = nil
 
-				_, err := service.HandleCredentialRequest(ctx, issuerDID, invalidRequest, accessToken)
+				_, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
 				require.ErrorAs(t, err, new(oidc4vci.Error))
 				cNonce := err.(oidc4vci.Error).CNonce
