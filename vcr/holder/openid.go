@@ -20,7 +20,6 @@ package holder
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -199,16 +198,6 @@ func validateOfferedCredential(offer map[string]interface{}) error {
 		}
 	}
 
-	// should only contain '@context' and 'type'
-	// TODO: is this check too strict?
-	if len(credentialDefinition) != 2 {
-		return oidc4vci.Error{
-			Err:        errors.New("invalid credential_definition: must contain exactly '@context' and 'type'"),
-			Code:       oidc4vci.InvalidRequest,
-			StatusCode: http.StatusBadRequest,
-		}
-	}
-
 	// @context: REQUIRED. JSON array as defined in [VC_DATA_MODEL 1.0]
 	if _, ok = credentialDefinition["@context"]; !ok {
 		return oidc4vci.Error{
@@ -227,11 +216,11 @@ func validateOfferedCredential(offer map[string]interface{}) error {
 		}
 	}
 
-	// credential_definition defines a valid credential
-	cdBytes, _ := json.Marshal(credentialDefinition)
-	if err := json.Unmarshal(cdBytes, new(vc.VerifiableCredential)); err != nil {
+	// should only contain '@context' and 'type'
+	// TODO: is this check too strict?
+	if len(credentialDefinition) != 2 {
 		return oidc4vci.Error{
-			Err:        fmt.Errorf("invalid credential_definition: %w", err),
+			Err:        errors.New("invalid credential_definition: must contain exactly '@context' and 'type'"),
 			Code:       oidc4vci.InvalidRequest,
 			StatusCode: http.StatusBadRequest,
 		}

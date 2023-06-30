@@ -273,6 +273,70 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		require.EqualError(t, err, "server_error - received credential does not match offer: credential Type do not match")
 	})
+	t.Run("validate offered credential", func(t *testing.T) {
+		holder := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil, jsonldReader)
+		t.Run("unsupported format", func(t *testing.T) {
+			credentials := []map[string]any{{
+				"format": "not supported",
+			}}
+
+			err := holder.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{Credentials: credentials}).(oidc4vci.Error)
+
+			assert.EqualError(t, err, "unsupported_credential_format - unsupported credential format 'not supported'")
+			assert.Equal(t, http.StatusInternalServerError, err.StatusCode)
+		})
+		t.Run("no credential_definition", func(t *testing.T) {
+			credentials := []map[string]any{{
+				"format": oidc4vci.VerifiableCredentialJSONLDFormat,
+			}}
+
+			err := holder.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{Credentials: credentials}).(oidc4vci.Error)
+
+			assert.EqualError(t, err, "invalid_request - invalid or missing credential_definition")
+			assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+		})
+		t.Run("credential_definition missing '@context'", func(t *testing.T) {
+			credentials := []map[string]any{{
+				"format": oidc4vci.VerifiableCredentialJSONLDFormat,
+				"credential_definition": map[string]any{
+					"type": "",
+				},
+			}}
+
+			err := holder.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{Credentials: credentials}).(oidc4vci.Error)
+
+			assert.EqualError(t, err, "invalid_request - invalid credential_definition: missing '@context'")
+			assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+		})
+		t.Run("credential_definition missing 'type'", func(t *testing.T) {
+			credentials := []map[string]any{{
+				"format": oidc4vci.VerifiableCredentialJSONLDFormat,
+				"credential_definition": map[string]any{
+					"@context": "",
+				},
+			}}
+
+			err := holder.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{Credentials: credentials}).(oidc4vci.Error)
+
+			assert.EqualError(t, err, "invalid_request - invalid credential_definition: missing 'type'")
+			assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+		})
+		t.Run("unexpected fields", func(t *testing.T) {
+			credentials := []map[string]any{{
+				"format": oidc4vci.VerifiableCredentialJSONLDFormat,
+				"credential_definition": map[string]any{
+					"@context":   "",
+					"type":       "",
+					"unexpected": "",
+				},
+			}}
+
+			err := holder.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{Credentials: credentials}).(oidc4vci.Error)
+
+			assert.EqualError(t, err, "invalid_request - invalid credential_definition: must contain exactly '@context' and 'type'")
+			assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+		})
+	})
 }
 
 // emptyOfferedCredential returns a structure that can be used as CredentialOffer.Credentials,
