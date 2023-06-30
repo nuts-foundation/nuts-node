@@ -23,45 +23,61 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"net/http"
 	"strings"
 )
 
+func (w Wrapper) getIssuerHandler(ctx context.Context, issuer string) (issuer.OpenIDHandler, error) {
+	issuerDID, err := w.validateDIDIsOwned(ctx, issuer)
+	if err != nil {
+		return nil, err
+	}
+	return w.VCR.GetOpenIDIssuer(ctx, issuerDID)
+}
+
 // GetOIDC4VCIIssuerMetadata returns the OIDC4VCI credential issuer metadata for the given DID.
 func (w Wrapper) GetOIDC4VCIIssuerMetadata(ctx context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error) {
-	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
+	issuer, err := w.getIssuerHandler(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
-	metadata, err := w.VCR.GetOIDCIssuer().Metadata(issuerDID)
-	// Other error cases (will end up as 500)
-	if err != nil {
-		return nil, err
+	return GetOIDC4VCIIssuerMetadata200JSONResponse(issuer.Metadata()), nil
+}
+
+// GetOIDC4VCIIssuerMetadataHeaders returns the OIDC4VCI credential issuer metadata headers for the given DID.
+func (w Wrapper) GetOIDC4VCIIssuerMetadataHeaders(ctx context.Context, request GetOIDC4VCIIssuerMetadataHeadersRequestObject) (GetOIDC4VCIIssuerMetadataHeadersResponseObject, error) {
+	response := GetOIDC4VCIIssuerMetadataHeadersdefaultResponse{
+		Headers: GetOIDC4VCIIssuerMetadataHeadersdefaultResponseHeaders{
+			ContentType: "application/json",
+		},
 	}
-	return GetOIDC4VCIIssuerMetadata200JSONResponse(metadata), nil
+	_, err := w.validateDIDIsOwned(ctx, request.Did)
+	if err != nil {
+		response.StatusCode = http.StatusNotFound
+	} else {
+		response.StatusCode = http.StatusOK
+	}
+	return response, nil
 }
 
 // GetOIDCProviderMetadata returns the OpenID Connect provider metadata for the given DID.
 func (w Wrapper) GetOIDCProviderMetadata(ctx context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
-	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
+	issuer, err := w.getIssuerHandler(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
-	metadata, err := w.VCR.GetOIDCIssuer().ProviderMetadata(issuerDID)
-	// Other error cases (will end up as 500)
-	if err != nil {
-		return nil, err
-	}
-	return GetOIDCProviderMetadata200JSONResponse(metadata), nil
+	return GetOIDCProviderMetadata200JSONResponse(issuer.ProviderMetadata()), nil
 }
 
 // RequestCredential requests a credential from the given DID.
 func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentialRequestObject) (RequestCredentialResponseObject, error) {
-	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
+	issuer, err := w.getIssuerHandler(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
+
 	if request.Params.Authorization == nil {
 		return nil, oidc4vci.Error{
 			Err:        errors.New("missing authorization header"),
@@ -79,7 +95,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 	}
 	accessToken := authHeader[7:]
 	credentialRequest := *request.Body
-	credential, err := w.VCR.GetOIDCIssuer().HandleCredentialRequest(ctx, issuerDID, credentialRequest, accessToken)
+	credential, err := issuer.HandleCredentialRequest(ctx, credentialRequest, accessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -97,10 +113,11 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 
 // RequestAccessToken requests an OAuth2 access token from the given DID.
 func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	issuerDID, err := w.validateDIDIsOwned(ctx, request.Did)
+	issuer, err := w.getIssuerHandler(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
+
 	if request.Body.GrantType != oidc4vci.PreAuthorizedCodeGrant {
 		return nil, oidc4vci.Error{
 			Err:        fmt.Errorf("unsupported grant type: %s", request.Body.GrantType),
@@ -108,7 +125,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 			StatusCode: http.StatusBadRequest,
 		}
 	}
-	accessToken, err := w.VCR.GetOIDCIssuer().HandleAccessTokenRequest(ctx, issuerDID, request.Body.PreAuthorizedCode)
+	accessToken, err := issuer.HandleAccessTokenRequest(ctx, request.Body.PreAuthorizedCode)
 	if err != nil {
 		return nil, err
 	}

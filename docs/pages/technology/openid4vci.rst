@@ -37,12 +37,8 @@ By default, the feature is disabled.
 To enable issuing and receiving credentials over OpenID4VCI:
 
 - set ``vcr.oidc4vci.enabled`` to ``true``
-- set ``vcr.oidc4vci.url`` to the base URL of your node-to-node API, e.g. ``https://nutsnode.example.com/`` (excluding ``/n2n``).
-  This will typically be base URL of the ``auth.publicurl`` configuration.
+- register service of type ``node-http-services-baseurl`` in your DID documents, pointing to the base URL of your node-to-node API, e.g. ``https://nutsnode.example.com/`` (excluding ``/n2n``).
+  Note that this step will be automated in (near) future.
 
-To receive credentials over OpenID4VCI for a DID, you also have to register your wallet metadata URL on its DID document.
-You do so by registering a service of type ``oidc4vci-wallet-metadata`` with the ``serviceEndpoint`` pointing to the wallet metadata URL,
-e.g.: ``https://example.com/n2n/identity/<did>/.well-known/openid-credential-wallet``
-(make sure to replace ``example.com`` and ``<did>`` with the correct values). The rest of the URL is dictated by the Nuts node.
 
 

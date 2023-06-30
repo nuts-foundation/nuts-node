@@ -44,6 +44,9 @@ type ServerInterface interface {
 	// Get the OIDC4VCI Credential Issuer Metadata
 	// (GET /n2n/identity/{did}/.well-known/openid-credential-issuer)
 	GetOIDC4VCIIssuerMetadata(ctx echo.Context, did string) error
+	// Get the HTTP headers which would be returned when executing a GET request.
+	// (HEAD /n2n/identity/{did}/.well-known/openid-credential-issuer)
+	GetOIDC4VCIIssuerMetadataHeaders(ctx echo.Context, did string) error
 	// Get the OAuth2 Client Metadata
 	// (GET /n2n/identity/{did}/.well-known/openid-credential-wallet)
 	GetOAuth2ClientMetadata(ctx echo.Context, did string) error
@@ -92,6 +95,22 @@ func (w *ServerInterfaceWrapper) GetOIDC4VCIIssuerMetadata(ctx echo.Context) err
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetOIDC4VCIIssuerMetadata(ctx, did)
+	return err
+}
+
+// GetOIDC4VCIIssuerMetadataHeaders converts echo context to params.
+func (w *ServerInterfaceWrapper) GetOIDC4VCIIssuerMetadataHeaders(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetOIDC4VCIIssuerMetadataHeaders(ctx, did)
 	return err
 }
 
@@ -218,6 +237,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/n2n/identity/:did/.well-known/oauth-authorization-server", wrapper.GetOIDCProviderMetadata)
 	router.GET(baseURL+"/n2n/identity/:did/.well-known/openid-credential-issuer", wrapper.GetOIDC4VCIIssuerMetadata)
+	router.HEAD(baseURL+"/n2n/identity/:did/.well-known/openid-credential-issuer", wrapper.GetOIDC4VCIIssuerMetadataHeaders)
 	router.GET(baseURL+"/n2n/identity/:did/.well-known/openid-credential-wallet", wrapper.GetOAuth2ClientMetadata)
 	router.POST(baseURL+"/n2n/identity/:did/issuer/oidc4vci/credential", wrapper.RequestCredential)
 	router.POST(baseURL+"/n2n/identity/:did/oidc/token", wrapper.RequestAccessToken)
@@ -275,6 +295,30 @@ func (response GetOIDC4VCIIssuerMetadata404JSONResponse) VisitGetOIDC4VCIIssuerM
 	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOIDC4VCIIssuerMetadataHeadersRequestObject struct {
+	Did string `json:"did"`
+}
+
+type GetOIDC4VCIIssuerMetadataHeadersResponseObject interface {
+	VisitGetOIDC4VCIIssuerMetadataHeadersResponse(w http.ResponseWriter) error
+}
+
+type GetOIDC4VCIIssuerMetadataHeadersdefaultResponseHeaders struct {
+	ContentType string
+}
+
+type GetOIDC4VCIIssuerMetadataHeadersdefaultResponse struct {
+	Headers GetOIDC4VCIIssuerMetadataHeadersdefaultResponseHeaders
+
+	StatusCode int
+}
+
+func (response GetOIDC4VCIIssuerMetadataHeadersdefaultResponse) VisitGetOIDC4VCIIssuerMetadataHeadersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", fmt.Sprint(response.Headers.ContentType))
+	w.WriteHeader(response.StatusCode)
+	return nil
 }
 
 type GetOAuth2ClientMetadataRequestObject struct {
@@ -438,6 +482,9 @@ type StrictServerInterface interface {
 	// Get the OIDC4VCI Credential Issuer Metadata
 	// (GET /n2n/identity/{did}/.well-known/openid-credential-issuer)
 	GetOIDC4VCIIssuerMetadata(ctx context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error)
+	// Get the HTTP headers which would be returned when executing a GET request.
+	// (HEAD /n2n/identity/{did}/.well-known/openid-credential-issuer)
+	GetOIDC4VCIIssuerMetadataHeaders(ctx context.Context, request GetOIDC4VCIIssuerMetadataHeadersRequestObject) (GetOIDC4VCIIssuerMetadataHeadersResponseObject, error)
 	// Get the OAuth2 Client Metadata
 	// (GET /n2n/identity/{did}/.well-known/openid-credential-wallet)
 	GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error)
@@ -508,6 +555,31 @@ func (sh *strictHandler) GetOIDC4VCIIssuerMetadata(ctx echo.Context, did string)
 		return err
 	} else if validResponse, ok := response.(GetOIDC4VCIIssuerMetadataResponseObject); ok {
 		return validResponse.VisitGetOIDC4VCIIssuerMetadataResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetOIDC4VCIIssuerMetadataHeaders operation middleware
+func (sh *strictHandler) GetOIDC4VCIIssuerMetadataHeaders(ctx echo.Context, did string) error {
+	var request GetOIDC4VCIIssuerMetadataHeadersRequestObject
+
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetOIDC4VCIIssuerMetadataHeaders(ctx.Request().Context(), request.(GetOIDC4VCIIssuerMetadataHeadersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetOIDC4VCIIssuerMetadataHeaders")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetOIDC4VCIIssuerMetadataHeadersResponseObject); ok {
+		return validResponse.VisitGetOIDC4VCIIssuerMetadataHeadersResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("Unexpected response type: %T", response)
 	}

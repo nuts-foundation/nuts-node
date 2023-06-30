@@ -53,6 +53,10 @@ var ErrServiceNotFound = errors.New("service not found in DID Document")
 // ErrServiceReferenceToDeep is returned when a service reference is chain is nested too deeply.
 var ErrServiceReferenceToDeep = errors.New("service references are nested to deeply before resolving to a non-reference")
 
+// BaseURLServiceType is type of the DID service which holds the base URL of the node's HTTP services,
+// exposed to other Nuts nodes. E.g. OpenID4VCI or OAuth2 endpoints.
+const BaseURLServiceType = "node-http-services-baseurl"
+
 type deactivatedError struct {
 	msg string
 }

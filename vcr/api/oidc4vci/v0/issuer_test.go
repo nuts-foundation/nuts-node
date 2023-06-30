@@ -24,7 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -34,18 +34,19 @@ import (
 )
 
 var issuerDID = did.MustParseDID("did:nuts:issuer")
+var issuerIdentifier = "http://example.com/" + issuerDID.String()
 
 func TestWrapper_GetOIDC4VCIIssuerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		oidcIssuer := openid4vci.NewMockIssuer(ctrl)
-		oidcIssuer.EXPECT().Metadata(issuerDID).Return(oidc4vci.CredentialIssuerMetadata{
+		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
+		oidcIssuer.EXPECT().Metadata().Return(oidc4vci.CredentialIssuerMetadata{
 			CredentialIssuer: issuerDID.String(),
-		}, nil)
+		})
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
-		service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
+		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(oidcIssuer, nil)
 		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
 		response, err := api.GetOIDC4VCIIssuerMetadata(context.Background(), GetOIDC4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
@@ -61,21 +62,21 @@ func TestWrapper_GetOIDC4VCIIssuerMetadata(t *testing.T) {
 
 		_, err := api.GetOIDC4VCIIssuerMetadata(context.Background(), GetOIDC4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
 
-		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+		require.EqualError(t, err, "invalid_request - DID is not owned by this node")
 	})
 }
 
 func TestWrapper_GetOIDCProviderMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		oidcIssuer := openid4vci.NewMockIssuer(ctrl)
-		oidcIssuer.EXPECT().ProviderMetadata(issuerDID).Return(oidc4vci.ProviderMetadata{
+		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
+		oidcIssuer.EXPECT().ProviderMetadata().Return(oidc4vci.ProviderMetadata{
 			Issuer: issuerDID.String(),
-		}, nil)
+		})
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
-		service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
+		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(oidcIssuer, nil)
 		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
 		response, err := api.GetOIDCProviderMetadata(context.Background(), GetOIDCProviderMetadataRequestObject{Did: issuerDID.String()})
@@ -91,19 +92,19 @@ func TestWrapper_GetOIDCProviderMetadata(t *testing.T) {
 
 		_, err := api.GetOIDCProviderMetadata(context.Background(), GetOIDCProviderMetadataRequestObject{Did: issuerDID.String()})
 
-		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+		require.EqualError(t, err, "invalid_request - DID is not owned by this node")
 	})
 }
 
 func TestWrapper_RequestAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		oidcIssuer := openid4vci.NewMockIssuer(ctrl)
-		oidcIssuer.EXPECT().HandleAccessTokenRequest(gomock.Any(), issuerDID, "code").Return("access-token", nil)
+		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
+		oidcIssuer.EXPECT().HandleAccessTokenRequest(gomock.Any(), "code").Return("access-token", nil)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
-		service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
+		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(oidcIssuer, nil)
 		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
 		response, err := api.RequestAccessToken(context.Background(), RequestAccessTokenRequestObject{
@@ -126,13 +127,15 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			Did: issuerDID.String(),
 		})
 
-		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+		require.EqualError(t, err, "invalid_request - DID is not owned by this node")
 	})
 	t.Run("unsupported grant type", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
+		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(oidcIssuer, nil)
 		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
 		response, err := api.RequestAccessToken(context.Background(), RequestAccessTokenRequestObject{
@@ -153,12 +156,12 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 func TestWrapper_RequestCredential(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		oidcIssuer := openid4vci.NewMockIssuer(ctrl)
-		oidcIssuer.EXPECT().HandleCredentialRequest(gomock.Any(), issuerDID, gomock.Any(), "access-token").Return(&vc.VerifiableCredential{}, nil)
+		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
+		oidcIssuer.EXPECT().HandleCredentialRequest(gomock.Any(), gomock.Any(), "access-token").Return(&vc.VerifiableCredential{}, nil)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
-		service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
+		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(oidcIssuer, nil)
 		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
 		authz := "Bearer access-token"
@@ -187,13 +190,16 @@ func TestWrapper_RequestCredential(t *testing.T) {
 			Did: issuerDID.String(),
 		})
 
-		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+		require.EqualError(t, err, "invalid_request - DID is not owned by this node")
 	})
 	t.Run("error - no authorization header", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
+		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
-		api := Wrapper{DocumentOwner: documentOwner}
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(oidcIssuer, nil)
+		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
 		response, err := api.RequestCredential(context.Background(), RequestCredentialRequestObject{
 			Did: issuerDID.String(),
@@ -211,9 +217,12 @@ func TestWrapper_RequestCredential(t *testing.T) {
 	})
 	t.Run("error - invalid authorization header", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
+		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
-		api := Wrapper{DocumentOwner: documentOwner}
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(oidcIssuer, nil)
+		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
 		authz := "invalid"
 		response, err := api.RequestCredential(context.Background(), RequestCredentialRequestObject{

@@ -21,9 +21,8 @@ package issuer
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"time"
 
@@ -47,36 +46,42 @@ import (
 var TimeFunc = time.Now
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-// If oidcIssuer is nil, it won't try to issue over OIDC4VCI.
+// If openidIssuerFn is nil, it won't try to issue over OpenID4VCI.
 // It needs types.Writer since issued credentials need to be in the general VCR store,
 // since that normally happens through receiving the just-issued credential over the network,
-// but that doesn't happen when issuing over OIDC4VCI. Thus, it needs to explicitly save it to the VCR store when issuing over OIDC4VCI.
+// but that doesn't happen when issuing over OpenID4VCI. Thus, it needs to explicitly save it to the VCR store when issuing over OpenID4VCI.
 // See https://github.com/nuts-foundation/nuts-node/issues/2063
-func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher, oidcIssuer openid4vci.Issuer, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
+func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
+	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
+	docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
+) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
 		store:            store,
 		networkPublisher: networkPublisher,
-		oidcIssuer:       oidcIssuer,
-		keyResolver:      resolver,
-		keyStore:         keyStore,
-		serviceResolver:  didservice.NewServiceResolver(docResolver),
-		jsonldManager:    jsonldManager,
-		trustConfig:      trustConfig,
-		vcrStore:         vcrStore,
+		openidHandlerFn:  openidHandlerFn,
+		walletResolver: oidc4vci.DIDIdentifierResolver{
+			ServiceResolver: didservice.NewServiceResolver(docResolver),
+		},
+		keyResolver:   resolver,
+		keyStore:      keyStore,
+		jsonldManager: jsonldManager,
+		trustConfig:   trustConfig,
+		vcrStore:      vcrStore,
 	}
 }
 
 type issuer struct {
 	store            Store
 	networkPublisher Publisher
-	oidcIssuer       openid4vci.Issuer
+	openidHandlerFn  func(ctx context.Context, id did.DID) (OpenIDHandler, error)
 	serviceResolver  didservice.ServiceResolver
 	keyResolver      keyResolver
 	keyStore         crypto.KeyStore
 	trustConfig      *trust.Config
 	jsonldManager    jsonld.JSONLD
 	vcrStore         types.Writer
+	walletResolver   oidc4vci.IdentifierResolver
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -119,19 +124,23 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 	if publish {
 		// Try to issue over OIDC4VCI if it's enabled and if the credential is not public
 		// (public credentials are always published on the network).
-		if i.oidcIssuer != nil && !public {
-			err := i.issueUsingOIDC4VCI(ctx, *createdVC)
-			if err == nil {
-				log.Logger().
-					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
-					Info("Published credential over OIDC4VCI")
-				return createdVC, nil
-			} else if !errors.Is(err, vdr.ErrServiceNotFound) {
-				// An error occurred, but it's not because the DID doesn't support OIDC4VCI. Fallback to publishing over Nuts network.
+		if i.openidHandlerFn != nil && !public {
+			success, err := i.issueUsingOpenID4VCI(ctx, *createdVC)
+			if err != nil {
+				// An error occurred, but it's not because the wallet/issuer doesn't support OpenID4VCI.
 				log.Logger().
 					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
 					WithError(err).
-					Warnf("Could not publish credential over OIDC4VCI, fallback to publish over Nuts network")
+					Warnf("Couldn't publish credential over OpenID4VCI, fallback to publish over Nuts network")
+			} else if success {
+				log.Logger().
+					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
+					Info("Published credential over OpenID4VCI")
+				return createdVC, nil
+			} else {
+				log.Logger().
+					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
+					Info("Wallet or issuer does not support OpenID4VCI, fallback to publish over Nuts network")
 			}
 		}
 		if err := i.networkPublisher.PublishCredential(ctx, *createdVC, public); err != nil {
@@ -141,39 +150,39 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 	return createdVC, nil
 }
 
-func (i issuer) issueUsingOIDC4VCI(ctx context.Context, credential vc.VerifiableCredential) error {
-	// Resolve credential subject DID document to see if they support OIDC4VCI
+// issueUsingOpenID4VCI tries to issue the credential over OpenID4VCI. It returns whether the credential was offered successfully.
+// If no error is returned and bool is false, it means the wallet does not support OpenID4VCI.
+func (i issuer) issueUsingOpenID4VCI(ctx context.Context, credential vc.VerifiableCredential) (bool, error) {
 	type credentialSubject struct {
-		ID string `json:"id"`
+		ID did.DID `json:"id"`
 	}
 	var subjects []credentialSubject
 	err := credential.UnmarshalCredentialSubject(&subjects)
 	if err != nil {
-		return fmt.Errorf("unable to unmarshal credential subject: %w", err)
+		return false, fmt.Errorf("unable to unmarshal credential subject: %w", err)
 	}
 	if len(subjects) != 1 {
-		return fmt.Errorf("expected exactly 1 credential subject, got %d", len(subjects))
+		return false, fmt.Errorf("expected exactly 1 credential subject, got %d", len(subjects))
 	}
-	// TODO: should we support multiple subjects?
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2042
-	subject := subjects[0]
-	// TODO: the service endpoint type must be specified (this is "our" way of client metadata discovery?)
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2042
-	serviceQuery := didservice.MakeServiceReference(did.MustParseDID(subject.ID), "oidc4vci-wallet-metadata")
-	walletService, err := i.serviceResolver.Resolve(serviceQuery, didservice.DefaultMaxServiceReferenceDepth)
+
+	walletIdentifier, err := i.walletResolver.Resolve(subjects[0].ID)
 	if err != nil {
-		return fmt.Errorf("unable to resolve OIDC4VCI wallet metadata URL for DID %s: %w", subject.ID, err)
+		return false, fmt.Errorf("unable to discover wallet identifier: %w", err)
 	}
-	var walletMetadataURL string
-	err = walletService.UnmarshalServiceEndpoint(&walletMetadataURL)
+	if walletIdentifier == "" {
+		// Wallet not configured for OpenID4VCI
+		return false, nil
+	}
+	issuerDID, _ := did.ParseDID(credential.Issuer.String()) // can't fail, already created
+	openidIssuer, err := i.openidHandlerFn(ctx, *issuerDID)
 	if err != nil {
-		return fmt.Errorf("unable to unmarshal OIDC4VCI wallet metadata URL of DID %s: %w", subject.ID, err)
+		return false, fmt.Errorf("unable to discover issuer identifier: %w", err)
 	}
-	err = i.oidcIssuer.OfferCredential(ctx, credential, walletMetadataURL)
+	err = openidIssuer.OfferCredential(ctx, credential, walletIdentifier)
 	if err != nil {
-		return fmt.Errorf("unable to publish the issued credential over OIDC4VCI to DID %s: %w", subject.ID, err)
+		return false, fmt.Errorf("unable to offer the credential over OpenID4VCI to (wallet: %s): %w", walletIdentifier, err)
 	}
-	return i.vcrStore.StoreCredential(credential, nil)
+	return true, i.vcrStore.StoreCredential(credential, nil)
 }
 
 func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
@@ -190,7 +199,7 @@ func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCred
 	if err != nil {
 		const errString = "failed to sign credential: could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:
-		if errors.Is(err, vdr.ErrNotFound) {
+		if didservice.IsFunctionalResolveError(err) {
 			return nil, core.InvalidInputError(errString, err)
 		}
 		return nil, fmt.Errorf(errString, err)
@@ -294,7 +303,7 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 	if err != nil {
 		const errString = "failed to revoke credential (%s): could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:
-		if errors.Is(err, vdr.ErrNotFound) {
+		if didservice.IsFunctionalResolveError(err) {
 			return nil, core.InvalidInputError(errString, credentialID, err)
 		}
 		return nil, fmt.Errorf(errString, credentialID, err)

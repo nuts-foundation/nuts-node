@@ -50,15 +50,14 @@ var redactedConfigKeys = []string{
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
-	Verbosity           string             `koanf:"verbosity"`
-	LoggerFormat        string             `koanf:"loggerformat"`
-	CPUProfile          string             `koanf:"cpuprofile"`
-	Strictmode          bool               `koanf:"strictmode"`
-	InternalRateLimiter bool               `koanf:"internalratelimiter"`
-	Datadir             string             `koanf:"datadir"`
-	TLS                 TLSConfig          `koanf:"tls"`
-	LegacyTLS           *NetworkTLSConfig  `koanf:"network"`
-	Auth                AuthEndpointConfig `koanf:"auth"`
+	Verbosity           string            `koanf:"verbosity"`
+	LoggerFormat        string            `koanf:"loggerformat"`
+	CPUProfile          string            `koanf:"cpuprofile"`
+	Strictmode          bool              `koanf:"strictmode"`
+	InternalRateLimiter bool              `koanf:"internalratelimiter"`
+	Datadir             string            `koanf:"datadir"`
+	TLS                 TLSConfig         `koanf:"tls"`
+	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
 	configMap           *koanf.Koanf
 }
 
@@ -155,13 +154,6 @@ type NetworkTLSConfig struct {
 	CertFile       string `koanf:"certfile"`
 	CertKeyFile    string `koanf:"certkeyfile"`
 	TrustStoreFile string `koanf:"truststorefile"`
-}
-
-// AuthEndpointConfig is temporarily here so VCR's OIDC4VCI can use the configured auth.publicurl as Wallet/Issuer identifier.
-// This should probably be moved to VCR config, but we need to decide whether the protocol should really be part of VCR.
-// See https://github.com/nuts-foundation/nuts-node/issues/2032
-type AuthEndpointConfig struct {
-	PublicURL string `koanf:"publicurl"`
 }
 
 // TLSOffloadingMode defines configurable modes for TLS offloading.

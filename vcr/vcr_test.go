@@ -22,8 +22,10 @@ package vcr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
@@ -50,69 +52,44 @@ import (
 
 func TestVCR_Configure(t *testing.T) {
 	t.Run("openid4vci", func(t *testing.T) {
-		t.Run("URL not configured", func(t *testing.T) {
-			testDirectory := io.TestDirectory(t)
-			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
-			instance.config.OIDC4VCI.Enabled = true
+		testDirectory := io.TestDirectory(t)
+		ctrl := gomock.NewController(t)
+		pkiProvider := pki.NewMockProvider(ctrl)
+		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider, nil).(*vcr)
+		instance.config.OIDC4VCI.Enabled = true
 
-			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
+		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
 
-			assert.EqualError(t, err, "vcr.oidc4vci.url must be configured to enable OIDC4VCI")
-		})
-		t.Run("invalid URL", func(t *testing.T) {
-			testDirectory := io.TestDirectory(t)
-			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
-			instance.config.OIDC4VCI.Enabled = true
-			instance.config.OIDC4VCI.URL = "ftp://example.com"
+		require.NoError(t, err)
+	})
+	t.Run("strictmode passed to client APIs", func(t *testing.T) {
+		// load test VC
+		testVC := vc.VerifiableCredential{}
+		vcJSON, _ := os.ReadFile("test/vc.json")
+		_ = json.Unmarshal(vcJSON, &testVC)
+		issuerDID := did.MustParseDID(testVC.Issuer.String())
 
-			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
+		testDirectory := io.TestDirectory(t)
+		ctrl := gomock.NewController(t)
+		pkiProvider := pki.NewMockProvider(ctrl)
+		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
+		localWalletResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+		localWalletResolver.EXPECT().Resolve(issuerDID).Return("https://example.com", nil).AnyTimes()
+		documentOwner := types.NewMockDocumentOwner(ctrl)
+		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider, documentOwner).(*vcr)
+		instance.config.OIDC4VCI.Enabled = true
 
-			assert.EqualError(t, err, "vcr.oidc4vci.url must contain a valid URL (using http:// or https://)")
-		})
-		t.Run("HTTP allowed in non-strict mode", func(t *testing.T) {
-			testDirectory := io.TestDirectory(t)
-			ctrl := gomock.NewController(t)
-			pkiProvider := pki.NewMockProvider(ctrl)
-			pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
-			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider).(*vcr)
-			instance.config.OIDC4VCI.Enabled = true
-			instance.config.OIDC4VCI.URL = "http://example.com"
+		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
+		require.NoError(t, err)
+		instance.localWalletResolver = localWalletResolver
+		// test simulates an offer call which will not be executed since the target wallet does not have an HTTPS endpoint
+		issuer, err := instance.GetOpenIDIssuer(context.Background(), issuerDID)
+		require.NoError(t, err)
+		err = issuer.OfferCredential(context.Background(), testVC, "http://example.com")
 
-			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
-
-			require.NoError(t, err)
-		})
-		t.Run("HTTP not allowed non-strict mode", func(t *testing.T) {
-			testDirectory := io.TestDirectory(t)
-			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
-			instance.config.OIDC4VCI.Enabled = true
-			instance.config.OIDC4VCI.URL = "http://example.com"
-
-			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
-
-			assert.EqualError(t, err, "vcr.oidc4vci.url must use HTTPS when strictmode is enabled")
-		})
-		t.Run("strictmode passed to client APIs", func(t *testing.T) {
-			// load test VC
-			testVC := vc.VerifiableCredential{}
-			vcJSON, _ := os.ReadFile("test/vc.json")
-			_ = json.Unmarshal(vcJSON, &testVC)
-
-			testDirectory := io.TestDirectory(t)
-			ctrl := gomock.NewController(t)
-			pkiProvider := pki.NewMockProvider(ctrl)
-			pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
-			instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider).(*vcr)
-			instance.config.OIDC4VCI.Enabled = true
-			instance.config.OIDC4VCI.URL = "https://example.com"
-
-			err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
-			require.NoError(t, err)
-			// test simulates an offer call which will not be executed since the target wallet does not have an HTTPS endpoint
-			err = instance.oidcIssuer.OfferCredential(context.Background(), testVC, "http://example.com")
-
-			assert.ErrorContains(t, err, "http request error: strictmode is enabled, but request is not over HTTPS")
-		})
+		assert.ErrorContains(t, err, "http request error: strictmode is enabled, but request is not over HTTPS")
 	})
 }
 
@@ -120,7 +97,7 @@ func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil, nil).(*vcr)
 
 		_ = instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
 		err := instance.Start()
@@ -144,7 +121,7 @@ func TestVCR_Start(t *testing.T) {
 			jsonld.NewTestJSONLDManager(t),
 			events.NewTestManager(t),
 			storage.NewTestStorageEngine(testDirectory),
-			nil,
+			nil, nil,
 		).(*vcr)
 		if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 			t.Fatal(err)
@@ -192,7 +169,7 @@ func TestVCR_Diagnostics(t *testing.T) {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
-		nil,
+		nil, nil,
 	).(*vcr)
 	if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 		t.Fatal(err)
@@ -297,6 +274,75 @@ func TestVcr_Instance(t *testing.T) {
 	})
 }
 
+func Test_vcr_GetOIDCIssuer(t *testing.T) {
+	id := did.MustParseDID("did:nuts:123456789abcdefghi")
+	identifier := "https://example.com/" + id.String()
+	ctx := context.Background()
+	t.Run("found DID, owned", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		documentOwner := types.NewMockDocumentOwner(ctrl)
+		documentOwner.EXPECT().IsOwner(ctx, id).Return(true, nil)
+		identifierResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+		identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
+		instance := NewTestVCRInstance(t)
+		instance.documentOwner = documentOwner
+		instance.localWalletResolver = identifierResolver
+
+		actual, err := instance.GetOpenIDIssuer(ctx, id)
+
+		require.NoError(t, err)
+		assert.NotNil(t, actual)
+	})
+	t.Run("found DID, not owned", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		documentOwner := types.NewMockDocumentOwner(ctrl)
+		documentOwner.EXPECT().IsOwner(ctx, id).Return(false, nil)
+		identifierResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+		identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
+		instance := NewTestVCRInstance(t)
+		instance.documentOwner = documentOwner
+		instance.localWalletResolver = identifierResolver
+
+		actual, err := instance.GetOpenIDIssuer(ctx, id)
+
+		require.Error(t, err)
+		assert.Nil(t, actual)
+	})
+	t.Run("resolver error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		documentOwner := types.NewMockDocumentOwner(ctrl)
+		identifierResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+		identifierResolver.EXPECT().Resolve(id).Return("", errors.New("failed"))
+		instance := NewTestVCRInstance(t)
+		instance.documentOwner = documentOwner
+		instance.localWalletResolver = identifierResolver
+
+		actual, err := instance.GetOpenIDIssuer(ctx, id)
+
+		require.Error(t, err)
+		assert.Nil(t, actual)
+	})
+}
+
+func Test_vcr_GetOIDCWallet(t *testing.T) {
+	id := did.MustParseDID("did:nuts:123456789abcdefghi")
+	identifier := "https://example.com/" + id.String()
+	ctx := context.Background()
+
+	ctrl := gomock.NewController(t)
+	documentOwner := types.NewMockDocumentOwner(ctrl)
+	documentOwner.EXPECT().IsOwner(ctx, id).Return(true, nil)
+	identifierResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+	identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
+	instance := NewTestVCRInstance(t)
+	instance.documentOwner = documentOwner
+	instance.localWalletResolver = identifierResolver
+
+	actual, err := instance.GetOpenIDHolder(ctx, id)
+
+	require.NoError(t, err)
+	assert.NotNil(t, actual)
+}
 func TestVcr_Untrusted(t *testing.T) {
 	instance := NewTestVCRInstance(t)
 	mockDocResolver := types.NewMockDocResolver(gomock.NewController(t))
@@ -339,6 +385,7 @@ func TestVcr_Untrusted(t *testing.T) {
 		}, 0)
 	})
 }
+
 func confirmUntrustedStatus(t *testing.T, fn func(issuer ssi.URI) ([]ssi.URI, error), numUntrusted int) {
 	trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
 
@@ -363,7 +410,4 @@ func TestWhitespaceOrExactTokenizer(t *testing.T) {
 	input := "a b c"
 
 	assert.Equal(t, []string{"a", "b", "c", "a b c"}, whitespaceOrExactTokenizer(input))
-}
-
-func TestResolveNutsCommServiceOwner(t *testing.T) {
 }

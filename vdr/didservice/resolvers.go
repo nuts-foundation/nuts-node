@@ -355,3 +355,15 @@ func (s serviceResolver) ResolveEx(endpoint ssi.URI, depth int, maxDepth int, do
 	}
 	return *service, nil
 }
+
+// IsFunctionalResolveError returns true if the given error indicates the DID or service not being found or invalid,
+// e.g. because it is deactivated, referenced too deeply, etc.
+func IsFunctionalResolveError(target error) bool {
+	return errors.Is(target, types.ErrNotFound) ||
+		errors.Is(target, types.ErrDeactivated) ||
+		errors.Is(target, types.ErrServiceNotFound) ||
+		errors.Is(target, types.ErrNoActiveController) ||
+		errors.Is(target, types.ErrServiceReferenceToDeep) ||
+		errors.Is(target, did.InvalidDIDErr) ||
+		errors.As(target, new(DIDServiceQueryError))
+}

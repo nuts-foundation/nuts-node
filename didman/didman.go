@@ -474,7 +474,7 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 	j := 0
 	for i, organization := range organizations {
 		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
-		if errors.Is(err, types.ErrDeactivated) || errors.Is(err, types.ErrNotFound) || errors.Is(err, did.ErrInvalidDID) {
+		if didservice.IsFunctionalResolveError(err) {
 			// Just ignore deactivated DID documents or VCs that don't refer to an existing DID document.
 			// Log it on debug, because it might be useful for finding VCs that need to be revoked (since they're invalid).
 			log.Logger().

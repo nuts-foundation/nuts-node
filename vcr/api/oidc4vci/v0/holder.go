@@ -22,34 +22,42 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 )
 
-// GetOAuth2ClientMetadata returns the OAuth2 client metadata for the given DID.
-func (w Wrapper) GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
-	holderDID, err := w.validateDIDIsOwned(ctx, request.Did)
+func (w Wrapper) getHolderHandler(ctx context.Context, holder string) (holder.OpenIDHandler, error) {
+	holderDID, err := w.validateDIDIsOwned(ctx, holder)
 	if err != nil {
 		return nil, err
 	}
-	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.GetOIDCWallet(holderDID).Metadata()), nil
+	return w.VCR.GetOpenIDHolder(ctx, holderDID)
+}
+
+// GetOAuth2ClientMetadata returns the OAuth2 client metadata for the given DID.
+func (w Wrapper) GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
+	wallet, err := w.getHolderHandler(ctx, request.Did)
+	if err != nil {
+		return nil, err
+	}
+	return GetOAuth2ClientMetadata200JSONResponse(wallet.Metadata()), nil
 }
 
 // HandleCredentialOffer handles a credential offer for the given DID.
 func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error) {
-	holderDID, err := w.validateDIDIsOwned(ctx, request.Did)
+	wallet, err := w.getHolderHandler(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
+
 	offer := oidc4vci.CredentialOffer{}
 	if err := json.Unmarshal([]byte(request.Params.CredentialOffer), &offer); err != nil {
 		// Note: error responses on the Credential Offer Endpoint are not specified in the OpenID4VCI spec.
 		return nil, core.InvalidInputError("unable to unmarshal credential_offer: %w", err)
 	}
-
-	err = w.VCR.GetOIDCWallet(holderDID).HandleCredentialOffer(ctx, offer)
+	err = wallet.HandleCredentialOffer(ctx, offer)
 	if err != nil {
 		return nil, err
 	}
-
 	return HandleCredentialOffer200JSONResponse{Status: oidc4vci.CredentialOfferStatusReceived}, nil
 }

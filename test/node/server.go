@@ -20,8 +20,10 @@ package node
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"os"
 	"path"
@@ -61,12 +63,12 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 	_ = os.WriteFile(configFile, []byte(testServerConfig), os.ModePerm)
 	grpcPort := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 	natsPort := fmt.Sprintf("%d", test.FreeTCPPort())
-	httpPort := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
-	httpServerURL := "http://" + httpPort
+	httpInterface := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	httpServerURL := "http://" + httpInterface
 
 	t.Setenv("NUTS_DATADIR", testDir)
 	t.Setenv("NUTS_CONFIGFILE", configFile)
-	t.Setenv("NUTS_HTTP_DEFAULT_ADDRESS", httpPort)
+	t.Setenv("NUTS_HTTP_DEFAULT_ADDRESS", httpInterface)
 	t.Setenv("NUTS_NETWORK_GRPCADDR", grpcPort)
 	t.Setenv("NUTS_EVENTS_NATS_PORT", natsPort)
 	t.Setenv("NUTS_EVENTS_NATS_HOSTNAME", "localhost")
@@ -78,6 +80,9 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 
 	for _, fn := range configFunc {
 		fn(httpServerURL)
+	}
+	if os.Getenv("NUTS_HTTP_DEFAULT_TLS") != "" {
+		httpServerURL = "https://" + httpInterface
 	}
 
 	os.Args = []string{"nuts", "server"}
@@ -92,8 +97,9 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 		}
 	}()
 
+	client := tlsClient(t)
 	if !test.WaitFor(t, func() (bool, error) {
-		resp, err := http.Get(httpServerURL + "/status")
+		resp, err := client.Get(httpServerURL + "/status")
 		return err == nil && resp.StatusCode == http.StatusOK, nil
 	}, time.Second*5, "Timeout while waiting for node to become available") {
 		t.Fatal("time-out")
@@ -106,4 +112,18 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 	})
 
 	return httpServerURL, system
+}
+
+func tlsClient(t *testing.T) http.Client {
+	certFile := pki.CertificateFile(t)
+	keyPair, err := tls.LoadX509KeyPair(certFile, certFile)
+	require.NoError(t, err)
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{
+		Certificates: []tls.Certificate{keyPair},
+		RootCAs:      pki.Truststore(),
+	}
+	return http.Client{
+		Transport: transport,
+	}
 }

@@ -26,16 +26,19 @@ echo "------------------------------------"
 
 didNodeA=$(setupNode "http://localhost:11323" "nodeA:5555")
 printf "NodeDID for node-a: %s\n" "$didNodeA"
+# Register service required for OpenID4VCI discovery
+registerStringService "http://localhost:11323" "$didNodeA" "node-http-services-baseurl" "https://nodeA"
 
 # Wait for node B to receive the TXs created by node A, indicating the connection is working
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 2 10
+waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 3 10
 
 didNodeB=$(setupNode "http://localhost:21323" "nodeB:5555")
 printf "NodeDID for node-b: %s\n" "$didNodeB"
-registerStringService "http://localhost:21323" "$didNodeB" "oidc4vci-wallet-metadata" "https://nodeB/n2n/identity/$didNodeB/.well-known/openid-credential-wallet"
+# Register service required for OpenID4VCI discovery
+registerStringService "http://localhost:21323" "$didNodeB" "node-http-services-baseurl" "https://nodeB"
 
 # Wait for node A to receive all TXs created by node B
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 5 10
+waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 6 10
 
 echo "------------------------------------"
 echo "Issuing credential..."

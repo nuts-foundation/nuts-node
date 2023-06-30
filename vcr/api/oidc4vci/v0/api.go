@@ -79,12 +79,6 @@ func (p protocolErrorWriter) Write(echoContext echo.Context, _ int, _ string, er
 	return echoContext.JSON(protocolError.StatusCode, protocolError)
 }
 
-var errHolderOrIssuerNotFound = oidc4vci.Error{
-	Err:        errors.New("holder or issuer not found"),
-	Code:       oidc4vci.InvalidRequest,
-	StatusCode: http.StatusNotFound,
-}
-
 var _ StrictServerInterface = (*Wrapper)(nil)
 
 // Wrapper wraps the OIDC4VCI API
@@ -120,17 +114,29 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 }
 
 // validateDIDIsOwned parsed the given string as DID and checks whether it's owned by this node.
-func (w Wrapper) validateDIDIsOwned(ctx context.Context, holderOrIssuerDID string) (did.DID, error) {
-	parsedDID, err := did.ParseDID(holderOrIssuerDID)
+func (w Wrapper) validateDIDIsOwned(ctx context.Context, subjectDID string) (did.DID, error) {
+	parsedDID, err := did.ParseDID(subjectDID)
 	if err != nil {
-		return did.DID{}, errHolderOrIssuerNotFound
+		return did.DID{}, oidc4vci.Error{
+			Err:        err,
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusNotFound,
+		}
 	}
 	isOwner, err := w.DocumentOwner.IsOwner(ctx, *parsedDID)
 	if err != nil {
-		return did.DID{}, err
+		return did.DID{}, oidc4vci.Error{
+			Err:        err,
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusNotFound,
+		}
 	}
 	if !isOwner {
-		return did.DID{}, errHolderOrIssuerNotFound
+		return did.DID{}, oidc4vci.Error{
+			Err:        errors.New("DID is not owned by this node"),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusNotFound,
+		}
 	}
 	return *parsedDID, nil
 }

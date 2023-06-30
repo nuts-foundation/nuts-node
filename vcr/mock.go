@@ -15,7 +15,6 @@ import (
 	vc "github.com/nuts-foundation/go-did/vc"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
-	openid4vci "github.com/nuts-foundation/nuts-node/vcr/issuer/openid4vci"
 	verifier "github.com/nuts-foundation/nuts-node/vcr/verifier"
 )
 
@@ -199,32 +198,34 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
 }
 
-// GetOIDCIssuer mocks base method.
-func (m *MockVCR) GetOIDCIssuer() openid4vci.Issuer {
+// GetOpenIDHolder mocks base method.
+func (m *MockVCR) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHandler, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOIDCIssuer")
-	ret0, _ := ret[0].(openid4vci.Issuer)
-	return ret0
+	ret := m.ctrl.Call(m, "GetOpenIDHolder", ctx, id)
+	ret0, _ := ret[0].(holder.OpenIDHandler)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// GetOIDCIssuer indicates an expected call of GetOIDCIssuer.
-func (mr *MockVCRMockRecorder) GetOIDCIssuer() *gomock.Call {
+// GetOpenIDHolder indicates an expected call of GetOpenIDHolder.
+func (mr *MockVCRMockRecorder) GetOpenIDHolder(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOIDCIssuer", reflect.TypeOf((*MockVCR)(nil).GetOIDCIssuer))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOpenIDHolder", reflect.TypeOf((*MockVCR)(nil).GetOpenIDHolder), ctx, id)
 }
 
-// GetOIDCWallet mocks base method.
-func (m *MockVCR) GetOIDCWallet(id did.DID) holder.OIDCWallet {
+// GetOpenIDIssuer mocks base method.
+func (m *MockVCR) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOIDCWallet", id)
-	ret0, _ := ret[0].(holder.OIDCWallet)
-	return ret0
+	ret := m.ctrl.Call(m, "GetOpenIDIssuer", ctx, id)
+	ret0, _ := ret[0].(issuer.OpenIDHandler)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// GetOIDCWallet indicates an expected call of GetOIDCWallet.
-func (mr *MockVCRMockRecorder) GetOIDCWallet(id interface{}) *gomock.Call {
+// GetOpenIDIssuer indicates an expected call of GetOpenIDIssuer.
+func (mr *MockVCRMockRecorder) GetOpenIDIssuer(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOIDCWallet", reflect.TypeOf((*MockVCR)(nil).GetOIDCWallet), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOpenIDIssuer", reflect.TypeOf((*MockVCR)(nil).GetOpenIDIssuer), ctx, id)
 }
 
 // Holder mocks base method.

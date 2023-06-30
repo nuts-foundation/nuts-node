@@ -77,7 +77,6 @@ The following options apply to the server commands below:
       --vcr.oidc4vci.definitionsdir string            Directory with the additional credential definitions the node could issue (experimental, may change without notice).
       --vcr.oidc4vci.enabled                          Enable issuing and receiving credentials over OIDC4VCI (experimental).
       --vcr.oidc4vci.timeout duration                 Time-out for OpenID4VCI HTTP client operations. (default 30s)
-      --vcr.oidc4vci.url string                       Base URL for the OIDC4VCI wallet and issuer endpoints, which ends up in the OAuth2 metadata. These are node-to-node (/n2n) endpoints, but only the base path up until (not including) /n2n has to be configured. So typically, only a domain. Must be HTTPS when strict-mode is enabled.
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
 
 nuts config
