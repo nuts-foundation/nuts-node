@@ -93,7 +93,7 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
 				ctx.Set(core.OperationIDContextKey, operationID)
-				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName+"/OpenID4VCI")
+				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName+"/OIDC4VCI")
 				ctx.Set(core.ErrorWriterContextKey, &protocolErrorWriter{})
 				return f(ctx, request)
 			}
@@ -101,14 +101,14 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, args interface{}) (interface{}, error) {
 				if !w.VCR.OIDC4VCIEnabled() {
-					log.Logger().Info("Someone tried to access disabled OpenID4VCI API endpoint.")
-					return nil, core.NotFoundError("OpenID4VCI is disabled")
+					log.Logger().Info("Someone tried to access disabled OIDC4VCI API endpoint.")
+					return nil, core.NotFoundError("openid4vci is disabled")
 				}
 				return f(ctx, args)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
-			return audit.StrictMiddleware(f, vcr.ModuleName+"/OpenID4VCI", operationID)
+			return audit.StrictMiddleware(f, vcr.ModuleName+"/OIDC4VCI", operationID)
 		},
 	}))
 }

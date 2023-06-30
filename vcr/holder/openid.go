@@ -166,7 +166,7 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 	}
 	log.Logger().
 		WithField("credentialID", credential.ID).
-		Info("Received VC over OpenID4VCI")
+		Infof("Received VC over OIDC4VCI")
 	err = h.credentialStore.StoreCredential(*credential, nil)
 	if err != nil {
 		return fmt.Errorf("unable to store credential: %w", err)

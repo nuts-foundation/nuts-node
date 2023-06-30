@@ -202,7 +202,7 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 	walletMetadataURL := core.JoinURLPaths(walletIdentifier, oidc4vci.WalletMetadataWellKnownPath)
 	log.Logger().
 		WithField(core.LogFieldCredentialID, credential.ID).
-		Infof("Offering credential using OpenID4VCI (client-metadata-url=%s)", walletMetadataURL)
+		Infof("Offering credential using OIDC4VCI (client-metadata-url=%s)", walletMetadataURL)
 
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
 	httpTransport.TLSClientConfig = i.config.TLS
@@ -235,7 +235,7 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 		return nil, err
 	}
 	if flow == nil {
-		log.Logger().Warn("Client tried retrieving credential over OpenID4VCI with unknown OAuth2 access token")
+		log.Logger().Warn("Client tried retrieving credential over OIDC4VCI with unknown OAuth2 access token")
 		return nil, oidc4vci.Error{
 			Err:        errors.New("unknown access token"),
 			Code:       oidc4vci.InvalidToken,
@@ -266,7 +266,7 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 		WithField(core.LogFieldCredentialID, credential.ID).
 		WithField(core.LogFieldCredentialIssuer, credential.Issuer.String()).
 		WithField(core.LogFieldCredentialSubject, subjectDID).
-		Info("VC retrieved by wallet over OpenID4VCI")
+		Info("VC retrieved by wallet over OIDC4VCI")
 
 	return &credential, nil
 }

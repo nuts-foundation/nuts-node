@@ -38,7 +38,7 @@ func FlagSet() *pflag.FlagSet {
 	defs := vcr.DefaultConfig()
 	flagSet := pflag.NewFlagSet("vcr", pflag.ContinueOnError)
 	flagSet.String("vcr.oidc4vci.definitionsdir", defs.OIDC4VCI.DefinitionsDIR, "Directory with the additional credential definitions the node could issue (experimental, may change without notice).")
-	flagSet.Bool("vcr.oidc4vci.enabled", defs.OIDC4VCI.Enabled, "Enable issuing and receiving credentials over OpenID4VCI (experimental).")
+	flagSet.Bool("vcr.oidc4vci.enabled", defs.OIDC4VCI.Enabled, "Enable issuing and receiving credentials over OIDC4VCI (experimental).")
 	flagSet.Duration("vcr.oidc4vci.timeout", time.Second*30, "Time-out for OpenID4VCI HTTP client operations.")
 	return flagSet
 }
