@@ -54,6 +54,7 @@ type VDR struct {
 	networkAmbassador Ambassador
 	didDocCreator     types.DocCreator
 	didDocResolver    types.DocResolver
+	serviceResolver   types.ServiceResolver
 	documentOwner     types.DocumentOwner
 	keyStore          crypto.KeyStore
 }
@@ -66,7 +67,8 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.T
 		network:           networkClient,
 		store:             store,
 		didDocCreator:     didservice.Creator{KeyStore: cryptoClient},
-		didDocResolver:    resolver,
+		didDocResolver:    didservice.Resolver{Store: store},
+		serviceResolver:   didservice.ServiceResolver{Store: store},
 		documentOwner:     newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, resolver),
 		networkAmbassador: NewAmbassador(networkClient, store, eventManager),
 		keyStore:          cryptoClient,
@@ -266,7 +268,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	next = withJSONLDContext(next, didservice.JWS2020ContextV1URI())
 
 	// Validate document. No more changes should be made to the document after this point.
-	if err = ManagedDocumentValidator(didservice.NewServiceResolver(r.didDocResolver)).Validate(next); err != nil {
+	if err = ManagedDocumentValidator(r.serviceResolver).Validate(next); err != nil {
 		return fmt.Errorf("update DID document: %w", err)
 	}
 

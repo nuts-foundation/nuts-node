@@ -27,7 +27,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/mock/gomock"
@@ -47,10 +46,8 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 	pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).AnyTimes()
 	newInstance := NewNetworkInstance(
 		config,
-		didservice.KeyResolver{Store: store},
+		store,
 		cryptoInstance,
-		didservice.Resolver{Store: store},
-		didservice.Finder{Store: store},
 		eventPublisher,
 		storage.NewTestStorageEngine(testDirectory).GetProvider(ModuleName),
 		pkiMock,

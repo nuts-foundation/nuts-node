@@ -529,67 +529,67 @@ func TestServiceResolver_Resolve(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
-		docResolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
+		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
 
-		actual, err := NewServiceResolver(docResolver).Resolve(MakeServiceReference(*didB, "simple"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "simple"), DefaultMaxServiceReferenceDepth)
 
 		assert.NoError(t, err)
 		assert.Equal(t, docB.Service[0], actual)
 	})
 	t.Run("ok - external", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
-		docResolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
-		docResolver.EXPECT().Resolve(*didA, nil).MinTimes(1).Return(&docA, meta, nil)
+		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
+		store.EXPECT().Resolve(*didA, nil).MinTimes(1).Return(&docA, meta, nil)
 
-		actual, err := NewServiceResolver(docResolver).Resolve(MakeServiceReference(*didB, "external"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "external"), DefaultMaxServiceReferenceDepth)
 
 		assert.NoError(t, err)
 		assert.Equal(t, docA.Service[0], actual)
 	})
 	t.Run("error - cyclic reference (yields refs too deep)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
-		docResolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
+		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
 
-		actual, err := NewServiceResolver(docResolver).Resolve(MakeServiceReference(*didB, "cyclic-ref"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "cyclic-ref"), DefaultMaxServiceReferenceDepth)
 
 		assert.EqualError(t, err, "service references are nested to deeply before resolving to a non-reference")
 		assert.Empty(t, actual)
 	})
 	t.Run("error - invalid ref", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
-		docResolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
+		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
 
-		actual, err := NewServiceResolver(docResolver).Resolve(MakeServiceReference(*didB, "invalid-ref"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "invalid-ref"), DefaultMaxServiceReferenceDepth)
 
 		assert.EqualError(t, err, "DID service query invalid: endpoint URI path must be /serviceEndpoint")
 		assert.Empty(t, actual)
 	})
 	t.Run("error - service not found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
-		docResolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
+		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
 
-		actual, err := NewServiceResolver(docResolver).Resolve(MakeServiceReference(*didB, "non-existent"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "non-existent"), DefaultMaxServiceReferenceDepth)
 
 		assert.EqualError(t, err, "service not found in DID Document")
 		assert.Empty(t, actual)
 	})
 	t.Run("error - DID not found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
-		docResolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(nil, nil, types.ErrNotFound)
+		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(nil, nil, types.ErrNotFound)
 
-		actual, err := NewServiceResolver(docResolver).Resolve(MakeServiceReference(*didB, "non-existent"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "non-existent"), DefaultMaxServiceReferenceDepth)
 
 		assert.EqualError(t, err, "unable to find the DID document")
 		assert.Empty(t, actual)

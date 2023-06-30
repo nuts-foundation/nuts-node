@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	types "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,7 +48,7 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		sut := networkPublisher{}
-		mockServiceResolver := didservice.NewMockServiceResolver(ctrl)
+		mockServiceResolver := vdrTypes.NewMockServiceResolver(ctrl)
 		sut.serviceResolver = mockServiceResolver
 
 		mockServiceResolver.EXPECT().Resolve(expectedURIA, 5).Return(service, nil)
@@ -64,7 +63,7 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		sut := networkPublisher{}
-		mockServiceResolver := didservice.NewMockServiceResolver(ctrl)
+		mockServiceResolver := vdrTypes.NewMockServiceResolver(ctrl)
 		sut.serviceResolver = mockServiceResolver
 
 		service := did.Service{ID: serviceID, ServiceEndpoint: "https://foo"}
@@ -80,7 +79,7 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		sut := networkPublisher{}
-		mockServiceResolver := didservice.NewMockServiceResolver(ctrl)
+		mockServiceResolver := vdrTypes.NewMockServiceResolver(ctrl)
 		sut.serviceResolver = mockServiceResolver
 		mockServiceResolver.EXPECT().Resolve(expectedURIA, 5).Return(did.Service{}, errors.New("b00m!"))
 
@@ -137,7 +136,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		mockKeyResolver := NewMockkeyResolver(ctrl)
 		mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
 		mockNetwork := network.NewMockTransactions(ctrl)
-		mockServiceResolver := didservice.NewMockServiceResolver(ctrl)
+		mockServiceResolver := vdrTypes.NewMockServiceResolver(ctrl)
 
 		sut := networkPublisher{
 			keyResolver:     mockKeyResolver,
@@ -216,7 +215,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		t.Run("missing NutsCommEndpoint", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			mockServiceResolver := didservice.NewMockServiceResolver(ctrl)
+			mockServiceResolver := vdrTypes.NewMockServiceResolver(ctrl)
 
 			sut := networkPublisher{
 				serviceResolver: mockServiceResolver,

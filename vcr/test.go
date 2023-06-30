@@ -59,8 +59,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	// give network a subdirectory to avoid duplicate networks in tests
 	newInstance := NewVCRInstance(
 		ctx.KeyStore,
-		ctx.DocResolver,
-		ctx.KeyResolver,
+		ctx.DIDStore,
 		network.NewTestNetworkInstance(t),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
@@ -87,7 +86,6 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 	newInstance := NewVCRInstance(
 		nil,
 		nil,
-		nil,
 		network.NewTestNetworkInstance(t),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
@@ -111,7 +109,7 @@ type mockContext struct {
 	vcr             *vcr
 	keyResolver     *types.MockKeyResolver
 	docResolver     *types.MockDocResolver
-	serviceResolver *didservice.MockServiceResolver
+	serviceResolver *types.MockServiceResolver
 	crypto          *crypto.Crypto
 }
 
@@ -125,13 +123,15 @@ func newMockContext(t *testing.T) mockContext {
 	tx.EXPECT().CleanupSubscriberEvents("vcr_vcs", gomock.Any())
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
-	serviceResolver := didservice.NewMockServiceResolver(ctrl)
+	serviceResolver := types.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(testDir)
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
-	vcr := NewVCRInstance(cryptoInstance, docResolver, keyResolver, tx, jsonldManager, eventManager, storageClient, nil, nil).(*vcr)
+	vcr := NewVCRInstance(cryptoInstance, nil, tx, jsonldManager, eventManager, storageClient, nil, nil).(*vcr)
 	vcr.serviceResolver = serviceResolver
+	vcr.keyResolver = keyResolver
+	vcr.docResolver = docResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	if err := vcr.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDir})); err != nil {
 		t.Fatal(err)

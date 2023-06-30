@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/url"
 	"strings"
 )
@@ -39,12 +40,12 @@ type Authenticator interface {
 }
 
 // NewTLSAuthenticator creates an Authenticator that verifies node identities using TLS certificates.
-func NewTLSAuthenticator(serviceResolver didservice.ServiceResolver) Authenticator {
+func NewTLSAuthenticator(serviceResolver types.ServiceResolver) Authenticator {
 	return &tlsAuthenticator{serviceResolver: serviceResolver}
 }
 
 type tlsAuthenticator struct {
-	serviceResolver didservice.ServiceResolver
+	serviceResolver types.ServiceResolver
 }
 
 func (t tlsAuthenticator) Authenticate(nodeDID did.DID, peer transport.Peer) (transport.Peer, error) {
@@ -83,7 +84,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, peer transport.Peer) (tr
 }
 
 // NewDummyAuthenticator creates an Authenticator that does not verify node identities
-func NewDummyAuthenticator(_ didservice.ServiceResolver) Authenticator {
+func NewDummyAuthenticator(_ types.ServiceResolver) Authenticator {
 	return &dummyAuthenticator{}
 }
 

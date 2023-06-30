@@ -1112,6 +1112,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		didDocumentFinder:   didservice.Finder{Store: didStore},
 		keyStore:            keyStore,
 		keyResolver:         didservice.KeyResolver{Store: didStore},
+		serviceResolver:     didservice.ServiceResolver{Store: didStore},
 		eventPublisher:      eventPublisher,
 		storeProvider:       &storeProvider,
 		pkiValidator:        pkiValidator,

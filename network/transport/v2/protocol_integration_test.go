@@ -162,7 +162,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
 	ctx.protocol = New(*cfg, did.DID{}, ctx.state, didservice.Resolver{Store: vdrStore}, keyStore, nil, bboltStore).(*protocol)
 
-	authenticator := grpc.NewTLSAuthenticator(didservice.NewServiceResolver(&didservice.Resolver{Store: didstore.NewTestStore(t)}))
+	authenticator := grpc.NewTLSAuthenticator(didservice.ServiceResolver{Store: didstore.NewTestStore(t)})
 	connectionsStore, _ := storageClient.GetProvider("network").GetKVStore("connections", storage.VolatileStorageClass)
 	grpcCfg, err := grpc.NewConfig(listenAddress, peerID)
 	require.NoError(t, err)

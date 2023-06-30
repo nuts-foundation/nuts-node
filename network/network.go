@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -85,6 +86,7 @@ type Network struct {
 	didDocumentResolver types.DocResolver
 	nodeDID             did.DID
 	didDocumentFinder   types.DocFinder
+	serviceResolver     types.ServiceResolver
 	eventPublisher      events.Event
 	storeProvider       storage.Provider
 	pkiValidator        pki.Validator
@@ -139,20 +141,19 @@ func (n *Network) Migrate() error {
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(
 	config Config,
-	keyResolver types.KeyResolver,
+	store didstore.Store,
 	keyStore crypto.KeyStore,
-	didDocumentResolver types.DocResolver,
-	didDocumentFinder types.DocFinder,
 	eventPublisher events.Event,
 	storeProvider storage.Provider,
 	pkiValidator pki.Validator,
 ) *Network {
 	return &Network{
 		config:              config,
-		keyResolver:         keyResolver,
+		keyResolver:         didservice.KeyResolver{Store: store},
 		keyStore:            keyStore,
-		didDocumentResolver: didDocumentResolver,
-		didDocumentFinder:   didDocumentFinder,
+		didDocumentResolver: didservice.Resolver{Store: store},
+		didDocumentFinder:   didservice.Finder{Store: store},
+		serviceResolver:     didservice.ServiceResolver{Store: store},
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider,
 		pkiValidator:        pkiValidator,
@@ -251,7 +252,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			if config.TLS.Offload == core.OffloadIncomingTLS {
 				grpcOpts = append(grpcOpts, grpc.WithTLSOffloading(config.TLS.ClientCertHeaderName))
 			}
-			authenticator = grpc.NewTLSAuthenticator(didservice.NewServiceResolver(n.didDocumentResolver))
+			authenticator = grpc.NewTLSAuthenticator(n.serviceResolver)
 		} else {
 			// Not allowed in strict mode for security reasons: only intended for demo/workshop purposes.
 			if config.Strictmode {
@@ -475,9 +476,8 @@ func (n *Network) checkNodeDIDHealth(ctx context.Context, nodeDID did.DID) core.
 	}
 
 	// Check if the DID document has a resolvable and valid NutsComm endpoint
-	serviceResolver := didservice.NewServiceResolver(n.didDocumentResolver)
 	serviceRef := didservice.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
-	nutsCommService, err := serviceResolver.Resolve(serviceRef, didservice.DefaultMaxServiceReferenceDepth)
+	nutsCommService, err := n.serviceResolver.Resolve(serviceRef, didservice.DefaultMaxServiceReferenceDepth)
 	if err != nil {
 		// Non-existing NutsComm results in HealthStatusUnknown to make it easier to fix the issue (HealthStatusDown kills the node in certain environments)
 		return core.Health{

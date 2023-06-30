@@ -42,7 +42,7 @@ var _ IdentifierResolver = DIDIdentifierResolver{}
 
 // DIDIdentifierResolver is a IdentifierResolver that resolves identifiers from DID documents.
 type DIDIdentifierResolver struct {
-	ServiceResolver didservice.ServiceResolver
+	ServiceResolver types.ServiceResolver
 }
 
 func (i DIDIdentifierResolver) Resolve(id did.DID) (string, error) {
