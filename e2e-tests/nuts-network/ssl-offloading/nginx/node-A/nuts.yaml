@@ -15,7 +15,6 @@ tls:
   offload: incoming
   certheader: X-SSL-CERT
 network:
-  publicaddr: nodeA:5555
   grpcaddr:	:5555
   v2:
     gossipinterval: 250

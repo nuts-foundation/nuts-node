@@ -20,7 +20,6 @@ tls:
   certfile: /opt/nuts/certificate-and-key.pem
   certkeyfile: /opt/nuts/certificate-and-key.pem
 network:
-  publicaddr: nodeA:5555
   grpcaddr:	:5555
   v2:
     gossipinterval: 500

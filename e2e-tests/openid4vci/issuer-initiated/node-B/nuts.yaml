@@ -28,7 +28,6 @@ tls:
   certkeyfile: /opt/nuts/certificate-and-key.pem
 network:
   bootstrapnodes: nodeA:5555
-  publicaddr: nodeB:5555
   grpcaddr:	:5555
   v2:
     gossipinterval: 450

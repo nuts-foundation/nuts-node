@@ -4,7 +4,6 @@ services:
     image: &image nutsfoundation/nuts-node:latest
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
-      NUTS_NETWORK_PUBLICADDR: node1:5555
     healthcheck:
       test: "curl -f http://localhost:8080/status || exit 1"
     ports:

@@ -12,7 +12,6 @@ auth:
 crypto:
   storage: fs
 network:
-  publicaddr: nodeA:5555
   grpcaddr:	:5555
   certfile: /opt/nuts/certificate-and-key.pem
   certkeyfile: /opt/nuts/certificate-and-key.pem
