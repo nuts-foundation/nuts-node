@@ -13,8 +13,7 @@ echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
 docker compose up -d
-waitForDCService nodeA-backend
-waitForDCService nodeB
+docker compose up --wait nodeA-backend nodeB
 
 echo "------------------------------------"
 echo "Registering vendors..."

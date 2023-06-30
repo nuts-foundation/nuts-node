@@ -11,9 +11,8 @@ mkdir ./data
 
 # Start new stack
 docker compose pull
-docker compose up -d
+docker compose up --wait
 
-waitForDCService node
 
 go test -v --tags=e2e_tests .
 
