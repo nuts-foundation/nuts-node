@@ -17,8 +17,7 @@ mkdir -p ./node-data ./node-backup ./node-backup/vcr/ # 'data' dirs will be crea
 echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
-docker compose up -d
-waitForDCService nodeA
+docker compose up --wait
 
 echo "------------------------------------"
 echo "Creating NodeDID..."

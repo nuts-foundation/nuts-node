@@ -11,9 +11,7 @@ docker compose rm -f -v
 echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
-docker compose up -d
-waitForDCService nodeA
-waitForDCService nodeB
+docker compose up --wait
 
 # Wait for Nuts Network nodes to build connections
 sleep 1

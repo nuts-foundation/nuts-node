@@ -5,9 +5,7 @@ source ../../util.sh
 echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
-docker compose up -d
-
-waitForDCService nodeA
+docker compose up --wait
 
 echo "------------------------------------"
 echo "Issuing private VCs..."
@@ -40,8 +38,7 @@ mkdir ./node-data
 removeNodeDID ./node-A/nuts.yaml
 # Restart node, assert node data is empty
 echo "Asserting node is empty"
-BACKUP_INTERVAL=0 docker compose up -d
-waitForDCService nodeA
+BACKUP_INTERVAL=0 docker compose up --wait
 assertDiagnostic "http://localhost:11323" "transaction_count: 0"
 assertDiagnostic "http://localhost:11323" "credential_count: 0"
 # Restore data and rebuild
@@ -49,8 +46,7 @@ echo "Restoring node data"
 docker compose stop
 runOnAlpine "$(pwd):/host/" rm -rf /host/node-data
 runOnAlpine "$(pwd):/host/" mv -f /host/node-backup /host/node-data
-BACKUP_INTERVAL=0 docker compose up -d
-waitForDCService nodeA
+BACKUP_INTERVAL=0 docker compose up --wait
 
 echo "Rebuilding data"
 docker compose exec nodeA nuts network reprocess "application/vc+json"

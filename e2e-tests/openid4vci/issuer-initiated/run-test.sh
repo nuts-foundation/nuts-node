@@ -15,10 +15,7 @@ mkdir ./node-A/data ./node-B/data  # 'data' dirs will be created with root owner
 echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
-docker compose up -d
-
-waitForDCService nodeA
-waitForDCService nodeB
+docker compose up --wait
 
 echo "------------------------------------"
 echo "Creating NodeDIDs..."

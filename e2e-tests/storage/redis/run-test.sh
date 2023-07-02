@@ -5,15 +5,14 @@ source ../../util.sh
 echo "------------------------------------"
 echo "Cleaning up running Docker containers and volumes, and key material..."
 echo "------------------------------------"
-docker compose down
+docker compose stop
 docker compose rm -f -v
 
 echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
 docker compose up -d
-waitForDCService nodeA
-waitForDCService nodeB
+docker compose up --wait nodeA nodeB
 
 echo "------------------------------------"
 echo "Creating root"
@@ -41,9 +40,9 @@ waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 41 10
 echo "------------------------------------"
 echo "Restarting Docker containers..."
 echo "------------------------------------"
-docker compose restart nodeA nodeB redis
-waitForDCService nodeA
-waitForDCService nodeB
+docker compose stop
+docker compose up -d
+docker compose up --wait nodeA nodeB
 
 echo "----------------------------------------"
 echo "Performing assertions after restart..."

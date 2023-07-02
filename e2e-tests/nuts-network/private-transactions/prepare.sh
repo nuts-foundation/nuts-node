@@ -18,10 +18,7 @@ echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
 
-docker compose up -d
-
-waitForDCService nodeA
-waitForDCService nodeB
+docker compose up --wait
 
 # Wait for Nuts Network nodes to build connections
 sleep 5
@@ -36,8 +33,8 @@ printf "NodeDID for node-a: %s\n" "$didNodeA"
 # Restart nodeA now that it has >0 did documents with a NutsComm endpoint.
 # This tricks the node into thinking it is not 'new' so it can bypass the service discovery delay for new nodes and immediately setup an authenticated connection.
 # (nodeB will store this delay as a backoff for nodeA, so nodeA needs to discover and connect to nodeB after the restart)
-docker compose restart nodeA
-waitForDCService nodeA
+docker compose stop nodeA
+docker compose up --wait nodeA
 
 # Wait for the transactions to be processed (will be the root transaction for both nodes)
 sleep 5
