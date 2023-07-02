@@ -18,6 +18,3 @@ network:
   grpcaddr:	:5555
   v2:
     gossipinterval: 250
-  certfile: /opt/nuts/certificate-and-key.pem
-  certkeyfile: /opt/nuts/certificate-and-key.pem
-  truststorefile: /opt/nuts/truststore.pem
