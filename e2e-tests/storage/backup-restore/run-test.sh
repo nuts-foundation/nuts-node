@@ -3,19 +3,36 @@
 source ../../util.sh
 
 echo "------------------------------------"
+echo "Cleaning up running Docker containers and volumes, and key material..."
+echo "------------------------------------"
+docker compose down
+docker compose rm -f -v
+rm -rf ./node-data/*
+rm -rf ./node-backup/*
+
+echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
+mkdir -p ./node-data ./node-backup ./node-backup/vcr/ # 'data' dirs will be created with root owner by docker if they do not exit. This creates permission issues on CI.
+docker compose up --wait
+
+echo "------------------------------------"
+echo "Creating NodeDID..."
+echo "------------------------------------"
+export NODE_A_DID=$(setupNode "http://localhost:11323" nodeA:5555)
+printf "DID for node A: %s\n" "$NODE_A_DID"
+
+echo "------------------------------------"
+echo "Restarting with NodeDID set..."
+echo "------------------------------------"
+docker compose stop
 docker compose up --wait
 
 echo "------------------------------------"
 echo "Issuing private VCs..."
 echo "------------------------------------"
-
-nodeDID=$(findNodeDID "node-A/nuts.yaml")
-printf "NodeDID for node A: %s\n" "$nodeDID"
-
-unrevokedVC_ID=$(createAuthCredential "http://localhost:11323" "$nodeDID" "$nodeDID")
-revokedVC_ID=$(createAuthCredential "http://localhost:11323" "$nodeDID" "$nodeDID")
+unrevokedVC_ID=$(createAuthCredential "http://localhost:11323" "$NODE_A_DID" "$NODE_A_DID")
+revokedVC_ID=$(createAuthCredential "http://localhost:11323" "$NODE_A_DID" "$NODE_A_DID")
 revokeCredential "http://localhost:11323" "$revokedVC_ID"
 assertDiagnostic "http://localhost:11323" "transaction_count: 5"
 assertDiagnostic "http://localhost:11323" "credential_count: 2"
@@ -49,11 +66,13 @@ runOnAlpine "$(pwd):/host/" mv -f /host/node-backup /host/node-data
 BACKUP_INTERVAL=0 docker compose up --wait
 
 echo "Rebuilding data"
+# Sanity check for test; assert that the data is not there before rebuild
+assertDiagnostic "http://localhost:11323" "revocations_count: 0"
 docker compose exec nodeA nuts network reprocess "application/vc+json"
 docker compose exec nodeA nuts network reprocess "application/ld+json;type=revocation"
 
-# Wait for some time for reprocess to finish
-sleep 5
+# Wait for reprocess to finish
+waitForDiagnostic "nodeA" revocations_count 1
 
 assertDiagnostic "http://localhost:11323" "transaction_count: 5"
 assertDiagnostic "http://localhost:11323" "credential_count: 2"

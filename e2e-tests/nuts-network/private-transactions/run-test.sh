@@ -4,10 +4,6 @@ set -e
 
 source ../../util.sh
 
-function findNodeDID() {
-  egrep -o 'nodedid:.*' $1 | awk '{print $2}'
-}
-
 function searchAuthCredentials() {
   printf '{
     "query": {
@@ -24,30 +20,57 @@ function searchAuthCredentials() {
 }
 
 echo "------------------------------------"
+echo "Cleaning up running Docker containers and volumes, and key material..."
+echo "------------------------------------"
+docker compose down
+docker compose rm -f -v
+rm -rf ./node-*/data
+
+echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
+# 'data' dirs will be created with root owner by docker if they do not exit.
+# This creates permission issues on CI, since we manually delete the network/connections.db file.
+mkdir -p ./node-A/data/network ./node-B/data/network
+# Empty node DIDs to avoid warning in Docker logs
+export NODE_A_DID=
+export NODE_B_DID=
+export BOOTSTRAP_NODES=nodeA:5555
 docker compose up --wait
 
-# Wait for Nuts Network nodes to build connections
-sleep 5
+echo "------------------------------------"
+echo "Creating NodeDIDs..."
+echo "------------------------------------"
+export NODE_A_DID=$(setupNode "http://localhost:11323" "nodeA:5555")
+printf "NodeDID for node-a: %s\n" "$NODE_A_DID"
+# Wait for node B to receive the TXs created by node A, indicating the connection is working
+waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 2 10
+export NODE_B_DID=$(setupNode "http://localhost:21323" "nodeB:5555")
+printf "NodeDID for node-b: %s\n" "$NODE_B_DID"
+# Wait for node A to receive all TXs created by node B
+waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 4 10
 
 echo "------------------------------------"
-echo "Asserting..."
+echo "Restarting with NodeDID set..."
 echo "------------------------------------"
+# Start without bootstrap node, to enforce authenticated, discovered connections (required for private transactions)
+export BOOTSTRAP_NODES=
+docker compose stop
+# Delete nodes' address books to avoid persisting initial "new node" delay, allowing to connect to each other immediately
+rm -rf ./node-*/data/network/connections.db
+docker compose up --wait
 
-didNodeA=$(findNodeDID "node-A/nuts.yaml")
-printf "NodeDID for node A: %s\n" "$didNodeA"
-
-didNodeB=$(findNodeDID "node-B/nuts.yaml")
-printf "NodeDID for node B: %s\n" "$didNodeB"
-
-vcNodeA=$(createAuthCredential "http://localhost:11323" "$didNodeA" "$didNodeB")
+echo "------------------------------------"
+echo "Issuing private credentials..."
+echo "------------------------------------"
+vcNodeA=$(createAuthCredential "http://localhost:11323" "$NODE_A_DID" "$NODE_B_DID")
 printf "VC issued by node A: %s\n" "$vcNodeA"
-vcNodeB=$(createAuthCredential "http://localhost:21323" "$didNodeB" "$didNodeA")
+vcNodeB=$(createAuthCredential "http://localhost:21323" "$NODE_B_DID" "$NODE_A_DID")
 printf "VC issued by node B: %s\n" "$vcNodeB"
 
 # Wait for transactions to sync
-sleep 10
+waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 6 10
+waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 6 10
 
 if [ $(searchAuthCredentials "http://localhost:11323" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "2" ]; then
   echo "failed to find NutsAuthorizationCredentials on Node-A"
@@ -66,7 +89,8 @@ revokeCredential "http://localhost:11323" "${vcNodeA}"
 revokeCredential "http://localhost:21323" "${vcNodeB}"
 
 # Wait for transactions to sync
-sleep 5
+waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 8 10
+waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 8 10
 
 if [ $(searchAuthCredentials "http://localhost:11323" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
   echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-A"
@@ -82,7 +106,3 @@ echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"
 docker compose stop
-
-# cleanup: remove nodeDID from configs
-removeNodeDID ./node-A/nuts.yaml
-removeNodeDID ./node-B/nuts.yaml

@@ -5,6 +5,7 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_STORAGE_BBOLT_BACKUP_INTERVAL: ${BACKUP_INTERVAL:-1s}
+      NUTS_NETWORK_NODEDID: "${NODE_A_DID}"
     ports:
       - "11323:1323"
     volumes:
