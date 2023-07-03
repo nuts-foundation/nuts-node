@@ -55,13 +55,14 @@ else
   exitWithDockerLogs 1
 fi
 
+echo Waiting for updates to be propagated on the network...
+waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 5 10
+waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 5 10
+
 # Vendor A must trust 'NutsOrganizationCredential's from Vendor B
 docker compose exec nodeA-backend nuts vcr trust "NutsOrganizationCredential" "${VENDOR_B_DID}"
 # Vendor B must trust its own 'NutsOrganizationCredential's since it's self-issued
 docker compose exec nodeB nuts vcr trust "NutsOrganizationCredential" "${VENDOR_B_DID}"
-
-echo Waiting 6 seconds for updates to be propagated on the network...
-sleep 6
 
 echo "------------------------------------"
 echo "Sign contract..."
