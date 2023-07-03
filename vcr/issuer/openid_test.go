@@ -146,9 +146,6 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				"http://example.org/credentials/V1",
 			},
 			"type": []string{"VerifiableCredential", "HumanCredential"},
-			"credentialSubject": map[string]interface{}{
-				"id": holderDID.String(),
-			},
 		}
 	}
 	createRequest := func(headers, claims, credentialDefinition map[string]interface{}) oidc4vci.CredentialRequest {
@@ -315,6 +312,40 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 			assertProtocolError(t, err, http.StatusBadRequest, "invalid_token - nonce not valid for access token")
 			assert.Nil(t, response)
+		})
+	})
+
+	t.Run("validateRequestedCredential", func(t *testing.T) {
+		t.Run("invalid format", func(t *testing.T) {
+			invalidRequest := createRequest(createHeaders(), createClaims(cNonce), createCredentialDefinition())
+			invalidRequest.Format = "not supported"
+			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
+
+			require.EqualError(t, err, "unsupported_credential_format - credential format 'not supported' not supported")
+			require.Nil(t, response)
+		})
+		t.Run("missing credential_definition", func(t *testing.T) {
+			invalidRequest := createRequest(createHeaders(), createClaims(cNonce), nil)
+			invalidRequest.CredentialDefinition = nil
+			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
+
+			require.EqualError(t, err, "invalid_request - missing credential_definition")
+			require.Nil(t, response)
+		})
+		t.Run("request does not match offer", func(t *testing.T) {
+			invalidRequest := createRequest(createHeaders(), createClaims(cNonce),
+				map[string]interface{}{
+					"@context": []string{
+						"https://www.w3.org/2018/credentials/v1",
+						"http://example.org/credentials/V1",
+					},
+					"type": []string{"VerifiableCredential", "NutsAuthorizationCredential"},
+				})
+
+			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
+
+			require.EqualError(t, err, "invalid_request - requested credential type does not match offer")
+			require.Nil(t, response)
 		})
 	})
 

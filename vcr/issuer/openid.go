@@ -296,30 +296,8 @@ func (i *openidHandler) validateRequestedCredential(offer vc.VerifiableCredentia
 		}
 	}
 
-	// Compare credential subjects
-	cdBytes, _ := json.Marshal(request.CredentialDefinition)
-	requestedCredential := vc.VerifiableCredential{}
-	err := json.Unmarshal(cdBytes, &requestedCredential)
-	if err != nil {
-		return oidc4vci.Error{
-			Err:        errors.New("invalid credential_definition"),
-			Code:       oidc4vci.InvalidRequest,
-			StatusCode: http.StatusBadRequest,
-		}
-	}
-
-	requestSubjectDID, _ := getSubjectDID(requestedCredential)
-	offerSubjectDID, _ := getSubjectDID(offer)
-	if !offerSubjectDID.Equals(requestSubjectDID) {
-		return oidc4vci.Error{
-			Err:        errors.New("requested subject does not match offer"),
-			Code:       oidc4vci.InvalidRequest,
-			StatusCode: http.StatusBadRequest,
-		}
-	}
-
 	// Compare credential types
-	err = oidc4vci.CredentialTypesMatchDefinition(i.jsonldReader, offer, *request.CredentialDefinition)
+	err := oidc4vci.CredentialTypesMatchDefinition(i.jsonldReader, offer, *request.CredentialDefinition)
 	if err != nil {
 		return oidc4vci.Error{
 			Err:        errors.New("requested credential type does not match offer"),
