@@ -387,14 +387,14 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	if flowFromNonce == nil {
 		return oidc4vci.Error{
 			Err:        errors.New("unknown nonce"),
-			Code:       oidc4vci.InvalidToken,
+			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	if flowFromNonce.ID != flow.ID {
 		return oidc4vci.Error{
 			Err:        errors.New("nonce not valid for access token"),
-			Code:       oidc4vci.InvalidToken,
+			Code:       oidc4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}

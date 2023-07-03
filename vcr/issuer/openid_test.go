@@ -278,7 +278,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-			assertProtocolError(t, err, http.StatusBadRequest, "invalid_token - unknown nonce")
+			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - unknown nonce")
 			assert.Nil(t, response)
 		})
 		t.Run("wrong nonce", func(t *testing.T) {
@@ -290,7 +290,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-			assertProtocolError(t, err, http.StatusBadRequest, "invalid_token - nonce not valid for access token")
+			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - nonce not valid for access token")
 			assert.Nil(t, response)
 		})
 	})
