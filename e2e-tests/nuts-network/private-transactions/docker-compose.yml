@@ -4,6 +4,7 @@ services:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_NETWORK_NODEDID: "${NODE_A_DID}"
     ports:
       - "11323:1323"
     volumes:
@@ -17,6 +18,8 @@ services:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_NETWORK_NODEDID: "${NODE_B_DID}"
+      NUTS_NETWORK_BOOTSTRAPNODES: ${BOOTSTRAP_NODES}
     ports:
       - "21323:1323"
     volumes:

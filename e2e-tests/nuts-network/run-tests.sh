@@ -14,7 +14,6 @@ echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 echo "!! Running test: Private TXs      !!"
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 pushd private-transactions
-./prepare.sh
 ./run-test.sh
 popd
 
