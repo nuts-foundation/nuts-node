@@ -1,4 +1,4 @@
-verbosity: trace
+verbosity: debug
 strictmode: true
 internalratelimiter: false
 datadir: /opt/nuts/data
