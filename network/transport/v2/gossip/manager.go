@@ -69,7 +69,7 @@ type manager struct {
 	// messageSenders contains all registered functions that should send network messages
 	messageSenders []SenderFunc
 	// peers maps peer.Key to peerQueue
-	peers map[transport.PeerKey]*peerQueue
+	peers map[transport.PeerID]*peerQueue
 }
 
 // NewManager returns a new gossip Manager
@@ -78,7 +78,7 @@ func NewManager(ctx context.Context, interval time.Duration) Manager {
 	return &manager{
 		ctx:      ctx,
 		interval: interval,
-		peers:    map[transport.PeerKey]*peerQueue{},
+		peers:    map[transport.PeerID]*peerQueue{},
 	}
 }
 

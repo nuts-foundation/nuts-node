@@ -91,7 +91,7 @@ func TestApiWrapper_GetPeerDiagnostics(t *testing.T) {
 
 	var networkClient = network.NewMockTransactions(mockCtrl)
 	wrapper := &Wrapper{Service: networkClient}
-	networkClient.EXPECT().PeerDiagnostics().Return(map[transport.PeerKey]transport.Diagnostics{"foo": {
+	networkClient.EXPECT().PeerDiagnostics().Return(map[transport.PeerID]transport.Diagnostics{"foo": {
 		Uptime:               1000 * time.Second,
 		Peers:                []transport.PeerID{"bar"},
 		NumberOfTransactions: 5,
@@ -233,13 +233,13 @@ func TestWrapper_GetPeerDiagnostics(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		wrapper := &Wrapper{Service: networkClient}
-		expected := map[transport.PeerKey]transport.Diagnostics{"foo": {Uptime: 50 * time.Second}}
+		expected := map[transport.PeerID]transport.Diagnostics{"foo": {Uptime: 50 * time.Second}}
 		networkClient.EXPECT().PeerDiagnostics().Return(expected)
 
 		resp, err := wrapper.GetPeerDiagnostics(nil, GetPeerDiagnosticsRequestObject{})
 
 		assert.NoError(t, err)
-		actual := map[transport.PeerKey]PeerDiagnostics{}
+		actual := map[transport.PeerID]PeerDiagnostics{}
 		httpTest.UnmarshalResponseBody(t, resp.VisitGetPeerDiagnosticsResponse, &actual)
 		assert.Equal(t, PeerDiagnostics(expected["foo"]), actual["foo"])
 	})

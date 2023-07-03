@@ -32,7 +32,7 @@ type peerDiagnosticsManager struct {
 	provider func() transport.Diagnostics
 	sender   func(diagnostics transport.Diagnostics)
 	mux      *sync.RWMutex
-	received map[transport.PeerKey]transport.Diagnostics
+	received map[transport.PeerID]transport.Diagnostics
 }
 
 func newPeerDiagnosticsManager(provider func() transport.Diagnostics, sender func(diagnostics transport.Diagnostics)) *peerDiagnosticsManager {
@@ -40,7 +40,7 @@ func newPeerDiagnosticsManager(provider func() transport.Diagnostics, sender fun
 		sender:   sender,
 		provider: provider,
 		mux:      &sync.RWMutex{},
-		received: make(map[transport.PeerKey]transport.Diagnostics),
+		received: make(map[transport.PeerID]transport.Diagnostics),
 	}
 }
 
@@ -66,18 +66,21 @@ func (m *peerDiagnosticsManager) handleReceived(peer transport.Peer, received *D
 		NumberOfTransactions: received.NumberOfTransactions,
 		SoftwareVersion:      received.SoftwareVersion,
 		SoftwareID:           received.SoftwareID,
-		Certificate:          peer.CertificateAsPem(), // enriches received diagnostics (not sent by peer)
+		// enriches diagnostics peer connection info
+		Certificate: peer.CertificateAsPem(),
+		NodeDID:     peer.NodeDID.String(),
+		Address:     peer.Address,
 	}
 	for _, p := range received.Peers {
 		diagnostics.Peers = append(diagnostics.Peers, transport.PeerID(p))
 	}
-	m.received[peer.Key()] = diagnostics
+	m.received[peer.ID] = diagnostics
 }
 
-func (m *peerDiagnosticsManager) get() map[transport.PeerKey]transport.Diagnostics {
+func (m *peerDiagnosticsManager) get() map[transport.PeerID]transport.Diagnostics {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
-	result := make(map[transport.PeerKey]transport.Diagnostics)
+	result := make(map[transport.PeerID]transport.Diagnostics)
 	for key, value := range m.received {
 		// Make sure we copy the Peers slice to avoid data race when its used
 		peers := append([]transport.PeerID{}, value.Peers...)
@@ -90,7 +93,7 @@ func (m *peerDiagnosticsManager) get() map[transport.PeerKey]transport.Diagnosti
 func (m *peerDiagnosticsManager) remove(peer transport.Peer) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	delete(m.received, peer.Key())
+	delete(m.received, peer.ID)
 }
 
 func (m *peerDiagnosticsManager) add(peer transport.Peer) {
@@ -98,6 +101,8 @@ func (m *peerDiagnosticsManager) add(peer transport.Peer) {
 	defer m.mux.Unlock()
 	newDiagnostics := transport.Diagnostics{
 		Certificate: peer.CertificateAsPem(),
+		NodeDID:     peer.NodeDID.String(),
+		Address:     peer.Address,
 	}
-	m.received[peer.Key()] = newDiagnostics
+	m.received[peer.ID] = newDiagnostics
 }

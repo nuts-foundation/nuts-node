@@ -294,7 +294,15 @@ components:
           type: string
         certificate:
           description: >
-            Certificate presented during TLS handshake to setup the existing connection.
+            Peer's Certificate
+          type: string
+        nodeDID:
+          description: >
+            Peer's NodeDID
+          type: string
+        address:
+          description: >
+            Peer's address. This is an IP if it is an inbound connection.
           type: string
     Contact:
       type: object

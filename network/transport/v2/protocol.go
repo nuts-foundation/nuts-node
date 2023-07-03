@@ -346,7 +346,7 @@ func (p *protocol) Diagnostics() []core.DiagnosticResult {
 	}}
 }
 
-func (p *protocol) PeerDiagnostics() map[transport.PeerKey]transport.Diagnostics {
+func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return p.diagnosticsMan.get()
 }
 

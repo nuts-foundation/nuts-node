@@ -342,7 +342,7 @@ func TestNetwork_PeerDiagnostics(t *testing.T) {
 	// Result should be peer A and B without diagnostics
 
 	cxt := createNetwork(t, ctrl)
-	cxt.protocol.EXPECT().PeerDiagnostics().Return(map[transport.PeerKey]transport.Diagnostics{
+	cxt.protocol.EXPECT().PeerDiagnostics().Return(map[transport.PeerID]transport.Diagnostics{
 		"A": {
 			SoftwareID: "A",
 			Uptime:     time.Second,
@@ -352,7 +352,7 @@ func TestNetwork_PeerDiagnostics(t *testing.T) {
 	})
 	protocol2 := transport.NewMockProtocol(ctrl)
 	protocol2.EXPECT().Start()
-	protocol2.EXPECT().PeerDiagnostics().Return(map[transport.PeerKey]transport.Diagnostics{
+	protocol2.EXPECT().PeerDiagnostics().Return(map[transport.PeerID]transport.Diagnostics{
 		"B": {
 			SoftwareID: "B",
 			Uptime:     time.Second,

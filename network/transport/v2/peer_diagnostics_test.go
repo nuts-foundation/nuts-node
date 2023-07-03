@@ -70,9 +70,19 @@ tyJ+7iY=
 -----END CERTIFICATE-----
 `
 
-func Test_PeerDiagnosticsManager_HandleReceived(t *testing.T) {
+func MakeTestPeer(t testing.TB) transport.Peer {
 	certs, err := core.ParseCertificates([]byte(certBytes))
 	require.NoError(t, err)
+	return transport.Peer{
+		ID:          "peer",
+		Certificate: certs[0],
+		NodeDID:     *nodeDID,
+		Address:     "example.com",
+	}
+}
+
+func Test_PeerDiagnosticsManager_HandleReceived(t *testing.T) {
+	testPeer := MakeTestPeer(t)
 
 	manager := newPeerDiagnosticsManager(nil, nil)
 	expected := transport.Diagnostics{
@@ -82,8 +92,10 @@ func Test_PeerDiagnosticsManager_HandleReceived(t *testing.T) {
 		SoftwareVersion:      "abc",
 		SoftwareID:           "def",
 		Certificate:          certBytes,
+		NodeDID:              testPeer.NodeDID.String(),
+		Address:              testPeer.Address,
 	}
-	manager.handleReceived(transport.Peer{ID: "peer", Certificate: certs[0]}, &Diagnostics{
+	manager.handleReceived(testPeer, &Diagnostics{
 		Uptime:               10,
 		PeerID:               "1234",
 		Peers:                []string{"1", "2"},
@@ -92,29 +104,33 @@ func Test_PeerDiagnosticsManager_HandleReceived(t *testing.T) {
 		SoftwareID:           "def",
 	})
 
-	assert.Equal(t, expected, manager.get()[testPeer.Key()])
+	assert.Equal(t, expected, manager.get()[testPeer.ID])
 }
 
 func Test_PeerDiagnosticsManager_Add(t *testing.T) {
-	certs, err := core.ParseCertificates([]byte(certBytes))
-	require.NoError(t, err)
-
-	peer := transport.Peer{ID: "1234", Certificate: certs[0]}
-	expected := transport.Diagnostics{Peers: []transport.PeerID{}, Certificate: certBytes}
+	testPeer := MakeTestPeer(t)
+	expected := transport.Diagnostics{
+		Peers:       []transport.PeerID{},
+		Certificate: certBytes,
+		NodeDID:     testPeer.NodeDID.String(),
+		Address:     testPeer.Address,
+	}
 
 	manager := newPeerDiagnosticsManager(nil, nil)
-	manager.add(peer)
-	assert.Equal(t, expected, manager.get()[peer.Key()])
+	manager.add(testPeer)
+	assert.Equal(t, expected, manager.get()[testPeer.ID])
 }
 
 func Test_PeerDiagnosticsManager_Remove(t *testing.T) {
 	manager := newPeerDiagnosticsManager(nil, nil)
 	manager.add(testPeer)
-	_, present := manager.get()[testPeer.Key()]
+	_, present := manager.get()[testPeer.ID]
 	assert.True(t, present)
+	assert.Len(t, manager.get(), 1)
 
 	// Now remove
 	manager.remove(testPeer)
-	_, present = manager.get()[testPeer.Key()]
+	_, present = manager.get()[testPeer.ID]
 	assert.False(t, present)
+	assert.Len(t, manager.get(), 0)
 }

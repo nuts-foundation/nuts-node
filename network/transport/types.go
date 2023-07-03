@@ -43,14 +43,6 @@ func (p PeerID) String() string {
 	return string(p)
 }
 
-// PeerKey is a unique key for a Peer including its PeerID, NodeDID, and address.
-type PeerKey string
-
-// String returns the PeerKey as string.
-func (p PeerKey) String() string {
-	return string(p)
-}
-
 // Peer holds the properties of a remote node we're connected to
 type Peer struct {
 	// ID holds the unique identifier of the peer
@@ -78,9 +70,9 @@ func (p Peer) ToFields() logrus.Fields {
 
 // Key returns a unique key for this Peer including PeerID and NodeDID.
 // Usable as map index, not usable for presentation.
-func (p Peer) Key() PeerKey {
+func (p Peer) Key() PeerID {
 	// address is included since 2 connections may exist for a peer (inbound/outbound)
-	return PeerKey(fmt.Sprintf("%s(%s)@%s", p.ID, p.NodeDID.String(), p.Address))
+	return PeerID(fmt.Sprintf("%s(%s)@%s", p.ID, p.NodeDID.String(), p.Address))
 }
 
 // String returns the peer as string.
@@ -118,6 +110,8 @@ type Diagnostics struct {
 	SoftwareID string `json:"softwareID"`
 	// Certificate contains the certificate presented by the peer during the TLS handshake.
 	Certificate string `json:"certificate"`
+	NodeDID     string `json:"nodeDID"`
+	Address     string `json:"address"`
 }
 
 // Contact holds statistics of an outbound connector.
