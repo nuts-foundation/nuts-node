@@ -20,45 +20,52 @@ package oidc4vci
 
 import (
 	"errors"
-	"fmt"
-
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 )
 
-// CredentialTypesMatchDefinition validates that credential matches VerifiableCredentialJSONLDFormat's credential_definition
-func CredentialTypesMatchDefinition(reader jsonld.Reader, credential vc.VerifiableCredential, credentialDefinition map[string]interface{}) error {
-	// In json-LD format the types need to be compared in expanded format
-	document, err := reader.Read(credentialDefinition)
-	if err != nil {
-		return fmt.Errorf("invalid credential_definition: %w", err)
+func CredentialDefinitionDescribesCredential(credential vc.VerifiableCredential, credentialDefinition map[string]interface{}) error {
+	// check context
+	definitionContexts, ok := credentialDefinition["@context"].([]string)
+	if !ok {
+		return errors.New("invalid '@context' in credential_definition")
 	}
-	// TODO: can credentialDefinition contain invalid values that makes this panic?
-	expectedTypes := document.ValueAt(jsonld.NewPath("@type"))
-
-	document, err = reader.Read(credential)
-	if err != nil {
-		return fmt.Errorf("invalid credential: %w", err)
+	// credential may contain more contexts than the definition if it already contains signature or proof contexts.
+	if len(definitionContexts) > len(credential.Context) {
+		return errors.New("@context do not match")
 	}
-	receivedTypes := document.ValueAt(jsonld.NewPath("@type"))
+	for _, defContext := range definitionContexts {
+		found := false
+		for _, vcContext := range credential.Context {
+			if defContext == vcContext.String() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return errors.New("@context do not match")
+		}
+	}
 
-	if !equal(expectedTypes, receivedTypes) {
-		return errors.New("credential Type do not match")
+	// check type
+	definitionTypes, ok := credentialDefinition["type"].([]string)
+	if !ok {
+		return errors.New("invalid 'type' in credential_definition")
+	}
+	if len(credential.Type) != len(definitionTypes) {
+		return errors.New("type do not match")
+	}
+	for _, defType := range definitionTypes {
+		found := false
+		for _, vcType := range credential.Type {
+			if defType == vcType.String() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return errors.New("type do not match")
+		}
 	}
 
 	return nil
-}
-
-// equal returns true if both slices have the same values in the same order.
-// Note: JSON arrays are ordered, JSON object elements are not.
-func equal(a, b []jsonld.Scalar) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !a[i].Equal(b[i]) {
-			return false
-		}
-	}
-	return true
 }

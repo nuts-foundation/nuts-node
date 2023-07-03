@@ -30,7 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
@@ -50,7 +49,7 @@ var nowFunc = time.Now
 var _ OpenIDHandler = (*openidHandler)(nil)
 
 // NewOpenIDHandler creates an OpenIDHandler that tries to retrieve offered credentials, to store it in the given credential store.
-func NewOpenIDHandler(config oidc4vci.ClientConfig, did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver, jsonldReader jsonld.Reader) OpenIDHandler {
+func NewOpenIDHandler(config oidc4vci.ClientConfig, did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OpenIDHandler {
 	return &openidHandler{
 		did:                 did,
 		identifier:          identifier,
@@ -59,7 +58,6 @@ func NewOpenIDHandler(config oidc4vci.ClientConfig, did did.DID, identifier stri
 		resolver:            resolver,
 		config:              config,
 		issuerClientCreator: oidc4vci.NewIssuerAPIClient,
-		jsonldReader:        jsonldReader,
 	}
 }
 
@@ -70,7 +68,6 @@ type openidHandler struct {
 	signer              crypto.JWTSigner
 	resolver            vdr.KeyResolver
 	issuerClientCreator func(ctx context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error)
-	jsonldReader        jsonld.Reader
 	config              oidc4vci.ClientConfig
 }
 
@@ -161,7 +158,7 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
-	if err = oidc4vci.CredentialTypesMatchDefinition(h.jsonldReader, *credential, credentialDefinition); err != nil {
+	if err = oidc4vci.CredentialDefinitionDescribesCredential(*credential, credentialDefinition); err != nil {
 		return oidc4vci.Error{
 			Err:        fmt.Errorf("received credential does not match offer: %w", err),
 			Code:       oidc4vci.ServerError,

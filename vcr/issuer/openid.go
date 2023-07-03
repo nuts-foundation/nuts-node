@@ -34,7 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
@@ -107,7 +106,7 @@ type OpenIDHandler interface {
 }
 
 // NewOpenIDHandler creates a new OpenIDHandler instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, config oidc4vci.ClientConfig, keyResolver types.KeyResolver, store OpenIDStore, jsonldReader jsonld.Reader) (OpenIDHandler, error) {
+func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, config oidc4vci.ClientConfig, keyResolver types.KeyResolver, store OpenIDStore) (OpenIDHandler, error) {
 	i := &openidHandler{
 		issuerIdentifierURL: issuerIdentifierURL,
 		issuerDID:           issuerDID,
@@ -116,7 +115,6 @@ func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitions
 		keyResolver:         keyResolver,
 		walletClientCreator: oidc4vci.NewWalletAPIClient,
 		store:               store,
-		jsonldReader:        jsonldReader,
 	}
 
 	// load the credential definitions. This is done to halt startup procedure if needed.
@@ -132,7 +130,6 @@ type openidHandler struct {
 	keyResolver          types.KeyResolver
 	store                OpenIDStore
 	walletClientCreator  func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
-	jsonldReader         jsonld.Reader
 }
 
 func (i *openidHandler) Metadata() oidc4vci.CredentialIssuerMetadata {
@@ -297,7 +294,7 @@ func (i *openidHandler) validateRequestedCredential(offer vc.VerifiableCredentia
 	}
 
 	// Compare credential types
-	err := oidc4vci.CredentialTypesMatchDefinition(i.jsonldReader, offer, *request.CredentialDefinition)
+	err := oidc4vci.CredentialDefinitionDescribesCredential(offer, *request.CredentialDefinition)
 	if err != nil {
 		return oidc4vci.Error{
 			Err:        errors.New("requested credential type does not match offer"),

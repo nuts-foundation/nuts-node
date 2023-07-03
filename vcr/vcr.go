@@ -115,7 +115,7 @@ func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHan
 		TLS:       c.clientTLSConfig,
 		HTTPSOnly: c.strictmode,
 	}
-	return issuer.NewOpenIDHandler(id, identifier, c.config.OIDC4VCI.DefinitionsDIR, clientConfig, c.keyResolver, c.openidIsssuerStore, jsonld.Reader{DocumentLoader: c.jsonldManager.DocumentLoader()})
+	return issuer.NewOpenIDHandler(id, identifier, c.config.OIDC4VCI.DefinitionsDIR, clientConfig, c.keyResolver, c.openidIsssuerStore)
 }
 
 func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHandler, error) {
@@ -128,7 +128,7 @@ func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHan
 		TLS:       c.clientTLSConfig,
 		HTTPSOnly: c.strictmode,
 	}
-	return holder.NewOpenIDHandler(clientConfig, id, identifier, c, c.keyStore, c.keyResolver, jsonld.Reader{DocumentLoader: c.jsonldManager.DocumentLoader()}), nil
+	return holder.NewOpenIDHandler(clientConfig, id, identifier, c, c.keyStore, c.keyResolver), nil
 }
 
 func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (string, error) {
