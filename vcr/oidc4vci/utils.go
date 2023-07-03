@@ -25,9 +25,9 @@ import (
 
 func CredentialDefinitionDescribesCredential(credential vc.VerifiableCredential, credentialDefinition map[string]interface{}) error {
 	// check context
-	definitionContexts, ok := credentialDefinition["@context"].([]string)
+	definitionContexts, ok := credentialDefinition["@context"].([]interface{})
 	if !ok {
-		return errors.New("invalid '@context' in credential_definition")
+		return errors.New("missing '@context' in credential_definition")
 	}
 	// credential may contain more contexts than the definition if it already contains signature or proof contexts.
 	if len(definitionContexts) > len(credential.Context) {
@@ -47,9 +47,9 @@ func CredentialDefinitionDescribesCredential(credential vc.VerifiableCredential,
 	}
 
 	// check type
-	definitionTypes, ok := credentialDefinition["type"].([]string)
+	definitionTypes, ok := credentialDefinition["type"].([]interface{})
 	if !ok {
-		return errors.New("invalid 'type' in credential_definition")
+		return errors.New("missing 'type' in credential_definition")
 	}
 	if len(credential.Type) != len(definitionTypes) {
 		return errors.New("type do not match")
