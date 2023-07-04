@@ -143,7 +143,7 @@ func TestProtocol_Diagnostics(t *testing.T) {
 func TestProtocol_PeerDiagnostics(t *testing.T) {
 	mgr := newPeerDiagnosticsManager(nil, nil)
 	expected := map[transport.PeerID]transport.Diagnostics{
-		transport.Peer{ID: "1234"}.Key(): {SoftwareID: "4321", Peers: []transport.PeerID{}},
+		transport.PeerID("1234"): {SoftwareID: "4321", Peers: []transport.PeerID{}},
 	}
 	mgr.received = expected
 	assert.Equal(t, expected, (&protocol{diagnosticsMan: mgr}).PeerDiagnostics())

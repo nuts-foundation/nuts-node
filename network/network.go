@@ -753,9 +753,9 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	// so for now they're copied over diagnostics of earlier versions, unless the entry is empty for that peer.
 	// We assume the diagnostic result is empty when it lists no peers (since it has at least 1 peer: the local node).
 	for _, prot := range n.protocols {
-		for peerKey, peerDiagnostics := range prot.PeerDiagnostics() {
-			if _, exists := result[peerKey]; !exists || len(peerDiagnostics.Peers) > 0 {
-				result[peerKey] = peerDiagnostics
+		for peerID, peerDiagnostics := range prot.PeerDiagnostics() {
+			if _, exists := result[peerID]; !exists || len(peerDiagnostics.Peers) > 0 {
+				result[peerID] = peerDiagnostics
 			}
 		}
 	}
