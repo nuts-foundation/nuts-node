@@ -26,12 +26,12 @@ import (
 )
 
 func Test_CredentialDefinitionDescribesCredential(t *testing.T) {
-	credentialDefinition := map[string]interface{}{
-		"@context": []string{
+	credentialDefinition := map[string]any{
+		"@context": []any{
 			"a",
 			"b",
 		},
-		"type": []string{"VerifiableCredential", "HumanCredential"},
+		"type": []any{"VerifiableCredential", "HumanCredential"},
 	}
 	credential := vc.VerifiableCredential{
 		Context: []ssi.URI{ssi.MustParseURI("a"), ssi.MustParseURI("b")},
@@ -43,7 +43,7 @@ func Test_CredentialDefinitionDescribesCredential(t *testing.T) {
 	})
 	t.Run("error - credential_definition missing @context", func(t *testing.T) {
 		err := CredentialDefinitionDescribesCredential(credential, map[string]interface{}{
-			"type": []string{"VerifiableCredential", "HumanCredential"},
+			"type": []any{"VerifiableCredential", "HumanCredential"},
 		})
 		assert.EqualError(t, err, "missing '@context' in credential_definition")
 	})
@@ -53,14 +53,14 @@ func Test_CredentialDefinitionDescribesCredential(t *testing.T) {
 	})
 	t.Run("error - credential_definition missing type", func(t *testing.T) {
 		err := CredentialDefinitionDescribesCredential(credential, map[string]any{
-			"@context": []string{"a", "b"},
+			"@context": []any{"a", "b"},
 		})
 		assert.EqualError(t, err, "missing 'type' in credential_definition")
 	})
 	t.Run("error - types mismatch", func(t *testing.T) {
 		err := CredentialDefinitionDescribesCredential(credential, map[string]any{
-			"@context": []string{"a", "b"},
-			"type":     []string{"VerifiableCredential", "NonHumanCredential"},
+			"@context": []any{"a", "b"},
+			"type":     []any{"VerifiableCredential", "NonHumanCredential"},
 		})
 		assert.EqualError(t, err, "type do not match")
 	})

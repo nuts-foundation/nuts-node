@@ -67,5 +67,7 @@ func CredentialDefinitionDescribesCredential(credential vc.VerifiableCredential,
 		}
 	}
 
+	// TODO: This should also check credentialSubject. Which we currently don't fill.
+
 	return nil
 }

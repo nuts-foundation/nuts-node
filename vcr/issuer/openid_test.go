@@ -56,8 +56,8 @@ var issuedVC = vc.VerifiableCredential{
 		ssi.MustParseURI("HumanCredential"),
 	},
 	Issuer: issuerDID.URI(),
-	CredentialSubject: []interface{}{
-		map[string]interface{}{
+	CredentialSubject: []any{
+		map[string]any{
 			"id": holderDID.String(),
 		},
 	},
@@ -98,9 +98,9 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 		assert.Equal(t, "ldp_vc", metadata.CredentialsSupported[0]["format"])
 		require.Len(t, metadata.CredentialsSupported[0]["cryptographic_binding_methods_supported"], 1)
 		assert.Equal(t, metadata.CredentialsSupported[0]["credential_definition"],
-			map[string]interface{}{
-				"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://www.nuts.nl/credentials/v1"},
-				"type":     []interface{}{"VerifiableCredential", "NutsAuthorizationCredential"},
+			map[string]any{
+				"@context": []any{"https://www.w3.org/2018/credentials/v1", "https://www.nuts.nl/credentials/v1"},
+				"type":     []any{"VerifiableCredential", "NutsAuthorizationCredential"},
 			})
 	})
 }
@@ -125,29 +125,29 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	keyResolver.EXPECT().ResolveSigningKey(keyID, nil).AnyTimes().Return(signerKey.Public(), nil)
 
-	createHeaders := func() map[string]interface{} {
-		return map[string]interface{}{
+	createHeaders := func() map[string]any {
+		return map[string]any{
 			"typ": oidc4vci.JWTTypeOpenID4VCIProof,
 			"kid": keyID,
 		}
 	}
-	createClaims := func(nonce string) map[string]interface{} {
-		return map[string]interface{}{
+	createClaims := func(nonce string) map[string]any {
+		return map[string]any{
 			"aud":   issuerIdentifier,
 			"iat":   time.Now().Unix(),
 			"nonce": nonce,
 		}
 	}
 	createCredentialDefinition := func() map[string]any {
-		return map[string]interface{}{
-			"@context": []string{
+		return map[string]any{
+			"@context": []any{
 				"https://www.w3.org/2018/credentials/v1",
 				"http://example.org/credentials/V1",
 			},
-			"type": []string{"VerifiableCredential", "HumanCredential"},
+			"type": []any{"VerifiableCredential", "HumanCredential"},
 		}
 	}
-	createRequest := func(headers, claims, credentialDefinition map[string]interface{}) oidc4vci.CredentialRequest {
+	createRequest := func(headers, claims, credentialDefinition map[string]any) oidc4vci.CredentialRequest {
 		proof, err := keyStore.SignJWT(ctx, claims, headers, headers["kid"])
 		require.NoError(t, err)
 		return oidc4vci.CredentialRequest{
@@ -225,8 +225,8 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("not signed by intended wallet (DID differs)", func(t *testing.T) {
 				otherIssuedVC := vc.VerifiableCredential{
 					Issuer: issuerDID.URI(),
-					CredentialSubject: []interface{}{
-						map[string]interface{}{
+					CredentialSubject: []any{
+						map[string]any{
 							"id": "did:nuts:other-wallet",
 						},
 					},
@@ -333,7 +333,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		})
 		t.Run("request does not match offer", func(t *testing.T) {
 			invalidRequest := createRequest(createHeaders(), createClaims(cNonce),
-				map[string]interface{}{
+				map[string]any{
 					"@context": []string{
 						"https://www.w3.org/2018/credentials/v1",
 						"http://example.org/credentials/V1",

@@ -59,21 +59,21 @@ func Test_wallet_Metadata(t *testing.T) {
 func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	credentialOffer := oidc4vci.CredentialOffer{
 		CredentialIssuer: issuerDID.String(),
-		Credentials: []map[string]interface{}{
+		Credentials: []map[string]any{
 			{
 				"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-				"credential_definition": map[string]interface{}{
-					"@context": []string{
+				"credential_definition": map[string]any{
+					"@context": []any{
 						"https://www.w3.org/2018/credentials/v1",
 						"http://example.org/credentials/V1",
 					},
-					"type": []string{"VerifiableCredential", "HumanCredential"},
+					"type": []any{"VerifiableCredential", "HumanCredential"},
 				},
 			},
 		},
-		Grants: map[string]interface{}{
-			"some-other-grant": map[string]interface{}{},
-			"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+		Grants: map[string]any{
+			"some-other-grant": map[string]any{},
+			"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]any{
 				"pre-authorized_code": "code",
 			},
 		},
@@ -103,7 +103,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		credentialStore := types.NewMockWriter(ctrl)
 		jwtSigner := crypto.NewMockJWTSigner(ctrl)
-		jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
+		jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]any{
 			"aud":   issuerDID.String(),
 			"iat":   int64(1735689600),
 			"nonce": nonce,
@@ -136,7 +136,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		t.Run("no pre-authorized grant", func(t *testing.T) {
 			offer := oidc4vci.CredentialOffer{
 				Credentials: emptyOfferedCredential(),
-				Grants: map[string]interface{}{
+				Grants: map[string]any{
 					"some-other-grant": nil,
 				},
 			}
@@ -146,8 +146,8 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		t.Run("invalid pre-authorized grant", func(t *testing.T) {
 			offer := oidc4vci.CredentialOffer{
 				Credentials: emptyOfferedCredential(),
-				Grants: map[string]interface{}{
-					"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+				Grants: map[string]any{
+					"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]any{
 						"pre-authorized_code": nil,
 					},
 				},
@@ -160,17 +160,17 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
 
 		offer := oidc4vci.CredentialOffer{
-			Credentials: []map[string]interface{}{
+			Credentials: []map[string]any{
 				{
 					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-					"credential_definition": map[string]interface{}{
+					"credential_definition": map[string]any{
 						"@context": []string{"a", "b"},
 						"type":     []string{"VerifiableCredential", "HumanCredential"},
 					},
 				},
 				{
 					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-					"credential_definition": map[string]interface{}{
+					"credential_definition": map[string]any{
 						"@context": []string{"a", "b"},
 						"type":     []string{"VerifiableCredential", "HumanCredential"},
 					},
@@ -238,8 +238,8 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{
 			CredentialIssuer: "http://localhost:87632",
 			Credentials:      emptyOfferedCredential(),
-			Grants: map[string]interface{}{
-				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+			Grants: map[string]any{
+				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]any{
 					"pre-authorized_code": "foo",
 				},
 			},
@@ -339,11 +339,11 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 // emptyOfferedCredential returns a structure that can be used as CredentialOffer.Credentials,
 // specifying an offer with a single credential without properties (which is invalid, but required to pass basic validation).
-func emptyOfferedCredential() []map[string]interface{} {
-	return []map[string]interface{}{
+func emptyOfferedCredential() []map[string]any {
+	return []map[string]any{
 		{
 			"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-			"credential_definition": map[string]interface{}{
+			"credential_definition": map[string]any{
 				"@context": []string{
 					"https://www.w3.org/2018/credentials/v1",
 					"http://example.org/credentials/V1",
