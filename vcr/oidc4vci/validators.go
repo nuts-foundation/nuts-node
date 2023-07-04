@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package oidc4vci
 
 import (
@@ -29,6 +47,9 @@ func ValidateCredentialDefinition(definition *CredentialDefinition, isOffer bool
 // ValidateDefinitionWithCredential confirms that the vc.VerifiableCredential is defined by the CredentialDefinition.
 // CredentialDefinition is assumed to be valid, see ValidateCredentialDefinition.
 func ValidateDefinitionWithCredential(credential vc.VerifiableCredential, definition CredentialDefinition) error {
+	// From spec: When the format value is ldp_vc, ..., including credential_definition object, MUST NOT be processed using JSON-LD rules.
+	// https://openid.bitbucket.io/connect/editors-draft/openid-4-verifiable-credential-issuance-1_0.html#name-format-identifier-2
+
 	// compare contexts. The credential may contain extra contexts for signatures or proofs
 	if len(credential.Context) < len(definition.Context) || !isSubset(credential.Context, definition.Context) {
 		return errors.New("credential does not match credential_definition: context mismatch")
