@@ -7,9 +7,9 @@ package gossip
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockManager is a mock of Manager interface.

@@ -8,8 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	nats_go "github.com/nats-io/nats.go"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockConn is a mock of Conn interface.

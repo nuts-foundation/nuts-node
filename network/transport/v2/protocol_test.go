@@ -30,11 +30,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport/v2/gossip"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 	grpcLib "google.golang.org/grpc"
 
 	"github.com/nuts-foundation/nuts-node/core"

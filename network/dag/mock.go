@@ -8,11 +8,11 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	go_stoabs "github.com/nuts-foundation/go-stoabs"
 	core "github.com/nuts-foundation/nuts-node/core"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	tree "github.com/nuts-foundation/nuts-node/network/dag/tree"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockState is a mock of State interface.

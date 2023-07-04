@@ -9,8 +9,8 @@ import (
 	crypto "crypto"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockStorage is a mock of Storage interface.

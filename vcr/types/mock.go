@@ -8,8 +8,8 @@ import (
 	reflect "reflect"
 	time "time"
 
-	gomock "github.com/golang/mock/gomock"
 	vc "github.com/nuts-foundation/go-did/vc"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockWriter is a mock of Writer interface.

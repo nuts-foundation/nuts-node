@@ -7,8 +7,8 @@ package transport
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockProtocol is a mock of Protocol interface.

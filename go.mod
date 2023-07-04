@@ -9,7 +9,6 @@ require (
 	github.com/chromedp/chromedp v0.9.1
 	github.com/deepmap/oapi-codegen v1.13.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/golang/mock v1.6.0
 	github.com/goodsign/monday v1.0.1
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/vault/api v1.9.2
@@ -38,6 +37,7 @@ require (
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.2.1
+	go.uber.org/mock v0.1.0
 	golang.org/x/crypto v0.10.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.56.1
@@ -92,6 +92,7 @@ require (
 	github.com/gobwas/ws v1.1.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.1 // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

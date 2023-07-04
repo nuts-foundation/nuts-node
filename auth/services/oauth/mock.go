@@ -9,8 +9,8 @@ import (
 	url "net/url"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	services "github.com/nuts-foundation/nuts-node/auth/services"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockRelyingParty is a mock of RelyingParty interface.

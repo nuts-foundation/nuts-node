@@ -37,7 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"go.etcd.io/bbolt"
 
-	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -48,6 +47,7 @@ import (
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func TestVCR_Configure(t *testing.T) {

@@ -23,13 +23,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 // manipulatorTestContext contains the controller and mocks needed for testing the Manipulator

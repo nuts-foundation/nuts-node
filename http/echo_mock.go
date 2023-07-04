@@ -8,8 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-	echo "github.com/labstack/echo/v4"
+	v4 "github.com/labstack/echo/v4"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockEchoServer is a mock of EchoServer interface.
@@ -36,14 +36,14 @@ func (m *MockEchoServer) EXPECT() *MockEchoServerMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockEchoServer) Add(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route {
+func (m *MockEchoServer) Add(method, path string, handler v4.HandlerFunc, middleware ...v4.MiddlewareFunc) *v4.Route {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{method, path, handler}
 	for _, a := range middleware {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Add", varargs...)
-	ret0, _ := ret[0].(*echo.Route)
+	ret0, _ := ret[0].(*v4.Route)
 	return ret0
 }
 
@@ -55,14 +55,14 @@ func (mr *MockEchoServerMockRecorder) Add(method, path, handler interface{}, mid
 }
 
 // CONNECT mocks base method.
-func (m_2 *MockEchoServer) CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+func (m_2 *MockEchoServer) CONNECT(path string, h v4.HandlerFunc, m ...v4.MiddlewareFunc) *v4.Route {
 	m_2.ctrl.T.Helper()
 	varargs := []interface{}{path, h}
 	for _, a := range m {
 		varargs = append(varargs, a)
 	}
 	ret := m_2.ctrl.Call(m_2, "CONNECT", varargs...)
-	ret0, _ := ret[0].(*echo.Route)
+	ret0, _ := ret[0].(*v4.Route)
 	return ret0
 }
 
@@ -74,14 +74,14 @@ func (mr *MockEchoServerMockRecorder) CONNECT(path, h interface{}, m ...interfac
 }
 
 // DELETE mocks base method.
-func (m_2 *MockEchoServer) DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+func (m_2 *MockEchoServer) DELETE(path string, h v4.HandlerFunc, m ...v4.MiddlewareFunc) *v4.Route {
 	m_2.ctrl.T.Helper()
 	varargs := []interface{}{path, h}
 	for _, a := range m {
 		varargs = append(varargs, a)
 	}
 	ret := m_2.ctrl.Call(m_2, "DELETE", varargs...)
-	ret0, _ := ret[0].(*echo.Route)
+	ret0, _ := ret[0].(*v4.Route)
 	return ret0
 }
 
@@ -93,14 +93,14 @@ func (mr *MockEchoServerMockRecorder) DELETE(path, h interface{}, m ...interface
 }
 
 // GET mocks base method.
-func (m_2 *MockEchoServer) GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+func (m_2 *MockEchoServer) GET(path string, h v4.HandlerFunc, m ...v4.MiddlewareFunc) *v4.Route {
 	m_2.ctrl.T.Helper()
 	varargs := []interface{}{path, h}
 	for _, a := range m {
 		varargs = append(varargs, a)
 	}
 	ret := m_2.ctrl.Call(m_2, "GET", varargs...)
-	ret0, _ := ret[0].(*echo.Route)
+	ret0, _ := ret[0].(*v4.Route)
 	return ret0
 }
 
@@ -112,14 +112,14 @@ func (mr *MockEchoServerMockRecorder) GET(path, h interface{}, m ...interface{})
 }
 
 // HEAD mocks base method.
-func (m_2 *MockEchoServer) HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+func (m_2 *MockEchoServer) HEAD(path string, h v4.HandlerFunc, m ...v4.MiddlewareFunc) *v4.Route {
 	m_2.ctrl.T.Helper()
 	varargs := []interface{}{path, h}
 	for _, a := range m {
 		varargs = append(varargs, a)
 	}
 	ret := m_2.ctrl.Call(m_2, "HEAD", varargs...)
-	ret0, _ := ret[0].(*echo.Route)
+	ret0, _ := ret[0].(*v4.Route)
 	return ret0
 }
 
@@ -131,14 +131,14 @@ func (mr *MockEchoServerMockRecorder) HEAD(path, h interface{}, m ...interface{}
 }
 
 // OPTIONS mocks base method.
-func (m_2 *MockEchoServer) OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+func (m_2 *MockEchoServer) OPTIONS(path string, h v4.HandlerFunc, m ...v4.MiddlewareFunc) *v4.Route {
 	m_2.ctrl.T.Helper()
 	varargs := []interface{}{path, h}
 	for _, a := range m {
 		varargs = append(varargs, a)
 	}
 	ret := m_2.ctrl.Call(m_2, "OPTIONS", varargs...)
-	ret0, _ := ret[0].(*echo.Route)
+	ret0, _ := ret[0].(*v4.Route)
 	return ret0
 }
 
@@ -150,14 +150,14 @@ func (mr *MockEchoServerMockRecorder) OPTIONS(path, h interface{}, m ...interfac
 }
 
 // PATCH mocks base method.
-func (m_2 *MockEchoServer) PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+func (m_2 *MockEchoServer) PATCH(path string, h v4.HandlerFunc, m ...v4.MiddlewareFunc) *v4.Route {
 	m_2.ctrl.T.Helper()
 	varargs := []interface{}{path, h}
 	for _, a := range m {
 		varargs = append(varargs, a)
 	}
 	ret := m_2.ctrl.Call(m_2, "PATCH", varargs...)
-	ret0, _ := ret[0].(*echo.Route)
+	ret0, _ := ret[0].(*v4.Route)
 	return ret0
 }
 
@@ -169,14 +169,14 @@ func (mr *MockEchoServerMockRecorder) PATCH(path, h interface{}, m ...interface{
 }
 
 // POST mocks base method.
-func (m_2 *MockEchoServer) POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+func (m_2 *MockEchoServer) POST(path string, h v4.HandlerFunc, m ...v4.MiddlewareFunc) *v4.Route {
 	m_2.ctrl.T.Helper()
 	varargs := []interface{}{path, h}
 	for _, a := range m {
 		varargs = append(varargs, a)
 	}
 	ret := m_2.ctrl.Call(m_2, "POST", varargs...)
-	ret0, _ := ret[0].(*echo.Route)
+	ret0, _ := ret[0].(*v4.Route)
 	return ret0
 }
 
@@ -188,14 +188,14 @@ func (mr *MockEchoServerMockRecorder) POST(path, h interface{}, m ...interface{}
 }
 
 // PUT mocks base method.
-func (m_2 *MockEchoServer) PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+func (m_2 *MockEchoServer) PUT(path string, h v4.HandlerFunc, m ...v4.MiddlewareFunc) *v4.Route {
 	m_2.ctrl.T.Helper()
 	varargs := []interface{}{path, h}
 	for _, a := range m {
 		varargs = append(varargs, a)
 	}
 	ret := m_2.ctrl.Call(m_2, "PUT", varargs...)
-	ret0, _ := ret[0].(*echo.Route)
+	ret0, _ := ret[0].(*v4.Route)
 	return ret0
 }
 
@@ -235,14 +235,14 @@ func (mr *MockEchoServerMockRecorder) Start(address interface{}) *gomock.Call {
 }
 
 // TRACE mocks base method.
-func (m_2 *MockEchoServer) TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+func (m_2 *MockEchoServer) TRACE(path string, h v4.HandlerFunc, m ...v4.MiddlewareFunc) *v4.Route {
 	m_2.ctrl.T.Helper()
 	varargs := []interface{}{path, h}
 	for _, a := range m {
 		varargs = append(varargs, a)
 	}
 	ret := m_2.ctrl.Call(m_2, "TRACE", varargs...)
-	ret0, _ := ret[0].(*echo.Route)
+	ret0, _ := ret[0].(*v4.Route)
 	return ret0
 }
 
@@ -254,7 +254,7 @@ func (mr *MockEchoServerMockRecorder) TRACE(path, h interface{}, m ...interface{
 }
 
 // Use mocks base method.
-func (m *MockEchoServer) Use(middleware ...echo.MiddlewareFunc) {
+func (m *MockEchoServer) Use(middleware ...v4.MiddlewareFunc) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{}
 	for _, a := range middleware {

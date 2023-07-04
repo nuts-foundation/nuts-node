@@ -8,8 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	vc "github.com/nuts-foundation/go-did/vc"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockSigner is a mock of Signer interface.

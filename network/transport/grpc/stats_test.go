@@ -20,11 +20,11 @@ package grpc
 
 import (
 	"errors"
-	"github.com/golang/mock/gomock"
 	"github.com/magiconair/properties/assert"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/prometheus/client_golang/prometheus"
 	io_prometheus_client "github.com/prometheus/client_model/go"
+	"go.uber.org/mock/gomock"
 	"testing"
 )
 

@@ -7,9 +7,9 @@ package dag
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	go_stoabs "github.com/nuts-foundation/go-stoabs"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockNotifier is a mock of Notifier interface.

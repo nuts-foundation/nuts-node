@@ -9,11 +9,11 @@ import (
 	reflect "reflect"
 	time "time"
 
-	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	contract "github.com/nuts-foundation/nuts-node/auth/contract"
 	core "github.com/nuts-foundation/nuts-node/core"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockSignedToken is a mock of SignedToken interface.

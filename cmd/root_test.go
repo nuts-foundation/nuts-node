@@ -28,10 +28,10 @@ import (
 	"path"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func Test_rootCmd(t *testing.T) {

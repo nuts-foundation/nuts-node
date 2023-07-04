@@ -10,8 +10,8 @@ import (
 	reflect "reflect"
 	time "time"
 
-	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockDenylist is a mock of Denylist interface.

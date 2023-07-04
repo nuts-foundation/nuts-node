@@ -20,10 +20,10 @@ package http
 
 import (
 	"errors"
-	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"net/http"
 	"testing"
 )
