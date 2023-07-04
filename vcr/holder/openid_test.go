@@ -60,18 +60,7 @@ func Test_wallet_Metadata(t *testing.T) {
 func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	credentialOffer := oidc4vci.CredentialOffer{
 		CredentialIssuer: issuerDID.String(),
-		Credentials: []map[string]interface{}{
-			{
-				"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-				"credential_definition": map[string]interface{}{
-					"@context": []string{
-						"https://www.w3.org/2018/credentials/v1",
-						"http://example.org/credentials/V1",
-					},
-					"type": []string{"VerifiableCredential", "HumanCredential"},
-				},
-			},
-		},
+		Credentials:      offeredCredential(),
 		Grants: map[string]interface{}{
 			"some-other-grant": map[string]interface{}{},
 			"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
@@ -131,13 +120,13 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	t.Run("pre-authorized code grant", func(t *testing.T) {
 		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil, jsonldReader).(*openidHandler)
 		t.Run("no grants", func(t *testing.T) {
-			offer := oidc4vci.CredentialOffer{Credentials: emptyOfferedCredential()}
+			offer := oidc4vci.CredentialOffer{Credentials: offeredCredential()}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)
 			require.EqualError(t, err, "invalid_grant - couldn't find (valid) pre-authorized code grant in credential offer")
 		})
 		t.Run("no pre-authorized grant", func(t *testing.T) {
 			offer := oidc4vci.CredentialOffer{
-				Credentials: emptyOfferedCredential(),
+				Credentials: offeredCredential(),
 				Grants: map[string]interface{}{
 					"some-other-grant": nil,
 				},
@@ -147,7 +136,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		})
 		t.Run("invalid pre-authorized grant", func(t *testing.T) {
 			offer := oidc4vci.CredentialOffer{
-				Credentials: emptyOfferedCredential(),
+				Credentials: offeredCredential(),
 				Grants: map[string]interface{}{
 					"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
 						"pre-authorized_code": nil,
@@ -162,21 +151,9 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil, jsonldReader)
 
 		offer := oidc4vci.CredentialOffer{
-			Credentials: []map[string]interface{}{
-				{
-					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-					"credential_definition": map[string]interface{}{
-						"@context": []string{"a", "b"},
-						"type":     []string{"VerifiableCredential", "HumanCredential"},
-					},
-				},
-				{
-					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-					"credential_definition": map[string]interface{}{
-						"@context": []string{"a", "b"},
-						"type":     []string{"VerifiableCredential", "HumanCredential"},
-					},
-				},
+			Credentials: []oidc4vci.OfferedCredential{
+				offeredCredential()[0],
+				offeredCredential()[0],
 			},
 		}
 		err := w.HandleCredentialOffer(audit.TestContext(), offer).(oidc4vci.Error)
@@ -239,11 +216,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{
 			CredentialIssuer: "http://localhost:87632",
-			Credentials: []map[string]interface{}{
-				{
-					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-				},
-			},
+			Credentials:      offeredCredential(),
 			Grants: map[string]interface{}{
 				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
 					"pre-authorized_code": "foo",
@@ -280,19 +253,10 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 }
 
 func Test_credentialTypesMatchOffer(t *testing.T) {
-	offer := map[string]any{
-		"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-		"credential_definition": map[string]interface{}{
-			"@context": []string{
-				"https://www.w3.org/2018/credentials/v1",
-				"http://example.org/credentials/V1",
-			},
-			"type": []string{"VerifiableCredential", "HumanCredential"},
-		},
-	}
+	offer := offeredCredential()[0]
 	credential := vc.VerifiableCredential{
-		Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"), ssi.MustParseURI("http://example.org/credentials/V1")},
-		Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("HumanCredential")},
+		Context: offer.CredentialDefinition.Context,
+		Type:    offer.CredentialDefinition.Type,
 	}
 	jsonldReader := jsonld.Reader{DocumentLoader: jsonld.NewTestJSONLDManager(t).DocumentLoader()}
 
@@ -300,32 +264,43 @@ func Test_credentialTypesMatchOffer(t *testing.T) {
 		assert.NoError(t, credentialTypesMatchOffer(jsonldReader, credential, offer))
 	})
 	t.Run("error - unsupported credential format", func(t *testing.T) {
-		err := credentialTypesMatchOffer(jsonldReader, vc.VerifiableCredential{}, map[string]interface{}{})
+		err := credentialTypesMatchOffer(jsonldReader, vc.VerifiableCredential{}, oidc4vci.OfferedCredential{})
 		assert.EqualError(t, err, "unsupported credential format")
 	})
 	t.Run("error - invalid credential_definition", func(t *testing.T) {
-		err := credentialTypesMatchOffer(jsonldReader, vc.VerifiableCredential{},
-			map[string]interface{}{
-				"format":                oidc4vci.VerifiableCredentialJSONLDFormat,
-				"credential_definition": "",
-			})
-		assert.EqualError(t, err, "invalid credential_definition in offer: json: cannot unmarshal string into Go value of type map[string]interface {}")
+		offer := offeredCredential()[0]
+		offer.CredentialDefinition = &oidc4vci.CredentialDefinition{}
+		err := credentialTypesMatchOffer(jsonldReader, vc.VerifiableCredential{}, offer)
+		assert.EqualError(t, err, "invalid credential_definition in offer: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 	})
 	t.Run("error - invalid credential", func(t *testing.T) {
 		err := credentialTypesMatchOffer(jsonldReader, vc.VerifiableCredential{}, offer)
 		assert.EqualError(t, err, "invalid credential: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 	})
 	t.Run("error - types do not match", func(t *testing.T) {
-		c := credential
-		c.Type[0], c.Type[1] = c.Type[1], c.Type[0]
-		defer func() { c.Type[0], c.Type[1] = c.Type[1], c.Type[0] }()
+		offer := offeredCredential()[0]
+		offer.CredentialDefinition.Type = []ssi.URI{
+			ssi.MustParseURI("VerifiableCredential"),
+			ssi.MustParseURI("OtherType"),
+		}
 		err := credentialTypesMatchOffer(jsonldReader, credential, offer)
 		assert.EqualError(t, err, "credential Type do not match")
 	})
 }
 
-// emptyOfferedCredential returns a structure that can be used as CredentialOffer.Credentials,
-// specifying an offer with a single credential without properties (which is invalid, but required to pass basic validation).
-func emptyOfferedCredential() []map[string]interface{} {
-	return []map[string]interface{}{{"format": oidc4vci.VerifiableCredentialJSONLDFormat}}
+// offeredCredential returns a structure that can be used as CredentialOffer.Credentials,
+func offeredCredential() []oidc4vci.OfferedCredential {
+	return []oidc4vci.OfferedCredential{{
+		Format: oidc4vci.VerifiableCredentialJSONLDFormat,
+		CredentialDefinition: &oidc4vci.CredentialDefinition{
+			Context: []ssi.URI{
+				ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
+				ssi.MustParseURI("http://example.org/credentials/V1"),
+			},
+			Type: []ssi.URI{
+				ssi.MustParseURI("VerifiableCredential"),
+				ssi.MustParseURI("HumanCredential"),
+			},
+		},
+	}}
 }

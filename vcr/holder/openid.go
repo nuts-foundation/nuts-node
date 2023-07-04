@@ -175,11 +175,11 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 }
 
 // credentialTypesMatchOffer performs format specific validation.
-func credentialTypesMatchOffer(reader jsonld.Reader, credential vc.VerifiableCredential, offeredCredential map[string]interface{}) error {
-	switch offeredCredential["format"] {
+func credentialTypesMatchOffer(reader jsonld.Reader, credential vc.VerifiableCredential, offer oidc4vci.OfferedCredential) error {
+	switch offer.Format {
 	case oidc4vci.VerifiableCredentialJSONLDFormat:
 		// In json-LD format the types need to be compared in expanded format
-		document, err := reader.Read(offeredCredential["credential_definition"])
+		document, err := reader.Read(offer.CredentialDefinition)
 		if err != nil {
 			return fmt.Errorf("invalid credential_definition in offer: %w", err)
 		}
@@ -246,7 +246,7 @@ func (h openidHandler) retrieveCredential(ctx context.Context, issuerClient oidc
 	}
 
 	credentialRequest := oidc4vci.CredentialRequest{
-		CredentialDefinition: &offer.Credentials[0],
+		CredentialDefinition: offer.Credentials[0].CredentialDefinition,
 		Format:               oidc4vci.VerifiableCredentialJSONLDFormat,
 		Proof: &oidc4vci.CredentialRequestProof{
 			Jwt:       proof,

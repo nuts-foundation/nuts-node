@@ -408,11 +408,11 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 	}
 	offer := oidc4vci.CredentialOffer{
 		CredentialIssuer: i.issuerIdentifierURL,
-		Credentials: []map[string]interface{}{{
-			"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-			"credential_definition": map[string]interface{}{
-				"@context": credential.Context,
-				"type":     credential.Type,
+		Credentials: []oidc4vci.OfferedCredential{{
+			Format: oidc4vci.VerifiableCredentialJSONLDFormat,
+			CredentialDefinition: &oidc4vci.CredentialDefinition{
+				Context: credential.Context,
+				Type:    credential.Type,
 			},
 		}},
 		Grants: map[string]interface{}{
