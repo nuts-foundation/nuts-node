@@ -19,6 +19,7 @@
 package tree
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -131,6 +132,132 @@ func TestTree_GetZeroTo(t *testing.T) {
 	assert.Equal(t, testLeafSize*3-1, lc2)
 	assert.Equal(t, td.r, root)
 	assert.Equal(t, testLeafSize*3-1, lcMax)
+}
+
+func TestTree_Replace(t *testing.T) {
+	t.Run("replace a leaf for a single layer", func(t *testing.T) {
+		tr := newTestTree(NewXor(), 1)
+		refA := hash.FromSlice([]byte("A"))
+		refB := hash.FromSlice([]byte("B"))
+		xor := Xor(refB)
+		tr.Insert(refA, 0)
+
+		err := tr.Replace(0, &xor)
+
+		require.NoError(t, err)
+		assert.Equal(t, refB, tr.root.data.(*Xor).Hash())
+	})
+
+	t.Run("replace a 'next' leaf, it should grow the tree", func(t *testing.T) {
+		tr := newTestTree(NewXor(), 1)
+		refA := hash.FromSlice([]byte("A"))
+		refB := hash.FromSlice([]byte("B"))
+		xor := Xor(refB)
+		tr.Insert(refA, 0)
+
+		err := tr.Replace(1, &xor)
+
+		require.NoError(t, err)
+		assert.Equal(t, refB.Xor(refA), tr.root.data.(*Xor).Hash())
+	})
+
+	t.Run("replace a 'future' leaf, it should grow the tree", func(t *testing.T) {
+		tr := newTestTree(NewXor(), 1)
+		refA := hash.FromSlice([]byte("A"))
+		refB := hash.FromSlice([]byte("B"))
+		xor := Xor(refB)
+		tr.Insert(refA, 0)
+
+		err := tr.Replace(10, &xor)
+
+		require.NoError(t, err)
+		assert.Equal(t, refB.Xor(refA), tr.root.data.(*Xor).Hash())
+		assert.Equal(t, refA, tr.root.left.data.(*Xor).Hash())
+		assert.Equal(t, refB, tr.root.right.data.(*Xor).Hash())
+	})
+
+	t.Run("replace a 'left' leaf", func(t *testing.T) {
+		tr := newTestTree(NewXor(), 1)
+		refA := hash.FromSlice([]byte("A"))
+		refB := hash.FromSlice([]byte("B"))
+		xor := Xor(refB)
+		tr.Insert(refA, 0)
+		tr.Insert(refB, 1)
+
+		err := tr.Replace(0, &xor)
+
+		require.NoError(t, err)
+		assert.Equal(t, refB.Xor(refB), tr.root.data.(*Xor).Hash())
+	})
+
+	t.Run("replace a leaf for a multi layer tree", func(t *testing.T) {
+		tr := newTestTree(NewXor(), 1)
+		refA := hash.FromSlice([]byte("A"))
+		refB := hash.FromSlice([]byte("B"))
+		refC := hash.FromSlice([]byte("C"))
+		refD := hash.FromSlice([]byte("D"))
+		xor := Xor(refD)
+		tr.Insert(refA, 0)
+		tr.Insert(refB, 1)
+		tr.Insert(refC, 2)
+		expected := refB.Xor(refC, refD)
+
+		err := tr.Replace(0, &xor)
+
+		require.NoError(t, err)
+		assert.Equal(t, expected, tr.root.data.(*Xor).Hash())
+	})
+
+	t.Run("replace a leaf for the test tree", func(t *testing.T) {
+		tr, td := filledTestTree(NewXor(), testLeafSize)
+		ref := hash.EmptyHash()
+		xor := Xor(ref)
+		// expected is c0 ^ c2
+		c0Ref := td.c0.(*Xor).Hash()
+		c2Ref := td.c2.(*Xor).Hash()
+		expected := ref.Xor(c0Ref, c2Ref)
+
+		// replace leaf that starts with clock = 4 which is the 2nd leaf in the 2nd layer
+		err := tr.Replace(testLeafSize, &xor)
+
+		require.NoError(t, err)
+		assert.Equal(t, expected, tr.root.data.(*Xor).Hash())
+	})
+}
+
+func TestTree_rebuild(t *testing.T) {
+	t.Run("empty tree", func(t *testing.T) {
+		data := NewXor()
+		tree := newTestTree(data, testLeafSize)
+
+		err := tree.rebuild()
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("single leaf", func(t *testing.T) {
+		h := hash.RandomHash()
+		tree := newTestTree(NewXor(), testLeafSize)
+		tree.Insert(h, 0)
+
+		err := tree.rebuild()
+
+		require.NoError(t, err)
+		assert.Equal(t, h, tree.root.data.(*Xor).Hash())
+	})
+
+	t.Run("multiple leaves", func(t *testing.T) {
+		tr, _ := filledTestTree(NewXor(), testLeafSize)
+		tr2, _ := filledTestTree(NewXor(), testLeafSize)
+
+		err := tr.rebuild()
+
+		require.NoError(t, err)
+		data, _ := tr2.ZeroTo(8)
+		data2, _ := tr2.ZeroTo(8)
+		_ = data2.Subtract(data)
+		assert.True(t, data2.Empty())
+	})
 }
 
 func TestTree_rightmostLeafClock(t *testing.T) {

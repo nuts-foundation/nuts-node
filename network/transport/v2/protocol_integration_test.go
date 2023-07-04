@@ -175,6 +175,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	ctx.protocol.Start()
 	t.Cleanup(func() {
+		_ = ctx.state.Shutdown()
 		ctx.protocol.Stop()
 		ctx.connectionManager.Stop()
 	})

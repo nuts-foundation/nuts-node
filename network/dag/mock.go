@@ -52,6 +52,18 @@ func (mr *MockStateMockRecorder) Add(ctx, transactions, payload interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockState)(nil).Add), ctx, transactions, payload)
 }
 
+// CorrectStateDetected mocks base method.
+func (m *MockState) CorrectStateDetected() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CorrectStateDetected")
+}
+
+// CorrectStateDetected indicates an expected call of CorrectStateDetected.
+func (mr *MockStateMockRecorder) CorrectStateDetected() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CorrectStateDetected", reflect.TypeOf((*MockState)(nil).CorrectStateDetected))
+}
+
 // Diagnostics mocks base method.
 func (m *MockState) Diagnostics() []core.DiagnosticResult {
 	m.ctrl.T.Helper()
@@ -124,6 +136,18 @@ func (m *MockState) IBLT(reqClock uint32) (tree.Iblt, uint32) {
 func (mr *MockStateMockRecorder) IBLT(reqClock interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IBLT", reflect.TypeOf((*MockState)(nil).IBLT), reqClock)
+}
+
+// IncorrectStateDetected mocks base method.
+func (m *MockState) IncorrectStateDetected() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "IncorrectStateDetected")
+}
+
+// IncorrectStateDetected indicates an expected call of IncorrectStateDetected.
+func (mr *MockStateMockRecorder) IncorrectStateDetected() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IncorrectStateDetected", reflect.TypeOf((*MockState)(nil).IncorrectStateDetected))
 }
 
 // IsPayloadPresent mocks base method.

@@ -98,6 +98,9 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	proto.sender = sender
 	proto.listHandler = newTransactionListHandler(context.Background(), proto.handleTransactionList)
 
+	// called whenever XOR values match up
+	state.EXPECT().CorrectStateDetected().AnyTimes()
+
 	return proto, protocolMocks{
 		Controller:       ctrl,
 		State:            state,
