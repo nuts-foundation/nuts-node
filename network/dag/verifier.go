@@ -49,8 +49,14 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 				return err
 			}
 		} else {
+			if transaction.Previous()[0].String() == "3ccd4a4dc70d0c2245e09623373a3ec4678d0ad961aed42c5c92a32fa8b6ecc8" {
+				println("previous transaction is genesis")
+			}
 			pk, err := resolver.ResolvePublicKey(transaction.SigningKeyID(), transaction.Previous())
 			if err != nil {
+				for _, prev := range transaction.Previous() {
+					println(prev.String())
+				}
 				return fmt.Errorf("unable to verify transaction signature, can't resolve key by TX ref (kid=%s, tx=%s): %w", transaction.SigningKeyID(), transaction.Ref().String(), err)
 			}
 			signingKey = pk

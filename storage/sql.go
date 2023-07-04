@@ -4,10 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/go-stoabs/postgres"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
-	"path"
 )
 
 // SQLConfig specifies config for SQL databases (currently only Postgres).
@@ -36,10 +33,7 @@ type sqlDatabase struct {
 }
 
 func (b *sqlDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
-	log.Logger().
-		WithField(core.LogFieldStore, path.Join(moduleName, storeName)).
-		Debug("Creating SQL store")
-	return postgres.CreatePostgresStore(b.db)
+	panic("Key-value storage is not supported for SQL databases")
 }
 
 func (b sqlDatabase) getClass() Class {
@@ -51,4 +45,28 @@ func (b sqlDatabase) close() {
 	if err != nil {
 		log.Logger().WithError(err).Error("Failed to close SQL database")
 	}
+}
+
+func DoSqlTx(db *sql.DB, receiver func(tx *sql.Tx) error) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	rollback := true
+	defer func() {
+		if rollback {
+			log.Logger().WithError(err).Warn("Rolling back SQL transaction due to application error")
+			if err = tx.Rollback(); err != nil {
+				log.Logger().WithError(err).Warn("SQL transaction rollback failed")
+			}
+		}
+	}()
+	err = receiver(tx)
+	if err == nil {
+		rollback = false
+		if err = tx.Commit(); err != nil {
+			return fmt.Errorf("failed to commit SQL transaction: %w", err)
+		}
+	}
+	return err
 }

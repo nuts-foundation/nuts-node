@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"github.com/google/uuid"
@@ -9,6 +8,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -19,12 +19,8 @@ import (
 
 func TestSQLCredentialStore(t *testing.T) {
 	logrus.SetLevel(logrus.TraceLevel)
-	container, db, err := startDatabase()
+	db, err := storage.CreateSQLDatabase(t)
 	require.NoError(t, err)
-	defer func() {
-		t.Log("Shutting down database")
-		container.Terminate(context.Background())
-	}()
 	resetDatabaseAfterTest := func(t *testing.T) {
 		t.Cleanup(func() {
 			_, err := db.Exec("DELETE FROM verifiable_credentials")

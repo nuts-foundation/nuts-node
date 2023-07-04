@@ -10,6 +10,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/piprate/json-gold/ld"
@@ -89,7 +90,7 @@ func (s SQLCredentialStore) StoreCredential(credential vc.VerifiableCredential) 
 		credentialTypes = append(credentialTypes, t.String())
 	}
 
-	return doTX(s.db, func(tx *sql.Tx) error {
+	return storage.DoSqlTx(s.db, func(tx *sql.Tx) error {
 		query := fmt.Sprintf("SELECT COUNT(id) FROM %s WHERE id = $1", s.tableName())
 		if exists, err := queryExists(tx, query, credential.ID.String()); err != nil {
 			return fmt.Errorf("failed to check if credential (%s) exists (id=%s): %w", s.tableName(), credential.ID, err)

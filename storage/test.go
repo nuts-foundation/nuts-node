@@ -22,9 +22,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"testing"
 )
 
@@ -44,6 +47,44 @@ func CreateTestBBoltStore(tb testing.TB, filePath string) stoabs.KVStore {
 		db.Close(context.Background())
 	})
 	return db
+}
+
+// CreateSQLDatabase creates a PostgreSQL container and returns a database connection to it.
+// See https://dev.to/remast/go-integration-tests-using-testcontainers-9o5
+func CreateSQLDatabase(t *testing.T) (*sql.DB, error) {
+	ctx := context.Background()
+	containerReq := testcontainers.ContainerRequest{
+		Image:        "postgres:latest",
+		ExposedPorts: []string{"5432/tcp"},
+		WaitingFor:   wait.ForListeningPort("5432/tcp"),
+		Env: map[string]string{
+			"POSTGRES_DB":       "test",
+			"POSTGRES_PASSWORD": "postgres",
+			"POSTGRES_USER":     "postgres",
+		},
+	}
+
+	// 2. Start PostgreSQL container
+	container, _ := testcontainers.GenericContainer(
+		ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: containerReq,
+			Started:          true,
+		})
+	t.Cleanup(func() {
+		_ = container.Terminate(ctx)
+	})
+
+	host, _ := container.Host(ctx)
+	port, _ := container.MappedPort(ctx, "5432")
+
+	dbURI := fmt.Sprintf("postgres://postgres:postgres@%v:%v/test?sslmode=disable", host, port.Port())
+	println("Connection string: " + dbURI)
+	db, err := sql.Open("postgres", dbURI)
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
 }
 
 // StaticKVStoreProvider contains a single store.

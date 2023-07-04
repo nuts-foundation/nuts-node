@@ -183,7 +183,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	httpServerInstance := httpEngine.New(shutdownCallback, cryptoInstance)
 	jsonld := jsonld.NewJSONLDInstance()
 	storageInstance := storage.New()
-	didStore := didstore.New(storageInstance.GetProvider(vdr.ModuleName))
+	didStore := didstore.NewDeferredStore(storageInstance.GetProvider(vdr.ModuleName))
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), didStore, cryptoInstance, eventManager, storageInstance.GetProvider(network.ModuleName), pkiInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore, eventManager)

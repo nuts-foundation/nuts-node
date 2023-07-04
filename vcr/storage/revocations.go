@@ -7,6 +7,7 @@ import (
 	"fmt"
 	_ "github.com/lib/pq"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
@@ -66,7 +67,7 @@ func (s SQLRevocationStore) GetRevocations(credentialID ssi.URI) ([]*credential.
 func (s SQLRevocationStore) StoreRevocation(revocation credential.Revocation) error {
 	data, _ := json.Marshal(revocation)
 
-	return doTX(s.db, func(tx *sql.Tx) error {
+	return storage.DoSqlTx(s.db, func(tx *sql.Tx) error {
 		// There can be multiple revocations for the same subject,
 		// so check for subject (has an index, so speeds up) and revocation data
 		if exists, err := queryExists(tx, "SELECT COUNT(subject) FROM revocations WHERE subject = $1 AND data = $2", revocation.Subject.String(), data); err != nil {
