@@ -230,6 +230,20 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
 	// TODO: Verify requested format and credential definition
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
+	if request.Format != oidc4vci.VerifiableCredentialJSONLDFormat {
+		return nil, oidc4vci.Error{
+			Err:        fmt.Errorf("credential request: unsupported format '%s'", request.Format),
+			Code:       oidc4vci.UnsupportedCredentialType,
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
+	if err := oidc4vci.ValidateCredentialDefinition(request.CredentialDefinition, false); err != nil {
+		return nil, oidc4vci.Error{
+			Err:        fmt.Errorf("credential request: %w", err),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
 	flow, err := i.store.FindByReference(ctx, accessTokenRefType, accessToken)
 	if err != nil {
 		return nil, err

@@ -94,6 +94,21 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 			StatusCode: http.StatusBadRequest,
 		}
 	}
+	offeredCredential := offer.Credentials[0]
+	if offeredCredential.Format != oidc4vci.VerifiableCredentialJSONLDFormat {
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("credential offer: unsupported format '%s'", offeredCredential.Format),
+			Code:       oidc4vci.UnsupportedCredentialType,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+	if err := oidc4vci.ValidateCredentialDefinition(offeredCredential.CredentialDefinition, true); err != nil {
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("credential offer: %w", err),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
 
 	preAuthorizedCode := getPreAuthorizedCodeFromOffer(offer)
 	if preAuthorizedCode == "" {
@@ -149,7 +164,7 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 	retrieveCtx := audit.Context(ctx, "app-openid4vci", "VCR/OpenID4VCI", "RetrieveCredential")
 	retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.config.Timeout)
 	defer cancel()
-	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer, accessTokenResponse)
+	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer.Credentials[0].CredentialDefinition, accessTokenResponse)
 	if err != nil {
 		return oidc4vci.Error{
 			Err:        fmt.Errorf("unable to retrieve credential: %w", err),
@@ -228,7 +243,7 @@ func getPreAuthorizedCodeFromOffer(offer oidc4vci.CredentialOffer) string {
 	return preAuthorizedCode
 }
 
-func (h openidHandler) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerAPIClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
+func (h openidHandler) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerAPIClient, offer *oidc4vci.CredentialDefinition, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
 	keyID, err := h.resolver.ResolveSigningKeyID(h.did, nil)
 	headers := map[string]interface{}{
 		"typ": oidc4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
@@ -246,7 +261,7 @@ func (h openidHandler) retrieveCredential(ctx context.Context, issuerClient oidc
 	}
 
 	credentialRequest := oidc4vci.CredentialRequest{
-		CredentialDefinition: offer.Credentials[0].CredentialDefinition,
+		CredentialDefinition: offer,
 		Format:               oidc4vci.VerifiableCredentialJSONLDFormat,
 		Proof: &oidc4vci.CredentialRequestProof{
 			Jwt:       proof,

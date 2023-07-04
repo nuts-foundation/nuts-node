@@ -250,6 +250,26 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		require.EqualError(t, err, "unsupported_credential_type - received credential does not match offer: credential Type do not match")
 	})
+	t.Run("unsupported format", func(t *testing.T) {
+		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil, jsonldReader)
+
+		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{
+			Credentials: []oidc4vci.OfferedCredential{{Format: "not supported"}},
+		}).(oidc4vci.Error)
+
+		assert.EqualError(t, err, "unsupported_credential_type - credential offer: unsupported format 'not supported'")
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+	})
+	t.Run("unsupported format", func(t *testing.T) {
+		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil, jsonldReader)
+		credentials := offeredCredential()
+		credentials[0].CredentialDefinition.CredentialSubject = new(map[string]interface{})
+
+		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{Credentials: credentials}).(oidc4vci.Error)
+
+		assert.EqualError(t, err, "invalid_request - credential offer: invalid credential_definition: credentialSubject not allowed in offer")
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+	})
 }
 
 func Test_credentialTypesMatchOffer(t *testing.T) {
