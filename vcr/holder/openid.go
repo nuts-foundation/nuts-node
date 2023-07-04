@@ -50,7 +50,7 @@ var nowFunc = time.Now
 var _ OpenIDHandler = (*openidHandler)(nil)
 
 // NewOpenIDHandler creates an OpenIDHandler that tries to retrieve offered credentials, to store it in the given credential store.
-func NewOpenIDHandler(config oidc4vci.ClientConfig, did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver, jsonldReader jsonld.Reader) OpenIDHandler {
+func NewOpenIDHandler(config oidc4vci.ClientConfig, did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OpenIDHandler {
 	return &openidHandler{
 		did:                 did,
 		identifier:          identifier,
@@ -59,7 +59,6 @@ func NewOpenIDHandler(config oidc4vci.ClientConfig, did did.DID, identifier stri
 		resolver:            resolver,
 		config:              config,
 		issuerClientCreator: oidc4vci.NewIssuerAPIClient,
-		jsonldReader:        jsonldReader,
 	}
 }
 
@@ -164,7 +163,7 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 	retrieveCtx := audit.Context(ctx, "app-openid4vci", "VCR/OpenID4VCI", "RetrieveCredential")
 	retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.config.Timeout)
 	defer cancel()
-	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer.Credentials[0].CredentialDefinition, accessTokenResponse)
+	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offeredCredential.CredentialDefinition, accessTokenResponse)
 	if err != nil {
 		return oidc4vci.Error{
 			Err:        fmt.Errorf("unable to retrieve credential: %w", err),
@@ -172,10 +171,10 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
-	if err = credentialTypesMatchOffer(h.jsonldReader, *credential, offer.Credentials[0]); err != nil {
+	if err = oidc4vci.ValidateDefinitionWithCredential(*credential, *offeredCredential.CredentialDefinition); err != nil {
 		return oidc4vci.Error{
 			Err:        fmt.Errorf("received credential does not match offer: %w", err),
-			Code:       oidc4vci.UnsupportedCredentialType,
+			Code:       oidc4vci.InvalidRequest,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
@@ -187,48 +186,6 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 		return fmt.Errorf("unable to store credential: %w", err)
 	}
 	return nil
-}
-
-// credentialTypesMatchOffer performs format specific validation.
-func credentialTypesMatchOffer(reader jsonld.Reader, credential vc.VerifiableCredential, offer oidc4vci.OfferedCredential) error {
-	switch offer.Format {
-	case oidc4vci.VerifiableCredentialJSONLDFormat:
-		// In json-LD format the types need to be compared in expanded format
-		document, err := reader.Read(offer.CredentialDefinition)
-		if err != nil {
-			return fmt.Errorf("invalid credential_definition in offer: %w", err)
-		}
-		// TODO: can credentialDefinition contain invalid values that makes this panic?
-		expectedTypes := document.ValueAt(jsonld.NewPath("@type"))
-
-		document, err = reader.Read(credential)
-		if err != nil {
-			return fmt.Errorf("invalid credential: %w", err)
-		}
-		receivedTypes := document.ValueAt(jsonld.NewPath("@type"))
-
-		if !equal(expectedTypes, receivedTypes) {
-			return errors.New("credential Type do not match")
-		}
-
-		return nil
-	default:
-		return errors.New("unsupported credential format")
-	}
-}
-
-// equal returns true if both slices have the same values in the same order.
-// Note: JSON arrays are ordered, JSON object elements are not.
-func equal(a, b []jsonld.Scalar) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !a[i].Equal(b[i]) {
-			return false
-		}
-	}
-	return true
 }
 
 func getPreAuthorizedCodeFromOffer(offer oidc4vci.CredentialOffer) string {

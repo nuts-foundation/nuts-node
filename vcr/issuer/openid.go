@@ -273,6 +273,14 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 		return nil, err
 	}
 
+	if err = oidc4vci.ValidateDefinitionWithCredential(credential, *request.CredentialDefinition); err != nil {
+		return nil, oidc4vci.Error{
+			Err:        fmt.Errorf("requested credential does not match offer: %w", err),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
 	// Important: since we (for now) create the VC even before the wallet requests it, we don't know if every VC is actually retrieved by the wallet.
 	//            This is a temporary shortcut, since changing that requires a lot of refactoring.
 	//            To make actually retrieved VC traceable, we log it to the audit log.

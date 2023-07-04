@@ -53,6 +53,14 @@ var issuedVC = vc.VerifiableCredential{
 			"id": holderDID.String(),
 		},
 	},
+	Context: []ssi.URI{
+		ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
+		ssi.MustParseURI("http://example.org/credentials/V1"),
+	},
+	Type: []ssi.URI{
+		ssi.MustParseURI("VerifiableCredential"),
+		ssi.MustParseURI("HumanCredential"),
+	},
 }
 
 func TestNew(t *testing.T) {
@@ -321,6 +329,17 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - nonce not valid for access token")
 			assert.Nil(t, response)
+		})
+		t.Run("request does not match offer", func(t *testing.T) {
+			request := createRequest(createHeaders(), createClaims(cNonce))
+			request.CredentialDefinition.Type = []ssi.URI{
+				ssi.MustParseURI("DifferentCredential"),
+			}
+
+			response, err := service.HandleCredentialRequest(ctx, request, accessToken)
+
+			assert.Nil(t, response)
+			assert.EqualError(t, err, "invalid_request - requested credential does not match offer: credential does not match credential_definition: type mismatch")
 		})
 	})
 
