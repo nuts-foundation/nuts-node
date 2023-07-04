@@ -58,24 +58,23 @@ func newXorTreeRepair(state *state) *xorTreeRepair {
 }
 
 func (f *xorTreeRepair) start() {
-	f.ctx, f.cancel = context.WithCancel(context.Background())
-	go f.loop()
+	var ctx context.Context
+	ctx, f.cancel = context.WithCancel(context.Background())
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-f.ticker.C:
+				f.checkPage()
+			}
+		}
+	}()
 }
 
 func (f *xorTreeRepair) shutdown() {
 	if f.cancel != nil {
 		f.cancel()
-	}
-}
-
-func (f *xorTreeRepair) loop() {
-	for {
-		select {
-		case <-f.ctx.Done():
-			return
-		case <-f.ticker.C:
-			f.checkPage()
-		}
 	}
 }
 

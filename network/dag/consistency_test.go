@@ -52,6 +52,9 @@ func TestXorTreeRepair(t *testing.T) {
 
 		// await for XOR to change
 		test.WaitFor(t, func() (bool, error) {
+			txState.xorTreeRepair.mutex.Lock()
+			defer txState.xorTreeRepair.mutex.Unlock()
+
 			xorRoot := txState.xorTree.tree.Root()
 			hashRoot := xorRoot.(*tree.Xor).Hash()
 			return hashRoot.Equals(tx.Ref()), nil
@@ -112,6 +115,9 @@ func TestXorTreeRepair(t *testing.T) {
 
 		// await for XOR to change
 		test.WaitFor(t, func() (bool, error) {
+			txState.xorTreeRepair.mutex.Lock()
+			defer txState.xorTreeRepair.mutex.Unlock()
+
 			xorRoot := txState.xorTree.tree.Root()
 			hashRoot := xorRoot.(*tree.Xor).Hash()
 			return hashRoot.Equals(expectedHash), nil
