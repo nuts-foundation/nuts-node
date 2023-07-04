@@ -37,6 +37,8 @@ it will register a service reference the other DID document. But only if that DI
 After the auto-registration succeeds the node's OpenID4VCI wallet is discoverable for other nodes,
 and it can receive credentials from other nodes over OpenID4VCI.
 
+If you want to disable auto-registration, set `goldenhammer.enabled` to `false`.
+
 Custom Credential Configuration
 *******************************
 
