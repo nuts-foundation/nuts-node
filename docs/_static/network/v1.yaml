@@ -292,6 +292,18 @@ components:
         softwareVersion:
           description: Indication of the software version of the node. It's recommended to use a (Git) commit ID that uniquely resolves to a code revision, alternatively a semantic version could be used (e.g. 1.2.5).
           type: string
+        certificate:
+          description: >
+            Peer's Certificate
+          type: string
+        nodeDID:
+          description: >
+            Peer's NodeDID
+          type: string
+        address:
+          description: >
+            Peer's address. This is an IP if it is an inbound connection.
+          type: string
     Contact:
       type: object
       description: Describes the contact information of a node.

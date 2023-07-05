@@ -57,19 +57,24 @@ func (m *peerDiagnosticsManager) start(ctx context.Context, broadcastInterval ti
 	}
 }
 
-func (m *peerDiagnosticsManager) handleReceived(peerID transport.PeerID, received *Diagnostics) {
+func (m *peerDiagnosticsManager) handleReceived(peer transport.Peer, received *Diagnostics) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
+
 	diagnostics := transport.Diagnostics{
 		Uptime:               time.Duration(received.Uptime) * time.Second,
 		NumberOfTransactions: received.NumberOfTransactions,
 		SoftwareVersion:      received.SoftwareVersion,
 		SoftwareID:           received.SoftwareID,
+		// enriches diagnostics peer connection info
+		Certificate: peer.CertificateAsPem(),
+		NodeDID:     peer.NodeDID.String(),
+		Address:     peer.Address,
 	}
-	for _, peer := range received.Peers {
-		diagnostics.Peers = append(diagnostics.Peers, transport.PeerID(peer))
+	for _, p := range received.Peers {
+		diagnostics.Peers = append(diagnostics.Peers, transport.PeerID(p))
 	}
-	m.received[peerID] = diagnostics
+	m.received[peer.ID] = diagnostics
 }
 
 func (m *peerDiagnosticsManager) get() map[transport.PeerID]transport.Diagnostics {
@@ -85,14 +90,19 @@ func (m *peerDiagnosticsManager) get() map[transport.PeerID]transport.Diagnostic
 	return result
 }
 
-func (m *peerDiagnosticsManager) remove(peerID transport.PeerID) {
+func (m *peerDiagnosticsManager) remove(peer transport.Peer) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	delete(m.received, peerID)
+	delete(m.received, peer.ID)
 }
 
-func (m *peerDiagnosticsManager) add(peerID transport.PeerID) {
+func (m *peerDiagnosticsManager) add(peer transport.Peer) {
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	m.received[peerID] = transport.Diagnostics{}
+	newDiagnostics := transport.Diagnostics{
+		Certificate: peer.CertificateAsPem(),
+		NodeDID:     peer.NodeDID.String(),
+		Address:     peer.Address,
+	}
+	m.received[peer.ID] = newDiagnostics
 }

@@ -512,7 +512,7 @@ func (p *protocol) handleTransactionSet(_ context.Context, connection grpc.Conne
 
 func (p *protocol) handleDiagnostics(_ context.Context, connection grpc.Connection, envelope *Envelope) error {
 	msg := envelope.GetDiagnosticsBroadcast()
-	p.diagnosticsMan.handleReceived(connection.Peer().ID, msg)
+	p.diagnosticsMan.handleReceived(connection.Peer(), msg)
 	return nil
 }
 

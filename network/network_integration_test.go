@@ -28,6 +28,7 @@ import (
 	"math/rand"
 	"net/url"
 	"path"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -329,20 +330,24 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		time.Sleep(100 * time.Millisecond) // wait for diagnostics to be sent
 
 		// Assert peer diagnostics sent from bootstrap node to node 1
-		assert.Equal(t, 1, len(node1.network.PeerDiagnostics()))
-		bootstrapDiag := node1.network.PeerDiagnostics()[bootstrap.network.peerID]
-		assert.Equal(t, uint32(1), bootstrapDiag.NumberOfTransactions)
-		assert.Equal(t, "https://github.com/nuts-foundation/nuts-node", bootstrapDiag.SoftwareID)
-		assert.Equal(t, "development (0)", bootstrapDiag.SoftwareVersion)
-		assert.Equal(t, []transport.PeerID{node1.network.peerID}, bootstrapDiag.Peers)
+		require.Equal(t, 1, len(node1.network.PeerDiagnostics()))
+		for peerKey, bootstrapDiag := range node1.network.PeerDiagnostics() {
+			strings.HasPrefix(peerKey.String(), bootstrap.network.peerID.String())
+			assert.Equal(t, uint32(1), bootstrapDiag.NumberOfTransactions)
+			assert.Equal(t, "https://github.com/nuts-foundation/nuts-node", bootstrapDiag.SoftwareID)
+			assert.Equal(t, "development (0)", bootstrapDiag.SoftwareVersion)
+			assert.Equal(t, []transport.PeerID{node1.network.peerID}, bootstrapDiag.Peers)
+		}
 
 		// Assert peer diagnostics sent from bootstrap node1 to bootstrap node
-		assert.Equal(t, 1, len(bootstrap.network.PeerDiagnostics()))
-		node1Diag := bootstrap.network.PeerDiagnostics()[node1.network.peerID]
-		assert.Equal(t, uint32(1), node1Diag.NumberOfTransactions)
-		assert.Equal(t, "https://github.com/nuts-foundation/nuts-node", node1Diag.SoftwareID)
-		assert.Equal(t, "development (0)", node1Diag.SoftwareVersion)
-		assert.Equal(t, []transport.PeerID{bootstrap.network.peerID}, node1Diag.Peers)
+		require.Equal(t, 1, len(bootstrap.network.PeerDiagnostics()))
+		for peerKey, node1Diag := range bootstrap.network.PeerDiagnostics() {
+			strings.HasPrefix(peerKey.String(), node1.network.peerID.String())
+			assert.Equal(t, uint32(1), node1Diag.NumberOfTransactions)
+			assert.Equal(t, "https://github.com/nuts-foundation/nuts-node", node1Diag.SoftwareID)
+			assert.Equal(t, "development (0)", node1Diag.SoftwareVersion)
+			assert.Equal(t, []transport.PeerID{bootstrap.network.peerID}, node1Diag.Peers)
+		}
 	})
 }
 
