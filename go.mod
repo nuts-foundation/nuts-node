@@ -23,7 +23,7 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.5.1
 	github.com/nuts-foundation/go-leia/v3 v3.3.0
-	github.com/nuts-foundation/go-stoabs v1.8.1
+	github.com/nuts-foundation/go-stoabs v1.9.0
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
 	github.com/privacybydesign/irmago v0.12.6
 	github.com/prometheus/client_golang v1.16.0
@@ -165,6 +165,7 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yuin/gopher-lua v1.1.0 // indirect
+	go.uber.org/mock v0.1.0 // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sync v0.2.0 // indirect
