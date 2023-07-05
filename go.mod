@@ -22,7 +22,7 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.5.1
 	github.com/nuts-foundation/go-leia/v3 v3.3.0
-	github.com/nuts-foundation/go-stoabs v1.8.1
+	github.com/nuts-foundation/go-stoabs v1.9.0
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
 	github.com/privacybydesign/irmago v0.12.6
 	github.com/prometheus/client_golang v1.16.0
@@ -92,7 +92,6 @@ require (
 	github.com/gobwas/ws v1.1.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.1 // indirect
-	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
