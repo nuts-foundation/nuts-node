@@ -14,7 +14,7 @@ Discovery of issuer and wallets is done by looking up metadata on well-known end
 To allow discovery of an issuer or wallet, its DID document must contain a service of type `node-http-services-baseurl`,
 that specifies the HTTPS base URL of the `/n2n` interface of the node, excluding the latter.
 E.g., when the node's `/n2n` interface is available on `https://example.com/n2n`, the endpoint to be registered is `https://example.com`.
-As always, DID documents of care organization may reference the service in their vendor's DID document for easier administration.
+As always, DID documents of care organizations may reference the service in their vendor's DID document for easier administration.
 
 Auto-registration
 ^^^^^^^^^^^^^^^^^
