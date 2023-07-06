@@ -27,21 +27,22 @@ import (
 
 func Test_ValidateCredentialDefinition(t *testing.T) {
 	t.Run("definition is nil", func(t *testing.T) {
-		err := ValidateCredentialDefinition(nil, true)
+		var definition *CredentialDefinition
+		err := definition.Validate(true)
 
 		assert.EqualError(t, err, "invalid credential_definition: missing")
 	})
 	t.Run("missing context", func(t *testing.T) {
 		definition := &CredentialDefinition{}
 
-		err := ValidateCredentialDefinition(definition, true)
+		err := definition.Validate(true)
 
 		assert.EqualError(t, err, "invalid credential_definition: missing @context field")
 	})
 	t.Run("missing type", func(t *testing.T) {
 		definition := &CredentialDefinition{Context: []ssi.URI{ssi.MustParseURI("http://example.com")}}
 
-		err := ValidateCredentialDefinition(definition, true)
+		err := definition.Validate(true)
 
 		assert.EqualError(t, err, "invalid credential_definition: missing type field")
 	})
@@ -51,7 +52,7 @@ func Test_ValidateCredentialDefinition(t *testing.T) {
 			Type:              []ssi.URI{ssi.MustParseURI("SomeCredentialType")},
 			CredentialSubject: new(map[string]any),
 		}
-		err := ValidateCredentialDefinition(definition, true)
+		err := definition.Validate(true)
 
 		assert.EqualError(t, err, "invalid credential_definition: credentialSubject not allowed in offer")
 	})

@@ -24,18 +24,18 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 )
 
-// ValidateCredentialDefinition validates the CredentialDefinition according to the VerifiableCredentialJSONLDFormat format
-func ValidateCredentialDefinition(definition *CredentialDefinition, isOffer bool) error {
-	if definition == nil {
+// Validate the CredentialDefinition according to the VerifiableCredentialJSONLDFormat format
+func (cd *CredentialDefinition) Validate(isOffer bool) error {
+	if cd == nil {
 		return errors.New("invalid credential_definition: missing")
 	}
-	if len(definition.Context) == 0 {
+	if len(cd.Context) == 0 {
 		return errors.New("invalid credential_definition: missing @context field")
 	}
-	if len(definition.Type) == 0 {
+	if len(cd.Type) == 0 {
 		return errors.New("invalid credential_definition: missing type field")
 	}
-	if definition.CredentialSubject != nil {
+	if cd.CredentialSubject != nil {
 		if isOffer {
 			return errors.New("invalid credential_definition: credentialSubject not allowed in offer")
 		}

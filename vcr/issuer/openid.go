@@ -235,7 +235,7 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 			StatusCode: http.StatusBadRequest,
 		}
 	}
-	if err := oidc4vci.ValidateCredentialDefinition(request.CredentialDefinition, false); err != nil {
+	if err := request.CredentialDefinition.Validate(false); err != nil {
 		return nil, oidc4vci.Error{
 			Err:        fmt.Errorf("credential request: %w", err),
 			Code:       oidc4vci.InvalidRequest,
