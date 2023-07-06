@@ -32,7 +32,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nats-io/nats.go"
 	ssi "github.com/nuts-foundation/go-did"
@@ -46,6 +45,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 // mockKeyCreator creates a single new key

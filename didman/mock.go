@@ -9,9 +9,9 @@ import (
 	url "net/url"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockDidman is a mock of Didman interface.

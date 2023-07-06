@@ -7,9 +7,9 @@ package grpc
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockAuthenticator is a mock of Authenticator interface.

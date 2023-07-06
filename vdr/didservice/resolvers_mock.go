@@ -7,9 +7,9 @@ package didservice
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
-	ssi "github.com/nuts-foundation/go-did"
+	go_did "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockServiceResolver is a mock of ServiceResolver interface.
@@ -36,7 +36,7 @@ func (m *MockServiceResolver) EXPECT() *MockServiceResolverMockRecorder {
 }
 
 // Resolve mocks base method.
-func (m *MockServiceResolver) Resolve(query ssi.URI, maxDepth int) (did.Service, error) {
+func (m *MockServiceResolver) Resolve(query go_did.URI, maxDepth int) (did.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", query, maxDepth)
 	ret0, _ := ret[0].(did.Service)
@@ -51,7 +51,7 @@ func (mr *MockServiceResolverMockRecorder) Resolve(query, maxDepth interface{}) 
 }
 
 // ResolveEx mocks base method.
-func (m *MockServiceResolver) ResolveEx(endpoint ssi.URI, depth, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
+func (m *MockServiceResolver) ResolveEx(endpoint go_did.URI, depth, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveEx", endpoint, depth, maxDepth, documentCache)
 	ret0, _ := ret[0].(did.Service)

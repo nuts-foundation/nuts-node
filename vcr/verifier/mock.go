@@ -8,11 +8,11 @@ import (
 	reflect "reflect"
 	time "time"
 
-	gomock "github.com/golang/mock/gomock"
-	ssi "github.com/nuts-foundation/go-did"
+	go_did "github.com/nuts-foundation/go-did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	core "github.com/nuts-foundation/nuts-node/core"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockVerifier is a mock of Verifier interface.
@@ -39,7 +39,7 @@ func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 }
 
 // GetRevocation mocks base method.
-func (m *MockVerifier) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+func (m *MockVerifier) GetRevocation(id go_did.URI) (*credential.Revocation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRevocation", id)
 	ret0, _ := ret[0].(*credential.Revocation)
@@ -54,7 +54,7 @@ func (mr *MockVerifierMockRecorder) GetRevocation(id interface{}) *gomock.Call {
 }
 
 // IsRevoked mocks base method.
-func (m *MockVerifier) IsRevoked(credentialID ssi.URI) (bool, error) {
+func (m *MockVerifier) IsRevoked(credentialID go_did.URI) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsRevoked", credentialID)
 	ret0, _ := ret[0].(bool)
@@ -177,7 +177,7 @@ func (mr *MockStoreMockRecorder) Diagnostics() *gomock.Call {
 }
 
 // GetRevocations mocks base method.
-func (m *MockStore) GetRevocations(id ssi.URI) ([]*credential.Revocation, error) {
+func (m *MockStore) GetRevocations(id go_did.URI) ([]*credential.Revocation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRevocations", id)
 	ret0, _ := ret[0].([]*credential.Revocation)

@@ -7,8 +7,8 @@ package oidc4vci
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockIdentifierResolver is a mock of IdentifierResolver interface.

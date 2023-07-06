@@ -21,7 +21,6 @@ package oidc4vci
 import (
 	"crypto/tls"
 	"errors"
-	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -30,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"net/http"
 	"net/http/httptest"
 	"net/url"

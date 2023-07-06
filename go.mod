@@ -9,7 +9,6 @@ require (
 	github.com/chromedp/chromedp v0.9.1
 	github.com/deepmap/oapi-codegen v1.13.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/golang/mock v1.6.0
 	github.com/goodsign/monday v1.0.1
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/vault/api v1.9.2
@@ -23,7 +22,7 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.5.1
 	github.com/nuts-foundation/go-leia/v3 v3.3.0
-	github.com/nuts-foundation/go-stoabs v1.8.1
+	github.com/nuts-foundation/go-stoabs v1.9.0
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
 	github.com/privacybydesign/irmago v0.12.6
 	github.com/prometheus/client_golang v1.16.0
@@ -38,6 +37,7 @@ require (
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.2.1
+	go.uber.org/mock v0.1.0
 	golang.org/x/crypto v0.10.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.56.1

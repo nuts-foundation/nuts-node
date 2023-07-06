@@ -8,9 +8,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	vc "github.com/nuts-foundation/go-did/vc"
 	oidc4vci "github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockOpenIDHandler is a mock of OpenIDHandler interface.

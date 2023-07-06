@@ -24,9 +24,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func TestNewSystem(t *testing.T) {

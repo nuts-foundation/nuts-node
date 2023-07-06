@@ -19,7 +19,7 @@
 package hash
 
 import (
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 	"math/rand"
 )
 

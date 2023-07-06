@@ -20,13 +20,13 @@ package grpc
 
 import (
 	"crypto/x509"
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/pki"
 	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"testing"
 )
 

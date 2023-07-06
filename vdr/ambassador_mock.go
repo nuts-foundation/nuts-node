@@ -7,7 +7,7 @@ package vdr
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockAmbassador is a mock of Ambassador interface.

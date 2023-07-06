@@ -20,7 +20,6 @@
 package vcr
 
 import (
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
@@ -32,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"go.uber.org/mock/gomock"
 	"path"
 	"testing"
 )

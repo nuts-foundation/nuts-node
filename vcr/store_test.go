@@ -29,9 +29,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func TestVcr_StoreCredential(t *testing.T) {

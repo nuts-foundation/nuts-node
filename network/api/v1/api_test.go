@@ -29,11 +29,11 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/network/transport"
 
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 var payload = []byte("Hello, World!")

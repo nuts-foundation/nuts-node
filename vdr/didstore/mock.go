@@ -7,9 +7,9 @@ package didstore
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
 	types "github.com/nuts-foundation/nuts-node/vdr/types"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockStore is a mock of Store interface.

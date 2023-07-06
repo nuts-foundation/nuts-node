@@ -20,12 +20,12 @@ package audit
 
 import (
 	"context"
-	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"strings"
 	"testing"
 )

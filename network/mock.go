@@ -8,11 +8,11 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockTransactions is a mock of Transactions interface.

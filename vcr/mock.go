@@ -9,13 +9,13 @@ import (
 	reflect "reflect"
 	time "time"
 
-	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
 	verifier "github.com/nuts-foundation/nuts-node/vcr/verifier"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockFinder is a mock of Finder interface.

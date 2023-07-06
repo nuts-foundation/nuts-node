@@ -30,12 +30,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
 
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	irma "github.com/privacybydesign/irmago"
 	irmaservercore "github.com/privacybydesign/irmago/server"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func TestSessionPtr_MarshalJSON(t *testing.T) {

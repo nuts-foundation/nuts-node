@@ -26,9 +26,9 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 
-	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
 	"github.com/magiconair/properties/assert"
+	"go.uber.org/mock/gomock"
 )
 
 type testServerInterface struct {
