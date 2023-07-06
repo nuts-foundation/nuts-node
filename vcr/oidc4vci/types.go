@@ -103,7 +103,7 @@ type CredentialOffer struct {
 	Grants map[string]interface{} `json:"grants"`
 }
 
-// OfferedCredential defines an individual credential offered. We currently do not support 'JSON string' offers.
+// OfferedCredential defines a single entry in the credentials array of a CredentialOffer. We currently do not support 'JSON string' offers.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer-parameters
 // and https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-vc-secured-using-data-integ
 type OfferedCredential struct {
