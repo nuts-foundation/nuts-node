@@ -19,7 +19,7 @@ As always, DID documents of care organizations may reference the service in thei
 Auto-registration
 ^^^^^^^^^^^^^^^^^
 
-If the `node-http-services-baseurl` service is not registered for the DIDs on the local node, it will automatically try to register it.
+If the `node-http-services-baseurl` service is not registered for the DIDs managed by the local node, it will automatically try to register it.
 For vendor DID documents (which have a `NutsComm` service that isn't a reference),
 the node will inspect its TLS certificate's SANs and try to resolve its OpenID4VCI issuer metadata using a HTTP HEAD request.
 E.g., give the SAN `nuts.example.com` and DID `did:nuts:2nQtiQG6Cgm1GYTBaaKAgr76uY7iSexUkqX`, it will attempt the following request:
