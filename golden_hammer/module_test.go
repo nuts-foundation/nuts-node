@@ -21,8 +21,10 @@ package golden_hammer
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/test"
@@ -117,6 +119,14 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		err := service.registerServiceBaseURLs()
 
 		assert.NoError(t, err)
+
+		t.Run("second time list of fixed DIDs is cached (no DID resolving)", func(t *testing.T) {
+			documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID, clientADID, clientBDID}, nil)
+
+			err := service.registerServiceBaseURLs()
+
+			assert.NoError(t, err)
+		})
 	})
 	t.Run("to be registered on vendor DID and client DIDs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -201,6 +211,21 @@ func TestGoldenHammer_Fix(t *testing.T) {
 
 		assert.NoError(t, err)
 	})
+	t.Run("resolve error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		docResolver := types.NewMockDocResolver(ctrl)
+		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(nil, nil, fmt.Errorf("resolve error"))
+		documentOwner := types.NewMockDocumentOwner(ctrl)
+		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID}, nil)
+		service := New(documentOwner, nil, docResolver)
+		service.tlsConfig = &tls.Config{
+			Certificates: []tls.Certificate{pki.Certificate()},
+		}
+
+		err := service.registerServiceBaseURLs()
+
+		assert.NoError(t, err)
+	})
 }
 
 // TestGoldenHammer_Lifecycle tests the lifecycle of the golden hammer service (starting it, asserting it tries to fix stuff, then shutdown).
@@ -237,5 +262,26 @@ func TestGoldenHammer_Lifecycle(t *testing.T) {
 
 		err = service.Shutdown()
 		require.NoError(t, err)
+	})
+}
+
+func TestGoldenHammer_Name(t *testing.T) {
+	service := New(nil, nil, nil)
+
+	assert.Equal(t, "GoldenHammer", service.Name())
+}
+
+func TestGoldenHammer_Configure(t *testing.T) {
+	t.Run("TLS enabled", func(t *testing.T) {
+		cfg := core.NewServerConfig()
+		cfg.TLS.CertFile = pki.CertificateFile(t)
+		cfg.TLS.CertKeyFile = cfg.TLS.CertFile
+		cfg.TLS.TrustStoreFile = pki.TruststoreFile(t)
+		err := New(nil, nil, nil).Configure(*cfg)
+		assert.NoError(t, err)
+	})
+	t.Run("TLS disabled", func(t *testing.T) {
+		err := New(nil, nil, nil).Configure(*core.NewServerConfig())
+		assert.NoError(t, err)
 	})
 }
