@@ -43,6 +43,13 @@ type IdentifierResolver interface {
 }
 
 var _ IdentifierResolver = DIDIdentifierResolver{}
+var _ IdentifierResolver = NoopIdentifierResolver{}
+
+type NoopIdentifierResolver struct{}
+
+func (n NoopIdentifierResolver) Resolve(id did.DID) (string, error) {
+	return "", nil
+}
 
 // DIDIdentifierResolver is a IdentifierResolver that resolves identifiers from DID documents.
 type DIDIdentifierResolver struct {

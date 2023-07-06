@@ -19,6 +19,7 @@
 package golden_hammer
 
 import (
+	"context"
 	"crypto/tls"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
@@ -48,31 +49,67 @@ var clientBDID = did.MustParseDID("did:nuts:clientB")
 var clientCDID = did.MustParseDID("did:nuts:clientC")
 
 func TestGoldenHammer_Fix(t *testing.T) {
-	var documentWithoutBaseURL = &did.Document{}
-	var documentWithBaseURL = &did.Document{
+	var vendorDocumentWithBaseURL = did.Document{
+		ID: vendorDID,
 		Service: []did.Service{
 			{
 				Type:            types.BaseURLServiceType,
 				ServiceEndpoint: "https://example.com",
 			},
-		},
-	}
-	var clientDocumentWithoutBaseURL = &did.Document{
-		Service: []did.Service{
 			{
 				Type:            transport.NutsCommServiceType,
-				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, "foo"),
+				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
 			},
 		},
 	}
+	var vendorDocumentWithoutBaseURL = did.Document{
+		ID: vendorDID,
+		Service: []did.Service{
+			{
+				Type:            transport.NutsCommServiceType,
+				ServiceEndpoint: "grpc://example.com:5555",
+			},
+		},
+	}
+	var clientDocumentWithoutBaseURL = did.Document{
+		Service: []did.Service{
+			{
+				Type:            transport.NutsCommServiceType,
+				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
+			},
+		},
+	}
+	var clientDocumentWithBaseURL = did.Document{
+		Service: []did.Service{
+			{
+				Type:            types.BaseURLServiceType,
+				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, types.BaseURLServiceType),
+			},
+			{
+				Type:            transport.NutsCommServiceType,
+				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
+			},
+		},
+	}
+
+	// vendor and care organization DIDs do not have the required service, so it should be registered
+	tlsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+	}))
+	serverURL, _ := url.Parse(tlsServer.URL)
+	expectedBaseURL, _ := url.Parse("https://localhost:" + serverURL.Port())
+	serverPort, _ := strconv.Atoi(serverURL.Port())
+	oidc4vci.SetTLSIdentifierResolverPort(t, serverPort)
+	defer tlsServer.Close()
 
 	t.Run("nothing to fix", func(t *testing.T) {
 		// vendor and care organization DIDs already have the required service, so there's nothing to fix
 		ctrl := gomock.NewController(t)
 		docResolver := types.NewMockDocResolver(ctrl)
-		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(documentWithBaseURL, nil, nil).MinTimes(1)
-		docResolver.EXPECT().Resolve(clientADID, gomock.Any()).Return(documentWithBaseURL, nil, nil).MinTimes(1)
-		docResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(documentWithBaseURL, nil, nil).MinTimes(1)
+		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil).MinTimes(1)
+		docResolver.EXPECT().Resolve(clientADID, gomock.Any()).Return(&clientDocumentWithBaseURL, nil, nil).MinTimes(1)
+		docResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&clientDocumentWithBaseURL, nil, nil).MinTimes(1)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID, clientADID, clientBDID}, nil)
 		service := New(documentOwner, nil, docResolver)
@@ -82,28 +119,34 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("to be registered on vendor DID and client DIDs", func(t *testing.T) {
-		// vendor and care organization DIDs do not have the required service, so it should be registered
-		tlsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-		}))
-		serverURL, _ := url.Parse(tlsServer.URL)
-		expectedBaseURL, _ := url.Parse("https://localhost:" + serverURL.Port())
-		serverPort, _ := strconv.Atoi(serverURL.Port())
-		oidc4vci.SetTLSIdentifierResolverPort(t, serverPort)
-		defer tlsServer.Close()
-
 		ctrl := gomock.NewController(t)
 		docResolver := types.NewMockDocResolver(ctrl)
-		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(documentWithoutBaseURL, nil, nil).MinTimes(1)
-		docResolver.EXPECT().Resolve(clientADID, gomock.Any()).Return(clientDocumentWithoutBaseURL, nil, nil).MinTimes(1)
-		docResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(clientDocumentWithoutBaseURL, nil, nil).MinTimes(1)
+		docClientA := clientDocumentWithoutBaseURL
+		docClientA.ID = clientADID
+		docClientB := clientDocumentWithoutBaseURL
+		docClientB.ID = clientBDID
+
 		documentOwner := types.NewMockDocumentOwner(ctrl)
-		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID, clientADID, clientBDID}, nil)
+		// Order DIDs such that care organization DID is first, to test ordering
+		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{clientADID, vendorDID, clientBDID}, nil)
 		didmanAPI := didman.NewMockDidman(ctrl)
-		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), vendorDID, types.BaseURLServiceType, *expectedBaseURL).Return(nil, nil)
-		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientADID, types.BaseURLServiceType, *serviceRef).Return(nil, nil)
-		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientBDID, types.BaseURLServiceType, *serviceRef).Return(nil, nil)
+		gomock.InOrder(
+			// DID documents are listed first to check if they should be fixed
+			docResolver.EXPECT().Resolve(clientADID, gomock.Any()).Return(&docClientA, nil, nil),
+			docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithoutBaseURL, nil, nil),
+			docResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&docClientB, nil, nil),
+
+			// Vendor document is fixed first
+			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), vendorDID, types.BaseURLServiceType, *expectedBaseURL).Return(nil, nil),
+
+			// Then client A
+			docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil),
+			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientADID, types.BaseURLServiceType, *serviceRef).Return(nil, nil),
+
+			// Then client B
+			docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil),
+			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientBDID, types.BaseURLServiceType, *serviceRef).Return(nil, nil),
+		)
 		service := New(documentOwner, didmanAPI, docResolver)
 		service.tlsConfig = tlsServer.TLS
 		service.tlsConfig.InsecureSkipVerify = true
@@ -116,8 +159,9 @@ func TestGoldenHammer_Fix(t *testing.T) {
 	t.Run("vendor identifier can't be resolved from TLS", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		docResolver := types.NewMockDocResolver(ctrl)
-		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(documentWithoutBaseURL, nil, nil).MinTimes(1)
+		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithoutBaseURL, nil, nil).MinTimes(1)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
+		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID}, nil)
 		service := New(documentOwner, nil, docResolver)
 		service.tlsConfig = &tls.Config{
 			Certificates: []tls.Certificate{pki.Certificate()},
@@ -132,17 +176,26 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		// so they need to be registered.
 		ctrl := gomock.NewController(t)
 		docResolver := types.NewMockDocResolver(ctrl)
-		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(documentWithBaseURL, nil, nil).MinTimes(1)
-		docResolver.EXPECT().Resolve(clientADID, gomock.Any()).Return(clientDocumentWithoutBaseURL, nil, nil).MinTimes(1)
-		docResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(clientDocumentWithoutBaseURL, nil, nil).MinTimes(1)
+		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil).MinTimes(1)
+		docClientA := clientDocumentWithoutBaseURL
+		docClientA.ID = clientADID
+		docClientB := clientDocumentWithoutBaseURL
+		docClientB.ID = clientBDID
+		docResolver.EXPECT().Resolve(clientADID, gomock.Any()).Return(&docClientA, nil, nil).MinTimes(1)
+		docResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&docClientB, nil, nil).MinTimes(1)
 		// Client C is owned, but not linked to the vendor (via NutsComm service), so do not register the service on that one
-		docResolver.EXPECT().Resolve(clientCDID, gomock.Any()).Return(documentWithoutBaseURL, nil, nil).MinTimes(1)
+		docResolver.EXPECT().Resolve(clientCDID, gomock.Any()).Return(&did.Document{ID: clientCDID}, nil, nil).MinTimes(1)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID, clientADID, clientBDID, clientCDID}, nil)
 		didmanAPI := didman.NewMockDidman(ctrl)
+		// AddEndpoint is not called for vendor DID (URL already present), but for client DIDs.
+		// Not for clientC, since it's not linked to the vendor (doesn't have a NutsComm endpoint).
 		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientADID, types.BaseURLServiceType, *serviceRef).Return(nil, nil)
 		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientBDID, types.BaseURLServiceType, *serviceRef).Return(nil, nil)
 		service := New(documentOwner, didmanAPI, docResolver)
+		service.tlsConfig = tlsServer.TLS
+		service.tlsConfig.InsecureSkipVerify = true
+		service.tlsConfig.Certificates = []tls.Certificate{pki.Certificate()}
 
 		err := service.registerServiceBaseURLs()
 
@@ -158,11 +211,11 @@ func TestGoldenHammer_Lifecycle(t *testing.T) {
 		fixCalled := &atomic.Int64{}
 		ctrl := gomock.NewController(t)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
-		documentOwner.EXPECT().ListOwned(gomock.Any()).DoAndReturn(func() ([]did.DID, error) {
+		documentOwner.EXPECT().ListOwned(gomock.Any()).DoAndReturn(func(_ context.Context) ([]did.DID, error) {
 			fixCalled.Add(1)
 			return []did.DID{}, nil
 		}).MinTimes(1)
-		service := New(nil, nil, nil)
+		service := New(documentOwner, nil, nil)
 		service.config.Interval = time.Millisecond
 		service.config.Enabled = true
 

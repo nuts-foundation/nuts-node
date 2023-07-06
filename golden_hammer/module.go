@@ -55,7 +55,8 @@ func New(documentOwner types.DocumentOwner, didmanAPI didman.Didman, docResolver
 
 // GoldenHammer is a module that fixes a node's DID configuration.
 // Its name is intentionally weird, since the module should not exist.
-// In future all fixes it does should be deprecated and removed after they've become obsolete.
+// In future all fixes it does should be deprecated and removed after OpenID4VCI has become the standard way of exchanging VCs.
+// See https://github.com/nuts-foundation/nuts-node/issues/2318
 type GoldenHammer struct {
 	config            Config
 	ctx               context.Context
@@ -124,16 +125,19 @@ func (h *GoldenHammer) hammerTime() {
 // registerServiceBaseURLs registers the node's services HTTP base URL on its DIDs.
 // This base URL is used to discover HTTP services (for now only OpenID4VCI wallet/issuer metadata).
 //   - Make a list of owned DIDs
-//   - Filter documents without node-http-services-base-url service
-//   - Sort: nodes without NutsComm service go first (so "vendor DID documents" go first).
-//   - Try to resolve metadata (TLSIdentifierResolver), if successful, continue
-//   - No NutsComm service reference? Register node-http-services-base-url service it on the DID document itself.
-//   - Has NutsComm service reference? Register node-http-services-base-url reference to ref'd DID document, if present there.
+//   - Filter: only include documents without node-http-services-base-url service
+//   - Filter: exclude documents without NutsComm service
+//   - Sort: nodes with a NutsComm URL (instead of a reference) go first (so "vendor DID documents" go first).
+//   - NutsComm is a service reference? Register node-http-services-base-url reference to ref'd DID document, if present there.
+//   - NutsComm is a URL?
+//   - Try to resolve metadata (TLSIdentifierResolver)
+//   - Register resolved URL as node-http-services-base-url service
 func (h *GoldenHammer) registerServiceBaseURLs() error {
 	documents, err := h.listDocumentToFix()
 	if err != nil {
 		return err
 	}
+	var numFixed int
 	for _, document := range documents {
 		var endpointToRegister url.URL
 		serviceEndpoint := getServiceEndpoint(document, transport.NutsCommServiceType)
@@ -147,7 +151,7 @@ func (h *GoldenHammer) registerServiceBaseURLs() error {
 				continue
 			}
 			// Only if the referenced document actually contains the service
-			if h.resolveContainsService(parentDID, types.BaseURLServiceType) {
+			if !h.resolveContainsService(parentDID, types.BaseURLServiceType) {
 				log.Logger().Debugf("Could not resolve '%s' service in referenced (NutsComm) DID document (did=%s), skipping fix for DID: %s", types.BaseURLServiceType, parentDID.String(), document.ID)
 				continue
 			}
@@ -166,11 +170,14 @@ func (h *GoldenHammer) registerServiceBaseURLs() error {
 		_, err := h.didmanAPI.AddEndpoint(h.ctx, document.ID, types.BaseURLServiceType, endpointToRegister)
 		if err != nil {
 			log.Logger().WithError(err).
-				Errorf("Unable to register DID services base URL (did=%s): %s", document.ID, endpointToRegister.String())
+				Warnf("Unable to register DID services base URL (did=%s): %s", document.ID, endpointToRegister.String())
 		} else {
+			numFixed++
 			h.fixedDocumentDIDs[document.ID.String()] = true
-			log.Logger().Infof("Registered DIDs services base URL (did=%s): %s", document.ID, endpointToRegister.String())
 		}
+	}
+	if numFixed > 0 {
+		log.Logger().Infof("Registered base URLs on %d DIDs", numFixed)
 	}
 	return nil
 }
@@ -193,6 +200,12 @@ func (h *GoldenHammer) listDocumentToFix() ([]did.Document, error) {
 			}
 			continue
 		}
+		if !containsService(*document, transport.NutsCommServiceType) {
+			// Vendors and care organization DID documents have a NutsComm service,
+			// others are most probably not relevant for issuing/receiving VCs (at least, they can't in their current state),
+			// so we skip them.
+			continue
+		}
 		if containsService(*document, types.BaseURLServiceType) {
 			h.fixedDocumentDIDs[id.String()] = true
 			continue
@@ -201,33 +214,23 @@ func (h *GoldenHammer) listDocumentToFix() ([]did.Document, error) {
 		documents = append(documents, *document)
 	}
 	// Sort: since care organization DIDs refer to vendor DIDs through NutsComm service,
-	// vendor DIDs should be fixed first. Meaning DIDs without NutsComm service should go first.
-	sort.Slice(documents, func(i, j int) bool {
-		return containsService(documents[i], transport.NutsCommServiceType)
+	// vendor DIDs should be fixed first. Meaning DIDs with NutsComm URL (instead of a reference).
+	sort.SliceStable(documents, func(i, j int) bool {
+		endpoint := getServiceEndpoint(documents[i], transport.NutsCommServiceType)
+		return !didservice.IsServiceReference(endpoint)
 	})
 	return documents, nil
 }
 
 func (h *GoldenHammer) tryResolveURL(id did.DID) (*url.URL, error) {
-	// DIDIdentifierResolver only looks at DID document to resolve OpenID4VCI Identifiers.
-	didIDResolver := oidc4vci.DIDIdentifierResolver{ServiceResolver: didservice.NewServiceResolver(h.docResolver)}
 	// TLSIdentifierResolver looks at TLS certificate to resolve OpenID4VCI Identifiers.
-	tlsIDResolver := oidc4vci.NewTLSIdentifierResolver(didIDResolver, h.tlsConfig)
-
-	// Check if the services base URL is present
-	identifier, err := didIDResolver.Resolve(id)
+	tlsIDResolver := oidc4vci.NewTLSIdentifierResolver(oidc4vci.NoopIdentifierResolver{}, h.tlsConfig)
+	identifier, err := tlsIDResolver.Resolve(id)
 	if err != nil {
 		return nil, err
 	}
 	if identifier == "" {
-		// Not registered, try to resolve it using the TLS certificate
-		identifier, err = tlsIDResolver.Resolve(id)
-		if err != nil {
-			return nil, err
-		}
-		if identifier == "" {
-			return nil, nil
-		}
+		return nil, nil
 	}
 	// Identifier is: baseURL + /n2n/identity/<did>
 	return url.Parse(identifier[:strings.Index(identifier, "/n2n/identity/")])
