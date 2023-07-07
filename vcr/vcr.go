@@ -81,31 +81,30 @@ type vcr struct {
 	// datadir holds the location the VCR files are stored
 	datadir string
 	// strictmode holds a copy of the core.ServerConfig.Strictmode value
-	strictmode bool
-
-	config          Config
-	store           leia.Store
-	didstore        didstore.Store
-	keyStore        crypto.KeyStore
-	docResolver     vdr.DocResolver
-	keyResolver     vdr.KeyResolver
-	serviceResolver vdr.ServiceResolver
-	ambassador      Ambassador
-	network         network.Transactions
-	trustConfig     *trust.Config
-	issuer          issuer.Issuer
-	verifier        verifier.Verifier
-	holder          holder.Holder
-	issuerStore     issuer.Store
-	verifierStore   verifier.Store
-	jsonldManager   jsonld.JSONLD
-	eventManager    events.Event
-	storageClient   storage.Engine
+	strictmode          bool
+	config              Config
+	store               leia.Store
+	didstore            didstore.Store
+	keyStore            crypto.KeyStore
+	docResolver         vdr.DocResolver
+	keyResolver         vdr.KeyResolver
+	serviceResolver     vdr.ServiceResolver
+	ambassador          Ambassador
+	network             network.Transactions
+	trustConfig         *trust.Config
+	issuer              issuer.Issuer
+	verifier            verifier.Verifier
+	holder              holder.Holder
+	issuerStore         issuer.Store
+	verifierStore       verifier.Store
+	jsonldManager       jsonld.JSONLD
+	eventManager        events.Event
+	storageClient       storage.Engine
 	openidIsssuerStore  issuer.OpenIDStore
 	localWalletResolver oidc4vci.IdentifierResolver
 	documentOwner       vdr.DocumentOwner
-	pkiProvider     pki.Provider
-	clientTLSConfig *tls.Config
+	pkiProvider         pki.Provider
+	clientTLSConfig     *tls.Config
 }
 
 func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error) {
