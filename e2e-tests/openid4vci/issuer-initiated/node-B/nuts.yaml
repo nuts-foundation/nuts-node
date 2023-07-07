@@ -21,7 +21,8 @@ vcr:
   overrideissueallpublic: false
   oidc4vci:
     enabled: true
-    url: https://nodeB
+goldenhammer:
+  interval: 1s
 tls:
   truststorefile: /opt/nuts/truststore.pem
   certfile: /opt/nuts/certificate-and-key.pem

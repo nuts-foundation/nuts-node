@@ -461,6 +461,21 @@ func (mr *MockVDRMockRecorder) IsOwner(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwner", reflect.TypeOf((*MockVDR)(nil).IsOwner), arg0, arg1)
 }
 
+// ListOwned mocks base method.
+func (m *MockVDR) ListOwned(ctx context.Context) ([]did.DID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListOwned", ctx)
+	ret0, _ := ret[0].([]did.DID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListOwned indicates an expected call of ListOwned.
+func (mr *MockVDRMockRecorder) ListOwned(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOwned", reflect.TypeOf((*MockVDR)(nil).ListOwned), ctx)
+}
+
 // Update mocks base method.
 func (m *MockVDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	m.ctrl.T.Helper()
@@ -511,6 +526,21 @@ func (m *MockDocumentOwner) IsOwner(arg0 context.Context, arg1 did.DID) (bool, e
 func (mr *MockDocumentOwnerMockRecorder) IsOwner(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwner", reflect.TypeOf((*MockDocumentOwner)(nil).IsOwner), arg0, arg1)
+}
+
+// ListOwned mocks base method.
+func (m *MockDocumentOwner) ListOwned(ctx context.Context) ([]did.DID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListOwned", ctx)
+	ret0, _ := ret[0].([]did.DID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListOwned indicates an expected call of ListOwned.
+func (mr *MockDocumentOwnerMockRecorder) ListOwned(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOwned", reflect.TypeOf((*MockDocumentOwner)(nil).ListOwned), ctx)
 }
 
 // MockDocManipulator is a mock of DocManipulator interface.

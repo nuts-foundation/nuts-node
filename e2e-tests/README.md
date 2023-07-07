@@ -17,11 +17,11 @@ To tun the tests you need the following tools:
 
 ## On your machine
 
-To run the tests execute `run-tests.sh`.
+Run `make e2e-tests` from the repository root to build a Docker image of the nuts-node and run the tests.
 
 ## Testing version compatibility
 
-By default the test are performed on the master build: `nutsfoundation/nuts-node:master`.
+By default, the test are performed on the master build: `nutsfoundation/nuts-node:master`.
 
 Sometimes you want to test compatibility between versions. To aid this, every node in this test suite you can specify 2 environment variables to control exact Docker image to use:
 

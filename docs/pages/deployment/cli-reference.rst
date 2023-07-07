@@ -34,6 +34,8 @@ The following options apply to the server commands below:
       --events.nats.port int                          Port where the NATS server listens on (default 4222)
       --events.nats.storagedir string                 Directory where file-backed streams are stored in the NATS server
       --events.nats.timeout int                       Timeout for NATS server operations (default 30)
+      --goldenhammer.enabled                          Whether to enable automatically fixing DID documents with the required endpoints. (default true)
+      --goldenhammer.interval duration                The interval in which to check for DID documents to fix. (default 10m0s)
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.auth.audience string             Expected audience for JWT tokens (default: hostname)
       --http.default.auth.authorizedkeyspath string   Path to an authorized_keys file for trusted JWT signers
