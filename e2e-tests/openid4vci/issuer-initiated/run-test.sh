@@ -14,26 +14,14 @@ mkdir ./node-A/data ./node-B/data  # 'data' dirs will be created with root owner
 docker compose up --wait
 
 echo "------------------------------------"
-echo "Creating NodeDIDs..."
+echo "Creating NodeDIDs, waiting for Golden Hammer to register base URLs..."
 echo "------------------------------------"
 export NODEA_DID=$(setupNode "http://localhost:11323" "nodeA:5555")
 printf "NodeDID for node A: %s\n" "$NODEA_DID"
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 2 10
+waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 3 10 # 2 for setupNode, 1 for GoldenHammer
 export NODEB_DID=$(setupNode "http://localhost:21323" "nodeB:5555")
 printf "NodeDID for node B: %s\n" "$NODEB_DID"
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 4 10
-
-echo "------------------------------------"
-echo "Restarting with NodeDID set..."
-echo "------------------------------------"
-docker compose down
-docker compose up --wait
-
-echo "------------------------------------"
-echo "Waiting for Golden Hammer to register base URLs..."
-echo "------------------------------------"
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 6 10
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 6 10
+waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 6 10 # 2 for setupNode, 1 for GoldenHammer
 
 echo "------------------------------------"
 echo "Issuing credential..."

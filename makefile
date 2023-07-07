@@ -87,6 +87,10 @@ fix-copyright:
 test:
 	go test ./...
 
+e2e-test:
+	docker build . --tag nutsfoundation/nuts-node:e2e
+	cd e2e-tests && IMAGE_NODE_A=nutsfoundation/nuts-node:e2e IMAGE_NODE_B=nutsfoundation/nuts-node:e2e ./run-tests.sh
+
 OUTPUT ?= "$(shell pwd)/nuts"
 GIT_COMMIT ?= "$(shell git rev-list -1 HEAD)"
 GIT_BRANCH ?= "$(shell git symbolic-ref --short HEAD)"

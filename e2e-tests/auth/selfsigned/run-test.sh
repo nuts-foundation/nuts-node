@@ -10,7 +10,6 @@ rm -rf ./data
 mkdir ./data
 
 # Start new stack
-docker compose pull
 docker compose up --wait
 
 
