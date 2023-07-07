@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"io/fs"
 	"net/http"
 	"path"
@@ -56,15 +57,16 @@ import (
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver,
+func NewVCRInstance(keyStore crypto.KeyStore, store didstore.Store,
 	network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine,
 	pkiProvider pki.Provider, documentOwner vdr.DocumentOwner) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
-		docResolver:     docResolver,
+		didstore:        store,
+		docResolver:     didservice.Resolver{Store: store},
 		keyStore:        keyStore,
-		keyResolver:     keyResolver,
-		serviceResolver: didservice.NewServiceResolver(docResolver),
+		keyResolver:     didservice.KeyResolver{Store: store},
+		serviceResolver: didservice.ServiceResolver{Store: store},
 		network:         network,
 		jsonldManager:   jsonldManager,
 		eventManager:    eventManager,
@@ -79,14 +81,14 @@ type vcr struct {
 	// datadir holds the location the VCR files are stored
 	datadir string
 	// strictmode holds a copy of the core.ServerConfig.Strictmode value
-	strictmode bool
-
+	strictmode          bool
 	config              Config
 	store               leia.Store
+	didstore            didstore.Store
 	keyStore            crypto.KeyStore
 	docResolver         vdr.DocResolver
 	keyResolver         vdr.KeyResolver
-	serviceResolver     didservice.ServiceResolver
+	serviceResolver     vdr.ServiceResolver
 	ambassador          Ambassador
 	network             network.Transactions
 	trustConfig         *trust.Config
@@ -195,7 +197,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 	c.trustConfig = trust.NewConfig(tcPath)
 
-	networkPublisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
+	networkPublisher := issuer.NewNetworkPublisher(c.network, c.didstore, c.keyStore)
 	if c.config.OIDC4VCI.Enabled {
 		c.clientTLSConfig, err = c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 		if err != nil {
@@ -207,7 +209,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		)
 		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
 	}
-	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.GetOpenIDIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.GetOpenIDIssuer, c.didstore, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)

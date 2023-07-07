@@ -254,7 +254,6 @@ func setup(t *testing.T) testContext {
 	// DID Store
 	didStore := didstore.NewTestStore(t)
 	docResolver := didservice.Resolver{Store: didStore}
-	docFinder := didservice.Finder{Store: didStore}
 	docCreator := didservice.Creator{KeyStore: cryptoInstance}
 
 	// Startup events
@@ -270,10 +269,8 @@ func setup(t *testing.T) testContext {
 	networkCfg.GrpcAddr = "localhost:5555"
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
-		didservice.KeyResolver{Store: didStore},
+		didStore,
 		cryptoInstance,
-		docResolver,
-		docFinder,
 		eventPublisher,
 		&storageProvider,
 		pkiValidator,

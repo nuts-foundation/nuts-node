@@ -47,7 +47,6 @@ gen-mocks:
 	mockgen -destination=vcr/verifier/mock.go -package=verifier -source=vcr/verifier/interface.go
 	mockgen -destination=vdr/ambassador_mock.go -package=vdr -source=vdr/ambassador.go
 	mockgen -destination=vdr/didstore/mock.go -package=didstore -source=vdr/didstore/interface.go
-	mockgen -destination=vdr/didservice/resolvers_mock.go -package=didservice -source=vdr/didservice/resolvers.go
 	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
 
 gen-api:

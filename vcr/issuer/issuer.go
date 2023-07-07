@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"time"
 
 	"github.com/google/uuid"
@@ -53,15 +54,15 @@ var TimeFunc = time.Now
 // See https://github.com/nuts-foundation/nuts-node/issues/2063
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
-	docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
+	didstore didstore.Store, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
 ) Issuer {
-	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
+	resolver := vdrKeyResolver{docResolver: didservice.Resolver{Store: didstore}, keyResolver: keyStore}
 	return &issuer{
 		store:            store,
 		networkPublisher: networkPublisher,
 		openidHandlerFn:  openidHandlerFn,
 		walletResolver: oidc4vci.DIDIdentifierResolver{
-			ServiceResolver: didservice.NewServiceResolver(docResolver),
+			ServiceResolver: didservice.ServiceResolver{Store: didstore},
 		},
 		keyResolver:   resolver,
 		keyStore:      keyStore,
@@ -75,7 +76,7 @@ type issuer struct {
 	store            Store
 	networkPublisher Publisher
 	openidHandlerFn  func(ctx context.Context, id did.DID) (OpenIDHandler, error)
-	serviceResolver  didservice.ServiceResolver
+	serviceResolver  vdr.ServiceResolver
 	keyResolver      keyResolver
 	keyStore         crypto.KeyStore
 	trustConfig      *trust.Config

@@ -56,7 +56,7 @@ func TestVCR_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		pkiProvider := pki.NewMockProvider(ctrl)
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider, nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider, nil).(*vcr)
 		instance.config.OIDC4VCI.Enabled = true
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
@@ -69,7 +69,6 @@ func TestVCR_Configure(t *testing.T) {
 		vcJSON, _ := os.ReadFile("test/vc.json")
 		_ = json.Unmarshal(vcJSON, &testVC)
 		issuerDID := did.MustParseDID(testVC.Issuer.String())
-
 		testDirectory := io.TestDirectory(t)
 		ctrl := gomock.NewController(t)
 		pkiProvider := pki.NewMockProvider(ctrl)
@@ -78,7 +77,7 @@ func TestVCR_Configure(t *testing.T) {
 		localWalletResolver.EXPECT().Resolve(issuerDID).Return("https://example.com", nil).AnyTimes()
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider, documentOwner).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider, documentOwner).(*vcr)
 		instance.config.OIDC4VCI.Enabled = true
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
@@ -97,7 +96,7 @@ func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil, nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil, nil).(*vcr)
 
 		_ = instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
 		err := instance.Start()
@@ -114,7 +113,6 @@ func TestVCR_Start(t *testing.T) {
 	t.Run("loads default indices", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		instance := NewVCRInstance(
-			nil,
 			nil,
 			nil,
 			network.NewTestNetworkInstance(t),
@@ -162,7 +160,6 @@ func TestVCR_Start(t *testing.T) {
 func TestVCR_Diagnostics(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	instance := NewVCRInstance(
-		nil,
 		nil,
 		nil,
 		network.NewTestNetworkInstance(t),

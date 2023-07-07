@@ -51,7 +51,7 @@ func NetworkDocumentValidator() did.Validator {
 }
 
 // ManagedDocumentValidator extends NetworkDocumentValidator with extra safety checks to be performed on DID documents managed by this node before they are published on the network.
-func ManagedDocumentValidator(serviceResolver didservice.ServiceResolver) did.Validator {
+func ManagedDocumentValidator(serviceResolver types.ServiceResolver) did.Validator {
 	return &did.MultiValidator{Validators: []did.Validator{
 		NetworkDocumentValidator(),
 		managedServiceValidator{serviceResolver},
@@ -126,7 +126,7 @@ func (b basicServiceValidator) Validate(document did.Document) error {
 // This validator is exists to guarantee that the service endpoints are at least valid at time of publication.
 // Should be used together with basicServiceValidator for full service validation.
 type managedServiceValidator struct {
-	serviceResolver didservice.ServiceResolver
+	serviceResolver types.ServiceResolver
 }
 
 func (m managedServiceValidator) Validate(document did.Document) error {

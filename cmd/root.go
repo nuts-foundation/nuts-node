@@ -182,23 +182,20 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	jsonld := jsonld.NewJSONLDInstance()
 	storageInstance := storage.New()
 	didStore := didstore.New(storageInstance.GetProvider(vdr.ModuleName))
-	keyResolver := didservice.KeyResolver{Store: didStore}
-	docResolver := didservice.Resolver{Store: didStore}
-	docFinder := didservice.Finder{Store: didStore}
 	eventManager := events.NewManager()
-	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, docResolver, docFinder, eventManager, storageInstance.GetProvider(network.ModuleName), pkiInstance)
+	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), didStore, cryptoInstance, eventManager, storageInstance.GetProvider(network.ModuleName), pkiInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore, eventManager)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld,
-		eventManager, storageInstance, pkiInstance, vdrInstance)
-	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, jsonld)
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, didStore, networkInstance, jsonld, eventManager, storageInstance, pkiInstance, vdrInstance)
+	didmanInstance := didman.NewDidmanInstance(didStore, vdrInstance, credentialInstance, jsonld)
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})
-	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: keyResolver})
+	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: didservice.KeyResolver{Store: didStore}})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
+	docResolver := didservice.Resolver{Store: didStore}
 	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: &didservice.Manipulator{
 		KeyCreator: cryptoInstance,
 		Updater:    vdrInstance,
