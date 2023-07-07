@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
@@ -31,10 +30,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+	"go.uber.org/mock/gomock"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -108,13 +109,13 @@ func TestGoldenHammer_Fix(t *testing.T) {
 	t.Run("nothing to fix", func(t *testing.T) {
 		// vendor and care organization DIDs already have the required service, so there's nothing to fix
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
-		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil).MinTimes(1)
-		docResolver.EXPECT().Resolve(clientADID, gomock.Any()).Return(&clientDocumentWithBaseURL, nil, nil).MinTimes(1)
-		docResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&clientDocumentWithBaseURL, nil, nil).MinTimes(1)
+		didStore := didstore.NewMockStore(ctrl)
+		didStore.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil).MinTimes(1)
+		didStore.EXPECT().Resolve(clientADID, gomock.Any()).Return(&clientDocumentWithBaseURL, nil, nil).MinTimes(1)
+		didStore.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&clientDocumentWithBaseURL, nil, nil).MinTimes(1)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID, clientADID, clientBDID}, nil)
-		service := New(documentOwner, nil, docResolver)
+		service := New(documentOwner, nil, didStore)
 
 		err := service.registerServiceBaseURLs()
 
@@ -130,7 +131,7 @@ func TestGoldenHammer_Fix(t *testing.T) {
 	})
 	t.Run("to be registered on vendor DID and client DIDs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
+		didStore := didstore.NewMockStore(ctrl)
 		docClientA := clientDocumentWithoutBaseURL
 		docClientA.ID = clientADID
 		docClientB := clientDocumentWithoutBaseURL
@@ -142,22 +143,22 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		didmanAPI := didman.NewMockDidman(ctrl)
 		gomock.InOrder(
 			// DID documents are listed first to check if they should be fixed
-			docResolver.EXPECT().Resolve(clientADID, gomock.Any()).Return(&docClientA, nil, nil),
-			docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithoutBaseURL, nil, nil),
-			docResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&docClientB, nil, nil),
+			didStore.EXPECT().Resolve(clientADID, gomock.Any()).Return(&docClientA, nil, nil),
+			didStore.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithoutBaseURL, nil, nil),
+			didStore.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&docClientB, nil, nil),
 
 			// Vendor document is fixed first
 			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), vendorDID, types.BaseURLServiceType, *expectedBaseURL).Return(nil, nil),
 
 			// Then client A
-			docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil),
+			didStore.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil),
 			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientADID, types.BaseURLServiceType, *serviceRef).Return(nil, nil),
 
 			// Then client B
-			docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil),
+			didStore.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil),
 			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientBDID, types.BaseURLServiceType, *serviceRef).Return(nil, nil),
 		)
-		service := New(documentOwner, didmanAPI, docResolver)
+		service := New(documentOwner, didmanAPI, didStore)
 		service.tlsConfig = tlsServer.TLS
 		service.tlsConfig.InsecureSkipVerify = true
 		service.tlsConfig.Certificates = []tls.Certificate{pki.Certificate()}
@@ -168,11 +169,11 @@ func TestGoldenHammer_Fix(t *testing.T) {
 	})
 	t.Run("vendor identifier can't be resolved from TLS", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
-		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithoutBaseURL, nil, nil).MinTimes(1)
+		didStore := didstore.NewMockStore(ctrl)
+		didStore.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithoutBaseURL, nil, nil).MinTimes(1)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID}, nil)
-		service := New(documentOwner, nil, docResolver)
+		service := New(documentOwner, nil, didStore)
 		service.tlsConfig = &tls.Config{
 			Certificates: []tls.Certificate{pki.Certificate()},
 		}
@@ -185,16 +186,16 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		// vendor DID document already contains the service, but its care organization DID documents not yet,
 		// so they need to be registered.
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
-		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil).MinTimes(1)
+		didStore := didstore.NewMockStore(ctrl)
+		didStore.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil).MinTimes(1)
 		docClientA := clientDocumentWithoutBaseURL
 		docClientA.ID = clientADID
 		docClientB := clientDocumentWithoutBaseURL
 		docClientB.ID = clientBDID
-		docResolver.EXPECT().Resolve(clientADID, gomock.Any()).Return(&docClientA, nil, nil).MinTimes(1)
-		docResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&docClientB, nil, nil).MinTimes(1)
+		didStore.EXPECT().Resolve(clientADID, gomock.Any()).Return(&docClientA, nil, nil).MinTimes(1)
+		didStore.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&docClientB, nil, nil).MinTimes(1)
 		// Client C is owned, but not linked to the vendor (via NutsComm service), so do not register the service on that one
-		docResolver.EXPECT().Resolve(clientCDID, gomock.Any()).Return(&did.Document{ID: clientCDID}, nil, nil).MinTimes(1)
+		didStore.EXPECT().Resolve(clientCDID, gomock.Any()).Return(&did.Document{ID: clientCDID}, nil, nil).MinTimes(1)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID, clientADID, clientBDID, clientCDID}, nil)
 		didmanAPI := didman.NewMockDidman(ctrl)
@@ -202,7 +203,7 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		// Not for clientC, since it's not linked to the vendor (doesn't have a NutsComm endpoint).
 		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientADID, types.BaseURLServiceType, *serviceRef).Return(nil, nil)
 		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientBDID, types.BaseURLServiceType, *serviceRef).Return(nil, nil)
-		service := New(documentOwner, didmanAPI, docResolver)
+		service := New(documentOwner, didmanAPI, didStore)
 		service.tlsConfig = tlsServer.TLS
 		service.tlsConfig.InsecureSkipVerify = true
 		service.tlsConfig.Certificates = []tls.Certificate{pki.Certificate()}
@@ -213,11 +214,11 @@ func TestGoldenHammer_Fix(t *testing.T) {
 	})
 	t.Run("resolve error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		docResolver := types.NewMockDocResolver(ctrl)
-		docResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(nil, nil, fmt.Errorf("resolve error"))
+		didStore := didstore.NewMockStore(ctrl)
+		didStore.EXPECT().Resolve(vendorDID, gomock.Any()).Return(nil, nil, fmt.Errorf("resolve error"))
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID}, nil)
-		service := New(documentOwner, nil, docResolver)
+		service := New(documentOwner, nil, didStore)
 		service.tlsConfig = &tls.Config{
 			Certificates: []tls.Certificate{pki.Certificate()},
 		}

@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/url"
 	"sort"
@@ -43,12 +44,12 @@ var _ core.Named = (*GoldenHammer)(nil)
 var _ core.Configurable = (*GoldenHammer)(nil)
 var _ core.Injectable = (*GoldenHammer)(nil)
 
-func New(documentOwner types.DocumentOwner, didmanAPI didman.Didman, docResolver types.DocResolver) *GoldenHammer {
+func New(documentOwner types.DocumentOwner, didmanAPI didman.Didman, didStore didstore.Store) *GoldenHammer {
 	return &GoldenHammer{
 		routines:          &sync.WaitGroup{},
 		didmanAPI:         didmanAPI,
 		documentOwner:     documentOwner,
-		docResolver:       docResolver,
+		docResolver:       didservice.Resolver{Store: didStore},
 		fixedDocumentDIDs: map[string]bool{},
 	}
 }

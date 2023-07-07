@@ -192,7 +192,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
-	goldenHammer := golden_hammer.New(vdrInstance, didmanInstance, docResolver)
+	goldenHammer := golden_hammer.New(vdrInstance, didmanInstance, didStore)
 
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})
