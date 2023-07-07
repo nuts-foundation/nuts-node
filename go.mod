@@ -37,7 +37,7 @@ require (
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.2.1
-	go.uber.org/mock v0.1.0
+	go.uber.org/mock v0.2.0
 	golang.org/x/crypto v0.11.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.56.1
