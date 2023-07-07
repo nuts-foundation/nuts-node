@@ -37,7 +37,7 @@ const (
 
 // xorTreeRepair is responsible for repairing the XOR tree. Its loop is triggered when the network layer detects differences in XOR values with all other nodes.
 // It will loop over all pages of the XOR tree and recalculates the XOR value with the transactions in the database.
-// This repair is needed because current networks have nodes that have a wrong XOR value. How this happens is not yet known, it could be due to DB failures of due to failures in older versions.
+// This repair is needed because current networks have nodes that have a wrong XOR value. How this happens is not yet known, it could be due to DB failures of due to bugs in older versions.
 // The fact is that we can fix the state relatively easy.
 // The loop checks a page (512 LC values) per 10 seconds and continues looping until the network layer signals all is ok again.
 type xorTreeRepair struct {
@@ -61,6 +61,7 @@ func (f *xorTreeRepair) start() {
 	var ctx context.Context
 	ctx, f.cancel = context.WithCancel(context.Background())
 	go func() {
+		defer f.ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
@@ -132,7 +133,7 @@ func (f *xorTreeRepair) checkPage() {
 		return nil
 	})
 	if err != nil {
-		log.Logger().Warnf("failed to run xorTreeRepair check: %s", err)
+		log.Logger().WithError(err).Warnf("Failed to run xorTreeRepair check.")
 	}
 
 	if lcEnd > currentLC {
@@ -149,7 +150,6 @@ func (f *xorTreeRepair) stateOK() {
 	defer f.mutex.Unlock()
 
 	f.circuitState = circuitGreen
-	f.currentPage = 0
 }
 
 func (f *xorTreeRepair) incrementCount() {

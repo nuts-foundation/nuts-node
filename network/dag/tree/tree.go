@@ -287,10 +287,6 @@ func (t *tree) Root() Data {
 }
 
 func (t *tree) ZeroTo(clock uint32) (Data, uint32) {
-	if clock < 0 {
-		return t.prototype.New(), 0
-	}
-
 	data := t.root.data.Clone()
 	next := t.root
 	for {

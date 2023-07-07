@@ -264,8 +264,7 @@ func (p *protocol) handleGossip(ctx context.Context, connection grpc.Connection,
 	xor, clock := p.state.XOR(dag.MaxLamportClock)
 	peerXor := hash.FromSlice(msg.XOR)
 	if xor.Equals(peerXor) {
-		// open circuit on fixer
-
+		p.state.CorrectStateDetected()
 		return nil
 	}
 
