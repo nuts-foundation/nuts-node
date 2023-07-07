@@ -20,7 +20,6 @@ package issuer
 
 import (
 	"context"
-	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -252,139 +251,6 @@ func Test_leiaIssuerStore_GetRevocation(t *testing.T) {
 	})
 }
 
-func Test_leiaIssuerStore_handleRestore(t *testing.T) {
-	ctx := context.Background()
-	t.Run("credentials", func(t *testing.T) {
-		document := []byte(jsonld.TestCredential)
-		ref := defaultReference(document)
-		vc := vc.VerifiableCredential{}
-		_ = json.Unmarshal(document, &vc)
-
-		t.Run("both empty", func(t *testing.T) {
-			store := newStore(t).(*leiaIssuerStore)
-
-			err := store.handleRestore(store.issuedCredentials, issuedBackupShelf, "id")
-
-			assert.NoError(t, err)
-			assert.False(t, storePresent(store.issuedCredentials, "id"))
-			assert.False(t, store.backupStorePresent(issuedBackupShelf))
-		})
-
-		t.Run("both present", func(t *testing.T) {
-			store := newStore(t).(*leiaIssuerStore)
-			err := store.StoreCredential(vc)
-			require.NoError(t, err)
-
-			err = store.handleRestore(store.issuedCredentials, issuedBackupShelf, "id")
-
-			assert.NoError(t, err)
-			assert.True(t, storePresent(store.issuedCredentials, "id"))
-			assert.True(t, store.backupStorePresent(issuedBackupShelf))
-		})
-
-		t.Run("only backup present", func(t *testing.T) {
-			testDir := io.TestDirectory(t)
-			backupStorePath := path.Join(testDir, "vcr", "backup-issued-credentials.db")
-			backupStore, err := bbolt.CreateBBoltStore(backupStorePath)
-			require.NoError(t, err)
-			err = backupStore.WriteShelf(ctx, issuedBackupShelf, func(writer stoabs.Writer) error {
-				return writer.Put(stoabs.BytesKey(ref), document)
-			})
-			require.NoError(t, err)
-			backupStore.Close(context.Background())
-			store := newStoreInDir(t, testDir).(*leiaIssuerStore)
-
-			err = store.handleRestore(store.issuedCredentials, issuedBackupShelf, "id")
-
-			require.NoError(t, err)
-			indexedVC, err := store.GetCredential(*vc.ID)
-			require.NoError(t, err)
-			assert.NotNil(t, indexedVC)
-		})
-
-		t.Run("only index present", func(t *testing.T) {
-			store := newStore(t).(*leiaIssuerStore)
-			err := store.issuedCredentials.Add([]leia.Document{document})
-			require.NoError(t, err)
-
-			err = store.handleRestore(store.issuedCredentials, issuedBackupShelf, "id")
-
-			require.NoError(t, err)
-			_ = store.backupStore.ReadShelf(ctx, issuedBackupShelf, func(reader stoabs.Reader) error {
-				val, err := reader.Get(stoabs.BytesKey(ref))
-				assert.NoError(t, err)
-				assert.NotNil(t, val)
-				return nil
-			})
-		})
-	})
-
-	t.Run("revocations", func(t *testing.T) {
-		subjectID := ssi.MustParseURI("did:nuts:123#ab-c")
-		revocation := &credential.Revocation{Subject: subjectID}
-		revocationBytes, _ := json.Marshal(revocation)
-		ref := defaultReference(revocationBytes)
-
-		t.Run("both empty", func(t *testing.T) {
-			store := newStore(t).(*leiaIssuerStore)
-
-			err := store.handleRestore(store.revokedCredentials, revocationBackupShelf, credential.RevocationSubjectPath)
-
-			assert.NoError(t, err)
-			assert.False(t, storePresent(store.revokedCredentials, credential.RevocationSubjectPath))
-			assert.False(t, store.backupStorePresent(revocationBackupShelf))
-		})
-
-		t.Run("both present", func(t *testing.T) {
-			store := newStore(t).(*leiaIssuerStore)
-			err := store.StoreRevocation(*revocation)
-			require.NoError(t, err)
-
-			err = store.handleRestore(store.revokedCredentials, revocationBackupShelf, credential.RevocationSubjectPath)
-
-			assert.NoError(t, err)
-			assert.True(t, storePresent(store.revokedCredentials, credential.RevocationSubjectPath))
-			assert.True(t, store.backupStorePresent(revocationBackupShelf))
-		})
-
-		t.Run("only backup present", func(t *testing.T) {
-			testDir := io.TestDirectory(t)
-			backupStorePath := path.Join(testDir, "vcr", "backup-issued-credentials.db")
-			backupStore, err := bbolt.CreateBBoltStore(backupStorePath)
-			require.NoError(t, err)
-			err = backupStore.WriteShelf(ctx, revocationBackupShelf, func(writer stoabs.Writer) error {
-				return writer.Put(stoabs.BytesKey(ref), revocationBytes)
-			})
-			require.NoError(t, err)
-			backupStore.Close(context.Background())
-			store := newStoreInDir(t, testDir).(*leiaIssuerStore)
-
-			err = store.handleRestore(store.revokedCredentials, revocationBackupShelf, credential.RevocationSubjectPath)
-
-			require.NoError(t, err)
-			indexedRevocation, err := store.GetRevocation(revocation.Subject)
-			require.NoError(t, err)
-			assert.NotNil(t, indexedRevocation)
-		})
-
-		t.Run("only index present", func(t *testing.T) {
-			store := newStore(t).(*leiaIssuerStore)
-			err := store.revokedCredentials.Add([]leia.Document{revocationBytes})
-			require.NoError(t, err)
-
-			err = store.handleRestore(store.revokedCredentials, revocationBackupShelf, credential.RevocationSubjectPath)
-
-			require.NoError(t, err)
-			_ = store.backupStore.ReadShelf(ctx, revocationBackupShelf, func(reader stoabs.Reader) error {
-				val, err := reader.Get(stoabs.BytesKey(ref))
-				assert.NoError(t, err)
-				assert.NotNil(t, val)
-				return nil
-			})
-		})
-	})
-}
-
 func TestNewLeiaIssuerStore(t *testing.T) {
 	t.Run("bug test for https://github.com/nuts-foundation/nuts-node/issues/1909", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -469,12 +335,4 @@ func newStoreInDir(t *testing.T, testDir string) Store {
 	store, err := NewLeiaIssuerStore(issuerStorePath, backupStore)
 	require.NoError(t, err)
 	return store
-}
-
-func defaultReference(doc leia.Document) leia.Reference {
-	s := sha1.Sum(doc)
-	var b = make([]byte, len(s))
-	copy(b, s[:])
-
-	return b
 }

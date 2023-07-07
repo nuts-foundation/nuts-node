@@ -21,10 +21,10 @@ package issuer
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 
@@ -43,7 +43,7 @@ const revocationBackupShelf = "revocations"
 type leiaIssuerStore struct {
 	issuedCredentials  leia.Collection
 	revokedCredentials leia.Collection
-	store              leia.Store
+	store              storage.KVBackedLeiaStore
 	backupStore        stoabs.KVStore
 }
 
@@ -53,12 +53,32 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to create leiaIssuerStore: %w", err)
 	}
+	// add wraper
+	kvBackedStore, err := storage.NewKVBackedLeiaStore(store, backupStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create KV backed issuer store: %w", err)
+	}
+
+	// collections
 	issuedCollection := store.JSONCollection("issuedCredentials")
 	revokedCollection := store.JSONCollection("revokedCredentials")
+
+	// set backup config
+	kvBackedStore.AddConfiguration(storage.LeiaBackupConfiguration{
+		CollectionName: "issuedCredentials",
+		BackupShelf:    issuedBackupShelf,
+		SearchPath:     "id",
+	})
+	kvBackedStore.AddConfiguration(storage.LeiaBackupConfiguration{
+		CollectionName: "revokedCredentials",
+		BackupShelf:    revocationBackupShelf,
+		SearchPath:     credential.RevocationSubjectPath,
+	})
+
 	newLeiaStore := &leiaIssuerStore{
 		issuedCredentials:  issuedCollection,
 		revokedCredentials: revokedCollection,
-		store:              store,
+		store:              kvBackedStore,
 		backupStore:        backupStore,
 	}
 
@@ -70,12 +90,7 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 		return nil, err
 	}
 
-	// handle backup/restore for issued credentials
-	if err = newLeiaStore.handleRestore(issuedCollection, issuedBackupShelf, "id"); err != nil {
-		return nil, err
-	}
-	// handle backup/restore for revocations
-	if err = newLeiaStore.handleRestore(revokedCollection, revocationBackupShelf, credential.RevocationSubjectPath); err != nil {
+	if err = kvBackedStore.HandleRestore(); err != nil {
 		return nil, err
 	}
 	return newLeiaStore, nil
@@ -83,16 +98,6 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 
 func (s leiaIssuerStore) StoreCredential(vc vc.VerifiableCredential) error {
 	vcAsBytes, _ := json.Marshal(vc)
-	ref := s.issuedCredentials.Reference(vcAsBytes)
-
-	// first in backup
-	if err := s.backupStore.WriteShelf(context.Background(), issuedBackupShelf, func(writer stoabs.Writer) error {
-		return writer.Put(stoabs.BytesKey(ref), vcAsBytes)
-	}); err != nil {
-		return err
-	}
-
-	// then in index
 	return s.issuedCredentials.Add([]leia.Document{vcAsBytes})
 }
 
@@ -143,16 +148,6 @@ func (s leiaIssuerStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, er
 
 func (s leiaIssuerStore) StoreRevocation(revocation credential.Revocation) error {
 	revocationAsBytes, _ := json.Marshal(revocation)
-	ref := s.revokedCredentials.Reference(revocationAsBytes)
-
-	// first in backup
-	if err := s.backupStore.WriteShelf(context.Background(), revocationBackupShelf, func(writer stoabs.Writer) error {
-		return writer.Put(stoabs.BytesKey(ref), revocationAsBytes)
-	}); err != nil {
-		return err
-	}
-
-	// then in index
 	return s.revokedCredentials.Add([]leia.Document{revocationAsBytes})
 }
 
@@ -180,103 +175,6 @@ func (s leiaIssuerStore) GetRevocation(subject ssi.URI) (*credential.Revocation,
 
 func (s leiaIssuerStore) Close() error {
 	return s.store.Close()
-}
-
-// handleRestore checks if both the leiaDB store is present and if the backup store is present.
-// If the backup store is empty, it'll create it from the leia store.
-// If the leia store is empty, it'll fill it from the backup store.
-// If both are empty, do nothing.
-func (s leiaIssuerStore) handleRestore(collection leia.Collection, backupShelf string, jsonSearchPath string) error {
-	backupPresent := s.backupStorePresent(backupShelf)
-	storePresent := storePresent(collection, jsonSearchPath)
-
-	if backupPresent && storePresent {
-		// both are filled => normal operation, done
-		return nil
-	}
-
-	if !backupPresent && !storePresent {
-		// both are non-existent => empty node, done
-		return nil
-	}
-
-	if !storePresent {
-		log.Logger().
-			WithField(core.LogFieldStoreShelf, backupShelf).
-			Info("Missing index for shelf, rebuilding")
-		// empty node, backup has been restored, refill store
-		return s.backupStore.ReadShelf(context.Background(), backupShelf, func(reader stoabs.Reader) error {
-			return reader.Iterate(func(key stoabs.Key, value []byte) error {
-				return collection.Add([]leia.Document{value})
-			}, stoabs.BytesKey{})
-		})
-	}
-
-	log.Logger().
-		WithField(core.LogFieldStoreShelf, backupShelf).
-		Info("Missing store for shelf, creating from index")
-
-	// else !backupPresent, process per 100
-	query := leia.New(leia.NotNil(leia.NewJSONPath(jsonSearchPath)))
-
-	const limit = 100
-	type refDoc struct {
-		ref leia.Reference
-		doc leia.Document
-	}
-	var set []refDoc
-	writeDocuments := func(set []refDoc) error {
-		return s.backupStore.Write(context.Background(), func(tx stoabs.WriteTx) error {
-			writer := tx.GetShelfWriter(backupShelf)
-			for _, entry := range set {
-				if err := writer.Put(stoabs.BytesKey(entry.ref), entry.doc); err != nil {
-					return err
-				}
-			}
-			set = make([]refDoc, 0)
-			return nil
-		})
-	}
-
-	err := collection.Iterate(query, func(ref leia.Reference, value []byte) error {
-		set = append(set, refDoc{ref: ref, doc: value})
-		if len(set) >= limit {
-			return writeDocuments(set)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	if len(set) > 0 {
-		return writeDocuments(set)
-	}
-	return nil
-}
-
-func (s leiaIssuerStore) backupStorePresent(backupShelf string) bool {
-	backupPresent := false
-
-	_ = s.backupStore.ReadShelf(context.Background(), backupShelf, func(reader stoabs.Reader) error {
-		isEmpty, err := reader.Empty()
-		backupPresent = !isEmpty
-		return err
-	})
-
-	return backupPresent
-}
-
-func storePresent(collection leia.Collection, jsonSearchPath string) bool {
-	issuedPresent := false
-	// to check if any entries are in the DB, we iterate over the index and stop when the first item is found
-	query := leia.New(leia.NotNil(leia.NewJSONPath(jsonSearchPath)))
-	_ = collection.IndexIterate(query, func(key []byte, value []byte) error {
-		issuedPresent = true
-		return errors.New("exit")
-	})
-
-	return issuedPresent
 }
 
 // createIssuedIndices creates the needed indices for the issued VC store
