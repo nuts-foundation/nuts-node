@@ -39,7 +39,8 @@ func (cd *CredentialDefinition) Validate(isOffer bool) error {
 		if isOffer {
 			return errors.New("invalid credential_definition: credentialSubject not allowed in offer")
 		}
-		// TODO: add credentialSubject validation.
+		// TODO: Add credentialSubject validation.
+		//		 See https://github.com/nuts-foundation/nuts-node/issues/2320
 	}
 	return nil
 }
@@ -60,7 +61,8 @@ func ValidateDefinitionWithCredential(credential vc.VerifiableCredential, defini
 		return errors.New("credential does not match credential_definition: type mismatch")
 	}
 
-	// TODO: compare credentialSubject
+	// TODO: Compare credentialSubject
+	//		 See https://github.com/nuts-foundation/nuts-node/issues/2320
 
 	return nil
 }
