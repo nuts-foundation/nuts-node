@@ -20,6 +20,7 @@ package tree
 
 import (
 	"encoding"
+	"errors"
 	"sort"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -70,6 +71,9 @@ type Tree interface {
 	// Load builds a tree from binary leaf data. The keys in leaves correspond to a node's split value.
 	// All consecutive leaves must be present. Gaps must be filled with zero value of the corresponding Data implementation.
 	Load(leaves map[uint32][]byte) error
+	// Replace replaces the Data at the leaf starting with the given clock value with the given Data.
+	// It adds the leaf to the dirtyLeaves map.
+	Replace(clock uint32, data Data) error
 }
 
 /*
@@ -191,6 +195,28 @@ func (t *tree) Delete(ref hash.SHA256Hash, clock uint32) {
 	})
 }
 
+func (t *tree) Replace(clock uint32, data Data) error {
+	var current *node
+	next := t.root
+	for next != nil {
+		current = next
+		if current.isLeaf() {
+			if clock >= current.limitLC {
+				t.reRoot()
+				next = t.root
+				continue
+			}
+			current.data = data
+			t.dirtyLeaves[current.splitLC] = current
+
+			// recalculate all upper leaves
+			return t.rebuild()
+		}
+		next = t.getNextNode(current, clock)
+	}
+	return errors.New("unknown leaf")
+}
+
 // updateOrCreatePath calls fn on all nodes on the path from the root to leaf containing the clock value.
 // If the path/leaf does not exist it will be created.
 // The leaf is marked dirty.
@@ -228,6 +254,15 @@ func (t *tree) reRoot() {
 	newRoot.left = t.root
 	t.root = newRoot
 	t.treeSize *= 2
+}
+
+func (t *tree) rebuild() error {
+	root, err := t.root.rebuild()
+	if err != nil {
+		return err
+	}
+	*t.root = root
+	return nil
 }
 
 // getNextNode retrieves the next node based on the clock value. If the node does not exist it is created.
@@ -381,4 +416,25 @@ func newNode(splitLC, limitLC uint32, data Data) *node {
 
 func (n node) isLeaf() bool {
 	return n.left == nil
+}
+
+// reBuild rebuilds the node from left and right.
+func (n node) rebuild() (node, error) {
+	var err error
+	if n.isLeaf() {
+		return n, nil
+	}
+	*n.left, err = n.left.rebuild()
+	if err != nil {
+		return n, err
+	}
+	n.data = n.left.data.Clone()
+	if n.right != nil {
+		*n.right, err = n.right.rebuild()
+		if err != nil {
+			return n, err
+		}
+		return n, n.data.Add(n.right.data)
+	}
+	return n, nil
 }

@@ -93,6 +93,11 @@ type State interface {
 	//	- highest lamport clock in the DAG
 	// A requested clock of math.MaxUint32 will return the iblt of the entire DAG
 	IBLT(reqClock uint32) (tree.Iblt, uint32)
+
+	// IncorrectStateDetected is called when the xor and LC value from a gossip message do NOT match the local state.
+	IncorrectStateDetected()
+	// CorrectStateDetected is called when the xor and LC value from a gossip message match the local state.
+	CorrectStateDetected()
 }
 
 // Statistics holds data about the current state of the DAG.

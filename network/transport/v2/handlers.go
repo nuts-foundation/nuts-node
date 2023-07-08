@@ -264,6 +264,7 @@ func (p *protocol) handleGossip(ctx context.Context, connection grpc.Connection,
 	xor, clock := p.state.XOR(dag.MaxLamportClock)
 	peerXor := hash.FromSlice(msg.XOR)
 	if xor.Equals(peerXor) {
+		p.state.CorrectStateDetected()
 		return nil
 	}
 
@@ -300,6 +301,7 @@ func (p *protocol) handleGossip(ctx context.Context, connection grpc.Connection,
 	// If the XORs are not equal and the peer is behind, still request the missing refs if there are any.
 	tempXor := xor.Xor(refs...)
 	if tempXor.Equals(peerXor) || (msg.LC < clock && len(refs) > 0) {
+		p.state.CorrectStateDetected()
 		return p.sender.sendTransactionListQuery(connection, refs)
 	}
 
@@ -308,11 +310,20 @@ func (p *protocol) handleGossip(ctx context.Context, connection grpc.Connection,
 		log.Logger().
 			WithFields(connection.Peer().ToFields()).
 			Debug("XOR is different from peer but Gossip contained no new transactions")
+
+		// if LCs are the same and XOR differs, something is probably broken in our node or the other node.
+		// If it's this node then all messages from all peers will trigger the incorrect state detection.
+		// This node will then start to loop over pages of tx until the state is fixed.
+		if msg.LC == clock {
+			p.state.IncorrectStateDetected()
+		}
+
 	} else {
 		log.Logger().
 			WithFields(connection.Peer().ToFields()).
 			Debug("XOR is different from peer and peer's clock is equal or higher")
 	}
+
 	return p.sender.sendState(connection, xor, clock)
 }
 

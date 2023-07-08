@@ -56,6 +56,7 @@ type state struct {
 	transactionCount    prometheus.Counter
 	eventsNotifyCount   prometheus.Counter
 	eventsFinishedCount prometheus.Counter
+	xorTreeRepair       *xorTreeRepair
 }
 
 func (s *state) Migrate() error {
@@ -79,6 +80,8 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
 		return nil, err
 	}
+
+	newState.xorTreeRepair = newXorTreeRepair(newState)
 
 	return newState, nil
 }
@@ -384,9 +387,19 @@ func (s *state) IBLT(reqClock uint32) (tree.Iblt, uint32) {
 	return *data.(*tree.Iblt), dataClock
 }
 
+func (s *state) IncorrectStateDetected() {
+	s.xorTreeRepair.incrementCount()
+}
+func (s *state) CorrectStateDetected() {
+	s.xorTreeRepair.stateOK()
+}
+
 func (s *state) Shutdown() error {
 	if s.transactionCount != nil {
 		prometheus.Unregister(s.transactionCount)
+	}
+	if s.xorTreeRepair != nil {
+		s.xorTreeRepair.shutdown()
 	}
 	return nil
 }
@@ -408,6 +421,9 @@ func (s *state) Start() error {
 		err = value.(Notifier).Run()
 		return err == nil
 	})
+
+	// start xorTreeRepair that waits until the state has triggered it to start via IncorrectStateDetected()
+	s.xorTreeRepair.start()
 	return err
 }
 
