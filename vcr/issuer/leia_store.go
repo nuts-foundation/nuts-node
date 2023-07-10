@@ -59,10 +59,6 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 		return nil, fmt.Errorf("failed to create KV backed issuer store: %w", err)
 	}
 
-	// collections
-	issuedCollection := store.JSONCollection("issuedCredentials")
-	revokedCollection := store.JSONCollection("revokedCredentials")
-
 	// set backup config
 	kvBackedStore.AddConfiguration(storage.LeiaBackupConfiguration{
 		CollectionName: "issuedCredentials",
@@ -74,6 +70,10 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 		BackupShelf:    revocationBackupShelf,
 		SearchPath:     credential.RevocationSubjectPath,
 	})
+
+	// collections
+	issuedCollection := kvBackedStore.JSONCollection("issuedCredentials")
+	revokedCollection := kvBackedStore.JSONCollection("revokedCredentials")
 
 	newLeiaStore := &leiaIssuerStore{
 		issuedCredentials:  issuedCollection,
