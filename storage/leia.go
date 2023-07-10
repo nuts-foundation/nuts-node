@@ -64,8 +64,10 @@ type LeiaBackupConfiguration struct {
 	CollectionType CollectionType
 	// BackupShelf is the name of the shelf in the backup store.
 	BackupShelf string
-	// SearchPath is used to fill the backup shelf if not present.
-	SearchPath string
+	// JSONSearchPath is used to fill the backup shelf if not present for a JSON collection.
+	JSONSearchPath string
+	// IRISearchPath is used to fill the backup shelf if not present for a JSON-LD collection.
+	IRISearchPath []string
 }
 
 type kvBackedCollection struct {
@@ -101,7 +103,7 @@ func (k *kvBackedLeiaStore) handleRestore(config LeiaBackupConfiguration) error 
 	default:
 		return errors.New("unknown collection type")
 	}
-	storePresent := storePresent(collection, config.SearchPath)
+	storePresent := storePresent(collection, config)
 
 	if backupPresent && storePresent {
 		// both are filled => normal operation, done
@@ -130,7 +132,15 @@ func (k *kvBackedLeiaStore) handleRestore(config LeiaBackupConfiguration) error 
 		Info("Missing store for shelf, creating from index")
 
 	// else !backupPresent, process per 100
-	query := leia.New(leia.NotNil(leia.NewJSONPath(config.SearchPath)))
+	var query leia.Query
+	switch config.CollectionType {
+	case JSONLDCollectionType:
+		query = leia.New(leia.NotNil(leia.NewIRIPath(config.IRISearchPath...)))
+	case JSONCollectionType:
+		query = leia.New(leia.NotNil(leia.NewJSONPath(config.JSONSearchPath)))
+	default:
+		return errors.New("unknown collection type")
+	}
 
 	const limit = 100
 	type refDoc struct {
@@ -288,14 +298,25 @@ func (k *kvBackedLeiaStore) backupStorePresent(backupShelf string) bool {
 	return backupPresent
 }
 
-func storePresent(collection leia.Collection, jsonSearchPath string) bool {
+func storePresent(collection leia.Collection, config LeiaBackupConfiguration) bool {
 	issuedPresent := false
-	// to check if any entries are in the DB, we iterate over the index and stop when the first item is found
-	query := leia.New(leia.NotNil(leia.NewJSONPath(jsonSearchPath)))
-	_ = collection.IndexIterate(query, func(key []byte, value []byte) error {
-		issuedPresent = true
-		return errors.New("exit")
-	})
+	switch config.CollectionType {
+	case JSONCollectionType:
+		query := leia.New(leia.NotNil(leia.NewJSONPath(config.JSONSearchPath)))
+		_ = collection.IndexIterate(query, func(key []byte, value []byte) error {
+			issuedPresent = true
+			return errors.New("exit")
+		})
+	case JSONLDCollectionType:
+		// to check if any entries are in the DB, we iterate over the index and stop when the first item is found
+		query := leia.New(leia.NotNil(leia.NewIRIPath(config.IRISearchPath...)))
+		_ = collection.IndexIterate(query, func(key []byte, value []byte) error {
+			issuedPresent = true
+			return errors.New("exit")
+		})
+	default:
+		panic("unknown collection type")
+	}
 
 	return issuedPresent
 }
