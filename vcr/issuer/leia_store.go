@@ -62,11 +62,13 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 	// set backup config
 	kvBackedStore.AddConfiguration(storage.LeiaBackupConfiguration{
 		CollectionName: "issuedCredentials",
+		CollectionType: storage.JSONCollectionType,
 		BackupShelf:    issuedBackupShelf,
 		SearchPath:     "id",
 	})
 	kvBackedStore.AddConfiguration(storage.LeiaBackupConfiguration{
 		CollectionName: "revokedCredentials",
+		CollectionType: storage.JSONCollectionType,
 		BackupShelf:    revocationBackupShelf,
 		SearchPath:     credential.RevocationSubjectPath,
 	})

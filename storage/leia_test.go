@@ -56,7 +56,7 @@ func Test_leiaIssuerStore_handleRestore(t *testing.T) {
 
 		t.Run("both empty", func(t *testing.T) {
 			store := newStore(t)
-			collection := store.JSONLDCollection(collectionName)
+			collection := store.JSONCollection(collectionName)
 
 			err := store.HandleRestore()
 
@@ -67,7 +67,7 @@ func Test_leiaIssuerStore_handleRestore(t *testing.T) {
 
 		t.Run("both present", func(t *testing.T) {
 			store := newStore(t)
-			collection := store.JSONLDCollection(collectionName)
+			collection := store.JSONCollection(collectionName)
 			err := collection.Add([]leia.Document{document})
 			require.NoError(t, err)
 
@@ -99,7 +99,7 @@ func Test_leiaIssuerStore_handleRestore(t *testing.T) {
 
 		t.Run("only index present", func(t *testing.T) {
 			store := newStore(t)
-			collection := store.JSONLDCollection(collectionName)
+			collection := store.JSONCollection(collectionName)
 			err := collection.Add([]leia.Document{document})
 			require.NoError(t, err)
 

@@ -69,9 +69,10 @@ type LeiaBackupConfiguration struct {
 }
 
 type kvBackedCollection struct {
-	backup     stoabs.KVStore
-	config     LeiaBackupConfiguration
-	underlying leia.Collection
+	backup         stoabs.KVStore
+	config         LeiaBackupConfiguration
+	collectionType CollectionType
+	underlying     leia.Collection
 }
 
 func (k *kvBackedLeiaStore) AddConfiguration(config LeiaBackupConfiguration) {
@@ -168,7 +169,15 @@ func (k *kvBackedLeiaStore) handleRestore(config LeiaBackupConfiguration) error 
 }
 
 func (k *kvBackedLeiaStore) JSONCollection(name string) leia.Collection {
-	config := k.collectionConfigSet[name]
+	config, ok := k.collectionConfigSet[name]
+	if !ok {
+		// we panic here because this is a programming error, not a runtime error
+		panic("JSON collection not configured")
+	}
+	if config.CollectionType != JSONCollectionType {
+		// we panic here because this is a programming error, not a runtime error
+		panic("Incorrect collection configuration")
+	}
 	underlying := kvBackedCollection{
 		backup:     k.backup,
 		config:     config,
@@ -178,7 +187,15 @@ func (k *kvBackedLeiaStore) JSONCollection(name string) leia.Collection {
 }
 
 func (k *kvBackedLeiaStore) JSONLDCollection(name string) leia.Collection {
-	config := k.collectionConfigSet[name]
+	config, ok := k.collectionConfigSet[name]
+	if !ok {
+		// we panic here because this is a programming error, not a runtime error
+		panic("JSON collection not configured")
+	}
+	if config.CollectionType != JSONLDCollectionType {
+		// we panic here because this is a programming error, not a runtime error
+		panic("Incorrect collection configuration")
+	}
 	underlying := kvBackedCollection{
 		backup:     k.backup,
 		config:     config,
