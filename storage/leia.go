@@ -64,10 +64,8 @@ type LeiaBackupConfiguration struct {
 	CollectionType CollectionType
 	// BackupShelf is the name of the shelf in the backup store.
 	BackupShelf string
-	// JSONSearchPath is used to fill the backup shelf if not present for a JSON collection.
-	JSONSearchPath string
-	// IRISearchPath is used to fill the backup shelf if not present for a JSON-LD collection.
-	IRISearchPath []string
+	// SearchQuery is used to fill the backup shelf if not present.
+	SearchQuery leia.QueryPath
 }
 
 type kvBackedCollection struct {
@@ -132,15 +130,7 @@ func (k *kvBackedLeiaStore) handleRestore(config LeiaBackupConfiguration) error 
 		Info("Missing store for shelf, creating from index")
 
 	// else !backupPresent, process per 100
-	var query leia.Query
-	switch config.CollectionType {
-	case JSONLDCollectionType:
-		query = leia.New(leia.NotNil(leia.NewIRIPath(config.IRISearchPath...)))
-	case JSONCollectionType:
-		query = leia.New(leia.NotNil(leia.NewJSONPath(config.JSONSearchPath)))
-	default:
-		return errors.New("unknown collection type")
-	}
+	query := leia.New(leia.NotNil(config.SearchQuery))
 
 	const limit = 100
 	type refDoc struct {
@@ -300,23 +290,11 @@ func (k *kvBackedLeiaStore) backupStorePresent(backupShelf string) bool {
 
 func storePresent(collection leia.Collection, config LeiaBackupConfiguration) bool {
 	issuedPresent := false
-	switch config.CollectionType {
-	case JSONCollectionType:
-		query := leia.New(leia.NotNil(leia.NewJSONPath(config.JSONSearchPath)))
-		_ = collection.IndexIterate(query, func(key []byte, value []byte) error {
-			issuedPresent = true
-			return errors.New("exit")
-		})
-	case JSONLDCollectionType:
-		// to check if any entries are in the DB, we iterate over the index and stop when the first item is found
-		query := leia.New(leia.NotNil(leia.NewIRIPath(config.IRISearchPath...)))
-		_ = collection.IndexIterate(query, func(key []byte, value []byte) error {
-			issuedPresent = true
-			return errors.New("exit")
-		})
-	default:
-		panic("unknown collection type")
-	}
+	query := leia.New(leia.NotNil(config.SearchQuery))
+	_ = collection.IndexIterate(query, func(key []byte, value []byte) error {
+		issuedPresent = true
+		return errors.New("exit")
+	})
 
 	return issuedPresent
 }

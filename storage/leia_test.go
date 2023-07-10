@@ -38,13 +38,13 @@ var backupConfigJSON = LeiaBackupConfiguration{
 	BackupShelf:    "JSON",
 	CollectionName: "JSON",
 	CollectionType: JSONCollectionType,
-	JSONSearchPath: "id",
+	SearchQuery:    leia.NewJSONPath("id"),
 }
 var backupConfigJSONLD = LeiaBackupConfiguration{
 	BackupShelf:    "JSONLD",
 	CollectionName: "JSONLD",
 	CollectionType: JSONLDCollectionType,
-	IRISearchPath:  []string{}, // empty slice means @id on root resource
+	SearchQuery:    leia.NewIRIPath(), // empty slice means @id on root resource
 }
 
 func Test_leiaIssuerStore_handleRestore(t *testing.T) {
@@ -190,7 +190,7 @@ func Test_leiaIssuerStore_handleRestore(t *testing.T) {
 }
 
 func assertCredential(t *testing.T, store *kvBackedLeiaStore, config LeiaBackupConfiguration, expected vc.VerifiableCredential) {
-	query := leia.New(leia.Eq(leia.NewJSONPath(config.JSONSearchPath), leia.MustParseScalar(expected.ID.String())))
+	query := leia.New(leia.Eq(config.SearchQuery, leia.MustParseScalar(expected.ID.String())))
 	results, err := store.store.JSONCollection(config.CollectionName).Find(context.Background(), query)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -202,7 +202,7 @@ func assertCredential(t *testing.T, store *kvBackedLeiaStore, config LeiaBackupC
 }
 
 func assertCredentialJSONLD(t *testing.T, store *kvBackedLeiaStore, config LeiaBackupConfiguration, expected vc.VerifiableCredential) {
-	query := leia.New(leia.Eq(leia.NewIRIPath(config.IRISearchPath...), leia.MustParseScalar(expected.ID.String())))
+	query := leia.New(leia.Eq(config.SearchQuery, leia.MustParseScalar(expected.ID.String())))
 	results, err := store.store.JSONLDCollection(config.CollectionName).Find(context.Background(), query)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -231,7 +231,7 @@ func newJSONStoreInDir(t *testing.T, testDir string) *kvBackedLeiaStore {
 	store.AddConfiguration(backupConfigJSON)
 	// add an index
 	idIndex := leiaStore.JSONCollection("JSON").NewIndex("issuedVCByID",
-		leia.NewFieldIndexer(leia.NewJSONPath(backupConfigJSON.JSONSearchPath)))
+		leia.NewFieldIndexer(backupConfigJSON.SearchQuery))
 	err = leiaStore.JSONCollection("JSON").AddIndex(idIndex)
 	require.NoError(t, err)
 	// cleanup
@@ -260,7 +260,7 @@ func newJSONLDStoreInDir(t *testing.T, testDir string) *kvBackedLeiaStore {
 	store.AddConfiguration(backupConfigJSONLD)
 	// add an index
 	idIndex := leiaStore.JSONLDCollection("JSONLD").NewIndex("issuedVCByID",
-		leia.NewFieldIndexer(leia.NewIRIPath(backupConfigJSON.IRISearchPath...))) // empty path means root resource which matches @id
+		leia.NewFieldIndexer(backupConfigJSONLD.SearchQuery)) // empty path means root resource which matches @id
 	err = leiaStore.JSONLDCollection("JSONLD").AddIndex(idIndex)
 	require.NoError(t, err)
 	// cleanup
