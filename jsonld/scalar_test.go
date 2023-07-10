@@ -93,28 +93,3 @@ func TestScalar_String(t *testing.T) {
 		assert.Equal(t, "false", s.String())
 	})
 }
-
-func TestBoolScalar_Equal(t *testing.T) {
-	type entry struct {
-		a     Scalar
-		b     Scalar
-		equal bool
-	}
-
-	tt := []entry{
-		{a: StringScalar("string"), b: StringScalar("string"), equal: true},
-		{a: StringScalar("string"), b: StringScalar("STRING"), equal: false},
-		{a: StringScalar("1"), b: Float64Scalar(1), equal: false},
-
-		{a: BoolScalar(true), b: BoolScalar(true), equal: true},
-		{a: BoolScalar(true), b: BoolScalar(false), equal: false},
-		{a: BoolScalar(true), b: StringScalar("true"), equal: false},
-
-		{a: Float64Scalar(1.5), b: Float64Scalar(1.5), equal: true},
-		{a: Float64Scalar(1.5), b: Float64Scalar(1), equal: false},
-		{a: Float64Scalar(1.5), b: StringScalar("1.5"), equal: false},
-	}
-	for i, test := range tt {
-		assert.Equal(t, test.a.Equal(test.b), test.equal, "test %d failed: a=%s, b=%s, expected=%t", i, test.a, test.b, test.equal)
-	}
-}

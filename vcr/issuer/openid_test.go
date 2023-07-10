@@ -22,6 +22,7 @@ import (
 	"context"
 	crypt "crypto"
 	"errors"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -51,6 +52,14 @@ var issuedVC = vc.VerifiableCredential{
 		map[string]interface{}{
 			"id": holderDID.String(),
 		},
+	},
+	Context: []ssi.URI{
+		ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
+		ssi.MustParseURI("http://example.org/credentials/V1"),
+	},
+	Type: []ssi.URI{
+		ssi.MustParseURI("VerifiableCredential"),
+		ssi.MustParseURI("HumanCredential"),
 	},
 }
 
@@ -134,6 +143,16 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		require.NoError(t, err)
 		return oidc4vci.CredentialRequest{
 			Format: oidc4vci.VerifiableCredentialJSONLDFormat,
+			CredentialDefinition: &oidc4vci.CredentialDefinition{
+				Context: []ssi.URI{
+					ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
+					ssi.MustParseURI("http://example.org/credentials/V1"),
+				},
+				Type: []ssi.URI{
+					ssi.MustParseURI("VerifiableCredential"),
+					ssi.MustParseURI("HumanCredential"),
+				},
+			},
 			Proof: &oidc4vci.CredentialRequestProof{
 				Jwt:       proof,
 				ProofType: oidc4vci.ProofTypeJWT,
@@ -158,6 +177,24 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		require.NotNil(t, response)
 		assert.Equal(t, issuerDID.URI(), response.Issuer)
 		auditLogs.AssertContains(t, "VCR", "VerifiableCredentialRetrievedEvent", audit.TestActor, "VC retrieved by wallet over OIDC4VCI")
+	})
+	t.Run("unsupported format", func(t *testing.T) {
+		request := createRequest(createHeaders(), createClaims(cNonce))
+		request.Format = "unsupported format"
+
+		response, err := service.HandleCredentialRequest(ctx, request, accessToken)
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "unsupported_credential_type - credential request: unsupported format 'unsupported format'")
+	})
+	t.Run("invalid credential_definition", func(t *testing.T) {
+		request := createRequest(createHeaders(), createClaims(cNonce))
+		request.CredentialDefinition.Type = []ssi.URI{}
+
+		response, err := service.HandleCredentialRequest(ctx, request, accessToken)
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "invalid_request - credential request: invalid credential_definition: missing type field")
 	})
 	t.Run("proof validation", func(t *testing.T) {
 		t.Run("unsupported proof type", func(t *testing.T) {
@@ -292,6 +329,17 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - nonce not valid for access token")
 			assert.Nil(t, response)
+		})
+		t.Run("request does not match offer", func(t *testing.T) {
+			request := createRequest(createHeaders(), createClaims(cNonce))
+			request.CredentialDefinition.Type = []ssi.URI{
+				ssi.MustParseURI("DifferentCredential"),
+			}
+
+			response, err := service.HandleCredentialRequest(ctx, request, accessToken)
+
+			assert.Nil(t, response)
+			assert.EqualError(t, err, "invalid_request - requested credential does not match offer: credential does not match credential_definition: type mismatch")
 		})
 	})
 

@@ -29,8 +29,6 @@ type Scalar interface {
 	fmt.Stringer
 	// Value returns the underlying value (string, float, true or false)
 	Value() interface{}
-	// Equal compares the value of both Scalar
-	Equal(o Scalar) bool
 }
 
 // StringScalar is the string version of a Scalar
@@ -42,11 +40,6 @@ func (ss StringScalar) String() string {
 
 func (ss StringScalar) Value() interface{} {
 	return string(ss)
-}
-
-func (ss StringScalar) Equal(o Scalar) bool {
-	v, ok := o.(StringScalar)
-	return ok && v == ss
 }
 
 // BoolScalar is the boolean version of a Scalar
@@ -63,11 +56,6 @@ func (bs BoolScalar) Value() interface{} {
 	return bool(bs)
 }
 
-func (bs BoolScalar) Equal(o Scalar) bool {
-	v, ok := o.(BoolScalar)
-	return ok && v == bs
-}
-
 // Float64Scalar is the float64 version of a Scalar
 type Float64Scalar float64
 
@@ -77,11 +65,6 @@ func (fs Float64Scalar) String() string {
 
 func (fs Float64Scalar) Value() interface{} {
 	return float64(fs)
-}
-
-func (fs Float64Scalar) Equal(o Scalar) bool {
-	v, ok := o.(Float64Scalar)
-	return ok && v == fs
 }
 
 // ErrInvalidValue is returned when an invalid value is parsed

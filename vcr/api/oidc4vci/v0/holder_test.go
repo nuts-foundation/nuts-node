@@ -21,6 +21,7 @@ package v0
 import (
 	"context"
 	"encoding/json"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -81,12 +82,12 @@ func TestWrapper_HandleCredentialOffer(t *testing.T) {
 
 		credentialOffer := oidc4vci.CredentialOffer{
 			CredentialIssuer: issuerDID.String(),
-			Credentials: []map[string]interface{}{
+			Credentials: []oidc4vci.OfferedCredential{
 				{
-					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-					"credential_definition": map[string]interface{}{
-						"@context": []string{"a", "b"},
-						"type":     []string{"VerifiableCredential", "HumanCredential"},
+					Format: oidc4vci.VerifiableCredentialJSONLDFormat,
+					CredentialDefinition: &oidc4vci.CredentialDefinition{
+						Context: []ssi.URI{ssi.MustParseURI("a"), ssi.MustParseURI("b")},
+						Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("HumanCredential")},
 					},
 				},
 			},

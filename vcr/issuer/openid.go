@@ -228,8 +228,20 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 }
 
 func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
-	// TODO: Verify requested format and credential definition
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
+	if request.Format != oidc4vci.VerifiableCredentialJSONLDFormat {
+		return nil, oidc4vci.Error{
+			Err:        fmt.Errorf("credential request: unsupported format '%s'", request.Format),
+			Code:       oidc4vci.UnsupportedCredentialType,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+	if err := request.CredentialDefinition.Validate(false); err != nil {
+		return nil, oidc4vci.Error{
+			Err:        fmt.Errorf("credential request: %w", err),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
 	flow, err := i.store.FindByReference(ctx, accessTokenRefType, accessToken)
 	if err != nil {
 		return nil, err
@@ -257,6 +269,14 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 
 	if err = i.validateProof(ctx, flow, request); err != nil {
 		return nil, err
+	}
+
+	if err = oidc4vci.ValidateDefinitionWithCredential(credential, *request.CredentialDefinition); err != nil {
+		return nil, oidc4vci.Error{
+			Err:        fmt.Errorf("requested credential does not match offer: %w", err),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
 	}
 
 	// Important: since we (for now) create the VC even before the wallet requests it, we don't know if every VC is actually retrieved by the wallet.
@@ -408,11 +428,11 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 	}
 	offer := oidc4vci.CredentialOffer{
 		CredentialIssuer: i.issuerIdentifierURL,
-		Credentials: []map[string]interface{}{{
-			"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-			"credential_definition": map[string]interface{}{
-				"@context": credential.Context,
-				"type":     credential.Type,
+		Credentials: []oidc4vci.OfferedCredential{{
+			Format: oidc4vci.VerifiableCredentialJSONLDFormat,
+			CredentialDefinition: &oidc4vci.CredentialDefinition{
+				Context: credential.Context,
+				Type:    credential.Type,
 			},
 		}},
 		Grants: map[string]interface{}{

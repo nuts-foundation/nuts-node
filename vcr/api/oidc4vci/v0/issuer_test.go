@@ -173,7 +173,7 @@ func TestWrapper_RequestCredential(t *testing.T) {
 			},
 			Body: &RequestCredentialJSONRequestBody{
 				Format:               "ldp_vc",
-				CredentialDefinition: &map[string]interface{}{},
+				CredentialDefinition: &oidc4vci.CredentialDefinition{},
 				Proof:                nil,
 			},
 		})

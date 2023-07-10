@@ -22,6 +22,7 @@ package oidc4vci
 
 import (
 	"crypto/tls"
+	ssi "github.com/nuts-foundation/go-did"
 	"time"
 )
 
@@ -97,9 +98,27 @@ type CredentialOffer struct {
 	// CredentialIssuer defines the identifier of the credential issuer.
 	CredentialIssuer string `json:"credential_issuer"`
 	// Credentials defines the credentials offered by the issuer to the wallet.
-	Credentials []map[string]interface{} `json:"credentials"`
+	Credentials []OfferedCredential `json:"credentials"`
 	// Grants defines the grants offered by the issuer to the wallet.
 	Grants map[string]interface{} `json:"grants"`
+}
+
+// OfferedCredential defines a single entry in the credentials array of a CredentialOffer. We currently do not support 'JSON string' offers.
+// Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer-parameters
+// and https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-vc-secured-using-data-integ
+type OfferedCredential struct {
+	// Format specifies the credential format.
+	Format string `json:"format"`
+	// CredentialDefinition contains the 'credential_definition' for the Verifiable Credential Format flows.
+	CredentialDefinition *CredentialDefinition `json:"credential_definition,omitempty"`
+}
+
+// CredentialDefinition defines the 'credential_definition' for Format VerifiableCredentialJSONLDFormat
+// Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-vc-secured-using-data-integ
+type CredentialDefinition struct {
+	Context           []ssi.URI               `json:"@context"`
+	Type              []ssi.URI               `json:"type"`
+	CredentialSubject *map[string]interface{} `json:"credentialSubject,omitempty"` // optional and currently not used
 }
 
 // CredentialOfferResponse defines the response for credential offer requests.
@@ -113,7 +132,7 @@ type CredentialOfferResponse struct {
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-request.
 type CredentialRequest struct {
 	Format               string                  `json:"format"`
-	CredentialDefinition *map[string]interface{} `json:"credential_definition,omitempty"`
+	CredentialDefinition *CredentialDefinition   `json:"credential_definition,omitempty"`
 	Proof                *CredentialRequestProof `json:"proof,omitempty"`
 }
 
