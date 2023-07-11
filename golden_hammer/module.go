@@ -28,7 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/golden_hammer/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -225,7 +225,7 @@ func (h *GoldenHammer) listDocumentToFix() ([]did.Document, error) {
 
 func (h *GoldenHammer) tryResolveURL(id did.DID) (*url.URL, error) {
 	// TLSIdentifierResolver looks at TLS certificate to resolve OpenID4VCI Identifiers.
-	tlsIDResolver := oidc4vci.NewTLSIdentifierResolver(oidc4vci.NoopIdentifierResolver{}, h.tlsConfig)
+	tlsIDResolver := openid4vci.NewTLSIdentifierResolver(openid4vci.NoopIdentifierResolver{}, h.tlsConfig)
 	identifier, err := tlsIDResolver.Resolve(id)
 	if err != nil {
 		return nil, err

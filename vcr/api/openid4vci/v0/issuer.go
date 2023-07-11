@@ -24,7 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"net/http"
 	"strings"
 )
@@ -37,19 +37,19 @@ func (w Wrapper) getIssuerHandler(ctx context.Context, issuer string) (issuer.Op
 	return w.VCR.GetOpenIDIssuer(ctx, issuerDID)
 }
 
-// GetOIDC4VCIIssuerMetadata returns the OIDC4VCI credential issuer metadata for the given DID.
-func (w Wrapper) GetOIDC4VCIIssuerMetadata(ctx context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error) {
+// GetOpenID4VCIIssuerMetadata returns the OpenID4VCI credential issuer metadata for the given DID.
+func (w Wrapper) GetOpenID4VCIIssuerMetadata(ctx context.Context, request GetOpenID4VCIIssuerMetadataRequestObject) (GetOpenID4VCIIssuerMetadataResponseObject, error) {
 	issuer, err := w.getIssuerHandler(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
-	return GetOIDC4VCIIssuerMetadata200JSONResponse(issuer.Metadata()), nil
+	return GetOpenID4VCIIssuerMetadata200JSONResponse(issuer.Metadata()), nil
 }
 
-// GetOIDC4VCIIssuerMetadataHeaders returns the OIDC4VCI credential issuer metadata headers for the given DID.
-func (w Wrapper) GetOIDC4VCIIssuerMetadataHeaders(ctx context.Context, request GetOIDC4VCIIssuerMetadataHeadersRequestObject) (GetOIDC4VCIIssuerMetadataHeadersResponseObject, error) {
-	response := GetOIDC4VCIIssuerMetadataHeadersdefaultResponse{
-		Headers: GetOIDC4VCIIssuerMetadataHeadersdefaultResponseHeaders{
+// GetOpenID4VCIIssuerMetadataHeaders returns the OpenID4VCI credential issuer metadata headers for the given DID.
+func (w Wrapper) GetOpenID4VCIIssuerMetadataHeaders(ctx context.Context, request GetOpenID4VCIIssuerMetadataHeadersRequestObject) (GetOpenID4VCIIssuerMetadataHeadersResponseObject, error) {
+	response := GetOpenID4VCIIssuerMetadataHeadersdefaultResponse{
+		Headers: GetOpenID4VCIIssuerMetadataHeadersdefaultResponseHeaders{
 			ContentType: "application/json",
 		},
 	}
@@ -79,17 +79,17 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 	}
 
 	if request.Params.Authorization == nil {
-		return nil, oidc4vci.Error{
+		return nil, openid4vci.Error{
 			Err:        errors.New("missing authorization header"),
-			Code:       oidc4vci.InvalidToken,
+			Code:       openid4vci.InvalidToken,
 			StatusCode: http.StatusUnauthorized,
 		}
 	}
 	authHeader := *request.Params.Authorization
 	if len(authHeader) < 7 || strings.ToLower(authHeader[:7]) != "bearer " {
-		return nil, oidc4vci.Error{
+		return nil, openid4vci.Error{
 			Err:        errors.New("invalid authorization header"),
-			Code:       oidc4vci.InvalidToken,
+			Code:       openid4vci.InvalidToken,
 			StatusCode: http.StatusUnauthorized,
 		}
 	}
@@ -107,7 +107,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 	}
 	return RequestCredential200JSONResponse(CredentialResponse{
 		Credential: &credentialMap,
-		Format:     oidc4vci.VerifiableCredentialJSONLDFormat,
+		Format:     openid4vci.VerifiableCredentialJSONLDFormat,
 	}), nil
 }
 
@@ -118,10 +118,10 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		return nil, err
 	}
 
-	if request.Body.GrantType != oidc4vci.PreAuthorizedCodeGrant {
-		return nil, oidc4vci.Error{
+	if request.Body.GrantType != openid4vci.PreAuthorizedCodeGrant {
+		return nil, openid4vci.Error{
 			Err:        fmt.Errorf("unsupported grant type: %s", request.Body.GrantType),
-			Code:       oidc4vci.UnsupportedGrantType,
+			Code:       openid4vci.UnsupportedGrantType,
 			StatusCode: http.StatusBadRequest,
 		}
 	}

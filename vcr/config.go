@@ -19,15 +19,15 @@
 
 package vcr
 
-import "github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+import "github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 
 // ModuleName is the name of this module.
 const ModuleName = "VCR"
 
 // Config holds the config for the vcr engine
 type Config struct {
-	// OIDC4VCI holds the config for the OIDC4VCI credential issuer and wallet
-	OIDC4VCI oidc4vci.Config `koanf:"oidc4vci"`
+	// OpenID4VCI holds the config for the OpenID4VCI credential issuer and wallet
+	OpenID4VCI openid4vci.Config `koanf:"openid4vci"`
 }
 
 // DefaultConfig returns a fresh Config filled with default values

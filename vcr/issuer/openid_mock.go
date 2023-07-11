@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	vc "github.com/nuts-foundation/go-did/vc"
-	oidc4vci "github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	openid4vci "github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -53,7 +53,7 @@ func (mr *MockOpenIDHandlerMockRecorder) HandleAccessTokenRequest(ctx, preAuthor
 }
 
 // HandleCredentialRequest mocks base method.
-func (m *MockOpenIDHandler) HandleCredentialRequest(ctx context.Context, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
+func (m *MockOpenIDHandler) HandleCredentialRequest(ctx context.Context, request openid4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleCredentialRequest", ctx, request, accessToken)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
@@ -68,10 +68,10 @@ func (mr *MockOpenIDHandlerMockRecorder) HandleCredentialRequest(ctx, request, a
 }
 
 // Metadata mocks base method.
-func (m *MockOpenIDHandler) Metadata() oidc4vci.CredentialIssuerMetadata {
+func (m *MockOpenIDHandler) Metadata() openid4vci.CredentialIssuerMetadata {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Metadata")
-	ret0, _ := ret[0].(oidc4vci.CredentialIssuerMetadata)
+	ret0, _ := ret[0].(openid4vci.CredentialIssuerMetadata)
 	return ret0
 }
 
@@ -96,10 +96,10 @@ func (mr *MockOpenIDHandlerMockRecorder) OfferCredential(ctx, credential, wallet
 }
 
 // ProviderMetadata mocks base method.
-func (m *MockOpenIDHandler) ProviderMetadata() oidc4vci.ProviderMetadata {
+func (m *MockOpenIDHandler) ProviderMetadata() openid4vci.ProviderMetadata {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ProviderMetadata")
-	ret0, _ := ret[0].(oidc4vci.ProviderMetadata)
+	ret0, _ := ret[0].(openid4vci.ProviderMetadata)
 	return ret0
 }
 

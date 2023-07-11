@@ -53,7 +53,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	storageCmd "github.com/nuts-foundation/nuts-node/storage/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	oidc4vciAPI "github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci/v0"
+	openid4vciAPI "github.com/nuts-foundation/nuts-node/vcr/api/openid4vci/v0"
 	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 	vcrCmd "github.com/nuts-foundation/nuts-node/vcr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -205,7 +205,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 		Resolver:   docResolver,
 	}})
 	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
-	system.RegisterRoutes(&oidc4vciAPI.Wrapper{
+	system.RegisterRoutes(&openid4vciAPI.Wrapper{
 		VCR:           credentialInstance,
 		DocumentOwner: vdrInstance,
 	})

@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	go_stoabs "github.com/nuts-foundation/go-stoabs"
+	stoabs "github.com/nuts-foundation/go-stoabs"
 	core "github.com/nuts-foundation/nuts-node/core"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	tree "github.com/nuts-foundation/nuts-node/network/dag/tree"
@@ -338,7 +338,7 @@ func (m *MockPayloadStore) EXPECT() *MockPayloadStoreMockRecorder {
 }
 
 // isPayloadPresent mocks base method.
-func (m *MockPayloadStore) isPayloadPresent(tx go_stoabs.ReadTx, payloadHash hash.SHA256Hash) bool {
+func (m *MockPayloadStore) isPayloadPresent(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "isPayloadPresent", tx, payloadHash)
 	ret0, _ := ret[0].(bool)
@@ -352,7 +352,7 @@ func (mr *MockPayloadStoreMockRecorder) isPayloadPresent(tx, payloadHash interfa
 }
 
 // readPayload mocks base method.
-func (m *MockPayloadStore) readPayload(tx go_stoabs.ReadTx, payloadHash hash.SHA256Hash) ([]byte, error) {
+func (m *MockPayloadStore) readPayload(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "readPayload", tx, payloadHash)
 	ret0, _ := ret[0].([]byte)
@@ -367,7 +367,7 @@ func (mr *MockPayloadStoreMockRecorder) readPayload(tx, payloadHash interface{})
 }
 
 // writePayload mocks base method.
-func (m *MockPayloadStore) writePayload(tx go_stoabs.WriteTx, payloadHash hash.SHA256Hash, data []byte) error {
+func (m *MockPayloadStore) writePayload(tx stoabs.WriteTx, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "writePayload", tx, payloadHash, data)
 	ret0, _ := ret[0].(error)

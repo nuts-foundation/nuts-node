@@ -16,7 +16,7 @@
  *
  */
 
-package oidc4vci
+package openid4vci
 
 // ErrorCode specifies error codes as defined by the OpenID4VCI spec.
 type ErrorCode string

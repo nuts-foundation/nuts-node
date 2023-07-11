@@ -32,7 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -40,17 +40,17 @@ import (
 // OpenIDHandler is the interface for handling issuer operations using OpenID4VCI.
 type OpenIDHandler interface {
 	// Metadata returns the OAuth2 client metadata for the wallet.
-	Metadata() oidc4vci.OAuth2ClientMetadata
+	Metadata() openid4vci.OAuth2ClientMetadata
 	// HandleCredentialOffer handles a credential offer from an issuer.
 	// It will try to retrieve the offered credential and store it.
-	HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error
+	HandleCredentialOffer(ctx context.Context, offer openid4vci.CredentialOffer) error
 }
 
 var nowFunc = time.Now
 var _ OpenIDHandler = (*openidHandler)(nil)
 
 // NewOpenIDHandler creates an OpenIDHandler that tries to retrieve offered credentials, to store it in the given credential store.
-func NewOpenIDHandler(config oidc4vci.ClientConfig, did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OpenIDHandler {
+func NewOpenIDHandler(config openid4vci.ClientConfig, did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OpenIDHandler {
 	return &openidHandler{
 		did:                 did,
 		identifier:          identifier,
@@ -58,7 +58,7 @@ func NewOpenIDHandler(config oidc4vci.ClientConfig, did did.DID, identifier stri
 		signer:              signer,
 		resolver:            resolver,
 		config:              config,
-		issuerClientCreator: oidc4vci.NewIssuerAPIClient,
+		issuerClientCreator: openid4vci.NewIssuerAPIClient,
 	}
 }
 
@@ -68,52 +68,52 @@ type openidHandler struct {
 	credentialStore     vcrTypes.Writer
 	signer              crypto.JWTSigner
 	resolver            vdr.KeyResolver
-	issuerClientCreator func(ctx context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error)
+	issuerClientCreator func(ctx context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error)
 	jsonldReader        jsonld.Reader
-	config              oidc4vci.ClientConfig
+	config              openid4vci.ClientConfig
 }
 
-func (h openidHandler) Metadata() oidc4vci.OAuth2ClientMetadata {
-	return oidc4vci.OAuth2ClientMetadata{
-		CredentialOfferEndpoint: core.JoinURLPaths(h.identifier, "/wallet/oidc4vci/credential_offer"),
+func (h openidHandler) Metadata() openid4vci.OAuth2ClientMetadata {
+	return openid4vci.OAuth2ClientMetadata{
+		CredentialOfferEndpoint: core.JoinURLPaths(h.identifier, "/wallet/openid4vci/credential_offer"),
 	}
 }
 
 // HandleCredentialOffer handles a credential offer from an issuer.
 // Error responses on the Credential Offer Endpoint are not defined in the OpenID4VCI spec,
 // so these are inferred of whatever makes sense.
-func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error {
+func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4vci.CredentialOffer) error {
 	// TODO: This check is too simplistic, there can be multiple credential offers,
 	//       but the issuer should only request the one it's interested in.
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2049
 	if len(offer.Credentials) != 1 {
-		return oidc4vci.Error{
+		return openid4vci.Error{
 			Err:        errors.New("there must be exactly 1 credential in credential offer"),
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	offeredCredential := offer.Credentials[0]
-	if offeredCredential.Format != oidc4vci.VerifiableCredentialJSONLDFormat {
-		return oidc4vci.Error{
+	if offeredCredential.Format != openid4vci.VerifiableCredentialJSONLDFormat {
+		return openid4vci.Error{
 			Err:        fmt.Errorf("credential offer: unsupported format '%s'", offeredCredential.Format),
-			Code:       oidc4vci.UnsupportedCredentialType,
+			Code:       openid4vci.UnsupportedCredentialType,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	if err := offeredCredential.CredentialDefinition.Validate(true); err != nil {
-		return oidc4vci.Error{
+		return openid4vci.Error{
 			Err:        fmt.Errorf("credential offer: %w", err),
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 
 	preAuthorizedCode := getPreAuthorizedCodeFromOffer(offer)
 	if preAuthorizedCode == "" {
-		return oidc4vci.Error{
+		return openid4vci.Error{
 			Err:        errors.New("couldn't find (valid) pre-authorized code grant in credential offer"),
-			Code:       oidc4vci.InvalidGrant,
+			Code:       openid4vci.InvalidGrant,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -126,36 +126,36 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 	})
 	issuerClient, err := h.issuerClientCreator(ctx, httpClient, offer.CredentialIssuer)
 	if err != nil {
-		return oidc4vci.Error{
+		return openid4vci.Error{
 			Err:        fmt.Errorf("unable to create issuer client: %w", err),
-			Code:       oidc4vci.ServerError,
+			Code:       openid4vci.ServerError,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
 
-	accessTokenResponse, err := issuerClient.RequestAccessToken(oidc4vci.PreAuthorizedCodeGrant, map[string]string{
+	accessTokenResponse, err := issuerClient.RequestAccessToken(openid4vci.PreAuthorizedCodeGrant, map[string]string{
 		"pre-authorized_code": preAuthorizedCode,
 	})
 	if err != nil {
-		return oidc4vci.Error{
+		return openid4vci.Error{
 			Err:        fmt.Errorf("unable to request access token: %w", err),
-			Code:       oidc4vci.InvalidToken,
+			Code:       openid4vci.InvalidToken,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
 
 	if accessTokenResponse.AccessToken == "" {
-		return oidc4vci.Error{
+		return openid4vci.Error{
 			Err:        errors.New("access_token is missing"),
-			Code:       oidc4vci.InvalidToken,
+			Code:       openid4vci.InvalidToken,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
 
 	if accessTokenResponse.CNonce == "" {
-		return oidc4vci.Error{
+		return openid4vci.Error{
 			Err:        errors.New("c_nonce is missing"),
-			Code:       oidc4vci.InvalidToken,
+			Code:       openid4vci.InvalidToken,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
@@ -165,22 +165,22 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 	defer cancel()
 	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offeredCredential.CredentialDefinition, accessTokenResponse)
 	if err != nil {
-		return oidc4vci.Error{
+		return openid4vci.Error{
 			Err:        fmt.Errorf("unable to retrieve credential: %w", err),
-			Code:       oidc4vci.ServerError,
+			Code:       openid4vci.ServerError,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
-	if err = oidc4vci.ValidateDefinitionWithCredential(*credential, *offeredCredential.CredentialDefinition); err != nil {
-		return oidc4vci.Error{
+	if err = openid4vci.ValidateDefinitionWithCredential(*credential, *offeredCredential.CredentialDefinition); err != nil {
+		return openid4vci.Error{
 			Err:        fmt.Errorf("received credential does not match offer: %w", err),
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
 	log.Logger().
 		WithField("credentialID", credential.ID).
-		Infof("Received VC over OIDC4VCI")
+		Infof("Received VC over OpenID4VCI")
 	err = h.credentialStore.StoreCredential(*credential, nil)
 	if err != nil {
 		return fmt.Errorf("unable to store credential: %w", err)
@@ -188,8 +188,8 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci
 	return nil
 }
 
-func getPreAuthorizedCodeFromOffer(offer oidc4vci.CredentialOffer) string {
-	params, ok := offer.Grants[oidc4vci.PreAuthorizedCodeGrant].(map[string]interface{})
+func getPreAuthorizedCodeFromOffer(offer openid4vci.CredentialOffer) string {
+	params, ok := offer.Grants[openid4vci.PreAuthorizedCodeGrant].(map[string]interface{})
 	if !ok {
 		return ""
 	}
@@ -200,11 +200,11 @@ func getPreAuthorizedCodeFromOffer(offer oidc4vci.CredentialOffer) string {
 	return preAuthorizedCode
 }
 
-func (h openidHandler) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerAPIClient, offer *oidc4vci.CredentialDefinition, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
+func (h openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, offer *openid4vci.CredentialDefinition, tokenResponse *openid4vci.TokenResponse) (*vc.VerifiableCredential, error) {
 	keyID, err := h.resolver.ResolveSigningKeyID(h.did, nil)
 	headers := map[string]interface{}{
-		"typ": oidc4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
-		"kid": keyID,                           // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
+		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
+		"kid": keyID,                             // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
 	}
 	claims := map[string]interface{}{
 		"aud":   issuerClient.Metadata().CredentialIssuer,
@@ -217,10 +217,10 @@ func (h openidHandler) retrieveCredential(ctx context.Context, issuerClient oidc
 		return nil, fmt.Errorf("unable to sign request proof: %w", err)
 	}
 
-	credentialRequest := oidc4vci.CredentialRequest{
+	credentialRequest := openid4vci.CredentialRequest{
 		CredentialDefinition: offer,
-		Format:               oidc4vci.VerifiableCredentialJSONLDFormat,
-		Proof: &oidc4vci.CredentialRequestProof{
+		Format:               openid4vci.VerifiableCredentialJSONLDFormat,
+		Proof: &openid4vci.CredentialRequestProof{
 			Jwt:       proof,
 			ProofType: "jwt",
 		},

@@ -69,7 +69,7 @@ type VCR interface {
 	Verifier() verifier.Verifier
 	GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error)
 	GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHandler, error)
-	OIDC4VCIEnabled() bool
+	OpenID4VCIEnabled() bool
 
 	Finder
 	Resolver

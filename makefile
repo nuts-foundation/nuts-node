@@ -38,11 +38,11 @@ gen-mocks:
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
 	mockgen -destination=vcr/holder/mock.go -package=holder -source=vcr/holder/interface.go
 	mockgen -destination=vcr/issuer/mock.go -package=issuer -source=vcr/issuer/interface.go
-	mockgen -destination=vcr/oidc4vci/issuer_client_mock.go -package=oidc4vci -source=vcr/oidc4vci/issuer_client.go
-	mockgen -destination=vcr/oidc4vci/wallet_client_mock.go -package=oidc4vci -source=vcr/oidc4vci/wallet_client.go
+	mockgen -destination=vcr/openid4vci/issuer_client_mock.go -package=openid4vci -source=vcr/openid4vci/issuer_client.go
+	mockgen -destination=vcr/openid4vci/wallet_client_mock.go -package=openid4vci -source=vcr/openid4vci/wallet_client.go
 	mockgen -destination=vcr/issuer/openid_mock.go -package=issuer -source=vcr/issuer/openid.go
 	mockgen -destination=vcr/holder/openid_mock.go -package=holder -source=vcr/holder/openid.go
-	mockgen -destination=vcr/oidc4vci/identifiers_mock.go -package=oidc4vci -source=vcr/oidc4vci/identifiers.go
+	mockgen -destination=vcr/openid4vci/identifiers_mock.go -package=openid4vci -source=vcr/openid4vci/identifiers.go
 	mockgen -destination=vcr/signature/mock.go -package=signature -source=vcr/signature/signature.go
 	mockgen -destination=vcr/verifier/mock.go -package=verifier -source=vcr/verifier/interface.go
 	mockgen -destination=vdr/ambassador_mock.go -package=vdr -source=vdr/ambassador.go
@@ -55,7 +55,7 @@ gen-api:
 	oapi-codegen --config codegen/configs/vdr_v1.yaml docs/_static/vdr/v1.yaml | gofmt > vdr/api/v1/generated.go
 	oapi-codegen --config codegen/configs/network_v1.yaml docs/_static/network/v1.yaml | gofmt > network/api/v1/generated.go
 	oapi-codegen --config codegen/configs/vcr_v2.yaml docs/_static/vcr/vcr_v2.yaml | gofmt > vcr/api/vcr/v2/generated.go
-	oapi-codegen --config codegen/configs/vcr_oidc4vci_v0.yaml docs/_static/vcr/oidc4vci_v0.yaml | gofmt > vcr/api/oidc4vci/v0/generated.go
+	oapi-codegen --config codegen/configs/vcr_openid4vci_v0.yaml docs/_static/vcr/openid4vci_v0.yaml | gofmt > vcr/api/openid4vci/v0/generated.go
 	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth/v1/generated.go
 	oapi-codegen --config codegen/configs/auth_client_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth/v1/client/generated.go
 	oapi-codegen --config codegen/configs/auth_employeeid.yaml auth/services/selfsigned/web/spec.yaml | gofmt > auth/services/selfsigned/web/generated.go

@@ -16,7 +16,7 @@
  *
  */
 
-package oidc4vci
+package openid4vci
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-// setupClientTest starts an HTTP server that stubs OIDC4VCI operations, which can then be used to test OIDC4VCI clients.
+// setupClientTest starts an HTTP server that stubs OpenID4VCI operations, which can then be used to test OpenID4VCI clients.
 func setupClientTest(t *testing.T) *oidcClientTestContext {
 	issuerMetadata := new(CredentialIssuerMetadata)
 	providerMetadata := new(ProviderMetadata)

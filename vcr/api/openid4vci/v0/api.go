@@ -27,33 +27,33 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 )
 
 // ProviderMetadata is the metadata of the OpenID Connect provider
-type ProviderMetadata = oidc4vci.ProviderMetadata
+type ProviderMetadata = openid4vci.ProviderMetadata
 
-// CredentialIssuerMetadata is the metadata of the OIDC4VCI credential issuer
-type CredentialIssuerMetadata = oidc4vci.CredentialIssuerMetadata
+// CredentialIssuerMetadata is the metadata of the OpenID4VCI credential issuer
+type CredentialIssuerMetadata = openid4vci.CredentialIssuerMetadata
 
 // TokenResponse is the response of the OpenID Connect token endpoint
-type TokenResponse = oidc4vci.TokenResponse
+type TokenResponse = openid4vci.TokenResponse
 
-// CredentialOfferResponse is the response to the OIDC4VCI credential offer
-type CredentialOfferResponse = oidc4vci.CredentialOfferResponse
+// CredentialOfferResponse is the response to the OpenID4VCI credential offer
+type CredentialOfferResponse = openid4vci.CredentialOfferResponse
 
-// CredentialRequest is the request to the OIDC4VCI credential request endpoint
-type CredentialRequest = oidc4vci.CredentialRequest
+// CredentialRequest is the request to the OpenID4VCI credential request endpoint
+type CredentialRequest = openid4vci.CredentialRequest
 
-// CredentialResponse is the response of the OIDC4VCI credential request endpoint
-type CredentialResponse = oidc4vci.CredentialResponse
+// CredentialResponse is the response of the OpenID4VCI credential request endpoint
+type CredentialResponse = openid4vci.CredentialResponse
 
 // OAuth2ClientMetadata is the metadata of the OAuth2 client
-type OAuth2ClientMetadata = oidc4vci.OAuth2ClientMetadata
+type OAuth2ClientMetadata = openid4vci.OAuth2ClientMetadata
 
-type ErrorResponse = oidc4vci.Error
+type ErrorResponse = openid4vci.Error
 
 var _ core.ErrorWriter = (*protocolErrorWriter)(nil)
 
@@ -62,11 +62,11 @@ type protocolErrorWriter struct {
 
 func (p protocolErrorWriter) Write(echoContext echo.Context, _ int, _ string, err error) error {
 	// If not already a protocol error, make it one (code=server_error).
-	var protocolError oidc4vci.Error
+	var protocolError openid4vci.Error
 	if !errors.As(err, &protocolError) {
-		protocolError = oidc4vci.Error{
+		protocolError = openid4vci.Error{
 			Err:        err,
-			Code:       oidc4vci.ServerError,
+			Code:       openid4vci.ServerError,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
@@ -81,7 +81,7 @@ func (p protocolErrorWriter) Write(echoContext echo.Context, _ int, _ string, er
 
 var _ StrictServerInterface = (*Wrapper)(nil)
 
-// Wrapper wraps the OIDC4VCI API
+// Wrapper wraps the OpenID4VCI API
 type Wrapper struct {
 	VCR           vcr.VCR
 	DocumentOwner types.DocumentOwner
@@ -93,22 +93,22 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
 				ctx.Set(core.OperationIDContextKey, operationID)
-				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName+"/OIDC4VCI")
+				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName+"/OpenID4VCI")
 				ctx.Set(core.ErrorWriterContextKey, &protocolErrorWriter{})
 				return f(ctx, request)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, args interface{}) (interface{}, error) {
-				if !w.VCR.OIDC4VCIEnabled() {
-					log.Logger().Info("Someone tried to access disabled OIDC4VCI API endpoint.")
+				if !w.VCR.OpenID4VCIEnabled() {
+					log.Logger().Info("Someone tried to access disabled OpenID4VCI API endpoint.")
 					return nil, core.NotFoundError("openid4vci is disabled")
 				}
 				return f(ctx, args)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
-			return audit.StrictMiddleware(f, vcr.ModuleName+"/OIDC4VCI", operationID)
+			return audit.StrictMiddleware(f, vcr.ModuleName+"/OpenID4VCI", operationID)
 		},
 	}))
 }
@@ -117,24 +117,24 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 func (w Wrapper) validateDIDIsOwned(ctx context.Context, subjectDID string) (did.DID, error) {
 	parsedDID, err := did.ParseDID(subjectDID)
 	if err != nil {
-		return did.DID{}, oidc4vci.Error{
+		return did.DID{}, openid4vci.Error{
 			Err:        err,
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusNotFound,
 		}
 	}
 	isOwner, err := w.DocumentOwner.IsOwner(ctx, *parsedDID)
 	if err != nil {
-		return did.DID{}, oidc4vci.Error{
+		return did.DID{}, openid4vci.Error{
 			Err:        err,
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusNotFound,
 		}
 	}
 	if !isOwner {
-		return did.DID{}, oidc4vci.Error{
+		return did.DID{}, openid4vci.Error{
 			Err:        errors.New("DID is not owned by this node"),
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusNotFound,
 		}
 	}

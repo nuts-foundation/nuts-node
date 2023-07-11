@@ -26,7 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"io/fs"
 	"net/http"
@@ -101,7 +101,7 @@ type vcr struct {
 	eventManager        events.Event
 	storageClient       storage.Engine
 	openidIsssuerStore  issuer.OpenIDStore
-	localWalletResolver oidc4vci.IdentifierResolver
+	localWalletResolver openid4vci.IdentifierResolver
 	documentOwner       vdr.DocumentOwner
 	pkiProvider         pki.Provider
 	clientTLSConfig     *tls.Config
@@ -112,12 +112,12 @@ func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHan
 	if err != nil {
 		return nil, err
 	}
-	clientConfig := oidc4vci.ClientConfig{
-		Timeout:   c.config.OIDC4VCI.Timeout,
+	clientConfig := openid4vci.ClientConfig{
+		Timeout:   c.config.OpenID4VCI.Timeout,
 		TLS:       c.clientTLSConfig,
 		HTTPSOnly: c.strictmode,
 	}
-	return issuer.NewOpenIDHandler(id, identifier, c.config.OIDC4VCI.DefinitionsDIR, clientConfig, c.keyResolver, c.openidIsssuerStore)
+	return issuer.NewOpenIDHandler(id, identifier, c.config.OpenID4VCI.DefinitionsDIR, clientConfig, c.keyResolver, c.openidIsssuerStore)
 }
 
 func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHandler, error) {
@@ -125,8 +125,8 @@ func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHan
 	if err != nil {
 		return nil, err
 	}
-	clientConfig := oidc4vci.ClientConfig{
-		Timeout:   c.config.OIDC4VCI.Timeout,
+	clientConfig := openid4vci.ClientConfig{
+		Timeout:   c.config.OpenID4VCI.Timeout,
 		TLS:       c.clientTLSConfig,
 		HTTPSOnly: c.strictmode,
 	}
@@ -136,9 +136,9 @@ func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHan
 func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (string, error) {
 	identifier, err := c.localWalletResolver.Resolve(id)
 	if err != nil {
-		return "", oidc4vci.Error{
+		return "", openid4vci.Error{
 			Err:        fmt.Errorf("error resolving OpenID4VCI identifier: %w", err),
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusNotFound,
 		}
 	}
@@ -147,9 +147,9 @@ func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (stri
 		return "", err
 	}
 	if !isOwner {
-		return "", oidc4vci.Error{
+		return "", openid4vci.Error{
 			Err:        errors.New("DID is not owned by this node"),
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusNotFound,
 		}
 	}
@@ -198,13 +198,13 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.trustConfig = trust.NewConfig(tcPath)
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.didstore, c.keyStore)
-	if c.config.OIDC4VCI.Enabled {
+	if c.config.OpenID4VCI.Enabled {
 		c.clientTLSConfig, err = c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 		if err != nil {
 			return err
 		}
-		c.localWalletResolver = oidc4vci.NewTLSIdentifierResolver(
-			oidc4vci.DIDIdentifierResolver{ServiceResolver: c.serviceResolver},
+		c.localWalletResolver = openid4vci.NewTLSIdentifierResolver(
+			openid4vci.DIDIdentifierResolver{ServiceResolver: c.serviceResolver},
 			c.clientTLSConfig,
 		)
 		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
@@ -355,8 +355,8 @@ func (c *vcr) Config() interface{} {
 	return &c.config
 }
 
-func (c *vcr) OIDC4VCIEnabled() bool {
-	return c.config.OIDC4VCI.Enabled
+func (c *vcr) OpenID4VCIEnabled() bool {
+	return c.config.OpenID4VCI.Enabled
 }
 
 func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {

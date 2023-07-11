@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	oidc4vci "github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	openid4vci "github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -36,7 +36,7 @@ func (m *MockOpenIDHandler) EXPECT() *MockOpenIDHandlerMockRecorder {
 }
 
 // HandleCredentialOffer mocks base method.
-func (m *MockOpenIDHandler) HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error {
+func (m *MockOpenIDHandler) HandleCredentialOffer(ctx context.Context, offer openid4vci.CredentialOffer) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleCredentialOffer", ctx, offer)
 	ret0, _ := ret[0].(error)
@@ -50,10 +50,10 @@ func (mr *MockOpenIDHandlerMockRecorder) HandleCredentialOffer(ctx, offer interf
 }
 
 // Metadata mocks base method.
-func (m *MockOpenIDHandler) Metadata() oidc4vci.OAuth2ClientMetadata {
+func (m *MockOpenIDHandler) Metadata() openid4vci.OAuth2ClientMetadata {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Metadata")
-	ret0, _ := ret[0].(oidc4vci.OAuth2ClientMetadata)
+	ret0, _ := ret[0].(openid4vci.OAuth2ClientMetadata)
 	return ret0
 }
 

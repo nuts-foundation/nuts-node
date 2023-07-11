@@ -18,7 +18,7 @@
 
 // This file defines types specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html
 
-package oidc4vci
+package openid4vci
 
 import (
 	"crypto/tls"
@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-// PreAuthorizedCodeGrant is the grant type used for pre-authorized code grant from the OIDC4VCI specification.
+// PreAuthorizedCodeGrant is the grant type used for pre-authorized code grant from the OpenID4VCI specification.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-pre-authorized-code-flow
 const PreAuthorizedCodeGrant = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
 
@@ -38,7 +38,7 @@ const WalletMetadataWellKnownPath = "/.well-known/openid-credential-wallet"
 // Specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
 const ProviderMetadataWellKnownPath = "/.well-known/oauth-authorization-server"
 
-// CredentialIssuerMetadataWellKnownPath defines the well-known path for retrieving OIDC4VCI CredentialIssuerMetadata
+// CredentialIssuerMetadataWellKnownPath defines the well-known path for retrieving OpenID4VCI CredentialIssuerMetadata
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata-
 const CredentialIssuerMetadataWellKnownPath = "/.well-known/openid-credential-issuer"
 
@@ -57,7 +57,7 @@ type CredentialOfferStatus string
 // CredentialOfferStatusReceived indicates that the wallet has received the credential.
 const CredentialOfferStatusReceived CredentialOfferStatus = "credential_received"
 
-// CredentialIssuerMetadata defines the OIDC4VCI Credential Issuer Metadata.
+// CredentialIssuerMetadata defines the OpenID4VCI Credential Issuer Metadata.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata
 type CredentialIssuerMetadata struct {
 	// CredentialIssuer defines the identifier of the credential issuer.
@@ -70,7 +70,7 @@ type CredentialIssuerMetadata struct {
 	CredentialsSupported []map[string]interface{} `json:"credentials_supported"`
 }
 
-// OAuth2ClientMetadata defines the OAuth2 Client Metadata, extended with OIDC4VCI parameters.
+// OAuth2ClientMetadata defines the OAuth2 Client Metadata, extended with OpenID4VCI parameters.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-client-metadata.
 type OAuth2ClientMetadata struct {
 	// CredentialOfferEndpoint defines URL of the verifiable credential wallet's offer endpoint
@@ -122,7 +122,7 @@ type CredentialDefinition struct {
 }
 
 // CredentialOfferResponse defines the response for credential offer requests.
-// It is an extension to the OIDC4VCI specification to better support server-to-server issuance.
+// It is an extension to the OpenID4VCI specification to better support server-to-server issuance.
 type CredentialOfferResponse struct {
 	// Status defines the status of the credential offer.
 	Status CredentialOfferStatus `json:"status"`
@@ -151,7 +151,7 @@ type CredentialResponse struct {
 	CNonce     *string                 `json:"c_nonce,omitempty"`
 }
 
-// TokenResponse defines the response for OAuth2 access token requests, extended with OIDC4VCI parameters.
+// TokenResponse defines the response for OAuth2 access token requests, extended with OpenID4VCI parameters.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-successful-token-response
 type TokenResponse struct {
 	// AccessToken defines the access token issued by the authorization server.
@@ -170,11 +170,11 @@ type TokenResponse struct {
 	TokenType string `json:"token_type"`
 }
 
-// Config holds the config for the OIDC4VCI credential issuer and wallet
+// Config holds the config for the OpenID4VCI credential issuer and wallet
 type Config struct {
 	// DefinitionsDIR defines the directory where the additional credential definitions are stored
 	DefinitionsDIR string `koanf:"definitionsdir"`
-	// Enabled indicates if issuing and receiving credentials over OIDC4VCI is enabled
+	// Enabled indicates if issuing and receiving credentials over OpenID4VCI is enabled
 	Enabled bool `koanf:"enabled"`
 	// Timeout defines the timeout for HTTP client operations
 	Timeout time.Duration `koanf:"timeout"`

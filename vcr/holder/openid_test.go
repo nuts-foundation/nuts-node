@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -42,22 +42,22 @@ var holderDID = did.MustParseDID("did:nuts:holder")
 var issuerDID = did.MustParseDID("did:nuts:issuer")
 
 func TestNewOIDCWallet(t *testing.T) {
-	w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
+	w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
 	assert.NotNil(t, w)
 }
 
 func Test_wallet_Metadata(t *testing.T) {
-	w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
+	w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
 
 	metadata := w.Metadata()
 
-	assert.Equal(t, oidc4vci.OAuth2ClientMetadata{
-		CredentialOfferEndpoint: "https://holder.example.com/wallet/oidc4vci/credential_offer",
+	assert.Equal(t, openid4vci.OAuth2ClientMetadata{
+		CredentialOfferEndpoint: "https://holder.example.com/wallet/openid4vci/credential_offer",
 	}, metadata)
 }
 
 func Test_wallet_HandleCredentialOffer(t *testing.T) {
-	credentialOffer := oidc4vci.CredentialOffer{
+	credentialOffer := openid4vci.CredentialOffer{
 		CredentialIssuer: issuerDID.String(),
 		Credentials:      offeredCredential(),
 		Grants: map[string]interface{}{
@@ -67,18 +67,18 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			},
 		},
 	}
-	metadata := oidc4vci.CredentialIssuerMetadata{
+	metadata := openid4vci.CredentialIssuerMetadata{
 		CredentialIssuer:   issuerDID.String(),
 		CredentialEndpoint: "credential-endpoint",
 	}
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		nonce := "nonsens"
-		issuerAPIClient := oidc4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
 		issuerAPIClient.EXPECT().Metadata().Return(metadata)
 		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
 			"pre-authorized_code": "code",
-		}).Return(&oidc4vci.TokenResponse{
+		}).Return(&openid4vci.TokenResponse{
 			AccessToken: "access-token",
 			CNonce:      nonce,
 			ExpiresIn:   0,
@@ -104,8 +104,8 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
 
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", credentialStore, jwtSigner, keyResolver).(*openidHandler)
-		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error) {
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", credentialStore, jwtSigner, keyResolver).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error) {
 			return issuerAPIClient, nil
 		}
 
@@ -116,14 +116,14 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("pre-authorized code grant", func(t *testing.T) {
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil).(*openidHandler)
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil).(*openidHandler)
 		t.Run("no grants", func(t *testing.T) {
-			offer := oidc4vci.CredentialOffer{Credentials: offeredCredential()}
+			offer := openid4vci.CredentialOffer{Credentials: offeredCredential()}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)
 			require.EqualError(t, err, "invalid_grant - couldn't find (valid) pre-authorized code grant in credential offer")
 		})
 		t.Run("no pre-authorized grant", func(t *testing.T) {
-			offer := oidc4vci.CredentialOffer{
+			offer := openid4vci.CredentialOffer{
 				Credentials: offeredCredential(),
 				Grants: map[string]interface{}{
 					"some-other-grant": nil,
@@ -133,7 +133,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			require.EqualError(t, err, "invalid_grant - couldn't find (valid) pre-authorized code grant in credential offer")
 		})
 		t.Run("invalid pre-authorized grant", func(t *testing.T) {
-			offer := oidc4vci.CredentialOffer{
+			offer := openid4vci.CredentialOffer{
 				Credentials: offeredCredential(),
 				Grants: map[string]interface{}{
 					"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
@@ -146,26 +146,26 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		})
 	})
 	t.Run("error - too many credentials in offer", func(t *testing.T) {
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
 
-		offer := oidc4vci.CredentialOffer{
-			Credentials: []oidc4vci.OfferedCredential{
+		offer := openid4vci.CredentialOffer{
+			Credentials: []openid4vci.OfferedCredential{
 				offeredCredential()[0],
 				offeredCredential()[0],
 			},
 		}
-		err := w.HandleCredentialOffer(audit.TestContext(), offer).(oidc4vci.Error)
+		err := w.HandleCredentialOffer(audit.TestContext(), offer).(openid4vci.Error)
 
 		assert.EqualError(t, err, "invalid_request - there must be exactly 1 credential in credential offer")
 		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
 	})
 	t.Run("error - access token request fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		issuerAPIClient := oidc4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
 		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(nil, errors.New("request failed"))
 
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil).(*openidHandler)
-		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error) {
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error) {
 			return issuerAPIClient, nil
 		}
 
@@ -175,11 +175,11 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	})
 	t.Run("error - empty access token", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		issuerAPIClient := oidc4vci.NewMockIssuerAPIClient(ctrl)
-		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oidc4vci.TokenResponse{}, nil)
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&openid4vci.TokenResponse{}, nil)
 
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil).(*openidHandler)
-		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error) {
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error) {
 			return issuerAPIClient, nil
 		}
 
@@ -189,11 +189,11 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	})
 	t.Run("error - empty c_nonce", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		issuerAPIClient := oidc4vci.NewMockIssuerAPIClient(ctrl)
-		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oidc4vci.TokenResponse{AccessToken: "foo"}, nil)
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&openid4vci.TokenResponse{AccessToken: "foo"}, nil)
 
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil).(*openidHandler)
-		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error) {
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error) {
 			return issuerAPIClient, nil
 		}
 
@@ -202,17 +202,17 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		require.EqualError(t, err, "invalid_token - c_nonce is missing")
 	})
 	t.Run("error - no credentials in offer", func(t *testing.T) {
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
 
-		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{}).(oidc4vci.Error)
+		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{}).(openid4vci.Error)
 
 		assert.EqualError(t, err, "invalid_request - there must be exactly 1 credential in credential offer")
 		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
 	})
 	t.Run("error - can't issuer client (metadata can't be loaded)", func(t *testing.T) {
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
 
-		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{
+		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
 			CredentialIssuer: "http://localhost:87632",
 			Credentials:      offeredCredential(),
 			Grants: map[string]interface{}{
@@ -228,9 +228,9 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	t.Run("error - credential does not match offer", func(t *testing.T) {
 		offer := offeredCredential()[0]
 		ctrl := gomock.NewController(t)
-		issuerAPIClient := oidc4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
 		issuerAPIClient.EXPECT().Metadata().Return(metadata)
-		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oidc4vci.TokenResponse{AccessToken: "access-token", CNonce: "c_nonce"}, nil)
+		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&openid4vci.TokenResponse{AccessToken: "access-token", CNonce: "c_nonce"}, nil)
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), gomock.Any()).Return(&vc.VerifiableCredential{
 			Context: offer.CredentialDefinition.Context,
 			Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential")},
@@ -240,8 +240,8 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolveSigningKeyID(holderDID, nil)
 
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, jwtSigner, keyResolver).(*openidHandler)
-		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (oidc4vci.IssuerAPIClient, error) {
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, jwtSigner, keyResolver).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.IssuerAPIClient, error) {
 			return issuerAPIClient, nil
 		}
 
@@ -250,21 +250,21 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		require.EqualError(t, err, "invalid_request - received credential does not match offer: credential does not match credential_definition: type mismatch")
 	})
 	t.Run("error - unsupported format", func(t *testing.T) {
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
 
-		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{
-			Credentials: []oidc4vci.OfferedCredential{{Format: "not supported"}},
-		}).(oidc4vci.Error)
+		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
+			Credentials: []openid4vci.OfferedCredential{{Format: "not supported"}},
+		}).(openid4vci.Error)
 
 		assert.EqualError(t, err, "unsupported_credential_type - credential offer: unsupported format 'not supported'")
 		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
 	})
 	t.Run("error - credentialSubject not allowed in offer", func(t *testing.T) {
-		w := NewOpenIDHandler(oidc4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
+		w := NewOpenIDHandler(openid4vci.ClientConfig{}, holderDID, "https://holder.example.com", nil, nil, nil)
 		credentials := offeredCredential()
 		credentials[0].CredentialDefinition.CredentialSubject = new(map[string]interface{})
 
-		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{Credentials: credentials}).(oidc4vci.Error)
+		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{Credentials: credentials}).(openid4vci.Error)
 
 		assert.EqualError(t, err, "invalid_request - credential offer: invalid credential_definition: credentialSubject not allowed in offer")
 		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
@@ -272,10 +272,10 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 }
 
 // offeredCredential returns a structure that can be used as CredentialOffer.Credentials,
-func offeredCredential() []oidc4vci.OfferedCredential {
-	return []oidc4vci.OfferedCredential{{
-		Format: oidc4vci.VerifiableCredentialJSONLDFormat,
-		CredentialDefinition: &oidc4vci.CredentialDefinition{
+func offeredCredential() []openid4vci.OfferedCredential {
+	return []openid4vci.OfferedCredential{{
+		Format: openid4vci.VerifiableCredentialJSONLDFormat,
+		CredentialDefinition: &openid4vci.CredentialDefinition{
 			Context: []ssi.URI{
 				ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
 				ssi.MustParseURI("http://example.org/credentials/V1"),
