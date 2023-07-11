@@ -118,8 +118,6 @@ func (h defaultIssuerAPIClient) Metadata() CredentialIssuerMetadata {
 }
 
 func loadCredentialIssuerMetadata(ctx context.Context, identifier string, httpClient core.HTTPRequestDoer) (*CredentialIssuerMetadata, error) {
-	// TODO: Support HTTPS (which truststore?)
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
 	// TODO: what about caching?
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2034
 	result := CredentialIssuerMetadata{}
@@ -137,8 +135,6 @@ func loadCredentialIssuerMetadata(ctx context.Context, identifier string, httpCl
 }
 
 func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient core.HTTPRequestDoer) (*ProviderMetadata, error) {
-	// TODO: Support HTTPS (which truststore?)
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
 	// TODO: what about caching?
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2034
 	result := ProviderMetadata{}
