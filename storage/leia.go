@@ -27,8 +27,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage/log"
 )
 
+// KVBackedLeiaStore is a wrapper interface for a leia.Store that uses a stoabs.KVStore as backup for any documents added.
 type KVBackedLeiaStore interface {
 	leia.Store
+	// AddConfiguration adds a configuration for a collection to the store.
+	// This is needed to know the kind of collection, the backup shelf name and the iterate query to fetch the documents.
 	AddConfiguration(config LeiaBackupConfiguration)
 	// HandleRestore migrates the data from the backup store to the leia.Store if needed.
 	// It's up to the caller to create the indices on the leia.Collections first before calling this method.
@@ -58,6 +61,7 @@ const (
 	JSONCollectionType   CollectionType = iota
 )
 
+// LeiaBackupConfiguration contains the configuration for a collection that is backed by a stoabs.KVStore.
 type LeiaBackupConfiguration struct {
 	// CollectionName is the name of the collection in the leia.Store.
 	CollectionName string
