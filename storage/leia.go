@@ -41,7 +41,7 @@ type kvBackedLeiaStore struct {
 	collectionConfigSet map[string]LeiaBackupConfiguration
 }
 
-// NewKVBackedLeiaStore creates a wrapper around a leia.Store that uses a stoabs.KVStore as backup for any documents added.
+// NewKVBackedLeiaStore creates a wrapper around a leia.Store that uses a stoabs.KVStore as backup. Write operations (add/delete/update) are first performed on the backup store, then on the leia store.
 // The backup store is not closed when Close is called. The leia.Store is closed when Close is called.
 func NewKVBackedLeiaStore(store leia.Store, backup stoabs.KVStore) (KVBackedLeiaStore, error) {
 	return &kvBackedLeiaStore{
