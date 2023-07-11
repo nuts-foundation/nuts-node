@@ -83,8 +83,6 @@ func (c *defaultWalletAPIClient) OfferCredential(ctx context.Context, offer Cred
 }
 
 func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string, httpClient core.HTTPRequestDoer) (*OAuth2ClientMetadata, error) {
-	// TODO: Support HTTPS (which truststore?)
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
 	// TODO: what about caching?
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2034
 	result := OAuth2ClientMetadata{}
