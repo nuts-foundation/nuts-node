@@ -22,7 +22,7 @@ package vcr
 import (
 	"testing"
 
-	"github.com/nuts-foundation/go-leia/v3"
+	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/stretchr/testify/assert"
 )
 

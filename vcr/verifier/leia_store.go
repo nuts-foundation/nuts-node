@@ -22,11 +22,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
@@ -44,7 +44,7 @@ func NewLeiaVerifierStore(dbPath string) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create leiaVerifierStore: %w", err)
 	}
-	revocations := store.JSONCollection("revocations")
+	revocations := store.Collection(leia.JSONCollection, "revocations")
 	newLeiaStore := &leiaVerifierStore{
 		revocations: revocations,
 		store:       store,

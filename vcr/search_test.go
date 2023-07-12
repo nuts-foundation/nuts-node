@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/go-leia/v3"
+	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
