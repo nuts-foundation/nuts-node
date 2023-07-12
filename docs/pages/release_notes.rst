@@ -18,7 +18,7 @@ Release date: to be released
 - Added certificate info to peer diagnostics.
 - Added last connection error and the date/time of the next connection attempt to the network's address book.
 - Network peer authentication failures are now logged on debug instead of warn, leading to less chatter.
-  To find out what error occurred, you should now look at the network's address book.
+  To find out what error occurred, you should now look at the network's address book. /internal/network/v1/addressbook
 - When creating new DID documents, the VDR now checks whether the specified controllers actually exist.
 - Helm chart got updated (@henk-hofs-pink).
 
