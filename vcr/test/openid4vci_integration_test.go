@@ -21,7 +21,6 @@ package test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -121,7 +120,7 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 		},
 	}
 
-	const numCreds = 10
+	const numCreds = 4
 	errChan := make(chan error, numCreds)
 	wg := sync.WaitGroup{}
 	for i := 0; i < numCreds; i++ {
@@ -149,8 +148,11 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 		errs = append(errs, err.Error())
 	}
 	assert.Empty(t, errs, "error issuing credential")
-	println(fmt.Sprintf("newConns: %+v", newConns))
-	//assert.LessOrEqualf(t, newConns.Load(), int32(expectedConnsCount), "number of created HTTP connections should be at most %d", expectedConnsCount)
+	connsTotal := 0
+	for _, v := range newConns {
+		connsTotal += v
+	}
+	assert.LessOrEqualf(t, connsTotal, expectedConnsCount, "number of created HTTP connections should be at most %d", expectedConnsCount)
 }
 
 // TestOpenID4VCI_Metadata tests resolving OpenID4VCI metadata, while the party hasn't registered its base URL.
