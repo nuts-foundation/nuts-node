@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	"reflect"
 	"time"
@@ -32,7 +33,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 
-	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 

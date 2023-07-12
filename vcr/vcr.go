@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"io/fs"
@@ -36,7 +37,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
@@ -267,7 +267,7 @@ func whitespaceOrExactTokenizer(text string) (tokens []string) {
 }
 
 func (c *vcr) credentialCollection() leia.Collection {
-	return c.store.JSONLDCollection("credentials")
+	return c.store.Collection(leia.JSONLDCollection, "credentials")
 }
 
 func (c *vcr) loadJSONLDConfig() ([]indexConfig, error) {

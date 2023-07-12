@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -31,7 +32,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
@@ -62,20 +62,20 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 	// set backup config
 	kvBackedStore.AddConfiguration(storage.LeiaBackupConfiguration{
 		CollectionName: "issuedCredentials",
-		CollectionType: storage.JSONCollectionType,
+		CollectionType: leia.JSONCollection,
 		BackupShelf:    issuedBackupShelf,
 		SearchQuery:    leia.NewJSONPath("id"),
 	})
 	kvBackedStore.AddConfiguration(storage.LeiaBackupConfiguration{
 		CollectionName: "revokedCredentials",
-		CollectionType: storage.JSONCollectionType,
+		CollectionType: leia.JSONCollection,
 		BackupShelf:    revocationBackupShelf,
 		SearchQuery:    leia.NewJSONPath(credential.RevocationSubjectPath),
 	})
 
 	// collections
-	issuedCollection := kvBackedStore.JSONCollection("issuedCredentials")
-	revokedCollection := kvBackedStore.JSONCollection("revokedCredentials")
+	issuedCollection := kvBackedStore.Collection(leia.JSONCollection, "issuedCredentials")
+	revokedCollection := kvBackedStore.Collection(leia.JSONCollection, "revokedCredentials")
 
 	newLeiaStore := &leiaIssuerStore{
 		issuedCredentials:  issuedCollection,

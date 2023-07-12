@@ -32,7 +32,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-leia/v3"
+	"github.com/nuts-foundation/go-leia/v4"
 )
 
 const (

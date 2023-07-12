@@ -21,7 +21,8 @@ package storage
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/go-leia/v3"
+	"fmt"
+	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
@@ -54,18 +55,11 @@ func NewKVBackedLeiaStore(store leia.Store, backup stoabs.KVStore) (KVBackedLeia
 	}, nil
 }
 
-type CollectionType int
-
-const (
-	JSONLDCollectionType CollectionType = iota
-	JSONCollectionType   CollectionType = iota
-)
-
 // LeiaBackupConfiguration contains the configuration for a collection that is backed by a stoabs.KVStore.
 type LeiaBackupConfiguration struct {
 	// CollectionName is the name of the collection in the leia.Store.
 	CollectionName string
-	CollectionType CollectionType
+	CollectionType leia.CollectionType
 	// BackupShelf is the name of the shelf in the backup store.
 	BackupShelf string
 	// SearchQuery is used to fill the backup shelf if not present.
@@ -73,10 +67,9 @@ type LeiaBackupConfiguration struct {
 }
 
 type kvBackedCollection struct {
-	backup         stoabs.KVStore
-	config         LeiaBackupConfiguration
-	collectionType CollectionType
-	underlying     leia.Collection
+	backup     stoabs.KVStore
+	config     LeiaBackupConfiguration
+	underlying leia.Collection
 }
 
 func (k *kvBackedLeiaStore) AddConfiguration(config LeiaBackupConfiguration) {
@@ -88,7 +81,7 @@ func (k *kvBackedLeiaStore) HandleRestore() error {
 	// Loop over this set to check if the backup store contains any documents for these collections and add them to the leia.Store if the named collection is empty there.
 	for _, config := range k.collectionConfigSet {
 		if err := k.handleRestore(config); err != nil {
-			return err
+			return fmt.Errorf("error handling restore for collection %s: %w", config.CollectionName, err)
 		}
 	}
 	return nil
@@ -96,15 +89,8 @@ func (k *kvBackedLeiaStore) HandleRestore() error {
 
 func (k *kvBackedLeiaStore) handleRestore(config LeiaBackupConfiguration) error {
 	backupPresent := k.backupStorePresent(config.BackupShelf)
-	var collection leia.Collection
-	switch config.CollectionType {
-	case JSONLDCollectionType:
-		collection = k.store.JSONLDCollection(config.CollectionName)
-	case JSONCollectionType:
-		collection = k.store.JSONCollection(config.CollectionName)
-	default:
-		return errors.New("unknown collection type")
-	}
+	collection := k.store.Collection(config.CollectionType, config.CollectionName)
+
 	storePresent := storePresent(collection, config)
 
 	if backupPresent && storePresent {
@@ -172,38 +158,20 @@ func (k *kvBackedLeiaStore) handleRestore(config LeiaBackupConfiguration) error 
 	return nil
 }
 
-func (k *kvBackedLeiaStore) JSONCollection(name string) leia.Collection {
+func (k *kvBackedLeiaStore) Collection(collectionType leia.CollectionType, name string) leia.Collection {
 	config, ok := k.collectionConfigSet[name]
 	if !ok {
 		// we panic here because this is a programming error, not a runtime error
 		panic("JSON collection not configured")
 	}
-	if config.CollectionType != JSONCollectionType {
+	if config.CollectionType != collectionType {
 		// we panic here because this is a programming error, not a runtime error
 		panic("Incorrect collection configuration")
 	}
 	underlying := kvBackedCollection{
 		backup:     k.backup,
 		config:     config,
-		underlying: k.store.JSONCollection(name),
-	}
-	return underlying
-}
-
-func (k *kvBackedLeiaStore) JSONLDCollection(name string) leia.Collection {
-	config, ok := k.collectionConfigSet[name]
-	if !ok {
-		// we panic here because this is a programming error, not a runtime error
-		panic("JSON collection not configured")
-	}
-	if config.CollectionType != JSONLDCollectionType {
-		// we panic here because this is a programming error, not a runtime error
-		panic("Incorrect collection configuration")
-	}
-	underlying := kvBackedCollection{
-		backup:     k.backup,
-		config:     config,
-		underlying: k.store.JSONLDCollection(name),
+		underlying: k.store.Collection(collectionType, name),
 	}
 	return underlying
 }

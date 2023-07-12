@@ -20,7 +20,7 @@
 package vcr
 
 import (
-	"github.com/nuts-foundation/go-leia/v3"
+	"github.com/nuts-foundation/go-leia/v4"
 	gophonetics "gopkg.in/Regis24GmbH/go-phonetics.v2"
 )
 
