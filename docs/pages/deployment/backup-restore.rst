@@ -75,7 +75,6 @@ To restore a backup, follow the following steps:
 
     POST <node-address>/internal/network/v1/reprocess?type=application/vc+json
     POST <node-address>/internal/network/v1/reprocess?type=application/ld+json;type=revocation
-    POST <node-address>/internal/network/v1/reprocess?type=application/did+json
 
 .. note::
 
