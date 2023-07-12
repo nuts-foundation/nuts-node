@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strings"
 )
@@ -78,6 +79,7 @@ func newIssuerClientFromMD(httpClient core.HTTPRequestDoer, oidcProvider Provide
 }
 
 var _ IssuerAPIClient = (*defaultIssuerAPIClient)(nil)
+var HttpClientTrace *httptrace.ClientTrace = nil
 
 type defaultIssuerAPIClient struct {
 	httpOAuth2Client
@@ -152,11 +154,15 @@ func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient
 }
 
 func httpGet(ctx context.Context, httpClient core.HTTPRequestDoer, targetURL string, result interface{}) error {
+
 	httpRequest, _ := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
 	return httpDo(httpClient, httpRequest, result)
 }
 
 func httpDo(httpClient core.HTTPRequestDoer, httpRequest *http.Request, result interface{}) error {
+	if HttpClientTrace != nil {
+		httpRequest = httpRequest.WithContext(httptrace.WithClientTrace(httpRequest.Context(), HttpClientTrace))
+	}
 	httpResponse, err := httpClient.Do(httpRequest)
 	if err != nil {
 		return fmt.Errorf("http request error: %w", err)

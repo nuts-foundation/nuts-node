@@ -106,12 +106,12 @@ type OpenIDHandler interface {
 }
 
 // NewOpenIDHandler creates a new OpenIDHandler instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, config openid4vci.ClientConfig, keyResolver types.KeyResolver, store OpenIDStore) (OpenIDHandler, error) {
+func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, httpClient core.HTTPRequestDoer, keyResolver types.KeyResolver, store OpenIDStore) (OpenIDHandler, error) {
 	i := &openidHandler{
 		issuerIdentifierURL: issuerIdentifierURL,
 		issuerDID:           issuerDID,
 		definitionsDIR:      definitionsDIR,
-		config:              config,
+		httpClient:          httpClient,
 		keyResolver:         keyResolver,
 		walletClientCreator: openid4vci.NewWalletAPIClient,
 		store:               store,
@@ -126,10 +126,10 @@ type openidHandler struct {
 	issuerDID            did.DID
 	definitionsDIR       string
 	credentialsSupported []map[string]interface{}
-	config               openid4vci.ClientConfig
 	keyResolver          types.KeyResolver
 	store                OpenIDStore
 	walletClientCreator  func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (openid4vci.WalletAPIClient, error)
+	httpClient           core.HTTPRequestDoer
 }
 
 func (i *openidHandler) Metadata() openid4vci.CredentialIssuerMetadata {
@@ -204,13 +204,7 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 		WithField(core.LogFieldCredentialID, credential.ID).
 		Infof("Offering credential using OpenID4VCI (client-metadata-url=%s)", walletMetadataURL)
 
-	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
-	httpTransport.TLSClientConfig = i.config.TLS
-	httpClient := core.NewStrictHTTPClient(i.config.HTTPSOnly, &http.Client{
-		Timeout:   i.config.Timeout,
-		Transport: httpTransport,
-	})
-	client, err := i.walletClientCreator(ctx, httpClient, walletMetadataURL)
+	client, err := i.walletClientCreator(ctx, i.httpClient, walletMetadataURL)
 	if err != nil {
 		return err
 	}

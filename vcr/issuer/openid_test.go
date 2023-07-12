@@ -65,21 +65,21 @@ var issuedVC = vc.VerifiableCredential{
 
 func TestNew(t *testing.T) {
 	t.Run("custom definitions", func(t *testing.T) {
-		iss, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/valid", openid4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
+		iss, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/valid", nil, nil, NewOpenIDMemoryStore())
 
 		require.NoError(t, err)
 		assert.Len(t, iss.(*openidHandler).credentialsSupported, 3)
 	})
 
 	t.Run("error - invalid json", func(t *testing.T) {
-		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/invalid", openid4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
+		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/invalid", nil, nil, NewOpenIDMemoryStore())
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to parse credential definition from test/invalid/invalid.json: unexpected end of JSON input")
 	})
 
 	t.Run("error - invalid directory", func(t *testing.T) {
-		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/non_existing", openid4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
+		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/non_existing", nil, nil, NewOpenIDMemoryStore())
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to load credential definitions: lstat ./test/non_existing: no such file or directory")
@@ -397,12 +397,12 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("pre-authorized code issued by other issuer", func(t *testing.T) {
 		store := NewOpenIDMemoryStore()
-		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, openid4vci.ClientConfig{}, nil, store)
+		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, &http.Client{}, nil, store)
 		require.NoError(t, err)
 		_, err = service.(*openidHandler).createOffer(ctx, issuedVC, "code")
 		require.NoError(t, err)
 
-		otherService, err := NewOpenIDHandler(did.MustParseDID("did:nuts:other"), "http://example.com/other", definitionsDIR, openid4vci.ClientConfig{}, nil, store)
+		otherService, err := NewOpenIDHandler(did.MustParseDID("did:nuts:other"), "http://example.com/other", definitionsDIR, &http.Client{}, nil, store)
 		require.NoError(t, err)
 		accessToken, _, err := otherService.HandleAccessTokenRequest(audit.TestContext(), "code")
 
@@ -435,7 +435,7 @@ func assertProtocolError(t *testing.T, err error, statusCode int, message string
 }
 
 func requireNewTestHandler(t *testing.T, keyResolver types.KeyResolver) *openidHandler {
-	service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, openid4vci.ClientConfig{}, keyResolver, NewOpenIDMemoryStore())
+	service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, &http.Client{}, keyResolver, NewOpenIDMemoryStore())
 	require.NoError(t, err)
 	return service.(*openidHandler)
 }

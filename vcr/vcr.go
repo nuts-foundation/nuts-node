@@ -21,7 +21,6 @@ package vcr
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -102,9 +101,9 @@ type vcr struct {
 	storageClient       storage.Engine
 	openidIsssuerStore  issuer.OpenIDStore
 	localWalletResolver openid4vci.IdentifierResolver
+	httpClient          core.HTTPRequestDoer
 	documentOwner       vdr.DocumentOwner
 	pkiProvider         pki.Provider
-	clientTLSConfig     *tls.Config
 }
 
 func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error) {
@@ -112,12 +111,7 @@ func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHan
 	if err != nil {
 		return nil, err
 	}
-	clientConfig := openid4vci.ClientConfig{
-		Timeout:   c.config.OpenID4VCI.Timeout,
-		TLS:       c.clientTLSConfig,
-		HTTPSOnly: c.strictmode,
-	}
-	return issuer.NewOpenIDHandler(id, identifier, c.config.OpenID4VCI.DefinitionsDIR, clientConfig, c.keyResolver, c.openidIsssuerStore)
+	return issuer.NewOpenIDHandler(id, identifier, c.config.OpenID4VCI.DefinitionsDIR, c.httpClient, c.keyResolver, c.openidIsssuerStore)
 }
 
 func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHandler, error) {
@@ -125,12 +119,7 @@ func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHan
 	if err != nil {
 		return nil, err
 	}
-	clientConfig := openid4vci.ClientConfig{
-		Timeout:   c.config.OpenID4VCI.Timeout,
-		TLS:       c.clientTLSConfig,
-		HTTPSOnly: c.strictmode,
-	}
-	return holder.NewOpenIDHandler(clientConfig, id, identifier, c, c.keyStore, c.keyResolver), nil
+	return holder.NewOpenIDHandler(id, identifier, c.httpClient, c, c.keyStore, c.keyResolver), nil
 }
 
 func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (string, error) {
@@ -199,14 +188,20 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.didstore, c.keyStore)
 	if c.config.OpenID4VCI.Enabled {
-		c.clientTLSConfig, err = c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
+		tlsConfig, err := c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 		if err != nil {
 			return err
 		}
 		c.localWalletResolver = openid4vci.NewTLSIdentifierResolver(
 			openid4vci.DIDIdentifierResolver{ServiceResolver: c.serviceResolver},
-			c.clientTLSConfig,
+			tlsConfig,
 		)
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = tlsConfig
+		c.httpClient = core.NewStrictHTTPClient(config.Strictmode, &http.Client{
+			Timeout:   c.config.OpenID4VCI.Timeout,
+			Transport: transport,
+		})
 		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.GetOpenIDIssuer, c.didstore, c.keyStore, c.jsonldManager, c.trustConfig)

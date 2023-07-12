@@ -21,7 +21,6 @@
 package openid4vci
 
 import (
-	"crypto/tls"
 	ssi "github.com/nuts-foundation/go-did"
 	"time"
 )
@@ -178,11 +177,4 @@ type Config struct {
 	Enabled bool `koanf:"enabled"`
 	// Timeout defines the timeout for HTTP client operations
 	Timeout time.Duration `koanf:"timeout"`
-}
-
-// ClientConfig holds openid4vci client configuration
-type ClientConfig struct {
-	Timeout   time.Duration
-	TLS       *tls.Config
-	HTTPSOnly bool
 }

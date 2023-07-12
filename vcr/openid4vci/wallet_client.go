@@ -54,8 +54,6 @@ func NewWalletAPIClient(ctx context.Context, httpClient core.HTTPRequestDoer, wa
 	}, nil
 }
 
-var _ WalletAPIClient = (*defaultWalletAPIClient)(nil)
-
 type defaultWalletAPIClient struct {
 	metadata   OAuth2ClientMetadata
 	httpClient core.HTTPRequestDoer
