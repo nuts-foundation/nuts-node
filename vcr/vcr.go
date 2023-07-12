@@ -101,7 +101,8 @@ type vcr struct {
 	storageClient       storage.Engine
 	openidIsssuerStore  issuer.OpenIDStore
 	localWalletResolver openid4vci.IdentifierResolver
-	httpClient          core.HTTPRequestDoer
+	issuerHttpClient    core.HTTPRequestDoer
+	walletHttpClient    core.HTTPRequestDoer
 	documentOwner       vdr.DocumentOwner
 	pkiProvider         pki.Provider
 }
@@ -111,7 +112,7 @@ func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHan
 	if err != nil {
 		return nil, err
 	}
-	return issuer.NewOpenIDHandler(id, identifier, c.config.OpenID4VCI.DefinitionsDIR, c.httpClient, c.keyResolver, c.openidIsssuerStore)
+	return issuer.NewOpenIDHandler(id, identifier, c.config.OpenID4VCI.DefinitionsDIR, c.issuerHttpClient, c.keyResolver, c.openidIsssuerStore)
 }
 
 func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHandler, error) {
@@ -119,7 +120,7 @@ func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHan
 	if err != nil {
 		return nil, err
 	}
-	return holder.NewOpenIDHandler(id, identifier, c.httpClient, c, c.keyStore, c.keyResolver), nil
+	return holder.NewOpenIDHandler(id, identifier, c.walletHttpClient, c, c.keyStore, c.keyResolver), nil
 }
 
 func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (string, error) {
@@ -196,11 +197,23 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			openid4vci.DIDIdentifierResolver{ServiceResolver: c.serviceResolver},
 			tlsConfig,
 		)
-		transport := http.DefaultTransport.(*http.Transport).Clone()
-		transport.TLSClientConfig = tlsConfig
-		c.httpClient = core.NewStrictHTTPClient(config.Strictmode, &http.Client{
+		// Issuer and wallet don't share the same http.Client and underlying transport,
+		// since that leads to (temporary) deadlocks under high load, when the http.Transport pool is exhausted.
+		// This is because the credential is requested by the wallet synchronously during the offer handling,
+		// meaning while the issuer allocated an HTTP connection the wallet will try to allocate one as well.
+		// This moved back to 1 http.Client when the credential is requested asynchronously.
+		// Should be fixed as part of https://github.com/nuts-foundation/nuts-node/issues/2039
+		issuerTransport := http.DefaultTransport.(*http.Transport).Clone()
+		issuerTransport.TLSClientConfig = tlsConfig
+		c.issuerHttpClient = core.NewStrictHTTPClient(config.Strictmode, &http.Client{
 			Timeout:   c.config.OpenID4VCI.Timeout,
-			Transport: transport,
+			Transport: issuerTransport,
+		})
+		walletTransport := http.DefaultTransport.(*http.Transport).Clone()
+		walletTransport.TLSClientConfig = tlsConfig
+		c.walletHttpClient = core.NewStrictHTTPClient(config.Strictmode, &http.Client{
+			Timeout:   c.config.OpenID4VCI.Timeout,
+			Transport: walletTransport,
 		})
 		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
 	}

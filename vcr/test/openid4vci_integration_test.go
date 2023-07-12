@@ -84,10 +84,11 @@ func TestOpenID4VCIHappyFlow(t *testing.T) {
 func TestOpenID4VCIConnectionReuse(t *testing.T) {
 	// default http.Transport has MaxConnsPerHost=100,
 	// but we need to adjust it to something lower, so we can assert connection reuse
-	const maxConnsPerHost = 3
+	const maxConnsPerHost = 2
 	// 2 hosts; 1 to 127.0.0.1 (IPv4) and 1 to [::1] (IPv6),
-	// so we expect maxConnsPerHost*2 connections in total.
-	const expectedConnsCount = maxConnsPerHost * 2
+	// for 2 http.Transport instance (one for issuer, one for wallet),
+	// so we expect max maxConnsPerHost*2*2 connections in total.
+	const maxExpectedConnCount = maxConnsPerHost * 2 * 2
 	http.DefaultTransport.(*http.Transport).MaxConnsPerHost = maxConnsPerHost
 
 	ctx := audit.TestContext()
@@ -120,7 +121,7 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 		},
 	}
 
-	const numCreds = 4
+	const numCreds = 10
 	errChan := make(chan error, numCreds)
 	wg := sync.WaitGroup{}
 	for i := 0; i < numCreds; i++ {
@@ -152,7 +153,7 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 	for _, v := range newConns {
 		connsTotal += v
 	}
-	assert.LessOrEqualf(t, connsTotal, expectedConnsCount, "number of created HTTP connections should be at most %d", expectedConnsCount)
+	assert.LessOrEqualf(t, connsTotal, maxExpectedConnCount, "number of created HTTP connections should be at most %d", maxExpectedConnCount)
 }
 
 // TestOpenID4VCI_Metadata tests resolving OpenID4VCI metadata, while the party hasn't registered its base URL.
