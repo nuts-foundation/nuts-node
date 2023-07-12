@@ -62,7 +62,7 @@ func TestValidator_Start(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	val, err := newValidatorWithHTTPClient(DefaultConfig(), newClient())
+	val, err := newValidatorWithHTTPClient(TestConfig(t), newClient())
 	require.NoError(t, err)
 	require.NoError(t, val.AddTruststore(store.Certificates()))
 
@@ -197,7 +197,7 @@ func TestValidator_AddTruststore(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
-		val, err := newValidator(DefaultConfig())
+		val, err := newValidator(TestConfig(t))
 		require.NoError(t, err)
 
 		err = val.AddTruststore(store.Certificates())

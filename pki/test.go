@@ -24,6 +24,15 @@ import (
 	"time"
 )
 
+// TestConfig is the same as DefaultConfig without a denylist URL set.
+func TestConfig(t *testing.T) Config {
+	return Config{
+		Denylist:           DenylistConfig{},
+		MaxUpdateFailHours: 4,
+		Softfail:           true,
+	}
+}
+
 // SetNewDenylistWithCert sets a new Denylist on the Validator and adds the certificate.
 // This is useful in integrations tests etc.
 func SetNewDenylistWithCert(t *testing.T, val Validator, cert *x509.Certificate) {

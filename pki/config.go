@@ -22,7 +22,7 @@ package pki
 func DefaultConfig() Config {
 	return Config{
 		Denylist: DenylistConfig{
-			URL:           "https://cdn.jsdelivr.net/gh/nuts-foundation/denylist@main/denylist-out/denylist.jws",
+			URL:           "https://cdn.jsdelivr.net/gh/nuts-foundation/denylist@main/denylist/denylist.jws",
 			TrustedSigner: "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAmKjcSOrKOJR2cYd6UNbemNeusvjs930Y4nCIZ1R2zCI=\n-----END PUBLIC KEY-----",
 		},
 		MaxUpdateFailHours: 4,
