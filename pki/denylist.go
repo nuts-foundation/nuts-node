@@ -46,7 +46,7 @@ type denylistImpl struct {
 	trustedKey jwk.Key
 
 	// lastUpdated contains the time the certificate was last updated
-	lastUpdated time.Time
+	lastUpdated atomic.Pointer[time.Time]
 
 	// subscribers for denylist updates
 	subscribers []func()
@@ -68,13 +68,14 @@ type denylistEntry struct {
 
 // NewDenylist creates a denylist with the specified configuration
 func NewDenylist(config DenylistConfig) (Denylist, error) {
+	// initialize defaults
+	dl := &denylistImpl{url: config.URL}
+	dl.lastUpdated.Store(&time.Time{})
+
 	// "Disable" (operate in a NOP mode) the denylist when the URL is empty
-	if config.URL == "" {
+	if dl.url == "" {
 		// Return the new denylist and a nil error
-		return &denylistImpl{
-			trustedKey: nil,
-			url:        "",
-		}, nil
+		return dl, nil
 	}
 
 	// Convert any literal '\n' in the PEM to an actual newline character
@@ -87,10 +88,8 @@ func NewDenylist(config DenylistConfig) (Denylist, error) {
 	}
 
 	// Return the new denylist and a nil error
-	return &denylistImpl{
-		trustedKey: key,
-		url:        config.URL,
-	}, nil
+	dl.trustedKey = key
+	return dl, nil
 }
 
 // ValidateCert checks for the issuer and serialNumber in the denylist, returning nil when the cert is permitted
@@ -107,7 +106,7 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 	thumbprint := certKeyJWKThumbprint(cert)
 
 	// If the denylist has not yet been downloaded, do so now
-	if b.lastUpdated.IsZero() {
+	if b.lastUpdated.Load().IsZero() {
 		// Trigger an update of the denylist
 		if err := b.Update(); err != nil {
 			// If the denylist download failed then log a message about it
@@ -159,7 +158,7 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 }
 
 func (b *denylistImpl) LastUpdated() time.Time {
-	return b.lastUpdated
+	return *b.lastUpdated.Load()
 }
 
 func (b *denylistImpl) URL() string {
@@ -198,7 +197,8 @@ func (b *denylistImpl) Update() error {
 	b.entries.Store(&entries)
 
 	// Track when the denylist was last updated
-	b.lastUpdated = time.Now()
+	now := nowFunc()
+	b.lastUpdated.Store(&now)
 
 	// Log when the denylist is updated
 	logger().Debug("Denylist updated successfully")

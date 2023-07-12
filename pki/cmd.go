@@ -31,9 +31,7 @@ func FlagSet() *pflag.FlagSet {
 	// Flags for denylist features
 	flagSet.Int("pki.maxupdatefailhours", defs.MaxUpdateFailHours, "Maximum number of hours that a denylist update can fail")
 	flagSet.Bool("pki.softfail", defs.Softfail, "Do not reject certificates if their revocation status cannot be established when softfail is true")
-	// TODO: Choose a default trusted signer key
 	flagSet.String("pki.denylist.trustedsigner", defs.Denylist.TrustedSigner, "Ed25519 public key (in PEM format) of the trusted signer for denylists")
-	// TODO: Choose a default denylist URL
 	flagSet.String("pki.denylist.url", defs.Denylist.URL, "URL of PKI denylist (set to empty string to disable)")
 
 	// Changing these config values is not recommended, and they are expected to almost always be the same value, so

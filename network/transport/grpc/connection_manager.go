@@ -561,6 +561,11 @@ func (s *grpcConnectionManager) revalidatePeers() {
 	s.lastCertificateValidation.Store(&now)
 	s.connections.forEach(func(conn Connection) {
 		peerCert := conn.Peer().Certificate
+		if peerCert == nil {
+			// This can happen when the denylist is updated while the node is trying to set up an outbound connection.
+			// See https://github.com/nuts-foundation/nuts-node/issues/2333
+			return
+		}
 		if nowFunc().After(peerCert.NotAfter) {
 			log.Logger().WithError(errors.New("certificate expired while in use")).WithFields(conn.Peer().ToFields()).Info("Disconnected peer")
 			conn.disconnect()

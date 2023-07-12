@@ -30,6 +30,6 @@ func Test_DefaultConfig(t *testing.T) {
 	assert.Equal(t, 4, cfg.MaxUpdateFailHours)
 	assert.True(t, cfg.Softfail)
 	require.NotNil(t, cfg.Denylist)
-	assert.Empty(t, cfg.Denylist.TrustedSigner)
-	assert.Empty(t, cfg.Denylist.URL)
+	assert.NotEmpty(t, cfg.Denylist.TrustedSigner)
+	assert.NotEmpty(t, cfg.Denylist.URL)
 }
