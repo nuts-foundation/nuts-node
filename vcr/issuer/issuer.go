@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"time"
@@ -61,7 +61,7 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 		store:            store,
 		networkPublisher: networkPublisher,
 		openidHandlerFn:  openidHandlerFn,
-		walletResolver: oidc4vci.DIDIdentifierResolver{
+		walletResolver: openid4vci.DIDIdentifierResolver{
 			ServiceResolver: didservice.ServiceResolver{Store: didstore},
 		},
 		keyResolver:   resolver,
@@ -82,7 +82,7 @@ type issuer struct {
 	trustConfig      *trust.Config
 	jsonldManager    jsonld.JSONLD
 	vcrStore         types.Writer
-	walletResolver   oidc4vci.IdentifierResolver
+	walletResolver   openid4vci.IdentifierResolver
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -123,7 +123,7 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 	}
 
 	if publish {
-		// Try to issue over OIDC4VCI if it's enabled and if the credential is not public
+		// Try to issue over OpenID4VCI if it's enabled and if the credential is not public
 		// (public credentials are always published on the network).
 		if i.openidHandlerFn != nil && !public {
 			success, err := i.issueUsingOpenID4VCI(ctx, *createdVC)

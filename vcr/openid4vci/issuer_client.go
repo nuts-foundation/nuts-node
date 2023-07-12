@@ -16,7 +16,7 @@
  *
  */
 
-package oidc4vci
+package openid4vci
 
 import (
 	"bytes"
@@ -50,8 +50,8 @@ func NewIssuerAPIClient(ctx context.Context, httpClient core.HTTPRequestDoer, cr
 		return nil, errors.New("empty Credential Issuer Identifier")
 	}
 
-	// Load OIDC4VCI metadata and OIDC metadata
-	// TODO: Use the OIDC4VCI credential issuers metadata to load the OIDC metadata?
+	// Load OpenID4VCI metadata and OIDC metadata
+	// TODO: Use the OpenID4VCI credential issuers metadata to load the OIDC metadata?
 	metadata, err := loadCredentialIssuerMetadata(ctx, credentialIssuerIdentifier, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load Credential Issuer Metadata (identifier=%s): %w", credentialIssuerIdentifier, err)

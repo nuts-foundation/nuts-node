@@ -19,7 +19,7 @@ crypto:
   storage: fs
 vcr:
   overrideissueallpublic: false
-  oidc4vci:
+  openid4vci:
     enabled: true
 goldenhammer:
   interval: 1s

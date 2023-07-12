@@ -10,7 +10,7 @@ import (
 	reflect "reflect"
 	time "time"
 
-	go_did "github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	crypto0 "github.com/nuts-foundation/nuts-node/crypto"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -287,10 +287,10 @@ func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
 }
 
 // ResolveAssertionKeyID mocks base method.
-func (m *MockKeyResolver) ResolveAssertionKeyID(id did.DID) (go_did.URI, error) {
+func (m *MockKeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveAssertionKeyID", id)
-	ret0, _ := ret[0].(go_did.URI)
+	ret0, _ := ret[0].(ssi.URI)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -347,10 +347,10 @@ func (mr *MockKeyResolverMockRecorder) ResolveRelationKey(keyID, validAt, relati
 }
 
 // ResolveRelationKeyID mocks base method.
-func (m *MockKeyResolver) ResolveRelationKeyID(id did.DID, relationType RelationType) (go_did.URI, error) {
+func (m *MockKeyResolver) ResolveRelationKeyID(id did.DID, relationType RelationType) (ssi.URI, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveRelationKeyID", id, relationType)
-	ret0, _ := ret[0].(go_did.URI)
+	ret0, _ := ret[0].(ssi.URI)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -633,7 +633,7 @@ func (m *MockServiceResolver) EXPECT() *MockServiceResolverMockRecorder {
 }
 
 // Resolve mocks base method.
-func (m *MockServiceResolver) Resolve(query go_did.URI, maxDepth int) (did.Service, error) {
+func (m *MockServiceResolver) Resolve(query ssi.URI, maxDepth int) (did.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", query, maxDepth)
 	ret0, _ := ret[0].(did.Service)
@@ -648,7 +648,7 @@ func (mr *MockServiceResolverMockRecorder) Resolve(query, maxDepth interface{}) 
 }
 
 // ResolveEx mocks base method.
-func (m *MockServiceResolver) ResolveEx(endpoint go_did.URI, depth, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
+func (m *MockServiceResolver) ResolveEx(endpoint ssi.URI, depth, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveEx", endpoint, depth, maxDepth, documentCache)
 	ret0, _ := ret[0].(did.Service)

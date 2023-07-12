@@ -25,7 +25,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
@@ -57,7 +57,7 @@ func TestVCR_Configure(t *testing.T) {
 		pkiProvider := pki.NewMockProvider(ctrl)
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
 		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider, nil).(*vcr)
-		instance.config.OIDC4VCI.Enabled = true
+		instance.config.OpenID4VCI.Enabled = true
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
 
@@ -73,12 +73,12 @@ func TestVCR_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		pkiProvider := pki.NewMockProvider(ctrl)
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
-		localWalletResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+		localWalletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		localWalletResolver.EXPECT().Resolve(issuerDID).Return("https://example.com", nil).AnyTimes()
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
 		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider, documentOwner).(*vcr)
-		instance.config.OIDC4VCI.Enabled = true
+		instance.config.OpenID4VCI.Enabled = true
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
 		require.NoError(t, err)
@@ -279,7 +279,7 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(ctx, id).Return(true, nil)
-		identifierResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
 		instance := NewTestVCRInstance(t)
 		instance.documentOwner = documentOwner
@@ -294,7 +294,7 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(ctx, id).Return(false, nil)
-		identifierResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
 		instance := NewTestVCRInstance(t)
 		instance.documentOwner = documentOwner
@@ -308,7 +308,7 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 	t.Run("resolver error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		documentOwner := types.NewMockDocumentOwner(ctrl)
-		identifierResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return("", errors.New("failed"))
 		instance := NewTestVCRInstance(t)
 		instance.documentOwner = documentOwner
@@ -329,7 +329,7 @@ func Test_vcr_GetOIDCWallet(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	documentOwner := types.NewMockDocumentOwner(ctrl)
 	documentOwner.EXPECT().IsOwner(ctx, id).Return(true, nil)
-	identifierResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+	identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 	identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
 	instance := NewTestVCRInstance(t)
 	instance.documentOwner = documentOwner

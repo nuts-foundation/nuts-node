@@ -28,7 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/pki"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -103,7 +103,7 @@ func TestGoldenHammer_Fix(t *testing.T) {
 	serverURL, _ := url.Parse(tlsServer.URL)
 	expectedBaseURL, _ := url.Parse("https://localhost:" + serverURL.Port())
 	serverPort, _ := strconv.Atoi(serverURL.Port())
-	oidc4vci.SetTLSIdentifierResolverPort(t, serverPort)
+	openid4vci.SetTLSIdentifierResolverPort(t, serverPort)
 	defer tlsServer.Close()
 
 	t.Run("nothing to fix", func(t *testing.T) {

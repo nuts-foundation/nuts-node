@@ -28,7 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,21 +65,21 @@ var issuedVC = vc.VerifiableCredential{
 
 func TestNew(t *testing.T) {
 	t.Run("custom definitions", func(t *testing.T) {
-		iss, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/valid", oidc4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
+		iss, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/valid", openid4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
 
 		require.NoError(t, err)
 		assert.Len(t, iss.(*openidHandler).credentialsSupported, 3)
 	})
 
 	t.Run("error - invalid json", func(t *testing.T) {
-		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/invalid", oidc4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
+		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/invalid", openid4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to parse credential definition from test/invalid/invalid.json: unexpected end of JSON input")
 	})
 
 	t.Run("error - invalid directory", func(t *testing.T) {
-		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/non_existing", oidc4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
+		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/non_existing", openid4vci.ClientConfig{}, nil, NewOpenIDMemoryStore())
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to load credential definitions: lstat ./test/non_existing: no such file or directory")
@@ -93,7 +93,7 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 		metadata := issuer.Metadata()
 
 		assert.Equal(t, "https://example.com/did:nuts:issuer", metadata.CredentialIssuer)
-		assert.Equal(t, "https://example.com/did:nuts:issuer/issuer/oidc4vci/credential", metadata.CredentialEndpoint)
+		assert.Equal(t, "https://example.com/did:nuts:issuer/issuer/openid4vci/credential", metadata.CredentialEndpoint)
 		require.Len(t, metadata.CredentialsSupported, 3)
 		assert.Equal(t, "ldp_vc", metadata.CredentialsSupported[0]["format"])
 		require.Len(t, metadata.CredentialsSupported[0]["cryptographic_binding_methods_supported"], 1)
@@ -108,7 +108,7 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
 	metadata := requireNewTestHandler(t, nil).ProviderMetadata()
 
-	assert.Equal(t, oidc4vci.ProviderMetadata{
+	assert.Equal(t, openid4vci.ProviderMetadata{
 		Issuer:        "https://example.com/did:nuts:issuer",
 		TokenEndpoint: "https://example.com/did:nuts:issuer/oidc/token",
 		PreAuthorizedGrantAnonymousAccessSupported: true,
@@ -127,7 +127,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 	createHeaders := func() map[string]interface{} {
 		return map[string]interface{}{
-			"typ": oidc4vci.JWTTypeOpenID4VCIProof,
+			"typ": openid4vci.JWTTypeOpenID4VCIProof,
 			"kid": keyID,
 		}
 	}
@@ -138,12 +138,12 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			"nonce": nonce,
 		}
 	}
-	createRequest := func(headers, claims map[string]interface{}) oidc4vci.CredentialRequest {
+	createRequest := func(headers, claims map[string]interface{}) openid4vci.CredentialRequest {
 		proof, err := keyStore.SignJWT(ctx, claims, headers, headers["kid"])
 		require.NoError(t, err)
-		return oidc4vci.CredentialRequest{
-			Format: oidc4vci.VerifiableCredentialJSONLDFormat,
-			CredentialDefinition: &oidc4vci.CredentialDefinition{
+		return openid4vci.CredentialRequest{
+			Format: openid4vci.VerifiableCredentialJSONLDFormat,
+			CredentialDefinition: &openid4vci.CredentialDefinition{
 				Context: []ssi.URI{
 					ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
 					ssi.MustParseURI("http://example.org/credentials/V1"),
@@ -153,9 +153,9 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 					ssi.MustParseURI("HumanCredential"),
 				},
 			},
-			Proof: &oidc4vci.CredentialRequestProof{
+			Proof: &openid4vci.CredentialRequestProof{
 				Jwt:       proof,
-				ProofType: oidc4vci.ProofTypeJWT,
+				ProofType: openid4vci.ProofTypeJWT,
 			},
 		}
 	}
@@ -176,7 +176,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, response)
 		assert.Equal(t, issuerDID.URI(), response.Issuer)
-		auditLogs.AssertContains(t, "VCR", "VerifiableCredentialRetrievedEvent", audit.TestActor, "VC retrieved by wallet over OIDC4VCI")
+		auditLogs.AssertContains(t, "VCR", "VerifiableCredentialRetrievedEvent", audit.TestActor, "VC retrieved by wallet over OpenID4VCI")
 	})
 	t.Run("unsupported format", func(t *testing.T) {
 		request := createRequest(createHeaders(), createClaims(cNonce))
@@ -222,10 +222,10 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				_, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-				require.ErrorAs(t, err, new(oidc4vci.Error))
-				cNonce := err.(oidc4vci.Error).CNonce
+				require.ErrorAs(t, err, new(openid4vci.Error))
+				cNonce := err.(openid4vci.Error).CNonce
 				assert.NotNil(t, cNonce)
-				assert.NotNil(t, err.(oidc4vci.Error).CNonceExpiresIn)
+				assert.NotNil(t, err.(openid4vci.Error).CNonceExpiresIn)
 
 				flow, err := service.store.FindByReference(ctx, cNonceRefType, *cNonce)
 				require.NoError(t, err)
@@ -356,10 +356,10 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 func Test_memoryIssuer_OfferCredential(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
+		wallet := openid4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(nil)
 		service := requireNewTestHandler(t, nil)
-		service.walletClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (oidc4vci.WalletAPIClient, error) {
+		service.walletClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
 
@@ -369,11 +369,11 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 	})
 	t.Run("client offer error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
-		wallet.EXPECT().Metadata().Return(oidc4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "here-please"})
+		wallet := openid4vci.NewMockWalletAPIClient(ctrl)
+		wallet.EXPECT().Metadata().Return(openid4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "here-please"})
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(errors.New("failed"))
 		service := requireNewTestHandler(t, nil)
-		service.walletClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (oidc4vci.WalletAPIClient, error) {
+		service.walletClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
 
@@ -397,16 +397,16 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("pre-authorized code issued by other issuer", func(t *testing.T) {
 		store := NewOpenIDMemoryStore()
-		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, oidc4vci.ClientConfig{}, nil, store)
+		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, openid4vci.ClientConfig{}, nil, store)
 		require.NoError(t, err)
 		_, err = service.(*openidHandler).createOffer(ctx, issuedVC, "code")
 		require.NoError(t, err)
 
-		otherService, err := NewOpenIDHandler(did.MustParseDID("did:nuts:other"), "http://example.com/other", definitionsDIR, oidc4vci.ClientConfig{}, nil, store)
+		otherService, err := NewOpenIDHandler(did.MustParseDID("did:nuts:other"), "http://example.com/other", definitionsDIR, openid4vci.ClientConfig{}, nil, store)
 		require.NoError(t, err)
 		accessToken, _, err := otherService.HandleAccessTokenRequest(audit.TestContext(), "code")
 
-		var protocolError oidc4vci.Error
+		var protocolError openid4vci.Error
 		require.ErrorAs(t, err, &protocolError)
 		assert.EqualError(t, protocolError, "invalid_grant - pre-authorized code not issued by this issuer")
 		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
@@ -419,7 +419,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 
 		accessToken, _, err := service.HandleAccessTokenRequest(audit.TestContext(), "code")
 
-		var protocolError oidc4vci.Error
+		var protocolError openid4vci.Error
 		require.ErrorAs(t, err, &protocolError)
 		assert.EqualError(t, protocolError, "invalid_grant - unknown pre-authorized code")
 		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
@@ -428,14 +428,14 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 }
 
 func assertProtocolError(t *testing.T, err error, statusCode int, message string) {
-	var protocolError oidc4vci.Error
+	var protocolError openid4vci.Error
 	require.ErrorAs(t, err, &protocolError)
 	assert.EqualError(t, protocolError, message)
 	assert.Equal(t, statusCode, protocolError.StatusCode)
 }
 
 func requireNewTestHandler(t *testing.T, keyResolver types.KeyResolver) *openidHandler {
-	service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, oidc4vci.ClientConfig{}, keyResolver, NewOpenIDMemoryStore())
+	service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, openid4vci.ClientConfig{}, keyResolver, NewOpenIDMemoryStore())
 	require.NoError(t, err)
 	return service.(*openidHandler)
 }

@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -56,8 +56,8 @@ func Test_protocolErrorWriter_Write(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)
 		echoContext := server.NewContext(req, rec)
 
-		err := protocolErrorWriter{}.Write(echoContext, 0, "", oidc4vci.Error{
-			Code:       oidc4vci.InvalidToken,
+		err := protocolErrorWriter{}.Write(echoContext, 0, "", openid4vci.Error{
+			Code:       openid4vci.InvalidToken,
 			StatusCode: http.StatusBadRequest,
 		})
 
@@ -74,9 +74,9 @@ func Test_protocolErrorWriter_Write(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)
 		echoContext := server.NewContext(req, rec)
 
-		err := protocolErrorWriter{}.Write(echoContext, 0, "", fmt.Errorf("something went wrong: %w", oidc4vci.Error{
+		err := protocolErrorWriter{}.Write(echoContext, 0, "", fmt.Errorf("something went wrong: %w", openid4vci.Error{
 			Err:        errors.New("token has expired"),
-			Code:       oidc4vci.InvalidToken,
+			Code:       openid4vci.InvalidToken,
 			StatusCode: http.StatusBadRequest,
 		}))
 
@@ -93,8 +93,8 @@ func Test_protocolErrorWriter_Write(t *testing.T) {
 		req := httptest.NewRequest("GET", "/", nil)
 		echoContext := server.NewContext(req, rec)
 
-		err := protocolErrorWriter{}.Write(echoContext, 0, "", oidc4vci.Error{
-			Code: oidc4vci.InvalidToken,
+		err := protocolErrorWriter{}.Write(echoContext, 0, "", openid4vci.Error{
+			Code: openid4vci.InvalidToken,
 		})
 
 		require.NoError(t, err)

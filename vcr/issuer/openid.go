@@ -36,7 +36,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"io/fs"
@@ -93,27 +93,27 @@ const openidSecretSizeBits = 128
 // OpenIDHandler defines the interface for handling OpenID4VCI issuer operations.
 type OpenIDHandler interface {
 	// ProviderMetadata returns the OpenID Connect provider metadata.
-	ProviderMetadata() oidc4vci.ProviderMetadata
+	ProviderMetadata() openid4vci.ProviderMetadata
 	// HandleAccessTokenRequest handles an OAuth2 access token request for the given issuer and pre-authorized code.
 	// It returns the access token and a c_nonce.
 	HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, string, error)
 	// Metadata returns the OpenID4VCI credential issuer metadata for the given issuer.
-	Metadata() oidc4vci.CredentialIssuerMetadata
+	Metadata() openid4vci.CredentialIssuerMetadata
 	// OfferCredential sends a credential offer to the specified wallet. It derives the issuer from the credential.
 	OfferCredential(ctx context.Context, credential vc.VerifiableCredential, walletIdentifier string) error
 	// HandleCredentialRequest requests a credential from the given issuer.
-	HandleCredentialRequest(ctx context.Context, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
+	HandleCredentialRequest(ctx context.Context, request openid4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
 }
 
 // NewOpenIDHandler creates a new OpenIDHandler instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, config oidc4vci.ClientConfig, keyResolver types.KeyResolver, store OpenIDStore) (OpenIDHandler, error) {
+func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, config openid4vci.ClientConfig, keyResolver types.KeyResolver, store OpenIDStore) (OpenIDHandler, error) {
 	i := &openidHandler{
 		issuerIdentifierURL: issuerIdentifierURL,
 		issuerDID:           issuerDID,
 		definitionsDIR:      definitionsDIR,
 		config:              config,
 		keyResolver:         keyResolver,
-		walletClientCreator: oidc4vci.NewWalletAPIClient,
+		walletClientCreator: openid4vci.NewWalletAPIClient,
 		store:               store,
 	}
 
@@ -126,16 +126,16 @@ type openidHandler struct {
 	issuerDID            did.DID
 	definitionsDIR       string
 	credentialsSupported []map[string]interface{}
-	config               oidc4vci.ClientConfig
+	config               openid4vci.ClientConfig
 	keyResolver          types.KeyResolver
 	store                OpenIDStore
-	walletClientCreator  func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
+	walletClientCreator  func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (openid4vci.WalletAPIClient, error)
 }
 
-func (i *openidHandler) Metadata() oidc4vci.CredentialIssuerMetadata {
-	metadata := oidc4vci.CredentialIssuerMetadata{
+func (i *openidHandler) Metadata() openid4vci.CredentialIssuerMetadata {
+	metadata := openid4vci.CredentialIssuerMetadata{
 		CredentialIssuer:   i.issuerIdentifierURL,
-		CredentialEndpoint: core.JoinURLPaths(i.issuerIdentifierURL, "/issuer/oidc4vci/credential"),
+		CredentialEndpoint: core.JoinURLPaths(i.issuerIdentifierURL, "/issuer/openid4vci/credential"),
 	}
 
 	// deepcopy the i.credentialsSupported slice to prevent concurrent access to the slice.
@@ -144,8 +144,8 @@ func (i *openidHandler) Metadata() oidc4vci.CredentialIssuerMetadata {
 	return metadata
 }
 
-func (i *openidHandler) ProviderMetadata() oidc4vci.ProviderMetadata {
-	return oidc4vci.ProviderMetadata{
+func (i *openidHandler) ProviderMetadata() openid4vci.ProviderMetadata {
+	return openid4vci.ProviderMetadata{
 		Issuer:        i.issuerIdentifierURL,
 		TokenEndpoint: core.JoinURLPaths(i.issuerIdentifierURL, "oidc/token"),
 		// TODO: Anonymous access (no client_id) is OK as long as PKIoverheid Private is used,
@@ -161,16 +161,16 @@ func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthori
 		return "", "", err
 	}
 	if flow == nil {
-		return "", "", oidc4vci.Error{
+		return "", "", openid4vci.Error{
 			Err:        errors.New("unknown pre-authorized code"),
-			Code:       oidc4vci.InvalidGrant,
+			Code:       openid4vci.InvalidGrant,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	if flow.IssuerID != i.issuerDID.String() {
-		return "", "", oidc4vci.Error{
+		return "", "", openid4vci.Error{
 			Err:        errors.New("pre-authorized code not issued by this issuer"),
-			Code:       oidc4vci.InvalidGrant,
+			Code:       openid4vci.InvalidGrant,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -199,10 +199,10 @@ func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthori
 
 func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.VerifiableCredential, walletIdentifier string) error {
 	preAuthorizedCode := generateCode()
-	walletMetadataURL := core.JoinURLPaths(walletIdentifier, oidc4vci.WalletMetadataWellKnownPath)
+	walletMetadataURL := core.JoinURLPaths(walletIdentifier, openid4vci.WalletMetadataWellKnownPath)
 	log.Logger().
 		WithField(core.LogFieldCredentialID, credential.ID).
-		Infof("Offering credential using OIDC4VCI (client-metadata-url=%s)", walletMetadataURL)
+		Infof("Offering credential using OpenID4VCI (client-metadata-url=%s)", walletMetadataURL)
 
 	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
 	httpTransport.TLSClientConfig = i.config.TLS
@@ -227,18 +227,18 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 	return nil
 }
 
-func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oidc4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
-	if request.Format != oidc4vci.VerifiableCredentialJSONLDFormat {
-		return nil, oidc4vci.Error{
+func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request openid4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
+	if request.Format != openid4vci.VerifiableCredentialJSONLDFormat {
+		return nil, openid4vci.Error{
 			Err:        fmt.Errorf("credential request: unsupported format '%s'", request.Format),
-			Code:       oidc4vci.UnsupportedCredentialType,
+			Code:       openid4vci.UnsupportedCredentialType,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	if err := request.CredentialDefinition.Validate(false); err != nil {
-		return nil, oidc4vci.Error{
+		return nil, openid4vci.Error{
 			Err:        fmt.Errorf("credential request: %w", err),
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -247,10 +247,10 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 		return nil, err
 	}
 	if flow == nil {
-		log.Logger().Warn("Client tried retrieving credential over OIDC4VCI with unknown OAuth2 access token")
-		return nil, oidc4vci.Error{
+		log.Logger().Warn("Client tried retrieving credential over OpenID4VCI with unknown OAuth2 access token")
+		return nil, openid4vci.Error{
 			Err:        errors.New("unknown access token"),
-			Code:       oidc4vci.InvalidToken,
+			Code:       openid4vci.InvalidToken,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -260,9 +260,9 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 
 	// check credential.Issuer against given issuer
 	if credential.Issuer.String() != i.issuerDID.String() {
-		return nil, oidc4vci.Error{
+		return nil, openid4vci.Error{
 			Err:        errors.New("credential issuer does not match given issuer"),
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -271,10 +271,10 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 		return nil, err
 	}
 
-	if err = oidc4vci.ValidateDefinitionWithCredential(credential, *request.CredentialDefinition); err != nil {
-		return nil, oidc4vci.Error{
+	if err = openid4vci.ValidateDefinitionWithCredential(credential, *request.CredentialDefinition); err != nil {
+		return nil, openid4vci.Error{
 			Err:        fmt.Errorf("requested credential does not match offer: %w", err),
-			Code:       oidc4vci.InvalidRequest,
+			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -286,7 +286,7 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 		WithField(core.LogFieldCredentialID, credential.ID).
 		WithField(core.LogFieldCredentialIssuer, credential.Issuer.String()).
 		WithField(core.LogFieldCredentialSubject, subjectDID).
-		Info("VC retrieved by wallet over OIDC4VCI")
+		Info("VC retrieved by wallet over OpenID4VCI")
 
 	return &credential, nil
 }
@@ -294,12 +294,12 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request oid
 // validateProof validates the proof of the credential request. Aside from checks as specified by the spec,
 // it verifies the proof signature, and whether the signer is the intended wallet.
 // See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-proof-types
-func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request oidc4vci.CredentialRequest) error {
+func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request openid4vci.CredentialRequest) error {
 	credential := flow.Credentials[0] // there's always just one (at least for now)
 	wallet, _ := getSubjectDID(credential)
 
 	// augment invalid_proof errors according to §7.3.2 of openid4vci spec
-	generateProofError := func(err oidc4vci.Error) error {
+	generateProofError := func(err openid4vci.Error) error {
 		cnonce := generateCode()
 		if err := i.store.StoreReference(ctx, flow.ID, cNonceRefType, cnonce, time.Now().Add(TokenTTL)); err != nil {
 			return err
@@ -311,16 +311,16 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	}
 
 	if request.Proof == nil {
-		return generateProofError(oidc4vci.Error{
+		return generateProofError(openid4vci.Error{
 			Err:        errors.New("missing proof"),
-			Code:       oidc4vci.InvalidProof,
+			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})
 	}
-	if request.Proof.ProofType != oidc4vci.ProofTypeJWT {
-		return generateProofError(oidc4vci.Error{
+	if request.Proof.ProofType != openid4vci.ProofTypeJWT {
+		return generateProofError(openid4vci.Error{
 			Err:        errors.New("proof type not supported"),
-			Code:       oidc4vci.InvalidProof,
+			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})
 	}
@@ -330,18 +330,18 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 		return i.keyResolver.ResolveSigningKey(kid, nil)
 	}, jwt.WithAcceptableSkew(5*time.Second))
 	if err != nil {
-		return generateProofError(oidc4vci.Error{
+		return generateProofError(openid4vci.Error{
 			Err:        err,
-			Code:       oidc4vci.InvalidProof,
+			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})
 	}
 
 	// Proof must be signed by wallet to which it was offered (proof signer == offer receiver)
 	if signerDID, err := didservice.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
-		return generateProofError(oidc4vci.Error{
+		return generateProofError(openid4vci.Error{
 			Err:        fmt.Errorf("credential offer was signed by other DID than intended wallet: %s", signingKeyID),
-			Code:       oidc4vci.InvalidProof,
+			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})
 	}
@@ -355,9 +355,9 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 		}
 	}
 	if !audienceMatches {
-		return generateProofError(oidc4vci.Error{
+		return generateProofError(openid4vci.Error{
 			Err:        fmt.Errorf("audience doesn't match credential issuer (aud=%s)", token.Audience()),
-			Code:       oidc4vci.InvalidProof,
+			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})
 	}
@@ -375,16 +375,16 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	}
 	typ := message.Signatures()[0].ProtectedHeaders().Type()
 	if typ == "" {
-		return generateProofError(oidc4vci.Error{
+		return generateProofError(openid4vci.Error{
 			Err:        errors.New("missing typ header"),
-			Code:       oidc4vci.InvalidProof,
+			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})
 	}
-	if typ != oidc4vci.JWTTypeOpenID4VCIProof {
-		return generateProofError(oidc4vci.Error{
-			Err:        fmt.Errorf("invalid typ claim (expected: %s): %s", oidc4vci.JWTTypeOpenID4VCIProof, typ),
-			Code:       oidc4vci.InvalidProof,
+	if typ != openid4vci.JWTTypeOpenID4VCIProof {
+		return generateProofError(openid4vci.Error{
+			Err:        fmt.Errorf("invalid typ claim (expected: %s): %s", openid4vci.JWTTypeOpenID4VCIProof, typ),
+			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})
 	}
@@ -392,9 +392,9 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	// given the JWT typ, the nonce is in the 'nonce' claim
 	nonce, ok := token.Get("nonce")
 	if !ok {
-		return generateProofError(oidc4vci.Error{
+		return generateProofError(openid4vci.Error{
 			Err:        errors.New("missing nonce claim"),
-			Code:       oidc4vci.InvalidProof,
+			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})
 	}
@@ -405,16 +405,16 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 		return err
 	}
 	if flowFromNonce == nil {
-		return oidc4vci.Error{
+		return openid4vci.Error{
 			Err:        errors.New("unknown nonce"),
-			Code:       oidc4vci.InvalidProof,
+			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	if flowFromNonce.ID != flow.ID {
-		return oidc4vci.Error{
+		return openid4vci.Error{
 			Err:        errors.New("nonce not valid for access token"),
-			Code:       oidc4vci.InvalidProof,
+			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
@@ -422,21 +422,21 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	return nil
 }
 
-func (i *openidHandler) createOffer(ctx context.Context, credential vc.VerifiableCredential, preAuthorizedCode string) (*oidc4vci.CredentialOffer, error) {
+func (i *openidHandler) createOffer(ctx context.Context, credential vc.VerifiableCredential, preAuthorizedCode string) (*openid4vci.CredentialOffer, error) {
 	grantParams := map[string]interface{}{
 		"pre-authorized_code": preAuthorizedCode,
 	}
-	offer := oidc4vci.CredentialOffer{
+	offer := openid4vci.CredentialOffer{
 		CredentialIssuer: i.issuerIdentifierURL,
-		Credentials: []oidc4vci.OfferedCredential{{
-			Format: oidc4vci.VerifiableCredentialJSONLDFormat,
-			CredentialDefinition: &oidc4vci.CredentialDefinition{
+		Credentials: []openid4vci.OfferedCredential{{
+			Format: openid4vci.VerifiableCredentialJSONLDFormat,
+			CredentialDefinition: &openid4vci.CredentialDefinition{
 				Context: credential.Context,
 				Type:    credential.Type,
 			},
 		}},
 		Grants: map[string]interface{}{
-			oidc4vci.PreAuthorizedCodeGrant: grantParams,
+			openid4vci.PreAuthorizedCodeGrant: grantParams,
 		},
 	}
 	subjectDID, _ := getSubjectDID(credential) // succeeded in previous step, can't fail
@@ -449,7 +449,7 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 		Credentials: []vc.VerifiableCredential{credential},
 		Grants: []Grant{
 			{
-				Type:   oidc4vci.PreAuthorizedCodeGrant,
+				Type:   openid4vci.PreAuthorizedCodeGrant,
 				Params: grantParams,
 			},
 		},

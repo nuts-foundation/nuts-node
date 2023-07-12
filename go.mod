@@ -9,6 +9,7 @@ require (
 	github.com/chromedp/chromedp v0.9.1
 	github.com/deepmap/oapi-codegen v1.13.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang/mock v1.1.1
 	github.com/goodsign/monday v1.0.1
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/vault/api v1.9.2

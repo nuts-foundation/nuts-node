@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: OIDC4VCI Issuer API
+  title: OpenID4VCI Issuer API
   version: 0.0.0
   description: >
     This API is EXPERIMENTAL and implements a draft version of OpenID 4 Verifiable Credential Issuance.
@@ -77,10 +77,10 @@ paths:
     get:
       tags:
         - Issuer
-      summary: Get the OIDC4VCI Credential Issuer Metadata
+      summary: Get the OpenID4VCI Credential Issuer Metadata
       description: >
         Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata
-      operationId: getOIDC4VCIIssuerMetadata
+      operationId: getOpenID4VCIIssuerMetadata
       responses:
         "200":
           description: OK
@@ -101,7 +101,7 @@ paths:
       description: >
         Can be used to test the existence of the well-known endpoint, used by a Nuts node to discover its own
         OpenID4VCI identifier.
-      operationId: getOIDC4VCIIssuerMetadataHeaders
+      operationId: getOpenID4VCIIssuerMetadataHeaders
       responses:
         default:
           description: Response of the HEAD request, returning HTTP status and headers as if a GET request was performed.
@@ -160,7 +160,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/n2n/identity/{did}/issuer/oidc4vci/credential":
+  "/n2n/identity/{did}/issuer/openid4vci/credential":
     post:
       tags:
         - Issuer
@@ -220,7 +220,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/n2n/identity/{did}/wallet/oidc4vci/credential_offer":
+  "/n2n/identity/{did}/wallet/openid4vci/credential_offer":
     get:
       tags:
         - Wallet
@@ -296,7 +296,7 @@ components:
               }
 
     OAuth2ClientMetadata:
-      description: OAuth2 Client Metadata, extended with OIDC4VCI parameters
+      description: OAuth2 Client Metadata, extended with OpenID4VCI parameters
       type: object
       required:
         - credential_offer_endpoint
@@ -329,7 +329,7 @@ components:
     TokenResponse:
       type: object
       description: |
-        Token Responses are made as defined in [RFC6749] with additional fields as described in OIDC4VCI.
+        Token Responses are made as defined in [RFC6749] with additional fields as described in OpenID4VCI.
       required:
         - access_token
         - token_type
@@ -520,7 +520,7 @@ components:
       type: object
       description: |
         The response to a credential offer, indicating the status of the operation on the wallet's side.
-        It is an extension to the OIDC4VCI specification to better support server-to-server issuance.
+        It is an extension to the OpenID4VCI specification to better support server-to-server issuance.
       required:
         - status
       properties:

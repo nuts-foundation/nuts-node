@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	go_did "github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	core "github.com/nuts-foundation/nuts-node/core"
@@ -145,7 +145,7 @@ func (mr *MockIssuerMockRecorder) Issue(ctx, unsignedCredential, publish, public
 }
 
 // Revoke mocks base method.
-func (m *MockIssuer) Revoke(ctx context.Context, credentialID go_did.URI) (*credential.Revocation, error) {
+func (m *MockIssuer) Revoke(ctx context.Context, credentialID ssi.URI) (*credential.Revocation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Revoke", ctx, credentialID)
 	ret0, _ := ret[0].(*credential.Revocation)
@@ -160,7 +160,7 @@ func (mr *MockIssuerMockRecorder) Revoke(ctx, credentialID interface{}) *gomock.
 }
 
 // SearchCredential mocks base method.
-func (m *MockIssuer) SearchCredential(credentialType go_did.URI, issuer did.DID, subject *go_did.URI) ([]vc.VerifiableCredential, error) {
+func (m *MockIssuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchCredential", credentialType, issuer, subject)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)
@@ -226,7 +226,7 @@ func (mr *MockStoreMockRecorder) Diagnostics() *gomock.Call {
 }
 
 // GetCredential mocks base method.
-func (m *MockStore) GetCredential(id go_did.URI) (*vc.VerifiableCredential, error) {
+func (m *MockStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCredential", id)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
@@ -241,7 +241,7 @@ func (mr *MockStoreMockRecorder) GetCredential(id interface{}) *gomock.Call {
 }
 
 // GetRevocation mocks base method.
-func (m *MockStore) GetRevocation(id go_did.URI) (*credential.Revocation, error) {
+func (m *MockStore) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRevocation", id)
 	ret0, _ := ret[0].(*credential.Revocation)
@@ -256,7 +256,7 @@ func (mr *MockStoreMockRecorder) GetRevocation(id interface{}) *gomock.Call {
 }
 
 // SearchCredential mocks base method.
-func (m *MockStore) SearchCredential(credentialType go_did.URI, issuer did.DID, subject *go_did.URI) ([]vc.VerifiableCredential, error) {
+func (m *MockStore) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchCredential", credentialType, issuer, subject)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)
@@ -322,7 +322,7 @@ func (m *MockCredentialSearcher) EXPECT() *MockCredentialSearcherMockRecorder {
 }
 
 // SearchCredential mocks base method.
-func (m *MockCredentialSearcher) SearchCredential(credentialType go_did.URI, issuer did.DID, subject *go_did.URI) ([]vc.VerifiableCredential, error) {
+func (m *MockCredentialSearcher) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchCredential", credentialType, issuer, subject)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)

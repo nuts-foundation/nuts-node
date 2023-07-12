@@ -36,7 +36,7 @@ By default, the feature is disabled.
 
 To enable issuing and receiving credentials over OpenID4VCI:
 
-- set ``vcr.oidc4vci.enabled`` to ``true``
+- set ``vcr.openid4vci.enabled`` to ``true``
 - register service of type ``node-http-services-baseurl`` in your DID documents, pointing to the base URL of your node-to-node API, e.g. ``https://nutsnode.example.com/`` (excluding ``/n2n``).
   Note that this step will be automated in (near) future.
 

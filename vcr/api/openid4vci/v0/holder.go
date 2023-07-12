@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 )
 
 func (w Wrapper) getHolderHandler(ctx context.Context, holder string) (holder.OpenIDHandler, error) {
@@ -50,7 +50,7 @@ func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCreden
 		return nil, err
 	}
 
-	offer := oidc4vci.CredentialOffer{}
+	offer := openid4vci.CredentialOffer{}
 	if err := json.Unmarshal([]byte(request.Params.CredentialOffer), &offer); err != nil {
 		// Note: error responses on the Credential Offer Endpoint are not specified in the OpenID4VCI spec.
 		return nil, core.InvalidInputError("unable to unmarshal credential_offer: %w", err)
@@ -59,5 +59,5 @@ func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCreden
 	if err != nil {
 		return nil, err
 	}
-	return HandleCredentialOffer200JSONResponse{Status: oidc4vci.CredentialOfferStatusReceived}, nil
+	return HandleCredentialOffer200JSONResponse{Status: openid4vci.CredentialOfferStatusReceived}, nil
 }

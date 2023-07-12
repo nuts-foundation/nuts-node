@@ -24,7 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,11 +36,11 @@ import (
 var issuerDID = did.MustParseDID("did:nuts:issuer")
 var issuerIdentifier = "http://example.com/" + issuerDID.String()
 
-func TestWrapper_GetOIDC4VCIIssuerMetadata(t *testing.T) {
+func TestWrapper_GetOpenID4VCIIssuerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
-		oidcIssuer.EXPECT().Metadata().Return(oidc4vci.CredentialIssuerMetadata{
+		oidcIssuer.EXPECT().Metadata().Return(openid4vci.CredentialIssuerMetadata{
 			CredentialIssuer: issuerDID.String(),
 		})
 		documentOwner := types.NewMockDocumentOwner(ctrl)
@@ -49,10 +49,10 @@ func TestWrapper_GetOIDC4VCIIssuerMetadata(t *testing.T) {
 		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(oidcIssuer, nil)
 		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
-		response, err := api.GetOIDC4VCIIssuerMetadata(context.Background(), GetOIDC4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
+		response, err := api.GetOpenID4VCIIssuerMetadata(context.Background(), GetOpenID4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
 
 		require.NoError(t, err)
-		assert.Equal(t, issuerDID.String(), response.(GetOIDC4VCIIssuerMetadata200JSONResponse).CredentialIssuer)
+		assert.Equal(t, issuerDID.String(), response.(GetOpenID4VCIIssuerMetadata200JSONResponse).CredentialIssuer)
 	})
 	t.Run("unknown tenant", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -60,7 +60,7 @@ func TestWrapper_GetOIDC4VCIIssuerMetadata(t *testing.T) {
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 		api := Wrapper{DocumentOwner: documentOwner}
 
-		_, err := api.GetOIDC4VCIIssuerMetadata(context.Background(), GetOIDC4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
+		_, err := api.GetOpenID4VCIIssuerMetadata(context.Background(), GetOpenID4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
 
 		require.EqualError(t, err, "invalid_request - DID is not owned by this node")
 	})
@@ -70,7 +70,7 @@ func TestWrapper_GetOIDCProviderMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
-		oidcIssuer.EXPECT().ProviderMetadata().Return(oidc4vci.ProviderMetadata{
+		oidcIssuer.EXPECT().ProviderMetadata().Return(openid4vci.ProviderMetadata{
 			Issuer: issuerDID.String(),
 		})
 		documentOwner := types.NewMockDocumentOwner(ctrl)
@@ -146,7 +146,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			},
 		})
 
-		var protocolError oidc4vci.Error
+		var protocolError openid4vci.Error
 		require.ErrorAs(t, err, &protocolError)
 		assert.EqualError(t, protocolError, "unsupported_grant_type - unsupported grant type: unsupported")
 		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
@@ -173,7 +173,7 @@ func TestWrapper_RequestCredential(t *testing.T) {
 			},
 			Body: &RequestCredentialJSONRequestBody{
 				Format:               "ldp_vc",
-				CredentialDefinition: &oidc4vci.CredentialDefinition{},
+				CredentialDefinition: &openid4vci.CredentialDefinition{},
 				Proof:                nil,
 			},
 		})
@@ -210,7 +210,7 @@ func TestWrapper_RequestCredential(t *testing.T) {
 			Body: nil,
 		})
 
-		var protocolError oidc4vci.Error
+		var protocolError openid4vci.Error
 		require.ErrorAs(t, err, &protocolError)
 		assert.EqualError(t, protocolError, "invalid_token - missing authorization header")
 		assert.Equal(t, http.StatusUnauthorized, protocolError.StatusCode)
@@ -234,7 +234,7 @@ func TestWrapper_RequestCredential(t *testing.T) {
 			Body: nil,
 		})
 
-		var protocolError oidc4vci.Error
+		var protocolError openid4vci.Error
 		require.ErrorAs(t, err, &protocolError)
 		assert.EqualError(t, protocolError, "invalid_token - invalid authorization header")
 		assert.Equal(t, http.StatusUnauthorized, protocolError.StatusCode)

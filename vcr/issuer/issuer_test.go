@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/stretchr/testify/require"
 	"path"
 	"testing"
@@ -214,13 +214,13 @@ func Test_issuer_Issue(t *testing.T) {
 		assert.True(t, trustConfig.IsTrusted(credentialType, result.Issuer))
 	})
 
-	t.Run("OIDC4VCI", func(t *testing.T) {
+	t.Run("OpenID4VCI", func(t *testing.T) {
 		const walletIdentifier = "http://example.com/wallet"
-		t.Run("ok - publish over OIDC4VCI fails - fallback to network", func(t *testing.T) {
+		t.Run("ok - publish over OpenID4VCI fails - fallback to network", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
-			walletResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+			walletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 			walletResolver.EXPECT().Resolve(gomock.Any()).Return(walletIdentifier, nil)
 			openidHandler := NewMockOpenIDHandler(ctrl)
 			openidHandler.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier).Return(errors.New("failed"))
@@ -249,7 +249,7 @@ func Test_issuer_Issue(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotNil(t, result)
 		})
-		t.Run("ok - OIDC4VCI not enabled - fallback to network", func(t *testing.T) {
+		t.Run("ok - OpenID4VCI not enabled - fallback to network", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
@@ -271,9 +271,9 @@ func Test_issuer_Issue(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotNil(t, result)
 		})
-		t.Run("ok - OIDC4VCI not enabled for holder DID - fallback to network", func(t *testing.T) {
+		t.Run("ok - OpenID4VCI not enabled for holder DID - fallback to network", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			walletResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+			walletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 			walletResolver.EXPECT().Resolve(holderDID).AnyTimes().Return(walletIdentifier, nil)
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
@@ -296,9 +296,9 @@ func Test_issuer_Issue(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotNil(t, result)
 		})
-		t.Run("ok - publish over OIDC4VCI", func(t *testing.T) {
+		t.Run("ok - publish over OpenID4VCI", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			walletResolver := oidc4vci.NewMockIdentifierResolver(ctrl)
+			walletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 			walletResolver.EXPECT().Resolve(holderDID).AnyTimes().Return(walletIdentifier, nil)
 			openidIssuer := NewMockOpenIDHandler(ctrl)
 			openidIssuer.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier)

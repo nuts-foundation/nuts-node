@@ -7,7 +7,7 @@ package dag
 import (
 	reflect "reflect"
 
-	go_stoabs "github.com/nuts-foundation/go-stoabs"
+	stoabs "github.com/nuts-foundation/go-stoabs"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -119,7 +119,7 @@ func (mr *MockNotifierMockRecorder) Run() *gomock.Call {
 }
 
 // Save mocks base method.
-func (m *MockNotifier) Save(tx go_stoabs.WriteTx, event Event) error {
+func (m *MockNotifier) Save(tx stoabs.WriteTx, event Event) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Save", tx, event)
 	ret0, _ := ret[0].(error)

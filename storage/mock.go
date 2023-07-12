@@ -7,7 +7,7 @@ package storage
 import (
 	reflect "reflect"
 
-	go_stoabs "github.com/nuts-foundation/go-stoabs"
+	stoabs "github.com/nuts-foundation/go-stoabs"
 	core "github.com/nuts-foundation/nuts-node/core"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -115,10 +115,10 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 }
 
 // GetKVStore mocks base method.
-func (m *MockProvider) GetKVStore(name string, class Class) (go_stoabs.KVStore, error) {
+func (m *MockProvider) GetKVStore(name string, class Class) (stoabs.KVStore, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetKVStore", name, class)
-	ret0, _ := ret[0].(go_stoabs.KVStore)
+	ret0, _ := ret[0].(stoabs.KVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -165,10 +165,10 @@ func (mr *MockdatabaseMockRecorder) close() *gomock.Call {
 }
 
 // createStore mocks base method.
-func (m *Mockdatabase) createStore(moduleName, storeName string) (go_stoabs.KVStore, error) {
+func (m *Mockdatabase) createStore(moduleName, storeName string) (stoabs.KVStore, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "createStore", moduleName, storeName)
-	ret0, _ := ret[0].(go_stoabs.KVStore)
+	ret0, _ := ret[0].(stoabs.KVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
