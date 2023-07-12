@@ -21,7 +21,6 @@ package pki
 import (
 	"crypto/x509"
 	"testing"
-	"time"
 )
 
 // TestConfig is the same as DefaultConfig without a denylist URL set.
@@ -37,9 +36,10 @@ func TestConfig(t *testing.T) Config {
 // This is useful in integrations tests etc.
 func SetNewDenylistWithCert(t *testing.T, val Validator, cert *x509.Certificate) {
 	dl := &denylistImpl{
-		url:         "some-url",
-		lastUpdated: time.Now(),
+		url: "some-url",
 	}
+	now := nowFunc()
+	dl.lastUpdated.Store(&now)
 	dl.entries.Store(&[]denylistEntry{
 		{
 			Issuer:        cert.Issuer.String(),
