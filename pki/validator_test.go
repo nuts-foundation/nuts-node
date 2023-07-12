@@ -228,7 +228,7 @@ func TestValidator_SubscribeDenied(t *testing.T) {
 	mockDenylist := NewMockDenylist(gomock.NewController(t))
 	mockDenylist.EXPECT().Subscribe(gomock.Any())
 
-	val, err := newValidator(DefaultConfig())
+	val, err := newValidator(TestConfig(t))
 	require.NoError(t, err)
 	val.denylist = mockDenylist
 
