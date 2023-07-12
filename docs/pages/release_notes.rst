@@ -4,6 +4,30 @@ Release notes
 #############
 
 ************************
+Hazelnut update (v5.4.0)
+************************
+
+Release date: to be released
+
+New features:
+- Introduced support for issuing and receiving credentials over OpenID4VCI (OpenID Connect for Verifiable Credential Issuance).
+  If the node's `/n2n` endpoint runs on port 443, the node will automatically configure its DIDs for OpenID4VCI support.
+  If running on another port, additional action is required. See :ref:`openid4vci` for more information.
+- Added certificate info to peer diagnostics.
+- Added last connection error and the date/time of the next connection attempt to the network's address book.
+
+Bug fixes/improvements:
+- Diagnostics now shows correct number of owned conflicted DID document (`vdr.conflicted_did_documents.owned_count`).
+- Added background job that periodically checks the node's network state and fixes incorrect XOR hashes.
+  This can happen in certain high-load cases on Redis.
+- Network peer authentication failures are now logged on debug instead of warn, leading to less chatter.
+  To find out what error occurred, you should now look at the network's address book. /internal/network/v1/addressbook
+- When creating new DID documents, the VDR now checks whether the specified controllers actually exist.
+- Helm chart got updated (@henk-hofs-pink).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.3.0...v5.4.0
+
+************************
 Hazelnut update (v5.3.1)
 ************************
 
