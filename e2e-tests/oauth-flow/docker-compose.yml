@@ -14,7 +14,7 @@ services:
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeA:
-    image: nginx:1.18
+    image: nginx:1.25.1
     ports:
       - "10443:443"
     volumes:
