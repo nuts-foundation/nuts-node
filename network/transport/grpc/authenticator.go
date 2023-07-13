@@ -71,7 +71,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, peer transport.Peer) (tr
 	if err != nil {
 		log.Logger().
 			WithField(core.LogFieldDID, nodeDID).
-			Debugf("DNS names in peer certificate: %s", strings.Join(peer.Certificate.DNSNames, ", "))
+			Debugf("DNS names: %s, peer certificate: %s", strings.Join(peer.Certificate.DNSNames, ", "), peer.CertificateAsPem())
 		return peer, errors.New("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint")
 	}
 
