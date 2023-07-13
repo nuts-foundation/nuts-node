@@ -76,7 +76,8 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
     http {
         server {
           server_name nuts-grpc;
-          listen                    5555 ssl http2;
+          listen                    5555 ssl;
+          http2                     on;
           ssl_certificate           /etc/nginx/ssl/server.pem;
           ssl_certificate_key       /etc/nginx/ssl/key.pem;
           ssl_client_certificate    /etc/nginx/ssl/truststore.pem;
