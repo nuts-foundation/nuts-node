@@ -21,7 +21,6 @@ package vcr
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -102,9 +101,10 @@ type vcr struct {
 	storageClient       storage.Engine
 	openidIsssuerStore  issuer.OpenIDStore
 	localWalletResolver openid4vci.IdentifierResolver
+	issuerHttpClient    core.HTTPRequestDoer
+	walletHttpClient    core.HTTPRequestDoer
 	documentOwner       vdr.DocumentOwner
 	pkiProvider         pki.Provider
-	clientTLSConfig     *tls.Config
 }
 
 func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error) {
@@ -112,12 +112,7 @@ func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHan
 	if err != nil {
 		return nil, err
 	}
-	clientConfig := openid4vci.ClientConfig{
-		Timeout:   c.config.OpenID4VCI.Timeout,
-		TLS:       c.clientTLSConfig,
-		HTTPSOnly: c.strictmode,
-	}
-	return issuer.NewOpenIDHandler(id, identifier, c.config.OpenID4VCI.DefinitionsDIR, clientConfig, c.keyResolver, c.openidIsssuerStore)
+	return issuer.NewOpenIDHandler(id, identifier, c.config.OpenID4VCI.DefinitionsDIR, c.issuerHttpClient, c.keyResolver, c.openidIsssuerStore)
 }
 
 func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHandler, error) {
@@ -125,12 +120,7 @@ func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHan
 	if err != nil {
 		return nil, err
 	}
-	clientConfig := openid4vci.ClientConfig{
-		Timeout:   c.config.OpenID4VCI.Timeout,
-		TLS:       c.clientTLSConfig,
-		HTTPSOnly: c.strictmode,
-	}
-	return holder.NewOpenIDHandler(clientConfig, id, identifier, c, c.keyStore, c.keyResolver), nil
+	return holder.NewOpenIDHandler(id, identifier, c.walletHttpClient, c, c.keyStore, c.keyResolver), nil
 }
 
 func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (string, error) {
@@ -199,14 +189,32 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.didstore, c.keyStore)
 	if c.config.OpenID4VCI.Enabled {
-		c.clientTLSConfig, err = c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
+		tlsConfig, err := c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 		if err != nil {
 			return err
 		}
 		c.localWalletResolver = openid4vci.NewTLSIdentifierResolver(
 			openid4vci.DIDIdentifierResolver{ServiceResolver: c.serviceResolver},
-			c.clientTLSConfig,
+			tlsConfig,
 		)
+		// Issuer and wallet don't share the same http.Client and underlying transport,
+		// since that leads to (temporary) deadlocks under high load, when the http.Transport pool is exhausted.
+		// This is because the credential is requested by the wallet synchronously during the offer handling,
+		// meaning while the issuer allocated an HTTP connection the wallet will try to allocate one as well.
+		// This moved back to 1 http.Client when the credential is requested asynchronously.
+		// Should be fixed as part of https://github.com/nuts-foundation/nuts-node/issues/2039
+		issuerTransport := http.DefaultTransport.(*http.Transport).Clone()
+		issuerTransport.TLSClientConfig = tlsConfig
+		c.issuerHttpClient = core.NewStrictHTTPClient(config.Strictmode, &http.Client{
+			Timeout:   c.config.OpenID4VCI.Timeout,
+			Transport: issuerTransport,
+		})
+		walletTransport := http.DefaultTransport.(*http.Transport).Clone()
+		walletTransport.TLSClientConfig = tlsConfig
+		c.walletHttpClient = core.NewStrictHTTPClient(config.Strictmode, &http.Client{
+			Timeout:   c.config.OpenID4VCI.Timeout,
+			Transport: walletTransport,
+		})
 		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.GetOpenIDIssuer, c.didstore, c.keyStore, c.jsonldManager, c.trustConfig)

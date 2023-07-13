@@ -23,12 +23,15 @@ import (
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
 	httpModule "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -53,7 +56,6 @@ func TestOpenID4VCIHappyFlow(t *testing.T) {
 	ctx := audit.TestContext()
 	baseURL, system := node.StartServer(t, func(serverURL string) {
 		t.Setenv("NUTS_VCR_OPENID4VCI_ENABLED", "true")
-		t.Setenv("NUTS_VCR_OPENID4VCI_URL", serverURL)
 	})
 	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
 
@@ -79,12 +81,86 @@ func TestOpenID4VCIHappyFlow(t *testing.T) {
 	}, 5*time.Second, "credential not retrieved by holder")
 }
 
+func TestOpenID4VCIConnectionReuse(t *testing.T) {
+	// default http.Transport has MaxConnsPerHost=100,
+	// but we need to adjust it to something lower, so we can assert connection reuse
+	const maxConnsPerHost = 2
+	// 2 hosts; 1 to 127.0.0.1 (IPv4) and 1 to [::1] (IPv6),
+	// for 2 http.Transport instance (one for issuer, one for wallet),
+	// so we expect max maxConnsPerHost*2*2 connections in total.
+	const maxExpectedConnCount = maxConnsPerHost * 2 * 2
+	http.DefaultTransport.(*http.Transport).MaxConnsPerHost = maxConnsPerHost
+
+	ctx := audit.TestContext()
+	baseURL, system := node.StartServer(t, func(serverURL string) {
+		t.Setenv("NUTS_VCR_OPENID4VCI_ENABLED", "true")
+	})
+	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
+
+	issuerDID := registerDID(t, system)
+	registerBaseURL(t, baseURL, system, issuerDID)
+	holderDID := registerDID(t, system)
+	registerBaseURL(t, baseURL, system, holderDID)
+
+	credential := testCredential()
+	credential.Issuer = issuerDID.URI()
+	credential.ID, _ = ssi.ParseURI(issuerDID.URI().String() + "#1")
+	credential.CredentialSubject = append(credential.CredentialSubject, map[string]interface{}{
+		"id":           holderDID.URI().String(),
+		"purposeOfUse": "test",
+	})
+
+	newConns := map[string]int{}
+	mux := sync.Mutex{}
+	openid4vci.HttpClientTrace = &httptrace.ClientTrace{
+		ConnectStart: func(network, addr string) {
+			log.Logger().Infof("Conn: %s/%s", network, addr)
+			mux.Lock()
+			defer mux.Unlock()
+			newConns[network+"/"+addr]++
+		},
+	}
+
+	const numCreds = 10
+	errChan := make(chan error, numCreds)
+	wg := sync.WaitGroup{}
+	for i := 0; i < numCreds; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := vcrService.Issuer().Issue(ctx, credential, true, false)
+			if err != nil {
+				errChan <- err
+				return
+			}
+		}()
+	}
+
+	wg.Wait()
+	// Drain errs channel, non-blocking
+	close(errChan)
+	var errs []string
+	for {
+		err := <-errChan
+		if err == nil {
+			break
+
+		}
+		errs = append(errs, err.Error())
+	}
+	assert.Empty(t, errs, "error issuing credential")
+	connsTotal := 0
+	for _, v := range newConns {
+		connsTotal += v
+	}
+	assert.LessOrEqualf(t, connsTotal, maxExpectedConnCount, "number of created HTTP connections should be at most %d", maxExpectedConnCount)
+}
+
 // TestOpenID4VCI_Metadata tests resolving OpenID4VCI metadata, while the party hasn't registered its base URL.
 func TestOpenID4VCI_Metadata(t *testing.T) {
 	ctx := audit.TestContext()
 	baseURL, system := node.StartServer(t, func(serverURL string) {
 		t.Setenv("NUTS_VCR_OPENID4VCI_ENABLED", "true")
-		t.Setenv("NUTS_VCR_OPENID4VCI_URL", serverURL)
 		t.Setenv("NUTS_HTTP_DEFAULT_TLS", string(httpModule.TLServerClientCertMode))
 	})
 	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
@@ -124,7 +200,6 @@ func TestOpenID4VCIErrorResponses(t *testing.T) {
 	ctx := audit.TestContext()
 	httpServerURL, system := node.StartServer(t, func(serverURL string) {
 		t.Setenv("NUTS_VCR_OPENID4VCI_ENABLED", "true")
-		t.Setenv("NUTS_VCR_OPENID4VCI_URL", serverURL)
 	})
 	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
 

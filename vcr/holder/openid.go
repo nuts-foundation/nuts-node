@@ -50,14 +50,14 @@ var nowFunc = time.Now
 var _ OpenIDHandler = (*openidHandler)(nil)
 
 // NewOpenIDHandler creates an OpenIDHandler that tries to retrieve offered credentials, to store it in the given credential store.
-func NewOpenIDHandler(config openid4vci.ClientConfig, did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OpenIDHandler {
+func NewOpenIDHandler(did did.DID, identifier string, httpClient core.HTTPRequestDoer, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OpenIDHandler {
 	return &openidHandler{
 		did:                 did,
 		identifier:          identifier,
 		credentialStore:     credentialStore,
 		signer:              signer,
 		resolver:            resolver,
-		config:              config,
+		httpClient:          httpClient,
 		issuerClientCreator: openid4vci.NewIssuerAPIClient,
 	}
 }
@@ -69,11 +69,11 @@ type openidHandler struct {
 	signer              crypto.JWTSigner
 	resolver            vdr.KeyResolver
 	issuerClientCreator func(ctx context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error)
+	httpClient          core.HTTPRequestDoer
 	jsonldReader        jsonld.Reader
-	config              openid4vci.ClientConfig
 }
 
-func (h openidHandler) Metadata() openid4vci.OAuth2ClientMetadata {
+func (h *openidHandler) Metadata() openid4vci.OAuth2ClientMetadata {
 	return openid4vci.OAuth2ClientMetadata{
 		CredentialOfferEndpoint: core.JoinURLPaths(h.identifier, "/wallet/openid4vci/credential_offer"),
 	}
@@ -82,7 +82,7 @@ func (h openidHandler) Metadata() openid4vci.OAuth2ClientMetadata {
 // HandleCredentialOffer handles a credential offer from an issuer.
 // Error responses on the Credential Offer Endpoint are not defined in the OpenID4VCI spec,
 // so these are inferred of whatever makes sense.
-func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4vci.CredentialOffer) error {
+func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4vci.CredentialOffer) error {
 	// TODO: This check is too simplistic, there can be multiple credential offers,
 	//       but the issuer should only request the one it's interested in.
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2049
@@ -118,13 +118,7 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4v
 		}
 	}
 
-	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
-	httpTransport.TLSClientConfig = h.config.TLS
-	httpClient := core.NewStrictHTTPClient(h.config.HTTPSOnly, &http.Client{
-		Timeout:   h.config.Timeout,
-		Transport: httpTransport,
-	})
-	issuerClient, err := h.issuerClientCreator(ctx, httpClient, offer.CredentialIssuer)
+	issuerClient, err := h.issuerClientCreator(ctx, h.httpClient, offer.CredentialIssuer)
 	if err != nil {
 		return openid4vci.Error{
 			Err:        fmt.Errorf("unable to create issuer client: %w", err),
@@ -161,8 +155,6 @@ func (h openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4v
 	}
 
 	retrieveCtx := audit.Context(ctx, "app-openid4vci", "VCR/OpenID4VCI", "RetrieveCredential")
-	retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.config.Timeout)
-	defer cancel()
 	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offeredCredential.CredentialDefinition, accessTokenResponse)
 	if err != nil {
 		return openid4vci.Error{
@@ -200,7 +192,7 @@ func getPreAuthorizedCodeFromOffer(offer openid4vci.CredentialOffer) string {
 	return preAuthorizedCode
 }
 
-func (h openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, offer *openid4vci.CredentialDefinition, tokenResponse *openid4vci.TokenResponse) (*vc.VerifiableCredential, error) {
+func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, offer *openid4vci.CredentialDefinition, tokenResponse *openid4vci.TokenResponse) (*vc.VerifiableCredential, error) {
 	keyID, err := h.resolver.ResolveSigningKeyID(h.did, nil)
 	headers := map[string]interface{}{
 		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
