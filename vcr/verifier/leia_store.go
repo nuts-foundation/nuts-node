@@ -23,35 +23,59 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
+const revocationBackupShelf = "revocations"
+
 // leiaVerifierStore implements the verifier Store interface. It is a simple and fast JSON store.
 // Note: It can not be used in a clustered setup.
 type leiaVerifierStore struct {
 	// revocations is a leia collection containing all the revocations
 	revocations leia.Collection
-	store       leia.Store
+	store       storage.KVBackedLeiaStore
 }
 
 // NewLeiaVerifierStore creates a new instance of leiaVerifierStore which implements the Store interface.
-func NewLeiaVerifierStore(dbPath string) (Store, error) {
+func NewLeiaVerifierStore(dbPath string, backupStore stoabs.KVStore) (Store, error) {
 	store, err := leia.NewStore(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create leiaVerifierStore: %w", err)
 	}
+
+	// add backup wrapper
+	kvBackedStore, err := storage.NewKVBackedLeiaStore(store, backupStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create KV backed issuer store: %w", err)
+	}
+
+	// set backup config
+	kvBackedStore.AddConfiguration(storage.LeiaBackupConfiguration{
+		CollectionName: "revocations",
+		CollectionType: leia.JSONCollection,
+		BackupShelf:    revocationBackupShelf,
+		SearchQuery:    leia.NewJSONPath(credential.RevocationSubjectPath),
+	})
+
 	revocations := store.Collection(leia.JSONCollection, "revocations")
 	newLeiaStore := &leiaVerifierStore{
 		revocations: revocations,
-		store:       store,
+		store:       kvBackedStore,
 	}
-	if err := newLeiaStore.createIndices(revocations); err != nil {
+	if err = newLeiaStore.createIndices(revocations); err != nil {
 		return nil, err
 	}
+
+	if err = kvBackedStore.HandleRestore(); err != nil {
+		return nil, err
+	}
+
 	return newLeiaStore, nil
 }
 

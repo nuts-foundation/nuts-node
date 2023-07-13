@@ -44,7 +44,6 @@ type leiaIssuerStore struct {
 	issuedCredentials  leia.Collection
 	revokedCredentials leia.Collection
 	store              storage.KVBackedLeiaStore
-	backupStore        stoabs.KVStore
 }
 
 // NewLeiaIssuerStore creates a new instance of leiaIssuerStore which implements the Store interface.
@@ -53,7 +52,7 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to create leiaIssuerStore: %w", err)
 	}
-	// add wraper
+	// add backup wrapper
 	kvBackedStore, err := storage.NewKVBackedLeiaStore(store, backupStore)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create KV backed issuer store: %w", err)
@@ -81,7 +80,6 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 		issuedCredentials:  issuedCollection,
 		revokedCredentials: revokedCollection,
 		store:              kvBackedStore,
-		backupStore:        backupStore,
 	}
 
 	// initialize indices, this is required for handleRestore. Without the index metadata it can't iterate and detect data entries.

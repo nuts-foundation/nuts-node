@@ -51,6 +51,13 @@ import (
 )
 
 func TestVCR_Configure(t *testing.T) {
+	t.Run("error - creating issuer store", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil, nil).(*vcr)
+
+		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
+		assert.EqualError(t, err, "failed to create leiaIssuerStore: mkdir test/vcr: not a directory")
+	})
 	t.Run("openid4vci", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		ctrl := gomock.NewController(t)
@@ -93,15 +100,6 @@ func TestVCR_Configure(t *testing.T) {
 }
 
 func TestVCR_Start(t *testing.T) {
-
-	t.Run("error - creating db", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil, nil).(*vcr)
-
-		_ = instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
-		err := instance.Start()
-		assert.EqualError(t, err, "mkdir test/vcr: not a directory")
-	})
 
 	t.Run("ok", func(t *testing.T) {
 		instance := NewTestVCRInstance(t)
