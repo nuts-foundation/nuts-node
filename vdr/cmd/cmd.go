@@ -23,17 +23,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // FlagSet contains flags relevant for the VDR instance
@@ -91,12 +91,20 @@ func createCmd() *cobra.Command {
 		},
 	}
 
-	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", true, "Pass 'false' to disable assertionMethod capabilities.")
-	result.Flags().BoolVar(createRequest.Authentication, "authentication", false, "Pass 'true' to enable authentication capabilities.")
-	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", false, "Pass 'true' to enable capabilityDelegation capabilities.")
-	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", true, "Pass 'false' to disable capabilityInvocation capabilities.")
-	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", false, "Pass 'true' to enable keyAgreement capabilities.")
-	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", true, "Pass 'false' to disable DID Document control.")
+	defs := didservice.DefaultCreationOptions()
+	setUsage := func(def bool, usage string) string {
+		opposite := "enable"
+		if def {
+			opposite = "disable"
+		}
+		return fmt.Sprintf(usage, !def, opposite)
+	}
+	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", defs.KeyFlags.Is(vdr.AssertionMethodUsage), setUsage(defs.KeyFlags.Is(vdr.AssertionMethodUsage), "Pass '%t' to %s assertionMethod capabilities."))
+	result.Flags().BoolVar(createRequest.Authentication, "authentication", defs.KeyFlags.Is(vdr.AuthenticationUsage), setUsage(defs.KeyFlags.Is(vdr.AuthenticationUsage), "Pass '%t' to %s authentication capabilities."))
+	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", defs.KeyFlags.Is(vdr.CapabilityDelegationUsage), setUsage(defs.KeyFlags.Is(vdr.CapabilityDelegationUsage), "Pass '%t' to %s capabilityDelegation capabilities."))
+	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.KeyFlags.Is(vdr.CapabilityInvocationUsage), setUsage(defs.KeyFlags.Is(vdr.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
+	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.KeyFlags.Is(vdr.KeyAgreementUsage), setUsage(defs.KeyFlags.Is(vdr.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
+	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", defs.SelfControl, setUsage(defs.SelfControl, "Pass '%t' to %s DID Document control."))
 	result.Flags().StringSliceVar(createRequest.Controllers, "controllers", []string{}, "Comma-separated list of DIDs that can control the generated DID Document.")
 
 	return result

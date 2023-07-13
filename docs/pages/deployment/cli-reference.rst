@@ -76,9 +76,9 @@ The following options apply to the server commands below:
       --tls.certkeyfile string                        PEM file containing the private key of the server certificate.
       --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
-      --vcr.openid4vci.definitionsdir string            Directory with the additional credential definitions the node could issue (experimental, may change without notice).
-      --vcr.openid4vci.enabled                          Enable issuing and receiving credentials over OpenID4VCI (experimental).
-      --vcr.openid4vci.timeout duration                 Time-out for OpenID4VCI HTTP client operations. (default 30s)
+      --vcr.openid4vci.definitionsdir string          Directory with the additional credential definitions the node could issue (experimental, may change without notice).
+      --vcr.openid4vci.enabled                        Enable issuing and receiving credentials over OpenID4VCI (experimental).
+      --vcr.openid4vci.timeout duration               Time-out for OpenID4VCI HTTP client operations. (default 30s)
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
 
 nuts config
@@ -422,7 +422,7 @@ Registers a new DID
       --capabilityInvocation   Pass 'false' to disable capabilityInvocation capabilities. (default true)
       --controllers strings    Comma-separated list of DIDs that can control the generated DID Document.
   -h, --help                   help for create-did
-      --keyAgreement           Pass 'true' to enable keyAgreement capabilities.
+      --keyAgreement           Pass 'false' to disable keyAgreement capabilities. (default true)
       --selfControl            Pass 'false' to disable DID Document control. (default true)
       --timeout duration       Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string           Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
