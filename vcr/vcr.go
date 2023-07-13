@@ -55,6 +55,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const credentialsBackupShelf = "credentials"
+
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(keyStore crypto.KeyStore, store didstore.Store,
 	network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine,
@@ -82,7 +84,7 @@ type vcr struct {
 	// strictmode holds a copy of the core.ServerConfig.Strictmode value
 	strictmode          bool
 	config              Config
-	store               leia.Store
+	store               storage.KVBackedLeiaStore
 	didstore            didstore.Store
 	keyStore            crypto.KeyStore
 	docResolver         vdr.DocResolver
@@ -167,6 +169,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	// copy strictmode for openid4vci usage
 	c.strictmode = config.Strictmode
 
+	// create issuer store (to revoke)
 	issuerStorePath := path.Join(c.datadir, "vcr", "issued-credentials.db")
 	issuerBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
 	if err != nil {
@@ -177,9 +180,19 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		return err
 	}
 
+	// create verifier store (for revocations)
 	verifierStorePath := path.Join(c.datadir, "vcr", "verifier-store.db")
-	c.verifierStore, err = verifier.NewLeiaVerifierStore(verifierStorePath)
+	verifierBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-revoked-credentials", storage.PersistentStorageClass)
 	if err != nil {
+		return err
+	}
+	c.verifierStore, err = verifier.NewLeiaVerifierStore(verifierStorePath, verifierBackupStore)
+	if err != nil {
+		return err
+	}
+
+	// create credentials store (for public credentials and this node's wallet)
+	if err = c.createCredentialsStore(); err != nil {
 		return err
 	}
 
@@ -224,6 +237,10 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager)
 
+	if err = c.store.HandleRestore(); err != nil {
+		return err
+	}
+
 	return c.trustConfig.Load()
 }
 
@@ -231,21 +248,36 @@ func (c *vcr) credentialsDBPath() string {
 	return path.Join(c.datadir, "vcr", "credentials.db")
 }
 
-func (c *vcr) Start() error {
-	var err error
-
-	// setup DB connection
-	if c.store, err = leia.NewStore(c.credentialsDBPath(), leia.WithDocumentLoader(c.jsonldManager.DocumentLoader())); err != nil {
+func (c *vcr) createCredentialsStore() error {
+	credentialsStorePath := path.Join(c.datadir, "vcr", "credentials.db")
+	credentialsBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-credentials", storage.PersistentStorageClass)
+	if err != nil {
 		return err
 	}
+	credentialsStore, err := leia.NewStore(credentialsStorePath, leia.WithDocumentLoader(c.jsonldManager.DocumentLoader()))
+	if err != nil {
+		return err
+	}
+	c.store, err = storage.NewKVBackedLeiaStore(credentialsStore, credentialsBackupStore)
+	if err != nil {
+		return err
+	}
+
+	// set backup config
+	c.store.AddConfiguration(storage.LeiaBackupConfiguration{
+		CollectionName: "credentials",
+		CollectionType: leia.JSONLDCollection,
+		BackupShelf:    credentialsBackupShelf,
+		SearchQuery:    leia.NewIRIPath(),
+	})
 
 	// init indices
-	if err = c.initJSONLDIndices(); err != nil {
-		return err
-	}
+	return c.initJSONLDIndices()
+}
 
+func (c *vcr) Start() error {
 	// start listening for new credentials
-	c.ambassador.Configure()
+	_ = c.ambassador.Configure()
 
 	return c.ambassador.Start()
 }

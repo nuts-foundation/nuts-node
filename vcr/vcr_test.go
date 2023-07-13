@@ -21,14 +21,18 @@ package vcr
 
 import (
 	"context"
+	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/go-leia/v4"
+	"github.com/nuts-foundation/go-stoabs"
+	bbolt2 "github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/stretchr/testify/require"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -51,6 +55,13 @@ import (
 )
 
 func TestVCR_Configure(t *testing.T) {
+	t.Run("error - creating issuer store", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil, nil).(*vcr)
+
+		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
+		assert.EqualError(t, err, "failed to create leiaIssuerStore: mkdir test/vcr: not a directory")
+	})
 	t.Run("openid4vci", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		ctrl := gomock.NewController(t)
@@ -93,15 +104,6 @@ func TestVCR_Configure(t *testing.T) {
 }
 
 func TestVCR_Start(t *testing.T) {
-
-	t.Run("error - creating db", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil, nil).(*vcr)
-
-		_ = instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
-		err := instance.Start()
-		assert.EqualError(t, err, "mkdir test/vcr: not a directory")
-	})
 
 	t.Run("ok", func(t *testing.T) {
 		instance := NewTestVCRInstance(t)
@@ -381,6 +383,28 @@ func TestVcr_Untrusted(t *testing.T) {
 			return instance.Untrusted(issuer)
 		}, 0)
 	})
+}
+
+func TestVcr_restoreFromShelf(t *testing.T) {
+	testVC := vc.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testVC)
+	testDir := io.TestDirectory(t)
+	backupStorePath := path.Join(testDir, "data", "vcr", "backup-credentials.db")
+	backupStore, err := bbolt2.CreateBBoltStore(backupStorePath)
+	require.NoError(t, err)
+	bytes := []byte(jsonld.TestOrganizationCredential)
+	ref := sha1.Sum(bytes)
+	_ = backupStore.WriteShelf(context.Background(), credentialsBackupShelf, func(writer stoabs.Writer) error {
+		return writer.Put(stoabs.BytesKey(ref[:]), bytes)
+	})
+	_ = backupStore.Close(context.Background())
+
+	store := NewTestVCRInstanceInDir(t, testDir)
+	_ = store.Trust(testVC.Type[0], testVC.Issuer)
+	require.NoError(t, err)
+	result, err := store.Resolve(*testVC.ID, nil)
+	require.NoError(t, err)
+	assert.Equal(t, testVC, *result)
 }
 
 func confirmUntrustedStatus(t *testing.T, fn func(issuer ssi.URI) ([]ssi.URI, error), numUntrusted int) {
