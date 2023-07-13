@@ -20,7 +20,11 @@ package verifier
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/json"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/go-stoabs/bbolt"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"path"
 	"testing"
@@ -125,6 +129,27 @@ func Test_leiaVerifierStore_Diagnostics(t *testing.T) {
 		assert.Len(t, actual, 1)
 		assert.Equal(t, 1, actual[0].Result())
 	})
+}
+
+func Test_restoreFromShelf(t *testing.T) {
+	testDir := io.TestDirectory(t)
+	issuerStorePath := path.Join(testDir, "vcr", "issued-credentials.db")
+	backupStorePath := path.Join(testDir, "vcr", "backup-revoked-credentials.db")
+	backupStore, err := bbolt.CreateBBoltStore(backupStorePath)
+	require.NoError(t, err)
+	subjectID := ssi.MustParseURI("did:nuts:123#ab-c")
+	revocation := &credential.Revocation{Subject: subjectID}
+	bytes, _ := json.Marshal(revocation)
+	ref := sha1.Sum(bytes)
+	_ = backupStore.WriteShelf(context.Background(), revocationBackupShelf, func(writer stoabs.Writer) error {
+		return writer.Put(stoabs.BytesKey(ref[:]), bytes)
+	})
+
+	store, err := NewLeiaVerifierStore(issuerStorePath, backupStore)
+	require.NoError(t, err)
+	result, err := store.GetRevocations(subjectID)
+	require.NoError(t, err)
+	assert.Equal(t, []*credential.Revocation{revocation}, result)
 }
 
 // newMockKVStore create a mockStore with contents

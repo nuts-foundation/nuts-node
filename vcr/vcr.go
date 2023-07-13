@@ -229,6 +229,10 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager)
 
+	if err = c.store.HandleRestore(); err != nil {
+		return err
+	}
+
 	return c.trustConfig.Load()
 }
 
@@ -256,7 +260,7 @@ func (c *vcr) createCredentialsStore() error {
 		CollectionName: "credentials",
 		CollectionType: leia.JSONLDCollection,
 		BackupShelf:    credentialsBackupShelf,
-		SearchQuery:    leia.NewIRIPath("id"),
+		SearchQuery:    leia.NewIRIPath(),
 	})
 
 	// init indices

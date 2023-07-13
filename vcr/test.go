@@ -103,6 +103,28 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 	return newInstance
 }
 
+func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
+	// give network a subdirectory to avoid duplicate networks in tests
+	newInstance := NewVCRInstance(
+		nil,
+		nil,
+		network.NewTestNetworkInstance(t),
+		jsonld.NewTestJSONLDManager(t),
+		events.NewTestManager(t),
+		storage.NewTestStorageEngine(testDirectory),
+		nil, nil,
+	).(*vcr)
+
+	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
+		t.Fatal(err)
+	}
+	if err := newInstance.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	return newInstance
+}
+
 type mockContext struct {
 	ctrl            *gomock.Controller
 	tx              *network.MockTransactions
