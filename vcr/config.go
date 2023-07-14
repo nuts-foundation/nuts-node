@@ -19,7 +19,10 @@
 
 package vcr
 
-import "github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+import (
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"time"
+)
 
 // ModuleName is the name of this module.
 const ModuleName = "VCR"
@@ -32,5 +35,8 @@ type Config struct {
 
 // DefaultConfig returns a fresh Config filled with default values
 func DefaultConfig() Config {
-	return Config{}
+	return Config{OpenID4VCI: openid4vci.Config{
+		Enabled: true,
+		Timeout: 5 * time.Second,
+	}}
 }

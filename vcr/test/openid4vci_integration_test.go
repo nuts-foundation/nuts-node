@@ -54,9 +54,7 @@ import (
 func TestOpenID4VCIHappyFlow(t *testing.T) {
 	auditLogs := audit.CaptureLogs(t)
 	ctx := audit.TestContext()
-	baseURL, system := node.StartServer(t, func(serverURL string) {
-		t.Setenv("NUTS_VCR_OPENID4VCI_ENABLED", "true")
-	})
+	baseURL, system := node.StartServer(t)
 	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
 
 	issuerDID := registerDID(t, system)
@@ -92,9 +90,7 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 	http.DefaultTransport.(*http.Transport).MaxConnsPerHost = maxConnsPerHost
 
 	ctx := audit.TestContext()
-	baseURL, system := node.StartServer(t, func(serverURL string) {
-		t.Setenv("NUTS_VCR_OPENID4VCI_ENABLED", "true")
-	})
+	baseURL, system := node.StartServer(t)
 	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
 
 	issuerDID := registerDID(t, system)
@@ -160,7 +156,6 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 func TestOpenID4VCI_Metadata(t *testing.T) {
 	ctx := audit.TestContext()
 	baseURL, system := node.StartServer(t, func(serverURL string) {
-		t.Setenv("NUTS_VCR_OPENID4VCI_ENABLED", "true")
 		t.Setenv("NUTS_HTTP_DEFAULT_TLS", string(httpModule.TLServerClientCertMode))
 	})
 	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
@@ -180,7 +175,9 @@ func TestOpenID4VCI_Metadata(t *testing.T) {
 
 // TestOpenID4VCIDisabled tests the issuer won't try to issue over OpenID4VCI when it's disabled.
 func TestOpenID4VCIDisabled(t *testing.T) {
-	baseURL, system := node.StartServer(t)
+	baseURL, system := node.StartServer(t, func(serverURL string) {
+		t.Setenv("NUTS_VCR_OPENID4VCI_ENABLED", "false")
+	})
 
 	// Setup issuer/holder
 	walletDID := registerDID(t, system)
@@ -198,9 +195,7 @@ func TestOpenID4VCIDisabled(t *testing.T) {
 // TestOpenID4VCIErrorResponses tests the API returns the correct error responses (as specified in the OpenID4VCI spec, not as Problem types).
 func TestOpenID4VCIErrorResponses(t *testing.T) {
 	ctx := audit.TestContext()
-	httpServerURL, system := node.StartServer(t, func(serverURL string) {
-		t.Setenv("NUTS_VCR_OPENID4VCI_ENABLED", "true")
-	})
+	httpServerURL, system := node.StartServer(t)
 	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
 
 	// Setup issuer/holder

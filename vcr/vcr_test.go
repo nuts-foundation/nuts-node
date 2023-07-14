@@ -57,7 +57,7 @@ import (
 func TestVCR_Configure(t *testing.T) {
 	t.Run("error - creating issuer store", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), nil, nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pki.NewTestPKIProvider(), nil).(*vcr)
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
 		assert.EqualError(t, err, "failed to create leiaIssuerStore: mkdir test/vcr: not a directory")
@@ -121,7 +121,7 @@ func TestVCR_Start(t *testing.T) {
 			jsonld.NewTestJSONLDManager(t),
 			events.NewTestManager(t),
 			storage.NewTestStorageEngine(testDirectory),
-			nil, nil,
+			pki.NewTestPKIProvider(), nil,
 		).(*vcr)
 		if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 			t.Fatal(err)
@@ -168,8 +168,9 @@ func TestVCR_Diagnostics(t *testing.T) {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
-		nil, nil,
+		pki.NewTestPKIProvider(), nil,
 	).(*vcr)
+	instance.config.OpenID4VCI.Enabled = false
 	if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 		t.Fatal(err)
 	}

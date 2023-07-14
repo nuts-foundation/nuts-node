@@ -77,7 +77,7 @@ The following options apply to the server commands below:
       --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --vcr.openid4vci.definitionsdir string          Directory with the additional credential definitions the node could issue (experimental, may change without notice).
-      --vcr.openid4vci.enabled                        Enable issuing and receiving credentials over OpenID4VCI (experimental).
+      --vcr.openid4vci.enabled                        Enable issuing and receiving credentials over OpenID4VCI (experimental). (default true)
       --vcr.openid4vci.timeout duration               Time-out for OpenID4VCI HTTP client operations. (default 30s)
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
 
