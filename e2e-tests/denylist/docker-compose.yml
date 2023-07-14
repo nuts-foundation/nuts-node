@@ -1,16 +1,28 @@
 version: "3.7"
 services:
-  nuts-node:
+  nuts-node-defaults:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     ports:
-      - "11323:1323"
       - "15555:5555"
     volumes:
-      - "./nuts-node/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "./nuts-node-defaults/nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "./truststore-development.pem:/opt/nuts/truststore-development.pem:ro"
-      - "./nuts-node/nuts-foundation-node001-development.pem:/opt/nuts/nuts-foundation-node001-development.pem:ro"
-      - "./nuts-node/nuts-foundation-node001-development.key:/opt/nuts/nuts-foundation-node001-development.key:ro"
+      - "./nuts-node-defaults/nuts-foundation-node001-development.pem:/opt/nuts/nuts-foundation-node001-development.pem:ro"
+      - "./nuts-node-defaults/nuts-foundation-node001-development.key:/opt/nuts/nuts-foundation-node001-development.key:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
+  nuts-node-github:
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    ports:
+      - "25555:5555"
+    volumes:
+      - "./nuts-node-github/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "./truststore-development.pem:/opt/nuts/truststore-development.pem:ro"
+      - "./nuts-node-github/nuts-foundation-node001-development.pem:/opt/nuts/nuts-foundation-node001-development.pem:ro"
+      - "./nuts-node-github/nuts-foundation-node001-development.key:/opt/nuts/nuts-foundation-node001-development.key:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
