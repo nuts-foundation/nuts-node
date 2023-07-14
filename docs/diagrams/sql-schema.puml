@@ -1,0 +1,55 @@
+@startuml
+frame Network {
+    object tx {
+        ref : varchar(64)
+        clock : int
+        version : int
+        signing_time : timestamp
+        payload_hash : varchar(64)
+        payload : blob
+    }
+
+    object tx_prev {
+        ref : varchar(64)
+        prev : varchar(64)
+    }
+    tx_prev -> tx : ref=tx.ref\nprev=tx.ref
+}
+
+frame VDR {
+    object did_document {
+        did : varchar(200)
+        version : int
+        tx : varchar(64)
+    }
+    did_document -up-> tx : tx=tx.ref
+}
+
+frame VCR {
+    object credential {
+        id : varchar(200)
+        tx : varchar(64)
+        issuer : varchar(200)
+        subject_id : varchar(200)
+        subject : json
+    }
+    credential -up-> tx : tx=tx.ref
+    object credential_type {
+        id : varchar(200)
+        type : varchar(100)
+    }
+    credential_type -up-> credential : id=credential.id
+    object issued_credential {
+        id : varchar(200)
+    }
+    issued_credential -up-> credential : id=credential.id
+    object received_credential {
+        id : varchar(200)
+    }
+    received_credential -up-> credential : id=credential.id
+    object revocation {
+        id : varchar(200)
+    }
+    revocation -> credential : id=credential.id
+}
+@enduml
