@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
@@ -64,7 +65,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
-		nil, nil,
+		pki.New(), nil,
 	).(*vcr)
 
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -90,7 +91,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
-		nil, nil,
+		pki.New(), nil,
 	).(*vcr)
 
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -112,7 +113,7 @@ func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
-		nil, nil,
+		pki.New(), nil,
 	).(*vcr)
 
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -150,10 +151,11 @@ func newMockContext(t *testing.T) mockContext {
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(testDir)
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
-	vcr := NewVCRInstance(cryptoInstance, nil, tx, jsonldManager, eventManager, storageClient, nil, nil).(*vcr)
+	vcr := NewVCRInstance(cryptoInstance, nil, tx, jsonldManager, eventManager, storageClient, pki.New(), nil).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.keyResolver = keyResolver
 	vcr.docResolver = docResolver
+	vcr.pkiProvider = pki.New()
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	if err := vcr.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDir})); err != nil {
 		t.Fatal(err)

@@ -7,11 +7,6 @@ Nuts supports using `OpenID 4 Verifiable Credential Issuance (OpenID4VCI) <https
 to issue credentials directly from an issuer to a holder. By supporting this protocol we aim to improve compliance with industry standards and products
 and remove credentials from the network DAG.
 
-.. note::
-
-    This functionality is experimental and subject to change.
-    We encourage developers to test it out and provide feedback.
-
 We currently only support the issuer initiated, pre-authorized code flow,
 without PIN (since the issuance is server-to-server, without user involvement).
 
@@ -28,17 +23,10 @@ We aim to support other flows and features in future:
 Enabling
 ********
 
-.. note::
+By default, the feature is enabled.
 
-    These steps to enable OpenID4VCI are subject to change.
-
-By default, the feature is disabled.
-
-To enable issuing and receiving credentials over OpenID4VCI:
-
-- set ``vcr.openid4vci.enabled`` to ``true``
-- register service of type ``node-http-services-baseurl`` in your DID documents, pointing to the base URL of your node-to-node API, e.g. ``https://nutsnode.example.com/`` (excluding ``/n2n``).
-  Note that this step will be automated in (near) future.
-
-
-
+But, for a DID to receive credentials over OpenID4VCI it needs to be discoverable,
+meaning it needs a service of type ``node-http-services-baseurl``. The URL needs to point to the base URL of your node-to-node API,
+e.g. ``https://nutsnode.example.com/`` (excluding ``/n2n``).
+A background process ("golden hammer") tries to register this service for all of your node's DIDs automatically,
+meaning in normal operation you don't need to do anything to start using OpenID4VCI.
