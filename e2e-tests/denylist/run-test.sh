@@ -49,7 +49,7 @@ echo "Connecting 100x with blocked cert (tls v1.2).."
 echo "------------------------------------"
 for x in $(seq 100); do
 	# Connect to the nuts-node with a blocked client certificate
-	curl --http2 -k https://localhost:15555 --cert client-blocked.crt --key client-blocked.key -vvv --fail --tlsv1.2
+	openssl s_client -connect localhost:15555 -cert client-blocked.crt -key client-blocked.key -CAfile truststore-development.pem -verify_return_error -tls1_2 < <(echo "Hello Nuts 🥜")
 	if [ $? -eq 0 ]; then
 		echo "ERROR: blocked certificate was allowed to connect (tls v1.2)"
 		exitWithDockerLogs 1
