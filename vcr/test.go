@@ -65,7 +65,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
-		pki.NewTestPKIProvider(), nil,
+		pki.New(), nil,
 	).(*vcr)
 
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -91,7 +91,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
-		pki.NewTestPKIProvider(), nil,
+		pki.New(), nil,
 	).(*vcr)
 
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -113,7 +113,7 @@ func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
-		pki.NewTestPKIProvider(), nil,
+		pki.New(), nil,
 	).(*vcr)
 
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -151,11 +151,11 @@ func newMockContext(t *testing.T) mockContext {
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(testDir)
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
-	vcr := NewVCRInstance(cryptoInstance, nil, tx, jsonldManager, eventManager, storageClient, pki.NewTestPKIProvider(), nil).(*vcr)
+	vcr := NewVCRInstance(cryptoInstance, nil, tx, jsonldManager, eventManager, storageClient, pki.New(), nil).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.keyResolver = keyResolver
 	vcr.docResolver = docResolver
-	vcr.pkiProvider = pki.NewTestPKIProvider()
+	vcr.pkiProvider = pki.New()
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	if err := vcr.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDir})); err != nil {
 		t.Fatal(err)

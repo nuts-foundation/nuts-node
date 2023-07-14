@@ -32,10 +32,6 @@ func TestConfig(t *testing.T) Config {
 	}
 }
 
-func NewTestPKIProvider() Provider {
-	return New()
-}
-
 // SetNewDenylistWithCert sets a new Denylist on the Validator and adds the certificate.
 // This is useful in integrations tests etc.
 func SetNewDenylistWithCert(t *testing.T, val Validator, cert *x509.Certificate) {
