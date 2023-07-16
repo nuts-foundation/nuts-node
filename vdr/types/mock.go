@@ -17,31 +17,31 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockDocResolver is a mock of DocResolver interface.
-type MockDocResolver struct {
+// MockDIDResolver is a mock of DIDResolver interface.
+type MockDIDResolver struct {
 	ctrl     *gomock.Controller
-	recorder *MockDocResolverMockRecorder
+	recorder *MockDIDResolverMockRecorder
 }
 
-// MockDocResolverMockRecorder is the mock recorder for MockDocResolver.
-type MockDocResolverMockRecorder struct {
-	mock *MockDocResolver
+// MockDIDResolverMockRecorder is the mock recorder for MockDIDResolver.
+type MockDIDResolverMockRecorder struct {
+	mock *MockDIDResolver
 }
 
-// NewMockDocResolver creates a new mock instance.
-func NewMockDocResolver(ctrl *gomock.Controller) *MockDocResolver {
-	mock := &MockDocResolver{ctrl: ctrl}
-	mock.recorder = &MockDocResolverMockRecorder{mock}
+// NewMockDIDResolver creates a new mock instance.
+func NewMockDIDResolver(ctrl *gomock.Controller) *MockDIDResolver {
+	mock := &MockDIDResolver{ctrl: ctrl}
+	mock.recorder = &MockDIDResolverMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDocResolver) EXPECT() *MockDocResolverMockRecorder {
+func (m *MockDIDResolver) EXPECT() *MockDIDResolverMockRecorder {
 	return m.recorder
 }
 
 // Resolve mocks base method.
-func (m *MockDocResolver) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
+func (m *MockDIDResolver) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", id, metadata)
 	ret0, _ := ret[0].(*did.Document)
@@ -51,24 +51,9 @@ func (m *MockDocResolver) Resolve(id did.DID, metadata *ResolveMetadata) (*did.D
 }
 
 // Resolve indicates an expected call of Resolve.
-func (mr *MockDocResolverMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
+func (mr *MockDIDResolverMockRecorder) Resolve(id, metadata interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockDocResolver)(nil).Resolve), id, metadata)
-}
-
-// ResolveControllers mocks base method.
-func (m *MockDocResolver) ResolveControllers(input did.Document, metadata *ResolveMetadata) ([]did.Document, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveControllers", input, metadata)
-	ret0, _ := ret[0].([]did.Document)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResolveControllers indicates an expected call of ResolveControllers.
-func (mr *MockDocResolverMockRecorder) ResolveControllers(input, metadata interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveControllers", reflect.TypeOf((*MockDocResolver)(nil).ResolveControllers), input, metadata)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockDIDResolver)(nil).Resolve), id, metadata)
 }
 
 // MockPredicate is a mock of Predicate interface.

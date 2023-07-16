@@ -56,7 +56,7 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didstore didstore.Store, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
 ) Issuer {
-	resolver := vdrKeyResolver{docResolver: didservice.Resolver{Store: didstore}, keyResolver: keyStore}
+	resolver := vdrKeyResolver{didResolver: didservice.Resolver{Store: didstore}, keyResolver: keyStore}
 	return &issuer{
 		store:            store,
 		networkPublisher: networkPublisher,

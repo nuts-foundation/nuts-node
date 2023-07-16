@@ -49,7 +49,7 @@ func New(documentOwner types.DocumentOwner, didmanAPI didman.Didman, didStore di
 		routines:          &sync.WaitGroup{},
 		didmanAPI:         didmanAPI,
 		documentOwner:     documentOwner,
-		docResolver:       didservice.Resolver{Store: didStore},
+		didResolver:       didservice.Resolver{Store: didStore},
 		fixedDocumentDIDs: map[string]bool{},
 	}
 }
@@ -63,7 +63,7 @@ type GoldenHammer struct {
 	ctx               context.Context
 	cancelFunc        context.CancelFunc
 	routines          *sync.WaitGroup
-	docResolver       types.DocResolver
+	didResolver       types.DIDResolver
 	didmanAPI         didman.Didman
 	documentOwner     types.DocumentOwner
 	fixedDocumentDIDs map[string]bool
@@ -194,7 +194,7 @@ func (h *GoldenHammer) listDocumentToFix() ([]did.Document, error) {
 			// Already fixed
 			continue
 		}
-		document, _, err := h.docResolver.Resolve(id, nil)
+		document, _, err := h.didResolver.Resolve(id, nil)
 		if err != nil {
 			if !didservice.IsFunctionalResolveError(err) {
 				log.Logger().WithError(err).Infof("Can't resolve DID document, skipping fix (did=%s)", id)
@@ -239,7 +239,7 @@ func (h *GoldenHammer) tryResolveURL(id did.DID) (*url.URL, error) {
 
 // resolveContainsService returns whether 1. given DID document can be resolved, and 2. it contains the specified service.
 func (h *GoldenHammer) resolveContainsService(id did.DID, serviceType string) bool {
-	document, _, err := h.docResolver.Resolve(id, nil)
+	document, _, err := h.didResolver.Resolve(id, nil)
 	if didservice.IsFunctionalResolveError(err) {
 		// Unresolvable DID document, nothing to do
 		return false

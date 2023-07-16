@@ -40,21 +40,21 @@ const DefaultMaxServiceReferenceDepth = 5
 
 const maxControllerDepth = 5
 
-// Resolver implements the DocResolver interface with a types.Store as backend
+// Resolver implements the DIDResolver interface with a types.Store as backend
 type Resolver struct {
 	Store didstore.Store
 }
 
 func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
-	return d.resolve(id, metadata, 0)
+	return resolve(d.Store, id, metadata, 0)
 }
 
-func (d Resolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int) (*did.Document, *types.DocumentMetadata, error) {
+func resolve(resolver types.DIDResolver, id did.DID, metadata *types.ResolveMetadata, depth int) (*did.Document, *types.DocumentMetadata, error) {
 	if depth >= maxControllerDepth {
 		return nil, nil, ErrNestedDocumentsTooDeep
 	}
 
-	doc, meta, err := d.Store.Resolve(id, metadata)
+	doc, meta, err := resolver.Resolve(id, metadata)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -63,7 +63,7 @@ func (d Resolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int
 	if len(doc.Controller) > 0 && (metadata == nil || !metadata.AllowDeactivated) {
 		// also check if the controller is not deactivated
 		// since ResolveControllers calls Resolve and propagates the metadata
-		controllers, err := d.resolveControllers(*doc, metadata, depth+1)
+		controllers, err := resolveControllers(resolver, *doc, metadata, depth+1)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -77,12 +77,11 @@ func (d Resolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int
 }
 
 // ResolveControllers finds the DID Document controllers
-func (d Resolver) ResolveControllers(doc did.Document, metadata *types.ResolveMetadata) ([]did.Document, error) {
-	return d.resolveControllers(doc, metadata, 0)
+func ResolveControllers(resolver types.DIDResolver, doc did.Document, metadata *types.ResolveMetadata) ([]did.Document, error) {
+	return resolveControllers(resolver, doc, metadata, 0)
 }
 
-// ResolveControllers finds the DID Document controllers
-func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMetadata, depth int) ([]did.Document, error) {
+func resolveControllers(resolver types.DIDResolver, doc did.Document, metadata *types.ResolveMetadata, depth int) ([]did.Document, error) {
 	var leaves []did.Document
 	var refsToResolve []did.DID
 
@@ -105,7 +104,7 @@ func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMe
 
 	// resolve all unresolved doc
 	for _, ref := range refsToResolve {
-		node, _, err := d.resolve(ref, metadata, depth)
+		node, _, err := resolve(resolver, ref, metadata, depth)
 		if errors.Is(err, types.ErrDeactivated) || errors.Is(err, types.ErrNoActiveController) {
 			continue
 		}
@@ -132,7 +131,7 @@ func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMe
 
 // NutsKeyResolver implements the NutsKeyResolver interface.
 type NutsKeyResolver struct {
-	Resolver types.DocResolver
+	Resolver types.DIDResolver
 }
 
 func (r NutsKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
@@ -263,7 +262,7 @@ func ExtractFirstRelationKeyIDByType(doc did.Document, relationType types.Relati
 	return ssi.URI{}, types.ErrKeyNotFound
 }
 
-func (r NutsKeyResolver) resolvePublicKey(resolver types.DocResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
+func (r NutsKeyResolver) resolvePublicKey(resolver types.DIDResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
 	id, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)

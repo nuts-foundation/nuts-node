@@ -34,7 +34,7 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	id := did.MustParseDID("did:nuts:example.com")
 	t.Run("owned, cached", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		resolver := types.NewMockDocResolver(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, nil)
 		underlying := types.NewMockDocumentOwner(ctrl)
 		underlying.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
@@ -50,7 +50,7 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	})
 	t.Run("not owned, cached", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		resolver := types.NewMockDocResolver(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, nil)
 		underlying := types.NewMockDocumentOwner(ctrl)
 		underlying.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
@@ -67,7 +67,7 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	t.Run("DID does not exist", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		underlying := types.NewMockDocumentOwner(ctrl)
-		resolver := types.NewMockDocResolver(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
 		documentOwner := newCachingDocumentOwner(underlying, resolver)
@@ -81,7 +81,7 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	t.Run("DID is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		underlying := types.NewMockDocumentOwner(ctrl)
-		resolver := types.NewMockDocResolver(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, types.ErrDeactivated)
 
 		documentOwner := newCachingDocumentOwner(underlying, resolver)
@@ -94,7 +94,7 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	t.Run("error - DID resolve fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		underlying := types.NewMockDocumentOwner(ctrl)
-		resolver := types.NewMockDocResolver(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, errors.New("b00m"))
 
 		documentOwner := newCachingDocumentOwner(underlying, resolver)

@@ -63,7 +63,7 @@ type ambassador struct {
 	networkClient network.Transactions
 	didStore      didstore.Store
 	keyResolver   types.NutsKeyResolver
-	docResolver   types.DocResolver
+	didResolver   *didservice.Resolver
 	eventManager  events.Event
 }
 
@@ -74,7 +74,7 @@ func NewAmbassador(networkClient network.Transactions, didStore didstore.Store, 
 		networkClient: networkClient,
 		didStore:      didStore,
 		keyResolver:   didservice.NutsKeyResolver{Resolver: resolver},
-		docResolver:   resolver,
+		didResolver:   &didservice.Resolver{Store: didStore},
 		eventManager:  eventManager,
 	}
 }
@@ -328,7 +328,7 @@ func (n *ambassador) resolveControllers(document did.Document, transaction dag.T
 	signingTime := transaction.SigningTime()
 
 	for _, prev := range transaction.Previous() {
-		didControllers, err := n.docResolver.ResolveControllers(document, &types.ResolveMetadata{SourceTransaction: &prev})
+		didControllers, err := didservice.ResolveControllers(n.didResolver, document, &types.ResolveMetadata{SourceTransaction: &prev})
 		if err != nil {
 			if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrNoActiveController) {
 				continue
@@ -340,7 +340,7 @@ func (n *ambassador) resolveControllers(document did.Document, transaction dag.T
 
 	// legacy resolve
 	if len(controllers) == 0 {
-		didControllers, err := n.docResolver.ResolveControllers(document, &types.ResolveMetadata{ResolveTime: &signingTime})
+		didControllers, err := didservice.ResolveControllers(n.didResolver, document, &types.ResolveMetadata{ResolveTime: &signingTime})
 		if err != nil {
 			return nil, err
 		}

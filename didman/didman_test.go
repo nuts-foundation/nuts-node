@@ -985,7 +985,7 @@ func newMockContext(t *testing.T) mockContext {
 	mockVDR := types.NewMockVDR(ctrl)
 	mockVCR := vcr.NewMockFinder(ctrl)
 	instance := NewDidmanInstance(store, mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t))
-	instance.(*didman).docResolver = didservice.Resolver{Store: store}
+	instance.(*didman).didResolver = didservice.Resolver{Store: store}
 	instance.(*didman).serviceResolver = didservice.ServiceResolver{Store: store}
 
 	return mockContext{

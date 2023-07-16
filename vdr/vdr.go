@@ -53,7 +53,7 @@ type VDR struct {
 	network           network.Transactions
 	networkAmbassador Ambassador
 	didDocCreator     types.DocCreator
-	didDocResolver    types.DocResolver
+	didResolver       *didservice.Resolver
 	serviceResolver   types.ServiceResolver
 	documentOwner     types.DocumentOwner
 	keyStore          crypto.KeyStore
@@ -67,7 +67,7 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.T
 		network:           networkClient,
 		store:             store,
 		didDocCreator:     didservice.Creator{KeyStore: cryptoClient},
-		didDocResolver:    didservice.Resolver{Store: store},
+		didResolver:       &didservice.Resolver{Store: store},
 		serviceResolver:   didservice.ServiceResolver{Store: store},
 		documentOwner:     newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, resolver),
 		networkAmbassador: NewAmbassador(networkClient, store, eventManager),
@@ -138,7 +138,7 @@ func (r *VDR) ListOwned(ctx context.Context) ([]did.DID, error) {
 func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.DocIterator {
 	return func(doc did.Document, metadata types.DocumentMetadata) error {
 		*totalCount++
-		controllers, err := r.didDocResolver.ResolveControllers(doc, nil)
+		controllers, err := didservice.ResolveControllers(r.didResolver, doc, nil)
 		if err != nil {
 			log.Logger().
 				WithField(core.LogFieldDID, doc.ID).
@@ -210,10 +210,10 @@ func (r *VDR) Create(ctx context.Context, options types.DIDCreationOptions) (*di
 	// holder for all metadata of the controllers
 	controllerMetadata := make([]types.DocumentMetadata, len(options.Controllers))
 
-	// if any controllers have been added, check if they exist through the docResolver
+	// if any controllers have been added, check if they exist through the didResolver
 	if len(options.Controllers) > 0 {
 		for _, controller := range options.Controllers {
-			_, meta, err := r.didDocResolver.Resolve(controller, nil)
+			_, meta, err := r.didResolver.Resolve(controller, nil)
 			if err != nil {
 				return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
 			}
@@ -287,7 +287,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	}
 
 	// for the metadata
-	_, controllerMeta, err := r.didDocResolver.Resolve(controller.ID, nil)
+	_, controllerMeta, err := r.didResolver.Resolve(controller.ID, nil)
 	if err != nil {
 		return fmt.Errorf("update DID document: %w", err)
 	}
@@ -313,7 +313,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 }
 
 func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
-	controllers, err := r.didDocResolver.ResolveControllers(doc, nil)
+	controllers, err := didservice.ResolveControllers(r.didResolver, doc, nil)
 	if err != nil {
 		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
 	}

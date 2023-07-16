@@ -198,11 +198,11 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(&core.LandingPage{})
 	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: didservice.KeyResolver{Store: didStore}})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
-	docResolver := didservice.Resolver{Store: didStore}
-	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: &didservice.Manipulator{
+	didResolver := didservice.Resolver{Store: didStore}
+	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DIDResolver: didResolver, DocManipulator: &didservice.Manipulator{
 		KeyCreator: cryptoInstance,
 		Updater:    vdrInstance,
-		Resolver:   docResolver,
+		Resolver:   didResolver,
 	}})
 	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
 	system.RegisterRoutes(&openid4vciAPI.Wrapper{

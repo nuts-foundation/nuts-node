@@ -110,7 +110,7 @@ func TestWrapper_GetDID(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(didDoc, meta, nil)
+		ctx.didResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(didDoc, meta, nil)
 
 		response, err := ctx.client.GetDID(nil, GetDIDRequestObject{Did: id.String()})
 
@@ -122,7 +122,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx := newMockContext(t)
 		expectedVersionHash, err := hash.ParseHex(versionId)
 		require.NoError(t, err)
-		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, Hash: &expectedVersionHash}).Return(didDoc, meta, nil)
+		ctx.didResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, Hash: &expectedVersionHash}).Return(didDoc, meta, nil)
 
 		response, err := ctx.client.GetDID(nil, GetDIDRequestObject{Did: id.String(), Params: GetDIDParams{VersionId: &versionId}})
 
@@ -134,7 +134,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx := newMockContext(t)
 		expectedTime, err := time.Parse(time.RFC3339, versionTime)
 		require.NoError(t, err)
-		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, ResolveTime: &expectedTime}).Return(didDoc, meta, nil)
+		ctx.didResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, ResolveTime: &expectedTime}).Return(didDoc, meta, nil)
 
 		response, err := ctx.client.GetDID(nil, GetDIDRequestObject{Did: id.String(), Params: GetDIDParams{VersionTime: &versionTime}})
 
@@ -189,7 +189,7 @@ func TestWrapper_GetDID(t *testing.T) {
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, types.ErrNotFound)
+		ctx.didResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, types.ErrNotFound)
 
 		response, err := ctx.client.GetDID(nil, GetDIDRequestObject{Did: id.String()})
 
@@ -200,7 +200,7 @@ func TestWrapper_GetDID(t *testing.T) {
 
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, errors.New("b00m!"))
+		ctx.didResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, errors.New("b00m!"))
 
 		response, err := ctx.client.GetDID(nil, GetDIDRequestObject{Did: id.String()})
 
@@ -465,7 +465,7 @@ func Test_ErrorStatusCodes(t *testing.T) {
 type mockContext struct {
 	ctrl        *gomock.Controller
 	vdr         *types.MockVDR
-	docResolver *types.MockDocResolver
+	didResolver *types.MockDIDResolver
 	docUpdater  *types.MockDocManipulator
 	client      *Wrapper
 	requestCtx  context.Context
@@ -476,15 +476,15 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	vdr := types.NewMockVDR(ctrl)
 	docManipulator := types.NewMockDocManipulator(ctrl)
-	docResolver := types.NewMockDocResolver(ctrl)
-	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator, DocResolver: docResolver}
+	didResolver := types.NewMockDIDResolver(ctrl)
+	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator, DIDResolver: didResolver}
 	requestCtx := audit.TestContext()
 
 	return mockContext{
 		ctrl:        ctrl,
 		vdr:         vdr,
 		client:      client,
-		docResolver: docResolver,
+		didResolver: didResolver,
 		docUpdater:  docManipulator,
 		requestCtx:  requestCtx,
 	}

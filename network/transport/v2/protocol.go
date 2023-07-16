@@ -74,7 +74,7 @@ func New(
 	config Config,
 	nodeDID did.DID,
 	state dag.State,
-	docResolver vdr.DocResolver,
+	didResolver vdr.DIDResolver,
 	decrypter crypto.Decrypter,
 	diagnosticsProvider func() transport.Diagnostics,
 	dagStore stoabs.KVStore,
@@ -87,7 +87,7 @@ func New(
 		state:       state,
 		nodeDID:     nodeDID,
 		decrypter:   decrypter,
-		docResolver: docResolver,
+		didResolver: didResolver,
 		dagStore:    dagStore,
 	}
 	p.sender = p
@@ -101,7 +101,7 @@ type protocol struct {
 	state                  dag.State
 	ctx                    context.Context
 	routines               *sync.WaitGroup
-	docResolver            vdr.DocResolver
+	didResolver            vdr.DIDResolver
 	privatePayloadReceiver dag.Notifier
 	decrypter              crypto.Decrypter
 	connectionList         grpc.ConnectionList
@@ -357,7 +357,7 @@ func (p *protocol) decryptPAL(ctx context.Context, encrypted [][]byte) (dag.PAL,
 		return nil, errors.New("node DID is not set")
 	}
 
-	doc, _, err := p.docResolver.Resolve(p.nodeDID, nil)
+	doc, _, err := p.didResolver.Resolve(p.nodeDID, nil)
 	if err != nil {
 		return nil, err
 	}

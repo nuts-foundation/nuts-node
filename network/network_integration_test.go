@@ -1107,15 +1107,15 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	}
 
 	instance := &Network{
-		config:              config,
-		didDocumentResolver: didservice.Resolver{Store: didStore},
-		didDocumentFinder:   didservice.Finder{Store: didStore},
-		keyStore:            keyStore,
-		keyResolver:         didservice.KeyResolver{Store: didStore},
-		serviceResolver:     didservice.ServiceResolver{Store: didStore},
-		eventPublisher:      eventPublisher,
-		storeProvider:       &storeProvider,
-		pkiValidator:        pkiValidator,
+		config:            config,
+		didResolver:       didservice.Resolver{Store: didStore},
+		didDocumentFinder: didservice.Finder{Store: didStore},
+		keyStore:          keyStore,
+		keyResolver:       didservice.KeyResolver{Store: didStore},
+		serviceResolver:   didservice.ServiceResolver{Store: didStore},
+		eventPublisher:    eventPublisher,
+		storeProvider:     &storeProvider,
+		pkiValidator:      pkiValidator,
 	}
 
 	if err := instance.Configure(*serverConfig); err != nil {

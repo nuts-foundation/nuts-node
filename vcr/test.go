@@ -41,7 +41,7 @@ import (
 type TestVCRContext struct {
 	DIDStore    didstore.Store
 	KeyStore    crypto.KeyStore
-	DocResolver types.DocResolver
+	DIDResolver types.DIDResolver
 	KeyResolver types.KeyResolver
 	VCR         VCR
 }
@@ -52,7 +52,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	ctx := TestVCRContext{
 		DIDStore:    didStore,
 		KeyStore:    keyStore,
-		DocResolver: didservice.Resolver{Store: didStore},
+		DIDResolver: didservice.Resolver{Store: didStore},
 		KeyResolver: didservice.KeyResolver{Store: didStore},
 	}
 
@@ -131,7 +131,7 @@ type mockContext struct {
 	tx              *network.MockTransactions
 	vcr             *vcr
 	keyResolver     *types.MockKeyResolver
-	docResolver     *types.MockDocResolver
+	didResolver     *types.MockDIDResolver
 	serviceResolver *types.MockServiceResolver
 	crypto          *crypto.Crypto
 }
@@ -145,7 +145,7 @@ func newMockContext(t *testing.T) mockContext {
 	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
 	tx.EXPECT().CleanupSubscriberEvents("vcr_vcs", gomock.Any())
 	keyResolver := types.NewMockKeyResolver(ctrl)
-	docResolver := types.NewMockDocResolver(ctrl)
+	didResolver := types.NewMockDIDResolver(ctrl)
 	serviceResolver := types.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
@@ -154,7 +154,7 @@ func newMockContext(t *testing.T) mockContext {
 	vcr := NewVCRInstance(cryptoInstance, nil, tx, jsonldManager, eventManager, storageClient, pki.New(), nil).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.keyResolver = keyResolver
-	vcr.docResolver = docResolver
+	vcr.didResolver = didResolver
 	vcr.pkiProvider = pki.New()
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	if err := vcr.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDir})); err != nil {
@@ -174,7 +174,7 @@ func newMockContext(t *testing.T) mockContext {
 		tx:              tx,
 		vcr:             vcr,
 		keyResolver:     keyResolver,
-		docResolver:     docResolver,
+		didResolver:     didResolver,
 		serviceResolver: serviceResolver,
 	}
 }

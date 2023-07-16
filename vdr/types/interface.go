@@ -29,8 +29,8 @@ import (
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 )
 
-// DocResolver is the interface that groups all the DID Document read methods
-type DocResolver interface {
+// DIDResolver is the interface for DID resolvers: the process of getting the backing document of a DID.
+type DIDResolver interface {
 	// Resolve returns a DID Document for the provided DID.
 	// If metadata is not provided the latest version is returned.
 	// If metadata is provided then the result is filtered or scoped on that metadata.
@@ -38,8 +38,6 @@ type DocResolver interface {
 	// It returns ErrDeactivated if the DID Document has been deactivated and metadata is unset or metadata.AllowDeactivated is false.
 	// It returns ErrNoActiveController if all of the DID Documents controllers have been deactivated and metadata is unset or metadata.AllowDeactivated is false.
 	Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error)
-	// ResolveControllers finds the DID Document controllers
-	ResolveControllers(input did.Document, metadata *ResolveMetadata) ([]did.Document, error)
 }
 
 // Predicate is an interface for abstracting search options on DID documents
