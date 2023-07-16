@@ -192,7 +192,7 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 }
 
 func (w *Wrapper) resolvePublicKey(id *did.DID) (key crypt.PublicKey, keyID ssi.URI, err error) {
-	if id.DID.IsURL() {
+	if id.IsURL() {
 		// Assume it is a keyId
 		now := time.Now()
 		key, err = w.K.ResolveKeyByID(id.String(), &now, types.KeyAgreement)
