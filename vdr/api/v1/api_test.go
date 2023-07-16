@@ -443,7 +443,7 @@ func TestWrapper_DeleteVerificationMethod(t *testing.T) {
 
 		response, err := ctx.client.DeleteVerificationMethod(ctx.requestCtx, DeleteVerificationMethodRequestObject{Did: did123.String(), Kid: "not a kid"})
 
-		assert.EqualError(t, err, "given kid could not be parsed: invalid DID: input does not begin with 'did:' prefix")
+		assert.EqualError(t, err, "given kid could not be parsed: invalid DID")
 		assert.Nil(t, response)
 	})
 

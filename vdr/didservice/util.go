@@ -49,12 +49,7 @@ func GetDIDFromURL(didURL string) (did.DID, error) {
 	if err != nil {
 		return did.DID{}, err
 	}
-	parsed.Fragment = ""
-	parsed.Query = ""
-	parsed.Path = ""
-	parsed.Params = nil
-	parsed.PathSegments = nil
-	return *parsed, nil
+	return parsed.WithoutURL(), nil
 }
 
 // DIDServiceQueryError denies the query based on validation constraints.

@@ -158,7 +158,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 		err := validator.Validate(*v)
 
-		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID: input does not begin with 'did:' prefix")
+		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID")
 	})
 
 	t.Run("failed - invalid ID", func(t *testing.T) {
@@ -318,7 +318,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID: input does not begin with 'did:' prefix")
+		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID")
 	})
 
 	t.Run("failed - missing purposeOfUse", func(t *testing.T) {
