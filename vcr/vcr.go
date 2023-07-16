@@ -27,7 +27,6 @@ import (
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"io/fs"
 	"net/http"
 	"path"
@@ -58,16 +57,15 @@ import (
 const credentialsBackupShelf = "credentials"
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, store didstore.Store,
+func NewVCRInstance(keyStore crypto.KeyStore, didResolver vdr.DIDResolver,
 	network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine,
 	pkiProvider pki.Provider, documentOwner vdr.DocumentOwner) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
-		didstore:        store,
-		didResolver:     didservice.Resolver{Store: store},
+		didResolver:     didResolver,
 		keyStore:        keyStore,
-		keyResolver:     didservice.KeyResolver{Store: store},
-		serviceResolver: didservice.ServiceResolver{Store: store},
+		keyResolver:     didservice.KeyResolver{Resolver: didResolver},
+		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
 		network:         network,
 		jsonldManager:   jsonldManager,
 		eventManager:    eventManager,
@@ -85,7 +83,6 @@ type vcr struct {
 	strictmode          bool
 	config              Config
 	store               storage.KVBackedLeiaStore
-	didstore            didstore.Store
 	keyStore            crypto.KeyStore
 	didResolver         vdr.DIDResolver
 	keyResolver         vdr.KeyResolver
@@ -203,7 +200,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	// default to nil openidHandlerFn when OpenID4VCI.Enabled==false
 	var openidHandlerFn func(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error)
 
-	networkPublisher := issuer.NewNetworkPublisher(c.network, c.didstore, c.keyStore)
+	networkPublisher := issuer.NewNetworkPublisher(c.network, c.didResolver, c.keyStore)
 	if c.config.OpenID4VCI.Enabled {
 		tlsConfig, err := c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 		if err != nil {
@@ -234,7 +231,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		})
 		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
 	}
-	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, c.didstore, c.keyStore, c.jsonldManager, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, c.didResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.didResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)

@@ -21,6 +21,7 @@ package types
 import (
 	"context"
 	"crypto"
+	"errors"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"time"
 
@@ -111,6 +112,9 @@ type VDR interface {
 	DocCreator
 	DocUpdater
 
+	// Resolver returns the resolver for getting the DID document for a DID.
+	Resolver() DIDResolver
+
 	// ConflictedDocuments returns the DID Document and metadata of all documents with a conflict.
 	ConflictedDocuments() ([]did.Document, []DocumentMetadata, error)
 }
@@ -149,6 +153,9 @@ type DocManipulator interface {
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
 	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
 }
+
+// ErrDIDMethodNotSupported is returned when a DID method is not supported by the DID resolver
+var ErrDIDMethodNotSupported = errors.New("DID method not supported")
 
 // RelationType is the type that contains the different possible relationships between a DID Document and a VerificationMethod
 // They are defined in the DID spec: https://www.w3.org/TR/did-core/#verification-relationships

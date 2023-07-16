@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"sync"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -38,6 +39,29 @@ var ErrNestedDocumentsTooDeep = errors.New("DID Document controller structure ha
 const DefaultMaxServiceReferenceDepth = 5
 
 const maxControllerDepth = 5
+
+var _ types.DIDResolver = &DIDResolverRouter{}
+
+// DIDResolverRouter is a DID resolver that can route to different DID resolvers based on the DID method
+type DIDResolverRouter struct {
+	resolvers sync.Map
+}
+
+// Resolve looks up the right resolver for the given DID and delegates the resolution to it.
+// If no resolver is registered for the given DID method, ErrDIDMethodNotSupported is returned.
+func (r *DIDResolverRouter) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
+	method := id.Method
+	resolver, registered := r.resolvers.Load(method)
+	if !registered {
+		return nil, nil, types.ErrDIDMethodNotSupported
+	}
+	return resolver.(types.DIDResolver).Resolve(id, metadata)
+}
+
+// Register registers a DID resolver for the given DID method.
+func (r *DIDResolverRouter) Register(method string, resolver types.DIDResolver) {
+	r.resolvers.Store(method, resolver)
+}
 
 // Resolver implements the DIDResolver interface with a types.Store as backend
 type Resolver struct {
@@ -130,9 +154,9 @@ func resolveControllers(resolver types.DIDResolver, doc did.Document, metadata *
 
 var _ types.KeyResolver = KeyResolver{}
 
-// KeyResolver implements the KeyResolver interface with a types.Store as backend
+// KeyResolver implements the KeyResolver interface that uses keys from resolved DIDs.
 type KeyResolver struct {
-	Store didstore.Store
+	Resolver types.DIDResolver
 }
 
 func (r KeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationType types.RelationType) (crypto.PublicKey, error) {
@@ -140,7 +164,7 @@ func (r KeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationTy
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
 	}
-	doc, _, err := r.Store.Resolve(holder, &types.ResolveMetadata{
+	doc, _, err := r.Resolver.Resolve(holder, &types.ResolveMetadata{
 		ResolveTime: validAt,
 	})
 	if err != nil {
@@ -159,7 +183,7 @@ func (r KeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationTy
 }
 
 func (r KeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType types.RelationType) (ssi.URI, crypto.PublicKey, error) {
-	doc, _, err := r.Store.Resolve(id, &types.ResolveMetadata{
+	doc, _, err := r.Resolver.Resolve(id, &types.ResolveMetadata{
 		ResolveTime: validAt,
 	})
 	if err != nil {
@@ -216,7 +240,7 @@ func resolvePublicKey(resolver types.DIDResolver, kid string, metadata types.Res
 
 // ServiceResolver is a wrapper around a DID store that allows resolving services, following references.
 type ServiceResolver struct {
-	Store didstore.Store
+	Resolver types.DIDResolver
 }
 
 func (s ServiceResolver) Resolve(query ssi.URI, maxDepth int) (did.Service, error) {
@@ -235,7 +259,7 @@ func (s ServiceResolver) ResolveEx(endpoint ssi.URI, depth int, maxDepth int, do
 	}
 	var document *did.Document
 	if document = documentCache[referencedDID.String()]; document == nil {
-		document, _, err = Resolver{Store: s.Store}.Resolve(referencedDID, nil)
+		document, _, err = s.Resolver.Resolve(referencedDID, nil)
 		if err != nil {
 			return did.Service{}, err
 		}

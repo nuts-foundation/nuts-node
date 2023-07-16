@@ -58,14 +58,17 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockStore := didstore.NewMockStore(ctrl)
 	mockNetwork := network.NewMockTransactions(ctrl)
 	mockKeyStore := crypto.NewMockKeyStore(ctrl)
+	resolverRouter := &didservice.DIDResolverRouter{}
 	vdr := VDR{
 		store:             mockStore,
 		network:           mockNetwork,
 		networkAmbassador: mockAmbassador,
 		didDocCreator:     didservice.Creator{KeyStore: mockKeyStore},
-		didResolver:       &didservice.Resolver{Store: mockStore},
+		didResolver:       resolverRouter,
+		nutsDidResolver:   &didservice.NutsDIDResolver{Store: mockStore},
 		keyStore:          mockKeyStore,
 	}
+	resolverRouter.Register(didservice.NutsDIDMethodName, vdr.nutsDidResolver)
 	return vdrTestCtx{
 		ctrl:           ctrl,
 		vdr:            vdr,
@@ -120,6 +123,11 @@ func TestVDR_Update(t *testing.T) {
 		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
 		assert.EqualError(t, err, "update DID document: DID Document validation failed: invalid context")
+	})
+
+	t.Run("error - can only update did:nuts methods", func(t *testing.T) {
+		err := (&VDR{}).Update(context.Background(), did.MustParseDID("did:web:example.com"), did.Document{})
+		assert.EqualError(t, err, "can't update DID document of type: web")
 	})
 
 	t.Run("error - no controller for document", func(t *testing.T) {
@@ -252,48 +260,73 @@ func TestVDR_Create(t *testing.T) {
 
 func TestNewVDR(t *testing.T) {
 	cfg := Config{}
-	vdr := NewVDR(cfg, nil, nil, nil, nil)
+	vdr := NewVDR(cfg, nil, nil, nil, nil, nil)
 	assert.IsType(t, &VDR{}, vdr)
 	assert.Equal(t, vdr.config, cfg)
 }
 
-func TestVDR_Migrate(t *testing.T) {
-	t.Run("migrate on 0 document count", func(t *testing.T) {
+func TestVDR_Start(t *testing.T) {
+	t.Run("it calls Network.DiscoverNodes()", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
-		ctx.mockAmbassador.EXPECT().Start()
-		ctx.mockStore.EXPECT().DocumentCount().Return(uint(0), nil)
-		ctx.mockNetwork.EXPECT().Reprocess(context.Background(), "application/did+json").Return(nil, nil)
-
-		err := ctx.vdr.Start()
-
-		require.NoError(t, err)
-	})
-	t.Run("don't migrate on > 0 document count", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-		ctx.mockAmbassador.EXPECT().Start()
 		ctx.mockStore.EXPECT().DocumentCount().Return(uint(1), nil)
+		ctx.mockNetwork.EXPECT().DiscoverNodes(gomock.Any()).Return(nil)
+		ctx.mockAmbassador.EXPECT().Start()
 
 		err := ctx.vdr.Start()
 
 		require.NoError(t, err)
 	})
-	t.Run("error on migration error", func(t *testing.T) {
+	t.Run("error returned by Network.DiscoverNodes()", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
+		ctx.mockStore.EXPECT().DocumentCount().Return(uint(1), nil)
+		ctx.mockNetwork.EXPECT().DiscoverNodes(gomock.Any()).Return(errors.New("failed"))
 		ctx.mockAmbassador.EXPECT().Start()
-		testError := errors.New("test")
-		ctx.mockStore.EXPECT().DocumentCount().Return(uint(0), testError)
 
 		err := ctx.vdr.Start()
 
-		assert.Equal(t, testError, err)
+		require.EqualError(t, err, "network node discovery failed: failed")
 	})
+	t.Run("migration", func(t *testing.T) {
+		t.Run("migrate on 0 document count", func(t *testing.T) {
+			ctx := newVDRTestCtx(t)
+			ctx.mockNetwork.EXPECT().DiscoverNodes(gomock.Any()).Return(nil)
+			ctx.mockAmbassador.EXPECT().Start()
+			ctx.mockStore.EXPECT().DocumentCount().Return(uint(0), nil)
+			ctx.mockNetwork.EXPECT().Reprocess(context.Background(), "application/did+json").Return(nil, nil)
+
+			err := ctx.vdr.Start()
+
+			require.NoError(t, err)
+		})
+		t.Run("don't migrate on > 0 document count", func(t *testing.T) {
+			ctx := newVDRTestCtx(t)
+			ctx.mockNetwork.EXPECT().DiscoverNodes(gomock.Any()).Return(nil)
+			ctx.mockAmbassador.EXPECT().Start()
+			ctx.mockStore.EXPECT().DocumentCount().Return(uint(1), nil)
+
+			err := ctx.vdr.Start()
+
+			require.NoError(t, err)
+		})
+		t.Run("error on migration error", func(t *testing.T) {
+			ctx := newVDRTestCtx(t)
+			ctx.mockAmbassador.EXPECT().Start()
+			testError := errors.New("test")
+			ctx.mockStore.EXPECT().DocumentCount().Return(uint(0), testError)
+
+			err := ctx.vdr.Start()
+
+			assert.Equal(t, testError, err)
+		})
+	})
+
 }
 
 func TestVDR_ConflictingDocuments(t *testing.T) {
 	t.Run("diagnostics", func(t *testing.T) {
 		t.Run("ok - no conflicts/no documents", func(t *testing.T) {
-			s := didstore.NewTestStore(t)
-			vdr := NewVDR(Config{}, nil, nil, s, nil)
+			vdr := NewVDR(Config{}, nil, nil, nil, nil, nil)
+			vdr.store = didstore.NewTestStore(t)
 			results := vdr.Diagnostics()
 
 			require.Len(t, results, 2)
@@ -302,11 +335,12 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			s := didstore.NewTestStore(t)
-			vdr := NewVDR(Config{}, nil, nil, s, nil)
+			vdr := NewVDR(Config{}, nil, nil, nil, nil, nil)
+			vdr.store = didstore.NewTestStore(t)
+			vdr.nutsDidResolver = &didservice.NutsDIDResolver{Store: vdr.store}
 			didDocument := did.Document{ID: TestDIDA}
-			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
-			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
+			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
+			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
 			results := vdr.Diagnostics()
 
 			require.Len(t, results, 2)
@@ -315,17 +349,18 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 owned conflict", func(t *testing.T) {
-			s := didstore.NewTestStore(t)
 			client := crypto.NewMemoryCryptoInstance()
 			keyID := TestDIDA
 			keyID.Fragment = "1"
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
-			vdr := NewVDR(Config{}, client, nil, s, nil)
+			vdr := NewVDR(Config{}, nil, client, nil, nil, nil)
+			vdr.store = didstore.NewTestStore(t)
+			vdr.nutsDidResolver = &didservice.NutsDIDResolver{Store: vdr.store}
 			didDocument := did.Document{ID: TestDIDA}
 
 			didDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: keyID})
-			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
-			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
+			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
+			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
 			results := vdr.Diagnostics()
 
 			require.Len(t, results, 2)
@@ -353,15 +388,16 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			s := didstore.NewTestStore(t)
 			client := crypto.NewMemoryCryptoInstance()
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyVendor.KID()))
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyOrg.KID()))
-			vdr := NewVDR(Config{}, client, nil, s, nil)
+			vdr := NewVDR(Config{}, nil, client, nil, nil, nil)
+			vdr.store = didstore.NewTestStore(t)
+			vdr.nutsDidResolver = &didservice.NutsDIDResolver{Store: vdr.store}
 
-			_ = s.Add(*didDocVendor, didstore.TestTransaction(*didDocVendor))
-			_ = s.Add(*didDocOrg, didstore.TestTransaction(*didDocOrg))
-			_ = s.Add(*didDocOrg, didstore.TestTransaction(*didDocOrg))
+			_ = vdr.store.Add(*didDocVendor, didstore.TestTransaction(*didDocVendor))
+			_ = vdr.store.Add(*didDocOrg, didstore.TestTransaction(*didDocOrg))
+			_ = vdr.store.Add(*didDocOrg, didstore.TestTransaction(*didDocOrg))
 			results := vdr.Diagnostics()
 
 			require.Len(t, results, 2)
@@ -371,8 +407,8 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	})
 	t.Run("list", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
-			s := didstore.NewTestStore(t)
-			vdr := NewVDR(Config{}, nil, nil, s, nil)
+			vdr := NewVDR(Config{}, nil, nil, nil, nil, nil)
+			vdr.store = didstore.NewTestStore(t)
 			docs, meta, err := vdr.ConflictedDocuments()
 
 			require.NoError(t, err)
@@ -381,11 +417,11 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			s := didstore.NewTestStore(t)
-			vdr := NewVDR(Config{}, nil, nil, s, nil)
+			vdr := NewVDR(Config{}, nil, nil, nil, nil, nil)
+			vdr.store = didstore.NewTestStore(t)
 			didDocument := did.Document{ID: TestDIDA}
-			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
-			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
+			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
+			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
 			docs, meta, err := vdr.ConflictedDocuments()
 
 			require.NoError(t, err)

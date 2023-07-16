@@ -1106,13 +1106,13 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		t.Fatal(err)
 	}
 
+	didResolver := didservice.NutsDIDResolver{Store: didStore}
 	instance := &Network{
 		config:            config,
-		didResolver:       didservice.Resolver{Store: didStore},
-		didDocumentFinder: didservice.Finder{Store: didStore},
+		didResolver:     didResolver,
 		keyStore:          keyStore,
-		keyResolver:       didservice.KeyResolver{Store: didStore},
-		serviceResolver:   didservice.ServiceResolver{Store: didStore},
+		keyResolver:       didservice.KeyResolver{Resolver: didResolver},
+		serviceResolver:   didservice.ServiceResolver{Resolver: didResolver},
 		eventPublisher:    eventPublisher,
 		storeProvider:     &storeProvider,
 		pkiValidator:      pkiValidator,

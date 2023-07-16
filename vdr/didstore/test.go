@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/require"
 
@@ -42,10 +41,9 @@ var testServiceA = did.Service{ID: ssi.MustParseURI("did:nuts:service:a"), Servi
 var testServiceB = did.Service{ID: ssi.MustParseURI("did:nuts:service:b"), ServiceEndpoint: []interface{}{"http://b"}}
 
 func NewTestStore(t *testing.T) *store {
-	s := New(storage.NewTestStorageEngine(t).GetProvider(moduleName)).(*store)
-	err := s.Configure(core.ServerConfig{})
+	kvStore, err := storage.NewTestStorageEngine(path.Join(io.TestDirectory(t))).GetProvider(moduleName).GetKVStore("didstore", storage.PersistentStorageClass)
 	require.NoError(t, err)
-	return s
+	return New(kvStore).(*store)
 }
 
 func add(t *testing.T, tl *store, doc did.Document, tx Transaction) {

@@ -26,8 +26,6 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/storage"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -51,25 +49,17 @@ const (
 	conflictedCountKey = "conflictedCount"
 	// documentCountKey is the key used on the statsShelf to store the number of documents
 	documentCountKey = "documentCount"
-	// didStoreName contains the name for the store
-	didStoreName = "didstore"
 )
 
 type store struct {
-	db              stoabs.KVStore
-	storageProvider storage.Provider
+	db stoabs.KVStore
 }
 
 // New returns a new vdrStore.Store that still needs to be initialized
-func New(storageProvider storage.Provider) Store {
+func New(kvStore stoabs.KVStore) Store {
 	return &store{
-		storageProvider: storageProvider,
+		db: kvStore,
 	}
-}
-
-func (tl *store) Configure(_ core.ServerConfig) (err error) {
-	tl.db, err = tl.storageProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
-	return err
 }
 
 // Add inserts the document version at the correct place and updates all later versions if needed

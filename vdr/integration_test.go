@@ -41,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -219,8 +218,8 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 type testContext struct {
 	vdr            *VDR
 	eventPublisher events.Event
-	docCreator     didservice.Creator
-	didResolver    didservice.Resolver
+	docCreator     types.DocCreator
+	didResolver    types.DIDResolver
 	cryptoInstance *crypto.Crypto
 	audit          context.Context
 }
@@ -244,24 +243,22 @@ func setup(t *testing.T) testContext {
 
 	// Startup crypto
 	cryptoInstance := crypto.NewCryptoInstance()
-	cryptoInstance.Configure(nutsConfig)
+	require.NoError(t, cryptoInstance.Configure(nutsConfig))
 
 	// Storage
 	storageProvider := storage.StaticKVStoreProvider{
 		Store: storage.CreateTestBBoltStore(t, testDir+"/test.db"),
 	}
 
-	// DID Store
-	didStore := didstore.NewTestStore(t)
-	didResolver := didservice.Resolver{Store: didStore}
-	docCreator := didservice.Creator{KeyStore: cryptoInstance}
+	// DID Resolver
+	didResolver := &didservice.DIDResolverRouter{}
 
 	// Startup events
 	eventPublisher := events.NewTestManager(t)
 
 	// Create PKI engine
 	pkiValidator := pki.New()
-	pkiValidator.Configure(nutsConfig)
+	require.NoError(t, pkiValidator.Configure(nutsConfig))
 	// is not pkiValidator.Start()-ed
 
 	// Startup the network layer
@@ -269,33 +266,30 @@ func setup(t *testing.T) testContext {
 	networkCfg.GrpcAddr = "localhost:5555"
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
-		didStore,
+		didResolver,
 		cryptoInstance,
 		eventPublisher,
 		&storageProvider,
 		pkiValidator,
 	)
-	nutsNetwork.Configure(nutsConfig)
-	nutsNetwork.Start()
+	require.NoError(t, nutsNetwork.Configure(nutsConfig))
+	require.NoError(t, nutsNetwork.Start())
 	t.Cleanup(func() {
-		nutsNetwork.Shutdown()
+		_ = nutsNetwork.Shutdown()
 	})
 
 	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore, eventPublisher)
-	vdr.Configure(nutsConfig)
-	err = vdr.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
+	vdr := NewVDR(DefaultConfig(), &storageProvider, cryptoInstance, nutsNetwork, didResolver, eventPublisher)
+	require.NoError(t, vdr.Configure(nutsConfig))
+	require.NoError(t, vdr.Start())
 	t.Cleanup(func() {
-		vdr.Shutdown()
+		_ = vdr.Shutdown()
 	})
 
 	return testContext{
 		vdr:            vdr,
 		eventPublisher: eventPublisher,
-		docCreator:     docCreator,
+		docCreator:     vdr.didDocCreator,
 		didResolver:    didResolver,
 		cryptoInstance: cryptoInstance,
 		audit:          audit.TestContext(),

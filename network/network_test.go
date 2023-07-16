@@ -1083,7 +1083,6 @@ func Test_connectToKnownNodes(t *testing.T) {
 				// Use actual test instance because the unit test's createNetwork mocks too much for us
 				network := NewTestNetworkInstance(t)
 				docFinder := vdrTypes.NewMockDocFinder(ctrl)
-				network.didDocumentFinder = docFinder
 				network.config.EnableDiscovery = true
 
 				doc2 := doc
@@ -1095,7 +1094,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 				}
 				docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).Return([]did.Document{doc2}, nil)
 
-				_ = network.connectToKnownNodes(did.DID{}) // no local node DID
+				_ = network.DiscoverNodes(docFinder) // no local node DID
 
 				// assert
 				// cxt.connectionManager.Connect is not called
@@ -1108,10 +1107,10 @@ func Test_connectToKnownNodes(t *testing.T) {
 		// Use actual test instance because the unit test's createNetwork mocks too much for us
 		network := NewTestNetworkInstance(t)
 		docFinder := vdrTypes.NewMockDocFinder(ctrl)
-		network.didDocumentFinder = docFinder
 		network.config.EnableDiscovery = true
 		connectionManager := transport.NewMockConnectionManager(ctrl)
 		network.connectionManager = connectionManager
+		network.nodeDID = *nodeDID
 
 		localDocument := did.Document{
 			ID: *nodeDID,
@@ -1137,20 +1136,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 		// Only expect Connect() call for peer
 		connectionManager.EXPECT().Connect(peerAddress, *peerDID, nil)
 
-		_ = network.connectToKnownNodes(*nodeDID)
-	})
-	t.Run("bootstrap always connect without delay", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		ctx := createNetwork(t, ctrl, func(config *Config) {
-			config.EnableDiscovery = true
-			config.BootstrapNodes = []string{"bootstrap"}
-		})
-		// ctx.docFinder.EXPECT().Find().Return(nothing, nil) // called from createNetwork
-
-		// expect Connect() call with delay == 0 for bootstrap node
-		ctx.connectionManager.EXPECT().Connect("bootstrap", did.DID{}, nil)
-
-		_ = ctx.network.connectToKnownNodes(*nodeDID)
+		_ = network.DiscoverNodes(docFinder)
 	})
 }
 
@@ -1332,9 +1318,9 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	pkiMock := pki.NewMockValidator(ctrl)
 	network := NewNetworkInstance(networkConfig, didStore, keyStore, eventPublisher, storageEngine.GetProvider(ModuleName), pkiMock)
 	network.keyResolver = keyResolver
-	network.didResolver = didservice.Resolver{Store: didStore}
-	network.serviceResolver = didservice.ServiceResolver{Store: didStore}
-	network.didDocumentFinder = docFinder
+	didResolver := didservice.NutsDIDResolver{Store: didStore}
+	network.didResolver = didResolver
+	network.serviceResolver = didservice.ServiceResolver{Resolver: didResolver}
 	network.state = state
 	network.connectionManager = connectionManager
 	network.protocols = []transport.Protocol{prot}

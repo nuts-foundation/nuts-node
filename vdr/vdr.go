@@ -29,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/storage"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -44,6 +45,9 @@ import (
 
 var _ types.VDR = (*VDR)(nil)
 
+// didStoreName contains the name for the store
+const didStoreName = "didstore"
+
 // VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
@@ -53,25 +57,36 @@ type VDR struct {
 	network           network.Transactions
 	networkAmbassador Ambassador
 	didDocCreator     types.DocCreator
-	didResolver       *didservice.Resolver
-	serviceResolver   types.ServiceResolver
-	documentOwner     types.DocumentOwner
-	keyStore          crypto.KeyStore
+	didResolver       *didservice.DIDResolverRouter
+	// did:nuts is also handled by the router, but it has some special functions for resolving controllers
+	// which VDR uses, so we need a reference here to use it.
+	// We could abstract DID document updating (so other DID methods can be updated through the same API),
+	// which would make this reference go away.
+	nutsDidResolver *didservice.NutsDIDResolver
+	serviceResolver types.ServiceResolver
+	documentOwner   types.DocumentOwner
+	keyStore        crypto.KeyStore
+	storageProvider storage.Provider
+	eventManager    events.Event
+}
+
+func (r *VDR) Resolver() types.DIDResolver {
+	return r.didResolver
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store didstore.Store, eventManager events.Event) *VDR {
-	resolver := didservice.Resolver{Store: store}
+func NewVDR(config Config, storageProvider storage.Provider, cryptoClient crypto.KeyStore, networkClient network.Transactions,
+	didResolverRouter *didservice.DIDResolverRouter, eventManager events.Event) *VDR {
 	return &VDR{
-		config:            config,
-		network:           networkClient,
-		store:             store,
-		didDocCreator:     didservice.Creator{KeyStore: cryptoClient},
-		didResolver:       &didservice.Resolver{Store: store},
-		serviceResolver:   didservice.ServiceResolver{Store: store},
-		documentOwner:     newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, resolver),
-		networkAmbassador: NewAmbassador(networkClient, store, eventManager),
-		keyStore:          cryptoClient,
+		config:          config,
+		storageProvider: storageProvider,
+		network:         networkClient,
+		eventManager:    eventManager,
+		didDocCreator:   didservice.Creator{KeyStore: cryptoClient},
+		didResolver:     didResolverRouter,
+		serviceResolver: didservice.ServiceResolver{Resolver: didResolverRouter},
+		documentOwner:   newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, didResolverRouter),
+		keyStore:        cryptoClient,
 	}
 }
 
@@ -85,6 +100,25 @@ func (r *VDR) Config() interface{} {
 
 // Configure configures the VDR engine.
 func (r *VDR) Configure(_ core.ServerConfig) error {
+	didStore, err := r.storageProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
+	if err != nil {
+		return err
+	}
+	r.store = didstore.New(didStore)
+
+	r.nutsDidResolver = &didservice.NutsDIDResolver{Store: r.store}
+	r.networkAmbassador = NewAmbassador(r.network, r.store, r.eventManager)
+
+	for _, method := range r.config.Methods {
+		switch method {
+		case "nuts":
+			r.didResolver.Register(method, r.nutsDidResolver)
+		case "web":
+			r.didResolver.Register(method, didservice.NewWebResolver())
+		default:
+			return fmt.Errorf("unsupported DID method: %s", method)
+		}
+	}
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()
 	return nil
@@ -104,6 +138,11 @@ func (r *VDR) Start() error {
 	if count == 0 {
 		// remove after v6 release
 		_, err = r.network.Reprocess(context.Background(), "application/did+json")
+	}
+
+	err = r.network.DiscoverNodes(didservice.Finder{Store: r.store})
+	if err != nil {
+		return fmt.Errorf("network node discovery failed: %w", err)
 	}
 
 	return err
@@ -138,7 +177,7 @@ func (r *VDR) ListOwned(ctx context.Context) ([]did.DID, error) {
 func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.DocIterator {
 	return func(doc did.Document, metadata types.DocumentMetadata) error {
 		*totalCount++
-		controllers, err := didservice.ResolveControllers(r.didResolver, doc, nil)
+		controllers, err := didservice.ResolveControllers(r.nutsDidResolver, doc, nil)
 		if err != nil {
 			log.Logger().
 				WithField(core.LogFieldDID, doc.ID).
@@ -263,6 +302,12 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 		AllowDeactivated: true,
 	}
 
+	// Since the update mechanism is "did:nuts"-specific, we can't accidentally update a non-"did:nuts" document,
+	// but check it defensively to avoid obscure errors later.
+	if id.Method != didservice.NutsDIDMethodName {
+		return fmt.Errorf("can't update DID document of type: %s", id.Method)
+	}
+
 	currentDIDDocument, currentMeta, err := r.store.Resolve(id, resolverMetadata)
 	if err != nil {
 		return fmt.Errorf("update DID document: %w", err)
@@ -317,7 +362,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 }
 
 func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
-	controllers, err := didservice.ResolveControllers(r.didResolver, doc, nil)
+	controllers, err := didservice.ResolveControllers(r.nutsDidResolver, doc, nil)
 	if err != nil {
 		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
 	}

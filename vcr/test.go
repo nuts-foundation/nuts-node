@@ -48,12 +48,12 @@ type TestVCRContext struct {
 
 func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	didStore := didstore.NewTestStore(t)
-
+	didResolver := didservice.NutsDIDResolver{Store: didStore}
 	ctx := TestVCRContext{
 		DIDStore:    didStore,
 		KeyStore:    keyStore,
-		DIDResolver: didservice.Resolver{Store: didStore},
-		KeyResolver: didservice.KeyResolver{Store: didStore},
+		DIDResolver: didResolver,
+		KeyResolver: didservice.KeyResolver{Resolver: didResolver},
 	}
 
 	testDirectory := io.TestDirectory(t)
@@ -153,7 +153,7 @@ func newMockContext(t *testing.T) mockContext {
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(t)
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
-	vcr := NewVCRInstance(cryptoInstance, nil, tx, jsonldManager, eventManager, storageClient, pki.New(), nil).(*vcr)
+	vcr := NewVCRInstance(cryptoInstance, didResolver, tx, jsonldManager, eventManager, storageClient, pki.New(), nil).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.keyResolver = keyResolver
 	vcr.didResolver = didResolver

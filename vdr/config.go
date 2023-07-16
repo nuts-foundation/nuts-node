@@ -22,9 +22,13 @@ package vdr
 const ModuleName = "VDR"
 
 // Config holds the config for the VDR engine
-type Config struct{}
+type Config struct {
+	Methods []string `koanf:"methods"`
+}
 
 // DefaultConfig returns a fresh Config filled with default values
 func DefaultConfig() Config {
-	return Config{}
+	return Config{
+		Methods: []string{"nuts", "web"},
+	}
 }

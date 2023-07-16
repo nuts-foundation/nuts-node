@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -85,7 +84,6 @@ type Network struct {
 	peerID            transport.PeerID
 	didResolver       types.DIDResolver
 	nodeDID           did.DID
-	didDocumentFinder types.DocFinder
 	serviceResolver   types.ServiceResolver
 	eventPublisher    events.Event
 	storeProvider     storage.Provider
@@ -141,7 +139,7 @@ func (n *Network) Migrate() error {
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(
 	config Config,
-	store didstore.Store,
+	didResolver types.DIDResolver,
 	keyStore crypto.KeyStore,
 	eventPublisher events.Event,
 	storeProvider storage.Provider,
@@ -149,11 +147,10 @@ func NewNetworkInstance(
 ) *Network {
 	return &Network{
 		config:            config,
-		keyResolver:       didservice.KeyResolver{Store: store},
+		keyResolver:       didservice.KeyResolver{Resolver: didResolver},
 		keyStore:          keyStore,
-		didResolver:       didservice.Resolver{Store: store},
-		didDocumentFinder: didservice.Finder{Store: store},
-		serviceResolver:   didservice.ServiceResolver{Store: store},
+		didResolver:       didResolver,
+		serviceResolver:   didservice.ServiceResolver{Resolver: didResolver},
 		eventPublisher:    eventPublisher,
 		storeProvider:     storeProvider,
 		pkiValidator:      pkiValidator,
@@ -369,14 +366,10 @@ func (n *Network) Start() error {
 		}
 	}
 	// Start connection management and protocols
-	err := n.connectionManager.Start()
-	if err != nil {
-		return err
-	}
-	return n.connectToKnownNodes(n.nodeDID)
+	return n.connectionManager.Start()
 }
 
-func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
+func (n *Network) DiscoverNodes(didDocumentFinder types.DocFinder) error {
 	// Start connecting to bootstrap nodes
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
@@ -390,7 +383,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	}
 
 	// start connecting to published NutsComm addresses
-	otherNodes, err := n.didDocumentFinder.Find(didservice.IsActive(), didservice.ValidAt(time.Now()), didservice.ByServiceType(transport.NutsCommServiceType))
+	otherNodes, err := didDocumentFinder.Find(didservice.IsActive(), didservice.ValidAt(time.Now()), didservice.ByServiceType(transport.NutsCommServiceType))
 	if err != nil {
 		return err
 	}
@@ -399,7 +392,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		log.Logger().Infof("Assuming this is a new node, discovered NutsComm addresses are processed with a %s delay", newNodeConnectionDelay)
 	}
 	for _, node := range otherNodes {
-		n.connectToDID(nodeDID, node, false)
+		n.connectToDID(n.nodeDID, node, false)
 	}
 
 	return nil
