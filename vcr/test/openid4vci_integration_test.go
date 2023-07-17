@@ -190,6 +190,20 @@ func TestOpenID4VCIDisabled(t *testing.T) {
 		data, _ := io.ReadAll(resp.Body)
 		assert.Equal(t, `{"detail":"openid4vci is disabled","status":404,"title":"Operation failed"}`, string(data))
 	})
+	t.Run("Issues over network", func(t *testing.T) {
+		credential := testCredential()
+		credential.Issuer = walletDID.URI()
+		credential.ID, _ = ssi.ParseURI(walletDID.URI().String() + "#1")
+		credential.CredentialSubject = append(credential.CredentialSubject, map[string]interface{}{
+			"id":           walletDID.URI().String(),
+			"purposeOfUse": "test",
+		})
+
+		vcrService := system.FindEngineByName("vcr").(vcr.VCR)
+		_, err := vcrService.Issuer().Issue(audit.TestContext(), credential, true, false)
+
+		assert.ErrorContains(t, err, "unable to publish the issued credential")
+	})
 }
 
 // TestOpenID4VCIErrorResponses tests the API returns the correct error responses (as specified in the OpenID4VCI spec, not as Problem types).
