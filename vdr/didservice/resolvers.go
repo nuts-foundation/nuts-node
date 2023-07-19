@@ -23,12 +23,12 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -128,6 +128,28 @@ func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMe
 	}
 
 	return leaves[:j], nil
+}
+
+// NutsKeyResolver implements the NutsKeyResolver interface.
+type NutsKeyResolver struct {
+	Resolver types.DocResolver
+}
+
+func (r NutsKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
+	// try all keys, continue when err == types.ErrNotFound
+	for _, h := range sourceTransactionsRefs {
+		publicKey, err := resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
+			SourceTransaction: &h,
+		})
+		if err == nil {
+			return publicKey, nil
+		}
+		if err != types.ErrNotFound {
+			return nil, err
+		}
+	}
+
+	return nil, types.ErrNotFound
 }
 
 // KeyResolver implements the KeyResolver interface with a types.Store as backend
@@ -241,30 +263,13 @@ func ExtractFirstRelationKeyIDByType(doc did.Document, relationType types.Relati
 	return ssi.URI{}, types.ErrKeyNotFound
 }
 
-func (r KeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
-	// try all keys, continue when err == types.ErrNotFound
-	for _, h := range sourceTransactionsRefs {
-		publicKey, err := r.resolvePublicKey(kid, types.ResolveMetadata{
-			SourceTransaction: &h,
-		})
-		if err == nil {
-			return publicKey, nil
-		}
-		if err != types.ErrNotFound {
-			return nil, err
-		}
-	}
-
-	return nil, types.ErrNotFound
-}
-
-func (r KeyResolver) resolvePublicKey(kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
+func resolvePublicKey(resolver types.DocResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
 	id, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
 	}
 	holder, _ := GetDIDFromURL(kid) // can't fail, already parsed
-	doc, _, err := r.Store.Resolve(holder, &metadata)
+	doc, _, err := resolver.Resolve(holder, &metadata)
 	if err != nil {
 		return nil, err
 	}

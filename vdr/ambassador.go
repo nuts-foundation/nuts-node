@@ -62,18 +62,19 @@ type Ambassador interface {
 type ambassador struct {
 	networkClient network.Transactions
 	didStore      didstore.Store
-	keyResolver   types.KeyResolver
+	keyResolver   types.NutsKeyResolver
 	docResolver   types.DocResolver
 	eventManager  events.Event
 }
 
 // NewAmbassador creates a new Ambassador,
 func NewAmbassador(networkClient network.Transactions, didStore didstore.Store, eventManager events.Event) Ambassador {
+	resolver := didservice.Resolver{Store: didStore}
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
-		keyResolver:   didservice.KeyResolver{Store: didStore},
-		docResolver:   didservice.Resolver{Store: didStore},
+		keyResolver:   didservice.NutsKeyResolver{Resolver: resolver},
+		docResolver:   resolver,
 		eventManager:  eventManager,
 	}
 }

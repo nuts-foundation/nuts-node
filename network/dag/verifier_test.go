@@ -135,6 +135,9 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 	})
 }
 
+var _ types.KeyResolver = &staticKeyResolver{}
+var _ types.NutsKeyResolver = &staticKeyResolver{}
+
 type staticKeyResolver struct {
 	Key crypto.PublicKey
 }

@@ -21,12 +21,12 @@ package types
 import (
 	"context"
 	"crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
 // DocResolver is the interface that groups all the DID Document read methods
@@ -94,11 +94,6 @@ type KeyResolver interface {
 	// ResolveKeyAgreementKey look for a valid keyAgreement key for the give DID. If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key is found.
 	ResolveKeyAgreementKey(id did.DID) (crypto.PublicKey, error)
-	// ResolvePublicKey loads the key from a DID Document where the DID Document
-	// was created with one of the given tx refs
-	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
-	// It returns ErrNotFound when the DID Document can't be found.
-	ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error)
 	// ResolveRelationKey looks up a specific key of the given RelationType and returns it as crypto.PublicKey.
 	// If the key can't be found or isn't meant for signing an error is returned.
 	ResolveRelationKey(keyID string, validAt *time.Time, relationType RelationType) (crypto.PublicKey, error)
@@ -106,6 +101,16 @@ type KeyResolver interface {
 	// If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key is found.
 	ResolveRelationKeyID(id did.DID, relationType RelationType) (ssi.URI, error)
+}
+
+// NutsKeyResolver is the interface for resolving keys from Nuts DID Documents,
+// supporting Nuts-specific DID resolution parameters.
+type NutsKeyResolver interface {
+	// ResolvePublicKey loads the key from a DID Document where the DID Document
+	// was created with one of the given tx refs
+	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
+	// It returns ErrNotFound when the DID Document can't be found.
+	ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error)
 }
 
 // DocIterator is the function type for iterating over the all current DID Documents in the store

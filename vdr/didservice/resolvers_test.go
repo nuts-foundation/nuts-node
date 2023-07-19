@@ -466,16 +466,16 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	})
 }
 
-func TestKeyResolver_ResolvePublicKey(t *testing.T) {
+func TestNutsKeyResolver_ResolvePublicKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	store := didstore.NewMockStore(ctrl)
-	keyResolver := KeyResolver{Store: store}
+	docResolver := types.NewMockDocResolver(ctrl)
+	keyResolver := NutsKeyResolver{Resolver: docResolver}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
 
 	t.Run("ok by hash", func(t *testing.T) {
-		store.EXPECT().Resolve(testDID, gomock.Any()).Do(func(arg0 interface{}, arg1 interface{}) {
+		docResolver.EXPECT().Resolve(testDID, gomock.Any()).Do(func(arg0 interface{}, arg1 interface{}) {
 			resolveMetadata := arg1.(*types.ResolveMetadata)
 			assert.Equal(t, hash.EmptyHash(), *resolveMetadata.SourceTransaction)
 		}).Return(doc, nil, nil)
