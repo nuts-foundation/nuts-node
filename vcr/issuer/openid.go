@@ -321,7 +321,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	var signingKeyID string
 	token, err := crypto.ParseJWT(request.Proof.Jwt, func(kid string) (crypt.PublicKey, error) {
 		signingKeyID = kid
-		return i.keyResolver.ResolveSigningKey(kid, nil)
+		return i.keyResolver.ResolveKeyByID(kid, nil, types.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(5*time.Second))
 	if err != nil {
 		return generateProofError(openid4vci.Error{

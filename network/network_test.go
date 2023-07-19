@@ -27,6 +27,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
@@ -463,8 +464,8 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			cxt.state.EXPECT().Head(gomock.Any())
 			cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
-			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*sender).Return(senderKey.Public(), nil)
-			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*receiver).Return(receiverKey.Public(), nil)
+			cxt.keyResolver.EXPECT().ResolveKey(*sender, nil, vdrTypes.KeyAgreement).Return(ssi.MustParseURI("sender"), senderKey.Public(), nil)
+			cxt.keyResolver.EXPECT().ResolveKey(*receiver, nil, vdrTypes.KeyAgreement).Return(ssi.MustParseURI("receiver"), receiverKey.Public(), nil)
 
 			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
 			assert.NoError(t, err)

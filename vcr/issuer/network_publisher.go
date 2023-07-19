@@ -52,8 +52,8 @@ func NewNetworkPublisher(networkTx network.Transactions, store didstore.Store, k
 		didResolver:     didResolver,
 		serviceResolver: didservice.ServiceResolver{Store: store},
 		keyResolver: vdrKeyResolver{
-			didResolver: didResolver,
-			keyResolver: keyResolver,
+			publicKeyResolver:  didservice.KeyResolver{Store: store},
+			privateKeyResolver: keyResolver,
 		},
 	}
 

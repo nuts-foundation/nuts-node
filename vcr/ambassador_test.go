@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	types2 "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -113,12 +114,12 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	signer, _ := util.PemToPrivateKey(pem)
 	key := crypto.NewTestKey(fmt.Sprintf("%s#1", vc.Issuer.String()))
 
-	// trust otherwise Resolve wont work
+	// trust otherwise Resolve won't work
 	ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 	ctx.vcr.Trust(vc.Type[1], vc.Issuer)
 
 	// mocks
-	ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), gomock.Any()).Return(signer.Public(), nil)
+	ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), types2.NutsSigningKeyType).Return(signer.Public(), nil)
 
 	// Publish a VC
 	payload, _ := json.Marshal(vc)

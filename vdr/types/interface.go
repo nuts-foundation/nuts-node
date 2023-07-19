@@ -79,27 +79,18 @@ type DocUpdater interface {
 // KeyResolver is the interface for resolving keys.
 // This can be used for checking if a signing key is valid at a point in time or to just find a valid key for signing.
 type KeyResolver interface {
-	// ResolveSigningKeyID looks up a signing key of the specified holder. It returns the ID
-	// of the found key. Typically used to find a key for signing one's own documents. If no suitable keys
-	// are found an error is returned.
-	ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error)
-	// ResolveSigningKey looks up a specific signing key and returns it as crypto.PublicKey. If the key can't be found
-	// or isn't meant for signing an error is returned.
-	ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error)
-	// ResolveAssertionKeyID look for a valid assertion key for the give DID. If multiple keys are valid, the first one is returned.
-	// An ErrKeyNotFound is returned when no key is found.
-	ResolveAssertionKeyID(id did.DID) (ssi.URI, error)
-	// ResolveKeyAgreementKey look for a valid keyAgreement key for the give DID. If multiple keys are valid, the first one is returned.
-	// An ErrKeyNotFound is returned when no key is found.
-	ResolveKeyAgreementKey(id did.DID) (crypto.PublicKey, error)
-	// ResolveRelationKey looks up a specific key of the given RelationType and returns it as crypto.PublicKey.
-	// If the key can't be found or isn't meant for signing an error is returned.
-	ResolveRelationKey(keyID string, validAt *time.Time, relationType RelationType) (crypto.PublicKey, error)
-	// ResolveRelationKeyID look for a valid key of the given RelationType for the give DID.
+	// ResolveKeyByID looks up a specific key of the given RelationType and returns it as crypto.PublicKey.
 	// If multiple keys are valid, the first one is returned.
-	// An ErrKeyNotFound is returned when no key is found.
-	ResolveRelationKeyID(id did.DID, relationType RelationType) (ssi.URI, error)
+	// An ErrKeyNotFound is returned when no key (of the specified type) is found.
+	ResolveKeyByID(keyID string, validAt *time.Time, relationType RelationType) (crypto.PublicKey, error)
+	// ResolveKey looks for a valid key of the given RelationType for the given DID, and returns its ID and the key itself.
+	// If multiple keys are valid, the first one is returned.
+	// An ErrKeyNotFound is returned when no key (of the specified type) is found.
+	ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (ssi.URI, crypto.PublicKey, error)
 }
+
+// NutsSigningKeyType defines the verification method relationship type for signing keys in Nuts DID Documents.
+const NutsSigningKeyType = AssertionMethod
 
 // NutsKeyResolver is the interface for resolving keys from Nuts DID Documents,
 // supporting Nuts-specific DID resolution parameters.
