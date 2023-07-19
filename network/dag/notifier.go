@@ -388,6 +388,10 @@ func (p *notifier) notifyNow(event Event) error {
 			return err
 		})
 		if err != nil {
+			if errors.Is(err, stoabs.ErrKeyNotFound) {
+				// no longer exists so done, this stops any go routine
+				return nil
+			}
 			return retry.Unrecoverable(err)
 		}
 		if dbEvent == nil {
