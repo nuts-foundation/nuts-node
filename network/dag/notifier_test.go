@@ -570,6 +570,15 @@ func TestNotifier_VariousFlows(t *testing.T) {
 		require.Len(t, events, 1)
 		assert.Equal(t, errEventIncomplete.Error(), events[0].Error)
 	})
+	t.Run("OK - completed event does not cause an error", func(t *testing.T) {
+		kvStore, _ := bbolt.CreateBBoltStore(path.Join(t.TempDir(), "test.db"))
+		s := NewNotifier(t.Name(), nil, WithPersistency(kvStore)).(*notifier)
+
+		// event is missing from kvStore, this should be interpreted as the event is completed
+		err := s.notifyNow(event)
+
+		assert.NoError(t, err)
+	})
 }
 
 func dummyFunc(_ Event) (bool, error) {
