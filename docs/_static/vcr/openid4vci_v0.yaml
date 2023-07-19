@@ -3,8 +3,8 @@ info:
   title: OpenID4VCI Issuer API
   version: 0.0.0
   description: >
-    This API is EXPERIMENTAL and implements a draft version of OpenID 4 Verifiable Credential Issuance.
-    It is subject to change and should not be used in production.
+    This API implements OpenID 4 Verifiable Credential Issuance.
+    The specification is in draft and may change, thus this API might change as well.
 servers:
   - url: "http://localhost:1323"
 paths:
