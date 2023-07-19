@@ -1,0 +1,16 @@
+version: "3.7"
+services:
+  nuts-node:
+    container_name: denylist-nuts-node-defaults
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    ports:
+      - "15555:5555"
+    volumes:
+      - "./nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "../truststore-development.pem:/opt/nuts/truststore-development.pem:ro"
+      - "../nuts-node.pem:/opt/nuts/nuts-node.pem:ro"
+      - "../nuts-node.key:/opt/nuts/nuts-node.key:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often

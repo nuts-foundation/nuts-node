@@ -22,5 +22,5 @@ pki:
     trustedsigner: -----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAmKjcSOrKOJR2cYd6UNbemNeusvjs930Y4nCIZ1R2zCI=\n-----END PUBLIC KEY-----
 tls:
   truststorefile: /opt/nuts/truststore-development.pem
-  certfile: /opt/nuts/nuts-foundation-node001-development.pem
-  certkeyfile: /opt/nuts/nuts-foundation-node001-development.key
+  certfile: /opt/nuts/nuts-node.pem
+  certkeyfile: /opt/nuts/nuts-node.key
