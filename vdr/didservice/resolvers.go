@@ -138,7 +138,7 @@ type NutsKeyResolver struct {
 func (r NutsKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
 	// try all keys, continue when err == types.ErrNotFound
 	for _, h := range sourceTransactionsRefs {
-		publicKey, err := r.resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
+		publicKey, err := resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
 			SourceTransaction: &h,
 		})
 		if err == nil {
