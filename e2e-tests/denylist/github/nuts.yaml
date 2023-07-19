@@ -1,0 +1,26 @@
+verbosity: trace
+strictmode: false
+internalratelimiter: false
+http:
+  default:
+    address: :1323
+auth:
+  publicurl: http://nuts-node
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+network:
+  grpcaddr:	:5555
+  enabletls: true
+  v2:
+    gossipinterval: 500
+pki:
+  softfail: false
+  denylist:
+    url: https://raw.githubusercontent.com/nuts-foundation/denylist/main/denylist/denylist.jws
+    trustedsigner: -----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAmKjcSOrKOJR2cYd6UNbemNeusvjs930Y4nCIZ1R2zCI=\n-----END PUBLIC KEY-----
+tls:
+  truststorefile: /opt/nuts/truststore-development.pem
+  certfile: /opt/nuts/nuts-node.pem
+  certkeyfile: /opt/nuts/nuts-node.key
