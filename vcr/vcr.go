@@ -200,6 +200,9 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 	c.trustConfig = trust.NewConfig(tcPath)
 
+	// default to nil openidHandlerFn when OpenID4VCI.Enabled==false
+	var openidHandlerFn func(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error)
+
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.didstore, c.keyStore)
 	if c.config.OpenID4VCI.Enabled {
 		tlsConfig, err := c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
@@ -210,6 +213,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			openid4vci.DIDIdentifierResolver{ServiceResolver: c.serviceResolver},
 			tlsConfig,
 		)
+		openidHandlerFn = c.GetOpenIDIssuer
 		// Issuer and wallet don't share the same http.Client and underlying transport,
 		// since that leads to (temporary) deadlocks under high load, when the http.Transport pool is exhausted.
 		// This is because the credential is requested by the wallet synchronously during the offer handling,
@@ -230,7 +234,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		})
 		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
 	}
-	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.GetOpenIDIssuer, c.didstore, c.keyStore, c.jsonldManager, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, c.didstore, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
