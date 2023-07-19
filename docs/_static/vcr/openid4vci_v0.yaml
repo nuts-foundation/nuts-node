@@ -3,8 +3,8 @@ info:
   title: OpenID4VCI Issuer API
   version: 0.0.0
   description: >
-    This API is EXPERIMENTAL and implements a draft version of OpenID 4 Verifiable Credential Issuance.
-    It is subject to change and should not be used in production.
+    This API implements OpenID 4 Verifiable Credential Issuance.
+    The specification is in draft and may change, thus this API might change as well.
 servers:
   - url: "http://localhost:1323"
 paths:
@@ -110,7 +110,7 @@ paths:
               schema:
                 type: string
                 example: application/json
-  "/n2n/identity/{did}/oidc/token":
+  "/n2n/identity/{did}/token":
     post:
       tags:
         - Issuer
@@ -160,7 +160,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/n2n/identity/{did}/issuer/openid4vci/credential":
+  "/n2n/identity/{did}/openid4vci/credential":
     post:
       tags:
         - Issuer
@@ -220,7 +220,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/n2n/identity/{did}/wallet/openid4vci/credential_offer":
+  "/n2n/identity/{did}/openid4vci/credential_offer":
     get:
       tags:
         - Wallet
