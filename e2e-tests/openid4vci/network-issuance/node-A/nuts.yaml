@@ -1,0 +1,32 @@
+verbosity: debug
+strictmode: true
+internalratelimiter: false
+datadir: /opt/nuts/data
+http:
+  default:
+    address: :1323
+  alt:
+    n2n:
+      address: :443
+      tls: server-client
+auth:
+  publicurl: http://nodeA:1323
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+crypto:
+  storage: fs
+goldenhammer:
+  enabled: false
+vcr:
+  openid4vci:
+    enabled: false
+tls:
+  truststorefile: /opt/nuts/truststore.pem
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem
+network:
+  grpcaddr:	:5555
+  v2:
+    gossipinterval: 500
