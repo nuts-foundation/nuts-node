@@ -5,7 +5,6 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_NETWORK_NODEDID: "${NODEA_DID}"
-      NUTS_GOLDENHAMMER_INTERVAL: 1s
     ports:
       - "11323:1323"
     volumes:
@@ -20,8 +19,7 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_NETWORK_NODEDID: "${NODEB_DID}"
-      NUTS_GOLDENHAMMER_INTERVAL: 1s
-      NUTS_NETWORK_BOOTSTRAPNODES: "${BOOTSTRAPNODES:-nodeA:5555}"
+      NUTS_NETWORK_BOOTSTRAPNODES: ${BOOTSTRAP_NODES}
     ports:
       - "21323:1323"
     volumes:

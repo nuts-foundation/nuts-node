@@ -7,6 +7,10 @@ source ../../util.sh
 echo "------------------------------------"
 echo "Cleaning up running Docker containers and volumes, and key material..."
 echo "------------------------------------"
+# Empty node DIDs to avoid warning in Docker logs
+export NODEA_DID=
+export NODEB_DID=
+export BOOTSTRAP_NODES=nodeA:5555
 docker compose down
 docker compose rm -f -v
 rm -rf ./node-*/data
@@ -17,10 +21,6 @@ echo "------------------------------------"
 # 'data' dirs will be created with root owner by docker if they do not exit.
 # This creates permission issues on CI, since we manually delete the network/connections.db file.
 mkdir -p ./node-A/data/network ./node-B/data/network
-# Empty node DIDs to avoid warning in Docker logs
-export NODEA_DID=
-export NODEB_DID=
-export BOOTSTRAP_NODES=nodeA:5555
 docker compose up --wait
 
 echo "------------------------------------"

@@ -17,10 +17,12 @@ auth:
     autoupdateschemas: false
 crypto:
   storage: fs
-vcr:
-  overrideissueallpublic: false
 goldenhammer:
   interval: 1s
+  enabled: true
+vcr:
+  openid4vci:
+    enabled: true
 tls:
   truststorefile: /opt/nuts/truststore.pem
   certfile: /opt/nuts/certificate-and-key.pem

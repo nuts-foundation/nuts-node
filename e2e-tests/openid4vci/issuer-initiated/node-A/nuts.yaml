@@ -17,8 +17,6 @@ auth:
     autoupdateschemas: false
 crypto:
   storage: fs
-vcr:
-  overrideissueallpublic: false
 goldenhammer:
   interval: 1s
 tls:
