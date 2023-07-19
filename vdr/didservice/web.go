@@ -54,7 +54,7 @@ func (w WebResolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Documen
 
 	unescapedID, err := url.PathUnescape(baseID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("did:web invalid DID: %w", err)
+		return nil, nil, fmt.Errorf("invalid did:web: %w", err)
 	}
 	targetURL := "https://" + unescapedID + path
 

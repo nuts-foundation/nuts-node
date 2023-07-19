@@ -205,7 +205,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.network.config.NodeDID = "invalid"
 
 		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
-		assert.EqualError(t, err, "configured NodeDID is invalid: invalid DID: input does not begin with 'did:' prefix")
+		assert.EqualError(t, err, "configured NodeDID is invalid: invalid DID")
 	})
 
 	t.Run("ok - TLS enabled", func(t *testing.T) {

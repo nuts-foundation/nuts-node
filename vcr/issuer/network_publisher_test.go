@@ -186,7 +186,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 			sut := networkPublisher{}
 			err := sut.PublishCredential(ctx, credentialToPublish, true)
-			assert.EqualError(t, err, "invalid credential issuer: invalid DID: input length is less than 7")
+			assert.EqualError(t, err, "invalid credential issuer: invalid DID")
 		})
 
 		t.Run("missing credentialSubject", func(t *testing.T) {
@@ -207,7 +207,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 			sut := networkPublisher{}
 			err := sut.PublishCredential(ctx, credentialToPublish, false)
-			assert.EqualError(t, err, "failed to determine credentialSubject.ID: invalid DID: input length is less than 7")
+			assert.EqualError(t, err, "failed to determine credentialSubject.ID: invalid DID")
 		})
 	})
 
@@ -335,7 +335,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 			publisher := NewNetworkPublisher(nil, nil, nil)
 			revocationToPublish := credential.Revocation{}
 			err := publisher.PublishRevocation(ctx, revocationToPublish)
-			assert.EqualError(t, err, "invalid revocation issuer: invalid DID: input length is less than 7")
+			assert.EqualError(t, err, "invalid revocation issuer: invalid DID")
 		})
 	})
 

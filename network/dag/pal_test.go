@@ -113,7 +113,7 @@ func TestDecryptPal(t *testing.T) {
 
 		actual, err := EncryptedPAL{cipherText}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
 		assert.Nil(t, actual)
-		assert.EqualError(t, err, "invalid participant (did=\x01\x02\x03): invalid DID: input length is less than 7")
+		assert.EqualError(t, err, "invalid participant (did=\x01\x02\x03): invalid DID")
 	})
 }
 
