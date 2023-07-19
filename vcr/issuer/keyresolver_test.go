@@ -49,8 +49,8 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 		mockKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(crypto.NewTestKey(methodID.String()), nil)
 
 		sut := vdrKeyResolver{
-			docResolver: mockDockResolver,
-			keyResolver: mockKeyResolver,
+			publicKeyResolver:  mockDockResolver,
+			privateKeyResolver: mockKeyResolver,
 		}
 
 		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
@@ -67,8 +67,8 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
 
 		sut := vdrKeyResolver{
-			docResolver: mockDockResolver,
-			keyResolver: mockKeyResolver,
+			publicKeyResolver:  mockDockResolver,
+			privateKeyResolver: mockKeyResolver,
 		}
 
 		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
@@ -85,8 +85,8 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 		mockKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(nil, errors.New("not found"))
 
 		sut := vdrKeyResolver{
-			docResolver: mockDockResolver,
-			keyResolver: mockKeyResolver,
+			publicKeyResolver:  mockDockResolver,
+			privateKeyResolver: mockKeyResolver,
 		}
 
 		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
@@ -101,8 +101,8 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
 
 		sut := vdrKeyResolver{
-			docResolver: mockDockResolver,
-			keyResolver: mockKeyResolver,
+			publicKeyResolver:  mockDockResolver,
+			privateKeyResolver: mockKeyResolver,
 		}
 
 		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)

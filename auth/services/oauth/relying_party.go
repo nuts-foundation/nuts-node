@@ -118,12 +118,11 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 
 	keyVals := claimsFromRequest(request, endpointURL)
 
-	now := time.Now()
-	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(*requester, &now)
+	signingKeyID, _, err := s.keyResolver.ResolveKey(*requester, nil, types.NutsSigningKeyType)
 	if err != nil {
 		return nil, err
 	}
-	signingString, err := s.privateKeyStore.SignJWT(ctx, keyVals, nil, signingKeyID)
+	signingString, err := s.privateKeyStore.SignJWT(ctx, keyVals, nil, signingKeyID.String())
 	if err != nil {
 		return nil, err
 	}

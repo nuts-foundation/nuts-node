@@ -20,7 +20,6 @@ package didservice
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 	"time"
 
@@ -33,177 +32,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
-
-func TestResolveSigningKey(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	store := didstore.NewMockStore(ctrl)
-	keyResolver := KeyResolver{Store: store}
-	keyCreator := newMockKeyCreator()
-	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
-	// add a second key to the document
-	methodID := doc.ID
-	methodID.Fragment = "key2"
-	newMethod := &did.VerificationMethod{ID: methodID}
-	doc.AddAssertionMethod(newMethod)
-
-	t.Run("ok", func(t *testing.T) {
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
-
-		key, err := keyResolver.ResolveSigningKey(mockKID, nil)
-
-		require.NoError(t, err)
-		assert.NotNil(t, key)
-	})
-
-	t.Run("unable to resolve document", func(t *testing.T) {
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
-
-		_, err := keyResolver.ResolveSigningKey(mockKID, nil)
-
-		assert.Error(t, err)
-		assert.Equal(t, types.ErrNotFound, err)
-	})
-
-	t.Run("signing key not found in document", func(t *testing.T) {
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
-
-		_, err := keyResolver.ResolveSigningKey(mockKID[:len(mockKID)-2], nil)
-
-		assert.Error(t, err)
-		assert.Equal(t, types.ErrKeyNotFound, err)
-	})
-
-	t.Run("invalid key ID", func(t *testing.T) {
-		_, err := keyResolver.ResolveSigningKey("asdasdsa", nil)
-
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, did.ErrInvalidDID)
-	})
-}
-
-func TestResolveSigningKeyID(t *testing.T) {
-	keyCreator := newMockKeyCreator()
-	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
-
-	t.Run("ok", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		keyResolver := KeyResolver{Store: store}
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
-
-		actual, err := keyResolver.ResolveSigningKeyID(testDID, nil)
-
-		require.NoError(t, err)
-		assert.Equal(t, mockKID, actual)
-	})
-
-	t.Run("unable to resolve", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		keyResolver := KeyResolver{Store: store}
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
-
-		_, err := keyResolver.ResolveSigningKeyID(testDID, nil)
-
-		assert.Error(t, err)
-		assert.Equal(t, types.ErrNotFound, err)
-	})
-
-	t.Run("signing key not found", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		keyResolver := KeyResolver{Store: store}
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(&did.Document{}, nil, nil)
-
-		_, err := keyResolver.ResolveSigningKeyID(testDID, nil)
-
-		assert.Equal(t, types.ErrKeyNotFound, err)
-	})
-}
-
-func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
-	keyCreator := newMockKeyCreator()
-	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
-
-	t.Run("ok - resolve a known key", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		keyResolver := KeyResolver{Store: store}
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
-
-		actual, err := keyResolver.ResolveAssertionKeyID(testDID)
-
-		require.NoError(t, err)
-		assert.Equal(t, mockKID, actual.String())
-	})
-
-	t.Run("unable to resolve", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		keyResolver := KeyResolver{Store: store}
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
-
-		_, err := keyResolver.ResolveAssertionKeyID(testDID)
-
-		assert.Error(t, err)
-		assert.Equal(t, types.ErrNotFound, err)
-	})
-
-	t.Run("signing key not found", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		keyResolver := KeyResolver{Store: store}
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(&did.Document{}, nil, nil)
-
-		_, err := keyResolver.ResolveAssertionKeyID(testDID)
-
-		assert.Equal(t, types.ErrKeyNotFound, err)
-	})
-}
-
-func TestKeyResolver_ResolveKeyAgreementKey(t *testing.T) {
-	keyCreator := newMockKeyCreator()
-	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(audit.TestContext(), DefaultCreationOptions())
-
-	t.Run("ok - resolve a known key", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		keyResolver := KeyResolver{Store: store}
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
-
-		actual, err := keyResolver.ResolveKeyAgreementKey(testDID)
-
-		require.NoError(t, err)
-		assert.NotNil(t, actual)
-	})
-
-	t.Run("unable to resolve", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		keyResolver := KeyResolver{Store: store}
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
-
-		_, err := keyResolver.ResolveKeyAgreementKey(testDID)
-
-		assert.Error(t, err)
-		assert.Equal(t, types.ErrNotFound, err)
-	})
-
-	t.Run("key not found", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		keyResolver := KeyResolver{Store: store}
-		store.EXPECT().Resolve(testDID, gomock.Any()).Return(&did.Document{}, nil, nil)
-
-		_, err := keyResolver.ResolveKeyAgreementKey(testDID)
-
-		assert.Equal(t, types.ErrKeyNotFound, err)
-	})
-}
 
 func TestResolver_Resolve(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
@@ -597,62 +425,7 @@ func TestServiceResolver_Resolve(t *testing.T) {
 
 }
 
-func TestExtractFirstRelationKeyIDByType(t *testing.T) {
-	keyCreator := newMockKeyCreator()
-	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, err := docCreator.Create(nil, DefaultCreationOptions())
-	require.NoError(t, err)
-	type args struct {
-		doc          did.Document
-		relationType types.RelationType
-	}
-	tests := []struct {
-		name        string
-		args        args
-		want        ssi.URI
-		expectedErr error
-	}{
-		{
-			name: "ok - it finds the key",
-			args: args{
-				doc:          *doc,
-				relationType: types.AssertionMethod,
-			},
-			want:        doc.VerificationMethod[0].ID.URI(),
-			expectedErr: nil,
-		},
-		{
-			name: "err - key not found",
-			args: args{
-				doc:          *doc,
-				relationType: types.CapabilityDelegation,
-			},
-			want:        ssi.URI{},
-			expectedErr: types.ErrKeyNotFound,
-		},
-		{
-			name: "err - unknown relation type",
-			args: args{
-				doc:          *doc,
-				relationType: 20,
-			},
-			want:        ssi.URI{},
-			expectedErr: errors.New("unable to locate RelationType 20"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ExtractFirstRelationKeyIDByType(tt.args.doc, tt.args.relationType)
-			if tt.expectedErr != nil {
-				require.EqualError(t, err, tt.expectedErr.Error())
-				return
-			}
-			assert.Equalf(t, tt.want, got, "ExtractFirstRelationKeyIDByType(%v, %v)", tt.args.doc, tt.args.relationType)
-		})
-	}
-}
-
-func TestKeyResolver_ResolveRelationKeyID(t *testing.T) {
+func TestKeyResolver_ResolveKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	store := didstore.NewMockStore(ctrl)
 	keyResolver := KeyResolver{Store: store}
@@ -660,21 +433,82 @@ func TestKeyResolver_ResolveRelationKeyID(t *testing.T) {
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, err := docCreator.Create(nil, DefaultCreationOptions())
-	store.EXPECT().Resolve(doc.ID, gomock.Any()).Return(doc, nil, nil)
 	require.NoError(t, err)
+	store.EXPECT().Resolve(doc.ID, gomock.Any()).AnyTimes().Return(doc, nil, nil)
 
 	t.Run("ok - it finds the key", func(t *testing.T) {
-		keyId, err := keyResolver.ResolveRelationKeyID(doc.ID, types.AssertionMethod)
+		keyId, key, err := keyResolver.ResolveKey(doc.ID, nil, types.AssertionMethod)
 		require.NoError(t, err)
 		assert.Equal(t, doc.VerificationMethod[0].ID.URI(), keyId)
+		assert.NotNil(t, key)
 	})
 
-	t.Run("err - document not found", func(t *testing.T) {
+	t.Run("error - document not found", func(t *testing.T) {
 		unknownDID := did.MustParseDID("did:example:123")
 		store.EXPECT().Resolve(unknownDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
-		keyId, err := keyResolver.ResolveRelationKeyID(unknownDID, types.AssertionMethod)
-		require.EqualError(t, err, "unable to find the DID document")
-		require.Equal(t, ssi.URI{}, keyId)
+		keyId, key, err := keyResolver.ResolveKey(unknownDID, nil, types.AssertionMethod)
+		assert.EqualError(t, err, "unable to find the DID document")
+		assert.Empty(t, keyId)
+		assert.Nil(t, key)
+	})
+
+	t.Run("error - key not found", func(t *testing.T) {
+		keyId, key, err := keyResolver.ResolveKey(did.MustParseDIDURL(doc.ID.String()), nil, types.CapabilityDelegation)
+		assert.EqualError(t, err, "key not found in DID document")
+		assert.Empty(t, keyId)
+		assert.Nil(t, key)
+	})
+
+	t.Run("error - unknown relationship type", func(t *testing.T) {
+		keyId, key, err := keyResolver.ResolveKey(doc.ID, nil, 1000)
+		assert.EqualError(t, err, "unable to locate RelationType 1000")
+		assert.Empty(t, keyId)
+		assert.Nil(t, key)
+	})
+}
+
+func TestKeyResolver_ResolveKeyByID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	store := didstore.NewMockStore(ctrl)
+	keyResolver := KeyResolver{Store: store}
+
+	keyCreator := newMockKeyCreator()
+	docCreator := Creator{KeyStore: keyCreator}
+	doc, _, err := docCreator.Create(nil, DefaultCreationOptions())
+	require.NoError(t, err)
+	store.EXPECT().Resolve(doc.ID, gomock.Any()).AnyTimes().Return(doc, nil, nil)
+	keyID := doc.VerificationMethod[0].ID
+
+	t.Run("ok - it finds the key", func(t *testing.T) {
+		key, err := keyResolver.ResolveKeyByID(keyID.String(), nil, types.AssertionMethod)
+		assert.NoError(t, err)
+		assert.NotNil(t, key)
+	})
+
+	t.Run("error - invalid key ID", func(t *testing.T) {
+		key, err := keyResolver.ResolveKeyByID("abcdef", nil, types.AssertionMethod)
+		assert.EqualError(t, err, "invalid key ID (id=abcdef): invalid DID: input length is less than 7")
+		assert.Nil(t, key)
+	})
+
+	t.Run("error - document not found", func(t *testing.T) {
+		unknownDID := did.MustParseDIDURL("did:example:123")
+		store.EXPECT().Resolve(unknownDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		key, err := keyResolver.ResolveKeyByID(unknownDID.String()+"#456", nil, types.AssertionMethod)
+		assert.EqualError(t, err, "unable to find the DID document")
+		assert.Nil(t, key)
+	})
+
+	t.Run("error - key not found", func(t *testing.T) {
+		key, err := keyResolver.ResolveKeyByID(did.MustParseDIDURL(doc.ID.String()+"#123").String(), nil, types.AssertionMethod)
+		assert.EqualError(t, err, "key not found in DID document")
+		assert.Nil(t, key)
+	})
+
+	t.Run("error - unknown relationship type", func(t *testing.T) {
+		key, err := keyResolver.ResolveKeyByID(keyID.String(), nil, 1000)
+		assert.EqualError(t, err, "unable to locate RelationType 1000")
+		assert.Nil(t, key)
 	})
 }
 

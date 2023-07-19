@@ -195,18 +195,14 @@ func (w *Wrapper) resolvePublicKey(id *did.DID) (key crypt.PublicKey, keyID ssi.
 	if id.DID.IsURL() {
 		// Assume it is a keyId
 		now := time.Now()
-		key, err = w.K.ResolveRelationKey(id.String(), &now, types.KeyAgreement)
+		key, err = w.K.ResolveKeyByID(id.String(), &now, types.KeyAgreement)
 		if err != nil {
 			return nil, ssi.URI{}, err
 		}
 		keyID = id.URI()
 	} else {
 		// Assume it is a DID
-		key, err = w.K.ResolveKeyAgreementKey(*id)
-		if err != nil {
-			return nil, ssi.URI{}, err
-		}
-		keyID, err = w.K.ResolveRelationKeyID(*id, types.KeyAgreement)
+		keyID, key, err = w.K.ResolveKey(*id, nil, types.KeyAgreement)
 		if err != nil {
 			return nil, ssi.URI{}, err
 		}

@@ -62,7 +62,7 @@ func (h vcHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCreden
 		}
 	}
 
-	kid, err := h.keyResolver.ResolveAssertionKeyID(*signerDID)
+	kid, _, err := h.keyResolver.ResolveKey(*signerDID, nil, vdr.AssertionMethod)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve assertion key for signing VP (did=%s): %w", *signerDID, err)
 	}

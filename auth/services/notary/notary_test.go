@@ -69,7 +69,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("draw up valid contract", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, types.NutsSigningKeyType).Return(keyID.String(), nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
@@ -84,7 +84,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		test := buildContext(t)
 		defer test.ctrl.Finish()
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, gomock.Any(), types.NutsSigningKeyType).Return(keyID.String(), nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, &testCredential)
@@ -97,7 +97,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("no given duration uses default", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, gomock.Any()).Return(keyID.String(), nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
@@ -111,7 +111,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("no given time uses time.Now()", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, gomock.Any()).Return(keyID.String(), nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
@@ -129,7 +129,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("nok - unknown organization", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return("", types.ErrNotFound)
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, gomock.Any()).Return("", nil, types.ErrNotFound)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
 
@@ -140,7 +140,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("nok - unknown private key", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, gomock.Any()).Return(keyID.String(), nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(false)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
@@ -152,7 +152,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("nok - other DID resolver error", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return("", errors.New("error occurred"))
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, gomock.Any()).Return("", nil, errors.New("error occurred"))
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
 
@@ -163,7 +163,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("nok - could not find credential", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, gomock.Any()).Return(keyID.String(), nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return(nil, errors.New("error occurred"))
 
@@ -176,7 +176,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("nok - render error", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, gomock.Any()).Return(keyID.String(), nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
@@ -193,7 +193,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("ok - multiple (matching) VCs", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, gomock.Any()).Return(keyID.String(), nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential}, nil)
 
@@ -210,7 +210,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		testCredential2 := vc.VerifiableCredential{}
 		_ = json.Unmarshal([]byte(jsonld.TestCredential), &testCredential2)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, gomock.Any()).Return(keyID.String(), nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential2}, nil)
 
@@ -223,7 +223,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("nok - given VC does not contain organization name", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, nil, gomock.Any()).Return(keyID.String(), nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, &vc.VerifiableCredential{})

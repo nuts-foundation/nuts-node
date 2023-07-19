@@ -107,14 +107,14 @@ func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keySto
 // If the duration is 0 than the default duration is used.
 func (n *notary) DrawUpContract(ctx context.Context, template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error) {
 	// Test if the org in managed by this node:
-	signingKeyID, err := n.keyResolver.ResolveSigningKeyID(orgID, &validFrom)
+	signingKeyID, _, err := n.keyResolver.ResolveKey(orgID, &validFrom, types.NutsSigningKeyType)
 	if errors.Is(err, types.ErrNotFound) {
 		return nil, services.InvalidContractRequestError{Message: "no valid organization credential at provided validFrom date"}
 	} else if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
 
-	if !n.privateKeyStore.Exists(ctx, signingKeyID) {
+	if !n.privateKeyStore.Exists(ctx, signingKeyID.String()) {
 		return nil, services.InvalidContractRequestError{Message: fmt.Errorf("organization is not managed by this node: %w", ErrMissingOrganizationKey)}
 	}
 

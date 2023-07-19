@@ -46,14 +46,13 @@ type networkPublisher struct {
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
 // It is the default implementation to use for issuers to publish credentials and revocations to the Nuts network.
 func NewNetworkPublisher(networkTx network.Transactions, store didstore.Store, keyResolver crypto.KeyResolver) Publisher {
-	docResolver := didservice.Resolver{Store: store}
 	return &networkPublisher{
 		networkTx:       networkTx,
-		didDocResolver:  docResolver,
+		didDocResolver:  didservice.Resolver{Store: store},
 		serviceResolver: didservice.ServiceResolver{Store: store},
 		keyResolver: vdrKeyResolver{
-			docResolver: docResolver,
-			keyResolver: keyResolver,
+			publicKeyResolver:  didservice.KeyResolver{Store: store},
+			privateKeyResolver: keyResolver,
 		},
 	}
 

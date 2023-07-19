@@ -128,7 +128,7 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 	}
 
 	// find key
-	pk, err := v.keyResolver.ResolveSigningKey(ldProof.VerificationMethod.String(), at)
+	pk, err := v.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), at, vdr.NutsSigningKeyType)
 	if err != nil {
 		if at == nil {
 			return fmt.Errorf("unable to resolve signing key: %w", err)
@@ -239,7 +239,7 @@ func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
 		return errors.New("verificationMethod should owned by the issuer")
 	}
 
-	pk, err := v.keyResolver.ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date)
+	pk, err := v.keyResolver.ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, vdr.NutsSigningKeyType)
 	if err != nil {
 		return fmt.Errorf("unable to resolve key for revocation: %w", err)
 	}
@@ -283,7 +283,7 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 	}
 
 	// Validate signature
-	signingKey, err := v.keyResolver.ResolveSigningKey(ldProof.VerificationMethod.String(), validAt)
+	signingKey, err := v.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), validAt, vdr.NutsSigningKeyType)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve valid signing key: %w", err)
 	}

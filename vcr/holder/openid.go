@@ -193,7 +193,7 @@ func getPreAuthorizedCodeFromOffer(offer openid4vci.CredentialOffer) string {
 }
 
 func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, offer *openid4vci.CredentialDefinition, tokenResponse *openid4vci.TokenResponse) (*vc.VerifiableCredential, error) {
-	keyID, err := h.resolver.ResolveSigningKeyID(h.did, nil)
+	keyID, _, err := h.resolver.ResolveKey(h.did, nil, vdr.NutsSigningKeyType)
 	headers := map[string]interface{}{
 		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
 		"kid": keyID,                             // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
