@@ -97,7 +97,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"unexpected error while resolving documentB")
 
 	// Update the controller of DocumentA with DocumentB
-	// And remove it's own authenticationMethod
+	// And remove its own authenticationMethod
 	docA.Controller = []did.DID{docB.ID}
 	docA.AssertionMethod = []did.VerificationRelationship{}
 	docA.CapabilityInvocation = []did.VerificationRelationship{}

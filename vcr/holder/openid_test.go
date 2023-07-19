@@ -98,7 +98,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			"nonce": nonce,
 		}, gomock.Any(), "key-id").Return("signed-jwt", nil)
 		keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveSigningKeyID(holderDID, nil).Return("key-id", nil)
+		keyResolver.EXPECT().ResolveKey(holderDID, nil, vdrTypes.AssertionMethod).Return(ssi.MustParseURI("key-id"), nil, nil)
 
 		nowFunc = func() time.Time {
 			return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -238,7 +238,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		jwtSigner := crypto.NewMockJWTSigner(ctrl)
 		jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
 		keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveSigningKeyID(holderDID, nil)
+		keyResolver.EXPECT().ResolveKey(holderDID, nil, vdrTypes.AssertionMethod)
 
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, jwtSigner, keyResolver).(*openidHandler)
 		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.IssuerAPIClient, error) {

@@ -378,7 +378,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 			ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
 			ctx.resolver.EXPECT().ResolveControllers(storedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{storedDocument}, nil)
-			ctx.keyStore.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
+			ctx.keyResolver.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 			ctx.didStore.EXPECT().Add(deactivatedDocument, toStoreTX(tx))
 
 			err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
@@ -415,7 +415,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{controllerDoc}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
+		ctx.keyResolver.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
@@ -451,7 +451,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(currentDoc, &types.ResolveMetadata{SourceTransaction: &prev}).Return([]did.Document{currentDoc}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
+		ctx.keyResolver.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(newDoc, toStoreTX(tx))
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, newDoc)
@@ -493,7 +493,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			ctx.resolver.EXPECT().ResolveControllers(currentDoc, gomock.Any()).Return(nil, types.ErrNotFound),
 			ctx.resolver.EXPECT().ResolveControllers(currentDoc, &types.ResolveMetadata{SourceTransaction: &prev}).Return([]did.Document{currentDoc}, nil),
 		)
-		ctx.keyStore.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
+		ctx.keyResolver.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(newDoc, toStoreTX(tx))
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, newDoc)
@@ -548,7 +548,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{didDocumentController}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
+		ctx.keyResolver.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
 
 		err = ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
@@ -609,7 +609,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{didDocumentController}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKey(keyID, gomock.Any()).Return(pKey, nil)
+		ctx.keyResolver.EXPECT().ResolvePublicKey(keyID, gomock.Any()).Return(pKey, nil)
 
 		err = ctx.ambassador.handleUpdateDIDDocument(tx, didDocument)
 		assert.EqualError(t, err, "network document not signed by one of its controllers")
@@ -630,12 +630,11 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		didStoreMock := didstore.NewMockStore(ctrl)
-		keyStoreMock := types.NewMockKeyResolver(ctrl)
 		docResolverMock := types.NewMockDocResolver(ctrl)
 
 		am := ambassador{
 			didStore:    didStoreMock,
-			keyResolver: keyStoreMock,
+			keyResolver: didservice.NutsKeyResolver{Resolver: docResolverMock},
 			docResolver: docResolverMock,
 		}
 
@@ -831,7 +830,7 @@ func newDidDoc() (did.Document, jwk.Key, error) {
 type mockContext struct {
 	ctrl         *gomock.Controller
 	didStore     *didstore.MockStore
-	keyStore     *types.MockKeyResolver
+	keyResolver  *types.MockNutsKeyResolver
 	resolver     *types.MockDocResolver
 	eventManager *events.MockEvent
 	network      *network.MockTransactions
@@ -841,14 +840,14 @@ type mockContext struct {
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	didStoreMock := didstore.NewMockStore(ctrl)
-	keyStoreMock := types.NewMockKeyResolver(ctrl)
+	keyResolverMock := types.NewMockNutsKeyResolver(ctrl)
 	resolverMock := types.NewMockDocResolver(ctrl)
 	eventManager := events.NewMockEvent(ctrl)
 	networkMock := network.NewMockTransactions(ctrl)
 	am := ambassador{
 		didStore:      didStoreMock,
 		docResolver:   resolverMock,
-		keyResolver:   keyStoreMock,
+		keyResolver:   keyResolverMock,
 		eventManager:  eventManager,
 		networkClient: networkMock,
 	}
@@ -856,7 +855,7 @@ func newMockContext(t *testing.T) mockContext {
 	return mockContext{
 		ctrl:         ctrl,
 		didStore:     didStoreMock,
-		keyStore:     keyStoreMock,
+		keyResolver:  keyResolverMock,
 		resolver:     resolverMock,
 		ambassador:   am,
 		eventManager: eventManager,

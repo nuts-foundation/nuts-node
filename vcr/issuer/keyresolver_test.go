@@ -36,21 +36,22 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 	issuerDID, _ := did.ParseDID("did:nuts:123")
 	methodID := *issuerDID
 	methodID.Fragment = "abc"
-	newMethod, err := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, *issuerDID, crypto.NewTestKey(issuerDID.String()+"abc").Public())
+	publicKey := crypto.NewTestKey(issuerDID.String() + "abc").Public()
+	newMethod, err := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, *issuerDID, publicKey)
 	require.NoError(t, err)
 	docWithAssertionKey := &did.Document{}
 	docWithAssertionKey.AddAssertionMethod(newMethod)
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mockDockResolver := types.NewMockDocResolver(ctrl)
-		mockDockResolver.EXPECT().Resolve(*issuerDID, nil).Return(docWithAssertionKey, &types.DocumentMetadata{}, nil)
-		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
-		mockKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(crypto.NewTestKey(methodID.String()), nil)
+		mockPubKeyResolver := types.NewMockKeyResolver(ctrl)
+		mockPubKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, types.NutsSigningKeyType).Return(methodID.URI(), publicKey, nil)
+		mockPrivKeyResolver := crypto.NewMockKeyResolver(ctrl)
+		mockPrivKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(crypto.NewTestKey(methodID.String()), nil)
 
 		sut := vdrKeyResolver{
-			publicKeyResolver:  mockDockResolver,
-			privateKeyResolver: mockKeyResolver,
+			publicKeyResolver:  mockPubKeyResolver,
+			privateKeyResolver: mockPrivKeyResolver,
 		}
 
 		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
@@ -62,52 +63,35 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 
 	t.Run("document for issuer not found in vdr", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mockDockResolver := types.NewMockDocResolver(ctrl)
-		mockDockResolver.EXPECT().Resolve(*issuerDID, nil).Return(nil, nil, errors.New("not found"))
-		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
+		mockPubKeyResolver := types.NewMockKeyResolver(ctrl)
+		mockPubKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, types.NutsSigningKeyType).Return(ssi.URI{}, nil, errors.New("not found"))
+		mockPrivKeyResolver := crypto.NewMockKeyResolver(ctrl)
 
 		sut := vdrKeyResolver{
-			publicKeyResolver:  mockDockResolver,
-			privateKeyResolver: mockKeyResolver,
+			publicKeyResolver:  mockPubKeyResolver,
+			privateKeyResolver: mockPrivKeyResolver,
 		}
 
 		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
 
 		assert.Nil(t, key)
-		assert.EqualError(t, err, "not found")
+		assert.EqualError(t, err, "invalid issuer: not found")
 	})
 
 	t.Run("key not found in crypto", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mockDockResolver := types.NewMockDocResolver(ctrl)
-		mockDockResolver.EXPECT().Resolve(*issuerDID, nil).Return(docWithAssertionKey, &types.DocumentMetadata{}, nil)
-		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
-		mockKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(nil, errors.New("not found"))
+		mockPubKeyResolver := types.NewMockKeyResolver(ctrl)
+		mockPubKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, types.NutsSigningKeyType).Return(methodID.URI(), publicKey, nil)
+		mockPrivKeyResolver := crypto.NewMockKeyResolver(ctrl)
+		mockPrivKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(nil, errors.New("not found"))
 
 		sut := vdrKeyResolver{
-			publicKeyResolver:  mockDockResolver,
-			privateKeyResolver: mockKeyResolver,
+			publicKeyResolver:  mockPubKeyResolver,
+			privateKeyResolver: mockPrivKeyResolver,
 		}
 
 		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
 		assert.Nil(t, key)
 		assert.EqualError(t, err, "failed to resolve assertionKey: could not resolve key from keyStore: not found")
 	})
-
-	t.Run("did document has no assertionKey", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockDockResolver := types.NewMockDocResolver(ctrl)
-		mockDockResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &types.DocumentMetadata{}, nil)
-		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
-
-		sut := vdrKeyResolver{
-			publicKeyResolver:  mockDockResolver,
-			privateKeyResolver: mockKeyResolver,
-		}
-
-		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
-		assert.Nil(t, key)
-		assert.EqualError(t, err, "invalid issuer: key not found in DID document")
-	})
-
 }
