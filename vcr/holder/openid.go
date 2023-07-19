@@ -75,7 +75,7 @@ type openidHandler struct {
 
 func (h *openidHandler) Metadata() openid4vci.OAuth2ClientMetadata {
 	return openid4vci.OAuth2ClientMetadata{
-		CredentialOfferEndpoint: core.JoinURLPaths(h.identifier, "/wallet/openid4vci/credential_offer"),
+		CredentialOfferEndpoint: core.JoinURLPaths(h.identifier, "/openid4vci/credential_offer"),
 	}
 }
 

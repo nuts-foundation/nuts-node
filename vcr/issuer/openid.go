@@ -135,7 +135,7 @@ type openidHandler struct {
 func (i *openidHandler) Metadata() openid4vci.CredentialIssuerMetadata {
 	metadata := openid4vci.CredentialIssuerMetadata{
 		CredentialIssuer:   i.issuerIdentifierURL,
-		CredentialEndpoint: core.JoinURLPaths(i.issuerIdentifierURL, "/issuer/openid4vci/credential"),
+		CredentialEndpoint: core.JoinURLPaths(i.issuerIdentifierURL, "/openid4vci/credential"),
 	}
 
 	// deepcopy the i.credentialsSupported slice to prevent concurrent access to the slice.
@@ -147,7 +147,7 @@ func (i *openidHandler) Metadata() openid4vci.CredentialIssuerMetadata {
 func (i *openidHandler) ProviderMetadata() openid4vci.ProviderMetadata {
 	return openid4vci.ProviderMetadata{
 		Issuer:        i.issuerIdentifierURL,
-		TokenEndpoint: core.JoinURLPaths(i.issuerIdentifierURL, "oidc/token"),
+		TokenEndpoint: core.JoinURLPaths(i.issuerIdentifierURL, "token"),
 		// TODO: Anonymous access (no client_id) is OK as long as PKIoverheid Private is used,
 		// if that requirement is dropped we need to authenticate wallets using client_id.
 		// See https://github.com/nuts-foundation/nuts-node/issues/2032

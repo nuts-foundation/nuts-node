@@ -93,7 +93,7 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 		metadata := issuer.Metadata()
 
 		assert.Equal(t, "https://example.com/did:nuts:issuer", metadata.CredentialIssuer)
-		assert.Equal(t, "https://example.com/did:nuts:issuer/issuer/openid4vci/credential", metadata.CredentialEndpoint)
+		assert.Equal(t, "https://example.com/did:nuts:issuer/openid4vci/credential", metadata.CredentialEndpoint)
 		require.Len(t, metadata.CredentialsSupported, 3)
 		assert.Equal(t, "ldp_vc", metadata.CredentialsSupported[0]["format"])
 		require.Len(t, metadata.CredentialsSupported[0]["cryptographic_binding_methods_supported"], 1)
@@ -110,7 +110,7 @@ func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
 
 	assert.Equal(t, openid4vci.ProviderMetadata{
 		Issuer:        "https://example.com/did:nuts:issuer",
-		TokenEndpoint: "https://example.com/did:nuts:issuer/oidc/token",
+		TokenEndpoint: "https://example.com/did:nuts:issuer/token",
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 	}, metadata)
 }

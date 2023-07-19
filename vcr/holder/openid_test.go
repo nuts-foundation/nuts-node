@@ -52,7 +52,7 @@ func Test_wallet_Metadata(t *testing.T) {
 	metadata := w.Metadata()
 
 	assert.Equal(t, openid4vci.OAuth2ClientMetadata{
-		CredentialOfferEndpoint: "https://holder.example.com/wallet/openid4vci/credential_offer",
+		CredentialOfferEndpoint: "https://holder.example.com/openid4vci/credential_offer",
 	}, metadata)
 }
 
