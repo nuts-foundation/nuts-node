@@ -144,7 +144,7 @@ func (r NutsKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []h
 		if err == nil {
 			return publicKey, nil
 		}
-		if errors.Is(err, types.ErrNotFound) {
+		if err != types.ErrNotFound {
 			return nil, err
 		}
 	}
