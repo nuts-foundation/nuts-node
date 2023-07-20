@@ -63,7 +63,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		network:           mockNetwork,
 		networkAmbassador: mockAmbassador,
 		didDocCreator:     didservice.Creator{KeyStore: mockKeyStore},
-		didDocResolver:    didservice.Resolver{Store: mockStore},
+		didResolver:       didservice.NutsDIDResolver{Store: mockStore},
 		keyStore:          mockKeyStore,
 	}
 	return vdrTestCtx{

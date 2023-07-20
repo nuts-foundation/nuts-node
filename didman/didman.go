@@ -37,7 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
 )
@@ -87,26 +86,20 @@ func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
 }
 
 type didman struct {
-	jsonldManager   jsonld.JSONLD
-	docResolver     types.DocResolver
-	serviceResolver types.ServiceResolver
-	store           didstore.Store
-	vdr             types.VDR
-	vcr             vcr.Finder
+	jsonldManager jsonld.JSONLD
+	vdr           types.VDR
+	vcr           vcr.Finder
 	// callSerializer can be used to (un)lock a resource such as a DID to prevent parallel updates
 	callSerializer keyedMutex
 }
 
 // NewDidmanInstance creates a new didman instance with services set
-func NewDidmanInstance(store didstore.Store, vdr types.VDR, vcr vcr.Finder, jsonldManager jsonld.JSONLD) Didman {
+func NewDidmanInstance(vdr types.VDR, vcr vcr.Finder, jsonldManager jsonld.JSONLD) Didman {
 	return &didman{
-		docResolver:     didservice.Resolver{Store: store},
-		serviceResolver: didservice.ServiceResolver{Store: store},
-		store:           store,
-		vdr:             vdr,
-		vcr:             vcr,
-		jsonldManager:   jsonldManager,
-		callSerializer:  keyedMutex{},
+		vdr:            vdr,
+		vcr:            vcr,
+		jsonldManager:  jsonldManager,
+		callSerializer: keyedMutex{},
 	}
 }
 
@@ -158,7 +151,7 @@ func (d *didman) DeleteEndpointsByType(ctx context.Context, id did.DID, serviceT
 	unlockFn := d.callSerializer.Lock(id.String())
 	defer unlockFn()
 
-	doc, _, err := d.docResolver.Resolve(id, nil)
+	doc, _, err := d.vdr.Resolver().Resolve(id, nil)
 	if err != nil {
 		return err
 	}
@@ -179,7 +172,7 @@ func (d *didman) DeleteEndpointsByType(ctx context.Context, id did.DID, serviceT
 }
 
 func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
-	doc, _, err := d.docResolver.Resolve(id, nil)
+	doc, _, err := d.didResolver.Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +237,7 @@ func (d *didman) UpdateCompoundService(ctx context.Context, id did.DID, serviceT
 }
 
 func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error) {
-	document, _, err := d.docResolver.Resolve(id, nil)
+	document, _, err := d.didResolver.Resolve(id, nil)
 	if err != nil {
 		return "", err
 	}
@@ -309,7 +302,7 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 		return err
 	}
 
-	doc, _, err := d.docResolver.Resolve(id, nil)
+	doc, _, err := d.didResolver.Resolve(id, nil)
 	if err != nil {
 		return err
 	}
@@ -390,7 +383,7 @@ func (d *didman) UpdateContactInformation(ctx context.Context, id did.DID, infor
 // GetContactInformation tries to find the ContactInformation for the indicated DID document.
 // Returns nil, nil when no contactInformation for the DID was found.
 func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) {
-	doc, _, err := d.docResolver.Resolve(id, nil)
+	doc, _, err := d.didResolver.Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -517,7 +510,7 @@ func (d *didman) resolveOrganizationDIDDocument(organization vc.VerifiableCreden
 	if err != nil {
 		return nil, did.DID{}, fmt.Errorf("unable to parse DID from organization credential: %w", err)
 	}
-	document, _, err := d.docResolver.Resolve(*organizationDID, nil)
+	document, _, err := d.didResolver.Resolve(*organizationDID, nil)
 	return document, *organizationDID, err
 }
 
@@ -545,7 +538,7 @@ func filterServices(doc *did.Document, serviceType string) []did.Service {
 }
 
 func (d *didman) addService(ctx context.Context, id did.DID, serviceType string, serviceEndpoint interface{}, preprocessor func(*did.Document)) (*did.Service, error) {
-	doc, _, err := d.docResolver.Resolve(id, nil)
+	doc, _, err := d.didResolver.Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +570,7 @@ func (d *didman) addService(ctx context.Context, id did.DID, serviceType string,
 }
 
 func (d *didman) updateService(ctx context.Context, id did.DID, serviceType string, serviceEndpoint interface{}) (*did.Service, error) {
-	doc, _, err := d.docResolver.Resolve(id, nil)
+	doc, _, err := d.didResolver.Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}

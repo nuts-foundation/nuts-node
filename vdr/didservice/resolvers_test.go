@@ -44,7 +44,7 @@ func TestResolver_Resolve(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := didstore.NewMockStore(ctrl)
-		resolver := Resolver{Store: store}
+		resolver := NutsDIDResolver{Store: store}
 		doc := did.Document{ID: *id123}
 		id123Method1, _ := did.ParseDIDURL("did:nuts:123#method-1")
 		doc.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
@@ -61,7 +61,7 @@ func TestResolver_Resolve(t *testing.T) {
 		t.Run("err - with resolver metadata", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			store := didstore.NewMockStore(ctrl)
-			resolver := Resolver{Store: store}
+			resolver := NutsDIDResolver{Store: store}
 			store.EXPECT().Resolve(*id456, resolveMD).Return(&docB, &types.DocumentMetadata{}, nil)
 			store.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
 
@@ -75,7 +75,7 @@ func TestResolver_Resolve(t *testing.T) {
 		t.Run("err - without resolve metadata", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			store := didstore.NewMockStore(ctrl)
-			resolver := Resolver{Store: store}
+			resolver := NutsDIDResolver{Store: store}
 			store.EXPECT().Resolve(*id456, nil).Return(&docB, &types.DocumentMetadata{}, nil)
 			store.EXPECT().Resolve(*id123, nil).Return(&docA, &types.DocumentMetadata{}, nil)
 
@@ -89,7 +89,7 @@ func TestResolver_Resolve(t *testing.T) {
 		t.Run("ok - allowed deactivated", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			store := didstore.NewMockStore(ctrl)
-			resolver := Resolver{Store: store}
+			resolver := NutsDIDResolver{Store: store}
 			resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime, AllowDeactivated: true}
 
 			store.EXPECT().Resolve(*id456, resolveMD).Return(&docB, &types.DocumentMetadata{}, nil)
@@ -110,7 +110,7 @@ func TestResolver_Resolve(t *testing.T) {
 		prevID := rootID
 		prevDoc := rootDoc
 		store := didstore.NewMockStore(ctrl)
-		resolver := Resolver{Store: store}
+		resolver := NutsDIDResolver{Store: store}
 		for i := 0; i < depth; i++ {
 			id, _ := did.ParseDID(fmt.Sprintf("did:nuts:%d", i))
 			d := did.Document{ID: *id, Controller: []did.DID{*prevID}}
@@ -135,7 +135,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	id456, _ := did.ParseDID("did:nuts:456")
 	id456Method1, _ := did.ParseDIDURL("did:nuts:456#method-1")
 	t.Run("emtpy input", func(t *testing.T) {
-		resolver := Resolver{}
+		resolver := NutsDIDResolver{}
 		docs, err := resolver.ResolveControllers(did.Document{}, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 0,
@@ -143,7 +143,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	})
 
 	t.Run("doc is its own controller", func(t *testing.T) {
-		resolver := Resolver{}
+		resolver := NutsDIDResolver{}
 		doc := did.Document{ID: *id123}
 		doc.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
 		docs, err := resolver.ResolveControllers(doc, nil)
@@ -154,7 +154,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	})
 
 	t.Run("doc is deactivated", func(t *testing.T) {
-		resolver := Resolver{}
+		resolver := NutsDIDResolver{}
 		doc := did.Document{ID: *id123}
 		docs, err := resolver.ResolveControllers(doc, nil)
 		assert.NoError(t, err)
@@ -167,7 +167,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		store := didstore.NewMockStore(ctrl)
 
-		resolver := Resolver{Store: store}
+		resolver := NutsDIDResolver{Store: store}
 		docA := did.Document{ID: *id123}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
 
@@ -189,7 +189,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		store := didstore.NewMockStore(ctrl)
 
-		resolver := Resolver{Store: store}
+		resolver := NutsDIDResolver{Store: store}
 		docA := did.Document{ID: *id123}
 
 		resolveTime := time.Date(2010, 1, 1, 1, 1, 1, 0, time.UTC)
@@ -208,7 +208,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		store := didstore.NewMockStore(ctrl)
 
-		resolver := Resolver{Store: store}
+		resolver := NutsDIDResolver{Store: store}
 		docA := did.Document{ID: *id123}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
 
@@ -229,7 +229,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		store := didstore.NewMockStore(ctrl)
 
-		resolver := Resolver{Store: store}
+		resolver := NutsDIDResolver{Store: store}
 		// Doc B is deactivated
 		docBID, _ := did.ParseDID("did:nuts:B")
 		docB := did.Document{ID: *docBID}
@@ -263,7 +263,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		store := didstore.NewMockStore(ctrl)
 
-		resolver := Resolver{Store: store}
+		resolver := NutsDIDResolver{Store: store}
 		docA := did.Document{ID: *id123, Controller: []did.DID{*id123}}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
 
@@ -283,7 +283,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 		store := didstore.NewMockStore(ctrl)
 
-		resolver := Resolver{Store: store}
+		resolver := NutsDIDResolver{Store: store}
 		store.EXPECT().Resolve(*id123, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}

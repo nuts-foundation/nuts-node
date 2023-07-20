@@ -69,12 +69,12 @@ type ambassador struct {
 
 // NewAmbassador creates a new Ambassador,
 func NewAmbassador(networkClient network.Transactions, didStore didstore.Store, eventManager events.Event) Ambassador {
-	resolver := didservice.Resolver{Store: didStore}
+	resolver := didservice.NutsDIDResolver{Store: didStore}
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
 		keyResolver:   didservice.NutsKeyResolver{Resolver: resolver},
-		docResolver:   resolver,
+		docResolver:   didservice.NutsDIDResolver{Store: didStore},
 		eventManager:  eventManager,
 	}
 }

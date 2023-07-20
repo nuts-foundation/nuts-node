@@ -151,7 +151,7 @@ func NewNetworkInstance(
 		config:              config,
 		keyResolver:         didservice.KeyResolver{Store: store},
 		keyStore:            keyStore,
-		didDocumentResolver: didservice.Resolver{Store: store},
+		didDocumentResolver: didservice.NutsDIDResolver{Store: store},
 		didDocumentFinder:   didservice.Finder{Store: store},
 		serviceResolver:     didservice.ServiceResolver{Store: store},
 		eventPublisher:      eventPublisher,

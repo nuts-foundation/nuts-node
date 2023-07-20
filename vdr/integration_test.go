@@ -220,7 +220,7 @@ type testContext struct {
 	vdr            *VDR
 	eventPublisher events.Event
 	docCreator     didservice.Creator
-	docResolver    didservice.Resolver
+	docResolver    didservice.NutsDIDResolver
 	cryptoInstance *crypto.Crypto
 	audit          context.Context
 }
@@ -253,7 +253,7 @@ func setup(t *testing.T) testContext {
 
 	// DID Store
 	didStore := didstore.NewTestStore(t)
-	docResolver := didservice.Resolver{Store: didStore}
+	docResolver := didservice.NutsDIDResolver{Store: didStore}
 	docCreator := didservice.Creator{KeyStore: cryptoInstance}
 
 	// Startup events

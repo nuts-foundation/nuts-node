@@ -64,7 +64,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, store didstore.Store,
 	r := &vcr{
 		config:          DefaultConfig(),
 		didstore:        store,
-		docResolver:     didservice.Resolver{Store: store},
+		docResolver:     didservice.NutsDIDResolver{Store: store},
 		keyStore:        keyStore,
 		keyResolver:     didservice.KeyResolver{Store: store},
 		serviceResolver: didservice.ServiceResolver{Store: store},

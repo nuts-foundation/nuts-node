@@ -49,7 +49,7 @@ func New(documentOwner types.DocumentOwner, didmanAPI didman.Didman, didStore di
 		routines:          &sync.WaitGroup{},
 		didmanAPI:         didmanAPI,
 		documentOwner:     documentOwner,
-		docResolver:       didservice.Resolver{Store: didStore},
+		docResolver:       didservice.NutsDIDResolver{Store: didStore},
 		fixedDocumentDIDs: map[string]bool{},
 	}
 }

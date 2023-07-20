@@ -53,22 +53,33 @@ type VDR struct {
 	network           network.Transactions
 	networkAmbassador Ambassador
 	didDocCreator     types.DocCreator
-	didDocResolver    types.DocResolver
-	serviceResolver   types.ServiceResolver
-	documentOwner     types.DocumentOwner
-	keyStore          crypto.KeyStore
+	didResolver       *didservice.DIDResolverRouter
+	// did:nuts is also handled by the router, but it has some special functions for resolving controllers
+	// which VDR uses, so we need a reference here to use it.
+	// We could abstract DID document updating (so other DID methods can be updated through the same API),
+	// which would make this reference go away.
+	nutsDidResolver types.DIDControllerResolver
+	serviceResolver types.ServiceResolver
+	documentOwner   types.DocumentOwner
+	keyStore        crypto.KeyStore
+}
+
+func (r *VDR) Resolver() types.DIDResolver {
+	return r.didResolver
 }
 
 // NewVDR creates a new VDR with provided params
 func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store didstore.Store, eventManager events.Event) *VDR {
-	resolver := didservice.Resolver{Store: store}
+	resolver := didservice.NutsDIDResolver{Store: store}
+	didResolver := &didservice.DIDResolverRouter{}
 	return &VDR{
 		config:            config,
 		network:           networkClient,
 		store:             store,
 		didDocCreator:     didservice.Creator{KeyStore: cryptoClient},
-		didDocResolver:    didservice.Resolver{Store: store},
-		serviceResolver:   didservice.ServiceResolver{Store: store},
+		didResolver:       didResolver,
+		nutsDidResolver:   &didservice.NutsDIDResolver{Store: store},
+		serviceResolver:   didservice.ServiceResolver{Resolver: didResolver},
 		documentOwner:     newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, resolver),
 		networkAmbassador: NewAmbassador(networkClient, store, eventManager),
 		keyStore:          cryptoClient,
@@ -85,6 +96,7 @@ func (r *VDR) Config() interface{} {
 
 // Configure configures the VDR engine.
 func (r *VDR) Configure(_ core.ServerConfig) error {
+
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()
 	return nil
@@ -138,7 +150,7 @@ func (r *VDR) ListOwned(ctx context.Context) ([]did.DID, error) {
 func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.DocIterator {
 	return func(doc did.Document, metadata types.DocumentMetadata) error {
 		*totalCount++
-		controllers, err := r.didDocResolver.ResolveControllers(doc, nil)
+		controllers, err := r.didResolver.ResolveControllers(doc, nil)
 		if err != nil {
 			log.Logger().
 				WithField(core.LogFieldDID, doc.ID).
@@ -213,7 +225,7 @@ func (r *VDR) Create(ctx context.Context, options types.DIDCreationOptions) (*di
 	// if any controllers have been added, check if they exist through the docResolver
 	if len(options.Controllers) > 0 {
 		for _, controller := range options.Controllers {
-			_, meta, err := r.didDocResolver.Resolve(controller, nil)
+			_, meta, err := r.didResolver.Resolve(controller, nil)
 			if err != nil {
 				return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
 			}
@@ -287,7 +299,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	}
 
 	// for the metadata
-	_, controllerMeta, err := r.didDocResolver.Resolve(controller.ID, nil)
+	_, controllerMeta, err := r.didResolver.Resolve(controller.ID, nil)
 	if err != nil {
 		return fmt.Errorf("update DID document: %w", err)
 	}
@@ -313,7 +325,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 }
 
 func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
-	controllers, err := r.didDocResolver.ResolveControllers(doc, nil)
+	controllers, err := r.didResolver.ResolveControllers(doc, nil)
 	if err != nil {
 		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
 	}

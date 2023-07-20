@@ -52,7 +52,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	ctx := TestVCRContext{
 		DIDStore:    didStore,
 		KeyStore:    keyStore,
-		DocResolver: didservice.Resolver{Store: didStore},
+		DocResolver: didservice.NutsDIDResolver{Store: didStore},
 		KeyResolver: didservice.KeyResolver{Store: didStore},
 	}
 

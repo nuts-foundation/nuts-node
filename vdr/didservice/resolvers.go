@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"sync"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -39,16 +40,39 @@ const DefaultMaxServiceReferenceDepth = 5
 
 const maxControllerDepth = 5
 
-// Resolver implements the DocResolver interface with a types.Store as backend
-type Resolver struct {
+var _ types.DIDResolver = &DIDResolverRouter{}
+
+// DIDResolverRouter is a DID resolver that can route to different DID resolvers based on the DID method
+type DIDResolverRouter struct {
+	resolvers sync.Map
+}
+
+// Resolve looks up the right resolver for the given DID and delegates the resolution to it.
+// If no resolver is registered for the given DID method, ErrDIDMethodNotSupported is returned.
+func (r *DIDResolverRouter) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
+	method := id.Method
+	resolver, registered := r.resolvers.Load(method)
+	if !registered {
+		return nil, nil, types.ErrDIDMethodNotSupported
+	}
+	return resolver.(types.DIDResolver).Resolve(id, metadata)
+}
+
+// Register registers a DID resolver for the given DID method.
+func (r *DIDResolverRouter) Register(method string, resolver types.DIDResolver) {
+	r.resolvers.Store(method, resolver)
+}
+
+// NutsDIDResolver implements the DIDResolver interface for resolving did:nuts documents.
+type NutsDIDResolver struct {
 	Store didstore.Store
 }
 
-func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
+func (d NutsDIDResolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
 	return d.resolve(id, metadata, 0)
 }
 
-func (d Resolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int) (*did.Document, *types.DocumentMetadata, error) {
+func (d NutsDIDResolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int) (*did.Document, *types.DocumentMetadata, error) {
 	if depth >= maxControllerDepth {
 		return nil, nil, ErrNestedDocumentsTooDeep
 	}
@@ -76,12 +100,12 @@ func (d Resolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int
 }
 
 // ResolveControllers finds the DID Document controllers
-func (d Resolver) ResolveControllers(doc did.Document, metadata *types.ResolveMetadata) ([]did.Document, error) {
+func (d NutsDIDResolver) ResolveControllers(doc did.Document, metadata *types.ResolveMetadata) ([]did.Document, error) {
 	return d.resolveControllers(doc, metadata, 0)
 }
 
 // ResolveControllers finds the DID Document controllers
-func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMetadata, depth int) ([]did.Document, error) {
+func (d NutsDIDResolver) resolveControllers(doc did.Document, metadata *types.ResolveMetadata, depth int) ([]did.Document, error) {
 	var leaves []did.Document
 	var refsToResolve []did.DID
 
@@ -217,7 +241,7 @@ func resolvePublicKey(resolver types.DocResolver, kid string, metadata types.Res
 
 // ServiceResolver is a wrapper around a DID store that allows resolving services, following references.
 type ServiceResolver struct {
-	Store didstore.Store
+	Resolver types.DIDResolver
 }
 
 func (s ServiceResolver) Resolve(query ssi.URI, maxDepth int) (did.Service, error) {
@@ -236,7 +260,7 @@ func (s ServiceResolver) ResolveEx(endpoint ssi.URI, depth int, maxDepth int, do
 	}
 	var document *did.Document
 	if document = documentCache[referencedDID.String()]; document == nil {
-		document, _, err = Resolver{Store: s.Store}.Resolve(referencedDID, nil)
+		document, _, err = s.Resolver.Resolve(referencedDID, nil)
 		if err != nil {
 			return did.Service{}, err
 		}
