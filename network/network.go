@@ -147,13 +147,14 @@ func NewNetworkInstance(
 	storeProvider storage.Provider,
 	pkiValidator pki.Validator,
 ) *Network {
+	didResolver := didservice.NutsDIDResolver{Store: store}
 	return &Network{
 		config:              config,
 		keyResolver:         didservice.KeyResolver{Store: store},
 		keyStore:            keyStore,
-		didDocumentResolver: didservice.NutsDIDResolver{Store: store},
+		didDocumentResolver: didResolver,
 		didDocumentFinder:   didservice.Finder{Store: store},
-		serviceResolver:     didservice.ServiceResolver{Store: store},
+		serviceResolver:     didservice.ServiceResolver{Resolver: didResolver},
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider,
 		pkiValidator:        pkiValidator,

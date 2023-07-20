@@ -55,7 +55,6 @@ func NewNetworkPublisher(networkTx network.Transactions, store didstore.Store, k
 			privateKeyResolver: keyResolver,
 		},
 	}
-
 }
 
 func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCredential vc.VerifiableCredential, public bool) error {

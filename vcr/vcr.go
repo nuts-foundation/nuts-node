@@ -58,16 +58,16 @@ import (
 const credentialsBackupShelf = "credentials"
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, store didstore.Store,
+func NewVCRInstance(keyStore crypto.KeyStore, didResolver vdr.DIDResolver,
 	network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine,
 	pkiProvider pki.Provider, documentOwner vdr.DocumentOwner) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
-		didstore:        store,
+		didstore:        ,
 		docResolver:     didservice.NutsDIDResolver{Store: store},
 		keyStore:        keyStore,
 		keyResolver:     didservice.KeyResolver{Store: store},
-		serviceResolver: didservice.ServiceResolver{Store: store},
+		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
 		network:         network,
 		jsonldManager:   jsonldManager,
 		eventManager:    eventManager,

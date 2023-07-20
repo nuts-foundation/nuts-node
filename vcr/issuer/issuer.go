@@ -52,7 +52,7 @@ var TimeFunc = time.Now
 // since that normally happens through receiving the just-issued credential over the network,
 // but that doesn't happen when issuing over OpenID4VCI. Thus, it needs to explicitly save it to the VCR store when issuing over OpenID4VCI.
 // See https://github.com/nuts-foundation/nuts-node/issues/2063
-func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
+func NewIssuer(didResolver vdr.DIDResolver, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didstore didstore.Store, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
 ) Issuer {
@@ -61,11 +61,10 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 		privateKeyResolver: keyStore,
 	}
 	return &issuer{
-		store:            store,
 		networkPublisher: networkPublisher,
 		openidHandlerFn:  openidHandlerFn,
 		walletResolver: openid4vci.DIDIdentifierResolver{
-			ServiceResolver: didservice.ServiceResolver{Store: didstore},
+			ServiceResolver: didservice.ServiceResolver{Resolver: didResolver},
 		},
 		keyResolver:   resolver,
 		keyStore:      keyStore,

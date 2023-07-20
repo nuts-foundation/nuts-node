@@ -155,9 +155,9 @@ func (d NutsDIDResolver) resolveControllers(doc did.Document, metadata *types.Re
 
 var _ types.KeyResolver = KeyResolver{}
 
-// KeyResolver implements the KeyResolver interface with a types.Store as backend
+// KeyResolver implements the KeyResolver interface that uses keys from resolved DIDs.
 type KeyResolver struct {
-	Store didstore.Store
+	Resolver types.DIDResolver
 }
 
 func (r KeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationType types.RelationType) (crypto.PublicKey, error) {

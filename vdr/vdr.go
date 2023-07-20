@@ -58,7 +58,7 @@ type VDR struct {
 	// which VDR uses, so we need a reference here to use it.
 	// We could abstract DID document updating (so other DID methods can be updated through the same API),
 	// which would make this reference go away.
-	nutsDidResolver types.DIDControllerResolver
+	nutsDidResolver *didservice.NutsDIDResolver
 	serviceResolver types.ServiceResolver
 	documentOwner   types.DocumentOwner
 	keyStore        crypto.KeyStore
@@ -96,7 +96,16 @@ func (r *VDR) Config() interface{} {
 
 // Configure configures the VDR engine.
 func (r *VDR) Configure(_ core.ServerConfig) error {
-
+	for _, method := range r.config.Methods {
+		switch method {
+		case "did:nuts":
+			r.didResolver.Register(method, r.nutsDidResolver)
+		case "did:web":
+			r.didResolver.Register(method, didservice.NewWebResolver())
+		default:
+			return fmt.Errorf("unsupported DID method: %s", method)
+		}
+	}
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()
 	return nil
@@ -150,7 +159,7 @@ func (r *VDR) ListOwned(ctx context.Context) ([]did.DID, error) {
 func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.DocIterator {
 	return func(doc did.Document, metadata types.DocumentMetadata) error {
 		*totalCount++
-		controllers, err := r.didResolver.ResolveControllers(doc, nil)
+		controllers, err := r.nutsDidResolver.ResolveControllers(doc, nil)
 		if err != nil {
 			log.Logger().
 				WithField(core.LogFieldDID, doc.ID).
@@ -325,7 +334,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 }
 
 func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
-	controllers, err := r.didResolver.ResolveControllers(doc, nil)
+	controllers, err := r.nutsDidResolver.ResolveControllers(doc, nil)
 	if err != nil {
 		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
 	}
