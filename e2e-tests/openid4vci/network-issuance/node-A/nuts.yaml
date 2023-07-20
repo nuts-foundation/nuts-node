@@ -18,7 +18,10 @@ auth:
 crypto:
   storage: fs
 goldenhammer:
-  interval: 1s
+  enabled: false
+vcr:
+  openid4vci:
+    enabled: false
 tls:
   truststorefile: /opt/nuts/truststore.pem
   certfile: /opt/nuts/certificate-and-key.pem

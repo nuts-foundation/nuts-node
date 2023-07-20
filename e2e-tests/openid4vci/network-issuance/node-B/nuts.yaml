@@ -10,7 +10,7 @@ http:
       address: :443
       tls: server-client
 auth:
-  publicurl: http://nodeA:1323
+  publicurl: http://nodeB:1323
   contractvalidators:
     - dummy
   irma:
@@ -19,6 +19,10 @@ crypto:
   storage: fs
 goldenhammer:
   interval: 1s
+  enabled: true
+vcr:
+  openid4vci:
+    enabled: true
 tls:
   truststorefile: /opt/nuts/truststore.pem
   certfile: /opt/nuts/certificate-and-key.pem
@@ -26,4 +30,4 @@ tls:
 network:
   grpcaddr:	:5555
   v2:
-    gossipinterval: 500
+    gossipinterval: 450

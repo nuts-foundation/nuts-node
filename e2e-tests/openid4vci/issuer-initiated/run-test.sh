@@ -21,7 +21,7 @@ printf "NodeDID for node A: %s\n" "$NODEA_DID"
 waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 3 10 # 2 for setupNode, 1 for GoldenHammer
 export NODEB_DID=$(setupNode "http://localhost:21323" "nodeB:5555")
 printf "NodeDID for node B: %s\n" "$NODEB_DID"
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 6 10 # 2 for setupNode, 1 for GoldenHammer
+waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 6 10 # 2 for setupNode, 1 for GoldenHammer
 
 echo "------------------------------------"
 echo "Issuing credential..."

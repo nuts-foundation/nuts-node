@@ -19,6 +19,7 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_NETWORK_NODEDID: "${NODEB_DID}"
+      NUTS_NETWORK_BOOTSTRAPNODES: ${BOOTSTRAP_NODES}
     ports:
       - "21323:1323"
     volumes:
