@@ -193,14 +193,12 @@ func (r KeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType typ
 	if err != nil {
 		return ssi.URI{}, nil, err
 	}
-	for _, key := range keys {
-		kid := key.ID.String()
-		u, _ := ssi.ParseURI(kid)
-		publicKey, err := key.PublicKey()
+	if len(keys) > 0 {
+		publicKey, err := keys[0].PublicKey()
 		if err != nil {
 			return ssi.URI{}, nil, err
 		}
-		return *u, publicKey, nil
+		return keys[0].ID.URI(), publicKey, nil
 	}
 	return ssi.URI{}, nil, types.ErrKeyNotFound
 }
