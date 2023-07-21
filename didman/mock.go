@@ -141,18 +141,18 @@ func (mr *MockDidmanMockRecorder) GetContactInformation(id interface{}) *gomock.
 }
 
 // SearchOrganizations mocks base method.
-func (m *MockDidman) SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error) {
+func (m *MockDidman) SearchOrganizations(ctx context.Context, query string, serviceType *string) ([]OrganizationSearchResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchOrganizations", ctx, query, didServiceType)
+	ret := m.ctrl.Call(m, "SearchOrganizations", ctx, query, serviceType)
 	ret0, _ := ret[0].([]OrganizationSearchResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SearchOrganizations indicates an expected call of SearchOrganizations.
-func (mr *MockDidmanMockRecorder) SearchOrganizations(ctx, query, didServiceType interface{}) *gomock.Call {
+func (mr *MockDidmanMockRecorder) SearchOrganizations(ctx, query, serviceType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchOrganizations", reflect.TypeOf((*MockDidman)(nil).SearchOrganizations), ctx, query, didServiceType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchOrganizations", reflect.TypeOf((*MockDidman)(nil).SearchOrganizations), ctx, query, serviceType)
 }
 
 // UpdateCompoundService mocks base method.

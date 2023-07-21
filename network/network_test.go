@@ -29,8 +29,8 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -1318,9 +1318,9 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	pkiMock := pki.NewMockValidator(ctrl)
 	network := NewNetworkInstance(networkConfig, didStore, keyStore, eventPublisher, storageEngine.GetProvider(ModuleName), pkiMock)
 	network.keyResolver = keyResolver
-	didResolver := didservice.NutsDIDResolver{Store: didStore}
+	didResolver := service.NutsDIDResolver{Store: didStore}
 	network.didResolver = didResolver
-	network.serviceResolver = didservice.ServiceResolver{Resolver: didResolver}
+	network.serviceResolver = service.ServiceResolver{Resolver: didResolver}
 	network.state = state
 	network.connectionManager = connectionManager
 	network.protocols = []transport.Protocol{prot}

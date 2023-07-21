@@ -60,8 +60,8 @@ type SearchOrganizationsParams struct {
 	// Query Query used for searching the organization by name. The query is matched to the organization's name in a SQL's "LIKE" fashion: it matches partial strings and also names that sound like the given query, using a phonetic transformation algorithm.
 	Query string `form:"query" json:"query"`
 
-	// DidServiceType Filters organizations by service of the given type in the organizations' DID document (optional).
-	DidServiceType *string `form:"didServiceType,omitempty" json:"didServiceType,omitempty"`
+	// serviceType Filters organizations by service of the given type in the organizations' DID document (optional).
+	serviceType *string `form:"serviceType,omitempty" json:"serviceType,omitempty"`
 }
 
 // AddCompoundServiceJSONRequestBody defines body for AddCompoundService for application/json ContentType.
@@ -861,9 +861,9 @@ func NewSearchOrganizationsRequest(server string, params *SearchOrganizationsPar
 			}
 		}
 
-		if params.DidServiceType != nil {
+		if params.serviceType != nil {
 
-			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "didServiceType", runtime.ParamLocationQuery, *params.DidServiceType); err != nil {
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "serviceType", runtime.ParamLocationQuery, *params.serviceType); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -2238,11 +2238,11 @@ func (w *ServerInterfaceWrapper) SearchOrganizations(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter query: %s", err))
 	}
 
-	// ------------- Optional query parameter "didServiceType" -------------
+	// ------------- Optional query parameter "serviceType" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "didServiceType", ctx.QueryParams(), &params.DidServiceType)
+	err = runtime.BindQueryParameter("form", true, false, "serviceType", ctx.QueryParams(), &params.serviceType)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter didServiceType: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceType: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshalled arguments

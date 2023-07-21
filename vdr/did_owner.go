@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"strings"
 	"sync"
@@ -76,7 +76,7 @@ func (t *cachingDocumentOwner) IsOwner(ctx context.Context, id did.DID) (bool, e
 	// First perform a cheap DID existence check (subsequent checks are more expensive),
 	// without caching it as negative match (would allow unbound number of negative matches).
 	_, _, err := t.didResolver.Resolve(id, nil)
-	if didservice.IsFunctionalResolveError(err) {
+	if service.IsFunctionalResolveError(err) {
 		return false, nil
 	} else if err != nil {
 		return false, fmt.Errorf("unable to check ownership of DID: %w", err)

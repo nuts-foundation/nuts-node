@@ -31,7 +31,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -94,7 +94,7 @@ func createCmd() *cobra.Command {
 		},
 	}
 
-	defs := didservice.DefaultCreationOptions()
+	defs := service.DefaultCreationOptions()
 	setUsage := func(def bool, usage string) string {
 		opposite := "enable"
 		if def {
@@ -288,7 +288,7 @@ func addKeyAgreementKeyCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("invalid key ID '%s': %w", args[0], err)
 			}
-			targetDID, _ := didservice.GetDIDFromURL(args[0]) // can't fail because we already parsed the key ID
+			targetDID, _ := service.GetDIDFromURL(args[0]) // can't fail because we already parsed the key ID
 
 			clientConfig := core.NewClientConfigForCommand(cmd)
 			client := httpClient(clientConfig)

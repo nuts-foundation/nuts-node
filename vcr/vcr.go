@@ -49,7 +49,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"gopkg.in/yaml.v3"
 )
@@ -64,8 +64,8 @@ func NewVCRInstance(keyStore crypto.KeyStore, didResolver vdr.DIDResolver,
 		config:          DefaultConfig(),
 		didResolver:     didResolver,
 		keyStore:        keyStore,
-		keyResolver:     didservice.KeyResolver{Resolver: didResolver},
-		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
+		keyResolver:     service.KeyResolver{Resolver: didResolver},
+		serviceResolver: service.ServiceResolver{Resolver: didResolver},
 		network:         network,
 		jsonldManager:   jsonldManager,
 		eventManager:    eventManager,

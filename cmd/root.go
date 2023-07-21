@@ -59,7 +59,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -182,7 +182,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	httpServerInstance := httpEngine.New(shutdownCallback, cryptoInstance)
 	jsonld := jsonld.NewJSONLDInstance()
 	storageInstance := storage.New()
-	didResolver := &didservice.DIDResolverRouter{}
+	didResolver := &service.DIDResolverRouter{}
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), didResolver, cryptoInstance, eventManager, storageInstance.GetProvider(network.ModuleName), pkiInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), storageInstance.GetProvider(vdr.ModuleName), cryptoInstance, networkInstance, didResolver, eventManager)
@@ -195,9 +195,9 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})
-	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: didservice.KeyResolver{Resolver: didResolver}})
+	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: service.KeyResolver{Resolver: didResolver}})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
-	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DIDResolver: didResolver, DocManipulator: &didservice.Manipulator{
+	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DIDResolver: didResolver, DocManipulator: &service.Manipulator{
 		KeyCreator: cryptoInstance,
 		Updater:    vdrInstance,
 		Resolver:   didResolver,

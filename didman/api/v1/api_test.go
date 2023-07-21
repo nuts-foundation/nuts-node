@@ -31,7 +31,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -497,7 +497,7 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 	t.Run("error mapping", func(t *testing.T) {
 		ctx := newMockContext(t)
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(types.ErrServiceNotFound))
-		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(didservice.DIDServiceQueryError{errors.New("arbitrary")}))
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(service.serviceQueryError{errors.New("arbitrary")}))
 		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(types.ErrServiceReferenceToDeep))
 		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrReferencedServiceNotAnEndpoint{}))
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(types.ErrNotFound))
@@ -645,8 +645,8 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 
 		response, err := test.wrapper.SearchOrganizations(ctx, SearchOrganizationsRequestObject{
 			Params: SearchOrganizationsParams{
-				Query:          "query",
-				DidServiceType: &serviceType,
+				Query:       "query",
+				serviceType: &serviceType,
 			},
 		})
 
@@ -660,8 +660,8 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 
 		response, err := test.wrapper.SearchOrganizations(ctx, SearchOrganizationsRequestObject{
 			Params: SearchOrganizationsParams{
-				Query:          "query",
-				DidServiceType: &serviceType,
+				Query:       "query",
+				serviceType: &serviceType,
 			},
 		})
 

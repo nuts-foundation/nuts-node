@@ -33,7 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -60,13 +60,13 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, didman.ErrServiceInUse):
 		return http.StatusConflict
-	case errors.Is(err, didservice.ErrInvalidOptions):
+	case errors.Is(err, service.ErrInvalidOptions):
 		return http.StatusBadRequest
 	case errors.Is(err, types.ErrServiceNotFound):
 		return http.StatusNotFound
 	case errors.As(err, new(vdr.InvalidServiceError)):
 		return http.StatusBadRequest
-	case errors.As(err, new(didservice.DIDServiceQueryError)):
+	case errors.As(err, new(service.serviceQueryError)):
 		return http.StatusBadRequest
 	case errors.Is(err, types.ErrServiceReferenceToDeep):
 		return http.StatusNotAcceptable
@@ -323,7 +323,7 @@ func (w *Wrapper) GetContactInformation(_ context.Context, request GetContactInf
 // that map to the "organization" concept and where its subject resolves to an active DID Document.
 // It optionally filters only on organizations which DID documents contain a service with the specified type.
 func (w *Wrapper) SearchOrganizations(ctx context.Context, request SearchOrganizationsRequestObject) (SearchOrganizationsResponseObject, error) {
-	results, err := w.Didman.SearchOrganizations(ctx, request.Params.Query, request.Params.DidServiceType)
+	results, err := w.Didman.SearchOrganizations(ctx, request.Params.Query, request.Params.serviceType)
 	if err != nil {
 		return nil, err
 	}

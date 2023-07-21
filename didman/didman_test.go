@@ -39,7 +39,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -199,10 +199,10 @@ func TestDidman_UpdateEndpoint(t *testing.T) {
 func TestDidman_AddCompoundService(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
-	helloServiceQuery := didservice.MakeServiceReference(testDIDA, "hello")
-	worldServiceQuery := didservice.MakeServiceReference(testDIDB, "world")
-	universeServiceQuery := didservice.MakeServiceReference(testDIDB, "universe")
-	universeNestedServiceQuery := didservice.MakeServiceReference(testDIDB, "universe-ref")
+	helloServiceQuery := service.MakeServiceReference(testDIDA, "hello")
+	worldServiceQuery := service.MakeServiceReference(testDIDB, "world")
+	universeServiceQuery := service.MakeServiceReference(testDIDB, "universe")
+	universeNestedServiceQuery := service.MakeServiceReference(testDIDB, "universe-ref")
 	references := make(map[string]ssi.URI, 0)
 	references["hello"] = helloServiceQuery
 	references["world"] = worldServiceQuery
@@ -254,7 +254,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
 			func(_ context.Context, _ interface{}, doc did.Document) error {
 				newDoc = doc
-				return vdr.ManagedDocumentValidator(didservice.ServiceResolver{Resolver: ctx.didResolver}).Validate(newDoc)
+				return vdr.ManagedDocumentValidator(service.ServiceResolver{Resolver: ctx.didResolver}).Validate(newDoc)
 			})
 
 		_, err := ctx.instance.AddCompoundService(ctx.audit, testDIDA, "helloworld", references)
@@ -288,9 +288,9 @@ func TestDidman_AddCompoundService(t *testing.T) {
 func TestDidman_UpdateCompoundService(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
-	helloServiceQuery := didservice.MakeServiceReference(testDIDA, "hello")
-	worldServiceQuery := didservice.MakeServiceReference(testDIDB, "world")
-	universeServiceQuery := didservice.MakeServiceReference(testDIDB, "universe")
+	helloServiceQuery := service.MakeServiceReference(testDIDA, "hello")
+	worldServiceQuery := service.MakeServiceReference(testDIDB, "world")
+	universeServiceQuery := service.MakeServiceReference(testDIDB, "universe")
 	references := make(map[string]ssi.URI, 0)
 	references["hello"] = helloServiceQuery
 	references["world"] = worldServiceQuery
@@ -409,7 +409,7 @@ func TestDidman_DeleteService(t *testing.T) {
 }
 
 func TestDidman_UpdateContactInformation(t *testing.T) {
-	didDoc := didservice.CreateDocument()
+	didDoc := service.CreateDocument()
 	id, _ := did.ParseDID("did:nuts:123")
 	didDoc.ID = *id
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
@@ -607,7 +607,7 @@ func TestDidman_DeleteEndpointsByType(t *testing.T) {
 			{
 				ID:              ssi.MustParseURI(id.String() + "#123"),
 				Type:            "refType",
-				ServiceEndpoint: didservice.MakeServiceReference(*id, endpointType),
+				ServiceEndpoint: service.MakeServiceReference(*id, endpointType),
 			},
 		}
 		didDocErrServiceInUse := &did.Document{ID: *id, Service: endpointsWithSelfReference}
@@ -943,7 +943,7 @@ func TestReferencedService(t *testing.T) {
 	trueDID := did.MustParseDID("did:nuts:123")
 	falseDID := did.MustParseDID("did:nuts:abc")
 	serviceType := "RefType"
-	serviceRef := didservice.MakeServiceReference(trueDID, serviceType).String()
+	serviceRef := service.MakeServiceReference(trueDID, serviceType).String()
 	compoundDocStr := `{"service":[{"id":"did:nuts:123#1","serviceEndpoint":{"nested":"%s/serviceEndpoint?type=RefType"},"type":"OtherType"}]}`
 	endpointDocStr := `{"service":[{"id":"did:nuts:123#1","serviceEndpoint":"%s/serviceEndpoint?type=RefType","type":"OtherType"}]}`
 	didDoc := &did.Document{}

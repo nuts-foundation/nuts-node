@@ -37,7 +37,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/issuer/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"io/fs"
 	"net/http"
@@ -332,7 +332,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	}
 
 	// Proof must be signed by wallet to which it was offered (proof signer == offer receiver)
-	if signerDID, err := didservice.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
+	if signerDID, err := service.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
 		return generateProofError(openid4vci.Error{
 			Err:        fmt.Errorf("credential offer was signed by other DID than intended wallet: %s", signingKeyID),
 			Code:       openid4vci.InvalidProof,

@@ -36,7 +36,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
 )
@@ -254,8 +254,8 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	documentsCache := map[string]*did.Document{document.ID.String(): document}
 
 	// First, resolve the compound endpoint
-	serviceResolver := didservice.ServiceResolver{Resolver: d.didResolver}
-	compoundService, err := serviceResolver.ResolveEx(didservice.MakeServiceReference(id, compoundServiceType), referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
+	serviceResolver := service.ServiceResolver{Resolver: d.didResolver}
+	compoundService, err := serviceResolver.ResolveEx(service.MakeServiceReference(id, compoundServiceType), referenceDepth, service.DefaultMaxServiceReferenceDepth, documentsCache)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}
 	}
@@ -270,13 +270,13 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	if endpoint == "" {
 		return "", types.ErrServiceNotFound
 	}
-	if resolveReferences && didservice.IsServiceReference(endpoint) {
+	if resolveReferences && service.IsServiceReference(endpoint) {
 		endpointURI, err := ssi.ParseURI(endpoint)
 		if err != nil {
 			// Not sure when this could ever happen
 			return "", err
 		}
-		resolvedEndpoint, err := serviceResolver.ResolveEx(*endpointURI, referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
+		resolvedEndpoint, err := serviceResolver.ResolveEx(*endpointURI, referenceDepth, service.DefaultMaxServiceReferenceDepth, documentsCache)
 		if err != nil {
 			return "", err
 		}
@@ -290,7 +290,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 }
 
 func (d *didman) DeleteService(ctx context.Context, serviceID ssi.URI) error {
-	id, err := didservice.GetDIDFromURL(serviceID.String())
+	id, err := service.GetDIDFromURL(serviceID.String())
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,7 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 	log.Logger().
 		WithField(core.LogFieldServiceID, serviceID.String()).
 		Debug("Deleting service")
-	id, err := didservice.GetDIDFromURL(serviceID.String())
+	id, err := service.GetDIDFromURL(serviceID.String())
 	if err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 	}
 
 	// check for existing use on this document
-	if referencedService(doc, didservice.MakeServiceReference(doc.ID, service.Type).String()) {
+	if referencedService(doc, service.MakeServiceReference(doc.ID, service.Type).String()) {
 		return ErrServiceInUse
 	}
 
@@ -412,7 +412,7 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 	return nil, nil
 }
 
-func (d *didman) SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error) {
+func (d *didman) SearchOrganizations(ctx context.Context, query string, serviceType *string) ([]OrganizationSearchResult, error) {
 	searchTerms := []vcr.SearchTerm{
 		{IRIPath: jsonld.OrganizationNamePath, Value: query, Type: vcr.Prefix},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
@@ -427,11 +427,11 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 	didDocuments, organizations = d.resolveOrganizationDIDDocuments(organizations)
 
 	// If specified, filter on DID service type
-	if didServiceType != nil && len(*didServiceType) > 0 {
+	if serviceType != nil && len(*serviceType) > 0 {
 		j := 0
 		for i := 0; i < len(organizations); i++ {
 			// Check if this organization's DID Document has a service that matches the given type
-			if len(filterServices(didDocuments[i], *didServiceType)) > 0 {
+			if len(filterServices(didDocuments[i], *serviceType)) > 0 {
 				organizations[j] = organizations[i]
 				didDocuments[j] = didDocuments[i]
 				j++
@@ -476,7 +476,7 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 	j := 0
 	for i, organization := range organizations {
 		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
-		if didservice.IsFunctionalResolveError(err) {
+		if service.IsFunctionalResolveError(err) {
 			// Just ignore deactivated DID documents or VCs that don't refer to an existing DID document.
 			// Log it on debug, because it might be useful for finding VCs that need to be revoked (since they're invalid).
 			log.Logger().

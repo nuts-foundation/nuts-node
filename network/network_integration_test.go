@@ -50,8 +50,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	grpcLib "google.golang.org/grpc"
@@ -1106,13 +1106,13 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		t.Fatal(err)
 	}
 
-	didResolver := didservice.NutsDIDResolver{Store: didStore}
+	didResolver := service.NutsDIDResolver{Store: didStore}
 	instance := &Network{
 		config:          config,
 		didResolver:     didResolver,
 		keyStore:        keyStore,
-		keyResolver:     didservice.KeyResolver{Resolver: didResolver},
-		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
+		keyResolver:     service.KeyResolver{Resolver: didResolver},
+		serviceResolver: service.ServiceResolver{Resolver: didResolver},
 		eventPublisher:  eventPublisher,
 		storeProvider:   &storeProvider,
 		pkiValidator:    pkiValidator,

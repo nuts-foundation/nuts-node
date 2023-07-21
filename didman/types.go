@@ -56,13 +56,13 @@ type Didman interface {
 
 	// AddCompoundService adds a compound endpoint to a DID Document.
 	// It returns ErrDuplicateService if a service with the given type already exists.
-	// It returns didservice.DIDServiceQueryError if one of the service references is invalid.
+	// It returns service.serviceQueryError if one of the service references is invalid.
 	// It returns ErrReferencedServiceNotAnEndpoint if one of the references does not resolve to a single endpoint URL.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	AddCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error)
 
 	// UpdateCompoundService updates a compound endpoint in a DID Document.
-	// It returns didservice.DIDServiceQueryError if one of the service references is invalid.
+	// It returns service.serviceQueryError if one of the service references is invalid.
 	// It returns ErrReferencedServiceNotAnEndpoint if one of the references does not resolve to a single endpoint URL.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	UpdateCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error)
@@ -80,7 +80,7 @@ type Didman interface {
 
 	// SearchOrganizations searches VCR for organizations which's name matches the given query.
 	// It then optionally filters on those which have a service of the specified type on their DID Document.
-	SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error)
+	SearchOrganizations(ctx context.Context, query string, serviceType *string) ([]OrganizationSearchResult, error)
 }
 
 // CompoundServiceResolver defines high-level operations for resolving services of DID documents.
@@ -89,7 +89,7 @@ type CompoundServiceResolver interface {
 	// It returns the serviceEndpoint of the specified service (which must be an absolute URL endpoint).
 	// If resolveReferences is true and the specified endpointType contains a reference, it is resolved and the referenced endpoint is returned instead.
 	// It returns ErrServiceNotFound if the specified compound service or endpoint can't be found in the DID Document.
-	// It returns didservice.DIDServiceQueryError if the endpoint doesn't contain a (valid) reference and resolveReferences = true.
+	// It returns service.serviceQueryError if the endpoint doesn't contain a (valid) reference and resolveReferences = true.
 	// It returns ErrServiceReferenceToDeep if the endpoint reference is nested too deep.
 	GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error)
 

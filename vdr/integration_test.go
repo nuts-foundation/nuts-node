@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"net/url"
 	"sync"
 	"testing"
@@ -40,7 +41,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +53,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
+	docA, _, err := ctx.vdr.Create(ctx.audit, service.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, docA)
 
@@ -87,7 +88,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
+	docB, _, err := ctx.vdr.Create(ctx.audit, service.DefaultCreationOptions())
 	require.NoError(t, err, "unexpected error while creating DocumentB")
 	assert.NotNil(t, docB,
 		"a new document should have been created")
@@ -133,7 +134,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"news service of document a does not contain expected values")
 
 	// deactivate document B
-	docUpdater := &didservice.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.didResolver}
+	docUpdater := &service.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.didResolver}
 	err = docUpdater.Deactivate(ctx.audit, docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
@@ -158,7 +159,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	initialDoc, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
+	initialDoc, _, err := ctx.vdr.Create(ctx.audit, service.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, initialDoc)
 
@@ -193,9 +194,9 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	ctx := setup(t)
 
 	// Publish a DID Document
-	didDoc, key, _ := ctx.docCreator.Create(audit.TestContext(), didservice.DefaultCreationOptions())
+	didDoc, key, _ := ctx.docCreator.Create(audit.TestContext(), service.DefaultCreationOptions())
 	payload, _ := json.Marshal(didDoc)
-	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didDocumentType, nil, nil, uint32(0))
+	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didnuts.DIDDocumentType, nil, nil, uint32(0))
 	signedTransaction, err := dag.NewTransactionSigner(ctx.cryptoInstance, key, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
@@ -251,7 +252,7 @@ func setup(t *testing.T) testContext {
 	}
 
 	// DID Resolver
-	didResolver := &didservice.DIDResolverRouter{}
+	didResolver := &service.DIDResolverRouter{}
 
 	// Startup events
 	eventPublisher := events.NewTestManager(t)

@@ -29,7 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/url"
 	"sort"
@@ -141,9 +141,9 @@ func (h *GoldenHammer) registerServiceBaseURLs() error {
 	for _, document := range documents {
 		var endpointToRegister url.URL
 		serviceEndpoint := getServiceEndpoint(document, transport.NutsCommServiceType)
-		if didservice.IsServiceReference(serviceEndpoint) {
+		if service.IsServiceReference(serviceEndpoint) {
 			// Care organization DID document, register service pointing to vendor DID.
-			parentDID, err := didservice.GetDIDFromURL(serviceEndpoint)
+			parentDID, err := service.GetDIDFromURL(serviceEndpoint)
 			if err != nil {
 				// Invalid NutsComm reference, skip
 				log.Logger().WithError(err).
@@ -156,7 +156,7 @@ func (h *GoldenHammer) registerServiceBaseURLs() error {
 				continue
 			}
 			// All us OK
-			endpointToRegister = didservice.MakeServiceReference(parentDID, types.BaseURLServiceType).URL
+			endpointToRegister = service.MakeServiceReference(parentDID, types.BaseURLServiceType).URL
 		} else {
 			// Vendor DID document, register resolved identifier
 			identifier, err := h.tryResolveURL(document.ID)
@@ -195,7 +195,7 @@ func (h *GoldenHammer) listDocumentToFix() ([]did.Document, error) {
 		}
 		document, _, err := h.didResolver.Resolve(id, nil)
 		if err != nil {
-			if !didservice.IsFunctionalResolveError(err) {
+			if !service.IsFunctionalResolveError(err) {
 				log.Logger().WithError(err).Infof("Can't resolve DID document, skipping fix (did=%s)", id)
 			}
 			continue
@@ -217,7 +217,7 @@ func (h *GoldenHammer) listDocumentToFix() ([]did.Document, error) {
 	// vendor DIDs should be fixed first. Meaning DIDs with NutsComm URL (instead of a reference).
 	sort.SliceStable(documents, func(i, j int) bool {
 		endpoint := getServiceEndpoint(documents[i], transport.NutsCommServiceType)
-		return !didservice.IsServiceReference(endpoint)
+		return !service.IsServiceReference(endpoint)
 	})
 	return documents, nil
 }
@@ -239,7 +239,7 @@ func (h *GoldenHammer) tryResolveURL(id did.DID) (*url.URL, error) {
 // resolveContainsService returns whether 1. given DID document can be resolved, and 2. it contains the specified service.
 func (h *GoldenHammer) resolveContainsService(id did.DID, serviceType string) bool {
 	document, _, err := h.didResolver.Resolve(id, nil)
-	if didservice.IsFunctionalResolveError(err) {
+	if service.IsFunctionalResolveError(err) {
 		// Unresolvable DID document, nothing to do
 		return false
 	}

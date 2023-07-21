@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/didservice"
+	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/service"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"

@@ -29,8 +29,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,7 +61,7 @@ func TestGoldenHammer_Fix(t *testing.T) {
 			},
 			{
 				Type:            transport.NutsCommServiceType,
-				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
+				ServiceEndpoint: service.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
 			},
 		},
 	}
@@ -78,7 +78,7 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		Service: []did.Service{
 			{
 				Type:            transport.NutsCommServiceType,
-				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
+				ServiceEndpoint: service.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
 			},
 		},
 	}
@@ -86,11 +86,11 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		Service: []did.Service{
 			{
 				Type:            types.BaseURLServiceType,
-				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, types.BaseURLServiceType),
+				ServiceEndpoint: service.MakeServiceReference(vendorDID, types.BaseURLServiceType),
 			},
 			{
 				Type:            transport.NutsCommServiceType,
-				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
+				ServiceEndpoint: service.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
 			},
 		},
 	}

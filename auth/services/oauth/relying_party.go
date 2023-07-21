@@ -35,7 +35,7 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -55,7 +55,7 @@ func NewRelyingParty(
 	didResolver types.DIDResolver, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
 	httpClientTimeout time.Duration, httpClientTLS *tls.Config) RelyingParty {
 	return &relyingParty{
-		keyResolver:       didservice.KeyResolver{Resolver: didResolver},
+		keyResolver:       service.KeyResolver{Resolver: didResolver},
 		serviceResolver:   serviceResolver,
 		privateKeyStore:   privateKeyStore,
 		httpClientTimeout: httpClientTimeout,
