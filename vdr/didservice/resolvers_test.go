@@ -294,28 +294,6 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	})
 }
 
-func TestNutsKeyResolver_ResolvePublicKey(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	docResolver := types.NewMockDocResolver(ctrl)
-	keyResolver := NutsKeyResolver{Resolver: docResolver}
-	keyCreator := newMockKeyCreator()
-	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
-
-	t.Run("ok by hash", func(t *testing.T) {
-		docResolver.EXPECT().Resolve(testDID, gomock.Any()).Do(func(arg0 interface{}, arg1 interface{}) {
-			resolveMetadata := arg1.(*types.ResolveMetadata)
-			assert.Equal(t, hash.EmptyHash(), *resolveMetadata.SourceTransaction)
-		}).Return(doc, nil, nil)
-
-		key, err := keyResolver.ResolvePublicKey(mockKID, []hash.SHA256Hash{hash.EmptyHash()})
-		require.NoError(t, err)
-
-		assert.NotNil(t, key)
-	})
-
-}
-
 func TestServiceResolver_Resolve(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 

@@ -23,7 +23,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"time"
 
@@ -128,28 +127,6 @@ func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMe
 	}
 
 	return leaves[:j], nil
-}
-
-// NutsKeyResolver implements the NutsKeyResolver interface.
-type NutsKeyResolver struct {
-	Resolver types.DocResolver
-}
-
-func (r NutsKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
-	// try all keys, continue when err == types.ErrNotFound
-	for _, h := range sourceTransactionsRefs {
-		publicKey, err := resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
-			SourceTransaction: &h,
-		})
-		if err == nil {
-			return publicKey, nil
-		}
-		if err != types.ErrNotFound {
-			return nil, err
-		}
-	}
-
-	return nil, types.ErrNotFound
 }
 
 var _ types.KeyResolver = KeyResolver{}
