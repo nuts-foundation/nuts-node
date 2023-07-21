@@ -138,7 +138,7 @@ type NutsKeyResolver struct {
 func (r NutsKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
 	// try all keys, continue when err == types.ErrNotFound
 	for _, h := range sourceTransactionsRefs {
-		publicKey, err := resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
+		publicKey, err := r.resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
 			SourceTransaction: &h,
 		})
 		if err == nil {
@@ -263,7 +263,7 @@ func ExtractFirstRelationKeyIDByType(doc did.Document, relationType types.Relati
 	return ssi.URI{}, types.ErrKeyNotFound
 }
 
-func resolvePublicKey(resolver types.DocResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
+func (r NutsKeyResolver) resolvePublicKey(resolver types.DocResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
 	id, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
