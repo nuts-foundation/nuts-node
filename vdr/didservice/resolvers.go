@@ -165,7 +165,7 @@ func (r KeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationTy
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
 	}
-	doc, _, err := r.Store.Resolve(holder, &types.ResolveMetadata{
+	doc, _, err := r.Resolver.Resolve(holder, &types.ResolveMetadata{
 		ResolveTime: validAt,
 	})
 	if err != nil {
@@ -184,7 +184,7 @@ func (r KeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationTy
 }
 
 func (r KeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType types.RelationType) (ssi.URI, crypto.PublicKey, error) {
-	doc, _, err := r.Store.Resolve(id, &types.ResolveMetadata{
+	doc, _, err := r.Resolver.Resolve(id, &types.ResolveMetadata{
 		ResolveTime: validAt,
 	})
 	if err != nil {
@@ -220,7 +220,7 @@ func resolveRelationships(doc *did.Document, relationType types.RelationType) (r
 		return nil, fmt.Errorf("unable to locate RelationType %v", relationType)
 	}
 }
-func resolvePublicKey(resolver types.DocResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
+func resolvePublicKey(resolver types.DIDResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
 	id, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)

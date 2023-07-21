@@ -1095,7 +1095,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 				}
 				docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).Return([]did.Document{doc2}, nil)
 
-				_ = network.connectToKnownNodes(did.DID{}) // no local node DID
+				_ = network.DiscoverNodes(did.DID{}) // no local node DID
 
 				// assert
 				// cxt.connectionManager.Connect is not called
@@ -1137,7 +1137,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 		// Only expect Connect() call for peer
 		connectionManager.EXPECT().Connect(peerAddress, *peerDID, nil)
 
-		_ = network.connectToKnownNodes(*nodeDID)
+		_ = network.DiscoverNodes(*nodeDID)
 	})
 	t.Run("bootstrap always connect without delay", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -1150,7 +1150,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 		// expect Connect() call with delay == 0 for bootstrap node
 		ctx.connectionManager.EXPECT().Connect("bootstrap", did.DID{}, nil)
 
-		_ = ctx.network.connectToKnownNodes(*nodeDID)
+		_ = ctx.network.DiscoverNodes(*nodeDID)
 	})
 }
 
@@ -1332,7 +1332,7 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	pkiMock := pki.NewMockValidator(ctrl)
 	network := NewNetworkInstance(networkConfig, didStore, keyStore, eventPublisher, storageEngine.GetProvider(ModuleName), pkiMock)
 	network.keyResolver = keyResolver
-	network.didDocumentResolver = didservice.NutsDIDResolver{Store: didStore}
+	network.didResolver = didservice.NutsDIDResolver{Store: didStore}
 	network.serviceResolver = didservice.ServiceResolver{Store: didStore}
 	network.didDocumentFinder = docFinder
 	network.state = state

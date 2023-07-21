@@ -56,6 +56,44 @@ func (mr *MockDIDResolverMockRecorder) Resolve(id, metadata interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockDIDResolver)(nil).Resolve), id, metadata)
 }
 
+// MockDIDControllerResolver is a mock of DIDControllerResolver interface.
+type MockDIDControllerResolver struct {
+	ctrl     *gomock.Controller
+	recorder *MockDIDControllerResolverMockRecorder
+}
+
+// MockDIDControllerResolverMockRecorder is the mock recorder for MockDIDControllerResolver.
+type MockDIDControllerResolverMockRecorder struct {
+	mock *MockDIDControllerResolver
+}
+
+// NewMockDIDControllerResolver creates a new mock instance.
+func NewMockDIDControllerResolver(ctrl *gomock.Controller) *MockDIDControllerResolver {
+	mock := &MockDIDControllerResolver{ctrl: ctrl}
+	mock.recorder = &MockDIDControllerResolverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockDIDControllerResolver) EXPECT() *MockDIDControllerResolverMockRecorder {
+	return m.recorder
+}
+
+// ResolveControllers mocks base method.
+func (m *MockDIDControllerResolver) ResolveControllers(input did.Document, metadata *ResolveMetadata) ([]did.Document, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveControllers", input, metadata)
+	ret0, _ := ret[0].([]did.Document)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveControllers indicates an expected call of ResolveControllers.
+func (mr *MockDIDControllerResolverMockRecorder) ResolveControllers(input, metadata interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveControllers", reflect.TypeOf((*MockDIDControllerResolver)(nil).ResolveControllers), input, metadata)
+}
+
 // MockDocResolver is a mock of DocResolver interface.
 type MockDocResolver struct {
 	ctrl     *gomock.Controller
@@ -477,6 +515,20 @@ func (m *MockVDR) ListOwned(ctx context.Context) ([]did.DID, error) {
 func (mr *MockVDRMockRecorder) ListOwned(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOwned", reflect.TypeOf((*MockVDR)(nil).ListOwned), ctx)
+}
+
+// Resolver mocks base method.
+func (m *MockVDR) Resolver() DIDResolver {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Resolver")
+	ret0, _ := ret[0].(DIDResolver)
+	return ret0
+}
+
+// Resolver indicates an expected call of Resolver.
+func (mr *MockVDRMockRecorder) Resolver() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolver", reflect.TypeOf((*MockVDR)(nil).Resolver))
 }
 
 // Update mocks base method.

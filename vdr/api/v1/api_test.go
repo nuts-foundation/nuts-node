@@ -477,7 +477,7 @@ func newMockContext(t *testing.T) mockContext {
 	vdr := types.NewMockVDR(ctrl)
 	docManipulator := types.NewMockDocManipulator(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
-	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator, DocResolver: docResolver}
+	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator, DIDResolver: docResolver}
 	requestCtx := audit.TestContext()
 
 	return mockContext{

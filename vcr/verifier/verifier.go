@@ -47,7 +47,7 @@ const (
 // It implements the generic methods for verifying verifiable credentials and verifiable presentations.
 // It does not know anything about the semantics of a credential. It should support a wide range of types.
 type verifier struct {
-	docResolver   vdr.DocResolver
+	didResolver   vdr.DIDResolver
 	keyResolver   vdr.KeyResolver
 	jsonldManager jsonld.JSONLD
 	store         Store
@@ -79,8 +79,8 @@ func (e VerificationError) Error() string {
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(store Store, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Verifier {
-	return &verifier{store: store, docResolver: docResolver, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig}
+func NewVerifier(store Store, didResolver vdr.DIDResolver, keyResolver vdr.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Verifier {
+	return &verifier{store: store, didResolver: didResolver, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig}
 }
 
 // validateAtTime is a helper method which checks if a credential/presentation is valid at a certain given time.
@@ -179,7 +179,7 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	// Check signature
 	if checkSignature {
 		issuerDID, _ := did.ParseDID(credentialToVerify.Issuer.String())
-		_, _, err = v.docResolver.Resolve(*issuerDID, &vdr.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
+		_, _, err = v.didResolver.Resolve(*issuerDID, &vdr.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
 		if err != nil {
 			return fmt.Errorf("could not validate issuer: %w", err)
 		}

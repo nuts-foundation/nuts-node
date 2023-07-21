@@ -103,7 +103,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
 		mockNetwork := network.NewMockTransactions(ctrl)
 
-		sut := networkPublisher{keyResolver: mockKeyResolver, didDocResolver: mockDocResolver, networkTx: mockNetwork}
+		sut := networkPublisher{keyResolver: mockKeyResolver, didResolver: mockDocResolver, networkTx: mockNetwork}
 
 		credentialToPublish := vc.VerifiableCredential{
 			Issuer:            issuerID,
@@ -140,7 +140,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 		sut := networkPublisher{
 			keyResolver:     mockKeyResolver,
-			didDocResolver:  mockDocResolver,
+			didResolver:     mockDocResolver,
 			networkTx:       mockNetwork,
 			serviceResolver: mockServiceResolver,
 		}
@@ -256,7 +256,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
 			mockNetwork := network.NewMockTransactions(ctrl)
 
-			sut := networkPublisher{keyResolver: mockKeyResolver, didDocResolver: mockDocResolver, networkTx: mockNetwork}
+			sut := networkPublisher{keyResolver: mockKeyResolver, didResolver: mockDocResolver, networkTx: mockNetwork}
 
 			credentialToPublish := vc.VerifiableCredential{
 				Issuer:            issuerID,
@@ -324,7 +324,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 		}
 		mockNetwork.EXPECT().CreateTransaction(ctx, gomock.Eq(expectedTemplate)).Return(nil, nil)
 
-		sut := networkPublisher{keyResolver: mockKeyResolver, didDocResolver: mockDocResolver, networkTx: mockNetwork}
+		sut := networkPublisher{keyResolver: mockKeyResolver, didResolver: mockDocResolver, networkTx: mockNetwork}
 
 		err := sut.PublishRevocation(ctx, revocationToPublish)
 		assert.NoError(t, err, "expected publishing to succeed")
@@ -354,7 +354,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 				Issuer: issuerID,
 			}
 
-			sut := networkPublisher{keyResolver: mockKeyResolver, didDocResolver: mockDocResolver, networkTx: mockNetwork}
+			sut := networkPublisher{keyResolver: mockKeyResolver, didResolver: mockDocResolver, networkTx: mockNetwork}
 
 			err := sut.PublishRevocation(ctx, revocationToPublish)
 			assert.EqualError(t, err, "could not resolve an assertion key for issuer: not found")
@@ -375,7 +375,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 				Issuer: issuerID,
 			}
 
-			sut := networkPublisher{keyResolver: mockKeyResolver, didDocResolver: mockDocResolver, networkTx: mockNetwork}
+			sut := networkPublisher{keyResolver: mockKeyResolver, didResolver: mockDocResolver, networkTx: mockNetwork}
 
 			err := sut.PublishRevocation(ctx, revocationToPublish)
 			assert.EqualError(t, err, "could not resolve issuer DID document: not found")
@@ -396,7 +396,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 				Issuer: issuerID,
 			}
 
-			sut := networkPublisher{keyResolver: mockKeyResolver, didDocResolver: mockDocResolver, networkTx: mockNetwork}
+			sut := networkPublisher{keyResolver: mockKeyResolver, didResolver: mockDocResolver, networkTx: mockNetwork}
 
 			err := sut.PublishRevocation(ctx, revocationToPublish)
 			assert.EqualError(t, err, "failed to publish revocation, error while creating transaction: foo")

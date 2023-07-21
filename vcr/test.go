@@ -48,12 +48,12 @@ type TestVCRContext struct {
 
 func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	didStore := didstore.NewTestStore(t)
-
+	didResolver := didservice.NutsDIDResolver{Store: didStore}
 	ctx := TestVCRContext{
 		DIDStore:    didStore,
 		KeyStore:    keyStore,
-		DocResolver: didservice.NutsDIDResolver{Store: didStore},
-		KeyResolver: didservice.KeyResolver{Store: didStore},
+		DocResolver: didResolver,
+		KeyResolver: didservice.KeyResolver{Resolver: didResolver},
 	}
 
 	testDirectory := io.TestDirectory(t)
@@ -131,7 +131,7 @@ type mockContext struct {
 	tx              *network.MockTransactions
 	vcr             *vcr
 	keyResolver     *types.MockKeyResolver
-	docResolver     *types.MockDocResolver
+	didResolver     *types.MockDIDResolver
 	serviceResolver *types.MockServiceResolver
 	crypto          *crypto.Crypto
 }
@@ -145,16 +145,15 @@ func newMockContext(t *testing.T) mockContext {
 	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
 	tx.EXPECT().CleanupSubscriberEvents("vcr_vcs", gomock.Any())
 	keyResolver := types.NewMockKeyResolver(ctrl)
-	docResolver := types.NewMockDocResolver(ctrl)
+	didResolver := types.NewMockDIDResolver(ctrl)
 	serviceResolver := types.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(testDir)
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
-	vcr := NewVCRInstance(cryptoInstance, nil, tx, jsonldManager, eventManager, storageClient, pki.New(), nil).(*vcr)
+	vcr := NewVCRInstance(cryptoInstance, didResolver, tx, jsonldManager, eventManager, storageClient, pki.New(), nil).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.keyResolver = keyResolver
-	vcr.docResolver = docResolver
 	vcr.pkiProvider = pki.New()
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	if err := vcr.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDir})); err != nil {
@@ -174,7 +173,7 @@ func newMockContext(t *testing.T) mockContext {
 		tx:              tx,
 		vcr:             vcr,
 		keyResolver:     keyResolver,
-		docResolver:     docResolver,
+		didResolver:     didResolver,
 		serviceResolver: serviceResolver,
 	}
 }

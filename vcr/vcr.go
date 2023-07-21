@@ -27,7 +27,6 @@ import (
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"io/fs"
 	"net/http"
 	"path"
@@ -63,10 +62,9 @@ func NewVCRInstance(keyStore crypto.KeyStore, didResolver vdr.DIDResolver,
 	pkiProvider pki.Provider, documentOwner vdr.DocumentOwner) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
-		didstore:        ,
-		docResolver:     didservice.NutsDIDResolver{Store: store},
+		didResolver:     didResolver,
 		keyStore:        keyStore,
-		keyResolver:     didservice.KeyResolver{Store: store},
+		keyResolver:     didservice.KeyResolver{Resolver: didResolver},
 		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
 		network:         network,
 		jsonldManager:   jsonldManager,
@@ -85,9 +83,8 @@ type vcr struct {
 	strictmode          bool
 	config              Config
 	store               storage.KVBackedLeiaStore
-	didstore            didstore.Store
 	keyStore            crypto.KeyStore
-	docResolver         vdr.DocResolver
+	didResolver         vdr.DIDResolver
 	keyResolver         vdr.KeyResolver
 	serviceResolver     vdr.ServiceResolver
 	ambassador          Ambassador
@@ -203,7 +200,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	// default to nil openidHandlerFn when OpenID4VCI.Enabled==false
 	var openidHandlerFn func(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error)
 
-	networkPublisher := issuer.NewNetworkPublisher(c.network, c.didstore, c.keyStore)
+	networkPublisher := issuer.NewNetworkPublisher(c.network, c.didResolver, c.keyStore)
 	if c.config.OpenID4VCI.Enabled {
 		tlsConfig, err := c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 		if err != nil {
@@ -234,8 +231,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		})
 		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
 	}
-	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, c.didstore, c.keyStore, c.jsonldManager, c.trustConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, c.didResolver, c.keyStore, c.jsonldManager, c.trustConfig)
+	c.verifier = verifier.NewVerifier(c.verifierStore, c.didResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
@@ -504,7 +501,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 			if err != nil {
 				return err
 			}
-			_, _, err = c.docResolver.Resolve(*issuerDid, nil)
+			_, _, err = c.didResolver.Resolve(*issuerDid, nil)
 			if err != nil {
 				if !(errors.Is(err, did.DeactivatedErr) || errors.Is(err, vdr.ErrNoActiveController)) {
 					return err

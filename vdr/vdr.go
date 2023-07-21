@@ -29,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/storage"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -43,6 +44,9 @@ import (
 )
 
 var _ types.VDR = (*VDR)(nil)
+
+// didStoreName contains the name for the store
+const didStoreName = "didstore"
 
 // VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
@@ -62,6 +66,8 @@ type VDR struct {
 	serviceResolver types.ServiceResolver
 	documentOwner   types.DocumentOwner
 	keyStore        crypto.KeyStore
+	storageProvider storage.Provider
+	eventManager    events.Event
 }
 
 func (r *VDR) Resolver() types.DIDResolver {
@@ -69,20 +75,18 @@ func (r *VDR) Resolver() types.DIDResolver {
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store didstore.Store, eventManager events.Event) *VDR {
-	resolver := didservice.NutsDIDResolver{Store: store}
-	didResolver := &didservice.DIDResolverRouter{}
+func NewVDR(config Config, storageProvider storage.Provider, cryptoClient crypto.KeyStore, networkClient network.Transactions,
+	didResolverRouter *didservice.DIDResolverRouter, eventManager events.Event) *VDR {
 	return &VDR{
-		config:            config,
-		network:           networkClient,
-		store:             store,
-		didDocCreator:     didservice.Creator{KeyStore: cryptoClient},
-		didResolver:       didResolver,
-		nutsDidResolver:   &didservice.NutsDIDResolver{Store: store},
-		serviceResolver:   didservice.ServiceResolver{Resolver: didResolver},
-		documentOwner:     newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, resolver),
-		networkAmbassador: NewAmbassador(networkClient, store, eventManager),
-		keyStore:          cryptoClient,
+		config:          config,
+		storageProvider: storageProvider,
+		network:         networkClient,
+		eventManager:    eventManager,
+		didDocCreator:   didservice.Creator{KeyStore: cryptoClient},
+		didResolver:     didResolverRouter,
+		serviceResolver: didservice.ServiceResolver{Resolver: didResolverRouter},
+		documentOwner:   newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, didResolverRouter),
+		keyStore:        cryptoClient,
 	}
 }
 
@@ -96,6 +100,15 @@ func (r *VDR) Config() interface{} {
 
 // Configure configures the VDR engine.
 func (r *VDR) Configure(_ core.ServerConfig) error {
+	didStore, err := r.storageProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
+	if err != nil {
+		return err
+	}
+	r.store = didstore.New(didStore)
+
+	r.nutsDidResolver = &didservice.NutsDIDResolver{Store: r.store}
+	r.networkAmbassador = NewAmbassador(r.network, r.store, r.eventManager)
+
 	for _, method := range r.config.Methods {
 		switch method {
 		case "did:nuts":

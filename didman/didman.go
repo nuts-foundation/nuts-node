@@ -85,8 +85,11 @@ func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
 	return fmt.Sprintf("%T", e) == fmt.Sprintf("%T", other)
 }
 
+var _ core.Configurable = &didman{}
+
 type didman struct {
 	jsonldManager jsonld.JSONLD
+	didResolver   types.DIDResolver
 	vdr           types.VDR
 	vcr           vcr.Finder
 	// callSerializer can be used to (un)lock a resource such as a DID to prevent parallel updates
@@ -105,6 +108,11 @@ func NewDidmanInstance(vdr types.VDR, vcr vcr.Finder, jsonldManager jsonld.JSONL
 
 func (d *didman) Name() string {
 	return ModuleName
+}
+
+func (d *didman) Configure(_ core.ServerConfig) error {
+	d.didResolver = d.vdr.Resolver()
+	return nil
 }
 
 func (d *didman) AddEndpoint(ctx context.Context, id did.DID, serviceType string, endpoint url.URL) (*did.Service, error) {
@@ -172,7 +180,7 @@ func (d *didman) DeleteEndpointsByType(ctx context.Context, id did.DID, serviceT
 }
 
 func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
-	doc, _, err := d.didResolver.Resolve(id, nil)
+	doc, _, err := d.vdr.Resolver().Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +245,7 @@ func (d *didman) UpdateCompoundService(ctx context.Context, id did.DID, serviceT
 }
 
 func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error) {
-	document, _, err := d.didResolver.Resolve(id, nil)
+	document, _, err := d.vdr.Resolver().Resolve(id, nil)
 	if err != nil {
 		return "", err
 	}
@@ -246,7 +254,8 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	documentsCache := map[string]*did.Document{document.ID.String(): document}
 
 	// First, resolve the compound endpoint
-	compoundService, err := d.serviceResolver.ResolveEx(didservice.MakeServiceReference(id, compoundServiceType), referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
+	serviceResolver := didservice.ServiceResolver{Resolver: d.vdr.Resolver()}
+	compoundService, err := serviceResolver.ResolveEx(didservice.MakeServiceReference(id, compoundServiceType), referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}
 	}
@@ -267,7 +276,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 			// Not sure when this could ever happen
 			return "", err
 		}
-		resolvedEndpoint, err := d.serviceResolver.ResolveEx(*endpointURI, referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
+		resolvedEndpoint, err := serviceResolver.ResolveEx(*endpointURI, referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
 		if err != nil {
 			return "", err
 		}

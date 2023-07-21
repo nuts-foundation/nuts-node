@@ -32,26 +32,25 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 type networkPublisher struct {
 	networkTx       network.Transactions
-	didDocResolver  vdr.DocResolver
+	didResolver     vdr.DIDResolver
 	serviceResolver vdr.ServiceResolver
 	keyResolver     keyResolver
 }
 
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
 // It is the default implementation to use for issuers to publish credentials and revocations to the Nuts network.
-func NewNetworkPublisher(networkTx network.Transactions, store didstore.Store, keyResolver crypto.KeyResolver) Publisher {
+func NewNetworkPublisher(networkTx network.Transactions, didResolver vdr.DIDResolver, keyResolver crypto.KeyResolver) Publisher {
 	return &networkPublisher{
 		networkTx:       networkTx,
-		didDocResolver:  didservice.Resolver{Store: store},
-		serviceResolver: didservice.ServiceResolver{Store: store},
+		didResolver:     didResolver,
+		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
 		keyResolver: vdrKeyResolver{
-			publicKeyResolver:  didservice.KeyResolver{Store: store},
+			publicKeyResolver:  didservice.KeyResolver{Resolver: didResolver},
 			privateKeyResolver: keyResolver,
 		},
 	}
@@ -81,7 +80,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 	}
 
 	// find did document/metadata for originating TXs
-	_, meta, err := p.didDocResolver.Resolve(*issuerDID, nil)
+	_, meta, err := p.didResolver.Resolve(*issuerDID, nil)
 	if err != nil {
 		return err
 	}
@@ -161,7 +160,7 @@ func (p networkPublisher) PublishRevocation(ctx context.Context, revocation cred
 	}
 
 	// find did document/metadata for originating TXs
-	_, meta, err := p.didDocResolver.Resolve(*issuerDID, nil)
+	_, meta, err := p.didResolver.Resolve(*issuerDID, nil)
 	if err != nil {
 		return fmt.Errorf("could not resolve issuer DID document: %w", err)
 	}
