@@ -15,13 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package didservice
+package didnuts
 
 import (
 	"context"
 	"crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 
 	ssi "github.com/nuts-foundation/go-did"
 
@@ -33,8 +34,8 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
-// NutsDIDMethodName is the DID method name used by Nuts
-const NutsDIDMethodName = "nuts"
+// MethodName is the DID method name used by Nuts
+const MethodName = "nuts"
 
 // NutsDIDContextV1 contains the Nuts specific JSON-LD context for a DID Document
 const NutsDIDContextV1 = "https://nuts.nl/did/v1"
@@ -114,7 +115,7 @@ func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error))
 
 	// assemble
 	kid := &did.DID{}
-	kid.Method = NutsDIDMethodName
+	kid.Method = "nuts"
 	kid.ID = idString
 	kid.Fragment = jwKey.KeyID()
 
@@ -152,7 +153,7 @@ func (n Creator) Create(ctx context.Context, options vdr.DIDCreationOptions) (*d
 	}
 
 	// Create the bare document. The Document DID will be the keyIDStr without the fragment.
-	didID, _ := GetDIDFromURL(key.KID())
+	didID, _ := didservice.GetDIDFromURL(key.KID())
 	doc := CreateDocument()
 	doc.ID = didID
 	doc.Controller = options.Controllers

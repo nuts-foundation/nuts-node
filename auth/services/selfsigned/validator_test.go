@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"os"
 	"testing"
 	"time"
@@ -38,7 +39,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

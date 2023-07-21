@@ -15,9 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package didservice
+package dag
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -29,18 +34,24 @@ import (
 func TestNutsKeyResolver_ResolvePublicKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	didResolver := types.NewMockDIDResolver(ctrl)
-	keyResolver := NutsKeyResolver{Resolver: didResolver}
-	keyCreator := newMockKeyCreator()
-	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
+	keyResolver := SourceTXKeyResolver{Resolver: didResolver}
+	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	doc := &did.Document{
+		ID: did.MustParseDID("did:nuts:123"),
+	}
+	mockKID := doc.ID
+	mockKID.Fragment = "key-1"
+	vm, err := did.NewVerificationMethod(mockKID, ssi.JsonWebKey2020, doc.ID, pk.Public())
+	require.NoError(t, err)
+	doc.AddAssertionMethod(vm)
 
 	t.Run("ok by hash", func(t *testing.T) {
-		didResolver.EXPECT().Resolve(testDID, gomock.Any()).Do(func(arg0 interface{}, arg1 interface{}) {
+		didResolver.EXPECT().Resolve(doc.ID, gomock.Any()).Do(func(arg0 interface{}, arg1 interface{}) {
 			resolveMetadata := arg1.(*types.ResolveMetadata)
 			assert.Equal(t, hash.EmptyHash(), *resolveMetadata.SourceTransaction)
 		}).Return(doc, nil, nil)
 
-		key, err := keyResolver.ResolvePublicKey(mockKID, []hash.SHA256Hash{hash.EmptyHash()})
+		key, err := keyResolver.ResolvePublicKey(mockKID.String(), []hash.SHA256Hash{hash.EmptyHash()})
 		require.NoError(t, err)
 
 		assert.NotNil(t, key)

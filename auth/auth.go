@@ -20,6 +20,7 @@ package auth
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"time"
@@ -33,7 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 )
 
 // ErrMissingPublicURL is returned when the publicUrl is missing from the config

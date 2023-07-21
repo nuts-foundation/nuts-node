@@ -16,16 +16,15 @@
  *
  */
 
-package vdr
+package didnuts
 
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-
 	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )

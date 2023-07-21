@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Nuts community
+ * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,32 +15,35 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package didservice
+package didnuts
 
 import (
-	"crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// NutsKeyResolver implements the NutsKeyResolver interface.
-type NutsKeyResolver struct {
-	Resolver types.DIDResolver
+// Finder is a helper that implements the DocFinder interface
+type Finder struct {
+	Store didstore.Store
 }
 
-func (r NutsKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
-	// try all keys, continue when err == types.ErrNotFound
-	for _, h := range sourceTransactionsRefs {
-		publicKey, err := resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
-			SourceTransaction: &h,
-		})
-		if err == nil {
-			return publicKey, nil
+func (f Finder) Find(predicate ...types.Predicate) ([]did.Document, error) {
+	matches := make([]did.Document, 0)
+
+	err := f.Store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
+		for _, p := range predicate {
+			if !p.Match(doc, metadata) {
+				return nil
+			}
 		}
-		if err != types.ErrNotFound {
-			return nil, err
-		}
+		matches = append(matches, doc)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, types.ErrNotFound
+	return matches, err
 }

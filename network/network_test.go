@@ -30,7 +30,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -66,12 +65,11 @@ type networkTestContext struct {
 	network           *Network
 	connectionManager *transport.MockConnectionManager
 	state             *dag.MockState
-	didstore          *didstore.MockStore
 	keyStore          crypto.KeyStore
 	keyStorage        spi.Storage
 	keyResolver       *vdrTypes.MockKeyResolver
+	didResolver       *vdrTypes.MockDIDResolver
 	protocol          *transport.MockProtocol
-	docFinder         *vdrTypes.MockDocFinder
 	eventPublisher    *events.MockEvent
 	pkiValidator      *pki.MockValidator
 }
@@ -515,7 +513,6 @@ func TestNetwork_Start(t *testing.T) {
 		cxt := createNetwork(t, ctrl, func(config *Config) {
 			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
 		})
-		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1", did.DID{}, gomock.Any())
 		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2", did.DID{}, gomock.Any())
 
@@ -530,7 +527,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.network.nodeDID = *nodeDID
 		cxt.state.EXPECT().Start()
 
-		cxt.didstore.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr) //
+		cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr) //
 		err := cxt.network.Start()
 
 		assert.EqualError(t, err, "DID document can't be resolved (did=did:nuts:test): supplied DID is deactivated")
@@ -654,7 +651,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
 		cxt.network.nodeDID = *nodeDID
-		cxt.didstore.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
+		cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 
 		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
@@ -666,7 +663,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		cxt.network.strictMode = true
 		cxt.network.nodeDID = *nodeDID
-		cxt.didstore.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
+		cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 
 		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
@@ -678,7 +675,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		cxt.network.strictMode = true
 		cxt.network.nodeDID = *nodeDID
-		cxt.didstore.EXPECT().Resolve(*nodeDID, nil).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+		cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
@@ -691,7 +688,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
 		cxt.network.nodeDID = *nodeDID
-		cxt.didstore.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(documentWithoutNutsCommService, &vdrTypes.DocumentMetadata{}, nil)
+		cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(documentWithoutNutsCommService, &vdrTypes.DocumentMetadata{}, nil)
 
 		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
@@ -709,7 +706,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.strictMode = true
 		cxt.network.certificate = certificate
 		cxt.network.nodeDID = *nodeDID
-		cxt.didstore.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+		cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
@@ -727,7 +724,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.strictMode = true
 		cxt.network.certificate = certificate
 		cxt.network.nodeDID = *nodeDID
-		cxt.didstore.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+		cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
@@ -740,7 +737,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
 		cxt.network.nodeDID = *nodeDID
-		cxt.didstore.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+		cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
@@ -758,7 +755,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.strictMode = true
 		cxt.network.certificate = certificate
 		cxt.network.nodeDID = *nodeDID
-		cxt.didstore.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+		cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
@@ -771,7 +768,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), certificate.PrivateKey)
 		cxt.network.certificate = certificate
 		cxt.network.nodeDID = *nodeDID
-		cxt.didstore.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+		cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 		cxt.network.selfTestDialer.NetDialer.Timeout = 10 * time.Millisecond
 
 		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
@@ -1025,7 +1022,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.EnableDiscovery = true
 		})
-		ctx.didstore.EXPECT().Resolve(*peerDID, nil).Return(&peerDocument, nil, nil)
+		ctx.didResolver.EXPECT().Resolve(*peerDID, nil).Return(&peerDocument, nil, nil)
 		ctx.connectionManager.EXPECT().Connect(peerAddress, *peerDID, delayFn(newNodeConnectionDelay))
 		ctx.network.assumeNewNode = true
 
@@ -1036,7 +1033,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.EnableDiscovery = true
 		})
-		ctx.didstore.EXPECT().Resolve(*peerDID, nil).Return(&peerDocument, nil, nil)
+		ctx.didResolver.EXPECT().Resolve(*peerDID, nil).Return(&peerDocument, nil, nil)
 		ctx.connectionManager.EXPECT().Connect(peerAddress, *peerDID, delayFn(time.Duration(0)))
 
 		ctx.network.DiscoverServices(*peerDID)
@@ -1046,7 +1043,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.EnableDiscovery = true
 		})
-		ctx.didstore.EXPECT().Resolve(*peerDID, nil).Return(nil, nil, errors.New("failed"))
+		ctx.didResolver.EXPECT().Resolve(*peerDID, nil).Return(nil, nil, errors.New("failed"))
 
 		ctx.network.DiscoverServices(*peerDID)
 
@@ -1054,7 +1051,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 	})
 }
 
-func Test_connectToKnownNodes(t *testing.T) {
+func Test_Network_DiscoverNodes(t *testing.T) {
 	t.Run("endpoint unmarshalling", func(t *testing.T) {
 		doc := did.Document{ID: *nodeDID}
 
@@ -1260,7 +1257,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			cxt.network.trustStore = trustStore
 			cxt.network.certificate = certificate
 			cxt.network.nodeDID = *nodeDID
-			cxt.didstore.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+			cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.pkiValidator.EXPECT().Validate([]*x509.Certificate{certificate.Leaf})
 
 			health := cxt.network.CheckHealth()
@@ -1282,7 +1279,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			cxt := createNetwork(t, ctrl)
 			cxt.network.nodeDID = *nodeDID
-			cxt.didstore.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
+			cxt.didResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 
 			health := cxt.network.CheckHealth()
 
@@ -1307,7 +1304,7 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	keyStore := crypto.NewTestCryptoInstance(keyStorage)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	docFinder := vdrTypes.NewMockDocFinder(ctrl)
-	didStore := didstore.NewMockStore(ctrl)
+	didResolver := vdrTypes.NewMockDIDResolver(ctrl)
 	eventPublisher := events.NewMockEvent(ctrl)
 	storageEngine := storage.NewTestStorageEngine(t)
 	t.Cleanup(func() {
@@ -1318,7 +1315,6 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	pkiMock := pki.NewMockValidator(ctrl)
 	network := NewNetworkInstance(networkConfig, didStore, keyStore, eventPublisher, storageEngine.GetProvider(ModuleName), pkiMock)
 	network.keyResolver = keyResolver
-	didResolver := didservice.NutsDIDResolver{Store: didStore}
 	network.didResolver = didResolver
 	network.serviceResolver = didservice.ServiceResolver{Resolver: didResolver}
 	network.state = state
@@ -1334,11 +1330,10 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 		connectionManager: connectionManager,
 		protocol:          prot,
 		state:             state,
-		didstore:          didStore,
+		didResolver:       didResolver,
 		keyStore:          keyStore,
 		keyStorage:        keyStorage,
 		keyResolver:       keyResolver,
-		docFinder:         docFinder,
 		eventPublisher:    eventPublisher,
 		pkiValidator:      pkiMock,
 	}

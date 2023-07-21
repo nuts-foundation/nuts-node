@@ -29,8 +29,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.uber.org/mock/gomock"
 	"path"
@@ -48,7 +49,7 @@ type TestVCRContext struct {
 
 func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	didStore := didstore.NewTestStore(t)
-	didResolver := didservice.NutsDIDResolver{Store: didStore}
+	didResolver := didnuts.Resolver{Store: didStore}
 	ctx := TestVCRContext{
 		DIDStore:    didStore,
 		KeyStore:    keyStore,

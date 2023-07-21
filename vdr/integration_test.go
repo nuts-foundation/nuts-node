@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"net/url"
 	"sync"
 	"testing"
@@ -40,7 +42,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +53,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
+	docA, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, docA)
 
@@ -87,7 +88,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
+	docB, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
 	require.NoError(t, err, "unexpected error while creating DocumentB")
 	assert.NotNil(t, docB,
 		"a new document should have been created")
@@ -133,7 +134,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"news service of document a does not contain expected values")
 
 	// deactivate document B
-	docUpdater := &didservice.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.didResolver}
+	docUpdater := &didnuts.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.didResolver}
 	err = docUpdater.Deactivate(ctx.audit, docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
@@ -158,7 +159,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	initialDoc, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
+	initialDoc, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, initialDoc)
 
@@ -170,8 +171,10 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(procs)
 	currDoc, _, _ := ctx.didResolver.Resolve(initialDoc.ID, nil)
+	errs := make(chan error, procs)
 	for i := 0; i < procs; i++ {
 		go func(num int) {
+			defer wg.Done()
 			newDoc := *currDoc
 			serviceID, _ := url.Parse(fmt.Sprintf("%s#service-%d", currDoc.ID, num))
 			newService := did.Service{
@@ -182,20 +185,26 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 
 			newDoc.Service = append(currDoc.Service, newService)
 			err := ctx.vdr.Update(ctx.audit, currDoc.ID, newDoc)
-			assert.NoError(t, err, "unable to update doc with a new service")
-			wg.Done()
+			if err != nil {
+				errs <- err
+			}
 		}(i)
 	}
 	wg.Wait()
+
+	close(errs)
+	for err := range errs {
+		assert.NoError(t, err)
+	}
 }
 
 func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	ctx := setup(t)
 
 	// Publish a DID Document
-	didDoc, key, _ := ctx.docCreator.Create(audit.TestContext(), didservice.DefaultCreationOptions())
+	didDoc, key, _ := ctx.docCreator.Create(audit.TestContext(), didnuts.DefaultCreationOptions())
 	payload, _ := json.Marshal(didDoc)
-	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didDocumentType, nil, nil, uint32(0))
+	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didnuts.DIDDocumentType, nil, nil, uint32(0))
 	signedTransaction, err := dag.NewTransactionSigner(ctx.cryptoInstance, key, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
@@ -246,9 +255,7 @@ func setup(t *testing.T) testContext {
 	require.NoError(t, cryptoInstance.Configure(nutsConfig))
 
 	// Storage
-	storageProvider := storage.StaticKVStoreProvider{
-		Store: storage.CreateTestBBoltStore(t, testDir+"/test.db"),
-	}
+	storageEngine := storage.NewTestStorageEngine(io.TestDirectory(t))
 
 	// DID Resolver
 	didResolver := &didservice.DIDResolverRouter{}
@@ -261,7 +268,7 @@ func setup(t *testing.T) testContext {
 	require.NoError(t, pkiValidator.Configure(nutsConfig))
 	// is not pkiValidator.Start()-ed
 
-	// Startup the network layer
+	// Create instances
 	networkCfg := network.DefaultConfig()
 	networkCfg.GrpcAddr = "localhost:5555"
 	nutsNetwork := network.NewNetworkInstance(
@@ -269,21 +276,23 @@ func setup(t *testing.T) testContext {
 		didResolver,
 		cryptoInstance,
 		eventPublisher,
-		&storageProvider,
+		storageEngine.GetProvider("network"),
 		pkiValidator,
 	)
-	require.NoError(t, nutsNetwork.Configure(nutsConfig))
-	require.NoError(t, nutsNetwork.Start())
-	t.Cleanup(func() {
-		_ = nutsNetwork.Shutdown()
-	})
+	vdr := NewVDR(DefaultConfig(), storageEngine.GetProvider("vdr"), cryptoInstance, nutsNetwork, didResolver, eventPublisher)
 
-	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), &storageProvider, cryptoInstance, nutsNetwork, didResolver, eventPublisher)
+	// Configure
 	require.NoError(t, vdr.Configure(nutsConfig))
+	require.NoError(t, nutsNetwork.Configure(nutsConfig))
+
+	// Start
 	require.NoError(t, vdr.Start())
 	t.Cleanup(func() {
 		_ = vdr.Shutdown()
+	})
+	require.NoError(t, nutsNetwork.Start())
+	t.Cleanup(func() {
+		_ = nutsNetwork.Shutdown()
 	})
 
 	return testContext{

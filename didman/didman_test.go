@@ -25,6 +25,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"io"
 	"net/url"
 	"strings"
@@ -39,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -110,7 +111,7 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil).Times(2)
 		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
 			func(_ context.Context, _ interface{}, doc did.Document) error {
-				return vdr.ManagedDocumentValidator(nil).Validate(doc)
+				return didnuts.ManagedDocumentValidator(nil).Validate(doc)
 			}) //.Times(2)
 
 		_, _ = ctx.instance.AddEndpoint(ctx.audit, testDIDA, "type", *u)
@@ -254,7 +255,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
 			func(_ context.Context, _ interface{}, doc did.Document) error {
 				newDoc = doc
-				return vdr.ManagedDocumentValidator(didservice.ServiceResolver{Resolver: ctx.didResolver}).Validate(newDoc)
+				return didnuts.ManagedDocumentValidator(didservice.ServiceResolver{Resolver: ctx.didResolver}).Validate(newDoc)
 			})
 
 		_, err := ctx.instance.AddCompoundService(ctx.audit, testDIDA, "helloworld", references)
@@ -409,7 +410,7 @@ func TestDidman_DeleteService(t *testing.T) {
 }
 
 func TestDidman_UpdateContactInformation(t *testing.T) {
-	didDoc := didservice.CreateDocument()
+	didDoc := didnuts.CreateDocument()
 	id, _ := did.ParseDID("did:nuts:123")
 	didDoc.ID = *id
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
@@ -429,7 +430,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 			DoAndReturn(func(_ context.Context, _ did.DID, doc did.Document) error {
 				actualDocument = doc
 				// trigger validation to check if the added contact information isn't wrong
-				return vdr.ManagedDocumentValidator(nil).Validate(doc)
+				return didnuts.ManagedDocumentValidator(nil).Validate(doc)
 			})
 		actual, err := ctx.instance.UpdateContactInformation(ctx.audit, *id, expected)
 		require.NoError(t, err)
@@ -985,7 +986,7 @@ func newMockContext(t *testing.T) mockContext {
 	mockVCR := vcr.NewMockFinder(ctrl)
 	instance := NewDidmanInstance(mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t)).(*didman)
 	instance.didResolver = didResolver
-	instance.serviceResolver = didservice.ServiceResolver{Store: store}
+	instance.serviceResolver = didservice.ServiceResolver{Resolver: didResolver}
 
 	return mockContext{
 		ctrl:        ctrl,

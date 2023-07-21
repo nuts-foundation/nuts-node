@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"net/http"
 	"testing"
 	"time"
@@ -26,7 +27,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -370,7 +370,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - without key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, didservice.DefaultCreationOptions().KeyFlags).Return(newMethod, nil)
+		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, didnuts.DefaultCreationOptions().KeyFlags).Return(newMethod, nil)
 
 		response, err := ctx.client.AddNewVerificationMethod(ctx.requestCtx, AddNewVerificationMethodRequestObject{Did: did123.String()})
 
@@ -380,7 +380,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - with key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		expectedKeyUsage := didservice.DefaultCreationOptions().KeyFlags | types.AuthenticationUsage | types.CapabilityDelegationUsage
+		expectedKeyUsage := didnuts.DefaultCreationOptions().KeyFlags | types.AuthenticationUsage | types.CapabilityDelegationUsage
 		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, expectedKeyUsage).Return(newMethod, nil)
 		trueBool := true
 		request := AddNewVerificationMethodJSONRequestBody{

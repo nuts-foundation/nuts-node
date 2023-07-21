@@ -16,19 +16,19 @@
  *
  */
 
-package vdr
+package didnuts
 
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -82,8 +82,8 @@ func Test_basicServiceValidator(t *testing.T) {
 		}, nil},
 		{"nok - service with duplicate id", func() did.Document {
 			didDoc, _, _ := newDidDoc()
-			svc := didDoc.Service[0]
-			didDoc.Service = append(didDoc.Service, svc)
+			service := didDoc.Service[0]
+			didDoc.Service = append(didDoc.Service, service)
 			return didDoc
 		}, errors.New("invalid service: ID must be unique")},
 		{"nok - service ID has no fragment", func() did.Document {
@@ -99,9 +99,9 @@ func Test_basicServiceValidator(t *testing.T) {
 		}, errors.New("invalid service: ID must have document prefix")},
 		{"nok - service with duplicate type", func() did.Document {
 			didDoc, _, _ := newDidDoc()
-			svc := didDoc.Service[0]
-			svc.ID.Fragment = "foobar"
-			didDoc.Service = append(didDoc.Service, svc)
+			service := didDoc.Service[0]
+			service.ID.Fragment = "foobar"
+			didDoc.Service = append(didDoc.Service, service)
 			return didDoc
 		}, errors.New("invalid service: service type is duplicate")},
 	}

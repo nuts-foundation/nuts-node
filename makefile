@@ -45,8 +45,8 @@ gen-mocks:
 	mockgen -destination=vcr/openid4vci/identifiers_mock.go -package=openid4vci -source=vcr/openid4vci/identifiers.go
 	mockgen -destination=vcr/signature/mock.go -package=signature -source=vcr/signature/signature.go
 	mockgen -destination=vcr/verifier/mock.go -package=verifier -source=vcr/verifier/interface.go
-	mockgen -destination=vdr/ambassador_mock.go -package=vdr -source=vdr/ambassador.go
-	mockgen -destination=vdr/didstore/mock.go -package=didstore -source=vdr/didstore/interface.go
+	mockgen -destination=vdr/didnuts/ambassador_mock.go -package=didnuts -source=vdr/didnuts/ambassador.go
+	mockgen -destination=vdr/didnuts/didstore/mock.go -package=didstore -source=vdr/didnuts/didstore/interface.go
 	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
 
 gen-api:

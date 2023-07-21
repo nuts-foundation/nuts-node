@@ -23,7 +23,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/test/pki"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"os"
@@ -86,7 +86,7 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 		httpServerURL = "https://" + httpInterface
 	}
 
-	os.Args = []string{didservice.NutsDIDMethodName, "server"}
+	os.Args = []string{didnuts.MethodName, "server"}
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)

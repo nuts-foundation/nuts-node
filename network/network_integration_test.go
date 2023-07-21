@@ -24,6 +24,8 @@ import (
 	"encoding/json"
 	"fmt"
 	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"hash/crc32"
 	"math/rand"
 	"net/url"
@@ -50,8 +52,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	grpcLib "google.golang.org/grpc"
@@ -1106,16 +1106,15 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		t.Fatal(err)
 	}
 
-	didResolver := didservice.NutsDIDResolver{Store: didStore}
 	instance := &Network{
-		config:            config,
-		didResolver:     didResolver,
-		keyStore:          keyStore,
-		keyResolver:       didservice.KeyResolver{Resolver: didResolver},
-		serviceResolver:   didservice.ServiceResolver{Resolver: didResolver},
-		eventPublisher:    eventPublisher,
-		storeProvider:     &storeProvider,
-		pkiValidator:      pkiValidator,
+		config:          config,
+		didResolver:     didStore,
+		keyStore:        keyStore,
+		keyResolver:     didservice.KeyResolver{Resolver: didStore},
+		serviceResolver: didservice.ServiceResolver{Resolver: didStore},
+		eventPublisher:  eventPublisher,
+		storeProvider:   &storeProvider,
+		pkiValidator:    pkiValidator,
 	}
 
 	if err := instance.Configure(*serverConfig); err != nil {

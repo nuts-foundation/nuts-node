@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"io/fs"
 	"net/http"
 	"path"
@@ -49,7 +50,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"gopkg.in/yaml.v3"
 )

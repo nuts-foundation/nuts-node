@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"net/url"
 	"sync"
 
@@ -36,7 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
 )
@@ -100,10 +100,10 @@ type didman struct {
 // NewDidmanInstance creates a new didman instance with services set
 func NewDidmanInstance(vdr types.VDR, vcr vcr.Finder, jsonldManager jsonld.JSONLD) Didman {
 	return &didman{
-		vdr:             vdr,
-		vcr:             vcr,
-		jsonldManager:   jsonldManager,
-		callSerializer:  keyedMutex{},
+		vdr:            vdr,
+		vcr:            vcr,
+		jsonldManager:  jsonldManager,
+		callSerializer: keyedMutex{},
 	}
 }
 
@@ -113,6 +113,7 @@ func (d *didman) Name() string {
 
 func (d *didman) Configure(_ core.ServerConfig) error {
 	d.didResolver = d.vdr.Resolver()
+	d.serviceResolver = didservice.ServiceResolver{Resolver: d.didResolver}
 	return nil
 }
 
@@ -255,8 +256,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	documentsCache := map[string]*did.Document{document.ID.String(): document}
 
 	// First, resolve the compound endpoint
-	serviceResolver := didservice.ServiceResolver{Resolver: d.didResolver}
-	compoundService, err := serviceResolver.ResolveEx(didservice.MakeServiceReference(id, compoundServiceType), referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
+	compoundService, err := d.serviceResolver.ResolveEx(didservice.MakeServiceReference(id, compoundServiceType), referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}
 	}
@@ -277,7 +277,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 			// Not sure when this could ever happen
 			return "", err
 		}
-		resolvedEndpoint, err := serviceResolver.ResolveEx(*endpointURI, referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
+		resolvedEndpoint, err := d.serviceResolver.ResolveEx(*endpointURI, referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
 		if err != nil {
 			return "", err
 		}
@@ -413,7 +413,7 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 	return nil, nil
 }
 
-func (d *didman) SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error) {
+func (d *didman) SearchOrganizations(ctx context.Context, query string, serviceType *string) ([]OrganizationSearchResult, error) {
 	searchTerms := []vcr.SearchTerm{
 		{IRIPath: jsonld.OrganizationNamePath, Value: query, Type: vcr.Prefix},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
@@ -428,11 +428,11 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 	didDocuments, organizations = d.resolveOrganizationDIDDocuments(organizations)
 
 	// If specified, filter on DID service type
-	if didServiceType != nil && len(*didServiceType) > 0 {
+	if serviceType != nil && len(*serviceType) > 0 {
 		j := 0
 		for i := 0; i < len(organizations); i++ {
 			// Check if this organization's DID Document has a service that matches the given type
-			if len(filterServices(didDocuments[i], *didServiceType)) > 0 {
+			if len(filterServices(didDocuments[i], *serviceType)) > 0 {
 				organizations[j] = organizations[i]
 				didDocuments[j] = didDocuments[i]
 				j++

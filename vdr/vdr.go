@@ -30,6 +30,9 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -37,8 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -53,16 +54,16 @@ const didStoreName = "didstore"
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type VDR struct {
 	config            Config
-	store             didstore.Store
+	store             didnutsStore.Store
 	network           network.Transactions
-	networkAmbassador Ambassador
+	networkAmbassador didnuts.Ambassador
 	didDocCreator     types.DocCreator
 	didResolver       *didservice.DIDResolverRouter
 	// did:nuts is also handled by the router, but it has some special functions for resolving controllers
 	// which VDR uses, so we need a reference here to use it.
 	// We could abstract DID document updating (so other DID methods can be updated through the same API),
 	// which would make this reference go away.
-	nutsDidResolver *didservice.NutsDIDResolver
+	nutsDidResolver *didnuts.Resolver
 	serviceResolver types.ServiceResolver
 	documentOwner   types.DocumentOwner
 	keyStore        crypto.KeyStore
@@ -82,7 +83,7 @@ func NewVDR(config Config, storageProvider storage.Provider, cryptoClient crypto
 		storageProvider: storageProvider,
 		network:         networkClient,
 		eventManager:    eventManager,
-		didDocCreator:   didservice.Creator{KeyStore: cryptoClient},
+		didDocCreator:   didnuts.Creator{KeyStore: cryptoClient},
 		didResolver:     didResolverRouter,
 		serviceResolver: didservice.ServiceResolver{Resolver: didResolverRouter},
 		documentOwner:   newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, didResolverRouter),
@@ -104,17 +105,15 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-	r.store = didstore.New(didStore)
+	r.store = didnutsStore.New(didStore)
 
-	r.nutsDidResolver = &didservice.NutsDIDResolver{Store: r.store}
-	r.networkAmbassador = NewAmbassador(r.network, r.store, r.eventManager)
+	r.nutsDidResolver = &didnuts.Resolver{Store: r.store}
+	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
 
 	for _, method := range r.config.Methods {
 		switch method {
 		case "nuts":
 			r.didResolver.Register(method, r.nutsDidResolver)
-		case "web":
-			r.didResolver.Register(method, didservice.NewWebResolver())
 		default:
 			return fmt.Errorf("unsupported DID method: %s", method)
 		}
@@ -140,7 +139,7 @@ func (r *VDR) Start() error {
 		_, err = r.network.Reprocess(context.Background(), "application/did+json")
 	}
 
-	err = r.network.DiscoverNodes(didservice.Finder{Store: r.store})
+	err = r.network.DiscoverNodes(didnuts.Finder{Store: r.store})
 	if err != nil {
 		return fmt.Errorf("network node discovery failed: %w", err)
 	}
@@ -177,7 +176,7 @@ func (r *VDR) ListOwned(ctx context.Context) ([]did.DID, error) {
 func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.DocIterator {
 	return func(doc did.Document, metadata types.DocumentMetadata) error {
 		*totalCount++
-		controllers, err := didservice.ResolveControllers(r.nutsDidResolver, doc, nil)
+		controllers, err := didnuts.ResolveControllers(r.nutsDidResolver, doc, nil)
 		if err != nil {
 			log.Logger().
 				WithField(core.LogFieldDID, doc.ID).
@@ -280,7 +279,7 @@ func (r *VDR) Create(ctx context.Context, options types.DIDCreationOptions) (*di
 		refs = append(refs, meta.SourceTransactions...)
 	}
 
-	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
+	tx := network.TransactionTemplate(didnuts.DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
 	_, err = r.network.CreateTransaction(ctx, tx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not store DID document in network: %w", err)
@@ -304,7 +303,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 
 	// Since the update mechanism is "did:nuts"-specific, we can't accidentally update a non-"did:nuts" document,
 	// but check it defensively to avoid obscure errors later.
-	if id.Method != didservice.NutsDIDMethodName {
+	if id.Method != didnuts.MethodName {
 		return fmt.Errorf("can't update DID document of type: %s", id.Method)
 	}
 
@@ -317,11 +316,11 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	}
 
 	// #1530: add nuts and JWS context if not present
-	next = withJSONLDContext(next, didservice.NutsDIDContextV1URI())
-	next = withJSONLDContext(next, didservice.JWS2020ContextV1URI())
+	next = withJSONLDContext(next, didnuts.NutsDIDContextV1URI())
+	next = withJSONLDContext(next, didnuts.JWS2020ContextV1URI())
 
 	// Validate document. No more changes should be made to the document after this point.
-	if err = ManagedDocumentValidator(r.serviceResolver).Validate(next); err != nil {
+	if err = didnuts.ManagedDocumentValidator(r.serviceResolver).Validate(next); err != nil {
 		return fmt.Errorf("update DID document: %w", err)
 	}
 
@@ -344,7 +343,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
 	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
 
-	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
+	tx := network.TransactionTemplate(didnuts.DIDDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
 	_, err = r.network.CreateTransaction(ctx, tx)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Unable to update DID document")
@@ -362,7 +361,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 }
 
 func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
-	controllers, err := didservice.ResolveControllers(r.nutsDidResolver, doc, nil)
+	controllers, err := didnuts.ResolveControllers(r.nutsDidResolver, doc, nil)
 	if err != nil {
 		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
 	}

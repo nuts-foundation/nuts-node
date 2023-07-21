@@ -16,7 +16,7 @@
  *
  */
 
-package vdr
+package didnuts
 
 import (
 	"context"
@@ -40,8 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -194,7 +193,7 @@ func TestAmbassador_handleNetworkEvent(t *testing.T) {
 			signingTime:  time.Unix(1628000000, 0),
 			ref:          hash.SHA256Sum([]byte("ref")),
 			payloadHash:  hash.SHA256Sum([]byte("payload")),
-			payloadType:  didDocumentType,
+			payloadType:  DIDDocumentType,
 		}
 		tx.payloadType = ""
 		am := ambassador{}
@@ -217,7 +216,7 @@ func TestAmbassador_callback(t *testing.T) {
 			signingTime:  signingTime,
 			ref:          ref,
 			payloadHash:  payloadHash,
-			payloadType:  didDocumentType,
+			payloadType:  DIDDocumentType,
 		}
 	}
 
@@ -266,7 +265,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 			signingTime: signingTime,
 			ref:         ref,
 			payloadHash: payloadHash,
-			payloadType: didDocumentType,
+			payloadType: DIDDocumentType,
 		}
 	}
 
@@ -276,7 +275,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 			signingTime:  signingTime,
 			ref:          ref,
 			payloadHash:  payloadHash,
-			payloadType:  didDocumentType,
+			payloadType:  DIDDocumentType,
 		}
 	}
 
@@ -288,7 +287,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 
 		t.Run("a new document", func(t *testing.T) {
 			ctx := newMockContext(t)
-			ctx.didStore.EXPECT().Add(didDocument, toStoreTX(tx)).Return(nil)
+			ctx.store.EXPECT().Add(didDocument, toStoreTX(tx)).Return(nil)
 
 			err = ctx.ambassador.handleCreateDIDDocument(tx, didDocument)
 
@@ -303,7 +302,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 
 		tx := newCreateTX(signingKey)
 
-		ctx.didStore.EXPECT().Add(didDocument, toStoreTX(tx)).Return(errors.New("b00m!"))
+		ctx.store.EXPECT().Add(didDocument, toStoreTX(tx)).Return(errors.New("b00m!"))
 
 		err = ctx.ambassador.handleCreateDIDDocument(tx, didDocument)
 
@@ -340,7 +339,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			signingTime:  signingTime,
 			ref:          ref,
 			payloadHash:  payloadHash,
-			payloadType:  didDocumentType,
+			payloadType:  DIDDocumentType,
 		}
 	}
 
@@ -356,7 +355,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		storedDocument := did.Document{}
 		_ = json.Unmarshal(didDocPayload, &storedDocument)
 
-		deactivatedDocument := didservice.CreateDocument()
+		deactivatedDocument := CreateDocument()
 		deactivatedDocument.ID = storedDocument.ID
 
 		t.Run("deactivation", func(t *testing.T) {
@@ -376,9 +375,9 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			var pKey crypto2.PublicKey
 			_ = signingKey.Raw(&pKey)
 
-			ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
+			ctx.store.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
 			ctx.keyResolver.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-			ctx.didStore.EXPECT().Add(deactivatedDocument, toStoreTX(tx))
+			ctx.store.EXPECT().Add(deactivatedDocument, toStoreTX(tx))
 
 			err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
 
@@ -412,10 +411,10 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		var pKey crypto2.PublicKey
 		_ = signingKey.Raw(&pKey)
 
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
+		ctx.store.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.didResolver.EXPECT().Resolve(controllerDoc.ID, gomock.Any()).Return(&controllerDoc, currentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
+		ctx.store.EXPECT().Add(expectedDocument, toStoreTX(tx))
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
 		assert.NoError(t, err)
@@ -426,7 +425,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := didservice.CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -448,9 +447,9 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		var pKey crypto2.PublicKey
 		_ = signingKey.Raw(&pKey)
 
-		ctx.didStore.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil)
+		ctx.store.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-		ctx.didStore.EXPECT().Add(newDoc, toStoreTX(tx))
+		ctx.store.EXPECT().Add(newDoc, toStoreTX(tx))
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, newDoc)
 		assert.NoError(t, err)
@@ -461,7 +460,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := didservice.CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -484,11 +483,11 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		_ = signingKey.Raw(&pKey)
 
 		gomock.InOrder(
-			ctx.didStore.EXPECT().Resolve(currentDoc.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound),
-			ctx.didStore.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil),
+			ctx.store.EXPECT().Resolve(currentDoc.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound),
+			ctx.store.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil),
 		)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-		ctx.didStore.EXPECT().Add(newDoc, toStoreTX(tx))
+		ctx.store.EXPECT().Add(newDoc, toStoreTX(tx))
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, newDoc)
 		assert.NoError(t, err)
@@ -540,10 +539,10 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			Hash:    currentPayloadHash,
 		}
 
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
+		ctx.store.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.didResolver.EXPECT().Resolve(didDocumentController.ID, gomock.Any()).Return(&didDocumentController, currentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
+		ctx.store.EXPECT().Add(expectedDocument, toStoreTX(tx))
 
 		err = ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
 		assert.NoError(t, err)
@@ -601,7 +600,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			Hash:    currentPayloadHash,
 		}
 
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
+		ctx.store.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.didResolver.EXPECT().Resolve(didDocumentController.ID, gomock.Any()).Return(&didDocumentController, currentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(keyID, gomock.Any()).Return(pKey, nil)
 
@@ -623,12 +622,12 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 	t.Run("error - unable to resolve controllers", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		didStoreMock := didstore.NewMockStore(ctrl)
+		storeMock := didstore.NewMockStore(ctrl)
 		keyStoreMock := types.NewMockNutsKeyResolver(ctrl)
-		didResolver := &didservice.Resolver{Store: didStoreMock}
+		didResolver := &Resolver{Store: storeMock}
 
 		am := ambassador{
-			didStore:    didStoreMock,
+			store:       storeMock,
 			keyResolver: keyStoreMock,
 			didResolver: didResolver,
 		}
@@ -638,8 +637,8 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 		didDocument.Controller = []did.DID{didDocumentController.ID}
 		tx := testTransaction{signingTime: time.Now()}
 
-		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&didDocument, &types.DocumentMetadata{}, nil)
-		didStoreMock.EXPECT().Resolve(didDocumentController.ID, gomock.Any()).Return(nil, nil, errors.New("failed"))
+		storeMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&didDocument, &types.DocumentMetadata{}, nil)
+		storeMock.EXPECT().Resolve(didDocumentController.ID, gomock.Any()).Return(nil, nil, errors.New("failed"))
 
 		err := am.handleUpdateDIDDocument(&tx, didDocument)
 		assert.EqualError(t, err, "unable to resolve DID document's controllers: unable to resolve controller ref: failed")
@@ -666,7 +665,7 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 				signingKey:   signingKey,
 				ref:          ref,
 				payloadHash:  payloadHash,
-				payloadType:  didDocumentType,
+				payloadType:  DIDDocumentType,
 			},
 			nil,
 		},
@@ -676,7 +675,7 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 				signingTime:  signingTime,
 				ref:          ref,
 				payloadHash:  payloadHash,
-				payloadType:  didDocumentType,
+				payloadType:  DIDDocumentType,
 			},
 			nil,
 		},
@@ -695,7 +694,7 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 				signingKeyID: "",
 				signingTime:  signingTime,
 				ref:          ref,
-				payloadType:  didDocumentType,
+				payloadType:  DIDDocumentType,
 			},
 			errors.New("payloadHash must be provided"),
 		},
@@ -705,7 +704,7 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 				signingKey:   signingKey,
 				ref:          ref,
 				payloadHash:  payloadHash,
-				payloadType:  didDocumentType,
+				payloadType:  DIDDocumentType,
 			},
 			errors.New("signingTime must be set"),
 		},
@@ -798,7 +797,7 @@ func Test_uniqueTransactions(t *testing.T) {
 
 func newDidDocWithOptions(opts types.DIDCreationOptions) (did.Document, jwk.Key, error) {
 	kc := &mockKeyCreator{}
-	docCreator := didservice.Creator{KeyStore: kc}
+	docCreator := Creator{KeyStore: kc}
 	didDocument, key, err := docCreator.Create(audit.TestContext(), opts)
 	signingKey, _ := jwk.New(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)
@@ -821,12 +820,12 @@ func newDidDocWithOptions(opts types.DIDCreationOptions) (did.Document, jwk.Key,
 }
 
 func newDidDoc() (did.Document, jwk.Key, error) {
-	return newDidDocWithOptions(didservice.DefaultCreationOptions())
+	return newDidDocWithOptions(DefaultCreationOptions())
 }
 
 type mockContext struct {
 	ctrl         *gomock.Controller
-	didStore     *didstore.MockStore
+	store        *didstore.MockStore
 	keyResolver  *types.MockNutsKeyResolver
 	didResolver  *types.MockDIDResolver
 	eventManager *events.MockEvent
@@ -836,13 +835,13 @@ type mockContext struct {
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
-	didStoreMock := didstore.NewMockStore(ctrl)
+	storeMock := didstore.NewMockStore(ctrl)
 	keyResolverMock := types.NewMockNutsKeyResolver(ctrl)
 	resolverMock := types.NewMockDIDResolver(ctrl)
 	eventManager := events.NewMockEvent(ctrl)
 	networkMock := network.NewMockTransactions(ctrl)
 	am := ambassador{
-		didStore:      didStoreMock,
+		store:         storeMock,
 		didResolver:   resolverMock,
 		keyResolver:   keyResolverMock,
 		eventManager:  eventManager,
@@ -851,7 +850,7 @@ func newMockContext(t *testing.T) mockContext {
 
 	return mockContext{
 		ctrl:         ctrl,
-		didStore:     didStoreMock,
+		store:        storeMock,
 		keyResolver:  keyResolverMock,
 		didResolver:  resolverMock,
 		ambassador:   am,

@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"testing"
 	"time"
 
@@ -34,7 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	irma "github.com/privacybydesign/irmago"
 	"github.com/stretchr/testify/assert"

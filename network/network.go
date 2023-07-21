@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -43,7 +44,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
 )
@@ -146,14 +146,14 @@ func NewNetworkInstance(
 	pkiValidator pki.Validator,
 ) *Network {
 	return &Network{
-		config:            config,
-		keyResolver:       didservice.KeyResolver{Resolver: didResolver},
-		keyStore:          keyStore,
-		didResolver:       didResolver,
-		serviceResolver:   didservice.ServiceResolver{Resolver: didResolver},
-		eventPublisher:    eventPublisher,
-		storeProvider:     storeProvider,
-		pkiValidator:      pkiValidator,
+		config:          config,
+		keyResolver:     didservice.KeyResolver{Resolver: didResolver},
+		keyStore:        keyStore,
+		didResolver:     didResolver,
+		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
+		eventPublisher:  eventPublisher,
+		storeProvider:   storeProvider,
+		pkiValidator:    pkiValidator,
 		selfTestDialer: tls.Dialer{
 			NetDialer: &net.Dialer{
 				Timeout: time.Second,
@@ -170,7 +170,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return fmt.Errorf("unable to create database: %w", err)
 	}
-	nutsKeyResolver := didservice.NutsKeyResolver{Resolver: n.didResolver}
+	nutsKeyResolver := dag.SourceTXKeyResolver{Resolver: n.didResolver}
 	if n.state, err = dag.NewState(dagStore, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(nutsKeyResolver)); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
@@ -366,10 +366,11 @@ func (n *Network) Start() error {
 		}
 	}
 	// Start connection management and protocols
-	return n.connectionManager.Start()
-}
+	err := n.connectionManager.Start()
+	if err != nil {
+		return err
+	}
 
-func (n *Network) DiscoverNodes(didDocumentFinder types.DocFinder) error {
 	// Start connecting to bootstrap nodes
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
@@ -377,7 +378,10 @@ func (n *Network) DiscoverNodes(didDocumentFinder types.DocFinder) error {
 		}
 		n.connectionManager.Connect(bootstrapNode, did.DID{}, nil)
 	}
+	return nil
+}
 
+func (n *Network) DiscoverNodes(didDocumentFinder types.DocFinder) error {
 	if !n.config.EnableDiscovery {
 		return nil
 	}

@@ -24,13 +24,12 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"net/http"
 	"time"
 
-	"github.com/nuts-foundation/go-did/did"
-	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/didservice"
-
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -54,7 +53,7 @@ func (a *Wrapper) ResolveStatusCode(err error) int {
 		types.ErrDeactivated:             http.StatusConflict,
 		types.ErrNoActiveController:      http.StatusConflict,
 		types.ErrDuplicateService:        http.StatusBadRequest,
-		vdrDoc.ErrInvalidOptions:         http.StatusBadRequest,
+		didnuts.ErrInvalidOptions:        http.StatusBadRequest,
 		did.ErrInvalidDID:                http.StatusBadRequest,
 	})
 }
@@ -91,7 +90,7 @@ func (a *Wrapper) AddNewVerificationMethod(ctx context.Context, request AddNewVe
 		opts = &VerificationMethodRelationship{}
 	}
 
-	vm, err := a.DocManipulator.AddVerificationMethod(ctx, *d, opts.ToFlags(vdrDoc.DefaultCreationOptions().KeyFlags))
+	vm, err := a.DocManipulator.AddVerificationMethod(ctx, *d, opts.ToFlags(didnuts.DefaultCreationOptions().KeyFlags))
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +115,7 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 
 // CreateDID creates a new DID Document and returns it.
 func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
-	options := vdrDoc.DefaultCreationOptions()
+	options := didnuts.DefaultCreationOptions()
 	if request.Body.Controllers != nil {
 		for _, c := range *request.Body.Controllers {
 			id, err := did.ParseDID(c)
