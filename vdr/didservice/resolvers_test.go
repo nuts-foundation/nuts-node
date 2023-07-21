@@ -20,20 +20,20 @@ package didservice
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"testing"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
-func TestResolver_Resolve(t *testing.T) {
+func TestNutsDIDResolver_Resolve(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 	id456, _ := did.ParseDID("did:nuts:456")
 	docA := did.Document{ID: *id123}
@@ -129,7 +129,7 @@ func TestResolver_Resolve(t *testing.T) {
 	})
 }
 
-func TestResolver_ResolveControllers(t *testing.T) {
+func TestNutsDIDResolver_ResolveControllers(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 	id123Method1, _ := did.ParseDIDURL("did:nuts:123#method-1")
 	id456, _ := did.ParseDID("did:nuts:456")
@@ -335,67 +335,67 @@ func TestServiceResolver_Resolve(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 
-		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
+		resolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
 
-		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "simple"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Resolver: resolver}.Resolve(MakeServiceReference(*didB, "simple"), DefaultMaxServiceReferenceDepth)
 
 		assert.NoError(t, err)
 		assert.Equal(t, docB.Service[0], actual)
 	})
 	t.Run("ok - external", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 
-		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
-		store.EXPECT().Resolve(*didA, nil).MinTimes(1).Return(&docA, meta, nil)
+		resolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
+		resolver.EXPECT().Resolve(*didA, nil).MinTimes(1).Return(&docA, meta, nil)
 
-		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "external"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Resolver: resolver}.Resolve(MakeServiceReference(*didB, "external"), DefaultMaxServiceReferenceDepth)
 
 		assert.NoError(t, err)
 		assert.Equal(t, docA.Service[0], actual)
 	})
 	t.Run("error - cyclic reference (yields refs too deep)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 
-		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
+		resolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
 
-		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "cyclic-ref"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Resolver: resolver}.Resolve(MakeServiceReference(*didB, "cyclic-ref"), DefaultMaxServiceReferenceDepth)
 
 		assert.EqualError(t, err, "service references are nested to deeply before resolving to a non-reference")
 		assert.Empty(t, actual)
 	})
 	t.Run("error - invalid ref", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 
-		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
+		resolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
 
-		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "invalid-ref"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Resolver: resolver}.Resolve(MakeServiceReference(*didB, "invalid-ref"), DefaultMaxServiceReferenceDepth)
 
 		assert.EqualError(t, err, "DID service query invalid: endpoint URI path must be /serviceEndpoint")
 		assert.Empty(t, actual)
 	})
 	t.Run("error - service not found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 
-		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
+		resolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(&docB, meta, nil)
 
-		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "non-existent"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Resolver: resolver}.Resolve(MakeServiceReference(*didB, "non-existent"), DefaultMaxServiceReferenceDepth)
 
 		assert.EqualError(t, err, "service not found in DID Document")
 		assert.Empty(t, actual)
 	})
 	t.Run("error - DID not found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
 
-		store.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(nil, nil, types.ErrNotFound)
+		resolver.EXPECT().Resolve(*didB, nil).MinTimes(1).Return(nil, nil, types.ErrNotFound)
 
-		actual, err := ServiceResolver{Store: store}.Resolve(MakeServiceReference(*didB, "non-existent"), DefaultMaxServiceReferenceDepth)
+		actual, err := ServiceResolver{Resolver: resolver}.Resolve(MakeServiceReference(*didB, "non-existent"), DefaultMaxServiceReferenceDepth)
 
 		assert.EqualError(t, err, "unable to find the DID document")
 		assert.Empty(t, actual)
@@ -405,14 +405,14 @@ func TestServiceResolver_Resolve(t *testing.T) {
 
 func TestKeyResolver_ResolveKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	store := didstore.NewMockStore(ctrl)
-	keyResolver := KeyResolver{Store: store}
+	resolver := types.NewMockDIDResolver(ctrl)
+	keyResolver := KeyResolver{Resolver: resolver}
 
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, err := docCreator.Create(nil, DefaultCreationOptions())
 	require.NoError(t, err)
-	store.EXPECT().Resolve(doc.ID, gomock.Any()).AnyTimes().Return(doc, nil, nil)
+	resolver.EXPECT().Resolve(doc.ID, gomock.Any()).AnyTimes().Return(doc, nil, nil)
 
 	t.Run("ok - it finds the key", func(t *testing.T) {
 		keyId, key, err := keyResolver.ResolveKey(doc.ID, nil, types.AssertionMethod)
@@ -423,7 +423,7 @@ func TestKeyResolver_ResolveKey(t *testing.T) {
 
 	t.Run("error - document not found", func(t *testing.T) {
 		unknownDID := did.MustParseDID("did:example:123")
-		store.EXPECT().Resolve(unknownDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		resolver.EXPECT().Resolve(unknownDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 		keyId, key, err := keyResolver.ResolveKey(unknownDID, nil, types.AssertionMethod)
 		assert.EqualError(t, err, "unable to find the DID document")
 		assert.Empty(t, keyId)
@@ -447,14 +447,14 @@ func TestKeyResolver_ResolveKey(t *testing.T) {
 
 func TestKeyResolver_ResolveKeyByID(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	store := didstore.NewMockStore(ctrl)
-	keyResolver := KeyResolver{Store: store}
+	resolver := types.NewMockDIDResolver(ctrl)
+	keyResolver := KeyResolver{Resolver: resolver}
 
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, err := docCreator.Create(nil, DefaultCreationOptions())
 	require.NoError(t, err)
-	store.EXPECT().Resolve(doc.ID, gomock.Any()).AnyTimes().Return(doc, nil, nil)
+	resolver.EXPECT().Resolve(doc.ID, gomock.Any()).AnyTimes().Return(doc, nil, nil)
 	keyID := doc.VerificationMethod[0].ID
 
 	t.Run("ok - it finds the key", func(t *testing.T) {
@@ -465,13 +465,13 @@ func TestKeyResolver_ResolveKeyByID(t *testing.T) {
 
 	t.Run("error - invalid key ID", func(t *testing.T) {
 		key, err := keyResolver.ResolveKeyByID("abcdef", nil, types.AssertionMethod)
-		assert.EqualError(t, err, "invalid key ID (id=abcdef): invalid DID: input length is less than 7")
+		assert.EqualError(t, err, "invalid key ID (id=abcdef): invalid DID")
 		assert.Nil(t, key)
 	})
 
 	t.Run("error - document not found", func(t *testing.T) {
 		unknownDID := did.MustParseDIDURL("did:example:123")
-		store.EXPECT().Resolve(unknownDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		resolver.EXPECT().Resolve(unknownDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 		key, err := keyResolver.ResolveKeyByID(unknownDID.String()+"#456", nil, types.AssertionMethod)
 		assert.EqualError(t, err, "unable to find the DID document")
 		assert.Nil(t, key)

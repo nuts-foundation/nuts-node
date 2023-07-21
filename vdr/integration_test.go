@@ -41,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -60,7 +59,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docAID := docA.ID
 
 	// Check if the document can be found in the store
-	docA, metadataDocA, err := ctx.docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err := ctx.didResolver.Resolve(docA.ID, nil)
 	require.NoError(t, err)
 
 	assert.NotNil(t, docA)
@@ -81,7 +80,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	require.NoError(t, err, "unable to update docA with a new service")
 
 	// Resolve the document and check it contents
-	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = ctx.didResolver.Resolve(docA.ID, nil)
 	require.NoError(t, err, "unable to resolve updated document")
 	assert.Len(t, docA.Service, 1)
 	assert.Equal(t, newService, docA.Service[0],
@@ -92,7 +91,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	require.NoError(t, err, "unexpected error while creating DocumentB")
 	assert.NotNil(t, docB,
 		"a new document should have been created")
-	_, _, err = ctx.docResolver.Resolve(docB.ID, nil)
+	_, _, err = ctx.didResolver.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"unexpected error while resolving documentB")
 
@@ -107,7 +106,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	require.NoError(t, err, "unable to update documentA with a new controller")
 
 	// Resolve and check DocumentA
-	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = ctx.didResolver.Resolve(docA.ID, nil)
 	require.NoError(t, err, "unable to resolve updated documentA")
 	assert.Equal(t, []did.DID{docB.ID}, docA.Controller,
 		"expected updated documentA to have documentB as its controller")
@@ -127,19 +126,19 @@ func TestVDRIntegration_Test(t *testing.T) {
 	err = ctx.vdr.Update(ctx.audit, docA.ID, *docA)
 	require.NoError(t, err, "unable to update documentA with a new service")
 	// Resolve and check if the service has been added
-	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = ctx.didResolver.Resolve(docA.ID, nil)
 	require.NoError(t, err, "unable to resolve updated documentA")
 	require.Len(t, docA.Service, 2, "expected documentA to have 2 services after the update")
 	assert.Equal(t, newService, docA.Service[1],
 		"news service of document a does not contain expected values")
 
 	// deactivate document B
-	docUpdater := &didservice.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.docResolver}
+	docUpdater := &didservice.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.didResolver}
 	err = docUpdater.Deactivate(ctx.audit, docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
 
-	docB, _, err = ctx.docResolver.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
+	docB, _, err = ctx.didResolver.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
 	assert.NoError(t, err)
 	assert.Len(t, docB.CapabilityInvocation, 0,
 		"expected document B to not have any CapabilityInvocation methods after deactivation")
@@ -164,13 +163,13 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	assert.NotNil(t, initialDoc)
 
 	// Check if the document can be found in the store
-	initialDoc, _, err = ctx.docResolver.Resolve(initialDoc.ID, nil)
+	initialDoc, _, err = ctx.didResolver.Resolve(initialDoc.ID, nil)
 	require.NoError(t, err)
 
 	const procs = 10
 	wg := sync.WaitGroup{}
 	wg.Add(procs)
-	currDoc, _, _ := ctx.docResolver.Resolve(initialDoc.ID, nil)
+	currDoc, _, _ := ctx.didResolver.Resolve(initialDoc.ID, nil)
 	for i := 0; i < procs; i++ {
 		go func(num int) {
 			newDoc := *currDoc
@@ -211,7 +210,7 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {
-		_, _, err := ctx.docResolver.Resolve(didDoc.ID, nil)
+		_, _, err := ctx.didResolver.Resolve(didDoc.ID, nil)
 		return err == nil, nil
 	}, 5*time.Second, "timeout while waiting for event to be processed")
 }
@@ -219,8 +218,8 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 type testContext struct {
 	vdr            *VDR
 	eventPublisher events.Event
-	docCreator     didservice.Creator
-	docResolver    didservice.NutsDIDResolver
+	docCreator     types.DocCreator
+	didResolver    types.DIDResolver
 	cryptoInstance *crypto.Crypto
 	audit          context.Context
 }
@@ -244,24 +243,22 @@ func setup(t *testing.T) testContext {
 
 	// Startup crypto
 	cryptoInstance := crypto.NewCryptoInstance()
-	cryptoInstance.Configure(nutsConfig)
+	require.NoError(t, cryptoInstance.Configure(nutsConfig))
 
 	// Storage
 	storageProvider := storage.StaticKVStoreProvider{
 		Store: storage.CreateTestBBoltStore(t, testDir+"/test.db"),
 	}
 
-	// DID Store
-	didStore := didstore.NewTestStore(t)
-	docResolver := didservice.NutsDIDResolver{Store: didStore}
-	docCreator := didservice.Creator{KeyStore: cryptoInstance}
+	// DID Resolver
+	didResolver := &didservice.DIDResolverRouter{}
 
 	// Startup events
 	eventPublisher := events.NewTestManager(t)
 
 	// Create PKI engine
 	pkiValidator := pki.New()
-	pkiValidator.Configure(nutsConfig)
+	require.NoError(t, pkiValidator.Configure(nutsConfig))
 	// is not pkiValidator.Start()-ed
 
 	// Startup the network layer
@@ -269,34 +266,31 @@ func setup(t *testing.T) testContext {
 	networkCfg.GrpcAddr = "localhost:5555"
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
-		didStore,
+		didResolver,
 		cryptoInstance,
 		eventPublisher,
 		&storageProvider,
 		pkiValidator,
 	)
-	nutsNetwork.Configure(nutsConfig)
-	nutsNetwork.Start()
+	require.NoError(t, nutsNetwork.Configure(nutsConfig))
+	require.NoError(t, nutsNetwork.Start())
 	t.Cleanup(func() {
-		nutsNetwork.Shutdown()
+		_ = nutsNetwork.Shutdown()
 	})
 
 	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore, eventPublisher)
-	vdr.Configure(nutsConfig)
-	err = vdr.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
+	vdr := NewVDR(DefaultConfig(), &storageProvider, cryptoInstance, nutsNetwork, didResolver, eventPublisher)
+	require.NoError(t, vdr.Configure(nutsConfig))
+	require.NoError(t, vdr.Start())
 	t.Cleanup(func() {
-		vdr.Shutdown()
+		_ = vdr.Shutdown()
 	})
 
 	return testContext{
 		vdr:            vdr,
 		eventPublisher: eventPublisher,
-		docCreator:     docCreator,
-		docResolver:    docResolver,
+		docCreator:     vdr.didDocCreator,
+		didResolver:    didResolver,
 		cryptoInstance: cryptoInstance,
 		audit:          audit.TestContext(),
 	}

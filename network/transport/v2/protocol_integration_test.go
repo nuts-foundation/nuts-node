@@ -118,7 +118,8 @@ func (i *integrationTestContext) countTXs() int {
 	return len(i.receivedTXs)
 }
 func startNode(t *testing.T, name string, configurers ...func(config *Config)) *integrationTestContext {
-	var vdrStore didstore.Store
+	vdrStore := didstore.NewTestStore(t)
+	didResolver := didservice.NutsDIDResolver{Store: vdrStore}
 	var keyStore nutsCrypto.KeyStore
 
 	log.Logger().Infof("Starting node: %s", name)
@@ -162,7 +163,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
 	ctx.protocol = New(*cfg, did.DID{}, ctx.state, didservice.NutsDIDResolver{Store: vdrStore}, keyStore, nil, bboltStore).(*protocol)
 
-	authenticator := grpc.NewTLSAuthenticator(didservice.ServiceResolver{Store: didstore.NewTestStore(t)})
+	authenticator := grpc.NewTLSAuthenticator(didservice.ServiceResolver{Resolver: didResolver})
 	connectionsStore, _ := storageClient.GetProvider("network").GetKVStore("connections", storage.VolatileStorageClass)
 	grpcCfg, err := grpc.NewConfig(listenAddress, peerID)
 	require.NoError(t, err)

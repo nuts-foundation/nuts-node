@@ -111,9 +111,9 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 
 	for _, method := range r.config.Methods {
 		switch method {
-		case "did:nuts":
+		case "nuts":
 			r.didResolver.Register(method, r.nutsDidResolver)
-		case "did:web":
+		case "web":
 			r.didResolver.Register(method, didservice.NewWebResolver())
 		default:
 			return fmt.Errorf("unsupported DID method: %s", method)
@@ -138,6 +138,11 @@ func (r *VDR) Start() error {
 	if count == 0 {
 		// remove after v6 release
 		_, err = r.network.Reprocess(context.Background(), "application/did+json")
+	}
+
+	err = r.network.DiscoverNodes(didservice.Finder{Store: r.store})
+	if err != nil {
+		return fmt.Errorf("network node discovery failed: %w", err)
 	}
 
 	return err
@@ -291,6 +296,12 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 		Debug("Updating DID Document")
 	resolverMetadata := &types.ResolveMetadata{
 		AllowDeactivated: true,
+	}
+
+	// Since the update mechanism is "did:nuts"-specific, we can't accidentally update a non-"did:nuts" document,
+	// but check it defensively to avoid obscure errors later.
+	if id.Method != didservice.NutsDIDMethodName {
+		return fmt.Errorf("can't update DID document of type: %s", id.Method)
 	}
 
 	currentDIDDocument, currentMeta, err := r.store.Resolve(id, resolverMetadata)

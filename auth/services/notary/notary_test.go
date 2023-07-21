@@ -35,7 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	irma "github.com/privacybydesign/irmago"
 	"github.com/stretchr/testify/assert"
@@ -240,7 +239,7 @@ func TestNewContractNotary(t *testing.T) {
 				ContractValidity: 60 * time.Minute,
 			},
 			vcr.NewTestVCRInstance(t),
-			didservice.KeyResolver{Store: didstore.NewTestStore(t)},
+			didservice.KeyResolver{},
 			crypto.NewMemoryCryptoInstance(),
 			nil,
 			nil,

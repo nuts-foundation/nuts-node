@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -235,6 +236,7 @@ func getIntegrationTestConfig(t *testing.T, testDirectory string) (core.ServerCo
 		Crypto:  cryptoConfig,
 		Events:  eventsConfig,
 		HTTP:    httpConfig,
+		VDR:     vdr.Config{Methods: []string{"nuts"}},
 	}
 }
 
@@ -244,4 +246,5 @@ type ModuleConfig struct {
 	Crypto  crypto.Config     `koanf:"crypto"`
 	Events  events.Config     `koanf:"events"`
 	HTTP    httpEngine.Config `koanf:"http"`
+	VDR     vdr.Config        `koanf:"vdr"`
 }

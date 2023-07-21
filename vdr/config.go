@@ -29,6 +29,6 @@ type Config struct {
 // DefaultConfig returns a fresh Config filled with default values
 func DefaultConfig() Config {
 	return Config{
-		Methods: []string{"did:nuts", "did:web"},
+		Methods: []string{"nuts", "web"},
 	}
 }

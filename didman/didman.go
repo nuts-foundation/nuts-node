@@ -159,7 +159,7 @@ func (d *didman) DeleteEndpointsByType(ctx context.Context, id did.DID, serviceT
 	unlockFn := d.callSerializer.Lock(id.String())
 	defer unlockFn()
 
-	doc, _, err := d.vdr.Resolver().Resolve(id, nil)
+	doc, _, err := d.didResolver.Resolve(id, nil)
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (d *didman) DeleteEndpointsByType(ctx context.Context, id did.DID, serviceT
 }
 
 func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
-	doc, _, err := d.vdr.Resolver().Resolve(id, nil)
+	doc, _, err := d.didResolver.Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +245,7 @@ func (d *didman) UpdateCompoundService(ctx context.Context, id did.DID, serviceT
 }
 
 func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error) {
-	document, _, err := d.vdr.Resolver().Resolve(id, nil)
+	document, _, err := d.didResolver.Resolve(id, nil)
 	if err != nil {
 		return "", err
 	}
@@ -254,7 +254,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	documentsCache := map[string]*did.Document{document.ID.String(): document}
 
 	// First, resolve the compound endpoint
-	serviceResolver := didservice.ServiceResolver{Resolver: d.vdr.Resolver()}
+	serviceResolver := didservice.ServiceResolver{Resolver: d.didResolver}
 	compoundService, err := serviceResolver.ResolveEx(didservice.MakeServiceReference(id, compoundServiceType), referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}

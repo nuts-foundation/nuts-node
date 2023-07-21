@@ -345,8 +345,8 @@ func Test_vcr_GetOIDCWallet(t *testing.T) {
 }
 func TestVcr_Untrusted(t *testing.T) {
 	instance := NewTestVCRInstance(t)
-	mockDocResolver := types.NewMockDocResolver(gomock.NewController(t))
-	instance.docResolver = mockDocResolver
+	mockDidResolver := types.NewMockDIDResolver(gomock.NewController(t))
+	instance.didResolver = mockDidResolver
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testCredential)
 
@@ -368,19 +368,19 @@ func TestVcr_Untrusted(t *testing.T) {
 	t.Run("Untrusted", func(t *testing.T) {
 		confirmTrustedStatus(t, instance, testCredential.Issuer, instance.Untrusted, 0)
 		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
-			mockDocResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, nil)
+			mockDidResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, nil)
 			return instance.Untrusted(issuer)
 		}, 1)
 	})
 	t.Run("Untrusted - did deactivated", func(t *testing.T) {
 		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
-			mockDocResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, did.DeactivatedErr)
+			mockDidResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, did.DeactivatedErr)
 			return instance.Untrusted(issuer)
 		}, 0)
 	})
 	t.Run("Untrusted - no active controller", func(t *testing.T) {
 		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
-			mockDocResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, types.ErrNoActiveController)
+			mockDidResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, types.ErrNoActiveController)
 			return instance.Untrusted(issuer)
 		}, 0)
 	})
