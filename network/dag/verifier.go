@@ -41,7 +41,7 @@ type Verifier func(tx stoabs.ReadTx, transaction Transaction) error
 
 // NewTransactionSignatureVerifier creates a transaction verifier that checks the signature of the transaction.
 // It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
-func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
+func NewTransactionSignatureVerifier(resolver types.NutsKeyResolver) Verifier {
 	return func(_ stoabs.ReadTx, transaction Transaction) error {
 		var signingKey crypto2.PublicKey
 		if transaction.SigningKey() != nil {

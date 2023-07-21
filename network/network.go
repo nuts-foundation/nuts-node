@@ -173,7 +173,8 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return fmt.Errorf("unable to create database: %w", err)
 	}
-	if n.state, err = dag.NewState(dagStore, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
+	nutsKeyResolver := didservice.NutsKeyResolver{Resolver: n.didDocumentResolver}
+	if n.state, err = dag.NewState(dagStore, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(nutsKeyResolver)); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
 
