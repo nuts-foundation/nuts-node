@@ -354,7 +354,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 
 			response, err := testContext.client.SearchIssuedVCs(testContext.requestCtx, SearchIssuedVCsRequestObject{Params: params})
 
-			assert.EqualError(t, err, "invalid issuer did: invalid DID: input length is less than 7")
+			assert.EqualError(t, err, "invalid issuer did: invalid DID")
 			assert.Empty(t, response)
 		})
 

@@ -64,7 +64,7 @@ func Test_readMetadata(t *testing.T) {
 		md.Set(peerIDHeader, "1")
 		md.Set(nodeDIDHeader, "invalid")
 		peerID, nodeDID, err := readMetadata(md)
-		assert.EqualError(t, err, "peer sent invalid node DID: invalid DID: input does not begin with 'did:' prefix")
+		assert.EqualError(t, err, "peer sent invalid node DID: invalid DID")
 		assert.Empty(t, peerID.String())
 		assert.Empty(t, nodeDID)
 	})

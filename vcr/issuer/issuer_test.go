@@ -584,7 +584,7 @@ func Test_issuer_Revoke(t *testing.T) {
 				store: store,
 			}
 			revocation, err := sut.Revoke(ctx, ssi.MustParseURI("a#38E90E8C-F7E5-4333-B63A-F9DD155A0272"))
-			assert.EqualError(t, err, "failed to extract issuer: invalid DID: input length is less than 7")
+			assert.EqualError(t, err, "failed to extract issuer: invalid DID")
 			assert.Nil(t, revocation)
 		})
 
