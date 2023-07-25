@@ -63,7 +63,7 @@ func TestHolder_BuildVP(t *testing.T) {
     "proof": {
         "created": "2021-12-24T13:21:29.087205+01:00",
         "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..hPM2GLc1K9d2D8Sbve004x9SumjLqaXTjWhUhvqWRwxfRWlwfp5gHDUYuRoEjhCXfLt-_u-knChVmK980N3LBw",
-        "proofPurpose": "assertionMethod",
+        "proofPurpose": "NutsSigningKeyType",
         "type": "JsonWebSignature2020",
         "verificationMethod": "` + kid + `"
     },
@@ -90,7 +90,7 @@ func TestHolder_BuildVP(t *testing.T) {
 
 		keyResolver := types.NewMockKeyResolver(ctrl)
 
-		keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
+		keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
 		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
@@ -111,7 +111,7 @@ func TestHolder_BuildVP(t *testing.T) {
 		}
 		keyResolver := types.NewMockKeyResolver(ctrl)
 
-		keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
+		keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
 		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
@@ -130,7 +130,7 @@ func TestHolder_BuildVP(t *testing.T) {
 
 		keyResolver := types.NewMockKeyResolver(ctrl)
 
-		keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(vdr.TestMethodDIDA.URI(), nil)
+		keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
 
 		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
@@ -150,7 +150,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			mockVerifier := verifier.NewMockVerifier(ctrl)
 			mockVerifier.EXPECT().Validate(testCredential, &created)
 
-			keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
 			holder := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
@@ -166,7 +166,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			mockVerifier := verifier.NewMockVerifier(ctrl)
 			mockVerifier.EXPECT().Validate(testCredential, &created).Return(errors.New("failed"))
 
-			keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
 			holder := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
@@ -184,7 +184,7 @@ func TestHolder_BuildVP(t *testing.T) {
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
 
-			keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
 			holder := New(keyResolver, keyStore, nil, jsonldManager)
 

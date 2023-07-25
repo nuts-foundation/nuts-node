@@ -63,7 +63,7 @@ type ambassador struct {
 	networkClient network.Transactions
 	didStore      didstore.Store
 	keyResolver   types.NutsKeyResolver
-	didResolver   *didservice.Resolver
+	didResolver   types.DIDResolver
 	eventManager  events.Event
 }
 

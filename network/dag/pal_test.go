@@ -24,6 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -46,8 +47,8 @@ func TestEncryptPal(t *testing.T) {
 		// Encrypt
 		ctrl := gomock.NewController(t)
 		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKeyAgreementKey(*pA).Return(pkA.Public(), nil)
-		keyResolver.EXPECT().ResolveKeyAgreementKey(*pB).Return(pkB.Public(), nil)
+		keyResolver.EXPECT().ResolveKey(*pA, nil, types.KeyAgreement).Return(ssi.URI{}, pkA.Public(), nil)
+		keyResolver.EXPECT().ResolveKey(*pB, nil, types.KeyAgreement).Return(ssi.URI{}, pkB.Public(), nil)
 		expected := PAL{*pA, *pB}
 		pal, err := expected.Encrypt(keyResolver)
 		require.NoError(t, err)
@@ -70,7 +71,7 @@ func TestEncryptPal(t *testing.T) {
 	t.Run("error - keyAgreement key type is not supported", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKeyAgreementKey(*pA).Return(&rsa.PublicKey{}, nil)
+		keyResolver.EXPECT().ResolveKey(*pA, nil, types.KeyAgreement).Return(ssi.URI{}, &rsa.PublicKey{}, nil)
 		pal, err := PAL{*pA}.Encrypt(keyResolver)
 		assert.Nil(t, pal)
 		assert.EqualError(t, err, "resolved keyAgreement key is not an elliptic curve key (recipient=did:nuts:A)")
@@ -78,7 +79,7 @@ func TestEncryptPal(t *testing.T) {
 	t.Run("error - no keyAgreements", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKeyAgreementKey(*pA).Return(nil, types.ErrKeyNotFound)
+		keyResolver.EXPECT().ResolveKey(*pA, nil, types.KeyAgreement).Return(ssi.URI{}, nil, types.ErrKeyNotFound)
 		pal, err := PAL{*pA}.Encrypt(keyResolver)
 		assert.Nil(t, pal)
 		assert.EqualError(t, err, "unable to resolve keyAgreement key (recipient=did:nuts:A): key not found in DID document")

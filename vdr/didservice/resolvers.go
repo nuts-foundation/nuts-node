@@ -23,7 +23,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"time"
 
@@ -129,54 +128,14 @@ func resolveControllers(resolver types.DIDResolver, doc did.Document, metadata *
 	return leaves[:j], nil
 }
 
-// NutsKeyResolver implements the NutsKeyResolver interface.
-type NutsKeyResolver struct {
-	Resolver types.DIDResolver
-}
-
-func (r NutsKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
-	// try all keys, continue when err == types.ErrNotFound
-	for _, h := range sourceTransactionsRefs {
-		publicKey, err := r.resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
-			SourceTransaction: &h,
-		})
-		if err == nil {
-			return publicKey, nil
-		}
-		if err != types.ErrNotFound {
-			return nil, err
-		}
-	}
-
-	return nil, types.ErrNotFound
-}
+var _ types.KeyResolver = KeyResolver{}
 
 // KeyResolver implements the KeyResolver interface with a types.Store as backend
 type KeyResolver struct {
 	Store didstore.Store
 }
 
-// ResolveSigningKeyID resolves the ID of the first valid AssertionMethod for an indicated DID document at a given time.
-func (r KeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
-	doc, _, err := r.Store.Resolve(holder, &types.ResolveMetadata{
-		ResolveTime: validAt,
-	})
-	if err != nil {
-		return "", err
-	}
-	if len(doc.AssertionMethod) == 0 {
-		return "", types.ErrKeyNotFound
-	}
-	return doc.AssertionMethod[0].ID.String(), nil
-}
-
-// ResolveSigningKey resolves the PublicKey of the first valid AssertionMethod for an indicated
-// DID document at a validAt time.
-func (r KeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
-	return r.ResolveRelationKey(keyID, validAt, types.AssertionMethod)
-}
-
-func (r KeyResolver) ResolveRelationKey(keyID string, validAt *time.Time, relationType types.RelationType) (crypto.PublicKey, error) {
+func (r KeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationType types.RelationType) (crypto.PublicKey, error) {
 	holder, err := GetDIDFromURL(keyID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
@@ -185,16 +144,39 @@ func (r KeyResolver) ResolveRelationKey(keyID string, validAt *time.Time, relati
 		ResolveTime: validAt,
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	relationships, _ := resolveRelationships(doc, relationType)
-
+	relationships, err := resolveRelationships(doc, relationType)
+	if err != nil {
+		return nil, err
+	}
 	for _, rel := range relationships {
 		if rel.ID.String() == keyID {
 			return rel.PublicKey()
 		}
 	}
-	return "", types.ErrKeyNotFound
+	return nil, types.ErrKeyNotFound
+}
+
+func (r KeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType types.RelationType) (ssi.URI, crypto.PublicKey, error) {
+	doc, _, err := r.Store.Resolve(id, &types.ResolveMetadata{
+		ResolveTime: validAt,
+	})
+	if err != nil {
+		return ssi.URI{}, nil, err
+	}
+	keys, err := resolveRelationships(doc, relationType)
+	if err != nil {
+		return ssi.URI{}, nil, err
+	}
+	if len(keys) == 0 {
+		return ssi.URI{}, nil, types.ErrKeyNotFound
+	}
+	publicKey, err := keys[0].PublicKey()
+	if err != nil {
+		return ssi.URI{}, nil, err
+	}
+	return keys[0].ID.URI(), publicKey, nil
 }
 
 func resolveRelationships(doc *did.Document, relationType types.RelationType) (relationships did.VerificationRelationships, err error) {
@@ -213,56 +195,7 @@ func resolveRelationships(doc *did.Document, relationType types.RelationType) (r
 		return nil, fmt.Errorf("unable to locate RelationType %v", relationType)
 	}
 }
-
-// ResolveAssertionKeyID resolves the id of the first valid AssertionMethod of an indicated DID document in the current state.
-func (r KeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
-	doc, _, err := r.Store.Resolve(id, nil)
-	if err != nil {
-		return ssi.URI{}, err
-	}
-
-	return ExtractFirstRelationKeyIDByType(*doc, types.AssertionMethod)
-}
-
-func (r KeyResolver) ResolveRelationKeyID(id did.DID, relationType types.RelationType) (ssi.URI, error) {
-	doc, _, err := r.Store.Resolve(id, nil)
-	if err != nil {
-		return ssi.URI{}, err
-	}
-
-	return ExtractFirstRelationKeyIDByType(*doc, relationType)
-}
-
-// ResolveKeyAgreementKey resolves the public key of the first valid KeyAgreement of an indicated DID document in the current state.
-// If the document has no KeyAgreements, types.ErrKeyNotFound is returned.
-func (r KeyResolver) ResolveKeyAgreementKey(id did.DID) (crypto.PublicKey, error) {
-	doc, _, err := r.Store.Resolve(id, nil)
-	if err != nil {
-		return ssi.URI{}, err
-	}
-	if len(doc.KeyAgreement) == 0 {
-		return nil, types.ErrKeyNotFound
-	}
-	return doc.KeyAgreement[0].PublicKey()
-}
-
-// ExtractFirstRelationKeyIDByType returns the first relation key ID from the given DID document matching the relationType.
-// Returns a types.ErrKeyNotFound if no relation key of the given relationType is present.
-func ExtractFirstRelationKeyIDByType(doc did.Document, relationType types.RelationType) (ssi.URI, error) {
-	keys, err := resolveRelationships(&doc, relationType)
-	if err != nil {
-		return ssi.URI{}, err
-	}
-	for _, key := range keys {
-		kid := key.ID.String()
-		u, _ := ssi.ParseURI(kid)
-		return *u, nil
-	}
-
-	return ssi.URI{}, types.ErrKeyNotFound
-}
-
-func (r NutsKeyResolver) resolvePublicKey(resolver types.DIDResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
+func resolvePublicKey(resolver types.DIDResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
 	id, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)

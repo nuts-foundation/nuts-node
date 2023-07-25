@@ -370,7 +370,7 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 	}
 
 	validationTime := vContext.jwtBearerToken.IssuedAt()
-	if _, err := s.keyResolver.ResolveSigningKey(vContext.kid, &validationTime); err != nil {
+	if _, err := s.keyResolver.ResolveKeyByID(vContext.kid, &validationTime, types.NutsSigningKeyType); err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
@@ -422,11 +422,11 @@ func (s *authzServer) validateSubject(ctx context.Context, validationCtx *valida
 	validationCtx.authorizer = subject
 
 	iat := validationCtx.jwtBearerToken.IssuedAt()
-	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(*subject, &iat)
+	signingKeyID, _, err := s.keyResolver.ResolveKey(*subject, &iat, types.NutsSigningKeyType)
 	if err != nil {
 		return err
 	}
-	if !s.privateKeyStore.Exists(ctx, signingKeyID) {
+	if !s.privateKeyStore.Exists(ctx, signingKeyID.String()) {
 		return fmt.Errorf("subject.vendor: %s is not managed by this node", subject)
 	}
 
@@ -494,7 +494,7 @@ func (s *authzServer) parseAndValidateJwtBearerToken(context *validationContext)
 	var kidHdr string
 	token, err := nutsCrypto.ParseJWT(context.rawJwtBearerToken, func(kid string) (crypto.PublicKey, error) {
 		kidHdr = kid
-		return s.keyResolver.ResolveSigningKey(kid, nil)
+		return s.keyResolver.ResolveKeyByID(kid, nil, types.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(s.clockSkew))
 	if err != nil {
 		return err
@@ -512,7 +512,7 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 		if !s.privateKeyStore.Exists(ctx, kid) {
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
-		return s.keyResolver.ResolveSigningKey(kid, nil)
+		return s.keyResolver.ResolveKeyByID(kid, nil, types.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(s.clockSkew))
 	if err != nil {
 		return nil, err
@@ -573,11 +573,11 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 	}
 
 	// Sign with the private key of the issuer
-	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(authorizer, &issueTime)
+	signingKeyID, _, err := s.keyResolver.ResolveKey(authorizer, &issueTime, types.NutsSigningKeyType)
 	if err != nil {
 		return "", accessToken, err
 	}
-	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, nil, signingKeyID)
+	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, nil, signingKeyID.String())
 	if err != nil {
 		return token, accessToken, fmt.Errorf("could not build accessToken: %w", err)
 	}

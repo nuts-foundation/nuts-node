@@ -24,6 +24,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -50,7 +51,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), nil, types.NutsSigningKeyType).Return(pk, nil)
 
 		err := ctx.vcr.StoreCredential(target, nil)
 
@@ -61,7 +62,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), &now).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), &now, types.NutsSigningKeyType).Return(pk, nil)
 
 		err := ctx.vcr.StoreCredential(target, &now)
 
@@ -72,7 +73,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), &now).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), &now, types.NutsSigningKeyType).Return(pk, nil)
 
 		_ = ctx.vcr.StoreCredential(target, &now)
 
@@ -85,7 +86,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), &now).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), &now, types.NutsSigningKeyType).Return(pk, nil)
 
 		_ = ctx.vcr.StoreCredential(target, &now)
 

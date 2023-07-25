@@ -30,8 +30,6 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -126,7 +124,7 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 	t.Run("unable to resolve key by hash", func(t *testing.T) {
 		d := CreateSignedTestTransaction(1, time.Now(), nil, "foo/bar", false)
 		ctrl := gomock.NewController(t)
-		keyResolver := types.NewMockKeyResolver(ctrl)
+		keyResolver := types.NewMockNutsKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := NewTransactionSignatureVerifier(keyResolver)(nil, d)
@@ -135,35 +133,12 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 	})
 }
 
-var _ types.KeyResolver = &staticKeyResolver{}
 var _ types.NutsKeyResolver = &staticKeyResolver{}
 
 type staticKeyResolver struct {
 	Key crypto.PublicKey
 }
 
-func (s staticKeyResolver) ResolveKeyAgreementKey(_ did.DID) (crypto.PublicKey, error) {
-	return s.Key, nil
-}
-
 func (s staticKeyResolver) ResolvePublicKey(_ string, _ []hash.SHA256Hash) (crypto.PublicKey, error) {
 	return s.Key, nil
-}
-
-func (s staticKeyResolver) ResolveSigningKeyID(_ did.DID, _ *time.Time) (string, error) {
-	panic("implement me")
-}
-
-func (s staticKeyResolver) ResolveSigningKey(_ string, _ *time.Time) (crypto.PublicKey, error) {
-	panic("implement me")
-}
-func (s staticKeyResolver) ResolveRelationKey(_ string, _ *time.Time, _ types.RelationType) (crypto.PublicKey, error) {
-	panic("implement me")
-}
-
-func (s staticKeyResolver) ResolveAssertionKeyID(_ did.DID) (ssi.URI, error) {
-	panic("implement me")
-}
-func (s staticKeyResolver) ResolveRelationKeyID(_ did.DID, _ types.RelationType) (ssi.URI, error) {
-	panic("implement me")
 }

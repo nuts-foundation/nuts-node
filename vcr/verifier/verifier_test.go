@@ -74,7 +74,7 @@ func Test_verifier_Validate(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.verifier
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, gomock.Any(), vdrTypes.NutsSigningKeyType).Return(pk, nil)
 
 		err := instance.Validate(testCredential(t), nil)
 
@@ -123,7 +123,7 @@ func Test_verifier_Validate(t *testing.T) {
 		vc2 := testCredential(t)
 		vc2.IssuanceDate = time.Now()
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, vdrTypes.NutsSigningKeyType).Return(pk, nil)
 
 		err := instance.Validate(vc2, nil)
 
@@ -139,7 +139,7 @@ func Test_verifier_Validate(t *testing.T) {
 		pr[0].Created = time.Now()
 		vc2.Proof = []interface{}{pr[0]}
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, vdrTypes.NutsSigningKeyType).Return(pk, nil)
 
 		err := instance.Validate(vc2, nil)
 
@@ -159,7 +159,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 	t.Run("error - wrong jws in proof", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, vdrTypes.NutsSigningKeyType).Return(pk, nil)
 		instance := ctx.verifier
 		vc2 := testCredential(t)
 		pr := make([]vc.JSONWebSignature2020Proof, 0)
@@ -174,7 +174,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 	t.Run("error - wrong base64 encoding in jws", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(pk, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, vdrTypes.NutsSigningKeyType).Return(pk, nil)
 		instance := ctx.verifier
 		vc2 := testCredential(t)
 		pr := make([]vc.JSONWebSignature2020Proof, 0)
@@ -191,7 +191,7 @@ func Test_verifier_Validate(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.verifier
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, nil).Return(nil, errors.New("b00m!"))
+		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, vdrTypes.NutsSigningKeyType).Return(nil, errors.New("b00m!"))
 
 		err := instance.Validate(testCredential(t), nil)
 
@@ -231,7 +231,7 @@ func TestVerifier_Verify(t *testing.T) {
 		subject := testCredential(t)
 		subject.IssuanceDate.Add(-1 * time.Minute)
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(nil, errors.New("not found"))
+		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, gomock.Any(), vdrTypes.NutsSigningKeyType).Return(nil, errors.New("not found"))
 
 		at := time.Now()
 		err := instance.Validate(subject, &at)
@@ -250,7 +250,7 @@ func TestVerifier_Verify(t *testing.T) {
 			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
 			proofs, _ := vc.Proofs()
 			ctx.didResolver.EXPECT().Resolve(did.MustParseDID(vc.Issuer.String()), gomock.Any()).Return(nil, nil, nil)
-			ctx.keyResolver.EXPECT().ResolveSigningKey(proofs[0].VerificationMethod.String(), nil).Return(nil, vdrTypes.ErrKeyNotFound)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(proofs[0].VerificationMethod.String(), nil, vdrTypes.NutsSigningKeyType).Return(nil, vdrTypes.ErrKeyNotFound)
 
 			validationErr := ctx.verifier.Verify(vc, true, true, nil)
 
@@ -417,7 +417,7 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 
 	t.Run("it checks and stores a valid revocation", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(key, nil)
+		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, vdrTypes.NutsSigningKeyType).Return(key, nil)
 		sut.store.EXPECT().StoreRevocation(revocation)
 		err := sut.verifier.RegisterRevocation(revocation)
 		assert.NoError(t, err)
@@ -461,14 +461,14 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 
 	t.Run("it handles an unknown key error", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(nil, errors.New("unknown key"))
+		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, vdrTypes.NutsSigningKeyType).Return(nil, errors.New("unknown key"))
 		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "unable to resolve key for revocation: unknown key")
 	})
 
 	t.Run("it handles an error from store operation", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(key, nil)
+		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, vdrTypes.NutsSigningKeyType).Return(key, nil)
 		sut.store.EXPECT().StoreRevocation(revocation).Return(errors.New("storage error"))
 		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "unable to store revocation: storage error")
@@ -477,7 +477,7 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 	t.Run("it handles an invalid signature error", func(t *testing.T) {
 		sut := newMockContext(t)
 		otherKey := crypto.NewTestKey("did:nuts:123#abc").Public()
-		sut.keyResolver.EXPECT().ResolveSigningKey(revocation.Proof.VerificationMethod.String(), &revocation.Date).Return(otherKey, nil)
+		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, vdrTypes.NutsSigningKeyType).Return(otherKey, nil)
 		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "unable to verify revocation signature: invalid proof signature: failed to verify signature using ecdsa")
 	})
@@ -535,7 +535,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		var validAt *time.Time
 
 		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, vdrTypes.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
 
 		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
 
@@ -548,7 +548,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		var validAt *time.Time
 
 		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, vdrTypes.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
 
 		mockVerifier := NewMockVerifier(ctx.ctrl)
 		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt)
@@ -578,7 +578,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		var validAt *time.Time
 
 		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, vdrTypes.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
 
 		mockVerifier := NewMockVerifier(ctx.ctrl)
 		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt).Return(errors.New("invalid"))
@@ -595,7 +595,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 		ctx := newMockContext(t)
 		// Return incorrect key, causing signature verification failure
-		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDBPrivateKey().Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, vdrTypes.NutsSigningKeyType).Return(vdr.TestMethodDIDBPrivateKey().Public(), nil)
 
 		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
 
@@ -609,7 +609,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 		ctx := newMockContext(t)
 		// Return incorrect key, causing signature verification failure
-		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(nil, vdrTypes.ErrKeyNotFound)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, vdrTypes.NutsSigningKeyType).Return(nil, vdrTypes.ErrKeyNotFound)
 
 		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
 

@@ -123,7 +123,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	})
 	ctrl := gomock.NewController(t)
 	keyResolver := types.NewMockKeyResolver(ctrl)
-	keyResolver.EXPECT().ResolveSigningKey(keyID, nil).AnyTimes().Return(signerKey.Public(), nil)
+	keyResolver.EXPECT().ResolveKeyByID(keyID, nil, types.NutsSigningKeyType).AnyTimes().Return(signerKey.Public(), nil)
 
 	createHeaders := func() map[string]interface{} {
 		return map[string]interface{}{
@@ -265,7 +265,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			})
 			t.Run("signing key is unknown", func(t *testing.T) {
 				keyResolver := types.NewMockKeyResolver(ctrl)
-				keyResolver.EXPECT().ResolveSigningKey(keyID, nil).AnyTimes().Return(nil, types.ErrKeyNotFound)
+				keyResolver.EXPECT().ResolveKeyByID(keyID, nil, types.NutsSigningKeyType).AnyTimes().Return(nil, types.ErrKeyNotFound)
 				service := requireNewTestHandler(t, keyResolver)
 				_, err := service.createOffer(ctx, issuedVC, preAuthCode)
 				require.NoError(t, err)

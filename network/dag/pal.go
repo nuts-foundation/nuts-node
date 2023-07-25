@@ -58,7 +58,7 @@ func (pal PAL) Encrypt(keyResolver types.KeyResolver) (EncryptedPAL, error) {
 	var recipients [][]byte
 	for _, recipient := range pal {
 		recipients = append(recipients, []byte(recipient.String()))
-		rawKak, err := keyResolver.ResolveKeyAgreementKey(recipient)
+		_, rawKak, err := keyResolver.ResolveKey(recipient, nil, types.KeyAgreement)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve keyAgreement key (recipient=%s): %w", recipient, err)
 		}
