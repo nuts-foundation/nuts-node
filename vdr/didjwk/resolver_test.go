@@ -27,13 +27,13 @@ import (
 )
 
 // An example did:jwk from https://github.com/quartzjer/did-jwk/blob/6520a0edc8fa8f37c09af99efe841d54c3ca3b3b/spec.md
-const testDID = `did:jwk:eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6ImFjYklRaXVNczNpOF91c3pFakoydHBUdFJNNEVVM3l6OTFQSDZDZEgyVjAiLCJ5IjoiX0tjeUxqOXZXTXB0bm1LdG00NkdxRHo4d2Y3NEk1TEtncmwyR3pIM25TRSJ9#0`
+const b64EncodedTestJWK = `eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6ImFjYklRaXVNczNpOF91c3pFakoydHBUdFJNNEVVM3l6OTFQSDZDZEgyVjAiLCJ5IjoiX0tjeUxqOXZXTXB0bm1LdG00NkdxRHo4d2Y3NEk1TEtncmwyR3pIM25TRSJ9`
 
 func TestResolver_Resolve(t *testing.T) {
 	var baseDID did.DID
 	resolver := &Resolver{}
 
-	baseDID = did.MustParseDIDURL("did:jwk:" + testDID)
+	baseDID = did.MustParseDIDURL("did:jwk:" + b64EncodedTestJWK + "#0")
 
 	t.Run("resolve did:jwk", func(t *testing.T) {
 		doc, md, err := resolver.Resolve(baseDID, nil)
@@ -45,7 +45,7 @@ func TestResolver_Resolve(t *testing.T) {
 	})
 
 	t.Run("resolve DID JWK URL", func(t *testing.T) {
-		id := did.MustParseDIDURL(baseDID.String() + "#0")
+		id := did.MustParseDIDURL(baseDID.String())
 		doc, md, err := resolver.Resolve(id, nil)
 
 		require.NoError(t, err)

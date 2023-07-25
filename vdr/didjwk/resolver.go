@@ -49,7 +49,7 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 	}
 
 	// Split the JWK ID on ':' characters to get the base64 encoded JWK
-	idParts := strings.Split(id.ID, ":")
+	idParts := strings.Split(id.String(), ":")
 	if len(idParts) != 3 {
 		return nil, nil, fmt.Errorf("malformed did:jwk, expected 3 parts (did:jwk:...): %s", id.ID)
 	}
@@ -84,8 +84,17 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 		return nil, nil, fmt.Errorf("failed to create verification method: %w", err)
 	}
 
-	// Create the DID Document and associate the verification method
+	// Create an empty DID document
 	var document did.Document
+
+	// Set the document ID
+	newID, err := did.ParseDIDURL("did:jwk:" + b64EncodedJWK + "#0")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create document id: %w", err)
+	}
+	document.ID = *newID
+
+	// Add the verification method
 	document.AddAssertionMethod(verificationMethod)
 
 	// Return the newly created document
