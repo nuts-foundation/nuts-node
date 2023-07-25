@@ -43,13 +43,13 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mockDockResolver := types.NewMockDocResolver(ctrl)
+		mockDockResolver := types.NewMockDIDResolver(ctrl)
 		mockDockResolver.EXPECT().Resolve(*issuerDID, nil).Return(docWithAssertionKey, &types.DocumentMetadata{}, nil)
 		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
 		mockKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(crypto.NewTestKey(methodID.String()), nil)
 
 		sut := vdrKeyResolver{
-			docResolver: mockDockResolver,
+			didResolver: mockDockResolver,
 			keyResolver: mockKeyResolver,
 		}
 
@@ -62,12 +62,12 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 
 	t.Run("document for issuer not found in vdr", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mockDockResolver := types.NewMockDocResolver(ctrl)
+		mockDockResolver := types.NewMockDIDResolver(ctrl)
 		mockDockResolver.EXPECT().Resolve(*issuerDID, nil).Return(nil, nil, errors.New("not found"))
 		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
 
 		sut := vdrKeyResolver{
-			docResolver: mockDockResolver,
+			didResolver: mockDockResolver,
 			keyResolver: mockKeyResolver,
 		}
 
@@ -79,13 +79,13 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 
 	t.Run("key not found in crypto", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mockDockResolver := types.NewMockDocResolver(ctrl)
+		mockDockResolver := types.NewMockDIDResolver(ctrl)
 		mockDockResolver.EXPECT().Resolve(*issuerDID, nil).Return(docWithAssertionKey, &types.DocumentMetadata{}, nil)
 		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
 		mockKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(nil, errors.New("not found"))
 
 		sut := vdrKeyResolver{
-			docResolver: mockDockResolver,
+			didResolver: mockDockResolver,
 			keyResolver: mockKeyResolver,
 		}
 
@@ -96,12 +96,12 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 
 	t.Run("did document has no assertionKey", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mockDockResolver := types.NewMockDocResolver(ctrl)
+		mockDockResolver := types.NewMockDIDResolver(ctrl)
 		mockDockResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &types.DocumentMetadata{}, nil)
 		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
 
 		sut := vdrKeyResolver{
-			docResolver: mockDockResolver,
+			didResolver: mockDockResolver,
 			keyResolver: mockKeyResolver,
 		}
 

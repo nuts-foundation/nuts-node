@@ -36,7 +36,7 @@ import (
 type manipulatorTestContext struct {
 	ctrl           *gomock.Controller
 	mockUpdater    *types.MockDocUpdater
-	mockResolver   *types.MockDocResolver
+	mockResolver   *types.MockDIDResolver
 	mockKeyCreator *mockKeyCreator
 	manipulator    *Manipulator
 	audit          context.Context
@@ -46,7 +46,7 @@ func newManipulatorTestContext(t *testing.T) manipulatorTestContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	updater := types.NewMockDocUpdater(ctrl)
-	resolver := types.NewMockDocResolver(ctrl)
+	resolver := types.NewMockDIDResolver(ctrl)
 	keyCreator := newMockKeyCreator()
 	return manipulatorTestContext{
 		ctrl:           ctrl,

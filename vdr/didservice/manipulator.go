@@ -32,7 +32,7 @@ type Manipulator struct {
 	// Updater is used for updating DID documents after the operation has been performed
 	Updater types.DocUpdater
 	// Resolver is used for resolving DID Documents
-	Resolver types.DocResolver
+	Resolver types.DIDResolver
 }
 
 // Deactivate updates the DID Document so it can no longer be updated

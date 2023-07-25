@@ -249,7 +249,7 @@ func TestVerifier_Verify(t *testing.T) {
 			ctx := newMockContext(t)
 			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
 			proofs, _ := vc.Proofs()
-			ctx.docResolver.EXPECT().Resolve(did.MustParseDID(vc.Issuer.String()), gomock.Any()).Return(nil, nil, nil)
+			ctx.didResolver.EXPECT().Resolve(did.MustParseDID(vc.Issuer.String()), gomock.Any()).Return(nil, nil, nil)
 			ctx.keyResolver.EXPECT().ResolveSigningKey(proofs[0].VerificationMethod.String(), nil).Return(nil, vdrTypes.ErrKeyNotFound)
 
 			validationErr := ctx.verifier.Verify(vc, true, true, nil)
@@ -260,7 +260,7 @@ func TestVerifier_Verify(t *testing.T) {
 		t.Run("fails when controller or issuer is deactivated", func(t *testing.T) {
 			ctx := newMockContext(t)
 			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
-			ctx.docResolver.EXPECT().Resolve(did.MustParseDID(vc.Issuer.String()), gomock.Any()).Return(nil, nil, vdrTypes.ErrDeactivated)
+			ctx.didResolver.EXPECT().Resolve(did.MustParseDID(vc.Issuer.String()), gomock.Any()).Return(nil, nil, vdrTypes.ErrDeactivated)
 
 			validationErr := ctx.verifier.Verify(vc, true, true, nil)
 
@@ -709,7 +709,7 @@ func TestVerificationError_Is(t *testing.T) {
 
 type mockContext struct {
 	ctrl        *gomock.Controller
-	docResolver *vdrTypes.MockDocResolver
+	didResolver *vdrTypes.MockDIDResolver
 	keyResolver *vdrTypes.MockKeyResolver
 	store       *MockStore
 	trustConfig *trust.Config
@@ -719,16 +719,16 @@ type mockContext struct {
 func newMockContext(t *testing.T) mockContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	docResolver := vdrTypes.NewMockDocResolver(ctrl)
+	didResolver := vdrTypes.NewMockDIDResolver(ctrl)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
-	verifier := NewVerifier(verifierStore, docResolver, keyResolver, jsonldManager, trustConfig).(*verifier)
+	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,
-		docResolver: docResolver,
+		didResolver: didResolver,
 		keyResolver: keyResolver,
 		store:       verifierStore,
 		trustConfig: trustConfig,

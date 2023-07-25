@@ -60,7 +60,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docAID := docA.ID
 
 	// Check if the document can be found in the store
-	docA, metadataDocA, err := ctx.docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err := ctx.didResolver.Resolve(docA.ID, nil)
 	require.NoError(t, err)
 
 	assert.NotNil(t, docA)
@@ -81,7 +81,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	require.NoError(t, err, "unable to update docA with a new service")
 
 	// Resolve the document and check it contents
-	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = ctx.didResolver.Resolve(docA.ID, nil)
 	require.NoError(t, err, "unable to resolve updated document")
 	assert.Len(t, docA.Service, 1)
 	assert.Equal(t, newService, docA.Service[0],
@@ -92,7 +92,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	require.NoError(t, err, "unexpected error while creating DocumentB")
 	assert.NotNil(t, docB,
 		"a new document should have been created")
-	_, _, err = ctx.docResolver.Resolve(docB.ID, nil)
+	_, _, err = ctx.didResolver.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"unexpected error while resolving documentB")
 
@@ -107,7 +107,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	require.NoError(t, err, "unable to update documentA with a new controller")
 
 	// Resolve and check DocumentA
-	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = ctx.didResolver.Resolve(docA.ID, nil)
 	require.NoError(t, err, "unable to resolve updated documentA")
 	assert.Equal(t, []did.DID{docB.ID}, docA.Controller,
 		"expected updated documentA to have documentB as its controller")
@@ -127,19 +127,19 @@ func TestVDRIntegration_Test(t *testing.T) {
 	err = ctx.vdr.Update(ctx.audit, docA.ID, *docA)
 	require.NoError(t, err, "unable to update documentA with a new service")
 	// Resolve and check if the service has been added
-	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = ctx.didResolver.Resolve(docA.ID, nil)
 	require.NoError(t, err, "unable to resolve updated documentA")
 	require.Len(t, docA.Service, 2, "expected documentA to have 2 services after the update")
 	assert.Equal(t, newService, docA.Service[1],
 		"news service of document a does not contain expected values")
 
 	// deactivate document B
-	docUpdater := &didservice.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.docResolver}
+	docUpdater := &didservice.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.didResolver}
 	err = docUpdater.Deactivate(ctx.audit, docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
 
-	docB, _, err = ctx.docResolver.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
+	docB, _, err = ctx.didResolver.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
 	assert.NoError(t, err)
 	assert.Len(t, docB.CapabilityInvocation, 0,
 		"expected document B to not have any CapabilityInvocation methods after deactivation")
@@ -164,13 +164,13 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	assert.NotNil(t, initialDoc)
 
 	// Check if the document can be found in the store
-	initialDoc, _, err = ctx.docResolver.Resolve(initialDoc.ID, nil)
+	initialDoc, _, err = ctx.didResolver.Resolve(initialDoc.ID, nil)
 	require.NoError(t, err)
 
 	const procs = 10
 	wg := sync.WaitGroup{}
 	wg.Add(procs)
-	currDoc, _, _ := ctx.docResolver.Resolve(initialDoc.ID, nil)
+	currDoc, _, _ := ctx.didResolver.Resolve(initialDoc.ID, nil)
 	for i := 0; i < procs; i++ {
 		go func(num int) {
 			newDoc := *currDoc
@@ -211,7 +211,7 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {
-		_, _, err := ctx.docResolver.Resolve(didDoc.ID, nil)
+		_, _, err := ctx.didResolver.Resolve(didDoc.ID, nil)
 		return err == nil, nil
 	}, 5*time.Second, "timeout while waiting for event to be processed")
 }
@@ -220,7 +220,7 @@ type testContext struct {
 	vdr            *VDR
 	eventPublisher events.Event
 	docCreator     didservice.Creator
-	docResolver    didservice.Resolver
+	didResolver    didservice.Resolver
 	cryptoInstance *crypto.Crypto
 	audit          context.Context
 }
@@ -253,7 +253,7 @@ func setup(t *testing.T) testContext {
 
 	// DID Store
 	didStore := didstore.NewTestStore(t)
-	docResolver := didservice.Resolver{Store: didStore}
+	didResolver := didservice.Resolver{Store: didStore}
 	docCreator := didservice.Creator{KeyStore: cryptoInstance}
 
 	// Startup events
@@ -296,7 +296,7 @@ func setup(t *testing.T) testContext {
 		vdr:            vdr,
 		eventPublisher: eventPublisher,
 		docCreator:     docCreator,
-		docResolver:    docResolver,
+		didResolver:    didResolver,
 		cryptoInstance: cryptoInstance,
 		audit:          audit.TestContext(),
 	}

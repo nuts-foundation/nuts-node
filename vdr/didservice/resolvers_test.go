@@ -301,24 +301,26 @@ func TestResolver_Resolve(t *testing.T) {
 	})
 }
 
-func TestResolver_ResolveControllers(t *testing.T) {
+func TestResolveControllers(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 	id123Method1, _ := did.ParseDIDURL("did:nuts:123#method-1")
 	id456, _ := did.ParseDID("did:nuts:456")
 	id456Method1, _ := did.ParseDIDURL("did:nuts:456#method-1")
 	t.Run("emtpy input", func(t *testing.T) {
-		resolver := Resolver{}
-		docs, err := resolver.ResolveControllers(did.Document{}, nil)
+		ctrl := gomock.NewController(t)
+		resolver := types.NewMockDIDResolver(ctrl)
+		docs, err := ResolveControllers(resolver, did.Document{}, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 0,
 			"expected an empty list")
 	})
 
 	t.Run("doc is its own controller", func(t *testing.T) {
-		resolver := Resolver{}
+		ctrl := gomock.NewController(t)
+		resolver := types.NewMockDIDResolver(ctrl)
 		doc := did.Document{ID: *id123}
 		doc.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
-		docs, err := resolver.ResolveControllers(doc, nil)
+		docs, err := ResolveControllers(resolver, doc, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1,
 			"expected the document")
@@ -326,9 +328,10 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	})
 
 	t.Run("doc is deactivated", func(t *testing.T) {
-		resolver := Resolver{}
+		ctrl := gomock.NewController(t)
+		resolver := types.NewMockDIDResolver(ctrl)
 		doc := did.Document{ID: *id123}
-		docs, err := resolver.ResolveControllers(doc, nil)
+		docs, err := ResolveControllers(resolver, doc, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 0,
 			"expected an empty list when the document is deactivated")
@@ -336,20 +339,18 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("docA is controller of docB", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
+		resolver := types.NewMockDIDResolver(ctrl)
 
-		store := didstore.NewMockStore(ctrl)
-
-		resolver := Resolver{Store: store}
 		docA := did.Document{ID: *id123}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
 
 		resolveTime := time.Date(2010, 1, 1, 1, 1, 1, 0, time.UTC)
 		resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime}
-		store.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
+		resolver.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers(docB, resolveMD)
+		docs, err := ResolveControllers(resolver, docB, resolveMD)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1)
 		assert.Equal(t, docA, docs[0],
@@ -358,38 +359,32 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("docA is controller of docB and docA is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-
-		store := didstore.NewMockStore(ctrl)
-
-		resolver := Resolver{Store: store}
+		resolver := types.NewMockDIDResolver(ctrl)
 		docA := did.Document{ID: *id123}
 
 		resolveTime := time.Date(2010, 1, 1, 1, 1, 1, 0, time.UTC)
 		resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime}
-		store.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
+		resolver.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers(docB, resolveMD)
+		docs, err := ResolveControllers(resolver, docB, resolveMD)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 0)
 	})
 
 	t.Run("docA and docB are both the controllers of docB", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-
-		store := didstore.NewMockStore(ctrl)
-
-		resolver := Resolver{Store: store}
+		resolver := types.NewMockDIDResolver(ctrl)
 		docA := did.Document{ID: *id123}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
 
-		store.EXPECT().Resolve(*id123, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
+		resolver.EXPECT().Resolve(*id123, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123, *id456}}
 		docB.AddCapabilityInvocation(&did.VerificationMethod{ID: *id456Method1})
 
-		docs, err := resolver.ResolveControllers(docB, nil)
+		docs, err := ResolveControllers(resolver, docB, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 2)
 		assert.Equal(t, []did.Document{docB, docA}, docs,
@@ -398,14 +393,11 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("docA, docB and docC are controllers of docA, docB is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-
-		store := didstore.NewMockStore(ctrl)
-
-		resolver := Resolver{Store: store}
+		resolver := types.NewMockDIDResolver(ctrl)
 		// Doc B is deactivated
 		docBID, _ := did.ParseDID("did:nuts:B")
 		docB := did.Document{ID: *docBID}
-		store.EXPECT().Resolve(docB.ID, gomock.Any()).Return(&docB, &types.DocumentMetadata{}, nil)
+		resolver.EXPECT().Resolve(docB.ID, gomock.Any()).Return(&docB, &types.DocumentMetadata{}, nil)
 
 		// Doc C is active
 		docCID, _ := did.ParseDID("did:nuts:C")
@@ -413,7 +405,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docCIDCapInv.Fragment = "cap-inv"
 		docC := did.Document{ID: *docCID}
 		docC.AddCapabilityInvocation(&did.VerificationMethod{ID: docCIDCapInv})
-		store.EXPECT().Resolve(docC.ID, gomock.Any()).Return(&docC, &types.DocumentMetadata{}, nil)
+		resolver.EXPECT().Resolve(docC.ID, gomock.Any()).Return(&docC, &types.DocumentMetadata{}, nil)
 
 		// Doc A is active
 		docAID, _ := did.ParseDID("did:nuts:A")
@@ -423,7 +415,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 		docA.Controller = []did.DID{docA.ID, docB.ID, docC.ID}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: docAIDCapInv})
 
-		docs, err := resolver.ResolveControllers(docA, nil)
+		docs, err := ResolveControllers(resolver, docA, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 2)
 		assert.Contains(t, docs, docA, "expected docA to be resolved as controller of docA")
@@ -432,18 +424,15 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("docA is controller of docB, docA has explicit self link in Controllers", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-
-		store := didstore.NewMockStore(ctrl)
-
-		resolver := Resolver{Store: store}
+		resolver := types.NewMockDIDResolver(ctrl)
 		docA := did.Document{ID: *id123, Controller: []did.DID{*id123}}
 		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
 
-		store.EXPECT().Resolve(*id123, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
+		resolver.EXPECT().Resolve(*id123, gomock.Any()).Return(&docA, &types.DocumentMetadata{}, nil)
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers(docB, nil)
+		docs, err := ResolveControllers(resolver, docB, nil)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1)
 		assert.Equal(t, docA, docs[0],
@@ -452,15 +441,12 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("error - Resolve can not find the document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-
-		store := didstore.NewMockStore(ctrl)
-
-		resolver := Resolver{Store: store}
-		store.EXPECT().Resolve(*id123, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		resolver := types.NewMockDIDResolver(ctrl)
+		resolver.EXPECT().Resolve(*id123, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
-		docs, err := resolver.ResolveControllers(docB, nil)
+		docs, err := ResolveControllers(resolver, docB, nil)
 		assert.EqualError(t, err, "unable to resolve controller ref: unable to find the DID document")
 		assert.Len(t, docs, 0)
 	})
@@ -468,14 +454,14 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 func TestNutsKeyResolver_ResolvePublicKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	docResolver := types.NewMockDocResolver(ctrl)
-	keyResolver := NutsKeyResolver{Resolver: docResolver}
+	didResolver := types.NewMockDIDResolver(ctrl)
+	keyResolver := NutsKeyResolver{Resolver: didResolver}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
 
 	t.Run("ok by hash", func(t *testing.T) {
-		docResolver.EXPECT().Resolve(testDID, gomock.Any()).Do(func(arg0 interface{}, arg1 interface{}) {
+		didResolver.EXPECT().Resolve(testDID, gomock.Any()).Do(func(arg0 interface{}, arg1 interface{}) {
 			resolveMetadata := arg1.(*types.ResolveMetadata)
 			assert.Equal(t, hash.EmptyHash(), *resolveMetadata.SourceTransaction)
 		}).Return(doc, nil, nil)

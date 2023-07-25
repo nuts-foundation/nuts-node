@@ -64,7 +64,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, store didstore.Store,
 	r := &vcr{
 		config:          DefaultConfig(),
 		didstore:        store,
-		docResolver:     didservice.Resolver{Store: store},
+		didResolver:     didservice.Resolver{Store: store},
 		keyStore:        keyStore,
 		keyResolver:     didservice.KeyResolver{Store: store},
 		serviceResolver: didservice.ServiceResolver{Store: store},
@@ -87,7 +87,7 @@ type vcr struct {
 	store               storage.KVBackedLeiaStore
 	didstore            didstore.Store
 	keyStore            crypto.KeyStore
-	docResolver         vdr.DocResolver
+	didResolver         vdr.DIDResolver
 	keyResolver         vdr.KeyResolver
 	serviceResolver     vdr.ServiceResolver
 	ambassador          Ambassador
@@ -235,7 +235,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, c.didstore, c.keyStore, c.jsonldManager, c.trustConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
+	c.verifier = verifier.NewVerifier(c.verifierStore, c.didResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
@@ -504,7 +504,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 			if err != nil {
 				return err
 			}
-			_, _, err = c.docResolver.Resolve(*issuerDid, nil)
+			_, _, err = c.didResolver.Resolve(*issuerDid, nil)
 			if err != nil {
 				if !(errors.Is(err, did.DeactivatedErr) || errors.Is(err, vdr.ErrNoActiveController)) {
 					return err

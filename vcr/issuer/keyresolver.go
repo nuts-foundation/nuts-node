@@ -29,14 +29,14 @@ import (
 
 // vdrKeyResolver resolves private keys based upon the VDR document resolver
 type vdrKeyResolver struct {
-	docResolver vdr.DocResolver
+	didResolver vdr.DIDResolver
 	keyResolver crypto.KeyResolver
 }
 
 // ResolveAssertionKey is a convenience method which tries to find a assertionKey on in the VDR for a given issuerDID.
 func (r vdrKeyResolver) ResolveAssertionKey(ctx context.Context, issuerDID did.DID) (crypto.Key, error) {
 	// find did document/metadata for originating TXs
-	document, _, err := r.docResolver.Resolve(issuerDID, nil)
+	document, _, err := r.didResolver.Resolve(issuerDID, nil)
 	if err != nil {
 		return nil, err
 	}

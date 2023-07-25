@@ -43,16 +43,16 @@ type cachingDocumentOwner struct {
 	underlying   types.DocumentOwner
 	ownedDIDs    *sync.Map
 	notOwnedDIDs *sync.Map
-	docResolver  types.DocResolver
+	didResolver  types.DIDResolver
 }
 
 func (t *cachingDocumentOwner) ListOwned(ctx context.Context) ([]did.DID, error) {
 	return t.underlying.ListOwned(ctx)
 }
 
-func newCachingDocumentOwner(underlying types.DocumentOwner, docResolver types.DocResolver) *cachingDocumentOwner {
+func newCachingDocumentOwner(underlying types.DocumentOwner, didResolver types.DIDResolver) *cachingDocumentOwner {
 	return &cachingDocumentOwner{
-		docResolver:  docResolver,
+		didResolver:  didResolver,
 		underlying:   underlying,
 		ownedDIDs:    new(sync.Map),
 		notOwnedDIDs: new(sync.Map),
@@ -75,7 +75,7 @@ func (t *cachingDocumentOwner) IsOwner(ctx context.Context, id did.DID) (bool, e
 
 	// First perform a cheap DID existence check (subsequent checks are more expensive),
 	// without caching it as negative match (would allow unbound number of negative matches).
-	_, _, err := t.docResolver.Resolve(id, nil)
+	_, _, err := t.didResolver.Resolve(id, nil)
 	if didservice.IsFunctionalResolveError(err) {
 		return false, nil
 	} else if err != nil {

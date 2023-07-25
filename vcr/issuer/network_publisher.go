@@ -38,7 +38,7 @@ import (
 
 type networkPublisher struct {
 	networkTx       network.Transactions
-	didDocResolver  vdr.DocResolver
+	didResolver     vdr.DIDResolver
 	serviceResolver vdr.ServiceResolver
 	keyResolver     keyResolver
 }
@@ -46,13 +46,13 @@ type networkPublisher struct {
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
 // It is the default implementation to use for issuers to publish credentials and revocations to the Nuts network.
 func NewNetworkPublisher(networkTx network.Transactions, store didstore.Store, keyResolver crypto.KeyResolver) Publisher {
-	docResolver := didservice.Resolver{Store: store}
+	didResolver := didservice.Resolver{Store: store}
 	return &networkPublisher{
 		networkTx:       networkTx,
-		didDocResolver:  docResolver,
+		didResolver:     didResolver,
 		serviceResolver: didservice.ServiceResolver{Store: store},
 		keyResolver: vdrKeyResolver{
-			docResolver: docResolver,
+			didResolver: didResolver,
 			keyResolver: keyResolver,
 		},
 	}
@@ -83,7 +83,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 	}
 
 	// find did document/metadata for originating TXs
-	_, meta, err := p.didDocResolver.Resolve(*issuerDID, nil)
+	_, meta, err := p.didResolver.Resolve(*issuerDID, nil)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (p networkPublisher) PublishRevocation(ctx context.Context, revocation cred
 	}
 
 	// find did document/metadata for originating TXs
-	_, meta, err := p.didDocResolver.Resolve(*issuerDID, nil)
+	_, meta, err := p.didResolver.Resolve(*issuerDID, nil)
 	if err != nil {
 		return fmt.Errorf("could not resolve issuer DID document: %w", err)
 	}

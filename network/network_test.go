@@ -1331,7 +1331,7 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	pkiMock := pki.NewMockValidator(ctrl)
 	network := NewNetworkInstance(networkConfig, didStore, keyStore, eventPublisher, storageEngine.GetProvider(ModuleName), pkiMock)
 	network.keyResolver = keyResolver
-	network.didDocumentResolver = didservice.Resolver{Store: didStore}
+	network.didResolver = didservice.Resolver{Store: didStore}
 	network.serviceResolver = didservice.ServiceResolver{Store: didStore}
 	network.didDocumentFinder = docFinder
 	network.state = state
