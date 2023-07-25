@@ -20,11 +20,15 @@ package pe
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/dlclark/regexp2"
 	"github.com/nuts-foundation/go-did/vc"
 )
+
+// ErrUnsupportedFilter is returned when a filter uses unsupported features.
+var ErrUnsupportedFilter = errors.New("unsupported filter")
 
 // todo check VC format with requested format
 
@@ -149,7 +153,29 @@ func getValueAtPath(path string, vc vc.VerifiableCredential) (interface{}, error
 	return jsonpath.Get(path, asInterface)
 }
 
+// matchFilter matches the value against the filter.
+// A filter is a JSON Schema descriptor (https://json-schema.org/draft/2020-12/json-schema-validation.html#name-a-vocabulary-for-structural)
+// Supported schema types: string, number, boolean, array, enum.
+// Supported schema properties: const, enum, pattern. These only work for strings.
+// Supported go value types: string, float64, int, bool and array.
+// 'null' values are also not supported.
+// It returns an error on unsupported features or when the regex pattern fails.
 func matchFilter(filter Filter, value interface{}) (bool, error) {
+	// first we check if it's an enum, so we can recursively call matchFilter for each value
+	if filter.Enum != nil {
+		for _, enum := range *filter.Enum {
+			f := Filter{
+				Type:  "string",
+				Const: &enum,
+			}
+			match, _ := matchFilter(f, value)
+			if match {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+
 	switch value.(type) {
 	case string:
 		if filter.Type != "string" {
@@ -179,8 +205,8 @@ func matchFilter(filter Filter, value interface{}) (bool, error) {
 			}
 		}
 	default:
-		// array and object not supported for now
-		return false, nil
+		// object not supported for now
+		return false, ErrUnsupportedFilter
 	}
 
 	if filter.Const != nil {
@@ -196,7 +222,6 @@ func matchFilter(filter Filter, value interface{}) (bool, error) {
 		}
 		return re.MatchString(value.(string))
 	}
-	// ignore enum for now
 
 	return true, nil
 }

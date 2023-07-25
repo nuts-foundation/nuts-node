@@ -81,5 +81,86 @@ func TestMatch(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, vcs, 1)
-	assert.Len(t, presentationSubmission.DescriptorMap, 1)
+	require.Len(t, presentationSubmission.DescriptorMap, 1)
+	assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+}
+
+func Test_matchFilter(t *testing.T) {
+	// values for pointer fields
+	stringValue := "test"
+	boolValue := true
+	intValue := 1
+	floatValue := 1.0
+
+	t.Run("type filter", func(t *testing.T) {
+		fString := Filter{Type: "string"}
+		fNumber := Filter{Type: "number"}
+		fBoolean := Filter{Type: "boolean"}
+		type testCaseDef struct {
+			name   string
+			filter Filter
+			value  interface{}
+			want   bool
+		}
+		testCases := []testCaseDef{
+			{name: "string", filter: fString, value: stringValue, want: true},
+			{name: "bool", filter: fBoolean, value: boolValue, want: true},
+			{name: "number/float", filter: fNumber, value: floatValue, want: true},
+			{name: "number/int", filter: fNumber, value: intValue, want: true},
+			{name: "string array", filter: fString, value: []interface{}{stringValue}, want: true},
+			{name: "bool array", filter: fBoolean, value: []interface{}{boolValue}, want: true},
+			{name: "number/float array", filter: fNumber, value: []interface{}{floatValue}, want: true},
+			{name: "number/int array", filter: fNumber, value: []interface{}{intValue}, want: true},
+			{name: "string with bool", filter: fString, value: boolValue, want: false},
+			{name: "string with int", filter: fString, value: intValue, want: false},
+			{name: "bool with float", filter: fBoolean, value: floatValue, want: false},
+			{name: "number with string", filter: fNumber, value: stringValue, want: false},
+		}
+
+		for _, testCase := range testCases {
+			t.Run(testCase.name, func(t *testing.T) {
+				got, err := matchFilter(testCase.filter, testCase.value)
+				require.NoError(t, err)
+				assert.Equal(t, testCase.want, got)
+			})
+		}
+	})
+
+	t.Run("string filter properties", func(t *testing.T) {
+		f1 := Filter{Type: "string", Const: &stringValue}
+		f2 := Filter{Type: "string", Enum: &[]string{stringValue}}
+		f3 := Filter{Type: "string", Pattern: &stringValue}
+		filters := []Filter{f1, f2, f3}
+		t.Run("ok", func(t *testing.T) {
+			for _, filter := range filters {
+				match, err := matchFilter(filter, stringValue)
+				require.NoError(t, err)
+				assert.True(t, match)
+			}
+		})
+		t.Run("enum value not found", func(t *testing.T) {
+			match, err := matchFilter(f2, "foo")
+			require.NoError(t, err)
+			assert.False(t, match)
+		})
+	})
+
+	t.Run("error cases", func(t *testing.T) {
+		t.Run("enum with wrong type", func(t *testing.T) {
+			f := Filter{Type: "object"}
+			match, err := matchFilter(f, struct{}{})
+			assert.False(t, match)
+			assert.Equal(t, err, ErrUnsupportedFilter)
+		})
+		t.Run("incorrect regex", func(t *testing.T) {
+			pattern := "["
+			f := Filter{Type: "string", Pattern: &pattern}
+			match, err := matchFilter(f, stringValue)
+			assert.False(t, match)
+			assert.Error(t, err, "error parsing regexp: missing closing ]: `[`")
+			match, err = matchFilter(f, []interface{}{stringValue})
+			assert.False(t, match)
+			assert.Error(t, err, "error parsing regexp: missing closing ]: `[`")
+		})
+	})
 }
