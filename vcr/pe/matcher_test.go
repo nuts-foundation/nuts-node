@@ -85,6 +85,97 @@ func TestMatch(t *testing.T) {
 	assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
 }
 
+func Test_matchField(t *testing.T) {
+	testCredentialString := `
+{
+  "type": "VerifiableCredential",
+  "credentialSubject": {
+	"field": "value"
+  }
+}`
+	testCredential := vc.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(testCredentialString), &testCredential)
+
+	t.Run("single path match", func(t *testing.T) {
+		match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}}, testCredential)
+
+		require.NoError(t, err)
+		assert.True(t, match)
+	})
+	t.Run("multi path match", func(t *testing.T) {
+		match, err := matchField(Field{Path: []string{"$.other", "$.credentialSubject.field"}}, testCredential)
+
+		require.NoError(t, err)
+		assert.True(t, match)
+	})
+	t.Run("no match", func(t *testing.T) {
+		match, err := matchField(Field{Path: []string{"$.foo", "$.bar"}}, testCredential)
+
+		require.NoError(t, err)
+		assert.False(t, match)
+	})
+	t.Run("no match, but optional", func(t *testing.T) {
+		trueVal := true
+		match, err := matchField(Field{Path: []string{"$.foo", "$.bar"}, Optional: &trueVal}, testCredential)
+
+		require.NoError(t, err)
+		assert.True(t, match)
+	})
+	t.Run("invalid match and optional", func(t *testing.T) {
+		trueVal := true
+		stringVal := "bar"
+		match, err := matchField(Field{Path: []string{"$.credentialSubject.field", "$.foo"}, Optional: &trueVal, Filter: &Filter{Const: &stringVal}}, testCredential)
+
+		require.NoError(t, err)
+		assert.False(t, match)
+	})
+	t.Run("valid match with Filter", func(t *testing.T) {
+		stringVal := "value"
+		match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredential)
+
+		require.NoError(t, err)
+		assert.True(t, match)
+	})
+	t.Run("match on type", func(t *testing.T) {
+		stringVal := "VerifiableCredential"
+		match, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredential)
+
+		require.NoError(t, err)
+		assert.True(t, match)
+	})
+	t.Run("match on type array", func(t *testing.T) {
+		testCredentialString = `
+{
+  "type": ["VerifiableCredential"],
+  "credentialSubject": {
+	"field": "value"
+  }
+}`
+		_ = json.Unmarshal([]byte(testCredentialString), &testCredential)
+		stringVal := "VerifiableCredential"
+		match, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredential)
+
+		require.NoError(t, err)
+		assert.True(t, match)
+	})
+
+	t.Run("errors", func(t *testing.T) {
+		t.Run("invalid path", func(t *testing.T) {
+			match, err := matchField(Field{Path: []string{"$$"}}, testCredential)
+
+			require.Error(t, err)
+			assert.False(t, match)
+		})
+		t.Run("invalid pattern", func(t *testing.T) {
+			pattern := "["
+			match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Pattern: &pattern}}, testCredential)
+
+			require.Error(t, err)
+			assert.False(t, match)
+		})
+	})
+}
+
 func Test_matchFilter(t *testing.T) {
 	// values for pointer fields
 	stringValue := "test"

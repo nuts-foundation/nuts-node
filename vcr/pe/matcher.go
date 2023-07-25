@@ -24,13 +24,32 @@ import (
 	"fmt"
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/dlclark/regexp2"
+	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/vc"
+	"strings"
 )
 
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 var ErrUnsupportedFilter = errors.New("unsupported filter")
 
 // todo check VC format with requested format
+
+// todo path and path_nested should be relative to vp:
+// {
+//    "id": "Presentation example 1",
+//    "definition_id": "Example with selective disclosure",
+//    "descriptor_map": [
+//        {
+//            "id": "ID card with constraints",
+//            "format": "ldp_vp",
+//            "path": "$",
+//            "path_nested": {
+//                "format": "ldp_vc",
+//                "path": "$.verifiableCredential[0]"
+//            }
+//        }
+//    ]
+//}
 
 func Match(presentationDefinition PresentationDefinition, vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
 	// for each VC in vcs:
@@ -39,7 +58,7 @@ func Match(presentationDefinition PresentationDefinition, vcs []vc.VerifiableCre
 	// for each field in constraint.fields:
 	//   a vc must match the field
 	presentationSubmission := PresentationSubmission{
-		Id:           presentationDefinition.Id, // todo random
+		Id:           uuid.New().String(),
 		DefinitionId: presentationDefinition.Id,
 	}
 	var matchingCredentials []vc.VerifiableCredential
@@ -105,6 +124,8 @@ func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential
 	return true, nil
 }
 
+// matchField matches the field against the VC.
+// All fields need to match unless optional is set to true and no values are found for all the paths.
 func matchField(field Field, credential vc.VerifiableCredential) (bool, error) {
 	// for each path in field.paths:
 	//   a vc must match one of the path
@@ -118,18 +139,21 @@ func matchField(field Field, credential vc.VerifiableCredential) (bool, error) {
 		if value == nil {
 			continue
 		}
-		// if filter at path matches return true
-		if field.Filter != nil {
-			match, err := matchFilter(*field.Filter, value)
-			if err != nil {
-				return false, err
-			}
-			if match {
-				return true, nil
-			}
-			// if filter at path does not match continue and set optionalInvalid
-			optionalInvalid++
+
+		if field.Filter == nil {
+			return true, nil
 		}
+
+		// if filter at path matches return true
+		match, err := matchFilter(*field.Filter, value)
+		if err != nil {
+			return false, err
+		}
+		if match {
+			return true, nil
+		}
+		// if filter at path does not match continue and set optionalInvalid
+		optionalInvalid++
 	}
 	// no matches, check optional. Optional is only valid if all paths returned no results
 	// not if a filter did not match
@@ -143,14 +167,15 @@ func matchField(field Field, credential vc.VerifiableCredential) (bool, error) {
 func getValueAtPath(path string, vc vc.VerifiableCredential) (interface{}, error) {
 	// first convert the VC back to JSON
 	// then use the JSON path expression to get the value
-	asJSON, err := json.Marshal(vc)
-	if err != nil {
-		return nil, err
-	}
+	asJSON, _ := json.Marshal(vc)
 	var asInterface interface{}
 	_ = json.Unmarshal(asJSON, &asInterface)
 
-	return jsonpath.Get(path, asInterface)
+	value, err := jsonpath.Get(path, asInterface)
+	if err != nil && strings.HasPrefix(err.Error(), "unknown key") {
+		return nil, nil
+	}
+	return value, err
 }
 
 // matchFilter matches the value against the filter.
