@@ -18,7 +18,10 @@
 package didjwk
 
 // An example did:jwk from https://github.com/quartzjer/did-jwk/blob/6520a0edc8fa8f37c09af99efe841d54c3ca3b3b/spec.md
-const b64EncodedCanonicalJWK = `eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6ImFjYklRaXVNczNpOF91c3pFakoydHBUdFJNNEVVM3l6OTFQSDZDZEgyVjAiLCJ5IjoiX0tjeUxqOXZXTXB0bm1LdG00NkdxRHo4d2Y3NEk1TEtncmwyR3pIM25TRSJ9`
+const canonicalJWK = `{"crv":"P-256","kty":"EC","x":"acbIQiuMs3i8_uszEjJ2tpTtRM4EU3yz91PH6CdH2V0","y":"_KcyLj9vWMptnmKtm46GqDz8wf74I5LKgrl2GzH3nSE"}`
+
+// Valid JSON which is not a valid JWK
+const validJSONInvalidJWK = `{"json": "this valid JSON is not a JWK"}`
 
 const rsa2048JWKWithPrivateKey = `{
     "p": "0_Eh8fgryISKMIRlUel3sKJaL30FM6bZR-6Z38nhxnbO38q0Db_MNS1Kp8Hkb6O5LsplSoIwx2i5U6q-6uFuKYBm0cYBf3oYOyn68THXnHnNhQwXaFseqE20gtsJScIAE8cLf9SKCQExy9dLjOMCTaERH-f_8mEVf9oKhCTUGJc",
@@ -68,3 +71,16 @@ const ec521JWKWithPrivateKey = `{
     "y": "AfgkjDVsE9wNuHshxtHMXShtL3rNt3XfWOcL_NfNwVY1bCMrcUgTUUoC0ouU0eQIZQ5mMipU_EjlSJnAEdypR4jN"
 }`
 
+const ed25519JWKWithPrivateKey = `{
+    "kty": "OKP",
+    "d": "XdluFsGwtlPk-TaIHFXeXKcTB3O4IwjnRMHMKrjnTMQ",
+    "crv": "Ed25519",
+    "x": "xsX_imAPPsfj3Oyb8_DDSbV67mmZ8uSqusoTW91XOvo"
+}`
+
+const x25519JWKWithPrivateKey = `{
+    "kty": "OKP",
+    "d": "5ujXUK8CTwkDOzKKp81-ZnkQnF_GVuhgM4nIqW46ybA",
+    "crv": "X25519",
+    "x": "Kkm-lOPbHjs8FREsPxV1q6iYx9tDMPRNeL8k0lT5PwY"
+}`

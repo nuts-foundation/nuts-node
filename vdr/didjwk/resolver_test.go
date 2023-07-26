@@ -28,73 +28,87 @@ import (
 )
 
 func TestResolver_Resolve(t *testing.T) {
-	var baseDID did.DID
+	// Allocate a DID JWK resolver
 	resolver := &Resolver{}
 
-	baseDID = did.MustParseDID("did:jwk:" + b64EncodedCanonicalJWK)
+	// Define a test generator for successful resolution
+	success := func(id string) func(t *testing.T) {
+		return func(t *testing.T) {
+			// Parse the DID using the provided ID
+			baseDID := did.MustParseDID("did:jwk:" + id)
 
-	t.Run("resolve did:jwk", func(t *testing.T) {
-		doc, md, err := resolver.Resolve(baseDID, nil)
+			// Resolve the DID
+			doc, metadata, err := resolver.Resolve(baseDID, nil)
 
-		require.NoError(t, err)
-		assert.NotNil(t, md)
-		require.NotNil(t, doc)
-		assert.Equal(t, baseDID, doc.ID)
-	})
+			// Ensure no error was returned
+			require.NoError(t, err)
 
-	t.Run("resolve DID JWK URL", func(t *testing.T) {
-		doc, md, err := resolver.Resolve(baseDID, nil)
+			// Ensure the metadata was returned
+			assert.NotNil(t, metadata)
 
-		require.NoError(t, err)
-		assert.NotNil(t, md)
-		require.NotNil(t, doc)
-		assert.Equal(t, baseDID, doc.ID)
-	})
+			// Ensure the DID document was returned
+			require.NotNil(t, doc)
 
-	t.Run("Invalid base64 data fails", func(t *testing.T) {
-		id := did.MustParseDIDURL(baseDID.String() + ":invalid-base64-data")
-		doc, md, err := resolver.Resolve(id, nil)
+			// Ensure the DID document has the correct ID
+			assert.Equal(t, baseDID, doc.ID)
+		}
+	}
 
-		require.ErrorContains(t, err, "illegal base64 data")
-		assert.Nil(t, md)
-		assert.Nil(t, doc)
-	})
+	// Use a utility function for encoding strings to base 64 strings
+	b64 := func(s string) string {
+		return base64.RawStdEncoding.EncodeToString([]byte(s))
+	}
 
-	t.Run("base64 encoded non-JSON fails", func(t *testing.T) {
-		id := did.MustParseDIDURL("did:jwk:SSBhbSBub3QgYSBqd2s")
-		doc, md, err := resolver.Resolve(id, nil)
+	// Ensure the canonical example from the DID JWK spec can be resolved
+	t.Run("resolve did:jwk", success(b64(canonicalJWK)))
 
-		require.ErrorContains(t, err, "failed to unmarshal JSON")
-		assert.Nil(t, md)
-		assert.Nil(t, doc)
-	})
+	// Ensure the DID JWK with the fixed '#0' fragment can be resolved
+	// TODO: Much confusion here
+	//t.Run("resolve did:jwk URL (with fragment)", success(b64(canonicalJWK) + "#0"))
 
-	t.Run("base64+JSON encoded non-JWK fails", func(t *testing.T) {
-		id := did.MustParseDIDURL("did:jwk:eyJqc29uIjogInRoaXMgdmFsaWQgSlNPTiBpcyBub3QgYSBKV0sifQ")
-		doc, md, err := resolver.Resolve(id, nil)
-
-		require.ErrorContains(t, err, "invalid key type from JSON")
-		assert.Nil(t, md)
-		assert.Nil(t, doc)
-	})
-
-	t.Run("DID JWK with private key fails", func(t *testing.T) {
-		testFunc := func(json string) func(t *testing.T) {
+	// Test the various failure modes of resolution
+	t.Run("resolution errors", func(t *testing.T) {
+		// Define a test function generator
+		failure := func(id string, msg string) func(t *testing.T) {
+			// Generate a test function using the specified JWK JSON string
 			return func(t *testing.T) {
-				id := did.MustParseDIDURL("did:jwk:" + base64.RawStdEncoding.EncodeToString([]byte(json)))
+				// Parse the DID
+				id := did.MustParseDIDURL("did:jwk:" + id)
+
+				// Resolve the DID, which returns a document/error
 				doc, md, err := resolver.Resolve(id, nil)
 
-				require.ErrorContains(t, err, "private keys are forbidden in DID JWK")
+				// Ensure the resolution failed with the appropriate error message
+				require.ErrorContains(t, err, msg)
+
+				// Ensure a document and metadata were not returned
 				assert.Nil(t, md)
 				assert.Nil(t, doc)
 			}
 		}
 
-		t.Run("RSA2048", testFunc(rsa2048JWKWithPrivateKey))
-		t.Run("RSA4096", testFunc(rsa4096JWKWithPrivateKey))
-		t.Run("EC256", testFunc(ec256JWKWithPrivateKey))
-		t.Run("EC384", testFunc(ec384JWKWithPrivateKey))
-		t.Run("EC512", testFunc(ec521JWKWithPrivateKey))
-	})
+		// Ensure invalid base64 DID fails
+		t.Run("Invalid base64 data fails", failure(b64(canonicalJWK) + ":invalid-base64-data", "illegal base64 data at input"))
 
+		// Ensure a DID with invalid JSON fails
+		t.Run("base64 encoded non-JSON fails", failure("!@#__NOT JSON__#@!", "failed to unmarshal JSON"))
+
+		// Ensure valid JSON as an invalid JWK fails
+		t.Run("base64+JSON encoded non-JWK fails", failure(validJSONInvalidJWK, "invalid key type from JSON"))
+
+		// Ensure resolution fails when a DID JWK contains a private key
+		t.Run("DID JWK with private key fails", func(t *testing.T) {
+			// Parsing a DID JWK containing a private key should result in this error
+			msg := "private keys are forbidden in DID JWK"
+
+			// Test various private key types
+			t.Run("RSA2048", failure(b64(rsa2048JWKWithPrivateKey), msg))
+			t.Run("RSA4096", failure(b64(rsa4096JWKWithPrivateKey), msg))
+			t.Run("EC256", failure(b64(ec256JWKWithPrivateKey), msg))
+			t.Run("EC384", failure(b64(ec384JWKWithPrivateKey), msg))
+			t.Run("EC512", failure(b64(ec521JWKWithPrivateKey), msg))
+			t.Run("Ed25519", failure(b64(ed25519JWKWithPrivateKey), msg))
+			t.Run("X25519", failure(b64(x25519JWKWithPrivateKey), msg))
+		})
+	})
 }
