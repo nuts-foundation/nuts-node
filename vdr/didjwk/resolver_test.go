@@ -33,7 +33,7 @@ func TestResolver_Resolve(t *testing.T) {
 	var baseDID did.DID
 	resolver := &Resolver{}
 
-	baseDID = did.MustParseDIDURL("did:jwk:" + b64EncodedTestJWK + "#0")
+	baseDID = did.MustParseDID("did:jwk:" + b64EncodedTestJWK)
 
 	t.Run("resolve did:jwk", func(t *testing.T) {
 		doc, md, err := resolver.Resolve(baseDID, nil)

@@ -21,7 +21,6 @@ package didjwk
 import (
 	"encoding/base64"
 	"fmt"
-	"strings"
 
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
@@ -48,16 +47,8 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 		return nil, nil, fmt.Errorf("unsupported did method: %s", id.Method)
 	}
 
-	// Split the JWK ID on ':' characters to get the base64 encoded JWK
-	idParts := strings.Split(id.String(), ":")
-	if len(idParts) != 3 {
-		return nil, nil, fmt.Errorf("malformed did:jwk, expected 3 parts (did:jwk:...): %s", id.ID)
-	}
-	b64EncodedJWK := idParts[2]
-
-	// Remove any '#0' fragment suffix from the string
-	// See https://github.com/quartzjer/did-jwk/blob/6520a0edc8fa8f37c09af99efe841d54c3ca3b3b/spec.md#to-create-the-did-url
-	b64EncodedJWK, _ = strings.CutSuffix(b64EncodedJWK, "#0")
+	// Get the third section of the did, e.g. "did:jwk:..."
+	b64EncodedJWK := id.ID
 
 	// Decode the base64 to JWK
 	encodedJWK, err := base64.RawStdEncoding.DecodeString(b64EncodedJWK)
@@ -88,7 +79,7 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 	var document did.Document
 
 	// Set the document ID
-	newID, err := did.ParseDIDURL("did:jwk:" + b64EncodedJWK + "#0")
+	newID, err := did.ParseDIDURL("did:jwk:" + b64EncodedJWK)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create document id: %w", err)
 	}
