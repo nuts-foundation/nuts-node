@@ -6,4 +6,5 @@ From this directory, run:
 go run .
 ```
 
-It'll generate `types.go` within the `pe` package.
+It'll generate `generated.go` within the `pe` package.
+The generated code is not really useful, but it could serve as a guide for the types that are expected by the API.

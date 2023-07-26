@@ -21,9 +21,9 @@ package pe
 import (
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"os"
 	"testing"
 )
 
@@ -43,7 +43,7 @@ const testPresentationDefinition = `
 			],
 			"filter": {
 			  "type": "string",
-			  "const": "Caretown"
+			  "const": "IJbergen"
 			}
 		  },
 		  {
@@ -52,7 +52,7 @@ const testPresentationDefinition = `
 			],
 			"filter": {
 			  "type": "string",
-			  "pattern": "Care"
+			  "pattern": "care"
 			}
 		  },
 		  {
@@ -67,15 +67,35 @@ const testPresentationDefinition = `
 		]
 	  }
 	}
-  ]
+  ],
+  "format": {
+    "jwt_vc": {
+      "alg": ["ES256K", "ES384"]
+    },
+	"ldp_vc": {
+      "proof_type": [
+	    "JsonWebSignature2020"
+	  ]
+	}
+  } 
 }
 `
 
+var testCredentialString = `
+{
+  "type": "VerifiableCredential",
+  "credentialSubject": {
+	"field": "value"
+  }
+}`
+
 func TestMatch(t *testing.T) {
 	presentationDefinition := PresentationDefinition{}
-	_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
+	err := json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
+	require.NoError(t, err)
 	verifiableCredential := vc.VerifiableCredential{}
-	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &verifiableCredential)
+	vcJSON, _ := os.ReadFile("../test/vc.json")
+	_ = json.Unmarshal(vcJSON, &verifiableCredential)
 
 	presentationSubmission, vcs, err := Match(presentationDefinition, []vc.VerifiableCredential{verifiableCredential})
 
@@ -85,14 +105,128 @@ func TestMatch(t *testing.T) {
 	assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
 }
 
+func Test_matchFormat(t *testing.T) {
+	verifiableCredential := vc.VerifiableCredential{}
+	vcJSON, _ := os.ReadFile("../test/vc.json")
+	_ = json.Unmarshal(vcJSON, &verifiableCredential)
+
+	t.Run("no format", func(t *testing.T) {
+		match := matchFormat(nil, vc.VerifiableCredential{})
+
+		assert.True(t, match)
+	})
+
+	t.Run("empty format", func(t *testing.T) {
+		match := matchFormat(&PresentationDefinitionClaimFormatDesignations{}, vc.VerifiableCredential{})
+
+		assert.True(t, match)
+	})
+
+	t.Run("format with jwt_vc always returns false", func(t *testing.T) {
+		asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}}
+		asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
+		match := matchFormat(&asFormat, vc.VerifiableCredential{})
+
+		assert.False(t, match)
+	})
+
+	t.Run("format with matching ldp_vc", func(t *testing.T) {
+		asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}, "ldp_vc": {"proof_type": {"JsonWebSignature2020"}}}
+		asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
+		match := matchFormat(&asFormat, verifiableCredential)
+
+		assert.True(t, match)
+	})
+
+	t.Run("non-matching ldp_vc", func(t *testing.T) {
+		asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}, "ldp_vc": {"proof_type": {"Ed25519Signature2018"}}}
+		asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
+		match := matchFormat(&asFormat, verifiableCredential)
+
+		assert.False(t, match)
+	})
+
+	t.Run("missing proof_type", func(t *testing.T) {
+		asMap := map[string]map[string][]string{"ldp_vc": {}}
+		asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
+		match := matchFormat(&asFormat, verifiableCredential)
+
+		assert.False(t, match)
+	})
+}
+
+func Test_matchDescriptor(t *testing.T) {
+	testCredential := vc.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(testCredentialString), &testCredential)
+	t.Run("no match", func(t *testing.T) {
+		field := Field{Path: []string{"$.credentialSubject.foo"}}
+
+		idmo, err := matchDescriptor(InputDescriptor{Constraints: &Constraints{Fields: []Field{field}}}, testCredential)
+
+		require.NoError(t, err)
+		assert.Nil(t, idmo)
+	})
+	t.Run("match", func(t *testing.T) {
+		field := Field{Path: []string{"$.credentialSubject.field"}}
+
+		idmo, err := matchDescriptor(InputDescriptor{Constraints: &Constraints{Fields: []Field{field}}}, testCredential)
+
+		require.NoError(t, err)
+		require.NotNil(t, idmo)
+	})
+}
+
+func Test_matchCredential(t *testing.T) {
+	t.Run("no constraints is a match", func(t *testing.T) {
+		match, err := matchCredential(InputDescriptor{}, vc.VerifiableCredential{})
+
+		require.NoError(t, err)
+		assert.True(t, match)
+	})
+}
+
+func Test_matchConstraint(t *testing.T) {
+	testCredential := vc.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(testCredentialString), &testCredential)
+
+	typeVal := "VerifiableCredential"
+	f1True := Field{Path: []string{"$.credentialSubject.field"}}
+	f2True := Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &typeVal}}
+	f3False := Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &typeVal}}
+
+	t.Run("single constraint match", func(t *testing.T) {
+		match, err := matchConstraint(&Constraints{Fields: []Field{f1True}}, testCredential)
+
+		require.NoError(t, err)
+		assert.True(t, match)
+	})
+	t.Run("single constraint mismatch", func(t *testing.T) {
+		match, err := matchConstraint(&Constraints{Fields: []Field{f3False}}, testCredential)
+
+		require.NoError(t, err)
+		assert.False(t, match)
+	})
+	t.Run("multi constraint match", func(t *testing.T) {
+		match, err := matchConstraint(&Constraints{Fields: []Field{f1True, f2True}}, testCredential)
+
+		require.NoError(t, err)
+		assert.True(t, match)
+	})
+	t.Run("multi constraint, single mismatch", func(t *testing.T) {
+		match, err := matchConstraint(&Constraints{Fields: []Field{f1True, f3False}}, testCredential)
+
+		require.NoError(t, err)
+		assert.False(t, match)
+	})
+	t.Run("error", func(t *testing.T) {
+		match, err := matchConstraint(&Constraints{Fields: []Field{{Path: []string{"$$"}}}}, testCredential)
+
+		require.Error(t, err)
+		assert.False(t, match)
+	})
+}
+
 func Test_matchField(t *testing.T) {
-	testCredentialString := `
-{
-  "type": "VerifiableCredential",
-  "credentialSubject": {
-	"field": "value"
-  }
-}`
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(testCredentialString), &testCredential)
 

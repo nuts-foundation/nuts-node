@@ -32,25 +32,17 @@ import (
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 var ErrUnsupportedFilter = errors.New("unsupported filter")
 
-// todo check VC format with requested format
-
-// todo path and path_nested should be relative to vp:
-// {
-//    "id": "Presentation example 1",
-//    "definition_id": "Example with selective disclosure",
-//    "descriptor_map": [
-//        {
-//            "id": "ID card with constraints",
-//            "format": "ldp_vp",
-//            "path": "$",
-//            "path_nested": {
-//                "format": "ldp_vc",
-//                "path": "$.verifiableCredential[0]"
-//            }
-//        }
-//    ]
-//}
-
+// Match matches the VCs against the presentation definition.
+// It only supports the following:
+// - ldp_vc format
+// - pattern, const and enum only on string fields
+// - number, boolean, array and string JSON schema types
+// It doesn't do the credential search, this should be done before calling this function.
+// The PresentationDefinition.Format should be altered/set if an envelope defines the supported format before calling.
+// The resulting PresentationSubmission has paths that are relative to the matching VCs.
+// The PresentationSubmission needs to be altered so the paths use "path_nested"s that are relative to the created VP.
+// ErrUnsupportedFilter is returned when a filter uses unsupported features.
+// Other errors can be returned for faulty JSON paths or regex patterns.
 func Match(presentationDefinition PresentationDefinition, vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
 	// for each VC in vcs:
 	// for each descriptor in presentation_definition.descriptors:
@@ -70,7 +62,7 @@ func Match(presentationDefinition PresentationDefinition, vcs []vc.VerifiableCre
 			if err != nil {
 				return PresentationSubmission{}, nil, err
 			}
-			if mapping != nil {
+			if mapping != nil && matchFormat(presentationDefinition.Format, credential) {
 				mapping.Path = fmt.Sprintf("$.verifiableCredential[%d]", i)
 				presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, *mapping)
 				matchingCredentials = append(matchingCredentials, credential)
@@ -85,6 +77,46 @@ func Match(presentationDefinition PresentationDefinition, vcs []vc.VerifiableCre
 	return presentationSubmission, matchingCredentials, nil
 }
 
+// matchFormat checks if the credential matches the Format from the presentationDefinition.
+// if one of format['ldp_vc'] or format['jwt_vc'] is present, the VC must match that format.
+// If the VC is of the required format, the alg or proofType must also match.
+// vp formats are ignored.
+// This might not be fully interoperable, but the spec at https://identity.foundation/presentation-exchange/#presentation-definition is not clear on this.
+func matchFormat(format *PresentationDefinitionClaimFormatDesignations, credential vc.VerifiableCredential) bool {
+	if format == nil {
+		return true
+	}
+
+	asMap := map[string]map[string][]string(*format)
+	// we're only interested in the jwt_vc and ldp_vc formats
+	if asMap["jwt_vc"] == nil && asMap["ldp_vc"] == nil {
+		return true
+	}
+
+	// only ldp_vc supported for now
+	if entry := asMap["ldp_vc"]; entry != nil {
+		if proofTypes := entry["proof_type"]; proofTypes != nil {
+			for _, proofType := range proofTypes {
+				if matchProofType(proofType, credential) {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func matchProofType(proofType string, credential vc.VerifiableCredential) bool {
+	proofs, _ := credential.Proofs()
+	for _, p := range proofs {
+		if string(p.Type) == proofType {
+			return true
+		}
+	}
+	return false
+}
+
 func matchDescriptor(descriptor InputDescriptor, credential vc.VerifiableCredential) (*InputDescriptorMappingObject, error) {
 	match, err := matchCredential(descriptor, credential)
 	if err != nil {
@@ -96,7 +128,7 @@ func matchDescriptor(descriptor InputDescriptor, credential vc.VerifiableCredent
 
 	return &InputDescriptorMappingObject{
 		Id:     descriptor.Id,
-		Format: "ldp_vc", // todo: hardcoded for now, must be derived from the VC
+		Format: "ldp_vc", // todo: hardcoded for now, must be derived from the VC, but we don't support other VC types yet
 	}, nil
 }
 
@@ -109,6 +141,10 @@ func matchCredential(descriptor InputDescriptor, credential vc.VerifiableCredent
 	return true, nil
 }
 
+// matchConstraint matches the constraint against the VC.
+// All Fields need to match according to the Field rules.
+// IsHolder, SameSubject, SubjectIsIssuer, Statuses are not supported for now.
+// LimitDisclosure is not supported for now.
 func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential) (bool, error) {
 	// for each field in constraint.fields:
 	//   a vc must match the field
