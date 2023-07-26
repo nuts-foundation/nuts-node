@@ -19,6 +19,7 @@
 package didjwk
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -26,14 +27,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// An example did:jwk from https://github.com/quartzjer/did-jwk/blob/6520a0edc8fa8f37c09af99efe841d54c3ca3b3b/spec.md
-const b64EncodedTestJWK = `eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6ImFjYklRaXVNczNpOF91c3pFakoydHBUdFJNNEVVM3l6OTFQSDZDZEgyVjAiLCJ5IjoiX0tjeUxqOXZXTXB0bm1LdG00NkdxRHo4d2Y3NEk1TEtncmwyR3pIM25TRSJ9`
-
 func TestResolver_Resolve(t *testing.T) {
 	var baseDID did.DID
 	resolver := &Resolver{}
 
-	baseDID = did.MustParseDID("did:jwk:" + b64EncodedTestJWK)
+	baseDID = did.MustParseDID("did:jwk:" + b64EncodedCanonicalJWK)
 
 	t.Run("resolve did:jwk", func(t *testing.T) {
 		doc, md, err := resolver.Resolve(baseDID, nil)
@@ -71,7 +69,7 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.Nil(t, doc)
 	})
 
-	t.Run("base64 encoded non-JSON fails", func(t *testing.T) {
+	t.Run("base64+JSON encoded non-JWK fails", func(t *testing.T) {
 		id := did.MustParseDIDURL("did:jwk:eyJqc29uIjogInRoaXMgdmFsaWQgSlNPTiBpcyBub3QgYSBKV0sifQ")
 		doc, md, err := resolver.Resolve(id, nil)
 
@@ -79,4 +77,24 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.Nil(t, md)
 		assert.Nil(t, doc)
 	})
+
+	t.Run("DID JWK with private key fails", func(t *testing.T) {
+		testFunc := func(json string) func(t *testing.T) {
+			return func(t *testing.T) {
+				id := did.MustParseDIDURL("did:jwk:" + base64.RawStdEncoding.EncodeToString([]byte(json)))
+				doc, md, err := resolver.Resolve(id, nil)
+
+				require.ErrorContains(t, err, "private keys are forbidden in DID JWK")
+				assert.Nil(t, md)
+				assert.Nil(t, doc)
+			}
+		}
+
+		t.Run("RSA2048", testFunc(rsa2048JWKWithPrivateKey))
+		t.Run("RSA4096", testFunc(rsa4096JWKWithPrivateKey))
+		t.Run("EC256", testFunc(ec256JWKWithPrivateKey))
+		t.Run("EC384", testFunc(ec384JWKWithPrivateKey))
+		t.Run("EC512", testFunc(ec521JWKWithPrivateKey))
+	})
+
 }

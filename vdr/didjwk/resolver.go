@@ -62,6 +62,15 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 		return nil, nil, fmt.Errorf("failed to parse JWK: %w", err)
 	}
 
+	// Reject any DID JWK containing a private key
+	rawPrivateKey, err := rawPrivateKeyOf(key)
+	if err != nil {
+		return nil, nil, fmt.Errorf("rawPrivateKeyOf() failed: %w", err)
+	}
+	if rawPrivateKey != nil {
+		return nil, nil, fmt.Errorf("private keys are forbidden in DID JWK: %T", rawPrivateKey)
+	}
+
 	// Extract the public key from the JWK
 	publicRawKey, err := jwk.PublicRawKeyOf(key)
 	if err != nil {
