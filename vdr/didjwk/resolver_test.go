@@ -45,8 +45,7 @@ func TestResolver_Resolve(t *testing.T) {
 	})
 
 	t.Run("resolve DID JWK URL", func(t *testing.T) {
-		id := did.MustParseDIDURL(baseDID.String())
-		doc, md, err := resolver.Resolve(id, nil)
+		doc, md, err := resolver.Resolve(baseDID, nil)
 
 		require.NoError(t, err)
 		assert.NotNil(t, md)
@@ -54,15 +53,30 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.Equal(t, baseDID, doc.ID)
 	})
 
-	/*
-	// TODO: Is this relevant for did:jwk?
-	t.Run("ID in document does not match DID being resolved", func(t *testing.T) {
-		id := did.MustParseDIDURL(baseDID.String() + ":invalid-id-in-document")
+	t.Run("Invalid base64 data fails", func(t *testing.T) {
+		id := did.MustParseDIDURL(baseDID.String() + ":invalid-base64-data")
 		doc, md, err := resolver.Resolve(id, nil)
 
-		require.ErrorContains(t, err, "did:jwk document ID mismatch")
+		require.ErrorContains(t, err, "illegal base64 data")
 		assert.Nil(t, md)
 		assert.Nil(t, doc)
 	})
-	*/
+
+	t.Run("base64 encoded non-JSON fails", func(t *testing.T) {
+		id := did.MustParseDIDURL("did:jwk:SSBhbSBub3QgYSBqd2s")
+		doc, md, err := resolver.Resolve(id, nil)
+
+		require.ErrorContains(t, err, "failed to unmarshal JSON")
+		assert.Nil(t, md)
+		assert.Nil(t, doc)
+	})
+
+	t.Run("base64 encoded non-JSON fails", func(t *testing.T) {
+		id := did.MustParseDIDURL("did:jwk:eyJqc29uIjogInRoaXMgdmFsaWQgSlNPTiBpcyBub3QgYSBKV0sifQ")
+		doc, md, err := resolver.Resolve(id, nil)
+
+		require.ErrorContains(t, err, "invalid key type from JSON")
+		assert.Nil(t, md)
+		assert.Nil(t, doc)
+	})
 }
