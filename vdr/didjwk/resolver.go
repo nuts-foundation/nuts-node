@@ -44,7 +44,7 @@ func NewResolver() *Resolver {
 func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
 	// Ensure this is a did:jwk
 	if id.Method != "jwk" {
-		return nil, nil, fmt.Errorf("unsupported did method: %s", id.Method)
+		return nil, nil, fmt.Errorf("unsupported DID method: %s", id.Method)
 	}
 
 	// Get the third section of the did, e.g. "did:jwk:..."
