@@ -18,6 +18,8 @@
 
 package vdr
 
+import "github.com/nuts-foundation/nuts-node/vdr/didnuts"
+
 // ModuleName is the name of the engine
 const ModuleName = "VDR"
 
@@ -29,6 +31,6 @@ type Config struct {
 // DefaultConfig returns a fresh Config filled with default values
 func DefaultConfig() Config {
 	return Config{
-		Methods: []string{"nuts"},
+		Methods: []string{didnuts.MethodName},
 	}
 }

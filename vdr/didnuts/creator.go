@@ -115,7 +115,7 @@ func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error))
 
 	// assemble
 	kid := &did.DID{}
-	kid.Method = "nuts"
+	kid.Method = MethodName
 	kid.ID = idString
 	kid.Fragment = jwKey.KeyID()
 
