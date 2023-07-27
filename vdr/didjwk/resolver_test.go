@@ -62,10 +62,6 @@ func TestResolver_Resolve(t *testing.T) {
 	// Ensure the canonical example from the DID JWK spec can be resolved
 	t.Run("resolve did:jwk", success(b64(canonicalJWK)))
 
-	// Ensure the DID JWK with the fixed '#0' fragment can be resolved
-	// TODO: Much confusion here
-	//t.Run("resolve did:jwk URL (with fragment)", success(b64(canonicalJWK) + "#0"))
-
 	// Test the various failure modes of resolution
 	t.Run("resolution errors", func(t *testing.T) {
 		// Define a test function generator
