@@ -90,11 +90,7 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 	var document did.Document
 
 	// Set the document ID
-	newID, err := did.ParseDIDURL("did:jwk:" + b64EncodedJWK)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create document id: %w", err)
-	}
-	document.ID = *newID
+	document.ID = id.WithoutURL()
 
 	// Add the verification method
 	document.AddAssertionMethod(verificationMethod)
