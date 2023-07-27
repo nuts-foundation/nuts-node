@@ -40,7 +40,7 @@ require (
 	go.uber.org/mock v0.2.0
 	golang.org/x/crypto v0.11.0
 	golang.org/x/time v0.3.0
-	google.golang.org/grpc v1.56.2
+	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
@@ -170,7 +170,7 @@ require (
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
-	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
 	rsc.io/qr v0.2.0 // indirect
 )
