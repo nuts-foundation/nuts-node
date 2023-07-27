@@ -103,6 +103,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 			// Test various private key types
 			t.Run("RSA2048", failure(b64(rsa2048JWKWithPrivateKey), msg))
+			t.Run("RSA3072", failure(b64(rsa3072JWKWithPrivateKey), msg))
 			t.Run("RSA4096", failure(b64(rsa4096JWKWithPrivateKey), msg))
 			t.Run("EC256", failure(b64(ec256JWKWithPrivateKey), msg))
 			t.Run("EC384", failure(b64(ec384JWKWithPrivateKey), msg))
