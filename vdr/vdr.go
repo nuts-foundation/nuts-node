@@ -112,7 +112,7 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 
 	for _, method := range r.config.Methods {
 		switch method {
-		case "nuts":
+		case didnuts.MethodName:
 			r.didResolver.Register(method, r.nutsDidResolver)
 		default:
 			return fmt.Errorf("unsupported DID method: %s", method)
