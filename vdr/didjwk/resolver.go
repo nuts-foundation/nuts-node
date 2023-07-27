@@ -34,7 +34,7 @@ import (
 var _ types.DIDResolver = (*Resolver)(nil)
 
 // Resolver is a DID resolver for the did:jwk method.
-type Resolver struct {}
+type Resolver struct{}
 
 // NewResolver creates a new Resolver with default TLS configuration.
 func NewResolver() *Resolver {
@@ -79,9 +79,9 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 	}
 
 	// Create a new DID verification method.
-	// See https://www.w3.org/TR/did-core/#verification-methods	
- 	keyID := id.WithoutURL()
- 	keyID.Fragment = "0"
+	// See https://www.w3.org/TR/did-core/#verification-methods
+	keyID := id.WithoutURL()
+	keyID.Fragment = "0"
 	verificationMethod, err := did.NewVerificationMethod(keyID, godid.JsonWebKey2020, id.WithoutURL(), publicRawKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create verification method: %w", err)
@@ -111,7 +111,7 @@ func rawPrivateKeyOf(key jwk.Key) (any, error) {
 	// wether this is a private or public key more work is required. We could inspect the concrete type of the key
 	// but that would require adding code about specific key algorithms and could break down as new key algorithms
 	// are introduced, requiring careful maintenance. Instead a generic approach will be taken where we compare the
-	// any known public key contained in the JWK to the rawUnspecifiedKey and determine whether a second (private) 
+	// any known public key contained in the JWK to the rawUnspecifiedKey and determine whether a second (private)
 	// value is available. If the jwx/jwk library offers a way in the future to specifically get a private key from
 	// a JWK this will be much simpler.
 	var rawUnspecifiedKey any
@@ -120,7 +120,7 @@ func rawPrivateKeyOf(key jwk.Key) (any, error) {
 	}
 
 	// Get the public key value, which is also a jwk.Key. The PublicKeyOf() result is needed in order to compare
-	// to rawUnspecifiedKey and determine whether a private key is contained within the JWK. This makes more sense 
+	// to rawUnspecifiedKey and determine whether a private key is contained within the JWK. This makes more sense
 	// later in the function, but looks strange here since the goal of this function is to get the private key.
 	publicKey, err := jwk.PublicKeyOf(key)
 	if err != nil {

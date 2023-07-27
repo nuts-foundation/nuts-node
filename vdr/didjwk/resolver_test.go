@@ -84,7 +84,7 @@ func TestResolver_Resolve(t *testing.T) {
 		}
 
 		// Ensure invalid base64 DID fails
-		t.Run("Invalid base64 data fails", failure(b64(canonicalJWK) + ":invalid-base64-data", "illegal base64 data at input"))
+		t.Run("Invalid base64 data fails", failure(b64(canonicalJWK)+":invalid-base64-data", "illegal base64 data at input"))
 
 		// Ensure a DID with invalid JSON fails
 		t.Run("base64 encoded non-JSON fails", failure(b64("__NOT_JSON__"), "failed to unmarshal JSON"))
