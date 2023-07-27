@@ -79,7 +79,9 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 
 	// Create a new DID verification method.
 	// See https://www.w3.org/TR/did-core/#verification-methods	
-	verificationMethod, err := did.NewVerificationMethod(id, godid.JsonWebKey2020, id, publicRawKey)
+ 	keyID := id.WithoutURL()
+ 	keyID.Fragment = "0"
+	verificationMethod, err := did.NewVerificationMethod(keyID, godid.JsonWebKey2020, id.WithoutURL(), publicRawKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create verification method: %w", err)
 	}
