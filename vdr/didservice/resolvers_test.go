@@ -139,7 +139,6 @@ func TestServiceResolver_Resolve(t *testing.T) {
 		assert.EqualError(t, err, "unable to find the DID document")
 		assert.Empty(t, actual)
 	})
-
 }
 
 func TestKeyResolver_ResolveKey(t *testing.T) {
@@ -246,4 +245,48 @@ func TestIsFunctionalResolveError(t *testing.T) {
 
 	assert.False(t, IsFunctionalResolveError(errors.New("some error")))
 	assert.False(t, IsFunctionalResolveError(types.ErrDuplicateService))
+}
+
+func TestDIDResolverRouter_Resolve(t *testing.T) {
+	doc := newDidDoc()
+	t.Run("ok, 1 resolver", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		resolver := types.NewMockDIDResolver(ctrl)
+		resolver.EXPECT().Resolve(doc.ID, gomock.Any()).Return(&doc, nil, nil)
+		router := &DIDResolverRouter{}
+		router.Register(doc.ID.Method, resolver)
+
+		actual, _, err := router.Resolve(doc.ID, nil)
+		assert.NoError(t, err)
+		assert.Equal(t, &doc, actual)
+	})
+	t.Run("ok, 2 resolvers", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		otherResolver := types.NewMockDIDResolver(ctrl)
+		resolver := types.NewMockDIDResolver(ctrl)
+		resolver.EXPECT().Resolve(doc.ID, gomock.Any()).Return(&doc, nil, nil)
+		router := &DIDResolverRouter{}
+		router.Register(doc.ID.Method, resolver)
+		router.Register("test2", otherResolver)
+
+		actual, _, err := router.Resolve(doc.ID, nil)
+		assert.NoError(t, err)
+		assert.Equal(t, &doc, actual)
+	})
+	t.Run("error - resolver not found", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		otherResolver := types.NewMockDIDResolver(ctrl)
+		router := &DIDResolverRouter{}
+		router.Register("other", otherResolver)
+
+		actual, _, err := router.Resolve(doc.ID, nil)
+		assert.EqualError(t, err, "DID method not supported")
+		assert.Nil(t, actual)
+	})
+	t.Run("error - no resolver registered", func(t *testing.T) {
+		actual, md, err := (&DIDResolverRouter{}).Resolve(doc.ID, nil)
+		assert.EqualError(t, err, "no DID resolvers registered in *didservice.DIDResolverRouter (programming error?)")
+		assert.Nil(t, actual)
+		assert.Nil(t, md)
+	})
 }
