@@ -186,9 +186,9 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	didResolver := &didservice.DIDResolverRouter{}
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), didResolver, cryptoInstance, eventManager, storageInstance.GetProvider(network.ModuleName), pkiInstance)
-	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), storageInstance.GetProvider(vdr.ModuleName), cryptoInstance, networkInstance, didResolver, eventManager)
+	vdrInstance := vdr.NewVDR(storageInstance.GetProvider(vdr.ModuleName), cryptoInstance, networkInstance, didResolver, eventManager)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, didResolver, networkInstance, jsonld, eventManager, storageInstance, pkiInstance, vdrInstance)
-	didmanInstance := didman.NewDidmanInstance(vdrInstance, credentialInstance, jsonld)
+	didmanInstance := didman.NewDidmanInstance(vdrInstance, credentialInstance, jsonld, didResolver)
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didResolver, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
@@ -224,8 +224,8 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterEngine(metricsEngine)
 	system.RegisterEngine(eventManager)
 	// the order of the next 3 modules is fixed due to configure and start dependencies
-	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(vdrInstance)
+	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(networkInstance)
 	system.RegisterEngine(authInstance)
 	system.RegisterEngine(didmanInstance)

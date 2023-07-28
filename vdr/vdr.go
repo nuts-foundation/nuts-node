@@ -44,7 +44,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
+// ModuleName is the name of the engine
+const ModuleName = "VDR"
+
 var _ types.VDR = (*VDR)(nil)
+var _ core.Named = (*VDR)(nil)
+var _ core.Configurable = (*VDR)(nil)
 
 // didStoreName contains the name for the store
 const didStoreName = "didstore"
@@ -53,7 +58,6 @@ const didStoreName = "didstore"
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type VDR struct {
-	config            Config
 	store             didnutsStore.Store
 	network           network.Transactions
 	networkAmbassador didnuts.Ambassador
@@ -76,10 +80,9 @@ func (r *VDR) Resolver() types.DIDResolver {
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, storageProvider storage.Provider, cryptoClient crypto.KeyStore, networkClient network.Transactions,
+func NewVDR(storageProvider storage.Provider, cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	didResolverRouter *didservice.DIDResolverRouter, eventManager events.Event) *VDR {
 	return &VDR{
-		config:          config,
 		storageProvider: storageProvider,
 		network:         networkClient,
 		eventManager:    eventManager,
@@ -95,10 +98,6 @@ func (r *VDR) Name() string {
 	return ModuleName
 }
 
-func (r *VDR) Config() interface{} {
-	return &r.config
-}
-
 // Configure configures the VDR engine.
 func (r *VDR) Configure(_ core.ServerConfig) error {
 	didStore, err := r.storageProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
@@ -110,14 +109,9 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 	r.nutsDidResolver = &didnuts.Resolver{Store: r.store}
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
 
-	for _, method := range r.config.Methods {
-		switch method {
-		case didnuts.MethodName:
-			r.didResolver.Register(method, r.nutsDidResolver)
-		default:
-			return fmt.Errorf("unsupported DID method: %s", method)
-		}
-	}
+	// Register DID methods
+	r.didResolver.Register(didnuts.MethodName, r.nutsDidResolver)
+
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()
 	return nil

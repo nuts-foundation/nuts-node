@@ -51,14 +51,14 @@ var testDIDA = vdr.TestDIDA
 var testDIDB = vdr.TestDIDB
 
 func TestDidman_Name(t *testing.T) {
-	instance := NewDidmanInstance(nil, nil, nil).(core.Named)
+	instance := NewDidmanInstance(nil, nil, nil, nil).(core.Named)
 
 	assert.Equal(t, ModuleName, instance.Name())
 }
 
 func TestNewDidmanInstance(t *testing.T) {
 	ctx := newMockContext(t)
-	instance := NewDidmanInstance(ctx.vdr, ctx.vcr, nil).(*didman)
+	instance := NewDidmanInstance(ctx.vdr, ctx.vcr, nil, nil).(*didman)
 
 	assert.NotNil(t, instance)
 	assert.Equal(t, ctx.vcr, instance.vcr)
@@ -984,9 +984,7 @@ func newMockContext(t *testing.T) mockContext {
 	mockVDR := types.NewMockVDR(ctrl)
 	didResolver := types.NewMockDIDResolver(ctrl)
 	mockVCR := vcr.NewMockFinder(ctrl)
-	instance := NewDidmanInstance(mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t)).(*didman)
-	instance.didResolver = didResolver
-	instance.serviceResolver = didservice.ServiceResolver{Resolver: didResolver}
+	instance := NewDidmanInstance(mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t), didResolver).(*didman)
 
 	return mockContext{
 		ctrl:        ctrl,

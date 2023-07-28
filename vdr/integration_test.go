@@ -279,7 +279,7 @@ func setup(t *testing.T) testContext {
 		storageEngine.GetProvider("network"),
 		pkiValidator,
 	)
-	vdr := NewVDR(DefaultConfig(), storageEngine.GetProvider("vdr"), cryptoInstance, nutsNetwork, didResolver, eventPublisher)
+	vdr := NewVDR(storageEngine.GetProvider("vdr"), cryptoInstance, nutsNetwork, didResolver, eventPublisher)
 
 	// Configure
 	require.NoError(t, vdr.Configure(nutsConfig))

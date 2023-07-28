@@ -34,7 +34,7 @@ type SourceTXKeyResolver struct {
 func (r SourceTXKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
 	// try all keys, continue when err == types.ErrNotFound
 	for _, h := range sourceTransactionsRefs {
-		publicKey, err := r.resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
+		publicKey, err := resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
 			SourceTransaction: &h,
 		})
 		if err == nil {
@@ -48,7 +48,7 @@ func (r SourceTXKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs
 	return nil, types.ErrNotFound
 }
 
-func (r SourceTXKeyResolver) resolvePublicKey(resolver types.DIDResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
+func resolvePublicKey(resolver types.DIDResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
 	id, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)

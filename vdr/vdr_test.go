@@ -260,10 +260,8 @@ func TestVDR_Create(t *testing.T) {
 }
 
 func TestNewVDR(t *testing.T) {
-	cfg := Config{}
-	vdr := NewVDR(cfg, nil, nil, nil, nil, nil)
+	vdr := NewVDR(nil, nil, nil, nil, nil)
 	assert.IsType(t, &VDR{}, vdr)
-	assert.Equal(t, vdr.config, cfg)
 }
 
 func TestVDR_Start(t *testing.T) {
@@ -326,7 +324,7 @@ func TestVDR_Start(t *testing.T) {
 func TestVDR_ConflictingDocuments(t *testing.T) {
 	t.Run("diagnostics", func(t *testing.T) {
 		t.Run("ok - no conflicts/no documents", func(t *testing.T) {
-			vdr := NewVDR(Config{}, nil, nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			results := vdr.Diagnostics()
 
@@ -336,7 +334,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			vdr := NewVDR(Config{}, nil, nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			vdr.nutsDidResolver = &didnuts.Resolver{Store: vdr.store}
 			didDocument := did.Document{ID: TestDIDA}
@@ -354,7 +352,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			keyID := TestDIDA
 			keyID.Fragment = "1"
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
-			vdr := NewVDR(Config{}, nil, client, nil, nil, nil)
+			vdr := NewVDR(nil, client, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			vdr.nutsDidResolver = &didnuts.Resolver{Store: vdr.store}
 			didDocument := did.Document{ID: TestDIDA}
@@ -392,7 +390,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			client := crypto.NewMemoryCryptoInstance()
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyVendor.KID()))
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyOrg.KID()))
-			vdr := NewVDR(Config{}, nil, client, nil, nil, nil)
+			vdr := NewVDR(nil, client, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			vdr.nutsDidResolver = &didnuts.Resolver{Store: vdr.store}
 
@@ -408,7 +406,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	})
 	t.Run("list", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
-			vdr := NewVDR(Config{}, nil, nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			docs, meta, err := vdr.ConflictedDocuments()
 
@@ -418,7 +416,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			vdr := NewVDR(Config{}, nil, nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			didDocument := did.Document{ID: TestDIDA}
 			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
