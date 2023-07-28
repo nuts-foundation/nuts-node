@@ -29,14 +29,14 @@ type Field struct {
 	Filter         *Filter  `json:"filter,omitempty"`
 }
 
-// Filter is a JSON Schema descriptor
+// Filter is a JSON Schema (without nesting)
 type Filter struct {
 	// Type is the type of field: string, number, boolean, array, object
 	Type string `json:"type"`
 	// Const is a constant value to match, currently only strings are supported
 	Const *string `json:"const,omitempty"`
 	// Enum is a list of values to match
-	Enum *[]string `json:"enum,omitempty"`
+	Enum []string `json:"enum,omitempty"`
 	// Pattern is a pattern to match according to ECMA-262, section 21.2.1
 	Pattern *string `json:"pattern,omitempty"`
 }

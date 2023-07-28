@@ -31,7 +31,6 @@ import (
 const (
 	claimFormatDescriptorLocation  = "http://identity.foundation/claim-format-registry/schemas/presentation-definition-claim-format-designations.json"
 	presentationDefinitionLocation = "https://github.com/decentralized-identity/presentation-exchange/raw/main/schemas/v2.0.0/presentation-definition.json"
-	//presentationSubmissionLocation = "https://github.com/decentralized-identity/presentation-exchange/raw/main/schemas/v2.0.0/presentation-submission.json"
 )
 
 func main() {

@@ -33,6 +33,7 @@ import (
 var ErrUnsupportedFilter = errors.New("unsupported filter")
 
 // Match matches the VCs against the presentation definition.
+// It implements §5 of the Presentation Exchange specification (v2.x.x pre-Draft, 2023-07-29) (https://identity.foundation/presentation-exchange/#presentation-definition)
 // It only supports the following:
 // - ldp_vc format
 // - pattern, const and enum only on string fields
@@ -43,7 +44,7 @@ var ErrUnsupportedFilter = errors.New("unsupported filter")
 // The PresentationSubmission needs to be altered so the paths use "path_nested"s that are relative to the created VP.
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 // Other errors can be returned for faulty JSON paths or regex patterns.
-func Match(presentationDefinition PresentationDefinition, vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
+func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
 	// for each VC in vcs:
 	// for each descriptor in presentation_definition.descriptors:
 	// for each constraint in descriptor.constraints:
@@ -54,7 +55,8 @@ func Match(presentationDefinition PresentationDefinition, vcs []vc.VerifiableCre
 		DefinitionId: presentationDefinition.Id,
 	}
 	var matchingCredentials []vc.VerifiableCredential
-	for i, inputDescriptor := range presentationDefinition.InputDescriptors {
+	var index int
+	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
 		var mapping *InputDescriptorMappingObject
 		var err error
 		for _, credential := range vcs {
@@ -63,9 +65,10 @@ func Match(presentationDefinition PresentationDefinition, vcs []vc.VerifiableCre
 				return PresentationSubmission{}, nil, err
 			}
 			if mapping != nil && matchFormat(presentationDefinition.Format, credential) {
-				mapping.Path = fmt.Sprintf("$.verifiableCredential[%d]", i)
+				mapping.Path = fmt.Sprintf("$.verifiableCredential[%d]", index)
 				presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, *mapping)
 				matchingCredentials = append(matchingCredentials, credential)
+				index++
 				break
 			}
 		}
@@ -163,12 +166,17 @@ func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential
 // matchField matches the field against the VC.
 // All fields need to match unless optional is set to true and no values are found for all the paths.
 func matchField(field Field, credential vc.VerifiableCredential) (bool, error) {
+	// jsonpath works on interfaces, so convert the VC to an interface
+	asJSON, _ := json.Marshal(credential)
+	var asInterface interface{}
+	_ = json.Unmarshal(asJSON, &asInterface)
+
 	// for each path in field.paths:
 	//   a vc must match one of the path
 	var optionalInvalid int
 	for _, path := range field.Path {
 		// if path is not found continue
-		value, err := getValueAtPath(path, credential)
+		value, err := getValueAtPath(path, asInterface)
 		if err != nil {
 			return false, err
 		}
@@ -200,15 +208,10 @@ func matchField(field Field, credential vc.VerifiableCredential) (bool, error) {
 }
 
 // getValueAtPath uses the JSON path expression to get the value from the VC
-func getValueAtPath(path string, vc vc.VerifiableCredential) (interface{}, error) {
-	// first convert the VC back to JSON
-	// then use the JSON path expression to get the value
-	asJSON, _ := json.Marshal(vc)
-	var asInterface interface{}
-	_ = json.Unmarshal(asJSON, &asInterface)
-
-	value, err := jsonpath.Get(path, asInterface)
-	if err != nil && strings.HasPrefix(err.Error(), "unknown key") {
+func getValueAtPath(path string, vcAsInterface interface{}) (interface{}, error) {
+	value, err := jsonpath.Get(path, vcAsInterface)
+	// jsonpath.Get returns some errors if the path is not found, or it has a different type as expected
+	if err != nil && (strings.HasPrefix(err.Error(), "unknown key") || strings.HasPrefix(err.Error(), "unsupported value type")) {
 		return nil, nil
 	}
 	return value, err
@@ -224,7 +227,7 @@ func getValueAtPath(path string, vc vc.VerifiableCredential) (interface{}, error
 func matchFilter(filter Filter, value interface{}) (bool, error) {
 	// first we check if it's an enum, so we can recursively call matchFilter for each value
 	if filter.Enum != nil {
-		for _, enum := range *filter.Enum {
+		for _, enum := range filter.Enum {
 			f := Filter{
 				Type:  "string",
 				Const: &enum,
@@ -284,5 +287,6 @@ func matchFilter(filter Filter, value interface{}) (bool, error) {
 		return re.MatchString(value.(string))
 	}
 
+	// if we get here, no pattern, enum or const is requested just the type.
 	return true, nil
 }

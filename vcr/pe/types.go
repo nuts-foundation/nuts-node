@@ -16,6 +16,7 @@
  *
  */
 
+// Package pe stands for Presentation Exchange which includes Presentation Definition and Presentation Submission
 package pe
 
 // PresentationDefinitionClaimFormatDesignations (replaces generated one)

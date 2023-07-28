@@ -20,6 +20,7 @@ package pe
 
 import (
 	"encoding/json"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,18 +92,27 @@ var testCredentialString = `
 
 func TestMatch(t *testing.T) {
 	presentationDefinition := PresentationDefinition{}
-	err := json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
-	require.NoError(t, err)
+	_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
 	verifiableCredential := vc.VerifiableCredential{}
 	vcJSON, _ := os.ReadFile("../test/vc.json")
 	_ = json.Unmarshal(vcJSON, &verifiableCredential)
 
-	presentationSubmission, vcs, err := Match(presentationDefinition, []vc.VerifiableCredential{verifiableCredential})
+	t.Run("Happy flow", func(t *testing.T) {
+		presentationSubmission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
 
-	require.NoError(t, err)
-	assert.Len(t, vcs, 1)
-	require.Len(t, presentationSubmission.DescriptorMap, 1)
-	assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+		require.NoError(t, err)
+		assert.Len(t, vcs, 1)
+		require.Len(t, presentationSubmission.DescriptorMap, 1)
+		assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+	})
+	t.Run("Only second VC matches", func(t *testing.T) {
+		presentationSubmission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, verifiableCredential})
+
+		require.NoError(t, err)
+		assert.Len(t, vcs, 1)
+		require.Len(t, presentationSubmission.DescriptorMap, 1)
+		assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+	})
 }
 
 func Test_matchFormat(t *testing.T) {
@@ -353,7 +363,7 @@ func Test_matchFilter(t *testing.T) {
 
 	t.Run("string filter properties", func(t *testing.T) {
 		f1 := Filter{Type: "string", Const: &stringValue}
-		f2 := Filter{Type: "string", Enum: &[]string{stringValue}}
+		f2 := Filter{Type: "string", Enum: []string{stringValue}}
 		f3 := Filter{Type: "string", Pattern: &stringValue}
 		filters := []Filter{f1, f2, f3}
 		t.Run("ok", func(t *testing.T) {
