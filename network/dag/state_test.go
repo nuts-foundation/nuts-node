@@ -25,19 +25,19 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 	"go.uber.org/mock/gomock"
 	"math"
-	"path/filepath"
+	"path"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -460,10 +460,7 @@ func Test_createStore(t *testing.T) {
 
 func createState(t testing.TB, verifier ...Verifier) State {
 	testDir := io.TestDirectory(t)
-	bboltStore, err := bbolt.CreateBBoltStore(filepath.Join(testDir, "test_state"), stoabs.WithNoSync())
-	if err != nil {
-		t.Fatal("failed to create store: ", err)
-	}
+	bboltStore := storage.CreateTestBBoltStore(t, path.Join(testDir, "test.db"))
 	s, err := NewState(bboltStore, verifier...)
 	if err != nil {
 		t.Fatal("failed to create store: ", err)
