@@ -56,8 +56,7 @@ import (
 
 func TestVCR_Configure(t *testing.T) {
 	t.Run("error - creating issuer store", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pki.New(), nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pki.New(), nil).(*vcr)
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
 		assert.EqualError(t, err, "failed to create leiaIssuerStore: mkdir test/vcr: not a directory")
@@ -67,7 +66,7 @@ func TestVCR_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		pkiProvider := pki.NewMockProvider(ctrl)
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
-		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider, nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider, nil).(*vcr)
 		instance.config.OpenID4VCI.Enabled = true
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
@@ -88,7 +87,7 @@ func TestVCR_Configure(t *testing.T) {
 		localWalletResolver.EXPECT().Resolve(issuerDID).Return("https://example.com", nil).AnyTimes()
 		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
-		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider, documentOwner).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider, documentOwner).(*vcr)
 		instance.config.OpenID4VCI.Enabled = true
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
@@ -120,7 +119,7 @@ func TestVCR_Start(t *testing.T) {
 			network.NewTestNetworkInstance(t),
 			jsonld.NewTestJSONLDManager(t),
 			events.NewTestManager(t),
-			storage.NewTestStorageEngine(testDirectory),
+			storage.NewTestStorageEngine(t),
 			pki.New(), nil,
 		).(*vcr)
 		if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -167,7 +166,7 @@ func TestVCR_Diagnostics(t *testing.T) {
 		network.NewTestNetworkInstance(t),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
-		storage.NewTestStorageEngine(testDirectory),
+		storage.NewTestStorageEngine(t),
 		pki.New(), nil,
 	).(*vcr)
 	instance.config.OpenID4VCI.Enabled = false

@@ -49,7 +49,7 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 		store,
 		cryptoInstance,
 		eventPublisher,
-		storage.NewTestStorageEngine(testDirectory).GetProvider(ModuleName),
+		storage.NewTestStorageEngine(t).GetProvider(ModuleName),
 		pkiMock,
 	)
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {

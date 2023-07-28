@@ -64,7 +64,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 		network.NewTestNetworkInstance(t),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
-		storage.NewTestStorageEngine(testDirectory),
+		storage.NewTestStorageEngine(t),
 		pki.New(), nil,
 	).(*vcr)
 
@@ -90,7 +90,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		network.NewTestNetworkInstance(t),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
-		storage.NewTestStorageEngine(testDirectory),
+		storage.NewTestStorageEngine(t),
 		pki.New(), nil,
 	).(*vcr)
 
@@ -105,6 +105,8 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 }
 
 func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
+	storageEngine := storage.New()
+	_ = storageEngine.Configure(core.TestServerConfig(core.ServerConfig{Datadir: path.Join(testDirectory, "data")}))
 	// give network a subdirectory to avoid duplicate networks in tests
 	newInstance := NewVCRInstance(
 		nil,
@@ -112,7 +114,7 @@ func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 		network.NewTestNetworkInstance(t),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
-		storage.NewTestStorageEngine(testDirectory),
+		storageEngine,
 		pki.New(), nil,
 	).(*vcr)
 
@@ -149,7 +151,7 @@ func newMockContext(t *testing.T) mockContext {
 	serviceResolver := types.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
-	storageClient := storage.NewTestStorageEngine(testDir)
+	storageClient := storage.NewTestStorageEngine(t)
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
 	vcr := NewVCRInstance(cryptoInstance, nil, tx, jsonldManager, eventManager, storageClient, pki.New(), nil).(*vcr)
 	vcr.serviceResolver = serviceResolver

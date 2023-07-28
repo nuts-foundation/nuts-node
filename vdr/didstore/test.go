@@ -20,13 +20,11 @@ package didstore
 
 import (
 	"encoding/json"
-	"path"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -44,7 +42,7 @@ var testServiceA = did.Service{ID: ssi.MustParseURI("did:nuts:service:a"), Servi
 var testServiceB = did.Service{ID: ssi.MustParseURI("did:nuts:service:b"), ServiceEndpoint: []interface{}{"http://b"}}
 
 func NewTestStore(t *testing.T) *store {
-	s := New(storage.NewTestStorageEngine(path.Join(io.TestDirectory(t))).GetProvider(moduleName)).(*store)
+	s := New(storage.NewTestStorageEngine(t).GetProvider(moduleName)).(*store)
 	err := s.Configure(core.ServerConfig{})
 	require.NoError(t, err)
 	return s

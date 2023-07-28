@@ -951,7 +951,7 @@ func TestNetwork_Subscribers(t *testing.T) {
 func TestNetwork_CleanupSubscriberEvents(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	cxt := createNetwork(t, ctrl)
-	kvStore, _ := storage.NewTestStorageEngine(t.TempDir()).GetProvider("test").GetKVStore("test", storage.PersistentStorageClass)
+	kvStore, _ := storage.NewTestStorageEngine(t).GetProvider("test").GetKVStore("test", storage.PersistentStorageClass)
 	notifier := dag.NewNotifier("test", func(event dag.Event) (bool, error) {
 		return true, nil
 	}, dag.WithPersistency(kvStore))
@@ -1323,7 +1323,7 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	docFinder := vdrTypes.NewMockDocFinder(ctrl)
 	didStore := didstore.NewMockStore(ctrl)
 	eventPublisher := events.NewMockEvent(ctrl)
-	storageEngine := storage.NewTestStorageEngine(io.TestDirectory(t))
+	storageEngine := storage.NewTestStorageEngine(t)
 	t.Cleanup(func() {
 		_ = storageEngine.Shutdown()
 	})
