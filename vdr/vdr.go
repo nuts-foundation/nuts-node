@@ -147,12 +147,16 @@ func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.Doc
 			return nil
 		}
 		for _, controller := range controllers {
-			for _, vr := range controller.CapabilityInvocation {
-				// TODO: Fix context.TODO() when we have a context in the Diagnostics() method
-				if r.keyStore.Exists(context.TODO(), vr.ID.String()) {
-					*ownedCount++
-					return nil
-				}
+			// TODO: Fix context.TODO() when we have a context in the Diagnostics() method
+			isOwned, err := r.IsOwner(context.TODO(), controller.ID)
+			if err != nil {
+				log.Logger().
+					WithField(core.LogFieldDID, controller.ID).
+					WithError(err).
+					Info("failed to check ownership of conflicted DID document")
+			}
+			if isOwned {
+				*ownedCount++
 			}
 		}
 		return nil
