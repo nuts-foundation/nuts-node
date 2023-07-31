@@ -22,7 +22,6 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -38,7 +37,7 @@ func Test_engine_Name(t *testing.T) {
 }
 
 func Test_engine_lifecycle(t *testing.T) {
-	sut := NewTestStorageEngine(io.TestDirectory(t))
+	sut := NewTestStorageEngine(t)
 	err := sut.Start()
 	require.NoError(t, err)
 	// Get a KV store so there's something to shut down

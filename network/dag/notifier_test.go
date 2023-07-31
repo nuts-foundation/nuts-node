@@ -24,8 +24,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/prometheus/client_golang/prometheus"
@@ -123,7 +123,7 @@ func TestNotifier_Save(t *testing.T) {
 	}
 	persistentSubscriber := func(t *testing.T, additionalOptions ...NotifierOption) (*notifier, stoabs.KVStore) {
 		filePath := io.TestDirectory(t)
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		options := append(additionalOptions, WithPersistency(kvStore))
 		s := NewNotifier(t.Name(), dummyFunc, options...)
 		return s.(*notifier), kvStore
@@ -154,12 +154,9 @@ func TestNotifier_Save(t *testing.T) {
 		s, _ := persistentSubscriber(t)
 
 		testDir := io.TestDirectory(t)
-		dummyDB, err := bbolt.CreateBBoltStore(path.Join(testDir, "test.db"))
-		if err != nil {
-			t.Fatal(err)
-		}
+		dummyDB := storage.CreateTestBBoltStore(t, path.Join(testDir, "test.db"))
 
-		err = dummyDB.Write(ctx, func(tx stoabs.WriteTx) error {
+		err := dummyDB.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
 		})
 
@@ -168,7 +165,7 @@ func TestNotifier_Save(t *testing.T) {
 
 	t.Run("Not stored if no persistency", func(t *testing.T) {
 		filePath := io.TestDirectory(t)
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		s := NewNotifier(t.Name(), dummyFunc)
 
 		err := kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
@@ -306,7 +303,7 @@ func TestNotifier_Notify(t *testing.T) {
 	t.Run("OK - updates DB", func(t *testing.T) {
 		filePath := io.TestDirectory(t)
 		transaction, _, _ := CreateTestTransaction(0)
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
 		event := Event{Hash: hash.EmptyHash(), Transaction: transaction}
 		now := time.Now()
@@ -341,7 +338,7 @@ func TestNotifier_Notify(t *testing.T) {
 	t.Run("OK - stops when no longer available in DB", func(t *testing.T) {
 		filePath := io.TestDirectory(t)
 		transaction, _, _ := CreateTestTransaction(0)
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
 		event := Event{Hash: hash.EmptyHash(), Transaction: transaction}
 		s := NewNotifier(t.Name(), counter.callback, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
@@ -363,7 +360,7 @@ func TestNotifier_Run(t *testing.T) {
 	ctx := context.Background()
 	filePath := io.TestDirectory(t)
 	transaction, _, _ := CreateTestTransaction(0)
-	kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+	kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 	counter := callbackCounter{}
 	payload := "payload"
 	event := Event{
@@ -393,7 +390,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 	event := Event{Hash: hash.EmptyHash(), Transaction: transaction}
 	t.Run("Happy flow", func(t *testing.T) {
 		filePath := io.TestDirectory(t)
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
 		s := NewNotifier(t.Name(), counter.callback, WithPersistency(kvStore), WithRetryDelay(10*time.Millisecond)).(*notifier)
 		defer s.Close()
@@ -420,7 +417,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 
 	t.Run("notifier marks event as finished", func(t *testing.T) {
 		filePath := io.TestDirectory(t)
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
 		s := NewNotifier(t.Name(), counter.callbackFinished, WithPersistency(kvStore), WithRetryDelay(10*time.Millisecond)).(*notifier)
 		defer s.Close()
@@ -444,7 +441,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 
 	t.Run("fails and stops at max attempts", func(t *testing.T) {
 		filePath := io.TestDirectory(t)
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
 		notifiedCounter := &prometheusCounter{}
 		event := Event{Hash: hash.EmptyHash(), Transaction: transaction, Retries: 95}
@@ -478,7 +475,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 
 	t.Run("fails on fatal event before scheduling retry ", func(t *testing.T) {
 		filePath := io.TestDirectory(t)
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
 		counter.setCallbackError(EventFatal{errors.New("fatal error")})
 		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond)).(*notifier)
@@ -510,7 +507,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 
 	t.Run("fails on fatal event while retrying", func(t *testing.T) {
 		filePath := io.TestDirectory(t)
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
 		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
 		defer s.Close()
@@ -544,7 +541,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 
 	t.Run("OK - incomplete event logs error", func(t *testing.T) {
 		counter := callbackCounter{}
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(t.TempDir(), "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(t.TempDir(), "test.db"))
 		s := NewNotifier(t.Name(), counter.callback, WithRetryDelay(time.Millisecond), WithPersistency(kvStore)).(*notifier)
 		defer s.Close()
 
@@ -571,7 +568,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 		assert.Equal(t, errEventIncomplete.Error(), events[0].Error)
 	})
 	t.Run("OK - completed event does not cause an error", func(t *testing.T) {
-		kvStore, _ := bbolt.CreateBBoltStore(path.Join(t.TempDir(), "test.db"))
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(t.TempDir(), "test.db"))
 		s := NewNotifier(t.Name(), nil, WithPersistency(kvStore)).(*notifier)
 
 		// event is missing from kvStore, this should be interpreted as the event is completed

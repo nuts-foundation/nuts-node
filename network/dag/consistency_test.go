@@ -22,15 +22,14 @@ import (
 	"context"
 	"encoding/binary"
 	"github.com/magiconair/properties/assert"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
-	"path/filepath"
+	"path"
 	"testing"
 	"time"
 )
@@ -139,10 +138,7 @@ func createXorTreeRepairState(t testing.TB, tx Transaction) *state {
 
 func createStoppedState(t testing.TB) *state {
 	testDir := io.TestDirectory(t)
-	bboltStore, err := bbolt.CreateBBoltStore(filepath.Join(testDir, "test_state"), stoabs.WithNoSync())
-	if err != nil {
-		t.Fatal("failed to create store: ", err)
-	}
+	bboltStore := storage.CreateTestBBoltStore(t, path.Join(testDir, "test.db"))
 	s, err := NewState(bboltStore)
 	require.NoError(t, err)
 	t.Cleanup(func() {

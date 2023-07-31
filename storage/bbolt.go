@@ -36,6 +36,10 @@ import (
 const fileMode = 0640
 const bboltDbExtension = ".db"
 
+var DefaultBBoltOptions = []stoabs.Option{
+	stoabs.WithLockAcquireTimeout(lockAcquireTimeout),
+}
+
 type bboltDatabase struct {
 	datadir         string
 	config          BBoltConfig
@@ -80,7 +84,7 @@ func (b bboltDatabase) createStore(moduleName string, storeName string) (stoabs.
 		WithField(core.LogFieldStore, fullStoreName).
 		Debug("Creating BBolt store")
 	databasePath := path.Join(b.datadir, fullStoreName) + bboltDbExtension
-	store, err := bbolt.CreateBBoltStore(databasePath, stoabs.WithLockAcquireTimeout(lockAcquireTimeout))
+	store, err := bbolt.CreateBBoltStore(databasePath, DefaultBBoltOptions...)
 	if store != nil {
 		b.startBackup(fullStoreName, store)
 	}

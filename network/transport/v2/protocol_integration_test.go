@@ -130,7 +130,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		mux: &sync.Mutex{},
 	}
 
-	storageClient := storage.NewTestStorageEngine(testDirectory)
+	storageClient := storage.NewTestStorageEngine(t)
 	bboltStore, err := storageClient.GetProvider("network").GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
 		t.Fatal(err)

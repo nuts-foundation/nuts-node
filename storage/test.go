@@ -24,12 +24,18 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"testing"
 )
 
-func NewTestStorageEngine(testDirectory string) Engine {
+func NewTestStorageEngine(t *testing.T) Engine {
+	oldOpts := append(DefaultBBoltOptions[:])
+	t.Cleanup(func() {
+		DefaultBBoltOptions = oldOpts
+	})
+	DefaultBBoltOptions = append(DefaultBBoltOptions, stoabs.WithNoSync())
 	result := New()
-	_ = result.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory + "/data"}))
+	_ = result.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t) + "/data"}))
 	return result
 }
 
