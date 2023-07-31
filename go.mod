@@ -3,11 +3,13 @@ module github.com/nuts-foundation/nuts-node
 go 1.20
 
 require (
+	github.com/PaesslerAG/jsonpath v0.1.2-0.20230323094847-3484786d6f97
 	github.com/alicebob/miniredis/v2 v2.30.4
 	github.com/avast/retry-go/v4 v4.3.4
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.9.1
 	github.com/deepmap/oapi-codegen v1.13.0
+	github.com/dlclark/regexp2 v1.10.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/goodsign/monday v1.0.1
 	github.com/google/uuid v1.3.0
@@ -48,6 +50,7 @@ require (
 )
 
 require (
+	github.com/PaesslerAG/gval v1.2.2 // indirect
 	github.com/alexandrevicenzi/go-sse v1.6.0 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
@@ -149,6 +152,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
+	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sietseringers/go-sse v0.0.0-20200801161811-e2cf2c63ca50 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/templexxx/cpu v0.0.9 // indirect
