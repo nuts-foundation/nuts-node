@@ -15,17 +15,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package didnuts
+package didstore
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // Finder is a helper that implements the DocFinder interface
 type Finder struct {
-	Store didstore.Store
+	Store Store
 }
 
 func (f Finder) Find(predicate ...types.Predicate) ([]did.Document, error) {

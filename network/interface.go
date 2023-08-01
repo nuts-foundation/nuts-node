@@ -24,7 +24,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // MaxReprocessBufferSize is the maximum number of events for Nats resulting from a Reprocess
@@ -60,12 +59,6 @@ type Transactions interface {
 	WithPersistency() SubscriberOption
 	// DiscoverServices should be called by the VDR to let the network know it has processed and verified a document (update) for the DID.
 	DiscoverServices(updatedDID did.DID)
-	// DiscoverNodes should be called by the VDR on startup to allow the network to discover Nuts nodes
-	// by looking for NutsComm service types in the DID documents.
-	// It's a weird callback (just like DiscoverServices), but having didstore, which in an internal of VDR,
-	// instantiated on the root level is even weirder.
-	// Note we already (have) to do that with DIDResolver, and one is enough.
-	DiscoverNodes(documentFinder types.DocFinder) error
 	// AddressBook returns the list of contacts in the address book.
 	AddressBook() []transport.Contact
 }

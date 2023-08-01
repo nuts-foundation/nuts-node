@@ -126,11 +126,6 @@ func (r *VDR) Start() error {
 		_, err = r.network.Reprocess(context.Background(), "application/did+json")
 	}
 
-	err = r.network.DiscoverNodes(didnuts.Finder{Store: r.store})
-	if err != nil {
-		return fmt.Errorf("network node discovery failed: %w", err)
-	}
-
 	return err
 }
 

@@ -15,11 +15,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package didnuts
+package didstore
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -33,7 +32,7 @@ import (
 func TestFinder_Find(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		didStore := didstore.NewMockStore(ctrl)
+		didStore := NewMockStore(ctrl)
 		finder := Finder{Store: didStore}
 		didStore.EXPECT().Iterate(gomock.Any()).Do(func(arg interface{}) {
 			f := arg.(types.DocIterator)
@@ -48,7 +47,7 @@ func TestFinder_Find(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		didStore := didstore.NewMockStore(ctrl)
+		didStore := NewMockStore(ctrl)
 		finder := Finder{Store: didStore}
 		didStore.EXPECT().Iterate(gomock.Any()).Return(errors.New("b00m!"))
 

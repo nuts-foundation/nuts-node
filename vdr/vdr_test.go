@@ -265,30 +265,9 @@ func TestNewVDR(t *testing.T) {
 }
 
 func TestVDR_Start(t *testing.T) {
-	t.Run("it calls Network.DiscoverNodes()", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-		ctx.mockStore.EXPECT().DocumentCount().Return(uint(1), nil)
-		ctx.mockNetwork.EXPECT().DiscoverNodes(gomock.Any()).Return(nil)
-		ctx.mockAmbassador.EXPECT().Start()
-
-		err := ctx.vdr.Start()
-
-		require.NoError(t, err)
-	})
-	t.Run("error returned by Network.DiscoverNodes()", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-		ctx.mockStore.EXPECT().DocumentCount().Return(uint(1), nil)
-		ctx.mockNetwork.EXPECT().DiscoverNodes(gomock.Any()).Return(errors.New("failed"))
-		ctx.mockAmbassador.EXPECT().Start()
-
-		err := ctx.vdr.Start()
-
-		require.EqualError(t, err, "network node discovery failed: failed")
-	})
 	t.Run("migration", func(t *testing.T) {
 		t.Run("migrate on 0 document count", func(t *testing.T) {
 			ctx := newVDRTestCtx(t)
-			ctx.mockNetwork.EXPECT().DiscoverNodes(gomock.Any()).Return(nil)
 			ctx.mockAmbassador.EXPECT().Start()
 			ctx.mockStore.EXPECT().DocumentCount().Return(uint(0), nil)
 			ctx.mockNetwork.EXPECT().Reprocess(context.Background(), "application/did+json").Return(nil, nil)
@@ -299,7 +278,6 @@ func TestVDR_Start(t *testing.T) {
 		})
 		t.Run("don't migrate on > 0 document count", func(t *testing.T) {
 			ctx := newVDRTestCtx(t)
-			ctx.mockNetwork.EXPECT().DiscoverNodes(gomock.Any()).Return(nil)
 			ctx.mockAmbassador.EXPECT().Start()
 			ctx.mockStore.EXPECT().DocumentCount().Return(uint(1), nil)
 

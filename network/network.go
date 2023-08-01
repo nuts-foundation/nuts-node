@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"net"
 	"strings"
@@ -82,8 +83,9 @@ type Network struct {
 	keyResolver       types.KeyResolver
 	startTime         atomic.Pointer[time.Time]
 	peerID            transport.PeerID
-	didResolver       types.DIDResolver
 	nodeDID           did.DID
+	didStore          didstore.Store
+	didDocumentFinder types.DocFinder
 	serviceResolver   types.ServiceResolver
 	eventPublisher    events.Event
 	storeProvider     storage.Provider
@@ -139,21 +141,22 @@ func (n *Network) Migrate() error {
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(
 	config Config,
-	didResolver types.DIDResolver,
+	store didstore.Store,
 	keyStore crypto.KeyStore,
 	eventPublisher events.Event,
 	storeProvider storage.Provider,
 	pkiValidator pki.Validator,
 ) *Network {
 	return &Network{
-		config:          config,
-		keyResolver:     didservice.KeyResolver{Resolver: didResolver},
-		keyStore:        keyStore,
-		didResolver:     didResolver,
-		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
-		eventPublisher:  eventPublisher,
-		storeProvider:   storeProvider,
-		pkiValidator:    pkiValidator,
+		config:            config,
+		keyResolver:       didservice.KeyResolver{Resolver: store},
+		keyStore:          keyStore,
+		didStore:          store,
+		didDocumentFinder: didstore.Finder{Store: store},
+		serviceResolver:   didservice.ServiceResolver{Resolver: store},
+		eventPublisher:    eventPublisher,
+		storeProvider:     storeProvider,
+		pkiValidator:      pkiValidator,
 		selfTestDialer: tls.Dialer{
 			NetDialer: &net.Dialer{
 				Timeout: time.Second,
@@ -170,7 +173,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return fmt.Errorf("unable to create database: %w", err)
 	}
-	nutsKeyResolver := dag.SourceTXKeyResolver{Resolver: n.didResolver}
+	nutsKeyResolver := dag.SourceTXKeyResolver{Resolver: n.didStore}
 	if n.state, err = dag.NewState(dagStore, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(nutsKeyResolver)); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
@@ -215,7 +218,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var candidateProtocols []transport.Protocol
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
-			v2.New(v2Cfg, n.nodeDID, n.state, n.didResolver, n.keyStore, n.collectDiagnosticsForPeers, dagStore),
+			v2.New(v2Cfg, n.nodeDID, n.state, n.didStore, n.keyStore, n.collectDiagnosticsForPeers, dagStore),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability
@@ -298,7 +301,7 @@ func (n *Network) DiscoverServices(updatedDID did.DID) {
 	if !n.config.EnableDiscovery {
 		return
 	}
-	document, _, err := n.didResolver.Resolve(updatedDID, nil)
+	document, _, err := n.didStore.Resolve(updatedDID, nil)
 	if err != nil {
 		// VDR store is down. Any missed updates are resolved on node restart.
 		// This can happen when the VDR is receiving lots of DID updates, such as during the initial sync of the network.
@@ -370,7 +373,10 @@ func (n *Network) Start() error {
 	if err != nil {
 		return err
 	}
+	return n.connectToKnownNodes(n.nodeDID)
+}
 
+func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	// Start connecting to bootstrap nodes
 	for _, bootstrapNode := range n.config.BootstrapNodes {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
@@ -378,16 +384,13 @@ func (n *Network) Start() error {
 		}
 		n.connectionManager.Connect(bootstrapNode, did.DID{}, nil)
 	}
-	return nil
-}
 
-func (n *Network) DiscoverNodes(didDocumentFinder types.DocFinder) error {
 	if !n.config.EnableDiscovery {
 		return nil
 	}
 
 	// start connecting to published NutsComm addresses
-	otherNodes, err := didDocumentFinder.Find(didservice.IsActive(), didservice.ValidAt(time.Now()), didservice.ByServiceType(transport.NutsCommServiceType))
+	otherNodes, err := n.didDocumentFinder.Find(didservice.IsActive(), didservice.ValidAt(time.Now()), didservice.ByServiceType(transport.NutsCommServiceType))
 	if err != nil {
 		return err
 	}
@@ -396,7 +399,7 @@ func (n *Network) DiscoverNodes(didDocumentFinder types.DocFinder) error {
 		log.Logger().Infof("Assuming this is a new node, discovered NutsComm addresses are processed with a %s delay", newNodeConnectionDelay)
 	}
 	for _, node := range otherNodes {
-		n.connectToDID(n.nodeDID, node, false)
+		n.connectToDID(nodeDID, node, false)
 	}
 
 	return nil
@@ -441,7 +444,7 @@ inner:
 
 func (n *Network) validateNodeDIDKeys(ctx context.Context, nodeDID did.DID) error {
 	// Check if DID document can be resolved
-	document, _, err := n.didResolver.Resolve(nodeDID, nil)
+	document, _, err := n.didStore.Resolve(nodeDID, nil)
 	if err != nil {
 		return fmt.Errorf("DID document can't be resolved (did=%s): %w", nodeDID, err)
 	}
