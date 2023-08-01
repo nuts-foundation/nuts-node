@@ -19,12 +19,12 @@
 package auth
 
 import (
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"go.uber.org/mock/gomock"
 )
 
@@ -41,5 +41,7 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	pkiMock := pki.NewMockProvider(ctrl)
 	pkiMock.EXPECT().AddTruststore(gomock.Any()).AnyTimes()
 	pkiMock.EXPECT().CreateTLSConfig(gomock.Any()).AnyTimes()
-	return NewAuthInstance(cfg, didstore.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil, pkiMock)
+	vdrInstance := types.NewMockVDR(ctrl)
+	vdrInstance.EXPECT().Resolver().AnyTimes()
+	return NewAuthInstance(cfg, vdrInstance, vcrInstance, cryptoInstance, nil, nil, pkiMock)
 }

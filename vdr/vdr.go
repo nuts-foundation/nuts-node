@@ -51,9 +51,6 @@ var _ types.VDR = (*VDR)(nil)
 var _ core.Named = (*VDR)(nil)
 var _ core.Configurable = (*VDR)(nil)
 
-// didStoreName contains the name for the store
-const didStoreName = "didstore"
-
 // VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
@@ -81,15 +78,17 @@ func (r *VDR) Resolver() types.DIDResolver {
 
 // NewVDR creates a new VDR with provided params
 func NewVDR(storageProvider storage.Provider, cryptoClient crypto.KeyStore, networkClient network.Transactions,
-	didResolverRouter *didservice.DIDResolverRouter, eventManager events.Event) *VDR {
+	didStore didnutsStore.Store, eventManager events.Event) *VDR {
+	didResolver := &didservice.DIDResolverRouter{}
 	return &VDR{
 		storageProvider: storageProvider,
 		network:         networkClient,
 		eventManager:    eventManager,
 		didDocCreator:   didnuts.Creator{KeyStore: cryptoClient},
-		didResolver:     didResolverRouter,
-		serviceResolver: didservice.ServiceResolver{Resolver: didResolverRouter},
-		documentOwner:   newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, didResolverRouter),
+		didResolver:     didResolver,
+		store:           didStore,
+		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
+		documentOwner:   newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, didResolver),
 		keyStore:        cryptoClient,
 	}
 }
@@ -100,12 +99,6 @@ func (r *VDR) Name() string {
 
 // Configure configures the VDR engine.
 func (r *VDR) Configure(_ core.ServerConfig) error {
-	didStore, err := r.storageProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
-	if err != nil {
-		return err
-	}
-	r.store = didnutsStore.New(didStore)
-
 	r.nutsDidResolver = &didnuts.Resolver{Store: r.store}
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
 

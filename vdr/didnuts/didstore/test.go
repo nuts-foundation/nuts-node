@@ -20,6 +20,8 @@ package didstore
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"testing"
 	"time"
 
@@ -41,9 +43,10 @@ var testServiceA = did.Service{ID: ssi.MustParseURI("did:nuts:service:a"), Servi
 var testServiceB = did.Service{ID: ssi.MustParseURI("did:nuts:service:b"), ServiceEndpoint: []interface{}{"http://b"}}
 
 func NewTestStore(t *testing.T) *store {
-	kvStore, err := storage.NewTestStorageEngine(path.Join(io.TestDirectory(t))).GetProvider(moduleName).GetKVStore("didstore", storage.PersistentStorageClass)
+	s := New(storage.NewTestStorageEngine(t).GetProvider(moduleName)).(*store)
+	err := s.Configure(core.ServerConfig{})
 	require.NoError(t, err)
-	return New(kvStore).(*store)
+	return s
 }
 
 func add(t *testing.T, tl *store, doc did.Document, tx Transaction) {

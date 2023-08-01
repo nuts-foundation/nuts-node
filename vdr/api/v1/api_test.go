@@ -474,17 +474,18 @@ type mockContext struct {
 func newMockContext(t *testing.T) mockContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	vdr := types.NewMockVDR(ctrl)
-	docManipulator := types.NewMockDocManipulator(ctrl)
 	didResolver := types.NewMockDIDResolver(ctrl)
-	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator, DIDResolver: didResolver}
+	vdr := types.NewMockVDR(ctrl)
+	vdr.EXPECT().Resolver().Return(didResolver).AnyTimes()
+	docManipulator := types.NewMockDocManipulator(ctrl)
+	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator}
 	requestCtx := audit.TestContext()
 
 	return mockContext{
 		ctrl:        ctrl,
 		vdr:         vdr,
-		client:      client,
 		didResolver: didResolver,
+		client:      client,
 		docUpdater:  docManipulator,
 		requestCtx:  requestCtx,
 	}

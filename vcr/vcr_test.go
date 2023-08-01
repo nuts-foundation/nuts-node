@@ -56,7 +56,7 @@ import (
 
 func TestVCR_Configure(t *testing.T) {
 	t.Run("error - creating issuer store", func(t *testing.T) {
-		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pki.New(), nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pki.New()).(*vcr)
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
 		assert.EqualError(t, err, "failed to create leiaIssuerStore: mkdir test/vcr: not a directory")
@@ -64,9 +64,11 @@ func TestVCR_Configure(t *testing.T) {
 	t.Run("openid4vci", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		ctrl := gomock.NewController(t)
+		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance.EXPECT().Resolver().AnyTimes()
 		pkiProvider := pki.NewMockProvider(ctrl)
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
-		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider, nil).(*vcr)
+		instance := NewVCRInstance(nil, vdrInstance, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
 		instance.config.OpenID4VCI.Enabled = true
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
@@ -85,9 +87,10 @@ func TestVCR_Configure(t *testing.T) {
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
 		localWalletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		localWalletResolver.EXPECT().Resolve(issuerDID).Return("https://example.com", nil).AnyTimes()
-		documentOwner := types.NewMockDocumentOwner(ctrl)
-		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
-		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider, documentOwner).(*vcr)
+		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance.EXPECT().Resolver().AnyTimes()
+		vdrInstance.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
+		instance := NewVCRInstance(nil, vdrInstance, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider).(*vcr)
 		instance.config.OpenID4VCI.Enabled = true
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
@@ -113,14 +116,17 @@ func TestVCR_Start(t *testing.T) {
 
 	t.Run("loads default indices", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
+		ctrl := gomock.NewController(t)
+		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance.EXPECT().Resolver().AnyTimes()
 		instance := NewVCRInstance(
 			nil,
-			nil,
+			vdrInstance,
 			network.NewTestNetworkInstance(t),
 			jsonld.NewTestJSONLDManager(t),
 			events.NewTestManager(t),
 			storage.NewTestStorageEngine(t),
-			pki.New(), nil,
+			pki.New(),
 		).(*vcr)
 		if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 			t.Fatal(err)
@@ -160,14 +166,17 @@ func TestVCR_Start(t *testing.T) {
 
 func TestVCR_Diagnostics(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
+	ctrl := gomock.NewController(t)
+	vdrInstance := types.NewMockVDR(ctrl)
+	vdrInstance.EXPECT().Resolver().AnyTimes()
 	instance := NewVCRInstance(
 		nil,
-		nil,
+		vdrInstance,
 		network.NewTestNetworkInstance(t),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(t),
-		pki.New(), nil,
+		pki.New(),
 	).(*vcr)
 	instance.config.OpenID4VCI.Enabled = false
 	if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -279,12 +288,12 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 	ctx := context.Background()
 	t.Run("found DID, owned", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		documentOwner := types.NewMockDocumentOwner(ctrl)
-		documentOwner.EXPECT().IsOwner(ctx, id).Return(true, nil)
+		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance.EXPECT().IsOwner(ctx, id).Return(true, nil)
 		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
 		instance := NewTestVCRInstance(t)
-		instance.documentOwner = documentOwner
+		instance.vdrInstance = vdrInstance
 		instance.localWalletResolver = identifierResolver
 
 		actual, err := instance.GetOpenIDIssuer(ctx, id)
@@ -294,12 +303,12 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 	})
 	t.Run("found DID, not owned", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		documentOwner := types.NewMockDocumentOwner(ctrl)
-		documentOwner.EXPECT().IsOwner(ctx, id).Return(false, nil)
+		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance.EXPECT().IsOwner(ctx, id).Return(false, nil)
 		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
 		instance := NewTestVCRInstance(t)
-		instance.documentOwner = documentOwner
+		instance.vdrInstance = vdrInstance
 		instance.localWalletResolver = identifierResolver
 
 		actual, err := instance.GetOpenIDIssuer(ctx, id)
@@ -309,11 +318,9 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 	})
 	t.Run("resolver error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		documentOwner := types.NewMockDocumentOwner(ctrl)
 		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return("", errors.New("failed"))
 		instance := NewTestVCRInstance(t)
-		instance.documentOwner = documentOwner
 		instance.localWalletResolver = identifierResolver
 
 		actual, err := instance.GetOpenIDIssuer(ctx, id)
@@ -329,12 +336,12 @@ func Test_vcr_GetOIDCWallet(t *testing.T) {
 	ctx := context.Background()
 
 	ctrl := gomock.NewController(t)
-	documentOwner := types.NewMockDocumentOwner(ctrl)
-	documentOwner.EXPECT().IsOwner(ctx, id).Return(true, nil)
+	vdrInstance := types.NewMockVDR(ctrl)
+	vdrInstance.EXPECT().IsOwner(ctx, id).Return(true, nil)
 	identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 	identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
 	instance := NewTestVCRInstance(t)
-	instance.documentOwner = documentOwner
+	instance.vdrInstance = vdrInstance
 	instance.localWalletResolver = identifierResolver
 
 	actual, err := instance.GetOpenIDHolder(ctx, id)
@@ -344,8 +351,11 @@ func Test_vcr_GetOIDCWallet(t *testing.T) {
 }
 func TestVcr_Untrusted(t *testing.T) {
 	instance := NewTestVCRInstance(t)
-	mockDidResolver := types.NewMockDIDResolver(gomock.NewController(t))
-	instance.didResolver = mockDidResolver
+	ctrl := gomock.NewController(t)
+	mockDidResolver := types.NewMockDIDResolver(ctrl)
+	vdrInstance := types.NewMockVDR(ctrl)
+	vdrInstance.EXPECT().Resolver().Return(mockDidResolver).AnyTimes()
+	instance.vdrInstance = vdrInstance
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testCredential)
 

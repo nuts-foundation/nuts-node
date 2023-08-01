@@ -283,10 +283,4 @@ func TestDIDResolverRouter_Resolve(t *testing.T) {
 		assert.EqualError(t, err, "DID method not supported")
 		assert.Nil(t, actual)
 	})
-	t.Run("error - no resolver registered", func(t *testing.T) {
-		actual, md, err := (&DIDResolverRouter{}).Resolve(doc.ID, nil)
-		assert.EqualError(t, err, "no DID resolvers registered in *didservice.DIDResolverRouter (programming error?)")
-		assert.Nil(t, actual)
-		assert.Nil(t, md)
-	})
 }

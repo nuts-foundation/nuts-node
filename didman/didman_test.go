@@ -51,14 +51,14 @@ var testDIDA = vdr.TestDIDA
 var testDIDB = vdr.TestDIDB
 
 func TestDidman_Name(t *testing.T) {
-	instance := NewDidmanInstance(nil, nil, nil, nil).(core.Named)
+	instance := NewDidmanInstance(nil, nil, nil).(core.Named)
 
 	assert.Equal(t, ModuleName, instance.Name())
 }
 
 func TestNewDidmanInstance(t *testing.T) {
 	ctx := newMockContext(t)
-	instance := NewDidmanInstance(ctx.vdr, ctx.vcr, nil, nil).(*didman)
+	instance := NewDidmanInstance(ctx.vdr, ctx.vcr, nil).(*didman)
 
 	assert.NotNil(t, instance)
 	assert.Equal(t, ctx.vcr, instance.vcr)
@@ -981,10 +981,11 @@ type mockContext struct {
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
-	mockVDR := types.NewMockVDR(ctrl)
 	didResolver := types.NewMockDIDResolver(ctrl)
+	mockVDR := types.NewMockVDR(ctrl)
+	mockVDR.EXPECT().Resolver().Return(didResolver).AnyTimes()
 	mockVCR := vcr.NewMockFinder(ctrl)
-	instance := NewDidmanInstance(mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t), didResolver).(*didman)
+	instance := NewDidmanInstance(mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t)).(*didman)
 
 	return mockContext{
 		ctrl:        ctrl,

@@ -57,21 +57,18 @@ import (
 const credentialsBackupShelf = "credentials"
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, didResolver vdr.DIDResolver,
+func NewVCRInstance(keyStore crypto.KeyStore, vdrInstance vdr.VDR,
 	network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine,
-	pkiProvider pki.Provider, documentOwner vdr.DocumentOwner) VCR {
+	pkiProvider pki.Provider) VCR {
 	r := &vcr{
-		config:          DefaultConfig(),
-		didResolver:     didResolver,
-		keyStore:        keyStore,
-		keyResolver:     didservice.KeyResolver{Resolver: didResolver},
-		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
-		network:         network,
-		jsonldManager:   jsonldManager,
-		eventManager:    eventManager,
-		storageClient:   storageClient,
-		pkiProvider:     pkiProvider,
-		documentOwner:   documentOwner,
+		config:        DefaultConfig(),
+		vdrInstance:   vdrInstance,
+		keyStore:      keyStore,
+		network:       network,
+		jsonldManager: jsonldManager,
+		eventManager:  eventManager,
+		storageClient: storageClient,
+		pkiProvider:   pkiProvider,
 	}
 	return r
 }
@@ -84,7 +81,6 @@ type vcr struct {
 	config              Config
 	store               storage.KVBackedLeiaStore
 	keyStore            crypto.KeyStore
-	didResolver         vdr.DIDResolver
 	keyResolver         vdr.KeyResolver
 	serviceResolver     vdr.ServiceResolver
 	ambassador          Ambassador
@@ -102,8 +98,8 @@ type vcr struct {
 	localWalletResolver openid4vci.IdentifierResolver
 	issuerHttpClient    core.HTTPRequestDoer
 	walletHttpClient    core.HTTPRequestDoer
-	documentOwner       vdr.DocumentOwner
 	pkiProvider         pki.Provider
+	vdrInstance         vdr.VDR
 }
 
 func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error) {
@@ -131,7 +127,7 @@ func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (stri
 			StatusCode: http.StatusNotFound,
 		}
 	}
-	isOwner, err := c.documentOwner.IsOwner(ctx, id)
+	isOwner, err := c.vdrInstance.IsOwner(ctx, id)
 	if err != nil {
 		return "", err
 	}
@@ -200,7 +196,11 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	// default to nil openidHandlerFn when OpenID4VCI.Enabled==false
 	var openidHandlerFn func(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error)
 
-	networkPublisher := issuer.NewNetworkPublisher(c.network, c.didResolver, c.keyStore)
+	didResolver := c.vdrInstance.Resolver()
+	c.keyResolver = didservice.KeyResolver{Resolver: didResolver}
+	c.serviceResolver = didservice.ServiceResolver{Resolver: didResolver}
+
+	networkPublisher := issuer.NewNetworkPublisher(c.network, didResolver, c.keyStore)
 	if c.config.OpenID4VCI.Enabled {
 		tlsConfig, err := c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 		if err != nil {
@@ -231,8 +231,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		})
 		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
 	}
-	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, c.didResolver, c.keyStore, c.jsonldManager, c.trustConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, c.didResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig)
+	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
@@ -473,6 +473,7 @@ func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
 }
 
 func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
+	didResolver := c.vdrInstance.Resolver()
 	trustMap := make(map[string]bool)
 	untrusted := make([]ssi.URI, 0)
 	for _, trusted := range c.trustConfig.List(credentialType) {
@@ -501,7 +502,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 			if err != nil {
 				return err
 			}
-			_, _, err = c.didResolver.Resolve(*issuerDid, nil)
+			_, _, err = didResolver.Resolve(*issuerDid, nil)
 			if err != nil {
 				if !(errors.Is(err, did.DeactivatedErr) || errors.Is(err, vdr.ErrNoActiveController)) {
 					return err

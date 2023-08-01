@@ -21,11 +21,13 @@ package vcr
 
 import (
 	"context"
+	crypt "crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
-	types2 "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -119,7 +121,9 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	ctx.vcr.Trust(vc.Type[1], vc.Issuer)
 
 	// mocks
-	ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), types2.NutsSigningKeyType).Return(signer.Public(), nil)
+	publicKey := signer.Public()
+
+	ctx.didResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(documentWithPublicKey(t, publicKey), nil, nil)
 
 	// Publish a VC
 	payload, _ := json.Marshal(vc)
@@ -366,4 +370,15 @@ type stubRoundTripper struct{}
 
 func (s stubRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: http.StatusNotFound}, nil
+}
+
+func documentWithPublicKey(t *testing.T, publicKey crypt.PublicKey) *did.Document {
+	id := did.MustParseDID("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
+	keyID := id
+	keyID.Fragment = "sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
+	vm, err := did.NewVerificationMethod(keyID, ssi.JsonWebKey2020, id, publicKey)
+	require.NoError(t, err)
+	doc := did.Document{}
+	doc.AddAssertionMethod(vm)
+	return &doc
 }

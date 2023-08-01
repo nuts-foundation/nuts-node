@@ -23,11 +23,17 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
+
+var _ core.Configurable = (*store)(nil)
+
+// didStoreName contains the name for the store
+const didStoreName = "didstore"
 
 // shelfs have a V2 postfix due to overlapping names with previous implementation
 const (
@@ -52,14 +58,21 @@ const (
 )
 
 type store struct {
-	db stoabs.KVStore
+	db       stoabs.KVStore
+	provider storage.Provider
 }
 
 // New returns a new vdrStore.Store that still needs to be initialized
-func New(kvStore stoabs.KVStore) Store {
+func New(provider storage.Provider) Store {
 	return &store{
-		db: kvStore,
+		provider: provider,
 	}
+}
+
+func (tl *store) Configure(_ core.ServerConfig) error {
+	var err error
+	tl.db, err = tl.provider.GetKVStore(didStoreName, storage.PersistentStorageClass)
+	return err
 }
 
 // Add inserts the document version at the correct place and updates all later versions if needed

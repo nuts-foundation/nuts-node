@@ -47,14 +47,6 @@ func (r *DIDResolverRouter) Resolve(id did.DID, metadata *types.ResolveMetadata)
 	method := id.Method
 	resolver, registered := r.resolvers.Load(method)
 	if !registered {
-		hasMethods := false
-		r.resolvers.Range(func(_, _ any) bool {
-			hasMethods = true
-			return false
-		})
-		if !hasMethods {
-			return nil, nil, fmt.Errorf("no DID resolvers registered in %T (programming error?)", r)
-		}
 		return nil, nil, types.ErrDIDMethodNotSupported
 	}
 	return resolver.(types.DIDResolver).Resolve(id, metadata)

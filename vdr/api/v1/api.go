@@ -42,7 +42,6 @@ var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 type Wrapper struct {
 	VDR            types.VDR
 	DocManipulator types.DocManipulator
-	DIDResolver    types.DIDResolver
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -168,7 +167,7 @@ func (a *Wrapper) GetDID(ctx context.Context, request GetDIDRequestObject) (GetD
 		resolverMetadata.ResolveTime = &versionTime
 	}
 
-	doc, meta, err := a.DIDResolver.Resolve(*d, resolverMetadata)
+	doc, meta, err := a.VDR.Resolver().Resolve(*d, resolverMetadata)
 	if err != nil {
 		return nil, err
 	}

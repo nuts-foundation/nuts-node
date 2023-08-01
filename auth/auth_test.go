@@ -44,8 +44,10 @@ func TestAuth_Configure(t *testing.T) {
 		pkiMock := pki.NewMockProvider(ctrl)
 		pkiMock.EXPECT().AddTruststore(gomock.Any())   // uzi
 		pkiMock.EXPECT().CreateTLSConfig(gomock.Any()) // tlsConfig
+		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance.EXPECT().Resolver().AnyTimes()
 
-		i := NewAuthInstance(config, types.NewMockDIDResolver(ctrl), vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
+		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
 
 		_ = i.Configure(tlsServerConfig)
 	})

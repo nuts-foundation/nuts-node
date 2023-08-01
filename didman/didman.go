@@ -87,7 +87,6 @@ func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
 
 type didman struct {
 	jsonldManager jsonld.JSONLD
-	didResolver   types.DIDResolver
 	vdr           types.VDR
 	vcr           vcr.Finder
 	// callSerializer can be used to (un)lock a resource such as a DID to prevent parallel updates
@@ -95,12 +94,11 @@ type didman struct {
 }
 
 // NewDidmanInstance creates a new didman instance with services set
-func NewDidmanInstance(vdr types.VDR, vcr vcr.Finder, jsonldManager jsonld.JSONLD, didResolver types.DIDResolver) Didman {
+func NewDidmanInstance(vdr types.VDR, vcr vcr.Finder, jsonldManager jsonld.JSONLD) Didman {
 	return &didman{
 		vdr:            vdr,
 		vcr:            vcr,
 		jsonldManager:  jsonldManager,
-		didResolver:    didResolver,
 		callSerializer: keyedMutex{},
 	}
 }
@@ -153,7 +151,7 @@ func (d *didman) DeleteEndpointsByType(ctx context.Context, id did.DID, serviceT
 	unlockFn := d.callSerializer.Lock(id.String())
 	defer unlockFn()
 
-	doc, _, err := d.didResolver.Resolve(id, nil)
+	doc, _, err := d.vdr.Resolver().Resolve(id, nil)
 	if err != nil {
 		return err
 	}
@@ -174,7 +172,7 @@ func (d *didman) DeleteEndpointsByType(ctx context.Context, id did.DID, serviceT
 }
 
 func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
-	doc, _, err := d.didResolver.Resolve(id, nil)
+	doc, _, err := d.vdr.Resolver().Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +237,7 @@ func (d *didman) UpdateCompoundService(ctx context.Context, id did.DID, serviceT
 }
 
 func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error) {
-	document, _, err := d.didResolver.Resolve(id, nil)
+	document, _, err := d.vdr.Resolver().Resolve(id, nil)
 	if err != nil {
 		return "", err
 	}
@@ -248,7 +246,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	documentsCache := map[string]*did.Document{document.ID.String(): document}
 
 	// First, resolve the compound endpoint
-	serviceResolver := didservice.ServiceResolver{Resolver: d.didResolver}
+	serviceResolver := didservice.ServiceResolver{Resolver: d.vdr.Resolver()}
 	compoundService, err := serviceResolver.ResolveEx(didservice.MakeServiceReference(id, compoundServiceType), referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}
@@ -305,7 +303,7 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 		return err
 	}
 
-	doc, _, err := d.didResolver.Resolve(id, nil)
+	doc, _, err := d.vdr.Resolver().Resolve(id, nil)
 	if err != nil {
 		return err
 	}
@@ -386,7 +384,7 @@ func (d *didman) UpdateContactInformation(ctx context.Context, id did.DID, infor
 // GetContactInformation tries to find the ContactInformation for the indicated DID document.
 // Returns nil, nil when no contactInformation for the DID was found.
 func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) {
-	doc, _, err := d.didResolver.Resolve(id, nil)
+	doc, _, err := d.vdr.Resolver().Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -513,7 +511,7 @@ func (d *didman) resolveOrganizationDIDDocument(organization vc.VerifiableCreden
 	if err != nil {
 		return nil, did.DID{}, fmt.Errorf("unable to parse DID from organization credential: %w", err)
 	}
-	document, _, err := d.didResolver.Resolve(*organizationDID, nil)
+	document, _, err := d.vdr.Resolver().Resolve(*organizationDID, nil)
 	return document, *organizationDID, err
 }
 
@@ -541,7 +539,7 @@ func filterServices(doc *did.Document, serviceType string) []did.Service {
 }
 
 func (d *didman) addService(ctx context.Context, id did.DID, serviceType string, serviceEndpoint interface{}, preprocessor func(*did.Document)) (*did.Service, error) {
-	doc, _, err := d.didResolver.Resolve(id, nil)
+	doc, _, err := d.vdr.Resolver().Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -573,7 +571,7 @@ func (d *didman) addService(ctx context.Context, id did.DID, serviceType string,
 }
 
 func (d *didman) updateService(ctx context.Context, id did.DID, serviceType string, serviceEndpoint interface{}) (*did.Service, error) {
-	doc, _, err := d.didResolver.Resolve(id, nil)
+	doc, _, err := d.vdr.Resolver().Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
