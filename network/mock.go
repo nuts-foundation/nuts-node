@@ -12,7 +12,6 @@ import (
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
-	types "github.com/nuts-foundation/nuts-node/vdr/types"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -80,20 +79,6 @@ func (m *MockTransactions) CreateTransaction(ctx context.Context, spec Template)
 func (mr *MockTransactionsMockRecorder) CreateTransaction(ctx, spec interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), ctx, spec)
-}
-
-// DiscoverNodes mocks base method.
-func (m *MockTransactions) DiscoverNodes(documentFinder types.DocFinder) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DiscoverNodes", documentFinder)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DiscoverNodes indicates an expected call of DiscoverNodes.
-func (mr *MockTransactionsMockRecorder) DiscoverNodes(documentFinder interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DiscoverNodes", reflect.TypeOf((*MockTransactions)(nil).DiscoverNodes), documentFinder)
 }
 
 // DiscoverServices mocks base method.
