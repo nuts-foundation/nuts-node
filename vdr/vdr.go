@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -97,6 +98,7 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 
 	// Register DID methods
 	r.didResolver.Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
+	r.didResolver.Register(didweb.MethodName, didweb.NewResolver())
 
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()
