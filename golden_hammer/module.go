@@ -30,7 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/url"
 	"sort"
@@ -44,12 +43,11 @@ var _ core.Named = (*GoldenHammer)(nil)
 var _ core.Configurable = (*GoldenHammer)(nil)
 var _ core.Injectable = (*GoldenHammer)(nil)
 
-func New(documentOwner types.DocumentOwner, didmanAPI didman.Didman, didStore didstore.Store) *GoldenHammer {
+func New(vdrInstance types.VDR, didmanAPI didman.Didman) *GoldenHammer {
 	return &GoldenHammer{
 		routines:          &sync.WaitGroup{},
+		vdrInstance:       vdrInstance,
 		didmanAPI:         didmanAPI,
-		documentOwner:     documentOwner,
-		didResolver:       didservice.Resolver{Store: didStore},
 		fixedDocumentDIDs: map[string]bool{},
 	}
 }
@@ -63,9 +61,8 @@ type GoldenHammer struct {
 	ctx               context.Context
 	cancelFunc        context.CancelFunc
 	routines          *sync.WaitGroup
-	didResolver       types.DIDResolver
 	didmanAPI         didman.Didman
-	documentOwner     types.DocumentOwner
+	vdrInstance       types.VDR
 	fixedDocumentDIDs map[string]bool
 	tlsConfig         *tls.Config
 }
@@ -184,7 +181,7 @@ func (h *GoldenHammer) registerServiceBaseURLs() error {
 }
 
 func (h *GoldenHammer) listDocumentToFix() ([]did.Document, error) {
-	dids, err := h.documentOwner.ListOwned(h.ctx)
+	dids, err := h.vdrInstance.ListOwned(h.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +191,7 @@ func (h *GoldenHammer) listDocumentToFix() ([]did.Document, error) {
 			// Already fixed
 			continue
 		}
-		document, _, err := h.didResolver.Resolve(id, nil)
+		document, _, err := h.vdrInstance.Resolver().Resolve(id, nil)
 		if err != nil {
 			if !didservice.IsFunctionalResolveError(err) {
 				log.Logger().WithError(err).Infof("Can't resolve DID document, skipping fix (did=%s)", id)
@@ -239,7 +236,7 @@ func (h *GoldenHammer) tryResolveURL(id did.DID) (*url.URL, error) {
 
 // resolveContainsService returns whether 1. given DID document can be resolved, and 2. it contains the specified service.
 func (h *GoldenHammer) resolveContainsService(id did.DID, serviceType string) bool {
-	document, _, err := h.didResolver.Resolve(id, nil)
+	document, _, err := h.vdrInstance.Resolver().Resolve(id, nil)
 	if didservice.IsFunctionalResolveError(err) {
 		// Unresolvable DID document, nothing to do
 		return false

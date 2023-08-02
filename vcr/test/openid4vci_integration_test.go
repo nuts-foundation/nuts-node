@@ -25,6 +25,7 @@ import (
 	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
@@ -46,7 +47,6 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 )
 
@@ -250,7 +250,7 @@ func TestOpenID4VCIErrorResponses(t *testing.T) {
 func testCredential() vc.VerifiableCredential {
 	return vc.VerifiableCredential{
 		Context: []ssi.URI{
-			didservice.JWS2020ContextV1URI(),
+			didnuts.JWS2020ContextV1URI(),
 			credentialTypes.NutsV1ContextURI,
 		},
 		Type: []ssi.URI{
@@ -263,7 +263,7 @@ func testCredential() vc.VerifiableCredential {
 func registerDID(t *testing.T, system *core.System) did.DID {
 	vdrService := system.FindEngineByName("vdr").(vdrTypes.VDR)
 	ctx := audit.TestContext()
-	didDocument, _, err := vdrService.Create(ctx, didservice.DefaultCreationOptions())
+	didDocument, _, err := vdrService.Create(ctx, didnuts.DefaultCreationOptions())
 	require.NoError(t, err)
 	return didDocument.ID
 

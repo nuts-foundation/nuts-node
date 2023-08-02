@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package didservice contains DID Document related functionality that only matters to the current node.
+// Package service contains DID Document related functionality that only matters to the current node.
 // All functionality here has zero relations to the network.
 package didservice
 
@@ -23,7 +23,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"sync"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -31,108 +31,37 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// ErrNestedDocumentsTooDeep is returned when a DID Document contains a multiple services with the same type
-var ErrNestedDocumentsTooDeep = errors.New("DID Document controller structure has too many indirections")
-
 // DefaultMaxServiceReferenceDepth holds the default max. allowed depth for DID service references.
 const DefaultMaxServiceReferenceDepth = 5
 
-const maxControllerDepth = 5
+var _ types.DIDResolver = &DIDResolverRouter{}
 
-// Resolver implements the DIDResolver interface with a types.Store as backend
-type Resolver struct {
-	Store didstore.Store
+// DIDResolverRouter is a DID resolver that can route to different DID resolvers based on the DID method
+type DIDResolverRouter struct {
+	resolvers sync.Map
 }
 
-func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
-	return resolve(d.Store, id, metadata, 0)
+// Resolve looks up the right resolver for the given DID and delegates the resolution to it.
+// If no resolver is registered for the given DID method, ErrDIDMethodNotSupported is returned.
+func (r *DIDResolverRouter) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
+	method := id.Method
+	resolver, registered := r.resolvers.Load(method)
+	if !registered {
+		return nil, nil, types.ErrDIDMethodNotSupported
+	}
+	return resolver.(types.DIDResolver).Resolve(id, metadata)
 }
 
-func resolve(resolver types.DIDResolver, id did.DID, metadata *types.ResolveMetadata, depth int) (*did.Document, *types.DocumentMetadata, error) {
-	if depth >= maxControllerDepth {
-		return nil, nil, ErrNestedDocumentsTooDeep
-	}
-
-	doc, meta, err := resolver.Resolve(id, metadata)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// has the doc controllers, should we check for controller deactivation?
-	if len(doc.Controller) > 0 && (metadata == nil || !metadata.AllowDeactivated) {
-		// also check if the controller is not deactivated
-		// since ResolveControllers calls Resolve and propagates the metadata
-		controllers, err := resolveControllers(resolver, *doc, metadata, depth+1)
-		if err != nil {
-			return nil, nil, err
-		}
-		// doc should have controllers, but no results, so they are not active, return error:
-		if len(controllers) == 0 {
-			return nil, nil, types.ErrNoActiveController
-		}
-	}
-
-	return doc, meta, nil
-}
-
-// ResolveControllers finds the DID Document controllers
-func ResolveControllers(resolver types.DIDResolver, doc did.Document, metadata *types.ResolveMetadata) ([]did.Document, error) {
-	return resolveControllers(resolver, doc, metadata, 0)
-}
-
-func resolveControllers(resolver types.DIDResolver, doc did.Document, metadata *types.ResolveMetadata, depth int) ([]did.Document, error) {
-	var leaves []did.Document
-	var refsToResolve []did.DID
-
-	if len(doc.Controller) == 0 && len(doc.CapabilityInvocation) > 0 {
-		// no controller -> doc is its own controller
-		leaves = append(leaves, doc)
-	} else {
-		for _, ctrlDID := range doc.Controller {
-			if doc.ID.Equals(ctrlDID) {
-				if len(doc.CapabilityInvocation) > 0 {
-					// doc is its own controller
-					leaves = append(leaves, doc)
-				}
-			} else {
-				// add did to be resolved later
-				refsToResolve = append(refsToResolve, ctrlDID)
-			}
-		}
-	}
-
-	// resolve all unresolved doc
-	for _, ref := range refsToResolve {
-		node, _, err := resolve(resolver, ref, metadata, depth)
-		if errors.Is(err, types.ErrDeactivated) || errors.Is(err, types.ErrNoActiveController) {
-			continue
-		}
-		if errors.Is(err, ErrNestedDocumentsTooDeep) {
-			return nil, err
-		}
-		if err != nil {
-			return nil, fmt.Errorf("unable to resolve controller ref: %w", err)
-		}
-		leaves = append(leaves, *node)
-	}
-
-	// filter deactivated
-	j := 0
-	for _, leaf := range leaves {
-		if !IsDeactivated(leaf) {
-			leaves[j] = leaf
-			j++
-		}
-	}
-
-	return leaves[:j], nil
+// Register registers a DID resolver for the given DID method.
+func (r *DIDResolverRouter) Register(method string, resolver types.DIDResolver) {
+	r.resolvers.Store(method, resolver)
 }
 
 var _ types.KeyResolver = KeyResolver{}
 
-// KeyResolver implements the KeyResolver interface with a types.Store as backend
+// KeyResolver implements the KeyResolver interface that uses keys from resolved DIDs.
 type KeyResolver struct {
-	Store didstore.Store
+	Resolver types.DIDResolver
 }
 
 func (r KeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationType types.RelationType) (crypto.PublicKey, error) {
@@ -140,7 +69,7 @@ func (r KeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationTy
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
 	}
-	doc, _, err := r.Store.Resolve(holder, &types.ResolveMetadata{
+	doc, _, err := r.Resolver.Resolve(holder, &types.ResolveMetadata{
 		ResolveTime: validAt,
 	})
 	if err != nil {
@@ -159,7 +88,7 @@ func (r KeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationTy
 }
 
 func (r KeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType types.RelationType) (ssi.URI, crypto.PublicKey, error) {
-	doc, _, err := r.Store.Resolve(id, &types.ResolveMetadata{
+	doc, _, err := r.Resolver.Resolve(id, &types.ResolveMetadata{
 		ResolveTime: validAt,
 	})
 	if err != nil {
@@ -195,28 +124,10 @@ func resolveRelationships(doc *did.Document, relationType types.RelationType) (r
 		return nil, fmt.Errorf("unable to locate RelationType %v", relationType)
 	}
 }
-func resolvePublicKey(resolver types.DIDResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
-	id, err := did.ParseDIDURL(kid)
-	if err != nil {
-		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
-	}
-	holder, _ := GetDIDFromURL(kid) // can't fail, already parsed
-	doc, _, err := resolver.Resolve(holder, &metadata)
-	if err != nil {
-		return nil, err
-	}
-
-	vm := doc.VerificationMethod.FindByID(*id)
-	if vm == nil {
-		return nil, types.ErrKeyNotFound
-	}
-
-	return vm.PublicKey()
-}
 
 // ServiceResolver is a wrapper around a DID store that allows resolving services, following references.
 type ServiceResolver struct {
-	Store didstore.Store
+	Resolver types.DIDResolver
 }
 
 func (s ServiceResolver) Resolve(query ssi.URI, maxDepth int) (did.Service, error) {
@@ -235,7 +146,7 @@ func (s ServiceResolver) ResolveEx(endpoint ssi.URI, depth int, maxDepth int, do
 	}
 	var document *did.Document
 	if document = documentCache[referencedDID.String()]; document == nil {
-		document, _, err = Resolver{Store: s.Store}.Resolve(referencedDID, nil)
+		document, _, err = s.Resolver.Resolve(referencedDID, nil)
 		if err != nil {
 			return did.Service{}, err
 		}
@@ -284,5 +195,5 @@ func IsFunctionalResolveError(target error) bool {
 		errors.Is(target, types.ErrNoActiveController) ||
 		errors.Is(target, types.ErrServiceReferenceToDeep) ||
 		errors.Is(target, did.InvalidDIDErr) ||
-		errors.As(target, new(DIDServiceQueryError))
+		errors.As(target, new(ServiceQueryError))
 }

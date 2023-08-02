@@ -20,6 +20,8 @@ package auth
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"time"
 
@@ -32,8 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 )
 
 // ErrMissingPublicURL is returned when the publicUrl is missing from the config
@@ -52,10 +52,10 @@ type Auth struct {
 	contractNotary  services.ContractNotary
 	serviceResolver didman.CompoundServiceResolver
 	keyStore        crypto.KeyStore
-	registry        didstore.Store
 	vcr             vcr.VCR
 	pkiProvider     pki.Provider
 	shutdownFunc    func()
+	vdrInstance     types.VDR
 }
 
 // Name returns the name of the module.
@@ -74,11 +74,11 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry didstore.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
+func NewAuthInstance(config Config, vdrInstance types.VDR, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
 	return &Auth{
 		config:          config,
 		jsonldManager:   jsonldManager,
-		registry:        registry,
+		vdrInstance:     vdrInstance,
 		keyStore:        keyStore,
 		vcr:             vcr,
 		pkiProvider:     pkiProvider,
@@ -120,7 +120,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
 		StrictMode:            config.Strictmode,
-	}, auth.vcr, didservice.KeyResolver{Store: auth.registry}, auth.keyStore, auth.jsonldManager, auth.pkiProvider)
+	}, auth.vcr, didservice.KeyResolver{Resolver: auth.vdrInstance.Resolver()}, auth.keyStore, auth.jsonldManager, auth.pkiProvider)
 
 	tlsEnabled := config.TLS.Enabled()
 	if config.Strictmode && !tlsEnabled {
@@ -137,9 +137,9 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	}
 
 	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second
-	auth.authzServer = oauth.NewAuthorizationServer(auth.registry, auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
+	auth.authzServer = oauth.NewAuthorizationServer(auth.vdrInstance.Resolver(), auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
 		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenLifeSpan)
-	auth.relyingParty = oauth.NewRelyingParty(auth.registry, auth.serviceResolver,
+	auth.relyingParty = oauth.NewRelyingParty(auth.vdrInstance.Resolver(), auth.serviceResolver,
 		auth.keyStore, time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig)
 
 	if err := auth.authzServer.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {

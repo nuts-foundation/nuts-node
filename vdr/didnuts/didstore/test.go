@@ -20,10 +20,10 @@ package didstore
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/core"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/require"
 

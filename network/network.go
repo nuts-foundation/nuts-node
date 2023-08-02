@@ -25,7 +25,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -44,7 +45,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
 )
@@ -83,8 +83,8 @@ type Network struct {
 	keyResolver       types.KeyResolver
 	startTime         atomic.Pointer[time.Time]
 	peerID            transport.PeerID
-	didResolver       types.DIDResolver
 	nodeDID           did.DID
+	didStore          didstore.Store
 	didDocumentFinder types.DocFinder
 	serviceResolver   types.ServiceResolver
 	eventPublisher    events.Event
@@ -149,11 +149,11 @@ func NewNetworkInstance(
 ) *Network {
 	return &Network{
 		config:            config,
-		keyResolver:       didservice.KeyResolver{Store: store},
+		keyResolver:       didservice.KeyResolver{Resolver: store},
 		keyStore:          keyStore,
-		didResolver:       didservice.Resolver{Store: store},
-		didDocumentFinder: didservice.Finder{Store: store},
-		serviceResolver:   didservice.ServiceResolver{Store: store},
+		didStore:          store,
+		didDocumentFinder: didstore.Finder{Store: store},
+		serviceResolver:   didservice.ServiceResolver{Resolver: store},
 		eventPublisher:    eventPublisher,
 		storeProvider:     storeProvider,
 		pkiValidator:      pkiValidator,
@@ -173,7 +173,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return fmt.Errorf("unable to create database: %w", err)
 	}
-	nutsKeyResolver := didservice.NutsKeyResolver{Resolver: n.didResolver}
+	nutsKeyResolver := dag.SourceTXKeyResolver{Resolver: n.didStore}
 	if n.state, err = dag.NewState(dagStore, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(nutsKeyResolver)); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
@@ -218,7 +218,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var candidateProtocols []transport.Protocol
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
-			v2.New(v2Cfg, n.nodeDID, n.state, n.didResolver, n.keyStore, n.collectDiagnosticsForPeers, dagStore),
+			v2.New(v2Cfg, n.nodeDID, n.state, n.didStore, n.keyStore, n.collectDiagnosticsForPeers, dagStore),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability
@@ -301,7 +301,7 @@ func (n *Network) DiscoverServices(updatedDID did.DID) {
 	if !n.config.EnableDiscovery {
 		return
 	}
-	document, _, err := n.didResolver.Resolve(updatedDID, nil)
+	document, _, err := n.didStore.Resolve(updatedDID, nil)
 	if err != nil {
 		// VDR store is down. Any missed updates are resolved on node restart.
 		// This can happen when the VDR is receiving lots of DID updates, such as during the initial sync of the network.
@@ -444,7 +444,7 @@ inner:
 
 func (n *Network) validateNodeDIDKeys(ctx context.Context, nodeDID did.DID) error {
 	// Check if DID document can be resolved
-	document, _, err := n.didResolver.Resolve(nodeDID, nil)
+	document, _, err := n.didStore.Resolve(nodeDID, nil)
 	if err != nil {
 		return fmt.Errorf("DID document can't be resolved (did=%s): %w", nodeDID, err)
 	}

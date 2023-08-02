@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,18 +13,36 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package vdr
+package didstore
 
-// ModuleName is the name of the engine
-const ModuleName = "VDR"
+import (
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
+)
 
-// Config holds the config for the VDR engine
-type Config struct{}
+// Finder is a helper that implements the DocFinder interface
+type Finder struct {
+	Store Store
+}
 
-// DefaultConfig returns a fresh Config filled with default values
-func DefaultConfig() Config {
-	return Config{}
+func (f Finder) Find(predicate ...types.Predicate) ([]did.Document, error) {
+	matches := make([]did.Document, 0)
+
+	err := f.Store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
+		for _, p := range predicate {
+			if !p.Match(doc, metadata) {
+				return nil
+			}
+		}
+		matches = append(matches, doc)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return matches, err
 }

@@ -25,6 +25,9 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/golden_hammer"
 	goldenHammerCmd "github.com/nuts-foundation/nuts-node/golden_hammer/cmd"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"io"
 	"os"
 	"runtime/pprof"
@@ -59,8 +62,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -186,23 +187,22 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	didStore := didstore.New(storageInstance.GetProvider(vdr.ModuleName))
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), didStore, cryptoInstance, eventManager, storageInstance.GetProvider(network.ModuleName), pkiInstance)
-	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore, eventManager)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, didStore, networkInstance, jsonld, eventManager, storageInstance, pkiInstance, vdrInstance)
-	didmanInstance := didman.NewDidmanInstance(didStore, vdrInstance, credentialInstance, jsonld)
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
+	vdrInstance := vdr.NewVDR(cryptoInstance, networkInstance, didStore, eventManager)
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, vdrInstance, networkInstance, jsonld, eventManager, storageInstance, pkiInstance)
+	didmanInstance := didman.NewDidmanInstance(vdrInstance, credentialInstance, jsonld)
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
-	goldenHammer := golden_hammer.New(vdrInstance, didmanInstance, didStore)
+	goldenHammer := golden_hammer.New(vdrInstance, didmanInstance)
 
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})
-	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: didservice.KeyResolver{Store: didStore}})
+	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: didservice.KeyResolver{Resolver: vdrInstance.Resolver()}})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
-	didResolver := didservice.Resolver{Store: didStore}
-	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DIDResolver: didResolver, DocManipulator: &didservice.Manipulator{
+	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocManipulator: &didnuts.Manipulator{
 		KeyCreator: cryptoInstance,
 		Updater:    vdrInstance,
-		Resolver:   didResolver,
+		Resolver:   vdrInstance.Resolver(),
 	}})
 	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
 	system.RegisterRoutes(&openid4vciAPI.Wrapper{
@@ -224,11 +224,10 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterEngine(statusEngine)
 	system.RegisterEngine(metricsEngine)
 	system.RegisterEngine(eventManager)
-	// with dependencies
-	system.RegisterEngine(didStore)
 	// the order of the next 3 modules is fixed due to configure and start dependencies
-	system.RegisterEngine(credentialInstance)
+	system.RegisterEngine(didStore)
 	system.RegisterEngine(vdrInstance)
+	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(networkInstance)
 	system.RegisterEngine(authInstance)
 	system.RegisterEngine(didmanInstance)

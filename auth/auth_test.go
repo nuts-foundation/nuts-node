@@ -22,7 +22,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.uber.org/mock/gomock"
 	"testing"
 
@@ -40,11 +40,14 @@ func TestAuth_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		config := DefaultConfig()
 		config.ContractValidators = []string{"uzi"}
-		pkiMock := pki.NewMockProvider(gomock.NewController(t))
+		ctrl := gomock.NewController(t)
+		pkiMock := pki.NewMockProvider(ctrl)
 		pkiMock.EXPECT().AddTruststore(gomock.Any())   // uzi
 		pkiMock.EXPECT().CreateTLSConfig(gomock.Any()) // tlsConfig
+		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance.EXPECT().Resolver().AnyTimes()
 
-		i := NewAuthInstance(config, didstore.NewTestStore(t), vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
+		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
 
 		_ = i.Configure(tlsServerConfig)
 	})

@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package didservice
+package didnuts
 
 import (
 	"context"
@@ -36,24 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-const mockKID = "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"
-
-var testDID = did.MustParseDID("did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn")
-
-// mockKeyCreator can create new keys based on a predefined key
-type mockKeyCreator struct {
-	kid string
-}
-
-func newMockKeyCreator() *mockKeyCreator {
-	return &mockKeyCreator{kid: mockKID}
-}
-
-// New uses a predefined ECDSA key and calls the namingFunc to get the kid
-func (m *mockKeyCreator) New(_ context.Context, _ nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
-	return nutsCrypto.NewTestKey(m.kid), nil
-}
-
 var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
 
 func TestDefaultCreationOptions(t *testing.T) {
@@ -73,16 +55,16 @@ func TestCreator_Create(t *testing.T) {
 	defaultOptions := DefaultCreationOptions()
 
 	t.Run("ok", func(t *testing.T) {
-		kc := newMockKeyCreator()
+		kc := &mockKeyCreator{}
 		creator := Creator{KeyStore: kc}
 		t.Run("defaults", func(t *testing.T) {
 			doc, key, err := creator.Create(nil, defaultOptions)
 			assert.NoError(t, err, "create should not return an error")
 			assert.NotNil(t, doc, "create should return a document")
 			assert.NotNil(t, key, "create should return a Key")
-			assert.Equal(t, "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn", doc.ID.String(), "the DID Doc should have the expected id")
+			assert.Equal(t, did.MustParseDIDURL(kc.key.KID()).WithoutURL(), doc.ID, "the DID Doc should have the expected id")
 			assert.Len(t, doc.VerificationMethod, 1, "it should have one verificationMethod")
-			assert.Equal(t, "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", doc.VerificationMethod[0].ID.String(),
+			assert.Equal(t, kc.key.KID(), doc.VerificationMethod[0].ID.String(),
 				"verificationMethod should have the correct id")
 			assert.Len(t, doc.CapabilityInvocation, 1, "it should have 1 CapabilityInvocation")
 			assert.Equal(t, doc.CapabilityInvocation[0].VerificationMethod, doc.VerificationMethod[0], "the assertionMethod should be a pointer to the verificationMethod")
@@ -168,7 +150,7 @@ func TestCreator_Create(t *testing.T) {
 			// CapabilityInvocation is not enabled, required when SelfControl = true
 			SelfControl: true,
 		}
-		kc := newMockKeyCreator()
+		kc := &mockKeyCreator{}
 		creator := Creator{KeyStore: kc}
 		_, _, err := creator.Create(nil, ops)
 
@@ -219,12 +201,12 @@ func Test_didKIDNamingFunc(t *testing.T) {
 
 		keyID, err := didKIDNamingFunc(pub)
 		require.NoError(t, err)
-		assert.Equal(t, keyID, mockKID, keyID)
+		assert.Equal(t, keyID, "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", keyID)
 	})
 
 	t.Run("nok - wrong key type", func(t *testing.T) {
 		keyID, err := didKIDNamingFunc(unknownPublicKey{})
-		assert.EqualError(t, err, "could not generate kid: invalid key type 'didservice.unknownPublicKey' for jwk.New")
+		assert.EqualError(t, err, "could not generate kid: invalid key type 'didnuts.unknownPublicKey' for jwk.New")
 		assert.Empty(t, keyID)
 	})
 }

@@ -39,7 +39,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -252,7 +251,7 @@ func TestRelyingParty_Configure(t *testing.T) {
 type rpTestContext struct {
 	ctrl            *gomock.Controller
 	keyStore        *crypto.MockKeyStore
-	didResolver     *didstore.MockStore
+	didResolver     *types.MockDIDResolver
 	keyResolver     *types.MockKeyResolver
 	serviceResolver *didman.MockCompoundServiceResolver
 	relyingParty    *relyingParty
@@ -265,7 +264,7 @@ var createRPContext = func(t *testing.T) *rpTestContext {
 	privateKeyStore := crypto.NewMockKeyStore(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	serviceResolver := didman.NewMockCompoundServiceResolver(ctrl)
-	didResolver := didstore.NewMockStore(ctrl)
+	didResolver := types.NewMockDIDResolver(ctrl)
 
 	return &rpTestContext{
 		ctrl:            ctrl,

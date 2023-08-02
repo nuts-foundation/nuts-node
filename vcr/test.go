@@ -29,9 +29,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"path"
 	"testing"
@@ -41,31 +44,34 @@ import (
 type TestVCRContext struct {
 	DIDStore    didstore.Store
 	KeyStore    crypto.KeyStore
-	DIDResolver types.DIDResolver
 	KeyResolver types.KeyResolver
 	VCR         VCR
 }
 
 func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	didStore := didstore.NewTestStore(t)
-
+	didResolver := didnuts.Resolver{Store: didStore}
 	ctx := TestVCRContext{
 		DIDStore:    didStore,
 		KeyStore:    keyStore,
-		DIDResolver: didservice.Resolver{Store: didStore},
-		KeyResolver: didservice.KeyResolver{Store: didStore},
+		KeyResolver: didservice.KeyResolver{Resolver: didResolver},
 	}
 
 	testDirectory := io.TestDirectory(t)
-	// give network a subdirectory to avoid duplicate networks in tests
+	storageEngine := storage.NewTestStorageEngine(t)
+	networkInstance := network.NewTestNetworkInstance(t)
+	eventManager := events.NewTestManager(t)
+	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager)
+	err := vdrInstance.Configure(core.ServerConfig{})
+	require.NoError(t, err)
 	newInstance := NewVCRInstance(
 		ctx.KeyStore,
-		ctx.DIDStore,
-		network.NewTestNetworkInstance(t),
+		vdrInstance,
+		networkInstance,
 		jsonld.NewTestJSONLDManager(t),
-		events.NewTestManager(t),
-		storage.NewTestStorageEngine(t),
-		pki.New(), nil,
+		eventManager,
+		storageEngine,
+		pki.New(),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -83,15 +89,23 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 // specified test directory.
 func NewTestVCRInstance(t *testing.T) *vcr {
 	testDirectory := io.TestDirectory(t)
-	// give network a subdirectory to avoid duplicate networks in tests
+	didStore := didstore.NewTestStore(t)
+	storageEngine := storage.NewTestStorageEngine(t)
+	networkInstance := network.NewTestNetworkInstance(t)
+	eventManager := events.NewTestManager(t)
+	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager)
+	err := vdrInstance.Configure(core.ServerConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	newInstance := NewVCRInstance(
 		nil,
-		nil,
-		network.NewTestNetworkInstance(t),
+		vdrInstance,
+		networkInstance,
 		jsonld.NewTestJSONLDManager(t),
-		events.NewTestManager(t),
-		storage.NewTestStorageEngine(t),
-		pki.New(), nil,
+		eventManager,
+		storageEngine,
+		pki.New(),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -105,17 +119,23 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 }
 
 func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
-	storageEngine := storage.New()
-	_ = storageEngine.Configure(core.TestServerConfig(core.ServerConfig{Datadir: path.Join(testDirectory, "data")}))
-	// give network a subdirectory to avoid duplicate networks in tests
+	didStore := didstore.NewTestStore(t)
+	storageEngine := storage.NewTestStorageEngineInDir(testDirectory)
+	networkInstance := network.NewTestNetworkInstance(t)
+	eventManager := events.NewTestManager(t)
+	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager)
+	err := vdrInstance.Configure(core.ServerConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	newInstance := NewVCRInstance(
 		nil,
-		nil,
-		network.NewTestNetworkInstance(t),
+		vdrInstance,
+		networkInstance,
 		jsonld.NewTestJSONLDManager(t),
-		events.NewTestManager(t),
+		eventManager,
 		storageEngine,
-		pki.New(), nil,
+		pki.New(),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -129,13 +149,10 @@ func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 }
 
 type mockContext struct {
-	ctrl            *gomock.Controller
-	tx              *network.MockTransactions
-	vcr             *vcr
-	keyResolver     *types.MockKeyResolver
-	didResolver     *types.MockDIDResolver
-	serviceResolver *types.MockServiceResolver
-	crypto          *crypto.Crypto
+	ctrl        *gomock.Controller
+	vcr         *vcr
+	didResolver *types.MockDIDResolver
+	crypto      *crypto.Crypto
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -146,17 +163,14 @@ func newMockContext(t *testing.T) mockContext {
 	tx.EXPECT().Subscribe("vcr_vcs", gomock.Any(), gomock.Any())
 	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
 	tx.EXPECT().CleanupSubscriberEvents("vcr_vcs", gomock.Any())
-	keyResolver := types.NewMockKeyResolver(ctrl)
 	didResolver := types.NewMockDIDResolver(ctrl)
-	serviceResolver := types.NewMockServiceResolver(ctrl)
+	vdrInstance := types.NewMockVDR(ctrl)
+	vdrInstance.EXPECT().Resolver().Return(didResolver).AnyTimes()
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(t)
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
-	vcr := NewVCRInstance(cryptoInstance, nil, tx, jsonldManager, eventManager, storageClient, pki.New(), nil).(*vcr)
-	vcr.serviceResolver = serviceResolver
-	vcr.keyResolver = keyResolver
-	vcr.didResolver = didResolver
+	vcr := NewVCRInstance(cryptoInstance, vdrInstance, tx, jsonldManager, eventManager, storageClient, pki.New()).(*vcr)
 	vcr.pkiProvider = pki.New()
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	if err := vcr.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDir})); err != nil {
@@ -171,12 +185,9 @@ func newMockContext(t *testing.T) mockContext {
 		}
 	})
 	return mockContext{
-		ctrl:            ctrl,
-		crypto:          cryptoInstance,
-		tx:              tx,
-		vcr:             vcr,
-		keyResolver:     keyResolver,
-		didResolver:     didResolver,
-		serviceResolver: serviceResolver,
+		ctrl:        ctrl,
+		crypto:      cryptoInstance,
+		vcr:         vcr,
+		didResolver: didResolver,
 	}
 }

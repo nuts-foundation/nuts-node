@@ -16,19 +16,19 @@
  *
  */
 
-package vdr
+package didnuts
 
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -82,8 +82,8 @@ func Test_basicServiceValidator(t *testing.T) {
 		}, nil},
 		{"nok - service with duplicate id", func() did.Document {
 			didDoc, _, _ := newDidDoc()
-			svc := didDoc.Service[0]
-			didDoc.Service = append(didDoc.Service, svc)
+			service := didDoc.Service[0]
+			didDoc.Service = append(didDoc.Service, service)
 			return didDoc
 		}, errors.New("invalid service: ID must be unique")},
 		{"nok - service ID has no fragment", func() did.Document {
@@ -99,9 +99,9 @@ func Test_basicServiceValidator(t *testing.T) {
 		}, errors.New("invalid service: ID must have document prefix")},
 		{"nok - service with duplicate type", func() did.Document {
 			didDoc, _, _ := newDidDoc()
-			svc := didDoc.Service[0]
-			svc.ID.Fragment = "foobar"
-			didDoc.Service = append(didDoc.Service, svc)
+			service := didDoc.Service[0]
+			service.ID.Fragment = "foobar"
+			didDoc.Service = append(didDoc.Service, service)
 			return didDoc
 		}, errors.New("invalid service: service type is duplicate")},
 	}
@@ -117,8 +117,8 @@ func Test_managedServiceValidator(t *testing.T) {
 	referencedDocument.Service = append(referencedDocument.Service, service)
 
 	ctrl := gomock.NewController(t)
-	didstore := didstore.NewMockStore(ctrl)
-	serviceResolver := didservice.ServiceResolver{Store: didstore}
+	didResolver := types.NewMockDIDResolver(ctrl)
+	serviceResolver := didservice.ServiceResolver{Resolver: didResolver}
 
 	t.Run("basic", func(t *testing.T) {
 		table := []validatorTest{
@@ -135,7 +135,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				didDoc, _, _ := newDidDoc()
 				didDoc.Service[0].ServiceEndpoint = serviceRef.String()
 
-				didstore.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
+				didResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
 
 				return didDoc
 			}, nil},
@@ -147,7 +147,7 @@ func Test_managedServiceValidator(t *testing.T) {
 					"otherReference": serviceRef.String(),
 				}
 
-				didstore.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
+				didResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
 
 				return didDoc
 			}, nil},
@@ -160,7 +160,7 @@ func Test_managedServiceValidator(t *testing.T) {
 					ServiceEndpoint: didservice.MakeServiceReference(didDoc.ID, didDoc.Service[0].Type),
 				})
 
-				didstore.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
+				didResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
 
 				return didDoc
 			}, nil},
@@ -168,7 +168,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				didDoc, _, _ := newDidDoc()
 				didDoc.Service[0].ServiceEndpoint = didservice.MakeServiceReference(referencedDocument.ID, "does_not_exist")
 
-				didstore.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
+				didResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
 
 				return didDoc
 			}, errors.New("invalid service: service not found in DID Document")},

@@ -51,7 +51,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), nil, types.NutsSigningKeyType).Return(pk, nil)
+		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, nil)
 
@@ -62,7 +62,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), &now, types.NutsSigningKeyType).Return(pk, nil)
+		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, &now)
 
@@ -73,7 +73,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), &now, types.NutsSigningKeyType).Return(pk, nil)
+		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		_ = ctx.vcr.StoreCredential(target, &now)
 
@@ -86,7 +86,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), &now, types.NutsSigningKeyType).Return(pk, nil)
+		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		_ = ctx.vcr.StoreCredential(target, &now)
 

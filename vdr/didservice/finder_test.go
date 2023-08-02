@@ -18,17 +18,12 @@
 package didservice
 
 import (
-	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 func TestIsActive(t *testing.T) {
@@ -96,33 +91,5 @@ func TestByServiceType(t *testing.T) {
 		}}
 
 		assert.False(t, p.Match(docIgnore, types.DocumentMetadata{}))
-	})
-}
-
-func TestVDR_Find(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		finder := Finder{Store: store}
-		store.EXPECT().Iterate(gomock.Any()).Do(func(arg interface{}) {
-			f := arg.(types.DocIterator)
-			f(did.Document{}, types.DocumentMetadata{})
-		})
-
-		docs, err := finder.Find(IsActive())
-
-		require.NoError(t, err)
-		assert.Len(t, docs, 1)
-	})
-
-	t.Run("error", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := didstore.NewMockStore(ctrl)
-		finder := Finder{Store: store}
-		store.EXPECT().Iterate(gomock.Any()).Return(errors.New("b00m!"))
-
-		_, err := finder.Find(IsActive())
-
-		assert.Error(t, err)
 	})
 }

@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package didservice
+package didnuts
 
 import (
 	"context"
@@ -47,7 +47,7 @@ func newManipulatorTestContext(t *testing.T) manipulatorTestContext {
 	ctrl := gomock.NewController(t)
 	updater := types.NewMockDocUpdater(ctrl)
 	resolver := types.NewMockDIDResolver(ctrl)
-	keyCreator := newMockKeyCreator()
+	keyCreator := &mockKeyCreator{}
 	return manipulatorTestContext{
 		ctrl:           ctrl,
 		mockUpdater:    updater,
@@ -109,7 +109,7 @@ func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 func TestManipulator_CreateNewAuthenticationMethodForDID(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 
-	kc := newMockKeyCreator()
+	kc := &mockKeyCreator{}
 
 	t.Run("ok", func(t *testing.T) {
 		// Prepare a document with an authenticationMethod:
@@ -121,7 +121,7 @@ func TestManipulator_CreateNewAuthenticationMethodForDID(t *testing.T) {
 		assert.NotNil(t, method)
 		assert.Len(t, document.CapabilityInvocation, 1)
 		assert.Equal(t, method.ID.String(), document.CapabilityInvocation[0].ID.String())
-		assert.Equal(t, kc.kid, document.CapabilityInvocation[0].ID.String())
+		assert.Equal(t, kc.key.KID(), document.CapabilityInvocation[0].ID.String())
 	})
 }
 

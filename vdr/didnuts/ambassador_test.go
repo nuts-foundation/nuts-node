@@ -16,7 +16,7 @@
  *
  */
 
-package vdr
+package didnuts
 
 import (
 	"context"
@@ -40,8 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -194,7 +193,7 @@ func TestAmbassador_handleNetworkEvent(t *testing.T) {
 			signingTime:  time.Unix(1628000000, 0),
 			ref:          hash.SHA256Sum([]byte("ref")),
 			payloadHash:  hash.SHA256Sum([]byte("payload")),
-			payloadType:  didDocumentType,
+			payloadType:  DIDDocumentType,
 		}
 		tx.payloadType = ""
 		am := ambassador{}
@@ -217,7 +216,7 @@ func TestAmbassador_callback(t *testing.T) {
 			signingTime:  signingTime,
 			ref:          ref,
 			payloadHash:  payloadHash,
-			payloadType:  didDocumentType,
+			payloadType:  DIDDocumentType,
 		}
 	}
 
@@ -266,7 +265,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 			signingTime: signingTime,
 			ref:         ref,
 			payloadHash: payloadHash,
-			payloadType: didDocumentType,
+			payloadType: DIDDocumentType,
 		}
 	}
 
@@ -276,7 +275,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 			signingTime:  signingTime,
 			ref:          ref,
 			payloadHash:  payloadHash,
-			payloadType:  didDocumentType,
+			payloadType:  DIDDocumentType,
 		}
 	}
 
@@ -340,7 +339,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			signingTime:  signingTime,
 			ref:          ref,
 			payloadHash:  payloadHash,
-			payloadType:  didDocumentType,
+			payloadType:  DIDDocumentType,
 		}
 	}
 
@@ -356,7 +355,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		storedDocument := did.Document{}
 		_ = json.Unmarshal(didDocPayload, &storedDocument)
 
-		deactivatedDocument := didservice.CreateDocument()
+		deactivatedDocument := CreateDocument()
 		deactivatedDocument.ID = storedDocument.ID
 
 		t.Run("deactivation", func(t *testing.T) {
@@ -426,7 +425,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := didservice.CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -461,7 +460,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := didservice.CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -625,7 +624,7 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 
 		didStoreMock := didstore.NewMockStore(ctrl)
 		keyStoreMock := types.NewMockNutsKeyResolver(ctrl)
-		didResolver := &didservice.Resolver{Store: didStoreMock}
+		didResolver := &Resolver{Store: didStoreMock}
 
 		am := ambassador{
 			didStore:    didStoreMock,
@@ -666,7 +665,7 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 				signingKey:   signingKey,
 				ref:          ref,
 				payloadHash:  payloadHash,
-				payloadType:  didDocumentType,
+				payloadType:  DIDDocumentType,
 			},
 			nil,
 		},
@@ -676,7 +675,7 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 				signingTime:  signingTime,
 				ref:          ref,
 				payloadHash:  payloadHash,
-				payloadType:  didDocumentType,
+				payloadType:  DIDDocumentType,
 			},
 			nil,
 		},
@@ -695,7 +694,7 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 				signingKeyID: "",
 				signingTime:  signingTime,
 				ref:          ref,
-				payloadType:  didDocumentType,
+				payloadType:  DIDDocumentType,
 			},
 			errors.New("payloadHash must be provided"),
 		},
@@ -705,7 +704,7 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 				signingKey:   signingKey,
 				ref:          ref,
 				payloadHash:  payloadHash,
-				payloadType:  didDocumentType,
+				payloadType:  DIDDocumentType,
 			},
 			errors.New("signingTime must be set"),
 		},
@@ -798,7 +797,7 @@ func Test_uniqueTransactions(t *testing.T) {
 
 func newDidDocWithOptions(opts types.DIDCreationOptions) (did.Document, jwk.Key, error) {
 	kc := &mockKeyCreator{}
-	docCreator := didservice.Creator{KeyStore: kc}
+	docCreator := Creator{KeyStore: kc}
 	didDocument, key, err := docCreator.Create(audit.TestContext(), opts)
 	signingKey, _ := jwk.New(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)
@@ -821,7 +820,7 @@ func newDidDocWithOptions(opts types.DIDCreationOptions) (did.Document, jwk.Key,
 }
 
 func newDidDoc() (did.Document, jwk.Key, error) {
-	return newDidDocWithOptions(didservice.DefaultCreationOptions())
+	return newDidDocWithOptions(DefaultCreationOptions())
 }
 
 type mockContext struct {
@@ -836,13 +835,13 @@ type mockContext struct {
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
-	didStoreMock := didstore.NewMockStore(ctrl)
+	storeMock := didstore.NewMockStore(ctrl)
 	keyResolverMock := types.NewMockNutsKeyResolver(ctrl)
 	resolverMock := types.NewMockDIDResolver(ctrl)
 	eventManager := events.NewMockEvent(ctrl)
 	networkMock := network.NewMockTransactions(ctrl)
 	am := ambassador{
-		didStore:      didStoreMock,
+		didStore:      storeMock,
 		didResolver:   resolverMock,
 		keyResolver:   keyResolverMock,
 		eventManager:  eventManager,
@@ -851,7 +850,7 @@ func newMockContext(t *testing.T) mockContext {
 
 	return mockContext{
 		ctrl:         ctrl,
-		didStore:     didStoreMock,
+		didStore:     storeMock,
 		keyResolver:  keyResolverMock,
 		didResolver:  resolverMock,
 		ambassador:   am,

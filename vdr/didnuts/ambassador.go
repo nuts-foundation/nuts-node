@@ -17,7 +17,7 @@
  *
  */
 
-package vdr
+package didnuts
 
 import (
 	"bytes"
@@ -29,7 +29,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"sort"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -39,13 +39,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// didDocumentType contains network transaction mime-type to identify a DID Document in the network.
-const didDocumentType = "application/did+json"
+// DIDDocumentType contains network transaction mime-type to identify a DID Document in the network.
+const DIDDocumentType = "application/did+json"
 
 // ErrThumbprintMismatch is returned when a transaction publishing a new DID is signed with a different key than the DID is generated from
 var ErrThumbprintMismatch = errors.New("thumbprint of signing key does not match DID")
@@ -69,12 +68,12 @@ type ambassador struct {
 
 // NewAmbassador creates a new Ambassador,
 func NewAmbassador(networkClient network.Transactions, didStore didstore.Store, eventManager events.Event) Ambassador {
-	resolver := didservice.Resolver{Store: didStore}
+	resolver := Resolver{Store: didStore}
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
-		keyResolver:   didservice.NutsKeyResolver{Resolver: resolver},
-		didResolver:   &didservice.Resolver{Store: didStore},
+		keyResolver:   dag.SourceTXKeyResolver{Resolver: resolver},
+		didResolver:   &Resolver{Store: didStore},
 		eventManager:  eventManager,
 	}
 }
@@ -89,7 +88,7 @@ func (n *ambassador) Start() error {
 	err := n.networkClient.Subscribe("vdr", n.handleNetworkEvent,
 		n.networkClient.WithPersistency(),
 		network.WithSelectionFilter(func(event dag.Event) bool {
-			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == didDocumentType
+			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == DIDDocumentType
 		}))
 	if err != nil {
 		return err
@@ -97,14 +96,14 @@ func (n *ambassador) Start() error {
 
 	stream := events.NewDisposableStream(
 		fmt.Sprintf("%s_%s", events.ReprocessStream, "VDR"),
-		[]string{fmt.Sprintf("%s.%s", events.ReprocessStream, didDocumentType)},
+		[]string{fmt.Sprintf("%s.%s", events.ReprocessStream, DIDDocumentType)},
 		network.MaxReprocessBufferSize)
 	conn, _, err := n.eventManager.Pool().Acquire(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %w", err)
 	}
 
-	err = stream.Subscribe(conn, "VDR", fmt.Sprintf("%s.%s", events.ReprocessStream, didDocumentType), n.handleReprocessEvent)
+	err = stream.Subscribe(conn, "VDR", fmt.Sprintf("%s.%s", events.ReprocessStream, DIDDocumentType), n.handleReprocessEvent)
 
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
@@ -328,7 +327,7 @@ func (n *ambassador) resolveControllers(document did.Document, transaction dag.T
 	signingTime := transaction.SigningTime()
 
 	for _, prev := range transaction.Previous() {
-		didControllers, err := didservice.ResolveControllers(n.didResolver, document, &types.ResolveMetadata{SourceTransaction: &prev})
+		didControllers, err := ResolveControllers(n.didResolver, document, &types.ResolveMetadata{SourceTransaction: &prev})
 		if err != nil {
 			if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrNoActiveController) {
 				continue
@@ -340,7 +339,7 @@ func (n *ambassador) resolveControllers(document did.Document, transaction dag.T
 
 	// legacy resolve
 	if len(controllers) == 0 {
-		didControllers, err := didservice.ResolveControllers(n.didResolver, document, &types.ResolveMetadata{ResolveTime: &signingTime})
+		didControllers, err := ResolveControllers(n.didResolver, document, &types.ResolveMetadata{ResolveTime: &signingTime})
 		if err != nil {
 			return nil, err
 		}
@@ -397,8 +396,8 @@ func uniqueTransactions(current []hash.SHA256Hash, incoming hash.SHA256Hash) []h
 // responsibility to ensure integrity, while the other may have not.
 func checkTransactionIntegrity(transaction dag.Transaction) error {
 	// check the payload type:
-	if transaction.PayloadType() != didDocumentType {
-		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", didDocumentType, transaction.PayloadType())
+	if transaction.PayloadType() != DIDDocumentType {
+		return fmt.Errorf("wrong payload type for this subscriber. Can handle: %s, got: %s", DIDDocumentType, transaction.PayloadType())
 	}
 
 	// PayloadHash must be set

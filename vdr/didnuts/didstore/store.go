@@ -23,13 +23,17 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
+
+var _ core.Configurable = (*store)(nil)
+
+// didStoreName contains the name for the store
+const didStoreName = "didstore"
 
 // shelfs have a V2 postfix due to overlapping names with previous implementation
 const (
@@ -51,8 +55,6 @@ const (
 	conflictedCountKey = "conflictedCount"
 	// documentCountKey is the key used on the statsShelf to store the number of documents
 	documentCountKey = "documentCount"
-	// didStoreName contains the name for the store
-	didStoreName = "didstore"
 )
 
 type store struct {
@@ -69,7 +71,7 @@ func New(storageProvider storage.Provider) Store {
 
 func (tl *store) Configure(_ core.ServerConfig) (err error) {
 	tl.db, err = tl.storageProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
-	return err
+	return
 }
 
 // Add inserts the document version at the correct place and updates all later versions if needed

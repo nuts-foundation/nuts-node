@@ -52,18 +52,18 @@ func GetDIDFromURL(didURL string) (did.DID, error) {
 	return parsed.WithoutURL(), nil
 }
 
-// DIDServiceQueryError denies the query based on validation constraints.
-type DIDServiceQueryError struct {
+// ServiceQueryError denies the query based on validation constraints.
+type ServiceQueryError struct {
 	Err error // cause
 }
 
 // Error implements the error interface.
-func (e DIDServiceQueryError) Error() string {
+func (e ServiceQueryError) Error() string {
 	return "DID service query invalid: " + e.Err.Error()
 }
 
 // Unwrap implements the errors.Unwrap convention.
-func (e DIDServiceQueryError) Unwrap() error { return e.Err }
+func (e ServiceQueryError) Unwrap() error { return e.Err }
 
 // ValidateServiceReference checks whether the given URI matches the format for a service reference.
 func ValidateServiceReference(endpointURI ssi.URI) error {
@@ -71,11 +71,11 @@ func ValidateServiceReference(endpointURI ssi.URI) error {
 	// For DID URLs the path is parsed properly.
 	didEndpointURL, err := did.ParseDIDURL(endpointURI.String())
 	if err != nil {
-		return DIDServiceQueryError{err}
+		return ServiceQueryError{err}
 	}
 
 	if "/"+didEndpointURL.Path != serviceEndpointPath {
-		return DIDServiceQueryError{errors.New("endpoint URI path must be " + serviceEndpointPath)}
+		return ServiceQueryError{errors.New("endpoint URI path must be " + serviceEndpointPath)}
 	}
 
 	q := endpointURI.Query()
@@ -83,15 +83,15 @@ func ValidateServiceReference(endpointURI ssi.URI) error {
 	case 1:
 		break // good
 	case 0:
-		return DIDServiceQueryError{errors.New("endpoint URI without " + serviceTypeQueryParameter + " query parameter")}
+		return ServiceQueryError{errors.New("endpoint URI without " + serviceTypeQueryParameter + " query parameter")}
 	default:
-		return DIDServiceQueryError{errors.New("endpoint URI with multiple " + serviceTypeQueryParameter + " query parameters")}
+		return ServiceQueryError{errors.New("endpoint URI with multiple " + serviceTypeQueryParameter + " query parameters")}
 	}
 
 	// “Other query parameters, paths or fragments SHALL NOT be used.”
 	// — RFC006, subsection 4.2
 	if len(q) > 1 {
-		return DIDServiceQueryError{errors.New("endpoint URI with query parameter other than " + serviceTypeQueryParameter)}
+		return ServiceQueryError{errors.New("endpoint URI with query parameter other than " + serviceTypeQueryParameter)}
 	}
 
 	return nil

@@ -22,6 +22,8 @@ package v2
 import (
 	"context"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"hash/crc32"
 	"path"
 	"sync"
@@ -38,8 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -118,7 +118,7 @@ func (i *integrationTestContext) countTXs() int {
 	return len(i.receivedTXs)
 }
 func startNode(t *testing.T, name string, configurers ...func(config *Config)) *integrationTestContext {
-	var vdrStore didstore.Store
+	didResolver := didstore.NewTestStore(t)
 	var keyStore nutsCrypto.KeyStore
 
 	log.Logger().Infof("Starting node: %s", name)
@@ -160,9 +160,9 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	peerID := transport.PeerID(name)
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
-	ctx.protocol = New(*cfg, did.DID{}, ctx.state, didservice.Resolver{Store: vdrStore}, keyStore, nil, bboltStore).(*protocol)
+	ctx.protocol = New(*cfg, did.DID{}, ctx.state, didResolver, keyStore, nil, bboltStore).(*protocol)
 
-	authenticator := grpc.NewTLSAuthenticator(didservice.ServiceResolver{Store: didstore.NewTestStore(t)})
+	authenticator := grpc.NewTLSAuthenticator(didservice.ServiceResolver{Resolver: didResolver})
 	connectionsStore, _ := storageClient.GetProvider("network").GetKVStore("connections", storage.VolatileStorageClass)
 	grpcCfg, err := grpc.NewConfig(listenAddress, peerID)
 	require.NoError(t, err)

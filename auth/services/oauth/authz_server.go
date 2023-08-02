@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -39,8 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -169,11 +168,11 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 
 // NewAuthorizationServer accepts a vendorID, and several Nuts engines and returns an implementation of services.AuthorizationServer
 func NewAuthorizationServer(
-	store didstore.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier,
+	didResolver types.DIDResolver, vcFinder vcr.Finder, vcVerifier verifier.Verifier,
 	serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
 	contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD, accessTokenLifeSpan time.Duration) AuthorizationServer {
 	return &authzServer{
-		keyResolver:         didservice.KeyResolver{Store: store},
+		keyResolver:         didservice.KeyResolver{Resolver: didResolver},
 		serviceResolver:     serviceResolver,
 		contractNotary:      contractNotary,
 		jsonldManager:       jsonldManager,

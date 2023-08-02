@@ -32,7 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -45,18 +44,16 @@ type networkPublisher struct {
 
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
 // It is the default implementation to use for issuers to publish credentials and revocations to the Nuts network.
-func NewNetworkPublisher(networkTx network.Transactions, store didstore.Store, keyResolver crypto.KeyResolver) Publisher {
-	didResolver := didservice.Resolver{Store: store}
+func NewNetworkPublisher(networkTx network.Transactions, didResolver vdr.DIDResolver, keyResolver crypto.KeyResolver) Publisher {
 	return &networkPublisher{
 		networkTx:       networkTx,
 		didResolver:     didResolver,
-		serviceResolver: didservice.ServiceResolver{Store: store},
+		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
 		keyResolver: vdrKeyResolver{
-			publicKeyResolver:  didservice.KeyResolver{Store: store},
+			publicKeyResolver:  didservice.KeyResolver{Resolver: didResolver},
 			privateKeyResolver: keyResolver,
 		},
 	}
-
 }
 
 func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCredential vc.VerifiableCredential, public bool) error {
