@@ -1,0 +1,53 @@
+@startuml
+autonumber
+
+title Issuance of care organization credential\n(OpenID4VCI)
+
+box Director
+    participant Wallet
+    participant Browser
+end box
+box Vendor
+    participant XIS
+    participant Node as "Wallet\n[Nuts Node]"
+end box
+box Care Organization Registry
+    participant Issuer as "Issuer"
+end box
+
+Browser -> XIS : Navigate to\nactivation page
+activate XIS
+    XIS -> Node : Initiate credential\nissuance flow\n(credType, issuerID, orgID,\ncompletionRedirectURL)
+    activate Node
+        Node -> Issuer : Fetch metadata
+        activate Issuer
+            Issuer --> Node : HTTP 200 OK\n(metadata)
+        deactivate Issuer
+        Node -> Node : Instantiate\nflow
+        Node -> Node : Create auth\nredirect URL
+        Node --> XIS : HTTP 200 OK\nauth redirect URL\n(/authorize)
+    deactivate Node
+    XIS --> Browser : HTTP 302 Redirect\n/authorize
+deactivate XIS
+
+Browser -> Issuer : HTTP GET\n/authorize?response_type=code[etc...]
+activate Issuer
+    Issuer --> Browser : HTTP 200 OK\nID challenge (HTML page)
+    group Depends on issuer ID requirements
+        Wallet -> Browser : Scan QR code
+        Wallet -> Issuer : Perform identification
+        Issuer -> Issuer : Verify ID
+    end
+    Issuer --> Browser : Redirect after authorization\nHTTP 302 /cb?code=1234[etc...]
+deactivate Issuer
+
+Browser -> Node : Resume credential request\nHTTP GET /cb?code=123
+activate Node
+    Node -> Issuer : Get access token\nHTTP GET /token
+    activate Issuer
+        Issuer -> Issuer : Verify code
+        Issuer --> Node : HTTP 200 OK\n(access token)
+    deactivate Issuer
+    Node -> Issuer : Request credential
+deactivate Node
+@enduml
