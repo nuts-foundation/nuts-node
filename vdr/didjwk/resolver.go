@@ -31,6 +31,9 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
+// MethodName is the name of this DID method.
+const MethodName = "jwk"
+
 var _ types.DIDResolver = (*Resolver)(nil)
 
 // Resolver is a DID resolver for the did:jwk method.
