@@ -482,10 +482,7 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	keyStore := crypto.NewMockKeyStore(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
-	client := &Wrapper{C: keyStore, VDR: nil}
-	getKeyResolverFunc = func(_ types.VDR) types.KeyResolver {
-		return keyResolver
-	}
+	client := &Wrapper{C: keyStore, K: keyResolver}
 
 	return mockContext{
 		ctrl:        ctrl,

@@ -27,6 +27,7 @@ import (
 	goldenHammerCmd "github.com/nuts-foundation/nuts-node/golden_hammer/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"io"
 	"os"
 	"runtime/pprof"
@@ -196,12 +197,12 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})
-	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, VDR: vdrInstance})
+	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: didservice.KeyResolver{Resolver: vdrInstance.Resolver()}})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
 	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocManipulator: &didnuts.Manipulator{
 		KeyCreator: cryptoInstance,
 		Updater:    vdrInstance,
-		Resolver:   didStore,
+		Resolver:   vdrInstance.Resolver(),
 	}})
 	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
 	system.RegisterRoutes(&openid4vciAPI.Wrapper{

@@ -23,7 +23,6 @@ import (
 	crypt "crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"net/http"
 	"time"
 
@@ -41,15 +40,10 @@ import (
 var _ StrictServerInterface = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
-// getKeyResolverFunc returns a KeyResolver for the given VDR. The indirection is there to aid testing with mocks.
-var getKeyResolverFunc = func(vdr types.VDR) types.KeyResolver {
-	return didservice.KeyResolver{Resolver: vdr.Resolver()}
-}
-
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
-	C   crypto.KeyStore
-	VDR types.VDR
+	C crypto.KeyStore
+	K types.KeyResolver
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -198,18 +192,17 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 }
 
 func (w *Wrapper) resolvePublicKey(id *did.DID) (key crypt.PublicKey, keyID ssi.URI, err error) {
-	keyResolver := getKeyResolverFunc(w.VDR)
 	if id.IsURL() {
 		// Assume it is a keyId
 		now := time.Now()
-		key, err = keyResolver.ResolveKeyByID(id.String(), &now, types.KeyAgreement)
+		key, err = w.K.ResolveKeyByID(id.String(), &now, types.KeyAgreement)
 		if err != nil {
 			return nil, ssi.URI{}, err
 		}
 		keyID = id.URI()
 	} else {
 		// Assume it is a DID
-		keyID, key, err = keyResolver.ResolveKey(*id, nil, types.KeyAgreement)
+		keyID, key, err = w.K.ResolveKey(*id, nil, types.KeyAgreement)
 		if err != nil {
 			return nil, ssi.URI{}, err
 		}
