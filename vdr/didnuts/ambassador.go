@@ -60,7 +60,7 @@ type Ambassador interface {
 
 type ambassador struct {
 	networkClient network.Transactions
-	store         didstore.Store
+	didStore      didstore.Store
 	keyResolver   types.NutsKeyResolver
 	didResolver   types.DIDResolver
 	eventManager  events.Event
@@ -71,7 +71,7 @@ func NewAmbassador(networkClient network.Transactions, didStore didstore.Store, 
 	resolver := Resolver{Store: didStore}
 	return &ambassador{
 		networkClient: networkClient,
-		store:         didStore,
+		didStore:      didStore,
 		keyResolver:   dag.SourceTXKeyResolver{Resolver: resolver},
 		didResolver:   &Resolver{Store: didStore},
 		eventManager:  eventManager,
@@ -218,7 +218,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 		return err
 	}
 
-	err = n.store.Add(proposedDIDDocument, didstore.Transaction{
+	err = n.didStore.Add(proposedDIDDocument, didstore.Transaction{
 		Clock:       transaction.Clock(),
 		PayloadHash: transaction.PayloadHash(),
 		Previous:    transaction.Previous(),
@@ -248,7 +248,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	var currentDIDDocument *did.Document
 	var err error
 	for _, ref := range transaction.Previous() {
-		currentDIDDocument, _, err = n.store.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &ref})
+		currentDIDDocument, _, err = n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &ref})
 		if err != nil && !errors.Is(err, types.ErrNotFound) {
 			return fmt.Errorf("unable to update DID document: %w", err)
 		}
@@ -258,7 +258,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	}
 	// fallback
 	if currentDIDDocument == nil {
-		currentDIDDocument, _, err = n.store.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
+		currentDIDDocument, _, err = n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
 		if err != nil {
 			return fmt.Errorf("unable to update DID document: %w", err)
 		}
@@ -305,7 +305,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		return fmt.Errorf("network document not signed by one of its controllers")
 	}
 
-	err = n.store.Add(proposedDIDDocument, didstore.Transaction{
+	err = n.didStore.Add(proposedDIDDocument, didstore.Transaction{
 		Clock:       transaction.Clock(),
 		PayloadHash: transaction.PayloadHash(),
 		Previous:    transaction.Previous(),

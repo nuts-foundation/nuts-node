@@ -58,21 +58,20 @@ const (
 )
 
 type store struct {
-	db       stoabs.KVStore
-	provider storage.Provider
+	db              stoabs.KVStore
+	storageProvider storage.Provider
 }
 
 // New returns a new vdrStore.Store that still needs to be initialized
-func New(provider storage.Provider) Store {
+func New(storageProvider storage.Provider) Store {
 	return &store{
-		provider: provider,
+		storageProvider: storageProvider,
 	}
 }
 
-func (tl *store) Configure(_ core.ServerConfig) error {
-	var err error
-	tl.db, err = tl.provider.GetKVStore(didStoreName, storage.PersistentStorageClass)
-	return err
+func (tl *store) Configure(_ core.ServerConfig) (err error) {
+	tl.db, err = tl.storageProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
+	return
 }
 
 // Add inserts the document version at the correct place and updates all later versions if needed

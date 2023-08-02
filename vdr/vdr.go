@@ -60,16 +60,11 @@ type VDR struct {
 	networkAmbassador didnuts.Ambassador
 	didDocCreator     types.DocCreator
 	didResolver       *didservice.DIDResolverRouter
-	// did:nuts is also handled by the router, but it has some special functions for resolving controllers
-	// which VDR uses, so we need a reference here to use it.
-	// We could abstract DID document updating (so other DID methods can be updated through the same API),
-	// which would make this reference go away.
-	nutsDidResolver *didnuts.Resolver
-	serviceResolver types.ServiceResolver
-	documentOwner   types.DocumentOwner
-	keyStore        crypto.KeyStore
-	storageProvider storage.Provider
-	eventManager    events.Event
+	serviceResolver   types.ServiceResolver
+	documentOwner     types.DocumentOwner
+	keyStore          crypto.KeyStore
+	storageProvider   storage.Provider
+	eventManager      events.Event
 }
 
 func (r *VDR) Resolver() types.DIDResolver {
@@ -99,11 +94,10 @@ func (r *VDR) Name() string {
 
 // Configure configures the VDR engine.
 func (r *VDR) Configure(_ core.ServerConfig) error {
-	r.nutsDidResolver = &didnuts.Resolver{Store: r.store}
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
 
 	// Register DID methods
-	r.didResolver.Register(didnuts.MethodName, r.nutsDidResolver)
+	r.didResolver.Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
 
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()
@@ -158,7 +152,7 @@ func (r *VDR) ListOwned(ctx context.Context) ([]did.DID, error) {
 func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.DocIterator {
 	return func(doc did.Document, metadata types.DocumentMetadata) error {
 		*totalCount++
-		controllers, err := didnuts.ResolveControllers(r.nutsDidResolver, doc, nil)
+		controllers, err := didnuts.ResolveControllers(r.store, doc, nil)
 		if err != nil {
 			log.Logger().
 				WithField(core.LogFieldDID, doc.ID).
@@ -343,7 +337,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 }
 
 func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
-	controllers, err := didnuts.ResolveControllers(r.nutsDidResolver, doc, nil)
+	controllers, err := didnuts.ResolveControllers(r.store, doc, nil)
 	if err != nil {
 		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
 	}
