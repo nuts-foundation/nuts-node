@@ -19,6 +19,7 @@ Browser -> XIS : Navigate to\nactivation page
 activate XIS
     XIS -> Node : Initiate credential\nissuance flow\n(credType, issuerID, orgID,\ncompletionRedirectURL)
     activate Node
+group OpenID4VCI Authorized Code Flow
         Node -> Issuer : Fetch metadata
         activate Issuer
             Issuer --> Node : HTTP 200 OK\n(metadata)
@@ -49,5 +50,19 @@ activate Node
         Issuer --> Node : HTTP 200 OK\n(access token)
     deactivate Issuer
     Node -> Issuer : Request credential
+    activate Issuer
+        Issuer -> Issuer : Issue credential
+        Issuer --> Node : Return credential
+    deactivate Issuer
+end
+    Node -> Node : Store credential
+    Node --> Browser : Redirect after completion\nHTTP 302 /...
 deactivate Node
+
+Browser -> XIS : HTTP GET\nCompletion page
+activate XIS
+    XIS -> Node : Retrieve credential
+    Node --> XIS : credential
+    XIS --> Browser : HTTP 200\nActivation\nsuccess page
+deactivate XIS
 @enduml
