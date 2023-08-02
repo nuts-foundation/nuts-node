@@ -72,11 +72,10 @@ func (r *VDR) Resolver() types.DIDResolver {
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(storageProvider storage.Provider, cryptoClient crypto.KeyStore, networkClient network.Transactions,
+func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	didStore didnutsStore.Store, eventManager events.Event) *VDR {
 	didResolver := &didservice.DIDResolverRouter{}
 	return &VDR{
-		storageProvider: storageProvider,
 		network:         networkClient,
 		eventManager:    eventManager,
 		didDocCreator:   didnuts.Creator{KeyStore: cryptoClient},

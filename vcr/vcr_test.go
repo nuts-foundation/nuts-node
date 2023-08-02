@@ -90,7 +90,7 @@ func TestVCR_Configure(t *testing.T) {
 		vdrInstance := types.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 		vdrInstance.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
-		instance := NewVCRInstance(nil, vdrInstance, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory), pkiProvider).(*vcr)
+		instance := NewVCRInstance(nil, vdrInstance, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
 		instance.config.OpenID4VCI.Enabled = true
 
 		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))

@@ -28,15 +28,19 @@ import (
 	"testing"
 )
 
+func NewTestStorageEngineInDir(dir string) Engine {
+	result := New()
+	_ = result.Configure(core.TestServerConfig(core.ServerConfig{Datadir: dir + "/data"}))
+	return result
+}
+
 func NewTestStorageEngine(t *testing.T) Engine {
 	oldOpts := append(DefaultBBoltOptions[:])
 	t.Cleanup(func() {
 		DefaultBBoltOptions = oldOpts
 	})
 	DefaultBBoltOptions = append(DefaultBBoltOptions, stoabs.WithNoSync())
-	result := New()
-	_ = result.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t) + "/data"}))
-	return result
+	return NewTestStorageEngineInDir(io.TestDirectory(t))
 }
 
 // CreateTestBBoltStore creates an in-memory bbolt store

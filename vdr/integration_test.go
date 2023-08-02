@@ -255,7 +255,7 @@ func setup(t *testing.T) testContext {
 	require.NoError(t, cryptoInstance.Configure(nutsConfig))
 
 	// Storage
-	storageEngine := storage.NewTestStorageEngine(io.TestDirectory(t))
+	storageEngine := storage.NewTestStorageEngine(t)
 
 	// DID Store
 	didStore := didstore.NewTestStore(t)
@@ -279,7 +279,7 @@ func setup(t *testing.T) testContext {
 		storageEngine.GetProvider("network"),
 		pkiValidator,
 	)
-	vdr := NewVDR(storageEngine.GetProvider("vdr"), cryptoInstance, nutsNetwork, didStore, eventPublisher)
+	vdr := NewVDR(cryptoInstance, nutsNetwork, didStore, eventPublisher)
 
 	// Configure
 	require.NoError(t, vdr.Configure(nutsConfig))
