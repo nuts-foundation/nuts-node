@@ -1,0 +1,38 @@
+@startuml
+!include <osa/mobile/pda/pda>
+!include <osa/site_branch/site_branch>
+skinparam {
+    DefaultTextAlignment center
+}
+
+title Uitgifte credential "UseCaseKwalificatie" door Stelselbeheerder\n<i>(na uitgifte ZorgorganisatieCredential)</i>
+
+rectangle {
+    actor Bestuurder
+    label Wallet as "Wallet\n<$pda{scale=0.5}>"
+    label Zorgorganisatie as "Zorgorganisatie\n<$site_branch{scale=0.5}>"
+}
+
+rectangle {
+    label Leverancier as "Leverancier\n<$site_branch{scale=0.5}>"
+    rectangle NutsNode as "Server Wallet\n(Nuts Node)"
+    label ZorgorganisatieCredential as "Zorgorganisatie\nCredential"
+}
+
+rectangle "Register Zorgaanbieders" as OrgRegistry
+rectangle "Stelselbeheerder" as Stelselbeheerder
+
+Bestuurder -> Leverancier : 1. logt in bij
+Leverancier -down-> Stelselbeheerder : 2. stuurt bestuurder\ndoor naar
+Bestuurder -down-> Stelselbeheerder : 3. identificeert\nnamens zorgorganisatie\n(bijv. KVK credential)
+Bestuurder -.left-> Zorgorganisatie : tekengerechtigd\nvoor
+NutsNode -down-> Stelselbeheerder : 4. identificeert zich\nals zorgorganisatie bij
+Stelselbeheerder -> NutsNode : 5. geeft credential uit aan\n(UseCaseKwalificatie)
+Leverancier -.right-> NutsNode : heeft een
+Bestuurder -> Wallet : identificeert\nm.b.v.
+
+NutsNode -> ZorgorganisatieCredential : bevat
+Stelselbeheerder -> OrgRegistry : vertrouwt credentials\nuitgegeven door
+OrgRegistry -up-> ZorgorganisatieCredential : heeft uitgegeven
+
+@enduml

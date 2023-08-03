@@ -5,7 +5,7 @@ skinparam {
     DefaultTextAlignment center
 }
 
-title Uitgifte credential "Zorgorganisatie"
+title Uitgifte credential "Zorgorganisatie" door Register Zorgaanbieders
 
 rectangle {
     actor Bestuurder
@@ -18,14 +18,14 @@ rectangle {
     rectangle NutsNode as "Server Wallet\n(Nuts Node)"
 }
 
-rectangle "Register Zorgaanbieders" as Stelselbeheerder
+rectangle "Register Zorgaanbieders" as OrgRegistry
 
 
 Bestuurder -> Leverancier : 1. logt in bij
-Leverancier -down-> Stelselbeheerder : 2. stuurt bestuurder\ndoor naar
-Bestuurder -down-> Stelselbeheerder : 3. identificeert\nnamens zorgorganisatie\n(bijv. KVK credential)
+Leverancier -down-> OrgRegistry : 2. stuurt bestuurder\ndoor naar
+Bestuurder -down-> OrgRegistry : 3. identificeert\nnamens zorgorganisatie\n(bijv. KVK credential)
 Bestuurder -.left-> Zorgorganisatie : tekengerechtigd\nvoor
-Stelselbeheerder -> NutsNode : 4. geeft credential uit aan
+OrgRegistry -> NutsNode : 4. geeft credential uit aan
 Leverancier -.right-> NutsNode : heeft een
 Bestuurder -> Wallet : identificeert\nm.b.v.
 
