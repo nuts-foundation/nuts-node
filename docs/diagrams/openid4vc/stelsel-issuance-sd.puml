@@ -1,0 +1,95 @@
+@startuml
+autonumber
+
+title Issuance of use case credential\n(after issuance of care organization credential)\n(OpenID4VCI with Dynamic Credential Request)
+
+box Director
+    participant Wallet
+    participant Browser
+end box
+box Vendor
+    participant XIS
+    participant Node as "Wallet\n[Nuts Node]"
+end box
+box Use Case Governing  Body
+    participant Issuer as "Issuer"
+end box
+
+Browser -> XIS : Navigate to\nactivation page
+activate XIS
+    XIS -> Node : Initiate credential\nissuance flow\n(credType, issuerID, orgID,\ncompletionRedirectURL)
+    activate Node
+group OpenID4VCI Authorized Code Flow
+        Node -> Issuer : Fetch metadata
+        activate Issuer
+            Issuer --> Node : HTTP 200 OK\n(metadata)
+        deactivate Issuer
+        Node -> Node : Instantiate\nflow
+        Node -> Node : Create auth\nredirect URL
+        Node --> XIS : HTTP 200 OK\nauth redirect URL\n(/authorize)
+    deactivate Node
+    XIS --> Browser : HTTP 302 Redirect\n/authorize
+deactivate XIS
+
+Browser -> Issuer : HTTP GET\n/authorize?response_type=code[etc...]
+activate Issuer
+    Issuer --> Browser : HTTP 200 OK\nID challenge (HTML page)
+    group Assert sign-off by representative from care organization for use case partification\n(implementation depends on issuer requirements)
+        Wallet -> Browser : Scan QR code
+        Wallet -> Issuer : Perform identification
+        Issuer -> Issuer : Verify ID
+    end
+
+    group Assert the subject is a registered care organization\n(Dynamic Credential Request using OpenID4VP)
+        Issuer -> Issuer : Start OpenID4VP\nflow
+        activate Issuer
+            Issuer -> Node : Fetch metadata
+            activate Node
+                Node --> Issuer : HTTP 200 OK\n(metadata)
+            deactivate Node
+        deactivate Issuer
+        Issuer --> Browser : HTTP 200 OK\nShow authorization required page\nbutton with Authorization Request
+        Browser -> Node : HTTP GET\n/authorize?response_type=code\n  &scope=some-use-case[etc...]
+        activate Node
+            Node -> Node : Initiate\nOpenID4VP flow
+            Node --> Browser : HTTP 200 OK\nShow presentation request\nand presentation submission
+        deactivate Node
+        Browser -> Node : HTTP POST\nConfirm submission
+        activate Node
+            Node -> Issuer : Authz response\nHTTP POST\n(vp_token, etc)
+            note right : direct_post mode
+            activate Issuer
+                Issuer -> Issuer : Verify presentation\ncheck v.s. signed-off representative
+                Issuer --> Node : HTTP 200 OK\n(redirect_uri)
+            deactivate Issuer
+            Node --> Browser : HTTP 302 Redirect\n(redirect_uri)
+        deactivate Node
+        Browser --> Issuer : HTTP GET\n(redirect_uri)
+    end
+    Issuer --> Browser : Redirect after authorization\nHTTP 302 /cb?code=1234[etc...]
+deactivate Issuer
+
+Browser -> Node : Resume credential request\nHTTP GET /cb?code=123
+activate Node
+    Node -> Issuer : Get access token\nHTTP GET /token
+    activate Issuer
+        Issuer -> Issuer : Verify code
+        Issuer --> Node : HTTP 200 OK\n(access token)
+    deactivate Issuer
+    Node -> Issuer : Request credential
+    activate Issuer
+        Issuer -> Issuer : Issue credential
+        Issuer --> Node : Return credential
+    deactivate Issuer
+end
+    Node -> Node : Store credential
+    Node --> Browser : Redirect after completion\nHTTP 302 /...
+deactivate Node
+
+Browser -> XIS : HTTP GET\nCompletion page
+activate XIS
+    XIS -> Node : Retrieve credential
+    Node --> XIS : credential
+    XIS --> Browser : HTTP 200\nActivation\nsuccess page
+deactivate XIS
+@enduml
