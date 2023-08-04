@@ -29,6 +29,11 @@ group OpenID4VCI Authorized Code Flow
         Node --> XIS : HTTP 200 OK\nauth redirect URL\n(/authorize)
     deactivate Node
     XIS --> Browser : HTTP 302 Redirect\n/authorize
+    note right
+        Might want to set a cookie here with a Nuts Node API token,
+        that authenticates the browser at the Nuts Node,
+        when it returns to approve the submission of the verifiable presentation.
+    end note
 deactivate XIS
 
 Browser -> Issuer : HTTP GET\n/authorize?response_type=code[etc...]
@@ -51,7 +56,7 @@ activate Issuer
         Issuer --> Browser : HTTP 200 OK\nShow authorization required page\nbutton with Authorization Request
         Browser -> Node : HTTP GET\n/authorize?response_type=code\n  &scope=some-use-case[etc...]
         activate Node
-            Node -> Node : Initiate\nOpenID4VP flow
+            Node -> Node : Match presentation\ndefinition,\ncreate submission
             Node --> Browser : HTTP 200 OK\nShow presentation request\nand presentation submission
         deactivate Node
         Browser -> Node : HTTP POST\nConfirm submission

@@ -307,7 +307,6 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 // It consumes and checks the JWT and returns a smaller sessionToken
 // The errors returns for this API do not follow RFC7807 but follow the oauth framework error response: RFC6749 (https://tools.ietf.org/html/rfc6749#page-45)
 func (w Wrapper) CreateAccessToken(ctx context.Context, request CreateAccessTokenRequestObject) (CreateAccessTokenResponseObject, error) {
-
 	if request.Body.GrantType != client.JwtBearerGrantType {
 		errDesc := fmt.Sprintf("grant_type must be: '%s'", client.JwtBearerGrantType)
 		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthUnsupportedGrant, ErrorDescription: errDesc}
