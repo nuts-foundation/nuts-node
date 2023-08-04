@@ -34,7 +34,7 @@ deactivate XIS
 Browser -> Issuer : HTTP GET\n/authorize?response_type=code[etc...]
 activate Issuer
     Issuer --> Browser : HTTP 200 OK\nID challenge (HTML page)
-    group Assert sign-off by representative from care organization for use case partification\n(implementation depends on issuer requirements)
+    group Assert sign-off by representative from care organization for use case participation\n(implementation depends on issuer requirements)
         Wallet -> Browser : Scan QR code
         Wallet -> Issuer : Perform identification
         Issuer -> Issuer : Verify ID
