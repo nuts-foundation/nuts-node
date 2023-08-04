@@ -1,6 +1,7 @@
 package didweb
 
 import (
+	"crypto/tls"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,6 +36,10 @@ const didDocTemplate = `
 func TestResolver_NewResolver(t *testing.T) {
 	resolver := NewResolver()
 	assert.NotNil(t, resolver.HttpClient)
+
+	t.Run("it sets min TLS version", func(t *testing.T) {
+		assert.Equal(t, uint16(tls.VersionTLS12), resolver.HttpClient.Transport.(*http.Transport).TLSClientConfig.MinVersion)
+	})
 }
 
 func TestResolver_Resolve(t *testing.T) {

@@ -26,9 +26,14 @@ type Resolver struct {
 
 // NewResolver creates a new did:web Resolver with default TLS configuration.
 func NewResolver() *Resolver {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{
-		MinVersion: tls.VersionTLS12,
+	transport := http.DefaultTransport
+	if httpTransport, ok := transport.(*http.Transport); ok {
+		// Might not be http.Transport in testing
+		httpTransport = httpTransport.Clone()
+		httpTransport.TLSClientConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+		transport = httpTransport
 	}
 	return &Resolver{
 		HttpClient: &http.Client{

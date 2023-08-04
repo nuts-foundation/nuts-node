@@ -23,9 +23,13 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -496,4 +500,32 @@ func TestVDR_IsOwner(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, result)
 	})
+}
+
+func TestVDR_Configure(t *testing.T) {
+	t.Run("it can resolve using did:web", func(t *testing.T) {
+		http.DefaultTransport = roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Header:     map[string][]string{"Content-Type": {"application/json"}},
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"id": "did:web:example.com"}`)),
+			}, nil
+		})
+
+		instance := NewVDR(nil, nil, nil, nil)
+		err := instance.Configure(core.ServerConfig{})
+		require.NoError(t, err)
+
+		doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com"), nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, doc)
+		assert.NotNil(t, md)
+	})
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return fn(r)
 }
