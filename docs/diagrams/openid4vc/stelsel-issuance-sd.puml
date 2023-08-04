@@ -54,7 +54,7 @@ activate Issuer
             deactivate Node
         deactivate Issuer
         Issuer --> Browser : HTTP 200 OK\nShow authorization required page\nbutton with Authorization Request
-        Browser -> Node : HTTP GET\n/authorize?response_type=code\n  &scope=some-use-case[etc...]
+        Browser -> Node : HTTP GET\n/authorize?response_type=vp_token\n  &scope=some-use-case[etc...]
         activate Node
             Node -> Node : Match presentation\ndefinition,\ncreate submission
             Node --> Browser : HTTP 200 OK\nShow presentation request\nand presentation submission
