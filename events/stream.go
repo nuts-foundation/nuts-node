@@ -21,9 +21,8 @@ package events
 
 import (
 	"errors"
-	"sync/atomic"
-
 	"github.com/nats-io/nats.go"
+	"sync/atomic"
 )
 
 const (
@@ -39,8 +38,6 @@ const (
 type Stream interface {
 	// Config returns the server configuration of the NATS stream
 	Config() *nats.StreamConfig
-	// ClientOpts returns the NATS client subscribe options
-	ClientOpts() []nats.SubOpt
 	// Subscribe to a stream on the NATS server
 	// The consumerName is used as the durable config name.
 	// The subjectFilter can be used to filter messages on the stream (eg: TRANSACTIONS.* or DATA.VerificableCredential)
@@ -48,18 +45,13 @@ type Stream interface {
 }
 
 type stream struct {
-	config     *nats.StreamConfig
-	clientOpts []nats.SubOpt
-	created    atomic.Value
-	durable    bool
+	config  *nats.StreamConfig
+	created atomic.Value
+	durable bool
 }
 
 func (stream *stream) Config() *nats.StreamConfig {
 	return stream.config
-}
-
-func (stream *stream) ClientOpts() []nats.SubOpt {
-	return stream.clientOpts[:]
 }
 
 func (stream *stream) create(ctx JetStreamContext) error {
@@ -94,9 +86,11 @@ func (stream *stream) Subscribe(conn Conn, consumerName string, subjectFilter st
 
 	opts := []nats.SubOpt{
 		nats.BindStream(stream.config.Name),
+		nats.ManualAck(),
 		nats.AckExplicit(),
 		nats.DeliverNew(),
-		nats.MaxDeliver(10),
+		nats.MaxDeliver(5),       // number of redelivery attempts
+		nats.MaxAckPending(1000), // maximum number of messages sent by the server to the client without an ack, should fit within Subscriber limits (sub.SetPendingLimits())
 	}
 	if stream.durable {
 		opts = append(opts, nats.Durable(consumerName))
@@ -119,18 +113,13 @@ func NewDisposableStream(name string, subjects []string, maxMessages int64) Stre
 		Retention: nats.LimitsPolicy,
 		Storage:   nats.MemoryStorage,
 		Discard:   nats.DiscardOld,
-	}, []nats.SubOpt{
-		nats.AckNone(),
-		nats.DeliverNew(),
-		nats.ReplayInstant(),
 	}, false)
 }
 
 // newStream configures a stream without any default settings
-func newStream(config *nats.StreamConfig, clientOpts []nats.SubOpt, durable bool) Stream {
+func newStream(config *nats.StreamConfig, durable bool) Stream {
 	return &stream{
-		config:     config,
-		clientOpts: clientOpts,
-		durable:    durable,
+		config:  config,
+		durable: durable,
 	}
 }
