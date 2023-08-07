@@ -241,7 +241,14 @@ func (p *protocol) handleTransactionRangeQuery(ctx context.Context, connection g
 		return errors.New("invalid range query")
 	}
 
-	txs, err := p.state.FindBetweenLC(ctx, msg.Start, msg.End)
+	// limit to two pages to reduce load
+	limit := msg.Start + 2*dag.PageSize
+	requested := msg.End
+	if requested > limit {
+		requested = limit
+	}
+
+	txs, err := p.state.FindBetweenLC(ctx, msg.Start, requested)
 	if err != nil {
 		return err
 	}
