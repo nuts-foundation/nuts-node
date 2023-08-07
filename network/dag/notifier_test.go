@@ -34,6 +34,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"path"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -357,11 +358,7 @@ func TestNotifier_Notify(t *testing.T) {
 }
 
 func TestNotifier_Run(t *testing.T) {
-	ctx := context.Background()
-	filePath := io.TestDirectory(t)
 	transaction, _, _ := CreateTestTransaction(0)
-	kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
-	counter := callbackCounter{}
 	payload := "payload"
 	event := Event{
 		Type:        TransactionEventType,
@@ -370,18 +367,55 @@ func TestNotifier_Run(t *testing.T) {
 		Transaction: transaction,
 		Payload:     []byte(payload),
 	}
-	s := NewNotifier(t.Name(), counter.callbackFinished, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
 
-	_ = kvStore.WriteShelf(ctx, s.shelfName(), func(writer stoabs.Writer) error {
-		bytes, _ := json.Marshal(event)
-		return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
+	t.Run("OK - callback called", func(t *testing.T) {
+		ctx := context.Background()
+		filePath := io.TestDirectory(t)
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
+		counter := callbackCounter{}
+		s := NewNotifier(t.Name(), counter.callbackFinished, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
+		defer s.Close()
+
+		_ = kvStore.WriteShelf(ctx, s.shelfName(), func(writer stoabs.Writer) error {
+			bytes, _ := json.Marshal(event)
+			return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
+		})
+
+		err := s.Run()
+		require.NoError(t, err)
+
+		test.WaitFor(t, func() (bool, error) {
+			return counter.N.Load() == 1, nil
+		}, time.Second, "timeout while waiting for receiver")
 	})
 
-	s.Run()
+	t.Run("OK - callback errors", func(t *testing.T) {
+		ctx := context.Background()
+		filePath := io.TestDirectory(t)
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
+		counter := callbackCounter{}
+		counter.setCallbackError(errors.New("error"))
+		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
+		defer s.Close()
 
-	test.WaitFor(t, func() (bool, error) {
-		return counter.N.Load() == 1, nil
-	}, time.Second, "timeout while waiting for receiver")
+		_ = kvStore.WriteShelf(ctx, s.shelfName(), func(writer stoabs.Writer) error {
+			bytes, _ := json.Marshal(event)
+			return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
+		})
+
+		// count the number of go routines
+		goroutines := runtime.NumGoroutine()
+
+		err := s.Run()
+		require.NoError(t, err)
+
+		test.WaitFor(t, func() (bool, error) {
+			return counter.Err.Load() != nil, nil
+		}, time.Second, "timeout while waiting for receiver")
+
+		// the immediate callback has failed and the retry is scheduled within a new go routine
+		assert.Equal(t, goroutines+1, runtime.NumGoroutine())
+	})
 }
 
 func TestNotifier_VariousFlows(t *testing.T) {
