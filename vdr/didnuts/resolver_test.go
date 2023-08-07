@@ -215,6 +215,25 @@ func TestResolveControllers(t *testing.T) {
 			"expected docA and docB to be resolved as controller of docB")
 	})
 
+	t.Run("docA and docB are both the controllers of docB, resolve by source transaction", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		resolver := types.NewMockDIDResolver(ctrl)
+		docA := did.Document{ID: *id123}
+		docA.AddCapabilityInvocation(&did.VerificationMethod{ID: *id123Method1})
+
+		// when we resolve by source TX, we will not find the other controller
+		resolver.EXPECT().Resolve(*id123, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+
+		docB := did.Document{ID: *id456, Controller: []did.DID{*id123, *id456}}
+		docB.AddCapabilityInvocation(&did.VerificationMethod{ID: *id456Method1})
+
+		docs, err := ResolveControllers(resolver, docB, nil)
+		assert.NoError(t, err)
+		assert.Len(t, docs, 1)
+		assert.Equal(t, []did.Document{docB}, docs,
+			"expected docB to be resolved as controller of docB")
+	})
+
 	t.Run("docA, docB and docC are controllers of docA, docB is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		resolver := types.NewMockDIDResolver(ctrl)
