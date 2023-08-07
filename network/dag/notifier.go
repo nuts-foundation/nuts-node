@@ -244,7 +244,7 @@ func (p *notifier) Run() error {
 			event := Event{}
 			_ = json.Unmarshal(v, &event)
 
-			p.retry(event)
+			p.Notify(event)
 
 			return nil
 		}, stoabs.BytesKey{})
