@@ -183,6 +183,7 @@ func TestStore_conflicted(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, uint(1), count)
+		assert.Len(t, store.conflictedDocuments, 1)
 
 		err = store.Conflicted(func(doc did.Document, metadata types.DocumentMetadata) error {
 			assert.NotEqual(t, doc1, doc)
@@ -204,6 +205,7 @@ func TestStore_conflicted(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, uint(0), count)
+		assert.Len(t, store.conflictedDocuments, 0)
 
 		err = store.Conflicted(func(doc did.Document, metadata types.DocumentMetadata) error {
 			t.Fail()
