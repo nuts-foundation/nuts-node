@@ -650,7 +650,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		conversation := p.cMan.startConversation(request, peer)
 		mocks.State.EXPECT().IBLT(requestLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), requestLC)
-		mocks.Sender.EXPECT().sendTransactionRangeQuery(connection, dag.PageSize, uint32(dag.MaxLamportClock)).Return(nil)
+		mocks.Sender.EXPECT().sendTransactionRangeQuery(connection, dag.PageSize, 3*dag.PageSize).Return(nil)
 
 		err := p.handleTransactionSet(ctx, connection, &Envelope{Message: &Envelope_TransactionSet{
 			TransactionSet: &TransactionSet{ConversationID: conversation.conversationID.slice(), LCReq: requestLC, LC: peerLC, IBLT: oneHashIbltBytes},

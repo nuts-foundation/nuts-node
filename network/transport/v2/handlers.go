@@ -514,7 +514,8 @@ func (p *protocol) handleTransactionSet(_ context.Context, connection grpc.Conne
 			return p.sender.sendTransactionRangeQuery(connection, pageClockStart(reqPageNum+1), pageClockStart(reqPageNum+2))
 		}
 		// TODO: Distribute synchronization of new nodes over multiple peers.
-		return p.sender.sendTransactionRangeQuery(connection, pageClockStart(reqPageNum+1), dag.MaxLamportClock)
+		// Currently locked at 2 pages (~1000TX) per peer to prevent overloading the peer.
+		return p.sender.sendTransactionRangeQuery(connection, pageClockStart(reqPageNum+1), pageClockStart(reqPageNum+3))
 	}
 
 	// peer is behind
