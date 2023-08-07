@@ -239,16 +239,31 @@ func (p *notifier) Run() error {
 	if !p.isPersistent() {
 		return nil
 	}
-	return p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
+	// we're going to retry all events synchronously at startup. For the ones that fail we'll start the retry loop
+	failedAtStartup := make([]Event, 0)
+	err := p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
 		return reader.Iterate(func(k stoabs.Key, v []byte) error {
 			event := Event{}
 			_ = json.Unmarshal(v, &event)
 
-			p.Notify(event)
+			if err := p.notifyNow(event); err != nil {
+				failedAtStartup = append(failedAtStartup, event)
+			}
 
 			return nil
 		}, stoabs.BytesKey{})
 	})
+	if err != nil {
+		return err
+	}
+
+	// for all events from failedAtStartup, call retry
+	// this may still produce errors in the logs or even duplicate errors since notifyNow also failed
+	// but rather duplicate errors then errors produced from overloading the DB with transactions
+	for _, event := range failedAtStartup {
+		p.retry(event)
+	}
+	return nil
 }
 
 func (p *notifier) GetFailedEvents() (events []Event, err error) {
