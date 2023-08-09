@@ -8,7 +8,7 @@ require (
 	github.com/avast/retry-go/v4 v4.3.4
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.9.1
-	github.com/deepmap/oapi-codegen v1.13.3
+	github.com/deepmap/oapi-codegen v1.13.4
 	github.com/dlclark/regexp2 v1.10.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/goodsign/monday v1.0.1
