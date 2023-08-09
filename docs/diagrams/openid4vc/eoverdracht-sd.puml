@@ -15,26 +15,52 @@ box Sender
     end box
 end box
 box Receiver (recv)
+    box Nuts Node
+        participant ReceiverNode as "SSI Service"
+        participant ReceiverWallet as "Wallet"
+    end box
     participant ReceiverXIS as "XIS"
-    participant ReceiverNode as "Nuts Node"
 end box
 
 SenderCareProf -> SenderXIS : Initiate\npatient transfer\n(recvDID)
 SenderXIS -> SenderXIS : Create\ntransfer
 group eOverdracht Notify Receiver
-    SenderXIS -> SenderNode : Lookup recv notification endpoint
-    SenderNode -> ReceiverNode : Resolve recvDID
-    ReceiverNode --> SenderNode : recv DID document
-    SenderNode --> SenderXIS: 200 OK\nrecv notification endpoint
+    group Notify Endpoint Discovery
+        SenderXIS -> SenderNode : Lookup recv notification endpoint
+        SenderNode -> ReceiverNode : Resolve recvDID
+        ReceiverNode --> SenderNode : recv DID document
+        SenderNode --> SenderXIS: 200 OK\nrecv notification endpoint
+    end group
 
     SenderXIS -> SenderNode : Request s2s Access Token\n(recvDID, scope)
     note right : "scope" is currently known as purposeOfUse
     SenderNode -> SenderNode : Resolve recv metadata URL\n(TBD, well-known or DID service)
     SenderNode -> ReceiverNode : Get AuthzServer metadata
     ReceiverNode --> SenderNode : 200 OK\nmetadata
+    SenderNode -> SenderWallet : Initiate OAuth2 vp_token flow\n(scope, AuthzServer metadata,\nbusiness rules)
     group Service-to-Service OAuth2 Flow (to be spec'd)
-
+        SenderWallet -> ReceiverNode : Get presentation definition\n(scope)
+        ReceiverNode --> SenderWallet : presentation definition
+        SenderWallet -> SenderWallet : Match query,\ncreate presentation submission
+        SenderWallet -> SenderWallet : Apply business rules
+        note right
+            Business rules can be used to control
+            which credentials the wallet is allowed to present, to avoid leaking PII.
+            For Nuts it's probably a hardcoded list of VC types.
+        end note
+        SenderWallet -> ReceiverNode : Submit presentation
+        ReceiverNode -> ReceiverNode : Verify presentation,\nmatch with requested scope
+        ReceiverNode -> ReceiverNode : Create access token
+        ReceiverNode --> SenderWallet : Access token
     end group
+    SenderWallet --> SenderNode : Access token
+    SenderNode --> SenderXIS : Access token
+    SenderXIS -> ReceiverXIS : Notify\n(resource,access token)
+    ReceiverXIS --> ReceiverNode : Verify access token
+    ReceiverNode --> ReceiverXIS : OK
+    ReceiverXIS -> ReceiverXIS : Verify resource/scope
+    ReceiverXIS --> SenderXIS : OK
+    SenderXIS --> SenderCareProf : OK
 end group
 
 
