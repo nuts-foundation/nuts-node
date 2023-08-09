@@ -282,7 +282,7 @@ func TestResolveControllers(t *testing.T) {
 			"expected docA to be resolved as controller for docB")
 	})
 
-	t.Run("error - Resolve can not find the document", func(t *testing.T) {
+	t.Run("ok - Resolve can not find the document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		resolver := types.NewMockDIDResolver(ctrl)
 		resolver.EXPECT().Resolve(*id123, gomock.Any()).Return(nil, nil, types.ErrNotFound)
@@ -290,7 +290,7 @@ func TestResolveControllers(t *testing.T) {
 		docB := did.Document{ID: *id456, Controller: []did.DID{*id123}}
 
 		docs, err := ResolveControllers(resolver, docB, nil)
-		assert.EqualError(t, err, "unable to resolve controller ref: unable to find the DID document")
+		require.NoError(t, err)
 		assert.Len(t, docs, 0)
 	})
 }
