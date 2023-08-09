@@ -247,7 +247,9 @@ func (p *notifier) Run() error {
 			_ = json.Unmarshal(v, &event)
 
 			if err := p.notifyNow(event); err != nil {
-				failedAtStartup = append(failedAtStartup, event)
+				if event.Retries < maxRetries {
+					failedAtStartup = append(failedAtStartup, event)
+				}
 			}
 
 			return nil

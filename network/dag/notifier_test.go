@@ -363,7 +363,7 @@ func TestNotifier_Run(t *testing.T) {
 	event := Event{
 		Type:        TransactionEventType,
 		Hash:        transaction.Ref(),
-		Retries:     1,
+		Retries:     10,
 		Transaction: transaction,
 		Payload:     []byte(payload),
 	}
