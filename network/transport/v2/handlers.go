@@ -241,7 +241,14 @@ func (p *protocol) handleTransactionRangeQuery(ctx context.Context, connection g
 		return errors.New("invalid range query")
 	}
 
-	txs, err := p.state.FindBetweenLC(ctx, msg.Start, msg.End)
+	// limit to two pages to reduce load
+	limit := msg.Start + 2*dag.PageSize
+	end := msg.End
+	if end > limit {
+		end = limit
+	}
+
+	txs, err := p.state.FindBetweenLC(ctx, msg.Start, end)
 	if err != nil {
 		return err
 	}
@@ -514,7 +521,8 @@ func (p *protocol) handleTransactionSet(_ context.Context, connection grpc.Conne
 			return p.sender.sendTransactionRangeQuery(connection, pageClockStart(reqPageNum+1), pageClockStart(reqPageNum+2))
 		}
 		// TODO: Distribute synchronization of new nodes over multiple peers.
-		return p.sender.sendTransactionRangeQuery(connection, pageClockStart(reqPageNum+1), dag.MaxLamportClock)
+		// Currently locked at 2 pages (~1000TX) per peer to prevent overloading the peer.
+		return p.sender.sendTransactionRangeQuery(connection, pageClockStart(reqPageNum+1), pageClockStart(reqPageNum+3))
 	}
 
 	// peer is behind
