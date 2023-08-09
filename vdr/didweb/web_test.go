@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package didweb
 
 import (
@@ -45,7 +63,7 @@ func TestResolver_NewResolver(t *testing.T) {
 
 func TestResolver_Resolve(t *testing.T) {
 	var baseDID did.DID
-	tlsServer := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	tlsServer := httptest.NewUnstartedServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		switch request.URL.Path {
 		case "/.well-known/did.json":
 			writer.Header().Add("Content-Type", "application/did+json")
@@ -83,11 +101,18 @@ func TestResolver_Resolve(t *testing.T) {
 			writer.WriteHeader(http.StatusNotFound)
 		}
 	}))
+	keyPair, err := tls.LoadX509KeyPair("cert.pem", "key.pem")
+	require.NoError(t, err)
+	tlsServer.TLS = &tls.Config{
+		Certificates: []tls.Certificate{keyPair},
+	}
+	tlsServer.StartTLS()
 	defer tlsServer.Close()
 	resolver := &Resolver{
 		HttpClient: tlsServer.Client(),
 	}
 
+	tlsServer.URL = strings.ReplaceAll(tlsServer.URL, "127.0.0.1", "localhost")
 	baseDIDString := url.QueryEscape(strings.TrimPrefix(tlsServer.URL, "https://"))
 	baseDID = did.MustParseDID("did:web:" + baseDIDString)
 
@@ -195,14 +220,32 @@ func TestResolver_Resolve(t *testing.T) {
 		t.Run("ID must be just domain (contains encoded path)", func(t *testing.T) {
 			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com%2Fpath"), nil)
 
-			assert.EqualError(t, err, "invalid did:web: ID must be domain name")
+			assert.EqualError(t, err, "invalid did:web: illegal characters in domain name")
 			assert.Nil(t, md)
 			assert.Nil(t, doc)
 		})
 		t.Run("ID must be just domain, with port (contains encoded path)", func(t *testing.T) {
 			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com%3A443%2Fpath"), nil)
 
-			assert.EqualError(t, err, "invalid did:web: ID must be domain name")
+			assert.EqualError(t, err, "invalid did:web: illegal characters in domain name")
+			assert.Nil(t, md)
+			assert.Nil(t, doc)
+		})
+		t.Run("ID can't be an IP address (IPv4)", func(t *testing.T) {
+			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:127.0.0.1"), nil)
+
+			assert.EqualError(t, err, "invalid did:web: ID must be a domain name, not IP address")
+			assert.Nil(t, md)
+			assert.Nil(t, doc)
+		})
+		t.Run("ID can't be an IP address (IPv6)", func(t *testing.T) {
+			// did.Parse() rejects IPv6 addresses in DIDs, so we have to "build" it
+			doc, md, err := resolver.Resolve(did.DID{
+				Method: MethodName,
+				ID:     "[%3A%3A1]",
+			}, nil)
+
+			assert.EqualError(t, err, "invalid did:web: ID must be a domain name, not IP address")
 			assert.Nil(t, md)
 			assert.Nil(t, doc)
 		})

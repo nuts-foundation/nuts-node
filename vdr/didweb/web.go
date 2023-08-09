@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package didweb
 
 import (
@@ -8,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -67,14 +86,20 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 	}
 	targetURL := "https://" + unescapedID + path
 
-	// Use url.Parse() to check that the DID does not contain a sneaky percent-encoded path or other illegal stuff
+	// Use url.Parse() to check that;
+	// - the DID does not contain a sneaky percent-encoded path or other illegal stuff
+	// - the DID does not contain an IP address
 	parsedURL, err := url.Parse(targetURL)
 	if err != nil {
 		// came from a DID, not sure how it could fail
 		return nil, nil, err
 	}
 	if parsedURL.Host != unescapedID {
-		return nil, nil, fmt.Errorf("invalid did:web: ID must be domain name")
+		return nil, nil, fmt.Errorf("invalid did:web: illegal characters in domain name")
+	}
+	parsedIP := net.ParseIP(parsedURL.Hostname())
+	if parsedIP != nil {
+		return nil, nil, fmt.Errorf("invalid did:web: ID must be a domain name, not IP address")
 	}
 
 	// TODO: Support DNS over HTTPS (DOH), https://www.rfc-editor.org/rfc/rfc8484
