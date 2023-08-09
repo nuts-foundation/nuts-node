@@ -85,7 +85,7 @@ func writeLatest(tx stoabs.WriteTx, id did.DID, metadata documentMetadata) error
 // The conflicted count and total number of documents statistic is updated here as well.
 // These need to be updated here since all reading of current stats have to happen before any writing is done.
 // This ensures the same behaviour between bbolt and redis.
-func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
+func (tl *store) applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 	var document *did.Document
 	var metadata *documentMetadata
 	var err error
@@ -137,11 +137,13 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 		if !conflicted {
 			conflictedCount++
 		}
+		tl.addCachedConflict(*document, *metadata)
 		err = conflictedWriter.Put(stoabs.BytesKey(document.ID.String()), []byte{0})
 	} else {
 		if conflicted {
 			conflictedCount--
 		}
+		tl.removeCachedConflict(*document)
 		err = conflictedWriter.Delete(stoabs.BytesKey(document.ID.String()))
 	}
 	if err != nil {

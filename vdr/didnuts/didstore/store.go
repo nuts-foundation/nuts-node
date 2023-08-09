@@ -57,20 +57,32 @@ const (
 	documentCountKey = "documentCount"
 )
 
+// conflictedDocument is a helper struct to store owned conflicted documents in memory
+type conflictedDocument struct {
+	didDocument did.Document
+	metadata    documentMetadata
+}
+
 type store struct {
-	db              stoabs.KVStore
-	storageProvider storage.Provider
+	db                  stoabs.KVStore
+	storageProvider     storage.Provider
+	conflictedDocuments map[string]conflictedDocument
 }
 
 // New returns a new vdrStore.Store that still needs to be initialized
 func New(storageProvider storage.Provider) Store {
 	return &store{
-		storageProvider: storageProvider,
+		storageProvider:     storageProvider,
+		conflictedDocuments: map[string]conflictedDocument{},
 	}
 }
 
 func (tl *store) Configure(_ core.ServerConfig) (err error) {
 	tl.db, err = tl.storageProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
+	if err != nil {
+		return
+	}
+	err = tl.loadConflictedDocuments()
 	return
 }
 
@@ -111,7 +123,7 @@ func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
 		if index > 0 {
 			base = &currentEventList.Events[index-1]
 		}
-		if err = applyFrom(tx, base, applyList); err != nil {
+		if err = tl.applyFrom(tx, base, applyList); err != nil {
 			return fmt.Errorf("applying event list failed: %w", err)
 		}
 		return writeEventList(tx, currentEventList, didDocument.ID)
@@ -186,7 +198,7 @@ func (tl *store) Iterate(fn vdr.DocIterator) error {
 	})
 }
 
-func (tl *store) Conflicted(fn vdr.DocIterator) error {
+func (tl *store) loadConflictedDocuments() error {
 	err := tl.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		conflictedReader := tx.GetShelfReader(conflictedShelf)
 		latestReader := tx.GetShelfReader(latestShelf)
@@ -209,11 +221,36 @@ func (tl *store) Conflicted(fn vdr.DocIterator) error {
 				return fmt.Errorf("read document failed: %w", err)
 			}
 
-			return fn(document, metadata.asVDRMetadata())
+			tl.conflictedDocuments[document.ID.String()] = conflictedDocument{
+				didDocument: document,
+				metadata:    metadata,
+			}
+
+			return nil
 		}, stoabs.BytesKey{})
 	})
 	if err != nil {
 		return fmt.Errorf("conflicted: database error on Read: %w", err)
+	}
+	return nil
+}
+
+func (tl *store) addCachedConflict(document did.Document, metadata documentMetadata) {
+	tl.conflictedDocuments[document.ID.String()] = conflictedDocument{
+		didDocument: document,
+		metadata:    metadata,
+	}
+}
+
+func (tl *store) removeCachedConflict(document did.Document) {
+	delete(tl.conflictedDocuments, document.ID.String())
+}
+
+func (tl *store) Conflicted(fn vdr.DocIterator) error {
+	for _, conflicted := range tl.conflictedDocuments {
+		if err := fn(conflicted.didDocument, conflicted.metadata.asVDRMetadata()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
