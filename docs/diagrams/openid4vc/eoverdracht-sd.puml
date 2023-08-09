@@ -1,7 +1,6 @@
-
 @startuml
-autonumber
 !pragma teoz true
+autonumber
 
 
 title eOverdracht Patient Transfer\nwithout NutsAuthCred (SOLL)
@@ -20,11 +19,13 @@ box Receiver (recv)
         participant ReceiverWallet as "Wallet"
     end box
     participant ReceiverXIS as "XIS"
+    participant ReceiverBrowser as "Browser"
+    actor ReceiverCareProf as "Care\nProfessional\n(browser)"
 end box
 
 SenderCareProf -> SenderXIS : Initiate\npatient transfer\n(recvDID)
 SenderXIS -> SenderXIS : Create\ntransfer
-group eOverdracht Notify Receiver
+group Sender notifies Receiver
     group Notify Endpoint Discovery
         SenderXIS -> SenderNode : Lookup recv notification endpoint
         SenderNode -> ReceiverNode : Resolve recvDID
@@ -32,37 +33,70 @@ group eOverdracht Notify Receiver
         SenderNode --> SenderXIS: 200 OK\nrecv notification endpoint
     end group
 
-    SenderXIS -> SenderNode : Request s2s Access Token\n(recvDID, scope)
+    SenderXIS -> SenderNode : Request Access Token w/o ID\n[service-to-service flow]\n(recvDID, scope)
     note right : "scope" is currently known as purposeOfUse
     SenderNode -> SenderNode : Resolve recv metadata URL\n(TBD, well-known or DID service)
     SenderNode -> ReceiverNode : Get AuthzServer metadata
     ReceiverNode --> SenderNode : 200 OK\nmetadata
-    SenderNode -> SenderWallet : Initiate OAuth2 vp_token flow\n(scope, AuthzServer metadata,\nbusiness rules)
+    SenderNode -> SenderWallet : Initiate OAuth2 vp_token flow\n(scope, AuthzServer metadata)
     group Service-to-Service OAuth2 Flow (to be spec'd)
-        SenderWallet -> ReceiverNode : Get presentation definition\n(scope)
-        ReceiverNode --> SenderWallet : presentation definition
-        SenderWallet -> SenderWallet : Match query,\ncreate presentation submission
-        SenderWallet -> SenderWallet : Apply business rules
+        SenderNode -> ReceiverNode : Get presentation definition\n(scope)
+        ReceiverNode --> SenderNode : presentation definition
+        SenderNode -> SenderWallet : Match presentation definition
+        SenderWallet -> SenderWallet : Find matching credentials
+        SenderWallet -> SenderWallet : Sign presentation,\ncreate submission
+        SenderWallet --> SenderNode : presentation submission
+        SenderNode -> SenderNode : Apply business rules to presentation
         note right
             Business rules can be used to control
             which credentials the wallet is allowed to present, to avoid leaking PII.
             For Nuts it's probably a hardcoded list of VC types.
         end note
-        SenderWallet -> ReceiverNode : Submit presentation
+        SenderNode -> ReceiverNode : Submit presentation
         ReceiverNode -> ReceiverNode : Verify presentation,\nmatch with requested scope
         ReceiverNode -> ReceiverNode : Create access token
-        ReceiverNode --> SenderWallet : Access token
+        ReceiverNode --> SenderNode : Access token
     end group
-    SenderWallet --> SenderNode : Access token
     SenderNode --> SenderXIS : Access token
-    SenderXIS -> ReceiverXIS : Notify\n(resource,access token)
+    SenderXIS -> ReceiverXIS : Notify\n(fhirTaskID,access token)
     ReceiverXIS --> ReceiverNode : Verify access token
     ReceiverNode --> ReceiverXIS : OK
     ReceiverXIS -> ReceiverXIS : Verify resource/scope
     ReceiverXIS --> SenderXIS : OK
-    SenderXIS --> SenderCareProf : OK
 end group
+SenderXIS --> SenderCareProf : OK
 
 
+group Receiver XIS retrieves data (automated process)
+    note across
+        The receiving XIS executes the same service-to-service OAuth2 flow
+        as specified above, to get an access token for querying the sender's XIS.
+        It is omitted for brevity.
+    end note
+    ReceiverXIS -> SenderXIS : Read FHIR Task\n(fhirTaskID, access token)
+    SenderXIS -> SenderNode : Verify access token
+    SenderNode --> SenderXIS : OK
+    SenderXIS -> SenderXIS : Verify resource/scope
+    SenderXIS -> ReceiverXIS : FHIR Task resource
+    ReceiverXIS -> ReceiverXIS : Register received\ntransfer
+end group
+group Receiver care professional retrieves data
+    ReceiverCareProf -> ReceiverXIS : View transfer details
+    ReceiverXIS -> ReceiverNode : Request Access Token with ID\n[OpenID4VP flow]\n(senderDID, scope)
+    ReceiverNode -> ReceiverNode : Resolver sender Authz Server metadata
+    note left
+        Metadata lookup same as specified ealier,
+        It is omitted for brevity.
+    end note
+    ReceiverNode -> ReceiverNode : Create wallet URL,\nwith burner auth token
+    ReceiverNode --> ReceiverCareProf : walletURL
+    group Shown as IFrame in current browser window
+        ReceiverCareProf -> ReceiverWallet : Opens walletURL in IFrame
+        ReceiverWallet -> ReceiverWallet : Create user session
+        ReceiverWallet --> ReceiverCareProf : sets session cookie
+    end group
+    group OpenID4VP Flow
 
+    end group
+end group
 @enduml
