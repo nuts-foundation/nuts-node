@@ -408,13 +408,12 @@ func TestNotifier_Run(t *testing.T) {
 		err := s.Run()
 		require.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
-
-		// the immediate callback has failed and the retry is scheduled within a new go routine
-		stack := make([]byte, 2*1024)
-		runtime.Stack(stack, true)
-		index := strings.Index(string(stack), "dag.(*notifier).retry.func1")
-		assert.True(t, index != -1)
+		stack := make([]byte, 4*1024)
+		test.WaitFor(t, func() (bool, error) {
+			runtime.Stack(stack, true)
+			index := strings.Index(string(stack), "dag.(*notifier).retry.func1")
+			return index != -1, nil
+		}, time.Second, "timeout while waiting for go routine to start")
 	})
 }
 
