@@ -243,12 +243,12 @@ func (p *protocol) handleTransactionRangeQuery(ctx context.Context, connection g
 
 	// limit to two pages to reduce load
 	limit := msg.Start + 2*dag.PageSize
-	requested := msg.End
-	if requested > limit {
-		requested = limit
+	end := msg.End
+	if end > limit {
+		end = limit
 	}
 
-	txs, err := p.state.FindBetweenLC(ctx, msg.Start, requested)
+	txs, err := p.state.FindBetweenLC(ctx, msg.Start, end)
 	if err != nil {
 		return err
 	}
