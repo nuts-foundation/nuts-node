@@ -1,0 +1,42 @@
+
+@startuml
+autonumber
+!pragma teoz true
+
+
+title eOverdracht Patient Transfer\nwithout NutsAuthCred (SOLL)
+
+box Sender
+    actor SenderCareProf as "Care\nProfessional"
+    participant SenderXIS as "XIS"
+    box Nuts Node
+        participant SenderNode as "SSI Service"
+        participant SenderWallet as "Wallet"
+    end box
+end box
+box Receiver (recv)
+    participant ReceiverXIS as "XIS"
+    participant ReceiverNode as "Nuts Node"
+end box
+
+SenderCareProf -> SenderXIS : Initiate\npatient transfer\n(recvDID)
+SenderXIS -> SenderXIS : Create\ntransfer
+group eOverdracht Notify Receiver
+    SenderXIS -> SenderNode : Lookup recv notification endpoint
+    SenderNode -> ReceiverNode : Resolve recvDID
+    ReceiverNode --> SenderNode : recv DID document
+    SenderNode --> SenderXIS: 200 OK\nrecv notification endpoint
+
+    SenderXIS -> SenderNode : Request s2s Access Token\n(recvDID, scope)
+    note right : "scope" is currently known as purposeOfUse
+    SenderNode -> SenderNode : Resolve recv metadata URL\n(TBD, well-known or DID service)
+    SenderNode -> ReceiverNode : Get AuthzServer metadata
+    ReceiverNode --> SenderNode : 200 OK\nmetadata
+    group Service-to-Service OAuth2 Flow (to be spec'd)
+
+    end group
+end group
+
+
+
+@enduml
