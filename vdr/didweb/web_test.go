@@ -5,6 +5,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -121,6 +122,28 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NotNil(t, doc)
 		assert.Equal(t, baseDID, doc.ID)
 	})
+
+	t.Run("resolve without port number", func(t *testing.T) {
+		// The other tests all use a port number, since the test HTTPS server is running on a random port.
+		// This test stubs http.Transport to test without a port number.
+		didToResolve := did.MustParseDID("did:web:example.com")
+		var requestURL string
+		httpTransport := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+			requestURL = r.URL.String()
+			return &http.Response{
+				Header:     map[string][]string{"Content-Type": {"application/json"}},
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"id": "did:web:example.com"}`)),
+			}, nil
+		})
+
+		doc, md, err := Resolver{HttpClient: &http.Client{Transport: httpTransport}}.Resolve(didToResolve, nil)
+
+		require.NoError(t, err)
+		assert.NotNil(t, md)
+		require.NotNil(t, doc)
+		assert.Equal(t, "https://example.com/.well-known/did.json", requestURL)
+	})
 	t.Run("not found", func(t *testing.T) {
 		id := did.MustParseDIDURL(baseDID.String() + ":not-found")
 		doc, md, err := resolver.Resolve(id, nil)
@@ -168,4 +191,10 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.Nil(t, md)
 		assert.Nil(t, doc)
 	})
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return fn(r)
 }
