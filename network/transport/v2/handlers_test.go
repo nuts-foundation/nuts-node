@@ -510,6 +510,23 @@ func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
 
 		assert.NoError(t, err)
 	})
+	t.Run("ok - too many requested", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+
+		mocks.State.EXPECT().FindBetweenLC(gomock.Any(), lcStart, 2*dag.PageSize+1).Return([]dag.Transaction{tx1, tx2}, nil)
+		mocks.State.EXPECT().ReadPayload(gomock.Any(), tx1.PayloadHash()).Return(payload, nil)
+		mocks.State.EXPECT().ReadPayload(gomock.Any(), tx2.PayloadHash()).Return(payload, nil)
+		mocks.Sender.EXPECT().sendTransactionList(connection, gomock.Any(), gomock.Any())
+
+		msg := &Envelope_TransactionRangeQuery{&TransactionRangeQuery{
+			Start: lcStart,
+			End:   dag.MaxLamportClock,
+		}}
+		p.cMan.startConversation(msg, peer)
+		err := p.handleTransactionRangeQuery(ctx, connection, &Envelope{Message: msg})
+
+		assert.NoError(t, err)
+	})
 	t.Run("context cancelled", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 
@@ -650,7 +667,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		conversation := p.cMan.startConversation(request, peer)
 		mocks.State.EXPECT().IBLT(requestLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), requestLC)
-		mocks.Sender.EXPECT().sendTransactionRangeQuery(connection, dag.PageSize, uint32(dag.MaxLamportClock)).Return(nil)
+		mocks.Sender.EXPECT().sendTransactionRangeQuery(connection, dag.PageSize, 3*dag.PageSize).Return(nil)
 
 		err := p.handleTransactionSet(ctx, connection, &Envelope{Message: &Envelope_TransactionSet{
 			TransactionSet: &TransactionSet{ConversationID: conversation.conversationID.slice(), LCReq: requestLC, LC: peerLC, IBLT: oneHashIbltBytes},
