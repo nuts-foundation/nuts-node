@@ -35,6 +35,7 @@ import (
 	"go.uber.org/mock/gomock"
 	"path"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -358,12 +359,13 @@ func TestNotifier_Notify(t *testing.T) {
 }
 
 func TestNotifier_Run(t *testing.T) {
+	maxJitter = time.Millisecond
 	transaction, _, _ := CreateTestTransaction(0)
 	payload := "payload"
 	event := Event{
 		Type:        TransactionEventType,
 		Hash:        transaction.Ref(),
-		Retries:     10,
+		Retries:     1,
 		Transaction: transaction,
 		Payload:     []byte(payload),
 	}
@@ -403,18 +405,16 @@ func TestNotifier_Run(t *testing.T) {
 			return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
 		})
 
-		// count the number of go routines
-		goroutines := runtime.NumGoroutine()
-
 		err := s.Run()
 		require.NoError(t, err)
 
-		test.WaitFor(t, func() (bool, error) {
-			return counter.Err.Load() != nil, nil
-		}, time.Second, "timeout while waiting for receiver")
+		time.Sleep(50 * time.Millisecond)
 
 		// the immediate callback has failed and the retry is scheduled within a new go routine
-		assert.Equal(t, goroutines+1, runtime.NumGoroutine())
+		stack := make([]byte, 2*1024)
+		runtime.Stack(stack, true)
+		index := strings.Index(string(stack), "dag.(*notifier).retry.func1")
+		assert.True(t, index != -1)
 	})
 }
 
@@ -496,7 +496,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 			})
 
 			return e.Retries == 100, nil
-		}, time.Second, "timeout while waiting for receiver")
+		}, 2*time.Second, "timeout while waiting for receiver")
 
 		events, err := s.GetFailedEvents()
 
@@ -563,7 +563,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 				return nil
 			})
 			return e.Retries >= maxRetries, nil
-		}, time.Second, "timeout while waiting for receiver")
+		}, 5*time.Second, "timeout while waiting for receiver")
 
 		events, err := s.GetFailedEvents()
 

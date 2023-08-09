@@ -46,6 +46,9 @@ const (
 
 var timeFunc = time.Now
 
+// maxJitter is adjustable for testing purposes
+var maxJitter = time.Second
+
 // EventFatal signals that an Event receiver encountered a fatal error and that the Event should not be retried.
 type EventFatal struct {
 	Err error
@@ -360,8 +363,9 @@ func (p *notifier) retry(event Event) {
 		},
 			retry.Attempts(maxRetries-uint(initialCount)),
 			retry.MaxDelay(24*time.Hour),
+			retry.MaxJitter(maxJitter),
 			retry.Delay(delay),
-			retry.DelayType(retry.BackOffDelay),
+			retry.DelayType(retry.CombineDelay(retry.BackOffDelay, retry.RandomDelay)),
 			retry.Context(ctx),
 			retry.LastErrorOnly(true),
 			retry.OnRetry(func(n uint, err error) {
