@@ -184,12 +184,28 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.Nil(t, md)
 		assert.Nil(t, doc)
 	})
-	t.Run("method isn't did:web", func(t *testing.T) {
-		doc, md, err := resolver.Resolve(did.MustParseDID("did:example:123"), nil)
+	t.Run("DID validation", func(t *testing.T) {
+		t.Run("method isn't did:web", func(t *testing.T) {
+			doc, md, err := resolver.Resolve(did.MustParseDID("did:example:123"), nil)
 
-		assert.EqualError(t, err, "DID is not did:web")
-		assert.Nil(t, md)
-		assert.Nil(t, doc)
+			assert.EqualError(t, err, "DID is not did:web")
+			assert.Nil(t, md)
+			assert.Nil(t, doc)
+		})
+		t.Run("ID must be just domain (contains encoded path)", func(t *testing.T) {
+			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com%2Fpath"), nil)
+
+			assert.EqualError(t, err, "invalid did:web: ID must be domain name")
+			assert.Nil(t, md)
+			assert.Nil(t, doc)
+		})
+		t.Run("ID must be just domain, with port (contains encoded path)", func(t *testing.T) {
+			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com%3A443%2Fpath"), nil)
+
+			assert.EqualError(t, err, "invalid did:web: ID must be domain name")
+			assert.Nil(t, md)
+			assert.Nil(t, doc)
+		})
 	})
 }
 

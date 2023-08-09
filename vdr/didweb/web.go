@@ -67,6 +67,16 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 	}
 	targetURL := "https://" + unescapedID + path
 
+	// Use url.Parse() to check that the DID does not contain a sneaky percent-encoded path or other illegal stuff
+	parsedURL, err := url.Parse(targetURL)
+	if err != nil {
+		// came from a DID, not sure how it could fail
+		return nil, nil, err
+	}
+	if parsedURL.Host != unescapedID {
+		return nil, nil, fmt.Errorf("invalid did:web: ID must be domain name")
+	}
+
 	// TODO: Support DNS over HTTPS (DOH), https://www.rfc-editor.org/rfc/rfc8484
 	httpResponse, err := w.HttpClient.Get(targetURL)
 	if err != nil {
