@@ -80,6 +80,11 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 		path = strings.ReplaceAll(path, ":", "/") + "/did.json"
 	}
 
+	// Paths can't be empty; it should not contain subsequent slashes, or end with a slash
+	if strings.HasSuffix(path, "/") || strings.Contains(path, "//") {
+		return nil, nil, fmt.Errorf("invalid did:web: contains empty path elements")
+	}
+
 	unescapedID, err := url.PathUnescape(baseID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid did:web: %w", err)

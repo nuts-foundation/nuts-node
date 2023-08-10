@@ -217,6 +217,20 @@ func TestResolver_Resolve(t *testing.T) {
 			assert.Nil(t, md)
 			assert.Nil(t, doc)
 		})
+		t.Run("contains empty paths (every : must be followed by a path)", func(t *testing.T) {
+			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com:sub::path"), nil)
+
+			assert.EqualError(t, err, "invalid did:web: contains empty path elements")
+			assert.Nil(t, md)
+			assert.Nil(t, doc)
+		})
+		t.Run("ends with empty path (every : must be followed by a path)", func(t *testing.T) {
+			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com:"), nil)
+
+			assert.EqualError(t, err, "invalid did:web: contains empty path elements")
+			assert.Nil(t, md)
+			assert.Nil(t, doc)
+		})
 		t.Run("ID must be just domain (contains encoded path)", func(t *testing.T) {
 			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com%2Fpath"), nil)
 
