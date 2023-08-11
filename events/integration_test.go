@@ -24,6 +24,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/require"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -35,34 +36,62 @@ import (
 )
 
 func Test_pub_sub(t *testing.T) {
-	eventManager := createManager(t)
+	t.Run("OK", func(t *testing.T) {
+		eventManager := createManager(t)
 
-	stream := eventManager.GetStream(TransactionsStream)
+		stream := eventManager.GetStream(TransactionsStream)
 
-	conn, js, err := eventManager.Pool().Acquire(context.Background())
-	require.NoError(t, err)
-	defer conn.Close()
-	var found []byte
-	foundMutex := sync.Mutex{}
-	err = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
-		foundMutex.Lock()
-		defer foundMutex.Unlock()
-		found = msg.Data
-		err = msg.Ack()
+		conn, js, err := eventManager.Pool().Acquire(context.Background())
+		require.NoError(t, err)
+		defer conn.Close()
+		var found []byte
+		foundMutex := sync.Mutex{}
+		err = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			found = msg.Data
+			err = msg.Ack()
+		})
+
+		require.NoError(t, err)
+
+		// the ack comes from the Nats server so we can use Publish (instead of PublishAsync)
+		_, err = js.PublishAsync("TRANSACTIONS.tx", []byte{1})
+		require.NoError(t, err)
+
+		test.WaitFor(t, func() (bool, error) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			return bytes.Equal(found, []byte{1}), nil
+		}, 100*time.Millisecond, "timeout waiting for message")
+		require.NoError(t, err)
 	})
 
-	require.NoError(t, err)
+	t.Run("publish more than the subscriber can handle", func(t *testing.T) {
+		eventManager := createManager(t)
+		stream := NewDisposableStream("REPROCESS_VDR", []string{"test.did"}, 10000)
+		conn, js, err := eventManager.Pool().Acquire(context.Background())
+		require.NoError(t, err)
+		defer conn.Close()
+		counter := atomic.Uint32{}
+		err = stream.Subscribe(conn, "TEST", "test.did", func(msg *nats.Msg) {
+			// increase count but do not ack
+			counter.Add(1)
+		})
+		require.NoError(t, err)
 
-	// the ack comes from the Nats server so we can use Publish (instead of PublishAsync)
-	_, err = js.PublishAsync("TRANSACTIONS.tx", []byte{1})
-	require.NoError(t, err)
+		// publish 1000 + x messages
+		for i := 0; i < 1001; i++ {
+			_, err = js.PublishAsync("test.did", []byte{1})
+			require.NoError(t, err)
+		}
 
-	test.WaitFor(t, func() (bool, error) {
-		foundMutex.Lock()
-		defer foundMutex.Unlock()
-		return bytes.Equal(found, []byte{1}), nil
-	}, 100*time.Millisecond, "timeout waiting for message")
-	require.NoError(t, err)
+		test.WaitFor(t, func() (bool, error) {
+			return counter.Load() == 1000, nil
+		}, 100*time.Millisecond, "timeout waiting for message")
+		require.NoError(t, err)
+		assert.Equal(t, uint32(1000), counter.Load())
+	})
 }
 
 func TestManager_Configure(t *testing.T) {
