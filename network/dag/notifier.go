@@ -348,8 +348,8 @@ func (p *notifier) retry(event Event) {
 	delay := p.retryDelay
 	initialCount := event.Retries + 1
 	attempts := maxRetries - uint(initialCount)
-	if attempts >= maxRetries {
-		attempts = 0
+	if attempts <= 0 || attempts >= maxRetries {
+		return
 	}
 
 	for i := 0; i < initialCount; i++ {
