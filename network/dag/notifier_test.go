@@ -359,7 +359,6 @@ func TestNotifier_Notify(t *testing.T) {
 }
 
 func TestNotifier_Run(t *testing.T) {
-	maxJitter = time.Millisecond
 	transaction, _, _ := CreateTestTransaction(0)
 	payload := "payload"
 	event := Event{
@@ -477,7 +476,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
 		notifiedCounter := &prometheusCounter{}
-		event := Event{Hash: hash.EmptyHash(), Transaction: transaction, Retries: 95}
+		event := Event{Hash: hash.EmptyHash(), Transaction: transaction, Retries: maxRetries - 5}
 		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond), withCounters(notifiedCounter, nil)).(*notifier)
 		defer s.Close()
 
@@ -494,7 +493,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 				return nil
 			})
 
-			return e.Retries == 100, nil
+			return e.Retries == maxRetries, nil
 		}, 2*time.Second, "timeout while waiting for receiver")
 
 		events, err := s.GetFailedEvents()

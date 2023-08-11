@@ -37,7 +37,7 @@ import (
 const (
 	defaultRetryDelay      = time.Second
 	retriesFailedThreshold = 10
-	maxRetries             = 100
+	maxRetries             = 20
 	// TransactionEventType is used as Type in an Event when a transaction is added to the DAG.
 	TransactionEventType = "transaction"
 	// PayloadEventType is used as Type in an Event when a payload is written to the DB.
@@ -45,9 +45,6 @@ const (
 )
 
 var timeFunc = time.Now
-
-// maxJitter is adjustable for testing purposes
-var maxJitter = time.Second
 
 // EventFatal signals that an Event receiver encountered a fatal error and that the Event should not be retried.
 type EventFatal struct {
@@ -350,6 +347,10 @@ func (p *notifier) Notify(event Event) {
 func (p *notifier) retry(event Event) {
 	delay := p.retryDelay
 	initialCount := event.Retries + 1
+	attempts := maxRetries - uint(initialCount)
+	if attempts >= maxRetries {
+		attempts = 0
+	}
 
 	for i := 0; i < initialCount; i++ {
 		delay *= 2
@@ -361,9 +362,9 @@ func (p *notifier) retry(event Event) {
 		err := retry.Do(func() error {
 			return p.notifyNow(event)
 		},
-			retry.Attempts(maxRetries-uint(initialCount)),
+			retry.Attempts(attempts),
 			retry.MaxDelay(24*time.Hour),
-			retry.MaxJitter(maxJitter),
+			retry.MaxJitter(p.retryDelay),
 			retry.Delay(delay),
 			retry.DelayType(retry.CombineDelay(retry.BackOffDelay, retry.RandomDelay)),
 			retry.Context(ctx),
