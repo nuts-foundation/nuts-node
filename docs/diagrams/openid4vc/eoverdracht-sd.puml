@@ -19,7 +19,6 @@ box Receiver (recv)
         participant ReceiverWallet as "Wallet"
     end box
     participant ReceiverXIS as "XIS"
-    participant ReceiverBrowser as "Browser"
     actor ReceiverCareProf as "Care\nProfessional\n(browser)"
 end box
 
@@ -66,7 +65,6 @@ group Sender notifies Receiver
 end group
 SenderXIS --> SenderCareProf : OK
 
-
 group Receiver XIS retrieves data (automated process)
     note across
         The receiving XIS executes the same service-to-service OAuth2 flow
@@ -89,14 +87,80 @@ group Receiver care professional retrieves data
         It is omitted for brevity.
     end note
     ReceiverNode -> ReceiverNode : Create wallet URL,\nwith burner auth token
-    ReceiverNode --> ReceiverCareProf : walletURL
-    group Shown as IFrame in current browser window
+    ReceiverNode --> ReceiverXIS : walletURL, state
+    ReceiverXIS --> ReceiverCareProf : redirect to walletURL
+    group loop
+        ReceiverXIS -> ReceiverNode : check state
+        ReceiverNode --> ReceiverXIS : state
+    end group
+
+    group Shown as IFrame in browser window or desktop application
         ReceiverCareProf -> ReceiverWallet : Opens walletURL in IFrame
         ReceiverWallet -> ReceiverWallet : Create user session
         ReceiverWallet --> ReceiverCareProf : sets session cookie
-    end group
-    group OpenID4VP Flow
 
+        group OpenID4VP Flow Option #1
+            note across
+                Consequence: we redirect the browser to the remote SSI service, which is fine if there's 1 remote resource,
+                but becomes cumbersome if data needs to be pulled from multiple sources, requiring multiple OpenID4VP flows and thus browser redirects.
+                If one of them, fails the process breaks unless complicated Javascript is in place to orchestrate things?
+            end note
+
+            ReceiverWallet --> ReceiverCareProf : Redirect browser to remote OpenID4VP Verifier
+            ReceiverCareProf -> SenderNode : Trigger OpenID4VP
+            note left : This is an OAuth2 authorization code flow
+            SenderNode -> SenderNode : Resolver sender Authz Server metadata\n(need authorization_endpoint)
+            note left
+                Metadata lookup same as specified ealier,
+                It is omitted for brevity.
+            end note
+            SenderNode --> ReceiverCareProf : Redirect to wallet (HTTP 302)
+            ReceiverCareProf -> ReceiverNode : /authorize?response_type=id_token&scope=openid&presentation_definition=...
+            group Creating vp_token
+                ReceiverNode -> ReceiverWallet : Match presentation definition
+                ReceiverWallet -> ReceiverWallet : Match, create\npresentation submission
+                ReceiverWallet --> ReceiverNode : presentation submission
+                note right
+                    Business rules can be used to control
+                    which credentials the wallet is allowed to present, to avoid leaking PII.
+                    For Nuts it's probably a hardcoded list of VC types.
+                end note
+            end group
+            group Creating id_token
+                ReceiverNode -> ReceiverWallet : Match presentation definition
+                ReceiverWallet -> ReceiverWallet : Match, create\npresentation submission
+                ReceiverWallet --> ReceiverNode : presentation submission
+                ReceiverNode -> ReceiverNode : Apply business rules to presentation
+
+            end group
+        end group
+    end group
+
+    group OpenID4VP Flow
+        note across
+            We require 2 claims:
+             - From the care organization (OrganizationCredential), which comes from the "organization wallet"
+             - From the end-user (CareProfessionalCredential), which comes from the user's personal wallet (or an attestation from his/her employer)
+            We could use vp_token for the care org. cred and id_token for the end-user cred,
+            but the SSI service does not need user consent to access the care org. cred.: it's an organizational credential, not a personal one.
+            But the CareProffCredential does, so we'd need to use the OpenID4VP flow for that.
+            Which is weird, since the flow is meant to build the vp_token, and the id_token is expected to be already there?
+
+            Otherwise, if the goal of the flow is to get the id_token, it's actually a negotiation between the remote XIS and the end-user's wallet,
+            not the organization's wallet. And since the end-user's wallet could be a mobile wallet, this would not interop with the OpenID4VP flow as implemented.
+
+            Alternatively, we could consider the organization wallet as either the end-user's wallet (in case the organization's system attests the user auth),
+            or a proxy to it (which could use another OpenID4VP or CHAPI flow to interact with the actual user's wallet?)
+        end note
+        note across
+            Issue: In traditional OpenID terms, the browser (RP) interacts with the resource owner (remote XIS) via Javascript.
+            But in this case, it is the receiver XIS that makes calls on behalf of the user.
+            This is an issue, since in OpenID4VP the flow starts with the user interacting with the verifier/resource owner
+            (the remote XIS), which then redirects the user to its wallet (own Nuts node/wallet) to authenticate.
+            But; the browser isn't visiting the remote XIS (resource owner, verifier), but its own XIS.
+
+            So: we'd have to redirect the IFrame to the remote SSI Service, which triggers the
+        end note
     end group
 end group
 @enduml
