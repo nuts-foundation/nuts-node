@@ -357,8 +357,6 @@ func (p *notifier) retry(event Event) {
 	}
 
 	go func(ctx context.Context) {
-		// also an initial delay
-		time.Sleep(delay)
 		err := retry.Do(func() error {
 			return p.notifyNow(event)
 		},
