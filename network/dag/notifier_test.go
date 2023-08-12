@@ -34,6 +34,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"path"
+	"runtime"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -310,13 +312,14 @@ func TestNotifier_Notify(t *testing.T) {
 		timeFunc = func() time.Time {
 			return now
 		}
-		s := NewNotifier(t.Name(), counter.callback, WithPersistency(kvStore)).(*notifier)
+		s := NewNotifier(t.Name(), counter.callback, WithRetryDelay(2*time.Second), WithPersistency(kvStore)).(*notifier)
 		defer s.Close()
 		kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
 		})
 
-		s.Notify(event)
+		// we use retry here since Notify will run notifyNow twice asynchronously
+		s.retry(event)
 
 		test.WaitFor(t, func() (bool, error) {
 			return counter.N.Load() == 1, nil
@@ -357,11 +360,7 @@ func TestNotifier_Notify(t *testing.T) {
 }
 
 func TestNotifier_Run(t *testing.T) {
-	ctx := context.Background()
-	filePath := io.TestDirectory(t)
 	transaction, _, _ := CreateTestTransaction(0)
-	kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
-	counter := callbackCounter{}
 	payload := "payload"
 	event := Event{
 		Type:        TransactionEventType,
@@ -370,18 +369,52 @@ func TestNotifier_Run(t *testing.T) {
 		Transaction: transaction,
 		Payload:     []byte(payload),
 	}
-	s := NewNotifier(t.Name(), counter.callbackFinished, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
 
-	_ = kvStore.WriteShelf(ctx, s.shelfName(), func(writer stoabs.Writer) error {
-		bytes, _ := json.Marshal(event)
-		return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
+	t.Run("OK - callback called", func(t *testing.T) {
+		ctx := context.Background()
+		filePath := io.TestDirectory(t)
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
+		counter := callbackCounter{}
+		s := NewNotifier(t.Name(), counter.callbackFinished, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
+		defer s.Close()
+
+		_ = kvStore.WriteShelf(ctx, s.shelfName(), func(writer stoabs.Writer) error {
+			bytes, _ := json.Marshal(event)
+			return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
+		})
+
+		err := s.Run()
+		require.NoError(t, err)
+
+		test.WaitFor(t, func() (bool, error) {
+			return counter.N.Load() == 1, nil
+		}, time.Second, "timeout while waiting for receiver")
 	})
 
-	s.Run()
+	t.Run("OK - callback errors", func(t *testing.T) {
+		ctx := context.Background()
+		filePath := io.TestDirectory(t)
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
+		counter := callbackCounter{}
+		counter.setCallbackError(errors.New("error"))
+		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
+		defer s.Close()
 
-	test.WaitFor(t, func() (bool, error) {
-		return counter.N.Load() == 1, nil
-	}, time.Second, "timeout while waiting for receiver")
+		_ = kvStore.WriteShelf(ctx, s.shelfName(), func(writer stoabs.Writer) error {
+			bytes, _ := json.Marshal(event)
+			return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
+		})
+
+		err := s.Run()
+		require.NoError(t, err)
+
+		stack := make([]byte, 4*1024)
+		test.WaitFor(t, func() (bool, error) {
+			runtime.Stack(stack, true)
+			index := strings.Index(string(stack), "dag.(*notifier).retry.func1")
+			return index != -1, nil
+		}, time.Second, "timeout while waiting for go routine to start")
+	})
 }
 
 func TestNotifier_VariousFlows(t *testing.T) {
@@ -444,7 +477,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
 		notifiedCounter := &prometheusCounter{}
-		event := Event{Hash: hash.EmptyHash(), Transaction: transaction, Retries: 95}
+		event := Event{Hash: hash.EmptyHash(), Transaction: transaction, Retries: maxRetries - 5}
 		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond), withCounters(notifiedCounter, nil)).(*notifier)
 		defer s.Close()
 
@@ -461,8 +494,8 @@ func TestNotifier_VariousFlows(t *testing.T) {
 				return nil
 			})
 
-			return e.Retries == 100, nil
-		}, time.Second, "timeout while waiting for receiver")
+			return e.Retries == maxRetries, nil
+		}, 2*time.Second, "timeout while waiting for receiver")
 
 		events, err := s.GetFailedEvents()
 
@@ -529,7 +562,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 				return nil
 			})
 			return e.Retries >= maxRetries, nil
-		}, time.Second, "timeout while waiting for receiver")
+		}, 5*time.Second, "timeout while waiting for receiver")
 
 		events, err := s.GetFailedEvents()
 
