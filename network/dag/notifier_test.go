@@ -312,7 +312,7 @@ func TestNotifier_Notify(t *testing.T) {
 		timeFunc = func() time.Time {
 			return now
 		}
-		s := NewNotifier(t.Name(), counter.callback, WithPersistency(kvStore)).(*notifier)
+		s := NewNotifier(t.Name(), counter.callback, WithRetryDelay(2*time.Second), WithPersistency(kvStore)).(*notifier)
 		defer s.Close()
 		kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
