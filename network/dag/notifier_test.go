@@ -318,7 +318,8 @@ func TestNotifier_Notify(t *testing.T) {
 			return s.Save(tx, event)
 		})
 
-		s.Notify(event)
+		// we use retry here since Notify will run notifyNow twice asynchronously
+		s.retry(event)
 
 		test.WaitFor(t, func() (bool, error) {
 			return counter.N.Load() == 1, nil
