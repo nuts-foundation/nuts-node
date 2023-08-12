@@ -56,6 +56,7 @@ gen-api:
 	oapi-codegen --config codegen/configs/network_v1.yaml docs/_static/network/v1.yaml | gofmt > network/api/v1/generated.go
 	oapi-codegen --config codegen/configs/vcr_v2.yaml docs/_static/vcr/vcr_v2.yaml | gofmt > vcr/api/vcr/v2/generated.go
 	oapi-codegen --config codegen/configs/vcr_openid4vci_v0.yaml docs/_static/vcr/openid4vci_v0.yaml | gofmt > vcr/api/openid4vci/v0/generated.go
+	oapi-codegen --config codegen/configs/vcr_oauth2_v0.yaml docs/_static/vcr/oauth2_v0.yaml | gofmt > vcr/api/oauth2/v0/generated.go
 	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth/v1/generated.go
 	oapi-codegen --config codegen/configs/auth_client_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth/v1/client/generated.go
 	oapi-codegen --config codegen/configs/auth_employeeid.yaml auth/services/selfsigned/web/spec.yaml | gofmt > auth/services/selfsigned/web/generated.go

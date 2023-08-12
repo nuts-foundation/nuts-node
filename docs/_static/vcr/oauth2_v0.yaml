@@ -1,0 +1,183 @@
+openapi: 3.0.0
+info:
+  title: OAuth2 API
+  version: 0.0.0
+servers:
+  - url: "http://localhost:1323"
+paths:
+  "/public/auth/{did}/token":
+    post:
+      summary: Used by to request access- or refresh tokens.
+      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint
+      operationId: handleTokenRequest
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - code
+              properties:
+                grant_type:
+                  type: string
+                  example: urn:ietf:params:oauth:grant-type:authorized_code
+                code:
+                  type: string
+                  example: secret
+              additionalProperties:
+                type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TokenResponse"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "400":
+          description: >
+            Invalid request. Code can be "invalid_request", "invalid_client", "invalid_grant", "unauthorized_client", "unsupported_grant_type" or "invalid_scope".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-error-response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/public/auth/{did}/authorize":
+    get:
+      summary: Used by clients to initiate the authorization code flow.
+      description: Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
+      operationId: handleAuthorizeRequest
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              description: See https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1
+              type: object
+              required:
+                - response_type
+                - client_id
+              properties:
+                response_type:
+                  type: string
+                  example: code
+                client_id:
+                  type: string
+                redirect_uri:
+                  type: string
+                scope:
+                  type: string
+                state:
+                  type: string
+              additionalProperties:
+                type: string
+      responses:
+        "200":
+          description: Authorization request accepted, user is asked for consent
+          content:
+            text/html:
+              schema:
+                type: string
+        "302":
+          description: >
+            If an error occurs, the user-agent is redirected, the authorization server redirects the user-agent to the provided redirect URI.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+  "/public/auth/{did}/authz_consent":
+    post:
+      summary: Invoked by the user-agent to authorize/consent to authorization requests.
+      description: TODO
+      operationId: handleUserConsentRequest
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - sessionID
+              properties:
+                sessionID:
+                  type: string
+                  example: 12345678
+      responses:
+        "302":
+          description: >
+            After authorization, whether successful or unsuccessful,
+            the authorization server redirects the user-agent back to the resource owner.
+          headers:
+            Location:
+              description: Redirect URI of the resource owner.
+              schema:
+                type: string
+                format: uri
+components:
+  schemas:
+    TokenResponse:
+      type: object
+      description: |
+        Token Responses are made as defined in [RFC6749]
+      required:
+        - access_token
+        - token_type
+      properties:
+        access_token:
+          type: string
+          description: |
+            The access token issued by the authorization server.
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+        token_type:
+          type: string
+          description: |
+            The type of the token issued as described in [RFC6749].
+          example: "bearer"
+        expires_in:
+          type: integer
+          description: |
+            The lifetime in seconds of the access token.
+          example: 3600
+      additionalProperties:
+        type: string
+      example:
+        {
+          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
+          "token_type": "bearer",
+          "expires_in": 3600,
+        }
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Code identifying the error that occurred.
+          example: "invalid_request"
