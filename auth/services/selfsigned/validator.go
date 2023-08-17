@@ -145,7 +145,7 @@ func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
-	nutsOrgCreds, err := v.vcr.Search(context.Background(), searchTerms, false, validAt)
+	nutsOrgCreds, err := v.vcr.Search(context.TODO(), searchTerms, false, validAt)
 	if err != nil {
 		resultErr = fmt.Errorf("unable to check NutsEmployeeCredential trust status using NutsOrganizationCredential: %w", err)
 		return
