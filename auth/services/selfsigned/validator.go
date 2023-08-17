@@ -19,13 +19,16 @@
 package selfsigned
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"time"
@@ -92,7 +95,8 @@ func (v validator) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 }
 
 func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (credentialSubject types.EmployeeIdentityCredentialSubject, proof vc.JSONWebSignature2020Proof, resultErr error) {
-	vcs, err := v.vcr.Verifier().VerifyVP(vp, true, validAt)
+	// #2428: NutsEmployeeCredential should be valid (signature), but does not need to be trusted.
+	vcs, err := v.vcr.Verifier().VerifyVP(vp, true, false, validAt)
 	if err != nil {
 		if errors.As(err, &verifier.VerificationError{}) {
 			resultErr = newVerificationError(err.Error())
@@ -132,6 +136,22 @@ func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 	credentialSubject = credentialSubjects[0]
 	if vc.Issuer.String() != credentialSubject.ID {
 		resultErr = newVerificationError("signer must be credentialSubject")
+		return
+	}
+
+	// #2428: NutsEmployeeCredential trust is derived from the fact that the issuer has a trusted NutsOrganizationCredential
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.CredentialSubjectPath, Value: vc.Issuer.String()},
+		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+	}
+	nutsOrgCreds, err := v.vcr.Search(context.Background(), searchTerms, false, validAt)
+	if err != nil {
+		resultErr = fmt.Errorf("unable to check NutsEmployeeCredential trust status using NutsOrganizationCredential: %w", err)
+		return
+	}
+	if len(nutsOrgCreds) == 0 {
+		resultErr = newVerificationError("invalid NutsEmployeeCredential, issuer does not have a trusted NutsOrganizationCredential")
 		return
 	}
 
