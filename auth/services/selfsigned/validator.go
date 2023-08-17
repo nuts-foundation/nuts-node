@@ -96,7 +96,7 @@ func (v validator) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 
 func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (credentialSubject types.EmployeeIdentityCredentialSubject, proof vc.JSONWebSignature2020Proof, resultErr error) {
 	// #2428: NutsEmployeeCredential should be valid (signature), but does not need to be trusted.
-	vcs, err := v.vcr.Verifier().VerifyVP(vp, true, false, validAt)
+	vcs, err := v.vcr.Verifier().VerifyVP(vp, true, true, validAt)
 	if err != nil {
 		if errors.As(err, &verifier.VerificationError{}) {
 			resultErr = newVerificationError(err.Error())
@@ -151,7 +151,7 @@ func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 		return
 	}
 	if len(nutsOrgCreds) == 0 {
-		resultErr = newVerificationError("invalid NutsEmployeeCredential, issuer does not have a trusted NutsOrganizationCredential")
+		resultErr = newVerificationError("NutsEmployeeCredential rejected, issuer does not have a trusted NutsOrganizationCredential")
 		return
 	}
 

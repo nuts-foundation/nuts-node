@@ -537,7 +537,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, vdrTypes.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, true, validAt)
+		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
 		assert.NoError(t, err)
 		assert.Len(t, vcs, 1)
@@ -553,7 +553,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		mockVerifier := NewMockVerifier(ctx.ctrl)
 		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt)
 
-		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, validAt)
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, false, validAt)
 
 		assert.NoError(t, err)
 		assert.Len(t, vcs, 1)
@@ -569,7 +569,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		mockVerifier := NewMockVerifier(ctx.ctrl)
 		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], true, true, validAt)
 
-		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, false, validAt)
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, validAt)
 
 		assert.NoError(t, err)
 		assert.Len(t, vcs, 1)
@@ -599,7 +599,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		mockVerifier := NewMockVerifier(ctx.ctrl)
 		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt).Return(errors.New("invalid"))
 
-		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, validAt)
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, false, validAt)
 
 		assert.Error(t, err)
 		assert.Empty(t, vcs)

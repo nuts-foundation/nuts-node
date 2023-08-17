@@ -119,7 +119,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 	t.Run("ok using mocks", func(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, &vpValidTime).Return([]vc.VerifiableCredential{testCredential}, nil)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, &vpValidTime).Return([]vc.VerifiableCredential{testCredential}, nil)
 		mockContext.vcr.EXPECT().Search(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, &vpValidTime)
@@ -141,7 +141,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 		credentialWithoutRole := vc.VerifiableCredential{}
 		data, _ := os.ReadFile("./test/vc-without-role.json")
 		_ = json.Unmarshal(data, &credentialWithoutRole)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, &vpValidTime).Return([]vc.VerifiableCredential{credentialWithoutRole}, nil)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, &vpValidTime).Return([]vc.VerifiableCredential{credentialWithoutRole}, nil)
 		mockContext.vcr.EXPECT().Search(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, &vpValidTime)
@@ -153,7 +153,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 	t.Run("technical error on verify", func(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, nil).Return(nil, errors.New("error"))
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, nil).Return(nil, errors.New("error"))
 
 		_, err := ss.VerifyVP(vp, nil)
 
@@ -163,7 +163,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 	t.Run("verification error on verify", func(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, nil).Return(nil, verifier.VerificationError{})
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, nil).Return(nil, verifier.VerificationError{})
 
 		result, err := ss.VerifyVP(vp, nil)
 
@@ -221,7 +221,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 		vpData, _ := os.ReadFile("./test/vp_invalid_contract.json")
 		_ = json.Unmarshal(vpData, &vp)
 		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 		mockContext.vcr.EXPECT().Search(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
@@ -235,7 +235,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 		mockContext := newMockContext(t)
 		now := time.Now()
 		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, &now).Return([]vc.VerifiableCredential{testCredential}, nil)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, &now).Return([]vc.VerifiableCredential{testCredential}, nil)
 		mockContext.vcr.EXPECT().Search(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, &now)
@@ -248,7 +248,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 	t.Run("error - missing credential", func(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, nil).Return([]vc.VerifiableCredential{}, nil)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, nil).Return([]vc.VerifiableCredential{}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
 
@@ -263,7 +263,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 		vpData, _ := os.ReadFile("./test/vp_missing_proof.json")
 		_ = json.Unmarshal(vpData, &vp)
 		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
 
@@ -278,7 +278,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 		vpData, _ := os.ReadFile("./test/vp_incorrect_proof_type.json")
 		_ = json.Unmarshal(vpData, &vp)
 		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
 
@@ -293,7 +293,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 		vpData, _ := os.ReadFile("./test/vp_incorrect_signer.json")
 		_ = json.Unmarshal(vpData, &vp)
 		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
 
@@ -310,7 +310,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 		_ = json.Unmarshal(vpData, &vp)
 		credential.Issuer = did.MustParseDID("did:nuts:a").URI()
 		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, nil).Return([]vc.VerifiableCredential{credential}, nil)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, nil).Return([]vc.VerifiableCredential{credential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
 
@@ -325,7 +325,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 		credentialWithoutRole := vc.VerifiableCredential{}
 		data, _ := os.ReadFile("./test/vc-without-role.json")
 		_ = json.Unmarshal(data, &credentialWithoutRole)
-		mockContext.verifier.EXPECT().VerifyVP(vp, true, false, &vpValidTime).Return([]vc.VerifiableCredential{credentialWithoutRole}, nil)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, true, &vpValidTime).Return([]vc.VerifiableCredential{credentialWithoutRole}, nil)
 		mockContext.vcr.EXPECT().Search(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
 
 		result, err := ss.VerifyVP(vp, &vpValidTime)

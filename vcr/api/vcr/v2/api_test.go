@@ -658,7 +658,7 @@ func TestWrapper_VerifyVP(t *testing.T) {
 			VerifiablePresentation: vp,
 			ValidAt:                &validAtStr,
 		}
-		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, true, &validAt).Return(vp.VerifiableCredential, nil)
+		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, false, &validAt).Return(vp.VerifiableCredential, nil)
 		expectedResponse := VerifyVP200JSONResponse(VPVerificationResult{
 			Credentials: &expectedVCs,
 			Validity:    true,
@@ -673,7 +673,7 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		testContext := newMockContext(t)
 		verifyCredentials := false
 		request := VPVerificationRequest{VerifiablePresentation: vp, VerifyCredentials: &verifyCredentials}
-		testContext.mockVerifier.EXPECT().VerifyVP(vp, false, true, nil).Return(vp.VerifiableCredential, nil)
+		testContext.mockVerifier.EXPECT().VerifyVP(vp, false, false, nil).Return(vp.VerifiableCredential, nil)
 		expectedResponse := VerifyVP200JSONResponse(VPVerificationResult{
 			Credentials: &expectedVCs,
 			Validity:    true,
@@ -687,7 +687,7 @@ func TestWrapper_VerifyVP(t *testing.T) {
 	t.Run("error - verification failed (other error)", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := VPVerificationRequest{VerifiablePresentation: vp}
-		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, true, nil).Return(nil, errors.New("failed"))
+		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, false, nil).Return(nil, errors.New("failed"))
 
 		response, err := testContext.client.VerifyVP(testContext.requestCtx, VerifyVPRequestObject{Body: &request})
 
@@ -710,7 +710,7 @@ func TestWrapper_VerifyVP(t *testing.T) {
 	t.Run("error - verification failed (verification error)", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := VPVerificationRequest{VerifiablePresentation: vp}
-		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, true, nil).Return(nil, verifier.VerificationError{})
+		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, false, nil).Return(nil, verifier.VerificationError{})
 		errMsg := "verification error: "
 		expectedRepsonse := VerifyVP200JSONResponse(VPVerificationResult{
 			Message:  &errMsg,
