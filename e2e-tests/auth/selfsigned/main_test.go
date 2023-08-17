@@ -48,11 +48,18 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 		cancel()
 	}()
 
-	organization, err := createDID()
+	verifyingOrganization, err := createDID()
 	require.NoError(t, err)
-	err = registerCompoundService(organization.ID, purposeOfUse)
+	err = registerCompoundService(verifyingOrganization.ID, purposeOfUse)
 	require.NoError(t, err)
-	err = issueOrganizationCredential(organization)
+	err = issueOrganizationCredential(verifyingOrganization, "Verifying Organization", "Testland")
+	require.NoError(t, err)
+
+	issuingOrganization, err := createDID()
+	require.NoError(t, err)
+	err = registerCompoundService(issuingOrganization.ID, purposeOfUse)
+	require.NoError(t, err)
+	err = issueOrganizationCredential(issuingOrganization, "Issuing Organization", "Testland")
 	require.NoError(t, err)
 
 	selfSigned := apps.SelfSigned{
@@ -67,7 +74,7 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 		RoleName:   &roleName,
 	}
 	// Start a self-signed session
-	session, err := selfSigned.Start(organization.ID.String(), employeeInfo)
+	session, err := selfSigned.Start(issuingOrganization.ID.String(), employeeInfo)
 	require.NoError(t, err)
 	require.Equal(t, employeeInfo.Identifier, session.EmployeeIdentifier)
 	require.Equal(t, employeeInfo.Initials+" "+employeeInfo.FamilyName, session.EmployeeName)
@@ -83,10 +90,15 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "completed", status)
 	require.Equal(t, "NutsSelfSignedPresentation", presentation.Type[1].String())
-	require.Equal(t, organization.ID.String(), presentation.VerifiableCredential[0].Issuer.String())
+	require.Equal(t, issuingOrganization.ID.String(), presentation.VerifiableCredential[0].Issuer.String())
+
+	// Issue #2428: Issuer of NutsEmployeeCredential should not need to be trusted
+	// It's automatically trusted on issuance, and we've got a single node, so we're untrusting it.
+	err = selfSigned.UntrustEmployeeCredential(issuingOrganization.ID.String())
+	require.NoError(t, err)
 
 	// Now request an access token
-	accessToken, err := selfSigned.RequestAccessToken(organization.ID.String(), purposeOfUse, presentation)
+	accessToken, err := selfSigned.RequestAccessToken(issuingOrganization.ID.String(), verifyingOrganization.ID.String(), purposeOfUse, presentation)
 	require.NoError(t, err)
 	assert.Equal(t, "zorgtoepassing", *accessToken.Service)
 	assert.Equal(t, "J", *accessToken.Initials)
@@ -102,7 +114,7 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 	}
 }
 
-func issueOrganizationCredential(organization *did.Document) error {
+func issueOrganizationCredential(organization *did.Document, name, city string) error {
 	vcrClient := vcrAPI.HTTPClient{ClientConfig: apps.NodeClientConfig}
 	visibility := vcrAPI.Public
 	_, err := vcrClient.IssueVC(vcrAPI.IssueVCRequest{
@@ -111,8 +123,8 @@ func issueOrganizationCredential(organization *did.Document) error {
 		CredentialSubject: map[string]interface{}{
 			"id": organization.ID.String(),
 			"organization": map[string]interface{}{
-				"name": "Test organization",
-				"city": "Testland",
+				"name": name,
+				"city": city,
 			},
 		},
 		Visibility: &visibility,
