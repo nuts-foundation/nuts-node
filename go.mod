@@ -1,6 +1,6 @@
 module github.com/nuts-foundation/nuts-node
 
-go 1.20
+go 1.21
 
 require (
 	github.com/PaesslerAG/jsonpath v0.1.2-0.20230323094847-3484786d6f97
