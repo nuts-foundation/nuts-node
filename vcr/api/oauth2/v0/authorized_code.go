@@ -2,6 +2,8 @@ package v0
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
@@ -96,4 +98,13 @@ func (a authorizedCodeFlow) validateCode(params map[string]string) (string, erro
 		}
 	}
 	return session.Scope, nil
+}
+
+func generateCode() string {
+	buf := make([]byte, 128/8)
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+	return base64.URLEncoding.EncodeToString(buf)
 }

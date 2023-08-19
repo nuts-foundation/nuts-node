@@ -3,9 +3,7 @@ package v0
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"embed"
-	"encoding/base64"
 	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -143,13 +141,4 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		StatusCode:  http.StatusBadRequest,
 		Description: "missing or invalid parameters",
 	}
-}
-
-func generateCode() string {
-	buf := make([]byte, 128/8)
-	_, err := rand.Read(buf)
-	if err != nil {
-		panic(err)
-	}
-	return base64.URLEncoding.EncodeToString(buf)
 }
