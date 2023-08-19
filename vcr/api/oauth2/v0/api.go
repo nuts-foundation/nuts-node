@@ -22,11 +22,7 @@ var _ StrictServerInterface = &Wrapper{}
 //go:embed assets
 var assets embed.FS
 
-// Wrapper handles OAuth2 flows. It registers flows registering the same endpoints as a chain in reverse order,
-// e.g., if openID4VP and OpenID4VCI both register an `/authorize` endpoint (in this order), the following call order applies:
-// 1. OpenID4VCI
-// 2. openID4VP
-// 3. Default error handler (invalid parameters)
+// Wrapper handles OAuth2 flows.
 type Wrapper struct {
 	VCR       vcr.VCR
 	protocols []protocol
@@ -40,6 +36,7 @@ func New() *Wrapper {
 		protocols: []protocol{
 			&serviceToService{},
 			newAuthorizedCodeFlow(sessionManager),
+			newOpenID4VP(sessionManager),
 		},
 		sessions: sessionManager,
 	}

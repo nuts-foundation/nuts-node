@@ -3,6 +3,7 @@ package v0
 import (
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
+	"net/url"
 	"sync"
 )
 
@@ -50,4 +51,14 @@ type Session struct {
 	Scope       string
 	ClientState string
 	RedirectURI string
+}
+
+func (s Session) CreateRedirectURI(params map[string]string) string {
+	redirectURI, _ := url.Parse(s.RedirectURI)
+	query := redirectURI.Query()
+	for key, value := range params {
+		query.Add(key, value)
+	}
+	redirectURI.RawQuery = query.Encode()
+	return redirectURI.String()
 }
