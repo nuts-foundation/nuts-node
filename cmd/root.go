@@ -23,9 +23,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	oauth2API "github.com/nuts-foundation/nuts-node/auth/api/oauth2/v0"
 	"github.com/nuts-foundation/nuts-node/golden_hammer"
 	goldenHammerCmd "github.com/nuts-foundation/nuts-node/golden_hammer/cmd"
-	oauth2API "github.com/nuts-foundation/nuts-node/vcr/api/oauth2/v0"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
@@ -206,7 +206,6 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 		Resolver:   vdrInstance.Resolver(),
 	}})
 	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
-	system.RegisterRoutes(oauth2API.New())
 	system.RegisterRoutes(&openid4vciAPI.Wrapper{
 		VCR:           credentialInstance,
 		DocumentOwner: vdrInstance,
@@ -215,6 +214,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
+	system.RegisterRoutes(oauth2API.New())
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 
 	// Register engines
