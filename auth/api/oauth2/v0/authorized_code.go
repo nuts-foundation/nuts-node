@@ -31,7 +31,7 @@ type authorizedCodeFlow struct {
 }
 
 func (a authorizedCodeFlow) Routes(router core.EchoRouter) {
-	router.Add(http.MethodPost, "/public/auth/:did/authz_consent", a.handleAuthConsent)
+	router.Add(http.MethodPost, "/public/oauth2/:did/authz_consent", a.handleAuthConsent)
 }
 
 func (a authorizedCodeFlow) handleAuthzRequest(params map[string]string, session *Session) (*authzResponse, error) {

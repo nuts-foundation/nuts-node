@@ -20,17 +20,33 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-// TokenResponse Token Responses are made as defined in [RFC6749]
+// TokenResponse Token Responses are made as defined in (RFC6749)[https://datatracker.ietf.org/doc/html/rfc6749#section-5.1]
 type TokenResponse struct {
 	// AccessToken The access token issued by the authorization server.
 	AccessToken string `json:"access_token"`
 
 	// ExpiresIn The lifetime in seconds of the access token.
-	ExpiresIn *int `json:"expires_in,omitempty"`
+	ExpiresIn *int    `json:"expires_in,omitempty"`
+	Scope     *string `json:"scope,omitempty"`
 
 	// TokenType The type of the token issued as described in [RFC6749].
-	TokenType            string            `json:"token_type"`
-	AdditionalProperties map[string]string `json:"-"`
+	TokenType string `json:"token_type"`
+}
+
+// RequestAccessTokenJSONBody defines parameters for RequestAccessToken.
+type RequestAccessTokenJSONBody struct {
+	Authorizer string `json:"authorizer"`
+	Requester  string `json:"requester"`
+
+	// Scope The scope that will be The service for which this access token can be used. The right oauth endpoint is selected based on the service.
+	Scope string `json:"scope"`
+}
+
+// RequestPresentationJSONBody defines parameters for RequestPresentation.
+type RequestPresentationJSONBody struct {
+	// Scope maps to the verifiable credentials to request
+	Scope  string `json:"scope"`
+	Wallet string `json:"wallet"`
 }
 
 // HandleAuthorizeRequestFormdataBody defines parameters for HandleAuthorizeRequest.
@@ -49,6 +65,12 @@ type HandleTokenRequestFormdataBody struct {
 	GrantType            string            `form:"grant_type" json:"grant_type"`
 	AdditionalProperties map[string]string `json:"-"`
 }
+
+// RequestAccessTokenJSONRequestBody defines body for RequestAccessToken for application/json ContentType.
+type RequestAccessTokenJSONRequestBody RequestAccessTokenJSONBody
+
+// RequestPresentationJSONRequestBody defines body for RequestPresentation for application/json ContentType.
+type RequestPresentationJSONRequestBody RequestPresentationJSONBody
 
 // HandleAuthorizeRequestFormdataRequestBody defines body for HandleAuthorizeRequest for application/x-www-form-urlencoded ContentType.
 type HandleAuthorizeRequestFormdataRequestBody HandleAuthorizeRequestFormdataBody
@@ -259,113 +281,57 @@ func (a HandleTokenRequestFormdataBody) MarshalJSON() ([]byte, error) {
 	return json.Marshal(object)
 }
 
-// Getter for additional properties for TokenResponse. Returns the specified
-// element and whether it was found
-func (a TokenResponse) Get(fieldName string) (value string, found bool) {
-	if a.AdditionalProperties != nil {
-		value, found = a.AdditionalProperties[fieldName]
-	}
-	return
-}
-
-// Setter for additional properties for TokenResponse
-func (a *TokenResponse) Set(fieldName string, value string) {
-	if a.AdditionalProperties == nil {
-		a.AdditionalProperties = make(map[string]string)
-	}
-	a.AdditionalProperties[fieldName] = value
-}
-
-// Override default JSON handling for TokenResponse to handle AdditionalProperties
-func (a *TokenResponse) UnmarshalJSON(b []byte) error {
-	object := make(map[string]json.RawMessage)
-	err := json.Unmarshal(b, &object)
-	if err != nil {
-		return err
-	}
-
-	if raw, found := object["access_token"]; found {
-		err = json.Unmarshal(raw, &a.AccessToken)
-		if err != nil {
-			return fmt.Errorf("error reading 'access_token': %w", err)
-		}
-		delete(object, "access_token")
-	}
-
-	if raw, found := object["expires_in"]; found {
-		err = json.Unmarshal(raw, &a.ExpiresIn)
-		if err != nil {
-			return fmt.Errorf("error reading 'expires_in': %w", err)
-		}
-		delete(object, "expires_in")
-	}
-
-	if raw, found := object["token_type"]; found {
-		err = json.Unmarshal(raw, &a.TokenType)
-		if err != nil {
-			return fmt.Errorf("error reading 'token_type': %w", err)
-		}
-		delete(object, "token_type")
-	}
-
-	if len(object) != 0 {
-		a.AdditionalProperties = make(map[string]string)
-		for fieldName, fieldBuf := range object {
-			var fieldVal string
-			err := json.Unmarshal(fieldBuf, &fieldVal)
-			if err != nil {
-				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
-			}
-			a.AdditionalProperties[fieldName] = fieldVal
-		}
-	}
-	return nil
-}
-
-// Override default JSON handling for TokenResponse to handle AdditionalProperties
-func (a TokenResponse) MarshalJSON() ([]byte, error) {
-	var err error
-	object := make(map[string]json.RawMessage)
-
-	object["access_token"], err = json.Marshal(a.AccessToken)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'access_token': %w", err)
-	}
-
-	if a.ExpiresIn != nil {
-		object["expires_in"], err = json.Marshal(a.ExpiresIn)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'expires_in': %w", err)
-		}
-	}
-
-	object["token_type"], err = json.Marshal(a.TokenType)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'token_type': %w", err)
-	}
-
-	for fieldName, field := range a.AdditionalProperties {
-		object[fieldName], err = json.Marshal(field)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
-		}
-	}
-	return json.Marshal(object)
-}
-
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Used by clients to initiate the authorization code flow.
-	// (GET /public/auth/{did}/authorize)
+	// Requests an access token using OAuth2.
+	// (POST /internal/oauth2/v0/{did}/request-access-token)
+	RequestAccessToken(ctx echo.Context, did string) error
+	// Requests a credential presentation using OAuth2 from a remote wallet through a user-agent.
+	// (POST /internal/oauth2/v0/{did}/request-presentation)
+	RequestPresentation(ctx echo.Context, did string) error
+	// Used by resource owners to initiate the authorization code flow.
+	// (GET /public/oauth2/{did}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, did string) error
 	// Used by to request access- or refresh tokens.
-	// (POST /public/auth/{did}/token)
+	// (POST /public/oauth2/{did}/token)
 	HandleTokenRequest(ctx echo.Context, did string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// RequestAccessToken converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RequestAccessToken(ctx, did)
+	return err
+}
+
+// RequestPresentation converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestPresentation(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RequestPresentation(ctx, did)
+	return err
 }
 
 // HandleAuthorizeRequest converts echo context to params.
@@ -428,9 +394,91 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/public/auth/:did/authorize", wrapper.HandleAuthorizeRequest)
-	router.POST(baseURL+"/public/auth/:did/token", wrapper.HandleTokenRequest)
+	router.POST(baseURL+"/internal/oauth2/v0/:did/request-access-token", wrapper.RequestAccessToken)
+	router.POST(baseURL+"/internal/oauth2/v0/:did/request-presentation", wrapper.RequestPresentation)
+	router.GET(baseURL+"/public/oauth2/:did/authorize", wrapper.HandleAuthorizeRequest)
+	router.POST(baseURL+"/public/oauth2/:did/token", wrapper.HandleTokenRequest)
 
+}
+
+type RequestAccessTokenRequestObject struct {
+	Did  string `json:"did"`
+	Body *RequestAccessTokenJSONRequestBody
+}
+
+type RequestAccessTokenResponseObject interface {
+	VisitRequestAccessTokenResponse(w http.ResponseWriter) error
+}
+
+type RequestAccessToken200JSONResponse TokenResponse
+
+func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestAccessTokendefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RequestAccessTokendefaultApplicationProblemPlusJSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type RequestPresentationRequestObject struct {
+	Did  string `json:"did"`
+	Body *RequestPresentationJSONRequestBody
+}
+
+type RequestPresentationResponseObject interface {
+	VisitRequestPresentationResponse(w http.ResponseWriter) error
+}
+
+type RequestPresentation200JSONResponse struct {
+	RedirectUri string `json:"redirect_uri"`
+}
+
+func (response RequestPresentation200JSONResponse) VisitRequestPresentationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestPresentationdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RequestPresentationdefaultApplicationProblemPlusJSONResponse) VisitRequestPresentationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type HandleAuthorizeRequestRequestObject struct {
@@ -513,11 +561,17 @@ func (response HandleTokenRequest404JSONResponse) VisitHandleTokenRequestRespons
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Used by clients to initiate the authorization code flow.
-	// (GET /public/auth/{did}/authorize)
+	// Requests an access token using OAuth2.
+	// (POST /internal/oauth2/v0/{did}/request-access-token)
+	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
+	// Requests a credential presentation using OAuth2 from a remote wallet through a user-agent.
+	// (POST /internal/oauth2/v0/{did}/request-presentation)
+	RequestPresentation(ctx context.Context, request RequestPresentationRequestObject) (RequestPresentationResponseObject, error)
+	// Used by resource owners to initiate the authorization code flow.
+	// (GET /public/oauth2/{did}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
 	// Used by to request access- or refresh tokens.
-	// (POST /public/auth/{did}/token)
+	// (POST /public/oauth2/{did}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
 }
 
@@ -531,6 +585,68 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// RequestAccessToken operation middleware
+func (sh *strictHandler) RequestAccessToken(ctx echo.Context, did string) error {
+	var request RequestAccessTokenRequestObject
+
+	request.Did = did
+
+	var body RequestAccessTokenJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestAccessToken(ctx.Request().Context(), request.(RequestAccessTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestAccessToken")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RequestAccessTokenResponseObject); ok {
+		return validResponse.VisitRequestAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RequestPresentation operation middleware
+func (sh *strictHandler) RequestPresentation(ctx echo.Context, did string) error {
+	var request RequestPresentationRequestObject
+
+	request.Did = did
+
+	var body RequestPresentationJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestPresentation(ctx.Request().Context(), request.(RequestPresentationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestPresentation")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RequestPresentationResponseObject); ok {
+		return validResponse.VisitRequestPresentationResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // HandleAuthorizeRequest operation middleware

@@ -21,7 +21,7 @@ type serviceToService struct {
 }
 
 func (s serviceToService) Routes(router core.EchoRouter) {
-	router.Add("GET", "/public/auth/:did/presentation_definition", func(echoCtx echo.Context) error {
+	router.Add("GET", "/public/oauth2/:did/presentation_definition", func(echoCtx echo.Context) error {
 		// TODO: Read scope, map to presentation definition, return
 		return echoCtx.JSON(http.StatusOK, map[string]string{})
 	})

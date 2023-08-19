@@ -142,3 +142,13 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		Description: "missing or invalid parameters",
 	}
 }
+
+func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
+	// TODO: Start service-to-service vp_token flow
+	return nil, nil
+}
+
+func (r Wrapper) RequestPresentation(ctx context.Context, request RequestPresentationRequestObject) (RequestPresentationResponseObject, error) {
+	// TODO: Start OpenID4VP flow
+	return nil, nil
+}

@@ -27,7 +27,7 @@ type openID4VP struct {
 }
 
 func (a openID4VP) Routes(router core.EchoRouter) {
-	router.Add(http.MethodPost, "/public/auth/:did/authz_consent", a.handleAuthConsent)
+	router.Add(http.MethodPost, "/public/oauth2/:did/authz_consent", a.handleAuthConsent)
 }
 
 func (a openID4VP) handleAuthzRequest(params map[string]string, session *Session) (*authzResponse, error) {
@@ -72,6 +72,7 @@ func (a openID4VP) handleAuthzRequest(params map[string]string, session *Session
 
 // handleAuthConsent handles the authorization consent form submission.
 func (a openID4VP) handleAuthConsent(c echo.Context) error {
+	// TODO: Needs authentication?
 	var session *Session
 	if sessionID := c.Param("sessionID"); sessionID != "" {
 		session = a.sessions.Get(sessionID)
