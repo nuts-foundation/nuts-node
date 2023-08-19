@@ -130,7 +130,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 			return nil, err
 		}
 		if result != nil {
-			return HandleAuthorizeRequest200TexthtmlResponse{Body: bytes.NewReader(result.HTML), ContentLength: int64(len(result.HTML))}, nil
+			return HandleAuthorizeRequest200TexthtmlResponse{Body: bytes.NewReader(result.html), ContentLength: int64(len(result.html))}, nil
 		}
 	}
 

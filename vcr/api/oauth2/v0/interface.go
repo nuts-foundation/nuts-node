@@ -1,64 +1,23 @@
 package v0
 
 import (
-	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/core"
-	"net/url"
-	"sync"
 )
 
+// authzResponse is the response to an Authorization Code flow request.
 type authzResponse struct {
-	HTML []byte
+	// html is the HTML page to be rendered to the user.
+	html []byte
 }
 
 type protocol interface {
 	core.Routable
+	// handleAuthzRequest handles an Authorization Code flow request and returns an authzResponse if the request is handled by this protocol.
+	// If the protocol can't handle the supplied parameters it returns nil.
 	handleAuthzRequest(map[string]string, *Session) (*authzResponse, error)
 	grantHandlers() map[string]grantHandler
 }
 
-// authzHandler defines a function for checking authorization requests given the input parameters, used to initiate the authorization code flow.
-type authzHandler func(map[string]string, *Session) (bool, error)
-
 // grantHandler defines a function for checking a grant given the input parameters, used to validate token requests.
 // It returns the requested scopes if the validation succeeds.
 type grantHandler func(map[string]string) (string, error)
-
-type SessionManager struct {
-	sessions *sync.Map
-}
-
-func (s *SessionManager) Create(session Session) string {
-	// TODO: Session expiration
-	// TODO: Session storage
-	// TODO: Session pinning and other safety measures (see OAuth2 Threat Model)
-	id := uuid.NewString()
-	s.sessions.Store(id, session)
-	return id
-}
-
-func (s *SessionManager) Get(id string) *Session {
-	session, ok := s.sessions.Load(id)
-	if !ok {
-		return nil
-	}
-	result := session.(Session)
-	return &result
-}
-
-type Session struct {
-	ClientID    string
-	Scope       string
-	ClientState string
-	RedirectURI string
-}
-
-func (s Session) CreateRedirectURI(params map[string]string) string {
-	redirectURI, _ := url.Parse(s.RedirectURI)
-	query := redirectURI.Query()
-	for key, value := range params {
-		query.Add(key, value)
-	}
-	redirectURI.RawQuery = query.Encode()
-	return redirectURI.String()
-}

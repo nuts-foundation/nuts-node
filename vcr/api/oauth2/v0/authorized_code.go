@@ -52,7 +52,7 @@ func (a authorizedCodeFlow) handleAuthzRequest(params map[string]string, session
 		return nil, fmt.Errorf("unable to render authorization page: %w", err)
 	}
 	return &authzResponse{
-		HTML: buf.Bytes(),
+		html: buf.Bytes(),
 	}, nil
 }
 

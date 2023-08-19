@@ -64,7 +64,7 @@ func (a openID4VP) handleAuthzRequest(params map[string]string, session *Session
 		return nil, fmt.Errorf("unable to render authorization page: %w", err)
 	}
 	return &authzResponse{
-		HTML: buf.Bytes(),
+		html: buf.Bytes(),
 	}, nil
 }
 
