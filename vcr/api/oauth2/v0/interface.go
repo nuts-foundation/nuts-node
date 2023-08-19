@@ -6,9 +6,13 @@ import (
 	"sync"
 )
 
+type authzResponse struct {
+	HTML []byte
+}
+
 type protocol interface {
 	core.Routable
-	authzHandlers() []authzHandler
+	handleAuthzRequest(map[string]string, *Session) (*authzResponse, error)
 	grantHandlers() map[string]grantHandler
 }
 
@@ -24,6 +28,9 @@ type SessionManager struct {
 }
 
 func (s *SessionManager) Create(session Session) string {
+	// TODO: Session expiration
+	// TODO: Session storage
+	// TODO: Session pinning and other safety measures (see OAuth2 Threat Model)
 	id := uuid.NewString()
 	s.sessions.Store(id, session)
 	return id

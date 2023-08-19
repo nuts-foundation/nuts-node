@@ -7,15 +7,12 @@ import (
 	"embed"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"html/template"
 	"net/http"
-	"net/url"
 	"sync"
 )
 
@@ -31,23 +28,20 @@ var assets embed.FS
 // 2. openID4VP
 // 3. Default error handler (invalid parameters)
 type Wrapper struct {
-	VCR           vcr.VCR
-	protocols     []protocol
-	authzTemplate *template.Template
-	sessions      *SessionManager
+	VCR       vcr.VCR
+	protocols []protocol
+	sessions  *SessionManager
 }
 
 func New() *Wrapper {
 	sessionManager := &SessionManager{sessions: new(sync.Map)}
-	authzTemplate, _ := template.ParseFS(assets, "assets/authz_en.html")
 	return &Wrapper{
 		// Order can be important: the first authorization call handler that returns true will be used.
 		protocols: []protocol{
 			&serviceToService{},
-			&authorizedCodeFlow{sessions: sessionManager},
+			newAuthorizedCodeFlow(sessionManager),
 		},
-		authzTemplate: authzTemplate,
-		sessions:      sessionManager,
+		sessions: sessionManager,
 	}
 }
 
@@ -134,71 +128,24 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		return nil, errors.New("missing redirect URI")
 	}
 
-	var handled bool
-	var err error
 	for _, currProtocol := range r.protocols {
-		for _, handler := range currProtocol.authzHandlers() {
-			handled, err = handler(request.Body.AdditionalProperties, session)
-			if err != nil {
-				// TODO: This should be a redirect?
-				return nil, err
-			}
-			if handled {
-				break
-			}
+		result, err := currProtocol.handleAuthzRequest(request.Body.AdditionalProperties, session)
+		if err != nil {
+			// TODO: This should be a redirect?
+			return nil, err
+		}
+		if result != nil {
+			return HandleAuthorizeRequest200TexthtmlResponse{Body: bytes.NewReader(result.HTML), ContentLength: int64(len(result.HTML))}, nil
 		}
 	}
 
-	if !handled {
-		// No handler could handle the request
-		// TODO: This should be a redirect?
-		return nil, openid4vci.Error{
-			Code:        openid4vci.InvalidRequest,
-			StatusCode:  http.StatusBadRequest,
-			Description: "missing or invalid parameters",
-		}
+	// No handler could handle the request
+	// TODO: This should be a redirect?
+	return nil, openid4vci.Error{
+		Code:        openid4vci.InvalidRequest,
+		StatusCode:  http.StatusBadRequest,
+		Description: "missing or invalid parameters",
 	}
-
-	// TODO: Session expiration
-	// TODO: Session storage
-	// TODO: Session pinning and other safety measures (see OAuth2 Threat Model)
-	sessionId := r.sessions.Create(*session)
-
-	authzPageHTML, err := r.renderAuthzPage(sessionId, session)
-	return HandleAuthorizeRequest200TexthtmlResponse{Body: bytes.NewReader(authzPageHTML), ContentLength: int64(len(authzPageHTML))}, nil
-
-}
-
-func (r Wrapper) HandleUserConsentRequest(ctx context.Context, request HandleUserConsentRequestRequestObject) (HandleUserConsentRequestResponseObject, error) {
-	session := r.sessions.Get(request.Body.SessionID)
-	if session == nil {
-		return nil, errors.New("invalid session")
-	}
-
-	redirectURI, _ := url.Parse(session.RedirectURI) // Validated on session creation, can't fail
-	query := redirectURI.Query()
-	query.Add("code", generateCode())
-	redirectURI.RawQuery = query.Encode()
-
-	return HandleUserConsentRequest302Response{
-		HandleUserConsentRequest302ResponseHeaders{Location: redirectURI.String()},
-	}, nil
-}
-
-func (r Wrapper) renderAuthzPage(sessionID string, session *Session) ([]byte, error) {
-	type Params struct {
-		SessionID string
-		Session
-	}
-	buf := new(bytes.Buffer)
-	err := r.authzTemplate.Execute(buf, Params{
-		SessionID: sessionID,
-		Session:   *session,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("unable to render authorization page: %w", err)
-	}
-	return buf.Bytes(), nil
 }
 
 func generateCode() string {

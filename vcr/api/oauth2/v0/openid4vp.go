@@ -8,20 +8,14 @@ var _ protocol = (*openID4VP)(nil)
 
 // openID4VP implements verifiable presentation exchanges as specified by https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 type openID4VP struct {
+	sessions *SessionManager
 }
 
 func (o openID4VP) Routes(router core.EchoRouter) {
-	//TODO implement me
-	panic("implement me")
+	// OpenID4VP does not specify any new endpoints
 }
 
-func (o openID4VP) authzHandlers() []authzHandler {
-	return []authzHandler{
-		o.handleAuthzRequest,
-	}
-}
-
-func (o openID4VP) handleAuthzRequest(params map[string]string, session *Session) (bool, error) {
+func (o openID4VP) handleAuthzRequest(params map[string]string, session *Session) (*authzResponse, error) {
 	presentationDef := params["presentation_definition"]
 	presentationDefUri := params["presentation_definition_uri"]
 	clientIdScheme := params["client_id_scheme"]
@@ -34,10 +28,10 @@ func (o openID4VP) handleAuthzRequest(params map[string]string, session *Session
 		clientMetadata == "" &&
 		clientMetadataUri == "" {
 		// Not an OpenID4VP Authorization Request
-		return false, nil
+		return nil, nil
 	}
 	// TODO: Handle the request
-	return true, nil
+	return &authzResponse{}, nil
 }
 
 func (o openID4VP) grantHandlers() map[string]grantHandler {

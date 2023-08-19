@@ -43,11 +43,6 @@ type HandleAuthorizeRequestFormdataBody struct {
 	AdditionalProperties map[string]string `json:"-"`
 }
 
-// HandleUserConsentRequestFormdataBody defines parameters for HandleUserConsentRequest.
-type HandleUserConsentRequestFormdataBody struct {
-	SessionID string `form:"sessionID" json:"sessionID"`
-}
-
 // HandleTokenRequestFormdataBody defines parameters for HandleTokenRequest.
 type HandleTokenRequestFormdataBody struct {
 	Code                 string            `form:"code" json:"code"`
@@ -57,9 +52,6 @@ type HandleTokenRequestFormdataBody struct {
 
 // HandleAuthorizeRequestFormdataRequestBody defines body for HandleAuthorizeRequest for application/x-www-form-urlencoded ContentType.
 type HandleAuthorizeRequestFormdataRequestBody HandleAuthorizeRequestFormdataBody
-
-// HandleUserConsentRequestFormdataRequestBody defines body for HandleUserConsentRequest for application/x-www-form-urlencoded ContentType.
-type HandleUserConsentRequestFormdataRequestBody HandleUserConsentRequestFormdataBody
 
 // HandleTokenRequestFormdataRequestBody defines body for HandleTokenRequest for application/x-www-form-urlencoded ContentType.
 type HandleTokenRequestFormdataRequestBody HandleTokenRequestFormdataBody
@@ -366,9 +358,6 @@ type ServerInterface interface {
 	// Used by clients to initiate the authorization code flow.
 	// (GET /public/auth/{did}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, did string) error
-	// Invoked by the user-agent to authorize/consent to authorization requests.
-	// (POST /public/auth/{did}/authz_consent)
-	HandleUserConsentRequest(ctx echo.Context, did string) error
 	// Used by to request access- or refresh tokens.
 	// (POST /public/auth/{did}/token)
 	HandleTokenRequest(ctx echo.Context, did string) error
@@ -392,22 +381,6 @@ func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error 
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.HandleAuthorizeRequest(ctx, did)
-	return err
-}
-
-// HandleUserConsentRequest converts echo context to params.
-func (w *ServerInterfaceWrapper) HandleUserConsentRequest(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.HandleUserConsentRequest(ctx, did)
 	return err
 }
 
@@ -456,7 +429,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.GET(baseURL+"/public/auth/:did/authorize", wrapper.HandleAuthorizeRequest)
-	router.POST(baseURL+"/public/auth/:did/authz_consent", wrapper.HandleUserConsentRequest)
 	router.POST(baseURL+"/public/auth/:did/token", wrapper.HandleTokenRequest)
 
 }
@@ -503,29 +475,6 @@ func (response HandleAuthorizeRequest302Response) VisitHandleAuthorizeRequestRes
 	return nil
 }
 
-type HandleUserConsentRequestRequestObject struct {
-	Did  string `json:"did"`
-	Body *HandleUserConsentRequestFormdataRequestBody
-}
-
-type HandleUserConsentRequestResponseObject interface {
-	VisitHandleUserConsentRequestResponse(w http.ResponseWriter) error
-}
-
-type HandleUserConsentRequest302ResponseHeaders struct {
-	Location string
-}
-
-type HandleUserConsentRequest302Response struct {
-	Headers HandleUserConsentRequest302ResponseHeaders
-}
-
-func (response HandleUserConsentRequest302Response) VisitHandleUserConsentRequestResponse(w http.ResponseWriter) error {
-	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
-	w.WriteHeader(302)
-	return nil
-}
-
 type HandleTokenRequestRequestObject struct {
 	Did  string `json:"did"`
 	Body *HandleTokenRequestFormdataRequestBody
@@ -567,9 +516,6 @@ type StrictServerInterface interface {
 	// Used by clients to initiate the authorization code flow.
 	// (GET /public/auth/{did}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
-	// Invoked by the user-agent to authorize/consent to authorization requests.
-	// (POST /public/auth/{did}/authz_consent)
-	HandleUserConsentRequest(ctx context.Context, request HandleUserConsentRequestRequestObject) (HandleUserConsentRequestResponseObject, error)
 	// Used by to request access- or refresh tokens.
 	// (POST /public/auth/{did}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
@@ -616,41 +562,6 @@ func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, did string) er
 		return err
 	} else if validResponse, ok := response.(HandleAuthorizeRequestResponseObject); ok {
 		return validResponse.VisitHandleAuthorizeRequestResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("Unexpected response type: %T", response)
-	}
-	return nil
-}
-
-// HandleUserConsentRequest operation middleware
-func (sh *strictHandler) HandleUserConsentRequest(ctx echo.Context, did string) error {
-	var request HandleUserConsentRequestRequestObject
-
-	request.Did = did
-
-	if form, err := ctx.FormParams(); err == nil {
-		var body HandleUserConsentRequestFormdataRequestBody
-		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
-			return err
-		}
-		request.Body = &body
-	} else {
-		return err
-	}
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.HandleUserConsentRequest(ctx.Request().Context(), request.(HandleUserConsentRequestRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "HandleUserConsentRequest")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(HandleUserConsentRequestResponseObject); ok {
-		return validResponse.VisitHandleUserConsentRequestResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("Unexpected response type: %T", response)
 	}

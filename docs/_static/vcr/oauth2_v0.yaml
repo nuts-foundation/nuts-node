@@ -105,40 +105,6 @@ paths:
               schema:
                 type: string
                 format: uri
-  "/public/auth/{did}/authz_consent":
-    post:
-      summary: Invoked by the user-agent to authorize/consent to authorization requests.
-      description: TODO
-      operationId: handleUserConsentRequest
-      parameters:
-        - name: did
-          in: path
-          required: true
-          schema:
-            type: string
-            example: did:nuts:123
-      requestBody:
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              required:
-                - sessionID
-              properties:
-                sessionID:
-                  type: string
-                  example: 12345678
-      responses:
-        "302":
-          description: >
-            After authorization, whether successful or unsuccessful,
-            the authorization server redirects the user-agent back to the resource owner.
-          headers:
-            Location:
-              description: Redirect URI of the resource owner.
-              schema:
-                type: string
-                format: uri
 components:
   schemas:
     TokenResponse:
