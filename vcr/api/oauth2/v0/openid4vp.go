@@ -47,7 +47,9 @@ func (a openID4VP) handleAuthzRequest(params map[string]string, session *Session
 	}
 	sessionId := a.sessions.Create(*session)
 
+	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2357
 	// TODO: Retrieve presentation definition
+	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2359
 	// TODO: Match presentation definition, show credential in HTML page
 
 	// Render HTML

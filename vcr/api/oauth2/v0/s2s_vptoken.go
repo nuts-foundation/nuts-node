@@ -41,6 +41,7 @@ func (s serviceToService) validateVPToken(params map[string]string) (string, err
 		// TODO: right error response
 		return "", errors.New("missing required parameters")
 	}
+	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2418
 	// TODO: verify parameters
 	return scope, nil
 }
