@@ -4,6 +4,16 @@ Release notes
 #############
 
 ************************
+Hazelnut update (v5.3.2)
+************************
+
+Release date: 2023-08-20
+
+- Fixed issue where NutsEmployeeCredentials needed to be explicitly trusted when issued by another node
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.3.1...v5.3.2
+
+************************
 Hazelnut update (v5.3.1)
 ************************
 
