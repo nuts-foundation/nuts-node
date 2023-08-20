@@ -564,7 +564,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		var validAt *time.Time
 
 		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, vdrTypes.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
 
 		mockVerifier := NewMockVerifier(ctx.ctrl)
 		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], true, true, validAt)
