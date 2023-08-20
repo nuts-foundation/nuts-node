@@ -297,7 +297,7 @@ func (w *Wrapper) VerifyVP(ctx context.Context, request VerifyVPRequestObject) (
 		validAt = &parsedTime
 	}
 
-	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.Body.VerifiablePresentation, verifyCredentials, validAt)
+	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.Body.VerifiablePresentation, verifyCredentials, false, validAt)
 	if err != nil {
 		if errors.Is(err, verifier.VerificationError{}) {
 			msg := err.Error()
