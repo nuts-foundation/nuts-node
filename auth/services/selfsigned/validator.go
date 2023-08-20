@@ -141,7 +141,7 @@ func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 
 	// #2428: NutsEmployeeCredential trust is derived from the fact that the issuer has a trusted NutsOrganizationCredential
 	searchTerms := []vcr.SearchTerm{
-		{IRIPath: jsonld.CredentialSubjectPath, Value: vc.Issuer.String()},
+		{IRIPath: jsonld.CredentialSubjectPath, Value: credentialSubject.ID},
 		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
