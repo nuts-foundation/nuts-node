@@ -259,12 +259,12 @@ func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
 	return nil
 }
 
-func (v verifier) VerifyVP(vp vc.VerifiablePresentation, verifyVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
-	return v.doVerifyVP(&v, vp, verifyVCs, validAt)
+func (v verifier) VerifyVP(vp vc.VerifiablePresentation, verifyVCs bool, allowUntrustedVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
+	return v.doVerifyVP(&v, vp, verifyVCs, allowUntrustedVCs, validAt)
 }
 
 // doVerifyVP delegates VC verification to the supplied Verifier, to aid unit testing.
-func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, verifyVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
+func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, verifyVCs bool, allowUntrustedVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
 	// Multiple proofs might be supported in the future, when there's an actual use case.
 	if len(vp.Proof) != 1 {
 		return nil, newVerificationError("exactly 1 proof is expected")
@@ -298,7 +298,7 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 
 	if verifyVCs {
 		for _, current := range vp.VerifiableCredential {
-			err := vcVerifier.Verify(current, false, true, validAt)
+			err := vcVerifier.Verify(current, allowUntrustedVCs, true, validAt)
 			if err != nil {
 				return nil, newVerificationError("invalid VC (id=%s): %w", current.ID, err)
 			}

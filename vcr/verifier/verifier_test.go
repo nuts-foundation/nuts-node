@@ -537,12 +537,12 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
+		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
 		assert.NoError(t, err)
 		assert.Len(t, vcs, 1)
 	})
-	t.Run("ok - verify VCs", func(t *testing.T) {
+	t.Run("ok - verify VCs (and verify trusted)", func(t *testing.T) {
 		_ = json.Unmarshal([]byte(rawVP), &vp)
 
 		var validAt *time.Time
@@ -553,7 +553,23 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		mockVerifier := NewMockVerifier(ctx.ctrl)
 		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt)
 
-		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, validAt)
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, false, validAt)
+
+		assert.NoError(t, err)
+		assert.Len(t, vcs, 1)
+	})
+	t.Run("ok - verify VCs (do not need to be trusted)", func(t *testing.T) {
+		_ = json.Unmarshal([]byte(rawVP), &vp)
+
+		var validAt *time.Time
+
+		ctx := newMockContext(t)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, vdrTypes.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+
+		mockVerifier := NewMockVerifier(ctx.ctrl)
+		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], true, true, validAt)
+
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, validAt)
 
 		assert.NoError(t, err)
 		assert.Len(t, vcs, 1)
@@ -567,7 +583,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 		mockVerifier := NewMockVerifier(ctx.ctrl)
 
-		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, &validAt)
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, &validAt)
 
 		assert.EqualError(t, err, "verification error: presentation not valid at given time")
 		assert.Empty(t, vcs)
@@ -583,7 +599,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		mockVerifier := NewMockVerifier(ctx.ctrl)
 		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt).Return(errors.New("invalid"))
 
-		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, validAt)
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, false, validAt)
 
 		assert.Error(t, err)
 		assert.Empty(t, vcs)
@@ -597,7 +613,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		// Return incorrect key, causing signature verification failure
 		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDBPrivateKey().Public(), nil)
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
+		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
 		assert.EqualError(t, err, "verification error: invalid signature: invalid proof signature: failed to verify signature using ecdsa")
 		assert.Empty(t, vcs)
@@ -611,7 +627,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		// Return incorrect key, causing signature verification failure
 		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(nil, vdrTypes.ErrKeyNotFound)
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
+		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
 		assert.ErrorIs(t, err, vdrTypes.ErrKeyNotFound)
 		assert.Empty(t, vcs)
@@ -625,7 +641,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 		ctx := newMockContext(t)
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
+		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
 		assert.EqualError(t, err, "verification error: unsupported proof type: json: cannot unmarshal string into Go value of type proof.LDProof")
 		assert.Empty(t, vcs)
@@ -639,7 +655,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 		ctx := newMockContext(t)
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
+		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
 		assert.EqualError(t, err, "verification error: exactly 1 proof is expected")
 		assert.Empty(t, vcs)

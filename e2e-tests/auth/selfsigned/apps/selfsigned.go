@@ -25,6 +25,7 @@ import (
 	authAPI "github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/rs/zerolog/log"
+	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 )
 
 var NodeClientConfig = core.ClientConfig{Address: "http://localhost:1323"}
@@ -91,12 +92,28 @@ func (s SelfSigned) GetSessionStatus(sessionID string) (string, *authAPI.Verifia
 	return response.JSON200.Status, response.JSON200.VerifiablePresentation, nil
 }
 
-func (s SelfSigned) RequestAccessToken(organizationDID string, purposeOfUse string, presentation *authAPI.VerifiablePresentation) (*authAPI.TokenIntrospectionResponse, error) {
+func (s SelfSigned) UntrustEmployeeCredential(issuerDID string) error {
+	vcrClient, _ := vcrAPI.NewClient(NodeClientConfig.Address)
+	resp, err := vcrClient.UntrustIssuer(s.Context, vcrAPI.UntrustIssuerJSONRequestBody{
+		CredentialType: "NutsEmployeeCredential",
+		Issuer:         issuerDID,
+	})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 204 {
+		return fmt.Errorf("could not untrust issuer: %s", resp.Status)
+	}
+	return nil
+}
+
+func (s SelfSigned) RequestAccessToken(requestorDID string, authorizerDID, purposeOfUse string, presentation *authAPI.VerifiablePresentation) (*authAPI.TokenIntrospectionResponse, error) {
 	authClient, _ := authAPI.NewClient(s.URL)
 	accessTokenResponse, err := authClient.RequestAccessToken(s.Context, authAPI.RequestAccessTokenJSONRequestBody{
-		Authorizer: organizationDID,
+		Authorizer: authorizerDID,
 		Identity:   presentation,
-		Requester:  organizationDID,
+		Requester:  requestorDID,
 		Service:    purposeOfUse,
 	})
 	if err != nil {
