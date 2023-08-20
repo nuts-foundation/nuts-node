@@ -9,7 +9,7 @@ import (
 	url "net/url"
 	reflect "reflect"
 
-	ssi "github.com/nuts-foundation/go-did"
+	go_did "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -38,7 +38,7 @@ func (m *MockDidman) EXPECT() *MockDidmanMockRecorder {
 }
 
 // AddCompoundService mocks base method.
-func (m *MockDidman) AddCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error) {
+func (m *MockDidman) AddCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]go_did.URI) (*did.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddCompoundService", ctx, id, serviceType, endpoints)
 	ret0, _ := ret[0].(*did.Service)
@@ -82,7 +82,7 @@ func (mr *MockDidmanMockRecorder) DeleteEndpointsByType(ctx, id, serviceType int
 }
 
 // DeleteService mocks base method.
-func (m *MockDidman) DeleteService(ctx context.Context, id ssi.URI) error {
+func (m *MockDidman) DeleteService(ctx context.Context, id go_did.URI) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteService", ctx, id)
 	ret0, _ := ret[0].(error)
@@ -156,7 +156,7 @@ func (mr *MockDidmanMockRecorder) SearchOrganizations(ctx, query, didServiceType
 }
 
 // UpdateCompoundService mocks base method.
-func (m *MockDidman) UpdateCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error) {
+func (m *MockDidman) UpdateCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]go_did.URI) (*did.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateCompoundService", ctx, id, serviceType, endpoints)
 	ret0, _ := ret[0].(*did.Service)

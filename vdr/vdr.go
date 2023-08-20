@@ -24,26 +24,27 @@
 package vdr
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
-
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"net/url"
 )
 
 // ModuleName is the name of the engine
@@ -67,6 +68,57 @@ type VDR struct {
 	keyStore          crypto.KeyStore
 	storageProvider   storage.Provider
 	eventManager      events.Event
+}
+
+func (r *VDR) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID did.DID) (*did.Document, error) {
+	nutsDIDDocument, _, err := r.Resolver().Resolve(nutsDID, nil)
+	if err != nil {
+		return nil, err
+	}
+	isOwner, err := r.IsOwner(ctx, nutsDID)
+	if err != nil {
+		return nil, err
+	}
+	if !isOwner {
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldDID, nutsDID).
+			Info("Tried to derive did:web document from Nuts DID that is not owned by this node")
+		return nil, types.ErrNotFound
+	}
+
+	// Replace did:nuts DIDs with did:web, but only for owned DIDs
+	ownedNutsDIDs := []did.DID{nutsDID}
+	for _, controller := range nutsDIDDocument.Controller {
+		for _, curr := range ownedNutsDIDs {
+			if curr.String() == controller.String() {
+				continue
+			}
+		}
+		if controller.Method == didnuts.MethodName && !controller.IsURL() {
+			isOwner, err := r.IsOwner(ctx, controller)
+			if err != nil {
+				return nil, err
+			}
+			if isOwner {
+				ownedNutsDIDs = append(ownedNutsDIDs, controller)
+			}
+		}
+	}
+	resultDIDDocumentData, _ := nutsDIDDocument.MarshalJSON()
+	for _, ownedNutsDID := range ownedNutsDIDs {
+		webDID, err := didweb.URLToDID(*baseURL.JoinPath(ownedNutsDID.ID))
+		if err != nil {
+			return nil, fmt.Errorf("unable to derive Web DID from Nuts DID (%s): %w", nutsDID, err)
+		}
+		resultDIDDocumentData = bytes.ReplaceAll(resultDIDDocumentData, []byte(ownedNutsDID.String()), []byte(webDID.String()))
+	}
+	var result did.Document
+	if err = result.UnmarshalJSON(resultDIDDocumentData); err != nil {
+		return nil, fmt.Errorf("did:web unmarshal error (%s): %w", nutsDID, err)
+	}
+	result.AlsoKnownAs = append(result.AlsoKnownAs, nutsDID.URI())
+	return &result, nil
 }
 
 func (r *VDR) Resolver() types.DIDResolver {

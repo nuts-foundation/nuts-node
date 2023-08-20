@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"net/url"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -117,6 +118,9 @@ type VDR interface {
 
 	// ConflictedDocuments returns the DID Document and metadata of all documents with a conflict.
 	ConflictedDocuments() ([]did.Document, []DocumentMetadata, error)
+
+	// DeriveWebDIDDocument returns the did:web equivalent of the given Nuts DID. If it doesn't exist or is not owned by this node it returns an error.
+	DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID did.DID) (*did.Document, error)
 }
 
 // DocumentOwner is the interface for checking DID document ownership (presence of private keys).

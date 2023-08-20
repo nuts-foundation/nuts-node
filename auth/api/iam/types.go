@@ -18,6 +18,11 @@
 
 package iam
 
+import (
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
+)
+
 const (
 	// responseTypeParam is the name of the response_type parameter.
 	// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.1
@@ -198,3 +203,9 @@ type OAuthAuthorizationServerMetadata struct {
 	// If omitted, the default value is `pre-registered` (referring to the client), which is currently not supported.
 	ClientIdSchemesSupported []string `json:"client_id_schemes_supported,omitempty"`
 }
+
+// DIDDocument is an alias
+type DIDDocument = did.Document
+
+// DIDDocumentMetadata is an alias
+type DIDDocumentMetadata = types.DocumentMetadata

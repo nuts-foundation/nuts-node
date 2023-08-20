@@ -6,6 +6,32 @@ servers:
   - url: "http://localhost:1323"
 paths:
   # TODO: Decide on /iam: https://github.com/nuts-foundation/nuts-node/issues/2439
+  /iam/{did}/did.json:
+    parameters:
+      - name: did
+        in: path
+        description: ID of the corresponding Nuts DID document without the `did:nuts:` prefix.
+        required: true
+        example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+        schema:
+          type: string
+    get:
+      summary: "Returns the did:web version of a Nuts DID document"
+      description: |
+        Returns the did:web equivalent of a Nuts DID document, if it is owned by this node.
+      operationId: "getWebDID"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: DID has been found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DIDDocument'
+        "404":
+          description: DID does not exist.
+  # TODO: Decide on /iam: https://github.com/nuts-foundation/nuts-node/issues/2439
   "/iam/{did}/token":
     post:
       summary: Used by to request access- or refresh tokens.
@@ -232,6 +258,8 @@ paths:
 #          $ref: '../common/error_response.yaml'
 components:
   schemas:
+    DIDDocument:
+      $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
     TokenResponse:
       type: object
       description: |

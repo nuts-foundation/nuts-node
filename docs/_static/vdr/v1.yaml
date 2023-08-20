@@ -234,7 +234,6 @@ paths:
           description: Verification Method was successfully deleted
         default:
           $ref: '../common/error_response.yaml'
-
 components:
   schemas:
     DIDDocument:

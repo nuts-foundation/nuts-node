@@ -20,7 +20,9 @@ package iam
 
 import (
 	"errors"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/core"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
@@ -36,7 +38,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 		//	200
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.documentOwner.EXPECT().IsOwner(nil, did).Return(true, nil)
+		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(true, nil)
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
 
@@ -67,7 +69,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.documentOwner.EXPECT().IsOwner(nil, did)
+		ctx.vdrInstance.EXPECT().IsOwner(nil, did)
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
 
@@ -79,7 +81,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.documentOwner.EXPECT().IsOwner(nil, did).Return(false, vdr.ErrNotFound)
+		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(false, vdr.ErrNotFound)
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
 
@@ -91,13 +93,55 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 		//500
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.documentOwner.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
+		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "authz server metadata: unknown error")
 		assert.Nil(t, res)
+	})
+}
+
+func TestWrapper_GetWebDID(t *testing.T) {
+	nutsDID := did.MustParseDID("did:nuts:123")
+	webDID := did.MustParseDID("did:web:example.com:iam:123")
+	publicURL := ssi.MustParseURI("https://example.com").URL
+	webDIDBaseURL := publicURL.JoinPath("/iam")
+	ctx := audit.TestContext()
+	expectedWebDIDDoc := did.Document{
+		ID: webDID,
+	}
+	// remarshal expectedWebDIDDoc to make sure in-memory format is the same as the one returned by the API
+	data, _ := expectedWebDIDDoc.MarshalJSON()
+	_ = expectedWebDIDDoc.UnmarshalJSON(data)
+
+	t.Run("ok", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdrInstance.EXPECT().DeriveWebDIDDocument(gomock.Any(), *webDIDBaseURL, nutsDID).Return(&expectedWebDIDDoc, nil)
+
+		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{nutsDID.ID})
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetWebDID200JSONResponse)))
+	})
+	t.Run("unknown DID", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdrInstance.EXPECT().DeriveWebDIDDocument(ctx, *webDIDBaseURL, nutsDID).Return(nil, vdr.ErrNotFound)
+
+		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{nutsDID.ID})
+
+		assert.NoError(t, err)
+		assert.IsType(t, GetWebDID404Response{}, response)
+	})
+	t.Run("other error", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdrInstance.EXPECT().DeriveWebDIDDocument(gomock.Any(), *webDIDBaseURL, nutsDID).Return(nil, errors.New("failed"))
+
+		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{nutsDID.ID})
+
+		assert.EqualError(t, err, "unable to resolve DID")
+		assert.Nil(t, response)
 	})
 }
 
@@ -113,22 +157,22 @@ func statusCodeFrom(err error) int {
 type testCtx struct {
 	client        *Wrapper
 	authnServices *auth.MockAuthenticationServices
-	documentOwner *vdr.MockDocumentOwner
+	vdrInstance   *vdr.MockVDR
 }
 
 func newTestClient(t testing.TB) *testCtx {
-	publicURL, err := url.Parse("https://nuts.nl")
+	publicURL, err := url.Parse("https://example.com")
 	require.NoError(t, err)
 	ctrl := gomock.NewController(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
-	documentOwner := vdr.NewMockDocumentOwner(ctrl)
+	vdrInstance := vdr.NewMockVDR(ctrl)
 	return &testCtx{
 		authnServices: authnServices,
-		documentOwner: documentOwner,
+		vdrInstance:   vdrInstance,
 		client: &Wrapper{
 			auth: authnServices,
-			vdr:  documentOwner,
+			vdr:  vdrInstance,
 		},
 	}
 }

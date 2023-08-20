@@ -136,6 +136,9 @@ type ServerInterface interface {
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{did}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, did string, params HandleAuthorizeRequestParams) error
+	// Returns the did:web version of a Nuts DID document
+	// (GET /iam/{did}/did.json)
+	GetWebDID(ctx echo.Context, did string) error
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{did}/token)
 	HandleTokenRequest(ctx echo.Context, did string) error
@@ -187,6 +190,22 @@ func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error 
 	return err
 }
 
+// GetWebDID converts echo context to params.
+func (w *ServerInterfaceWrapper) GetWebDID(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetWebDID(ctx, did)
+	return err
+}
+
 // HandleTokenRequest converts echo context to params.
 func (w *ServerInterfaceWrapper) HandleTokenRequest(ctx echo.Context) error {
 	var err error
@@ -233,6 +252,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:did", wrapper.GetOAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/iam/:did/authorize", wrapper.HandleAuthorizeRequest)
+	router.GET(baseURL+"/iam/:did/did.json", wrapper.GetWebDID)
 	router.POST(baseURL+"/iam/:did/token", wrapper.HandleTokenRequest)
 
 }
@@ -317,6 +337,31 @@ func (response HandleAuthorizeRequest302Response) VisitHandleAuthorizeRequestRes
 	return nil
 }
 
+type GetWebDIDRequestObject struct {
+	Did string `json:"did"`
+}
+
+type GetWebDIDResponseObject interface {
+	VisitGetWebDIDResponse(w http.ResponseWriter) error
+}
+
+type GetWebDID200JSONResponse DIDDocument
+
+func (response GetWebDID200JSONResponse) VisitGetWebDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetWebDID404Response struct {
+}
+
+func (response GetWebDID404Response) VisitGetWebDIDResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
 type HandleTokenRequestRequestObject struct {
 	Did  string `json:"did"`
 	Body *HandleTokenRequestFormdataRequestBody
@@ -361,6 +406,9 @@ type StrictServerInterface interface {
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{did}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
+	// Returns the did:web version of a Nuts DID document
+	// (GET /iam/{did}/did.json)
+	GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error)
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{did}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
@@ -423,6 +471,31 @@ func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, did string, pa
 		return err
 	} else if validResponse, ok := response.(HandleAuthorizeRequestResponseObject); ok {
 		return validResponse.VisitHandleAuthorizeRequestResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetWebDID operation middleware
+func (sh *strictHandler) GetWebDID(ctx echo.Context, did string) error {
+	var request GetWebDIDRequestObject
+
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetWebDID(ctx.Request().Context(), request.(GetWebDIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetWebDID")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetWebDIDResponseObject); ok {
+		return validResponse.VisitGetWebDIDResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

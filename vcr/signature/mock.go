@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	ssi "github.com/nuts-foundation/go-did"
+	go_did "github.com/nuts-foundation/go-did"
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -66,10 +66,10 @@ func (mr *MockSuiteMockRecorder) CanonicalizeDocument(doc interface{}) *gomock.C
 }
 
 // GetType mocks base method.
-func (m *MockSuite) GetType() ssi.ProofType {
+func (m *MockSuite) GetType() go_did.ProofType {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetType")
-	ret0, _ := ret[0].(ssi.ProofType)
+	ret0, _ := ret[0].(go_did.ProofType)
 	return ret0
 }
 
