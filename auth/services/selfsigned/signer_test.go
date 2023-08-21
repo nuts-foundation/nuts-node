@@ -112,7 +112,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 }
 
 func TestSessionStore_SigningSessionStatus(t *testing.T) {
-	ctx := context.Background()
+	ctx := context.TODO()
 	params := map[string]interface{}{
 		"employer": employer.String(),
 		"employee": map[string]interface{}{

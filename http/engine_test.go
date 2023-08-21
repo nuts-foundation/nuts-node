@@ -163,7 +163,7 @@ func TestEngine_Configure(t *testing.T) {
 			thisTLSConfig := tlsConfig.Clone()
 			thisTLSConfig.Certificates = nil
 			_, err = doHTTPSRequest(thisTLSConfig, engine.config.InterfaceConfig.Address)
-			assert.ErrorContains(t, err, "tls: bad certificate")
+			assert.ErrorContains(t, err, "remote error: tls: certificate required")
 
 			err = engine.Shutdown()
 			assert.NoError(t, err)
