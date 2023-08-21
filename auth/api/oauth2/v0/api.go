@@ -1,7 +1,6 @@
 package v0
 
 import (
-	"bytes"
 	"context"
 	"embed"
 	"errors"
@@ -63,23 +62,25 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
 func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
-	// Find handler in registered protocols for the grant type
-	var handler grantHandler
-	for _, currProtocol := range r.protocols {
-		grantHandlers := currProtocol.grantHandlers()
-		var ok bool
-		if handler, ok = grantHandlers[request.Body.GrantType]; ok {
-			break
-		}
-	}
-
-	if handler == nil {
+	switch request.Body.GrantType {
+	case "authorization_code":
+		// Options:
+		// - OpenID4VCI
+		// - OpenID4VP, vp_token is sent in Token Response
+	case "vp_token":
+		// Options:
+		// - service-to-service vp_token flow
+	case "urn:ietf:params:oauth:grant-type:pre-authorized_code":
+		// Options:
+		// - OpenID4VCI
+	default:
 		return nil, openid4vci.Error{
 			Code:        openid4vci.InvalidRequest,
 			StatusCode:  http.StatusBadRequest,
 			Description: "invalid grant type",
 		}
 	}
+
 	scope, err := handler(request.Body.AdditionalProperties)
 	if err != nil {
 		return nil, err
@@ -92,15 +93,6 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
-	if request.Body.ResponseType != "code" {
-		// TODO: This should be a redirect?
-		return nil, openid4vci.Error{
-			Code:        openid4vci.InvalidRequest,
-			StatusCode:  http.StatusBadRequest,
-			Description: "invalid response type",
-		}
-	}
-
 	// Create session object to be passed to handler
 	session := &Session{
 		// TODO: Validate client ID
@@ -123,14 +115,27 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		return nil, errors.New("missing redirect URI")
 	}
 
-	for _, currProtocol := range r.protocols {
-		result, err := currProtocol.handleAuthzRequest(request.Body.AdditionalProperties, session)
-		if err != nil {
-			// TODO: This should be a redirect?
-			return nil, err
-		}
-		if result != nil {
-			return HandleAuthorizeRequest200TexthtmlResponse{Body: bytes.NewReader(result.html), ContentLength: int64(len(result.html))}, nil
+	switch request.Body.ResponseType {
+	case "code":
+		// Options:
+		// - OpenID4VCI
+		// - OpenID4VP, vp_token is sent in Token Response
+		// TODO: Switch on parameters to right flow
+	case "vp_token":
+		// Options:
+		// - OpenID4VP flow, vp_token is sent in Authorization Response
+		// TODO: Check parameters for right flow
+		// TODO: Do we actually need this? (probably not)
+	case "vp_token id_token":
+		// Options:
+		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
+		// TODO: Check parameters for right flow
+	default:
+		// TODO: This should be a redirect?
+		return nil, openid4vci.Error{
+			Code:        openid4vci.InvalidRequest,
+			StatusCode:  http.StatusBadRequest,
+			Description: "invalid/unsupported response_type",
 		}
 	}
 
