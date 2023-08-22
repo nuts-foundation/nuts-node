@@ -18,8 +18,6 @@
 
 package openid4vci
 
-import "strings"
-
 // ErrorCode specifies error codes as defined by the OpenID4VCI spec.
 type ErrorCode string
 
@@ -62,10 +60,6 @@ type Error struct {
 	CNonceExpiresIn *int `json:"c_nonce_expires_in,omitempty"`
 	// Code is the error code as defined by the OpenID4VCI spec.
 	Code ErrorCode `json:"error"`
-	// Description an optional, is a human-readable ASCII [USASCII] text providing additional information,
-	// used to assist the client developer in understanding the error that occurred.
-	// It is sent back to the client.
-	Description string `json:"error_description,omitempty"`
 	// Err is the underlying error, may be omitted. It is not intended to be returned to the client.
 	Err error `json:"-"`
 	// StatusCode is the HTTP status code that should be returned to the client.
@@ -74,13 +68,8 @@ type Error struct {
 
 // Error returns the error message, which is either the underlying error or the code if there is no underlying error
 func (e Error) Error() string {
-	var parts []string
-	parts = append(parts, string(e.Code))
-	if e.Err != nil {
-		parts = append(parts, e.Err.Error())
+	if e.Err == nil {
+		return string(e.Code)
 	}
-	if e.Description != "" {
-		parts = append(parts, e.Description)
-	}
-	return strings.Join(parts, " - ")
+	return string(e.Code) + " - " + e.Err.Error()
 }

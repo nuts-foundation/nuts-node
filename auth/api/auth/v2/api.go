@@ -76,9 +76,9 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		// - OpenID4VCI
 	default:
 		return nil, openid4vci.Error{
-			Code:        openid4vci.InvalidRequest,
-			StatusCode:  http.StatusBadRequest,
-			Description: "invalid grant type",
+			Code:       openid4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+			//Description: "invalid grant type",
 		}
 	}
 
@@ -136,18 +136,18 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	default:
 		// TODO: This should be a redirect?
 		return nil, openid4vci.Error{
-			Code:        openid4vci.InvalidRequest,
-			StatusCode:  http.StatusBadRequest,
-			Description: "invalid/unsupported response_type",
+			Code:       openid4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+			//Description: "invalid/unsupported response_type",
 		}
 	}
 
 	// No handler could handle the request
 	// TODO: This should be a redirect?
 	return nil, openid4vci.Error{
-		Code:        openid4vci.InvalidRequest,
-		StatusCode:  http.StatusBadRequest,
-		Description: "missing or invalid parameters",
+		Code:       openid4vci.InvalidRequest,
+		StatusCode: http.StatusBadRequest,
+		//Description: "missing or invalid parameters",
 	}
 }
 

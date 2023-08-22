@@ -76,17 +76,17 @@ func (a authorizedCodeFlow) validateCode(params map[string]string) (string, erro
 	code, ok := params["code"]
 	if !ok {
 		return "", openid4vci.Error{
-			Code:        openid4vci.InvalidRequest,
-			StatusCode:  http.StatusBadRequest,
-			Description: "missing or invalid code parameter",
+			Code:       openid4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+			//Description: "missing or invalid code parameter",
 		}
 	}
 	session := a.sessions.Get(code)
 	if session == nil {
 		return "", openid4vci.Error{
-			Code:        openid4vci.InvalidRequest,
-			StatusCode:  http.StatusBadRequest,
-			Description: "invalid code",
+			Code:       openid4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+			//Description: "invalid code",
 		}
 	}
 	return session.Scope, nil
