@@ -49,6 +49,7 @@ func TestFlagSet(t *testing.T) {
 		ConfAutoUpdateIrmaSchemas,
 		ConfIrmaSchemeManager,
 		ConfPublicURL,
+		ConfV2APIEnabled,
 	}, keys)
 }
 
