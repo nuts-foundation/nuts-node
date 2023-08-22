@@ -75,6 +75,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		// Options:
 		// - OpenID4VCI
 	default:
+		// TODO: Don't use openid4vci package for errors
 		return nil, openid4vci.Error{
 			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusBadRequest,
@@ -135,6 +136,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		// TODO: Check parameters for right flow
 	default:
 		// TODO: This should be a redirect?
+		// TODO: Don't use openid4vci package for errors
 		return nil, openid4vci.Error{
 			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusBadRequest,
@@ -144,6 +146,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 	// No handler could handle the request
 	// TODO: This should be a redirect?
+	// TODO: Don't use openid4vci package for errors
 	return nil, openid4vci.Error{
 		Code:       openid4vci.InvalidRequest,
 		StatusCode: http.StatusBadRequest,

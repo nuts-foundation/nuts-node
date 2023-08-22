@@ -5,6 +5,7 @@ info:
 servers:
   - url: "http://localhost:1323"
 paths:
+  # TODO: Decide on /iam: https://github.com/nuts-foundation/nuts-node/issues/2439
   "/iam/{did}/token":
     post:
       summary: Used by to request access- or refresh tokens.
@@ -57,6 +58,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
+  # TODO: Decide on /iam: https://github.com/nuts-foundation/nuts-node/issues/2439
   "/iam/{did}/authorize":
     get:
       summary: Used by resource owners to initiate the authorization code flow.
