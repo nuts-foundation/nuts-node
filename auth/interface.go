@@ -31,4 +31,6 @@ type AuthenticationServices interface {
 	RelyingParty() oauth.RelyingParty
 	// ContractNotary returns an instance of ContractNotary
 	ContractNotary() services.ContractNotary
+	// NextGenOAuth2Enabled returns true if the Next-Gen OAuth2 API is enabled
+	NextGenOAuth2Enabled() bool
 }

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -22,6 +24,7 @@ var assets embed.FS
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
 	VCR       vcr.VCR
+	Auth      auth.AuthenticationServices
 	protocols []protocol
 	sessions  *SessionManager
 }
@@ -48,6 +51,15 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 				// TODO: Do we need a generic error handler?
 				// ctx.Set(core.ErrorWriterContextKey, &protocolErrorWriter{})
 				return f(ctx, request)
+			}
+		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return func(ctx echo.Context, args interface{}) (interface{}, error) {
+				if !r.Auth.NextGenOAuth2Enabled() {
+					log.Logger().Info("Someone tried to access disabled Next-Gen OAuth2 API endpoint.")
+					return nil, core.Error(http.StatusForbidden, "Access denied")
+				}
+				return f(ctx, args)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
