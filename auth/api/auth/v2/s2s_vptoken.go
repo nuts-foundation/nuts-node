@@ -1,4 +1,4 @@
-package v0
+package v2
 
 import (
 	"errors"
@@ -6,8 +6,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 )
-
-var _ protocol = (*serviceToService)(nil)
 
 // serviceToService adds support for service-to-service OAuth2 flows,
 // which uses a custom vp_token grant to authenticate calls to the token endpoint.
@@ -25,12 +23,6 @@ func (s serviceToService) Routes(router core.EchoRouter) {
 		// TODO: Read scope, map to presentation definition, return
 		return echoCtx.JSON(http.StatusOK, map[string]string{})
 	})
-}
-
-func (s serviceToService) grantHandlers() map[string]grantHandler {
-	return map[string]grantHandler{
-		"vp_token": s.validateVPToken,
-	}
 }
 
 func (s serviceToService) validateVPToken(params map[string]string) (string, error) {

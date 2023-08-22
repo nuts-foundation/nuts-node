@@ -1,4 +1,4 @@
-package: v0
+package: v2
 generate:
   echo-server: true
   models: true

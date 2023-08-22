@@ -1,4 +1,4 @@
-package v0
+package v2
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -23,22 +22,17 @@ var assets embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	VCR       vcr.VCR
-	Auth      auth.AuthenticationServices
-	protocols []protocol
-	sessions  *SessionManager
+	VCR      vcr.VCR
+	Auth     auth.AuthenticationServices
+	sessions *SessionManager
 }
 
-func New() *Wrapper {
+func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR) *Wrapper {
 	sessionManager := &SessionManager{sessions: new(sync.Map)}
 	return &Wrapper{
-		// Order can be important: the first authorization call handler that returns true will be used.
-		protocols: []protocol{
-			&serviceToService{},
-			newAuthorizedCodeFlow(sessionManager),
-			newOpenID4VP(sessionManager),
-		},
 		sessions: sessionManager,
+		Auth:     authInstance,
+		VCR:      vcrInstance,
 	}
 }
 
@@ -47,7 +41,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
 				ctx.Set(core.OperationIDContextKey, operationID)
-				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName+"/OAuth2")
+				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName+"/v2")
 				// TODO: Do we need a generic error handler?
 				// ctx.Set(core.ErrorWriterContextKey, &protocolErrorWriter{})
 				return f(ctx, request)
@@ -55,21 +49,16 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, args interface{}) (interface{}, error) {
-				if !r.Auth.NextGenOAuth2Enabled() {
-					log.Logger().Info("Someone tried to access disabled Next-Gen OAuth2 API endpoint.")
+				if !r.Auth.V2APIEnabled() {
 					return nil, core.Error(http.StatusForbidden, "Access denied")
 				}
 				return f(ctx, args)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
-			return audit.StrictMiddleware(f, vcr.ModuleName+"/OAuth2", operationID)
+			return audit.StrictMiddleware(f, vcr.ModuleName+"/v2", operationID)
 		},
 	}))
-	for _, currProtocol := range r.protocols {
-		// TODO: Middleware
-		currProtocol.Routes(router)
-	}
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
@@ -93,13 +82,14 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		}
 	}
 
-	scope, err := handler(request.Body.AdditionalProperties)
-	if err != nil {
-		return nil, err
-	}
+	// TODO: Handle?
+	//scope, err := handler(request.Body.AdditionalProperties)
+	//if err != nil {
+	//	return nil, err
+	//}
 	// TODO: Generate access token with scope
 	return HandleTokenRequest200JSONResponse(TokenResponse{
-		AccessToken: scope,
+		AccessToken: "",
 	}), nil
 }
 
@@ -130,8 +120,9 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	switch request.Body.ResponseType {
 	case "code":
 		// Options:
-		// - OpenID4VCI
-		// - OpenID4VP, vp_token is sent in Token Response
+		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.
+		// - OpenID4VCI; authorization code flow for credential issuance to (end-user) wallet
+		// - OpenID4VP, vp_token is sent in Token Response; authorization code flow for presentation exchange (not required a.t.m.)
 		// TODO: Switch on parameters to right flow
 	case "vp_token":
 		// Options:

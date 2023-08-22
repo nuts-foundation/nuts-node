@@ -1,4 +1,4 @@
-package v0
+package v2
 
 import (
 	"bytes"
@@ -9,16 +9,6 @@ import (
 	"html/template"
 	"net/http"
 )
-
-var _ protocol = (*openID4VP)(nil)
-
-func newOpenID4VP(sessions *SessionManager) *openID4VP {
-	authzTemplate, _ := template.ParseFS(assets, "assets/authz_wallet_en.html")
-	return &openID4VP{
-		sessions:      sessions,
-		authzTemplate: authzTemplate,
-	}
-}
 
 // openID4VP implements verifiable presentation exchanges as specified by https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 type openID4VP struct {
@@ -83,9 +73,4 @@ func (a openID4VP) handleAuthConsent(c echo.Context) error {
 	// TODO: create presentation submission
 	// TODO: check response mode, and submit accordingly (direct_post)
 	return c.Redirect(http.StatusFound, session.CreateRedirectURI(map[string]string{}))
-}
-
-func (a openID4VP) grantHandlers() map[string]grantHandler {
-	// OpenID4VP does not define new grant types
-	return nil
 }

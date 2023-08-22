@@ -1,11 +1,11 @@
 openapi: 3.0.0
 info:
-  title: OAuth2 API
+  title: Auth v2 API (experimental)
   version: 0.0.0
 servers:
   - url: "http://localhost:1323"
 paths:
-  "/public/oauth2/{did}/token":
+  "/iam/{did}/token":
     post:
       summary: Used by to request access- or refresh tokens.
       description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint
@@ -57,7 +57,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/public/oauth2/{did}/authorize":
+  "/iam/{did}/authorize":
     get:
       summary: Used by resource owners to initiate the authorization code flow.
       description: Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
@@ -96,7 +96,7 @@ paths:
                 type: string
       responses:
         "200":
-          description: Authorization request accepted, user is asked for consent
+          description: Authorization request accepted, user is asked for consent.
           content:
             text/html:
               schema:
@@ -109,7 +109,7 @@ paths:
               schema:
                 type: string
                 format: uri
-  /internal/oauth2/v0/{did}/request-presentation:
+  /internal/auth/v2/{did}/request-presentation:
     post:
       operationId: requestPresentation
       summary: Requests a credential presentation using OAuth2 from a remote wallet through a user-agent.
@@ -157,7 +157,7 @@ paths:
                     type: string
         default:
           $ref: '../common/error_response.yaml'
-  /internal/oauth2/v0/{did}/request-access-token:
+  /internal/auth/v2/{did}/request-access-token:
     post:
       operationId: requestAccessToken
       summary: Requests an access token using OAuth2.

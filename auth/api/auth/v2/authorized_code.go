@@ -1,4 +1,4 @@
-package v0
+package v2
 
 import (
 	"bytes"
@@ -13,8 +13,6 @@ import (
 	"net/http"
 	"net/url"
 )
-
-var _ protocol = &authorizedCodeFlow{}
 
 func newAuthorizedCodeFlow(sessions *SessionManager) *authorizedCodeFlow {
 	authzTemplate, _ := template.ParseFS(assets, "assets/authz_en.html")
@@ -72,12 +70,6 @@ func (a authorizedCodeFlow) handleAuthConsent(c echo.Context) error {
 	redirectURI.RawQuery = query.Encode()
 
 	return c.Redirect(http.StatusFound, redirectURI.String())
-}
-
-func (a authorizedCodeFlow) grantHandlers() map[string]grantHandler {
-	return map[string]grantHandler{
-		"authorization_code": a.validateCode,
-	}
 }
 
 func (a authorizedCodeFlow) validateCode(params map[string]string) (string, error) {

@@ -33,6 +33,7 @@ type Config struct {
 	ClockSkew           int        `koanf:"clockskew"`
 	ContractValidators  []string   `koanf:"contractvalidators"`
 	AccessTokenLifeSpan int        `koanf:"accesstokenlifespan"`
+	V2APIEnabled        bool       `koanf:"v2apienabled"`
 }
 
 type IrmaConfig struct {
