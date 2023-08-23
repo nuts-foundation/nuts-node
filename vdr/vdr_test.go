@@ -20,8 +20,13 @@ package vdr
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
@@ -521,6 +526,29 @@ func TestVDR_Configure(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, doc)
 		assert.NotNil(t, md)
+	})
+	t.Run("it can resolve using did:jwk", func(t *testing.T) {
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		expectedJWK, err := jwk.New(privateKey.Public())
+		require.NoError(t, err)
+
+		jwkBytes, _ := json.Marshal(expectedJWK)
+		inputDIDString := "did:jwk:" + base64.URLEncoding.EncodeToString(jwkBytes)
+		inputDID, err := did.ParseDID(inputDIDString)
+		require.NoError(t, err)
+
+		instance := NewVDR(nil, nil, nil, nil)
+		err = instance.Configure(core.ServerConfig{})
+		require.NoError(t, err)
+
+		doc, md, err := instance.Resolver().Resolve(*inputDID, nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, doc)
+		assert.NotNil(t, md)
+		// Basic assertion on the actual key
+		require.Len(t, doc.VerificationMethod, 1)
+		assert.Equal(t, "P-256", doc.VerificationMethod[0].PublicKeyJwk["crv"])
 	})
 }
 

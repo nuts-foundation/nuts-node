@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
@@ -99,6 +100,7 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 	// Register DID methods
 	r.didResolver.Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
 	r.didResolver.Register(didweb.MethodName, didweb.NewResolver())
+	r.didResolver.Register(didjwk.MethodName, didjwk.NewResolver())
 
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()
