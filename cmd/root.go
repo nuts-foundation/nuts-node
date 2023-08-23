@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/golden_hammer"
 	goldenHammerCmd "github.com/nuts-foundation/nuts-node/golden_hammer/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
@@ -33,7 +34,8 @@ import (
 	"runtime/pprof"
 
 	"github.com/nuts-foundation/nuts-node/auth"
-	authAPI "github.com/nuts-foundation/nuts-node/auth/api/auth/v1"
+	authAPIv1 "github.com/nuts-foundation/nuts-node/auth/api/auth/v1"
+	authIAMAPI "github.com/nuts-foundation/nuts-node/auth/api/iam"
 	authMeansAPI "github.com/nuts-foundation/nuts-node/auth/api/means/v1"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -211,7 +213,8 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
-	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
+	system.RegisterRoutes(&authAPIv1.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
+	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 

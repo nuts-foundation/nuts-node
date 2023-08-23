@@ -31,4 +31,7 @@ type AuthenticationServices interface {
 	RelyingParty() oauth.RelyingParty
 	// ContractNotary returns an instance of ContractNotary
 	ContractNotary() services.ContractNotary
+	// V2APIEnabled returns true if the V2 API is enabled.
+	// It is disabled by default, since it's still in development.
+	V2APIEnabled() bool
 }

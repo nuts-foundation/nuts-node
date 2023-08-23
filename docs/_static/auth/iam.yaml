@@ -1,0 +1,249 @@
+openapi: 3.0.0
+info:
+  title: Auth v2 API (experimental)
+  version: 0.0.0
+servers:
+  - url: "http://localhost:1323"
+paths:
+  # TODO: Decide on /iam: https://github.com/nuts-foundation/nuts-node/issues/2439
+  "/iam/{did}/token":
+    post:
+      summary: Used by to request access- or refresh tokens.
+      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint
+      operationId: handleTokenRequest
+      tags:
+        - oauth2
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - code
+              properties:
+                grant_type:
+                  type: string
+                  example: urn:ietf:params:oauth:grant-type:authorized_code
+                code:
+                  type: string
+                  example: secret
+              additionalProperties:
+                type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TokenResponse"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "400":
+          description: >
+            Invalid request. Code can be "invalid_request", "invalid_client", "invalid_grant", "unauthorized_client", "unsupported_grant_type" or "invalid_scope".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-error-response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  # TODO: Decide on /iam: https://github.com/nuts-foundation/nuts-node/issues/2439
+  "/iam/{did}/authorize":
+    get:
+      summary: Used by resource owners to initiate the authorization code flow.
+      description: Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
+      operationId: handleAuthorizeRequest
+      tags:
+        - oauth2
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              description: See https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1
+              type: object
+              required:
+                - response_type
+                - client_id
+              properties:
+                response_type:
+                  type: string
+                  example: code
+                client_id:
+                  type: string
+                redirect_uri:
+                  type: string
+                scope:
+                  type: string
+                state:
+                  type: string
+              additionalProperties:
+                type: string
+      responses:
+        "200":
+          description: Authorization request accepted, user is asked for consent.
+          content:
+            text/html:
+              schema:
+                type: string
+        "302":
+          description: >
+            If an error occurs, the user-agent is redirected, the authorization server redirects the user-agent to the provided redirect URI.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+#  /internal/auth/v2/{did}/request-presentation:
+#    post:
+#      operationId: requestPresentation
+#      summary: Requests a credential presentation using OAuth2 from a remote wallet through a user-agent.
+#      description: |
+#        Requests a credential presentation using OAuth2 from a remote wallet.
+#        It will redirect the user-agent to the wallet, so the user can give consent.
+#
+#        error returns:
+#        * 400 - one of the parameters has the wrong format
+#        * 503 - the authorizer could not be reached or returned an error
+#      tags:
+#        - auth
+#      parameters:
+#        - name: did
+#          in: path
+#          required: true
+#          schema:
+#            type: string
+#            example: did:nuts:123
+#      requestBody:
+#        required: true
+#        content:
+#          application/json:
+#            schema:
+#              required:
+#                - wallet
+#                - scope
+#              properties:
+#                wallet:
+#                  type: string
+#                # TODO: how should this be specified?
+#                scope:
+#                  type: string
+#                  description: maps to the verifiable credentials to request
+#      responses:
+#        '200':
+#          description: Request initiated, the response will contain a redirect URL to which the user-agent
+#          content:
+#            application/json:
+#              schema:
+#                required:
+#                  - redirect_uri
+#                properties:
+#                  redirect_uri:
+#                    type: string
+#        default:
+#          $ref: '../common/error_response.yaml'
+#  /internal/auth/v2/{did}/request-access-token:
+#    post:
+#      operationId: requestAccessToken
+#      summary: Requests an access token using OAuth2.
+#      description: |
+#        Initiates an OAuth2 flow to request an access token from a remote authorization server.
+#
+#        error returns:
+#        * 400 - one of the parameters has the wrong format
+#        * 503 - the authorizer could not be reached or returned an error
+#      tags:
+#        - auth
+#      parameters:
+#        - name: did
+#          in: path
+#          required: true
+#          schema:
+#            type: string
+#            example: did:nuts:123
+#      requestBody:
+#        required: true
+#        content:
+#          application/json:
+#            schema:
+#              required:
+#                - authorizer
+#                - requester
+#                - scope
+#              properties:
+#                authorizer:
+#                  type: string
+#                requester:
+#                  type: string
+#                scope:
+#                  type: string
+#                  description: The scope that will be The service for which this access token can be used. The right oauth endpoint is selected based on the service.
+#                  example: nuts-patient-transfer
+#      responses:
+#        '200':
+#          description: Successful request. Responds with an access token as described in rfc6749 section 5.1.
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/TokenResponse'
+#        default:
+#          $ref: '../common/error_response.yaml'
+components:
+  schemas:
+    TokenResponse:
+      type: object
+      description: |
+        Token Responses are made as defined in (RFC6749)[https://datatracker.ietf.org/doc/html/rfc6749#section-5.1]
+      required:
+        - access_token
+        - token_type
+      properties:
+        access_token:
+          type: string
+          description: |
+            The access token issued by the authorization server.
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+        token_type:
+          type: string
+          description: |
+            The type of the token issued as described in [RFC6749].
+          example: "bearer"
+        scope:
+          type: string
+        expires_in:
+          type: integer
+          description: |
+            The lifetime in seconds of the access token.
+          example: 3600
+      example:
+        {
+          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
+          "token_type": "bearer",
+          "expires_in": 3600,
+        }
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Code identifying the error that occurred.
+          example: "invalid_request"

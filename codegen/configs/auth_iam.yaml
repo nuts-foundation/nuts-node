@@ -1,0 +1,5 @@
+package: iam
+generate:
+  echo-server: true
+  models: true
+  strict-server: true

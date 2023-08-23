@@ -68,6 +68,11 @@ func (auth *Auth) Config() interface{} {
 	return &auth.config
 }
 
+// V2APIEnabled returns true if the v2 API is enabled
+func (auth *Auth) V2APIEnabled() bool {
+	return auth.config.V2APIEnabled
+}
+
 // ContractNotary returns an implementation of the ContractNotary interface.
 func (auth *Auth) ContractNotary() services.ContractNotary {
 	return auth.contractNotary

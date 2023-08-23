@@ -64,6 +64,10 @@ type mockAuthClient struct {
 	relyingParty   *oauth.MockRelyingParty
 }
 
+func (m *mockAuthClient) V2APIEnabled() bool {
+	return true
+}
+
 func (m *mockAuthClient) AuthzServer() oauth.AuthorizationServer {
 	return m.authzServer
 }
