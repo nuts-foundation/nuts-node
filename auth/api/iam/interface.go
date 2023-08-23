@@ -1,4 +1,4 @@
-package v2
+package iam
 
 // authzResponse is the response to an Authorization Code flow request.
 type authzResponse struct {

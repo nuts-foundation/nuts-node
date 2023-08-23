@@ -1,4 +1,4 @@
-package v2
+package iam
 
 import (
 	"github.com/google/uuid"

@@ -1,4 +1,4 @@
-package: v2
+package: iam
 generate:
   echo-server: true
   models: true

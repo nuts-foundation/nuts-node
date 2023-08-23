@@ -35,7 +35,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/auth"
 	authAPIv1 "github.com/nuts-foundation/nuts-node/auth/api/auth/v1"
-	authAPIv2 "github.com/nuts-foundation/nuts-node/auth/api/auth/v2"
+	authIAMAPI "github.com/nuts-foundation/nuts-node/auth/api/iam"
 	authMeansAPI "github.com/nuts-foundation/nuts-node/auth/api/means/v1"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -214,7 +214,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPIv1.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
-	system.RegisterRoutes(authAPIv2.New(authInstance, credentialInstance))
+	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 
