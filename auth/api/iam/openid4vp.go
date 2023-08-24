@@ -6,12 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/http"
 	"net/url"
 )
 
+const clientIDParam = "client_id"
 const responseTypeParam = "response_type"
 const scopeParam = "scope"
+const stateParam = "state"
 const redirectURIParam = "redirect_uri"
 const presentationDefParam = "presentation_definition"
 const presentationDefUriParam = "presentation_definition_uri"
@@ -46,6 +53,7 @@ func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.Res
 // handlePresentationRequest handles an Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is handled by a wallet, called by a verifier who wants the wallet to present one or more verifiable credentials.
 func (r *Wrapper) handlePresentationRequest(params map[string]string, session *Session) (HandleAuthorizeRequestResponseObject, error) {
+	ctx := context.TODO()
 	// Presentation definition is always derived from the scope.
 	// Later on, we might support presentation_definition and/or presentation_definition_uri parameters instead of scope as well.
 	if err := assertParamNotPresent(params, presentationDefParam, presentationDefUriParam); err != nil {
@@ -80,21 +88,46 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 
 	sessionId := r.sessions.Create(*session)
 
+	// Render HTML
+	templateParams := struct {
+		SessionID    string
+		VerifierName string
+		Credentials  []CredentialInfo
+	}{
+		SessionID: sessionId,
+		// TODO: Maybe this should the verifier name be read from registered client metadata?
+		VerifierName: ssi.MustParseURI(session.RedirectURI).Host,
+	}
+
 	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2357
 	// TODO: Retrieve presentation definition
 	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2359
-	// TODO: Match presentation definition, show credential in HTML page
+	// TODO: Match presentation definition (search for org credential for now)
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+	}
+	credentials, err := r.VCR.Search(ctx, searchTerms, false, nil)
+	if err != nil {
+		return nil, fmt.Errorf("unable to search for credentials: %w", err)
+	}
+	for _, cred := range credentials {
+		var subject []credential.NutsOrganizationCredentialSubject
+		if err = cred.UnmarshalCredentialSubject(&subject); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal credential: %w", err)
+		}
+		if len(subject) != 1 {
+			continue
+		}
+		isOwner, _ := r.VDR.IsOwner(ctx, did.MustParseDID(subject[0].ID))
+		if isOwner {
+			templateParams.Credentials = append(templateParams.Credentials, makeCredentialInfo(cred))
+		}
+	}
 
-	// Render HTML
-	buf := new(bytes.Buffer)
 	// TODO: Support multiple languages
-	err := r.templates.ExecuteTemplate(buf, "assets/authz_wallet_en.html", struct {
-		SessionID string
-		Session
-	}{
-		SessionID: sessionId,
-		Session:   *session,
-	})
+	buf := new(bytes.Buffer)
+	err = r.templates.ExecuteTemplate(buf, "assets/authz_wallet_en.html", templateParams)
 	if err != nil {
 		return nil, fmt.Errorf("unable to render authz page: %w", err)
 	}

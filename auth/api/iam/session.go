@@ -2,6 +2,7 @@ package iam
 
 import (
 	"github.com/google/uuid"
+	"github.com/nuts-foundation/go-did/did"
 	"net/url"
 	"sync"
 )
@@ -31,6 +32,7 @@ func (s *SessionManager) Get(id string) *Session {
 type Session struct {
 	ClientID    string
 	Scope       string
+	OwnDID      did.DID
 	ClientState string
 	RedirectURI string
 }
