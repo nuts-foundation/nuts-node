@@ -5,11 +5,28 @@
 </head>
 <body>
     <h1>Credential required</h1>
-    <p>XYZ requests identification using one or more credentials in your wallet:</p>
-    <ul>
-        <li>Care Organization Credential</li>
-        <li>Chamber of Commerce Credential</li>
-    </ul>
+    <p>{{ .VerifierName }} requests identification using one or more credentials in your wallet:</p>
+
+    {{ range $credential := .Credentials }}
+    <div class="card" style="width: 18rem;">
+        <div class="card-body">
+            <h5 class="card-title">
+                {{ range $i, $type := $credential.Types }}
+                    {{if $i}}, {{end}}{{ $type }}
+                {{ end }}
+            </h5>
+            {{ range $attr := $credential.Attributes }}
+            <ul>
+                <li>
+                    <label>{{ $attr.Name }}</label>
+                    <label>{{ $attr.Value }}</label>
+                </li>
+            </ul>
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+
     <form method="post" action="./openid4vp_authz_consent">
         <input type="hidden" name="sessionID" value="{{.SessionID}}">
         <input type="submit" value="Authorize">

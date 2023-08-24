@@ -33,14 +33,9 @@ type TokenResponse struct {
 	TokenType string `json:"token_type"`
 }
 
-// HandleAuthorizeRequestFormdataBody defines parameters for HandleAuthorizeRequest.
-type HandleAuthorizeRequestFormdataBody struct {
-	ClientId             string            `form:"client_id" json:"client_id"`
-	RedirectUri          *string           `form:"redirect_uri,omitempty" json:"redirect_uri,omitempty"`
-	ResponseType         string            `form:"response_type" json:"response_type"`
-	Scope                *string           `form:"scope,omitempty" json:"scope,omitempty"`
-	State                *string           `form:"state,omitempty" json:"state,omitempty"`
-	AdditionalProperties map[string]string `json:"-"`
+// HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
+type HandleAuthorizeRequestParams struct {
+	Params *map[string]string `form:"params,omitempty" json:"params,omitempty"`
 }
 
 // HandleTokenRequestFormdataBody defines parameters for HandleTokenRequest.
@@ -50,135 +45,8 @@ type HandleTokenRequestFormdataBody struct {
 	AdditionalProperties map[string]string `json:"-"`
 }
 
-// HandleAuthorizeRequestFormdataRequestBody defines body for HandleAuthorizeRequest for application/x-www-form-urlencoded ContentType.
-type HandleAuthorizeRequestFormdataRequestBody HandleAuthorizeRequestFormdataBody
-
 // HandleTokenRequestFormdataRequestBody defines body for HandleTokenRequest for application/x-www-form-urlencoded ContentType.
 type HandleTokenRequestFormdataRequestBody HandleTokenRequestFormdataBody
-
-// Getter for additional properties for HandleAuthorizeRequestFormdataBody. Returns the specified
-// element and whether it was found
-func (a HandleAuthorizeRequestFormdataBody) Get(fieldName string) (value string, found bool) {
-	if a.AdditionalProperties != nil {
-		value, found = a.AdditionalProperties[fieldName]
-	}
-	return
-}
-
-// Setter for additional properties for HandleAuthorizeRequestFormdataBody
-func (a *HandleAuthorizeRequestFormdataBody) Set(fieldName string, value string) {
-	if a.AdditionalProperties == nil {
-		a.AdditionalProperties = make(map[string]string)
-	}
-	a.AdditionalProperties[fieldName] = value
-}
-
-// Override default JSON handling for HandleAuthorizeRequestFormdataBody to handle AdditionalProperties
-func (a *HandleAuthorizeRequestFormdataBody) UnmarshalJSON(b []byte) error {
-	object := make(map[string]json.RawMessage)
-	err := json.Unmarshal(b, &object)
-	if err != nil {
-		return err
-	}
-
-	if raw, found := object["client_id"]; found {
-		err = json.Unmarshal(raw, &a.ClientId)
-		if err != nil {
-			return fmt.Errorf("error reading 'client_id': %w", err)
-		}
-		delete(object, "client_id")
-	}
-
-	if raw, found := object["redirect_uri"]; found {
-		err = json.Unmarshal(raw, &a.RedirectUri)
-		if err != nil {
-			return fmt.Errorf("error reading 'redirect_uri': %w", err)
-		}
-		delete(object, "redirect_uri")
-	}
-
-	if raw, found := object["response_type"]; found {
-		err = json.Unmarshal(raw, &a.ResponseType)
-		if err != nil {
-			return fmt.Errorf("error reading 'response_type': %w", err)
-		}
-		delete(object, "response_type")
-	}
-
-	if raw, found := object["scope"]; found {
-		err = json.Unmarshal(raw, &a.Scope)
-		if err != nil {
-			return fmt.Errorf("error reading 'scope': %w", err)
-		}
-		delete(object, "scope")
-	}
-
-	if raw, found := object["state"]; found {
-		err = json.Unmarshal(raw, &a.State)
-		if err != nil {
-			return fmt.Errorf("error reading 'state': %w", err)
-		}
-		delete(object, "state")
-	}
-
-	if len(object) != 0 {
-		a.AdditionalProperties = make(map[string]string)
-		for fieldName, fieldBuf := range object {
-			var fieldVal string
-			err := json.Unmarshal(fieldBuf, &fieldVal)
-			if err != nil {
-				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
-			}
-			a.AdditionalProperties[fieldName] = fieldVal
-		}
-	}
-	return nil
-}
-
-// Override default JSON handling for HandleAuthorizeRequestFormdataBody to handle AdditionalProperties
-func (a HandleAuthorizeRequestFormdataBody) MarshalJSON() ([]byte, error) {
-	var err error
-	object := make(map[string]json.RawMessage)
-
-	object["client_id"], err = json.Marshal(a.ClientId)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'client_id': %w", err)
-	}
-
-	if a.RedirectUri != nil {
-		object["redirect_uri"], err = json.Marshal(a.RedirectUri)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'redirect_uri': %w", err)
-		}
-	}
-
-	object["response_type"], err = json.Marshal(a.ResponseType)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'response_type': %w", err)
-	}
-
-	if a.Scope != nil {
-		object["scope"], err = json.Marshal(a.Scope)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'scope': %w", err)
-		}
-	}
-
-	if a.State != nil {
-		object["state"], err = json.Marshal(a.State)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'state': %w", err)
-		}
-	}
-
-	for fieldName, field := range a.AdditionalProperties {
-		object[fieldName], err = json.Marshal(field)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
-		}
-	}
-	return json.Marshal(object)
-}
 
 // Getter for additional properties for HandleTokenRequestFormdataBody. Returns the specified
 // element and whether it was found
@@ -266,7 +134,7 @@ type ServerInterface interface {
 	GetOAuthAuthorizationServerMetadata(ctx echo.Context, did string) error
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{did}/authorize)
-	HandleAuthorizeRequest(ctx echo.Context, did string) error
+	HandleAuthorizeRequest(ctx echo.Context, did string, params HandleAuthorizeRequestParams) error
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{did}/token)
 	HandleTokenRequest(ctx echo.Context, did string) error
@@ -304,8 +172,17 @@ func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error 
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params HandleAuthorizeRequestParams
+	// ------------- Optional query parameter "params" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "params", ctx.QueryParams(), &params.Params)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter params: %s", err))
+	}
+
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.HandleAuthorizeRequest(ctx, did)
+	err = w.Handler.HandleAuthorizeRequest(ctx, did, params)
 	return err
 }
 
@@ -398,8 +275,8 @@ func (response GetOAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJ
 }
 
 type HandleAuthorizeRequestRequestObject struct {
-	Did  string `json:"did"`
-	Body *HandleAuthorizeRequestFormdataRequestBody
+	Did    string `json:"did"`
+	Params HandleAuthorizeRequestParams
 }
 
 type HandleAuthorizeRequestResponseObject interface {
@@ -526,20 +403,11 @@ func (sh *strictHandler) GetOAuthAuthorizationServerMetadata(ctx echo.Context, d
 }
 
 // HandleAuthorizeRequest operation middleware
-func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, did string) error {
+func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, did string, params HandleAuthorizeRequestParams) error {
 	var request HandleAuthorizeRequestRequestObject
 
 	request.Did = did
-
-	if form, err := ctx.FormParams(); err == nil {
-		var body HandleAuthorizeRequestFormdataRequestBody
-		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
-			return err
-		}
-		request.Body = &body
-	} else {
-		return err
-	}
+	request.Params = params
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.HandleAuthorizeRequest(ctx.Request().Context(), request.(HandleAuthorizeRequestRequestObject))

@@ -29,8 +29,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"html/template"
@@ -78,6 +80,9 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
 				ctx.Set(core.OperationIDContextKey, operationID)
 				ctx.Set(core.ModuleNameContextKey, auth.ModuleName+"/v2")
+				// Add http.Request to context, to allow reading URL query parameters
+				requestCtx := context.WithValue(ctx.Request().Context(), "http-request", ctx.Request())
+				ctx.SetRequest(ctx.Request().WithContext(requestCtx))
 				// TODO: Do we need a generic error handler?
 				// ctx.Set(core.ErrorWriterContextKey, &protocolErrorWriter{})
 				return f(ctx, request)
@@ -179,24 +184,33 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
+	ownDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		// TODO: Redirect instead
+		return nil, err
+	}
 	// Create session object to be passed to handler
+
+	// Workaround: deepmap codegen doesn't support dynamic query parameters.
+	//             See https://github.com/deepmap/oapi-codegen/issues/1129
+	httpRequest := ctx.Value("http-request").(*http.Request)
+	params := make(map[string]string)
+	for key, value := range httpRequest.URL.Query() {
+		params[key] = value[0]
+	}
 	session := &Session{
 		// TODO: Validate client ID
-		ClientID: request.Body.ClientId,
-	}
-	// TODO: Validate scope?
-	if request.Body.Scope != nil {
-		session.Scope = *request.Body.Scope
-	}
-	if request.Body.State != nil {
-		session.ClientState = *request.Body.State
-	}
-	// TODO: Validate redirect URI
-	if request.Body.RedirectUri != nil {
+		ClientID: params[clientIDParam],
+		// TODO: Validate scope
+		Scope:       params[scopeParam],
+		ClientState: params[stateParam],
 		// TODO: Validate according to https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
-		session.RedirectURI = *request.Body.RedirectUri
-	} else {
+		RedirectURI: params[redirectURIParam],
+		OwnDID:      *ownDID,
+	}
+	if session.RedirectURI == "" {
 		// TODO: Spec says that the redirect URI is optional, but it's not clear what to do if it's not provided.
+		//       Threat models say it's unsafe to omit redirect_uri.
 		//       See https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1
 		return nil, errors.New("missing redirect URI")
 	}
@@ -216,7 +230,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	case responseTypeVPIDToken:
 		// Options:
 		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
-		return r.handlePresentationRequest(request.Body.AdditionalProperties, session)
+		return r.handlePresentationRequest(params, session)
 	default:
 		// TODO: This should be a redirect?
 		// TODO: Don't use openid4vci package for errors
