@@ -3,3 +3,7 @@ generate:
   echo-server: true
   models: true
   strict-server: true
+output-options:
+  skip-prune: false
+  exclude-schemas:
+    - OAuthAuthorizationServerMetadata

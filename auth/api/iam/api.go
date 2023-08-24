@@ -5,11 +5,13 @@ import (
 	"embed"
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"sync"
 )
@@ -22,17 +24,18 @@ var assets embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	VCR      vcr.VCR
-	Auth     auth.AuthenticationServices
+	vcr      vcr.VCR
+	vdr      vdr.DocumentOwner
+	auth     auth.AuthenticationServices
 	sessions *SessionManager
 }
 
-func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR) *Wrapper {
-	sessionManager := &SessionManager{sessions: new(sync.Map)}
+func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.DocumentOwner) *Wrapper {
 	return &Wrapper{
-		sessions: sessionManager,
-		Auth:     authInstance,
-		VCR:      vcrInstance,
+		sessions: &SessionManager{sessions: new(sync.Map)},
+		auth:     authInstance,
+		vcr:      vcrInstance,
+		vdr:      vdrInstance,
 	}
 }
 
@@ -41,7 +44,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
 				ctx.Set(core.OperationIDContextKey, operationID)
-				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName+"/v2")
+				ctx.Set(core.ModuleNameContextKey, auth.ModuleName+"/v2")
 				// TODO: Do we need a generic error handler?
 				// ctx.Set(core.ErrorWriterContextKey, &protocolErrorWriter{})
 				return f(ctx, request)
@@ -49,14 +52,14 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, args interface{}) (interface{}, error) {
-				if !r.Auth.V2APIEnabled() {
+				if !r.auth.V2APIEnabled() {
 					return nil, core.Error(http.StatusForbidden, "Access denied")
 				}
 				return f(ctx, args)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
-			return audit.StrictMiddleware(f, vcr.ModuleName+"/v2", operationID)
+			return audit.StrictMiddleware(f, auth.ModuleName+"/v2", operationID)
 		},
 	}))
 }
@@ -119,18 +122,18 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	}
 
 	switch request.Body.ResponseType {
-	case "code":
+	case responseTypeCode:
 		// Options:
 		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.
 		// - OpenID4VCI; authorization code flow for credential issuance to (end-user) wallet
 		// - OpenID4VP, vp_token is sent in Token Response; authorization code flow for presentation exchange (not required a.t.m.)
 		// TODO: Switch on parameters to right flow
-	case "vp_token":
+	case responseTypeVPToken:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
 		// TODO: Check parameters for right flow
 		// TODO: Do we actually need this? (probably not)
-	case "vp_token id_token":
+	case responseTypeVPIDToken:
 		// Options:
 		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
 		// TODO: Check parameters for right flow
@@ -152,4 +155,30 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		StatusCode: http.StatusBadRequest,
 		//Description: "missing or invalid parameters",
 	}
+}
+
+// GetOAuthAuthorizationServerMetadata returns the Authorization Server's metadata
+func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, request GetOAuthAuthorizationServerMetadataRequestObject) (GetOAuthAuthorizationServerMetadataResponseObject, error) {
+	id, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+
+	if id.Method != "nuts" {
+		return nil, errors.New("only did:nuts is supported")
+	}
+
+	owned, err := r.vdr.IsOwner(ctx, *id)
+	if err != nil {
+		// TODO: should this be not found?
+		return nil, err
+	}
+	if !owned {
+		// TODO: probably not the error we want?
+		return nil, vdr.ErrDIDNotManagedByThisNode
+	}
+
+	identity := r.auth.PublicURL().JoinPath("iam", id.WithoutURL().String()).String()
+
+	return GetOAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(identity)), nil
 }

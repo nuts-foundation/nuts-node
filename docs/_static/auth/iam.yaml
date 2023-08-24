@@ -111,6 +111,43 @@ paths:
               schema:
                 type: string
                 format: uri
+  # TODO: What format to use? (codegenerator breaks on aliases)
+  # See issue https://github.com/nuts-foundation/nuts-node/issues/2365
+  # create aliases for the specced path
+#  /iam/{did}/oauth-authorization-server:
+#    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
+#  /iam/{did}/.well-known/oauth-authorization-server:
+#    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
+  /.well-known/oauth-authorization-server/iam/{did}:
+    get:
+      tags:
+        - well-known
+      summary: Get the OAuth2 Authorization Server metadata
+      description: >
+        Specified by https://www.rfc-editor.org/info/rfc8414
+        The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
+      operationId: getOAuthAuthorizationServerMetadata
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            description: must be did:nuts for now
+            type: string
+            example: did:nuts:123
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
 #  /internal/auth/v2/{did}/request-presentation:
 #    post:
 #      operationId: requestPresentation
@@ -238,6 +275,35 @@ components:
           "token_type": "bearer",
           "expires_in": 3600,
         }
+    OAuthAuthorizationServerMetadata:
+      description: |
+        OAuth2 Authorization Server Metadata
+        Contain properties from several specifications and will grow over time
+      type: object
+      required:
+        - issuer
+        - authorization_endpoint
+        - token_endpoint
+      properties:
+        issuer:
+          type: string
+          description: |
+            The authorization server's issuer identifier, which is
+            a URL that uses the "https" scheme and has no query or fragment
+            components.
+          example: https://issuer.example.com
+        authorization_endpoint:
+          type: string
+          description: |
+            URL of the authorization server's authorization endpoint [RFC6749].
+          example: https://issuer.example.com/authorize
+        token_endpoint:
+          type: string
+          description: |
+            URL of the authorization server's token endpoint [RFC6749].
+          example: https://issuer.example.com/token
+
+
     ErrorResponse:
       type: object
       required:
