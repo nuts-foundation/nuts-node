@@ -35,12 +35,17 @@ type Session struct {
 	RedirectURI string
 }
 
+func AddQueryParams(u url.URL, params map[string]string) url.URL {
+	values := u.Query()
+	for key, value := range params {
+		values.Add(key, value)
+	}
+	u.RawQuery = values.Encode()
+	return u
+}
+
 func (s Session) CreateRedirectURI(params map[string]string) string {
 	redirectURI, _ := url.Parse(s.RedirectURI)
-	query := redirectURI.Query()
-	for key, value := range params {
-		query.Add(key, value)
-	}
-	redirectURI.RawQuery = query.Encode()
-	return redirectURI.String()
+	r := AddQueryParams(*redirectURI, params)
+	return r.String()
 }
