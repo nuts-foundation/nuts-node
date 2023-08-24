@@ -1,6 +1,7 @@
 package iam
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"errors"
@@ -10,7 +11,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"html/template"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 )
 
@@ -22,17 +26,26 @@ var assets embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	VCR      vcr.VCR
-	Auth     auth.AuthenticationServices
-	sessions *SessionManager
+	VCR                     vcr.VCR
+	Auth                    auth.AuthenticationServices
+	sessions                *SessionManager
+	presentationDefinitions presentationDefinitionRegistry
+	templates               *template.Template
 }
 
 func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR) *Wrapper {
 	sessionManager := &SessionManager{sessions: new(sync.Map)}
+	templates := template.New("oauth2 templates")
+	_, err := templates.ParseFS(assets, "assets/*.html")
+	if err != nil {
+		panic(err)
+	}
 	return &Wrapper{
-		sessions: sessionManager,
-		Auth:     authInstance,
-		VCR:      vcrInstance,
+		sessions:                sessionManager,
+		Auth:                    authInstance,
+		VCR:                     vcrInstance,
+		presentationDefinitions: nutsPresentationDefinitionRegistry{},
+		templates:               templates,
 	}
 }
 
@@ -59,6 +72,53 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, vcr.ModuleName+"/v2", operationID)
 		},
 	}))
+	// The following handler is of the OpenID4VP verifier where the browser will be redirected to by the wallet,
+	// after completing a presentation exchange.
+	router.GET("/iam/:did/openid4vp_completed", func(echoCtx echo.Context) error {
+		return errors.New("not implemented")
+	})
+	// The following 2 handlers are used to test/demo the OpenID4VP flow.
+	// - GET renders an HTML page with a form to start the flow.
+	// - POST handles the form submission, initiating the flow.
+	router.GET("/iam/:did/openid4vp_demo", func(echoCtx echo.Context) error {
+		requestURL := *echoCtx.Request().URL
+		requestURL.Host = echoCtx.Request().Host
+		requestURL.Scheme = "http"
+		verifierID := requestURL.String()
+		verifierID, _ = strings.CutSuffix(verifierID, "/openid4vp_demo")
+
+		buf := new(bytes.Buffer)
+		if err := r.templates.ExecuteTemplate(buf, "openid4vp_demo.html", struct {
+			VerifierID string
+			WalletID   string
+		}{
+			VerifierID: verifierID,
+			WalletID:   verifierID,
+		}); err != nil {
+			return err
+		}
+		return echoCtx.HTML(http.StatusOK, buf.String())
+	})
+	router.POST("/iam/:did/openid4vp_demo", func(echoCtx echo.Context) error {
+		verifierID := echoCtx.FormValue("verifier_id")
+		if verifierID == "" {
+			return errors.New("missing verifier_id")
+		}
+		walletID := echoCtx.FormValue("wallet_id")
+		if walletID == "" {
+			return errors.New("missing wallet_id")
+		}
+		scope := echoCtx.FormValue("scope")
+		if scope == "" {
+			return errors.New("missing scope")
+		}
+		walletURL, _ := url.Parse(walletID)
+		verifierURL, _ := url.Parse(verifierID)
+		return r.sendPresentationRequest(
+			echoCtx.Request().Context(), echoCtx.Response(), scope,
+			*walletURL.JoinPath("openid4vp_completed"), *verifierURL, *walletURL,
+		)
+	})
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
@@ -133,7 +193,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	case "vp_token id_token":
 		// Options:
 		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
-		// TODO: Check parameters for right flow
+		return r.handlePresentationRequest(request.Body.AdditionalProperties, session)
 	default:
 		// TODO: This should be a redirect?
 		// TODO: Don't use openid4vci package for errors
