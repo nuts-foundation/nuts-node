@@ -25,7 +25,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"io/fs"
@@ -55,6 +58,8 @@ import (
 )
 
 const credentialsBackupShelf = "credentials"
+
+var _ core.Migratable = (*vcr)(nil)
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(keyStore crypto.KeyStore, vdrInstance vdr.VDR,
@@ -91,6 +96,7 @@ type vcr struct {
 	wallet              holder.Wallet
 	issuerStore         issuer.Store
 	verifierStore       verifier.Store
+	walletStore         stoabs.KVStore
 	jsonldManager       jsonld.JSONLD
 	eventManager        events.Event
 	storageClient       storage.Engine
@@ -141,6 +147,30 @@ func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (stri
 	return identifier, nil
 }
 
+func (c *vcr) Migrate() error {
+	log.Logger().Debug("Migrating credentials to wallet...")
+	count := 0
+	startTime := time.Now()
+	defer func() {
+		log.Logger().Infof("Imported %d credentials into wallet in %s", count, time.Now().Sub(startTime))
+	}()
+	return c.credentialCollection().Iterate(leia.Query{}, func(key leia.Reference, value []byte) error {
+		var cred vc.VerifiableCredential
+		if err := json.Unmarshal(value, &cred); err != nil {
+			hex, err := hash.ParseHex(key.EncodeToString())
+			return fmt.Errorf("unable to unmarshal credential %s: %w", hex, err)
+		}
+		stored, err := c.writeCredentialToWallet(cred)
+		if err != nil {
+			return fmt.Errorf("unable to write credential to wallet (id=%s): %w", cred.ID, err)
+		}
+		if stored {
+			count++
+		}
+		return nil
+	})
+}
+
 func (c *vcr) Issuer() issuer.Issuer {
 	return c.issuer
 }
@@ -184,7 +214,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	// create credentials store (for public credentials and this node's wallet)
+	// create credentials store (for public credentials)
 	if err = c.createCredentialsStore(); err != nil {
 		return err
 	}
@@ -236,7 +266,12 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
-	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager)
+	// Create holder/wallet
+	c.walletStore, err = c.storageClient.GetProvider(ModuleName).GetKVStore("wallet", storage.PersistentStorageClass)
+	if err != nil {
+		return err
+	}
+	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager, c.walletStore)
 
 	if err = c.store.HandleRestore(); err != nil {
 		return err
@@ -550,5 +585,29 @@ func (c *vcr) Diagnostics() []core.DiagnosticResult {
 			Title:   "credential_count",
 			Outcome: credentialCount,
 		},
+		core.DiagnosticResultMap{
+			Title: "wallet_credential_count",
+			Items: c.wallet.Diagnostics(),
+		},
 	}
+}
+
+func (c *vcr) writeCredentialToWallet(cred vc.VerifiableCredential) (bool, error) {
+	if cred.IsType(*credential.NutsAuthorizationCredentialTypeURI) {
+		return false, nil
+	}
+	type credentialSubject struct {
+		ID did.DID `json:"id"`
+	}
+	var subject []credentialSubject
+	_ = cred.UnmarshalCredentialSubject(&subject)
+	if len(subject) < 1 || subject[0].ID.Empty() {
+		return false, nil
+	}
+	ctx := context.Background()
+	isOwner, err := c.vdrInstance.IsOwner(ctx, subject[0].ID)
+	if err != nil || !isOwner {
+		return false, err
+	}
+	return true, c.wallet.Put(ctx, cred)
 }

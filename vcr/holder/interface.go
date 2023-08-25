@@ -23,6 +23,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
@@ -34,10 +35,18 @@ var VerifiablePresentationLDType = ssi.MustParseURI("VerifiablePresentation")
 
 // Wallet holds Verifiable Credentials and can present them.
 type Wallet interface {
+	Diagnostics() []core.DiagnosticResult
+
 	// BuildPresentation builds and signs a Verifiable Presentation using the given Verifiable Credentials.
 	// The assertion key used for signing it is taken from signerDID's DID document.
 	// If signerDID is not provided, it will be derived from the credentials credentialSubject.id fields. But only if all provided credentials have the same (singular) credentialSubject.id field.
 	BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error)
+
+	// List returns all credentials in the wallet for the given holder.
+	List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)
+
+	// Put adds the given credential to the wallet.
+	Put(ctx context.Context, credential vc.VerifiableCredential) error
 }
 
 // PresentationOptions contains parameters used to create the right VerifiablePresentation

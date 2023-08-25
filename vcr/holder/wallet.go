@@ -23,13 +23,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -41,15 +42,19 @@ type wallet struct {
 	keyStore      crypto.KeyStore
 	verifier      verifier.Verifier
 	jsonldManager jsonld.JSONLD
+	walletStore   stoabs.KVStore
 }
 
 // New creates a new Wallet.
-func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD) Wallet {
+func New(
+	keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD,
+	walletStore stoabs.KVStore) Wallet {
 	return &wallet{
 		keyResolver:   keyResolver,
 		keyStore:      keyStore,
 		verifier:      verifier,
 		jsonldManager: jsonldManager,
+		walletStore:   walletStore,
 	}
 }
 
@@ -118,6 +123,73 @@ func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.Verifiab
 	}
 
 	return &signedVP, nil
+}
+
+func (h wallet) Put(ctx context.Context, credential vc.VerifiableCredential) error {
+	subjectDID, err := h.resolveSubjectDID([]vc.VerifiableCredential{credential})
+	if err != nil {
+		return err
+	}
+	err = h.walletStore.WriteShelf(ctx, subjectDID.String(), func(writer stoabs.Writer) error {
+		data, _ := credential.MarshalJSON()
+		return writer.Put(stoabs.BytesKey(credential.ID.String()), data)
+	})
+	if err != nil {
+		return fmt.Errorf("unable to store credential: %w", err)
+	}
+	return nil
+}
+
+func (h wallet) List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	var result []vc.VerifiableCredential
+	err := h.walletStore.ReadShelf(ctx, holderDID.String(), func(reader stoabs.Reader) error {
+		return reader.Iterate(func(key stoabs.Key, value []byte) error {
+			var cred vc.VerifiableCredential
+			err := json.Unmarshal(value, &cred)
+			if err != nil {
+				return fmt.Errorf("unable to unmarshal credential %s: %w", string(key.Bytes()), err)
+			}
+			result = append(result, cred)
+			return nil
+		}, stoabs.BytesKey{})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to list credentials: %w", err)
+	}
+	return result, nil
+}
+
+func (h wallet) Diagnostics() []core.DiagnosticResult {
+	ctx := context.Background()
+	keyIDs := h.keyStore.List(ctx)
+	ownedDIDs := make(map[string]did.DID)
+	for _, keyID := range keyIDs {
+		ownedDIDURL, _ := did.ParseDIDURL(keyID)
+		if ownedDIDURL != nil {
+			ownedDID := ownedDIDURL.WithoutURL()
+			ownedDIDs[ownedDID.String()] = ownedDID
+		}
+	}
+
+	walletCredentialCount := 0
+	for _, ownedDID := range ownedDIDs {
+		err := h.walletStore.ReadShelf(ctx, ownedDID.String(), func(reader stoabs.Reader) error {
+			return reader.Iterate(func(_ stoabs.Key, _ []byte) error {
+				walletCredentialCount++
+				return nil
+			}, stoabs.BytesKey{})
+		})
+		if err != nil {
+			log.Logger().WithError(err).Warn("unable to count credentials in wallet")
+		}
+	}
+
+	return []core.DiagnosticResult{
+		core.GenericDiagnosticResult{
+			Title:   "credential_count",
+			Outcome: walletCredentialCount,
+		},
+	}
 }
 
 func (h wallet) resolveSubjectDID(credentials []vc.VerifiableCredential) (*did.DID, error) {

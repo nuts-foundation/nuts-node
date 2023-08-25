@@ -52,7 +52,7 @@ func ErrorNamingFunc(err error) KIDNamingFunc {
 }
 
 func NewMemoryStorage() spi.Storage {
-	return memoryStorage{}
+	return &memoryStorage{}
 }
 
 type memoryStorage map[string]crypto.PrivateKey

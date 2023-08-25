@@ -65,6 +65,7 @@ func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.
 }
 
 func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
+	// Store in verifier store
 	vcType := "VerifiableCredential"
 	customTypes := credential.ExtractTypes(subject)
 	if len(customTypes) > 0 {
@@ -74,10 +75,14 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 	log.Logger().
 		WithField(core.LogFieldCredentialID, subject.ID).
 		WithField(core.LogFieldCredentialType, vcType).
-		Debug("Writing credential to store")
+		Debug("Writing credential to store and wallet")
 	log.Logger().Tracef("%+v", subject)
 
-	doc, _ := json.Marshal(subject)
+	_, err := c.writeCredentialToWallet(subject)
+	if err != nil {
+		return fmt.Errorf("unable to write credential to wallet (id=%s): %w", subject.ID, err)
+	}
 
+	doc, _ := json.Marshal(subject)
 	return c.credentialCollection().Add([]leia.Document{doc})
 }
