@@ -34,10 +34,10 @@ var VerifiablePresentationLDType = ssi.MustParseURI("VerifiablePresentation")
 
 // Wallet holds Verifiable Credentials and can present them.
 type Wallet interface {
-	// Present builds and signs a Verifiable Presentation using the given Verifiable Credentials.
+	// BuildPresentation builds and signs a Verifiable Presentation using the given Verifiable Credentials.
 	// The assertion key used for signing it is taken from signerDID's DID document.
 	// If signerDID is not provided, it will be derived from the credentials credentialSubject.id fields. But only if all provided credentials have the same (singular) credentialSubject.id field.
-	Present(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error)
+	BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error)
 }
 
 // PresentationOptions contains parameters used to create the right VerifiablePresentation

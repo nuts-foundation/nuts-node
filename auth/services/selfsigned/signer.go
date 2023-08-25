@@ -140,7 +140,7 @@ func (v *signer) createVP(ctx context.Context, s types.Session, issuanceDate tim
 			ProofPurpose: proof.AuthenticationProofPurpose,
 		},
 	}
-	return v.vcr.Wallet().Present(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, issuerID, true)
+	return v.vcr.Wallet().BuildPresentation(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, issuerID, true)
 }
 
 func (v *signer) Start(ctx context.Context) {

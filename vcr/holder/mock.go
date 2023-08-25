@@ -36,17 +36,17 @@ func (m *MockWallet) EXPECT() *MockWalletMockRecorder {
 	return m.recorder
 }
 
-// Present mocks base method.
-func (m *MockWallet) Present(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
+// BuildPresentation mocks base method.
+func (m *MockWallet) BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Present", ctx, credentials, options, signerDID, validateVC)
+	ret := m.ctrl.Call(m, "BuildPresentation", ctx, credentials, options, signerDID, validateVC)
 	ret0, _ := ret[0].(*vc.VerifiablePresentation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Present indicates an expected call of Present.
-func (mr *MockWalletMockRecorder) Present(ctx, credentials, options, signerDID, validateVC interface{}) *gomock.Call {
+// BuildPresentation indicates an expected call of BuildPresentation.
+func (mr *MockWalletMockRecorder) BuildPresentation(ctx, credentials, options, signerDID, validateVC interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Present", reflect.TypeOf((*MockWallet)(nil).Present), ctx, credentials, options, signerDID, validateVC)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPresentation", reflect.TypeOf((*MockWallet)(nil).BuildPresentation), ctx, credentials, options, signerDID, validateVC)
 }

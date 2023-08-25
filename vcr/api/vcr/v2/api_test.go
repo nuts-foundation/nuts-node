@@ -523,7 +523,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 	t.Run("ok - without signer DID", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := createRequest()
-		testContext.mockWallet.EXPECT().Present(
+		testContext.mockWallet.EXPECT().BuildPresentation(
 			testContext.requestCtx,
 			[]VerifiableCredential{verifiableCredential},
 			holder.PresentationOptions{ProofOptions: proof.ProofOptions{Created: created}},
@@ -540,7 +540,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 		testContext := newMockContext(t)
 		request := createRequest()
 		request.SignerDID = &subjectDIDString
-		testContext.mockWallet.EXPECT().Present(
+		testContext.mockWallet.EXPECT().BuildPresentation(
 			testContext.requestCtx,
 			[]VerifiableCredential{verifiableCredential},
 			holder.PresentationOptions{ProofOptions: proof.ProofOptions{Created: created}},
@@ -574,7 +574,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 				ProofPurpose: proofPurpose,
 			},
 		}
-		testContext.mockWallet.EXPECT().Present(
+		testContext.mockWallet.EXPECT().BuildPresentation(
 			testContext.requestCtx,
 			[]VerifiableCredential{verifiableCredential},
 			opts,

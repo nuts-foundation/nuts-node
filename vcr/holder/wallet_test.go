@@ -94,7 +94,7 @@ func TestWallet_Present(t *testing.T) {
 
 		w := New(keyResolver, keyStore, nil, jsonldManager)
 
-		resultingPresentation, err := w.Present(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
+		resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
 
 		require.NoError(t, err)
 		assert.NotNil(t, resultingPresentation)
@@ -115,7 +115,7 @@ func TestWallet_Present(t *testing.T) {
 
 		w := New(keyResolver, keyStore, nil, jsonldManager)
 
-		resultingPresentation, err := w.Present(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
+		resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
 
 		require.NoError(t, err)
 		require.NotNil(t, resultingPresentation)
@@ -134,7 +134,7 @@ func TestWallet_Present(t *testing.T) {
 
 		w := New(keyResolver, keyStore, nil, jsonldManager)
 
-		resultingPresentation, err := w.Present(ctx, []vc.VerifiableCredential{testCredential, testCredential}, options, &testDID, false)
+		resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, testCredential}, options, &testDID, false)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, resultingPresentation)
@@ -154,7 +154,7 @@ func TestWallet_Present(t *testing.T) {
 
 			w := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
-			resultingPresentation, err := w.Present(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, true)
+			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, true)
 
 			assert.NoError(t, err)
 			assert.NotNil(t, resultingPresentation)
@@ -170,7 +170,7 @@ func TestWallet_Present(t *testing.T) {
 
 			w := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
-			resultingPresentation, err := w.Present(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, true)
+			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, true)
 
 			assert.EqualError(t, err, "invalid credential (id=did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0): failed")
 			assert.Nil(t, resultingPresentation)
@@ -188,7 +188,7 @@ func TestWallet_Present(t *testing.T) {
 
 			w := New(keyResolver, keyStore, nil, jsonldManager)
 
-			resultingPresentation, err := w.Present(ctx, []vc.VerifiableCredential{testCredential, testCredential}, options, nil, false)
+			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, testCredential}, options, nil, false)
 
 			assert.NoError(t, err)
 			assert.NotNil(t, resultingPresentation)
@@ -203,7 +203,7 @@ func TestWallet_Present(t *testing.T) {
 
 			w := New(keyResolver, keyStore, nil, jsonldManager)
 
-			resultingPresentation, err := w.Present(ctx, []vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
+			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
 
 			assert.EqualError(t, err, "unable to resolve signer DID from VCs for creating VP: not all VCs have the same credentialSubject.id")
 			assert.Nil(t, resultingPresentation)
@@ -218,7 +218,7 @@ func TestWallet_Present(t *testing.T) {
 
 			w := New(keyResolver, keyStore, nil, jsonldManager)
 
-			resultingPresentation, err := w.Present(ctx, []vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
+			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
 
 			assert.EqualError(t, err, "unable to resolve signer DID from VCs for creating VP: not all VCs contain credentialSubject.id")
 			assert.Nil(t, resultingPresentation)

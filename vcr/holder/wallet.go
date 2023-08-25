@@ -53,7 +53,7 @@ func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifie
 	}
 }
 
-func (h wallet) Present(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
+func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
 	var err error
 	if signerDID == nil {
 		signerDID, err = h.resolveSubjectDID(credentials)
