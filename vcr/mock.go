@@ -228,20 +228,6 @@ func (mr *MockVCRMockRecorder) GetOpenIDIssuer(ctx, id interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOpenIDIssuer", reflect.TypeOf((*MockVCR)(nil).GetOpenIDIssuer), ctx, id)
 }
 
-// Holder mocks base method.
-func (m *MockVCR) Holder() holder.Holder {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Holder")
-	ret0, _ := ret[0].(holder.Holder)
-	return ret0
-}
-
-// Holder indicates an expected call of Holder.
-func (mr *MockVCRMockRecorder) Holder() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Holder", reflect.TypeOf((*MockVCR)(nil).Holder))
-}
-
 // Issuer mocks base method.
 func (m *MockVCR) Issuer() issuer.Issuer {
 	m.ctrl.T.Helper()
@@ -384,4 +370,18 @@ func (m *MockVCR) Verifier() verifier.Verifier {
 func (mr *MockVCRMockRecorder) Verifier() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verifier", reflect.TypeOf((*MockVCR)(nil).Verifier))
+}
+
+// Wallet mocks base method.
+func (m *MockVCR) Wallet() holder.Wallet {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Wallet")
+	ret0, _ := ret[0].(holder.Wallet)
+	return ret0
+}
+
+// Wallet indicates an expected call of Wallet.
+func (mr *MockVCRMockRecorder) Wallet() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Wallet", reflect.TypeOf((*MockVCR)(nil).Wallet))
 }

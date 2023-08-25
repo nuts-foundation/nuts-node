@@ -13,40 +13,40 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockHolder is a mock of Holder interface.
-type MockHolder struct {
+// MockWallet is a mock of Wallet interface.
+type MockWallet struct {
 	ctrl     *gomock.Controller
-	recorder *MockHolderMockRecorder
+	recorder *MockWalletMockRecorder
 }
 
-// MockHolderMockRecorder is the mock recorder for MockHolder.
-type MockHolderMockRecorder struct {
-	mock *MockHolder
+// MockWalletMockRecorder is the mock recorder for MockWallet.
+type MockWalletMockRecorder struct {
+	mock *MockWallet
 }
 
-// NewMockHolder creates a new mock instance.
-func NewMockHolder(ctrl *gomock.Controller) *MockHolder {
-	mock := &MockHolder{ctrl: ctrl}
-	mock.recorder = &MockHolderMockRecorder{mock}
+// NewMockWallet creates a new mock instance.
+func NewMockWallet(ctrl *gomock.Controller) *MockWallet {
+	mock := &MockWallet{ctrl: ctrl}
+	mock.recorder = &MockWalletMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockHolder) EXPECT() *MockHolderMockRecorder {
+func (m *MockWallet) EXPECT() *MockWalletMockRecorder {
 	return m.recorder
 }
 
-// BuildVP mocks base method.
-func (m *MockHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
+// Present mocks base method.
+func (m *MockWallet) Present(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildVP", ctx, credentials, options, signerDID, validateVC)
+	ret := m.ctrl.Call(m, "Present", ctx, credentials, options, signerDID, validateVC)
 	ret0, _ := ret[0].(*vc.VerifiablePresentation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// BuildVP indicates an expected call of BuildVP.
-func (mr *MockHolderMockRecorder) BuildVP(ctx, credentials, options, signerDID, validateVC interface{}) *gomock.Call {
+// Present indicates an expected call of Present.
+func (mr *MockWalletMockRecorder) Present(ctx, credentials, options, signerDID, validateVC interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildVP", reflect.TypeOf((*MockHolder)(nil).BuildVP), ctx, credentials, options, signerDID, validateVC)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Present", reflect.TypeOf((*MockWallet)(nil).Present), ctx, credentials, options, signerDID, validateVC)
 }

@@ -274,7 +274,7 @@ func (w *Wrapper) CreateVP(ctx context.Context, request CreateVPRequestObject) (
 		}
 	}
 
-	vp, err := w.VCR.Holder().BuildVP(ctx, request.Body.VerifiableCredentials, presentationOptions, signerDID, true)
+	vp, err := w.VCR.Wallet().Present(ctx, request.Body.VerifiableCredentials, presentationOptions, signerDID, true)
 	if err != nil {
 		return nil, err
 	}

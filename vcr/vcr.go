@@ -88,7 +88,7 @@ type vcr struct {
 	trustConfig         *trust.Config
 	issuer              issuer.Issuer
 	verifier            verifier.Verifier
-	holder              holder.Holder
+	wallet              holder.Wallet
 	issuerStore         issuer.Store
 	verifierStore       verifier.Store
 	jsonldManager       jsonld.JSONLD
@@ -145,8 +145,8 @@ func (c *vcr) Issuer() issuer.Issuer {
 	return c.issuer
 }
 
-func (c *vcr) Holder() holder.Holder {
-	return c.holder
+func (c *vcr) Wallet() holder.Wallet {
+	return c.wallet
 }
 
 func (c *vcr) Verifier() verifier.Verifier {
@@ -236,7 +236,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
-	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager)
+	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager)
 
 	if err = c.store.HandleRestore(); err != nil {
 		return err

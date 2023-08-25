@@ -133,7 +133,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewSigner(mockContext.vcr, "").(*signer)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
-		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
+		mockContext.wallet.EXPECT().Present(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
 
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
@@ -219,7 +219,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 				return &testVC, nil
 			})
-		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
+		mockContext.wallet.EXPECT().Present(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
 
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
@@ -257,7 +257,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewSigner(mockContext.vcr, "").(*signer)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
-		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(nil, errors.New("error"))
+		mockContext.wallet.EXPECT().Present(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(nil, errors.New("error"))
 
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
@@ -273,7 +273,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 type mockContext struct {
 	ctrl     *gomock.Controller
 	vcr      *vcr.MockVCR
-	holder   *holder.MockHolder
+	wallet   *holder.MockWallet
 	issuer   *issuer.MockIssuer
 	verifier *verifier.MockVerifier
 }
@@ -282,11 +282,11 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 
 	mockVCR := vcr.NewMockVCR(ctrl)
-	mockHolder := holder.NewMockHolder(ctrl)
+	mockHolder := holder.NewMockWallet(ctrl)
 	mockIssuer := issuer.NewMockIssuer(ctrl)
 	mockVerifier := verifier.NewMockVerifier(ctrl)
 
-	mockVCR.EXPECT().Holder().Return(mockHolder).AnyTimes()
+	mockVCR.EXPECT().Wallet().Return(mockHolder).AnyTimes()
 	mockVCR.EXPECT().Issuer().Return(mockIssuer).AnyTimes()
 	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 
@@ -294,7 +294,7 @@ func newMockContext(t *testing.T) mockContext {
 		ctrl:     ctrl,
 		vcr:      mockVCR,
 		issuer:   mockIssuer,
-		holder:   mockHolder,
+		wallet:   mockHolder,
 		verifier: mockVerifier,
 	}
 }
