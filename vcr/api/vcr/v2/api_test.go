@@ -523,7 +523,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 	t.Run("ok - without signer DID", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := createRequest()
-		testContext.mockHolder.EXPECT().BuildVP(
+		testContext.mockWallet.EXPECT().BuildPresentation(
 			testContext.requestCtx,
 			[]VerifiableCredential{verifiableCredential},
 			holder.PresentationOptions{ProofOptions: proof.ProofOptions{Created: created}},
@@ -540,7 +540,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 		testContext := newMockContext(t)
 		request := createRequest()
 		request.SignerDID = &subjectDIDString
-		testContext.mockHolder.EXPECT().BuildVP(
+		testContext.mockWallet.EXPECT().BuildPresentation(
 			testContext.requestCtx,
 			[]VerifiableCredential{verifiableCredential},
 			holder.PresentationOptions{ProofOptions: proof.ProofOptions{Created: created}},
@@ -574,7 +574,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 				ProofPurpose: proofPurpose,
 			},
 		}
-		testContext.mockHolder.EXPECT().BuildVP(
+		testContext.mockWallet.EXPECT().BuildPresentation(
 			testContext.requestCtx,
 			[]VerifiableCredential{verifiableCredential},
 			opts,
@@ -866,7 +866,7 @@ func TestWrapper_Untrusted(t *testing.T) {
 type mockContext struct {
 	ctrl         *gomock.Controller
 	mockIssuer   *issuer.MockIssuer
-	mockHolder   *holder.MockHolder
+	mockWallet   *holder.MockWallet
 	mockVerifier *verifier.MockVerifier
 	vcr          *vcr.MockVCR
 	client       *Wrapper
@@ -878,10 +878,10 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	mockVcr := vcr.NewMockVCR(ctrl)
 	mockIssuer := issuer.NewMockIssuer(ctrl)
-	mockHolder := holder.NewMockHolder(ctrl)
+	mockWallet := holder.NewMockWallet(ctrl)
 	mockVerifier := verifier.NewMockVerifier(ctrl)
 	mockVcr.EXPECT().Issuer().Return(mockIssuer).AnyTimes()
-	mockVcr.EXPECT().Holder().Return(mockHolder).AnyTimes()
+	mockVcr.EXPECT().Wallet().Return(mockWallet).AnyTimes()
 	mockVcr.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 	client := &Wrapper{VCR: mockVcr, ContextManager: jsonld.NewTestJSONLDManager(t)}
 
@@ -890,7 +890,7 @@ func newMockContext(t *testing.T) mockContext {
 	return mockContext{
 		ctrl:         ctrl,
 		mockIssuer:   mockIssuer,
-		mockHolder:   mockHolder,
+		mockWallet:   mockWallet,
 		mockVerifier: mockVerifier,
 		vcr:          mockVcr,
 		client:       client,

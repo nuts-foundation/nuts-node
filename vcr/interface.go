@@ -65,7 +65,7 @@ type Resolver interface {
 // VCR is the interface that covers all functionality of the vcr store.
 type VCR interface {
 	Issuer() issuer.Issuer
-	Holder() holder.Holder
+	Wallet() holder.Wallet
 	Verifier() verifier.Verifier
 	GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error)
 	GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHandler, error)

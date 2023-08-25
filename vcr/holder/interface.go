@@ -32,16 +32,12 @@ var VerifiableCredentialLDContextV1 = ssi.MustParseURI("https://www.w3.org/2018/
 // VerifiablePresentationLDType holds the JSON-LD type for Verifiable Presentations.
 var VerifiablePresentationLDType = ssi.MustParseURI("VerifiablePresentation")
 
-// Holder holds logic for Presenting credentials
-// A Holder is a role an entity might perform by:
-// * Possessing one or more verifiable credentials
-// * Generating verifiable presentations from them
-// Example holders include students, employees, and customers.
-type Holder interface {
-	// BuildVP builds and signs a Verifiable Presentation using the given Verifiable Credentials.
+// Wallet holds Verifiable Credentials and can present them.
+type Wallet interface {
+	// BuildPresentation builds and signs a Verifiable Presentation using the given Verifiable Credentials.
 	// The assertion key used for signing it is taken from signerDID's DID document.
 	// If signerDID is not provided, it will be derived from the credentials credentialSubject.id fields. But only if all provided credentials have the same (singular) credentialSubject.id field.
-	BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error)
+	BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error)
 }
 
 // PresentationOptions contains parameters used to create the right VerifiablePresentation

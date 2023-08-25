@@ -36,16 +36,16 @@ import (
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-type vcHolder struct {
+type wallet struct {
 	keyResolver   vdr.KeyResolver
 	keyStore      crypto.KeyStore
 	verifier      verifier.Verifier
 	jsonldManager jsonld.JSONLD
 }
 
-// New creates a new Holder.
-func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD) Holder {
-	return &vcHolder{
+// New creates a new Wallet.
+func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD) Wallet {
+	return &wallet{
 		keyResolver:   keyResolver,
 		keyStore:      keyStore,
 		verifier:      verifier,
@@ -53,7 +53,7 @@ func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifie
 	}
 }
 
-func (h vcHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
+func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
 	var err error
 	if signerDID == nil {
 		signerDID, err = h.resolveSubjectDID(credentials)
@@ -120,7 +120,7 @@ func (h vcHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCreden
 	return &signedVP, nil
 }
 
-func (h vcHolder) resolveSubjectDID(credentials []vc.VerifiableCredential) (*did.DID, error) {
+func (h wallet) resolveSubjectDID(credentials []vc.VerifiableCredential) (*did.DID, error) {
 	type credentialSubject struct {
 		ID did.DID `json:"id"`
 	}
