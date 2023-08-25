@@ -10,7 +10,7 @@ import (
 
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	leia "github.com/nuts-foundation/go-leia/v4"
+	core "github.com/nuts-foundation/nuts-node/core"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -52,33 +52,18 @@ func (mr *MockWalletMockRecorder) BuildPresentation(ctx, credentials, options, s
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPresentation", reflect.TypeOf((*MockWallet)(nil).BuildPresentation), ctx, credentials, options, signerDID, validateVC)
 }
 
-// CanHold mocks base method.
-func (m *MockWallet) CanHold(ctx context.Context, credential vc.VerifiableCredential) (bool, error) {
+// Diagnostics mocks base method.
+func (m *MockWallet) Diagnostics() []core.DiagnosticResult {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CanHold", ctx, credential)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CanHold indicates an expected call of CanHold.
-func (mr *MockWalletMockRecorder) CanHold(ctx, credential interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CanHold", reflect.TypeOf((*MockWallet)(nil).CanHold), ctx, credential)
-}
-
-// Import mocks base method.
-func (m *MockWallet) Import(collection leia.Collection) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Import", collection)
-	ret0, _ := ret[0].(error)
+	ret := m.ctrl.Call(m, "Diagnostics")
+	ret0, _ := ret[0].([]core.DiagnosticResult)
 	return ret0
 }
 
-// Import indicates an expected call of Import.
-func (mr *MockWalletMockRecorder) Import(collection interface{}) *gomock.Call {
+// Diagnostics indicates an expected call of Diagnostics.
+func (mr *MockWalletMockRecorder) Diagnostics() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Import", reflect.TypeOf((*MockWallet)(nil).Import), collection)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockWallet)(nil).Diagnostics))
 }
 
 // List mocks base method.
