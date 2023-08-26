@@ -61,7 +61,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	storageEngine := storage.NewTestStorageEngine(t)
 	networkInstance := network.NewTestNetworkInstance(t)
 	eventManager := events.NewTestManager(t)
-	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager)
+	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager)
 	err := vdrInstance.Configure(core.ServerConfig{})
 	require.NoError(t, err)
 	newInstance := NewVCRInstance(
