@@ -35,6 +35,7 @@ type Session struct {
 	OwnDID      did.DID
 	ClientState string
 	RedirectURI string
+	ServerState map[string]interface{}
 }
 
 func AddQueryParams(u url.URL, params map[string]string) url.URL {

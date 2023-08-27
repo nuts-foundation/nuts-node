@@ -3,14 +3,17 @@ package iam
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"net/http"
 	"net/url"
 )
@@ -22,10 +25,12 @@ const stateParam = "state"
 const redirectURIParam = "redirect_uri"
 const presentationDefParam = "presentation_definition"
 const presentationDefUriParam = "presentation_definition_uri"
+const presentationSubmissionParam = "presentation_submission"
 const clientMetadataParam = "client_metadata"
 const clientMetadataURIParam = "client_metadata_uri"
 const clientIDSchemeParam = "client_id_scheme"
 const responseModeParam = "response_mode"
+const vpTokenParam = "vp_token"
 
 // createPresentationRequest creates a new Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is sent by a verifier to a wallet, to request one or more verifiable credentials as verifiable presentation from the wallet.
@@ -86,24 +91,21 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 		return nil, fmt.Errorf("unsupported scope for presentation exchange: %s", params[scopeParam])
 	}
 
-	sessionId := r.sessions.Create(*session)
-
 	// Render HTML
 	templateParams := struct {
 		SessionID    string
 		VerifierName string
 		Credentials  []CredentialInfo
 	}{
-		SessionID: sessionId,
 		// TODO: Maybe this should the verifier name be read from registered client metadata?
 		VerifierName: ssi.MustParseURI(session.RedirectURI).Host,
 	}
 
 	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2357
 	// TODO: Retrieve presentation definition
-	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2359
-	// TODO: Match presentation definition (search for org credential for now)
+	// TODO: Match on wallet instead
 	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.CredentialSubjectPath, Type: vcr.Exact, Value: session.OwnDID.String()},
 		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
@@ -111,6 +113,7 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 	if err != nil {
 		return nil, fmt.Errorf("unable to search for credentials: %w", err)
 	}
+	var ownCredentials []vc.VerifiableCredential
 	for _, cred := range credentials {
 		var subject []credential.NutsOrganizationCredentialSubject
 		if err = cred.UnmarshalCredentialSubject(&subject); err != nil {
@@ -121,13 +124,29 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 		}
 		isOwner, _ := r.VDR.IsOwner(ctx, did.MustParseDID(subject[0].ID))
 		if isOwner {
-			templateParams.Credentials = append(templateParams.Credentials, makeCredentialInfo(cred))
+			ownCredentials = append(ownCredentials, cred)
 		}
 	}
 
+	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2359
+	// TODO: Match presentation definition (search for org credential for now)
+	// TODO: What if multiple credentials of the same type match?
+	_, matchingCredentials, err := presentationDefinition.Match(credentials)
+	if err != nil {
+		return nil, fmt.Errorf("unable to match presentation definition: %w", err)
+	}
+	var credentialIDs []string
+	for _, matchingCredential := range matchingCredentials {
+		templateParams.Credentials = append(templateParams.Credentials, makeCredentialInfo(matchingCredential))
+		credentialIDs = append(credentialIDs, matchingCredential.ID.String())
+	}
+	session.ServerState["openid4vp_credentials"] = credentialIDs
+
+	templateParams.SessionID = r.sessions.Create(*session)
+
 	// TODO: Support multiple languages
 	buf := new(bytes.Buffer)
-	err = r.templates.ExecuteTemplate(buf, "assets/authz_wallet_en.html", templateParams)
+	err = r.templates.ExecuteTemplate(buf, "authz_wallet_en.html", templateParams)
 	if err != nil {
 		return nil, fmt.Errorf("unable to render authz page: %w", err)
 	}
@@ -147,9 +166,46 @@ func (r *Wrapper) handlePresentationRequestConsent(c echo.Context) error {
 	if session == nil {
 		return errors.New("invalid session")
 	}
-	// TODO: create presentation submission
+
+	// TODO: Change to loading from wallet
+	credentialIDs, ok := session.ServerState["openid4vp_credentials"].([]string)
+	if !ok {
+		return errors.New("invalid session (missing credentials in session)")
+	}
+	var credentials []vc.VerifiableCredential
+	for _, id := range credentialIDs {
+		credentialID, _ := ssi.ParseURI(id)
+		if credentialID == nil {
+			continue // should be impossible
+		}
+		cred, err := r.VCR.Resolve(*credentialID, nil)
+		if err != nil {
+			return err
+		}
+		credentials = append(credentials, *cred)
+	}
+	presentationDefinition := r.presentationDefinitions.ByScope(session.Scope)
+	if presentationDefinition == nil {
+		return fmt.Errorf("unsupported scope for presentation exchange: %s", session.Scope)
+	}
+	// TODO: Options
+	var resultParams map[string]string
+	presentationSubmission, credentials, err := presentationDefinition.Match(credentials)
+	if err != nil {
+		// Matched earlier, shouldn't happen
+		return err
+	}
+	presentationSubmissionJSON, _ := json.Marshal(presentationSubmission)
+	resultParams[presentationSubmissionParam] = string(presentationSubmissionJSON)
+	verifiablePresentation, err := r.VCR.Holder().BuildVP(c.Request().Context(), credentials, holder.PresentationOptions{}, &session.OwnDID, false)
+	if err != nil {
+		return err
+	}
+	verifiablePresentationJSON, _ := verifiablePresentation.MarshalJSON()
+	resultParams[vpTokenParam] = string(verifiablePresentationJSON)
+
 	// TODO: check response mode, and submit accordingly (direct_post)
-	return c.Redirect(http.StatusFound, session.CreateRedirectURI(map[string]string{}))
+	return c.Redirect(http.StatusFound, session.CreateRedirectURI(resultParams))
 }
 
 func assertParamPresent(params map[string]string, param ...string) error {

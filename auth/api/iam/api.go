@@ -204,6 +204,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		// TODO: Validate scope
 		Scope:       params[scopeParam],
 		ClientState: params[stateParam],
+		ServerState: map[string]interface{}{},
 		// TODO: Validate according to https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
 		RedirectURI: params[redirectURIParam],
 		OwnDID:      *ownDID,
