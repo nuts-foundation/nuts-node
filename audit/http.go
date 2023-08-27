@@ -32,6 +32,16 @@ func StrictMiddleware(next func(ctx echo.Context, args interface{}) (interface{}
 	}
 }
 
+// Middleware is like SetOnEchoContext but then as handler for server interfaces.
+func Middleware(moduleName, operationID string) func(echo.HandlerFunc) echo.HandlerFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			SetOnEchoContext(c, moduleName, operationID)
+			return next(c)
+		}
+	}
+}
+
 // SetOnEchoContext adds audit information to the Echo request context so that the audit logger can log it.
 // It sets the following fields:
 // - actor, which is the subject of the JWT. Falls back to the client IP address if no authentication is used.
