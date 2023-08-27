@@ -8,7 +8,7 @@
     <h1>Credential required</h1>
     <p>{{ .VerifierName }} requests identification using one or more credentials in your wallet:</p>
 
-    <form method="post" class="form" action="./openid4vp_authz_consent">
+    <form method="post" class="form" action="./openid4vp_authz_accept">
         <div class="form-group">
             {{ range $credential := .Credentials }}
             <div class="card">

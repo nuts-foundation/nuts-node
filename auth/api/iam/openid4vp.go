@@ -157,10 +157,10 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 }
 
 // handleAuthConsent handles the authorization consent form submission.
-func (r *Wrapper) handlePresentationRequestConsent(c echo.Context) error {
+func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	// TODO: Needs authentication?
 	var session *Session
-	if sessionID := c.Param("sessionID"); sessionID != "" {
+	if sessionID := c.FormValue("sessionID"); sessionID != "" {
 		session = r.sessions.Get(sessionID)
 	}
 	if session == nil {
@@ -189,7 +189,7 @@ func (r *Wrapper) handlePresentationRequestConsent(c echo.Context) error {
 		return fmt.Errorf("unsupported scope for presentation exchange: %s", session.Scope)
 	}
 	// TODO: Options
-	var resultParams map[string]string
+	resultParams := map[string]string{}
 	presentationSubmission, credentials, err := presentationDefinition.Match(credentials)
 	if err != nil {
 		// Matched earlier, shouldn't happen
@@ -206,6 +206,35 @@ func (r *Wrapper) handlePresentationRequestConsent(c echo.Context) error {
 
 	// TODO: check response mode, and submit accordingly (direct_post)
 	return c.Redirect(http.StatusFound, session.CreateRedirectURI(resultParams))
+}
+
+func (r *Wrapper) handlePresentationRequestCompleted(ctx echo.Context) error {
+	// TODO: support error response
+	// TODO: response direct_post mode
+	vpToken := ctx.QueryParams()[vpTokenParam]
+	if len(vpToken) == 0 {
+		// TODO: User-agent is a browser, need to render an HTML page
+		return errors.New("missing parameter " + vpTokenParam)
+	}
+	vp := vc.VerifiablePresentation{}
+	if err := vp.UnmarshalJSON([]byte(vpToken[0])); err != nil {
+		// TODO: User-agent is a browser, need to render an HTML page
+		return err
+	}
+	// TODO: verify signature and credentials of VP
+	var credentials []CredentialInfo
+	for _, cred := range vp.VerifiableCredential {
+		credentials = append(credentials, makeCredentialInfo(cred))
+	}
+	buf := new(bytes.Buffer)
+	if err := r.templates.ExecuteTemplate(buf, "openid4vp_demo_completed.html", struct {
+		Credentials []CredentialInfo
+	}{
+		Credentials: credentials,
+	}); err != nil {
+		return err
+	}
+	return ctx.HTML(http.StatusOK, buf.String())
 }
 
 func assertParamPresent(params map[string]string, param ...string) error {
