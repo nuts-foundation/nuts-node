@@ -40,9 +40,13 @@ func makeCredentialInfo(cred vc.VerifiableCredential) CredentialInfo {
 	}
 
 	for key, value := range propsMap {
+		if key == "id" {
+			// omit ID attribute
+			continue
+		}
 		result.Attributes = append(result.Attributes, CredentialInfoAttribute{
 			Name:  key,
-			Value: fmt.Sprintf("%sv", value),
+			Value: fmt.Sprintf("%s", value),
 		})
 	}
 	sort.SliceStable(result.Attributes, func(i, j int) bool {
