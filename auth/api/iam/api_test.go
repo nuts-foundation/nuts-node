@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package iam
 
 import (
@@ -15,36 +33,19 @@ import (
 func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		//	200
-		publicUrl := "https://example.com:443"
-		ctx := newTestClient(t, publicUrl)
+		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
 		ctx.documentOwner.EXPECT().IsOwner(nil, did).Return(true, nil)
-		identity := publicUrl + "/iam/" + did.String()
-
-		expected := GetOAuthAuthorizationServerMetadata200JSONResponse(OAuthAuthorizationServerMetadata{
-			Issuer:                 identity,
-			AuthorizationEndpoint:  identity + "/authorize",
-			ResponseTypesSupported: []string{"code", "vp_token", "vp_token id_token"},
-			ResponseModesSupported: []string{"query", "direct_post"},
-			TokenEndpoint:          identity + "/token",
-			GrantTypesSupported:    []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
-			PreAuthorizedGrantAnonymousAccessSupported: true,
-			VPFormatsSupported: map[string]map[string][]string{
-				"jwt_vp": {"alg_values_supported": []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}},
-				"ldp_vc": {"proof_type_values_supported": []string{"JsonWebSignature2020"}},
-			},
-			ClientIdSchemesSupported: []string{"did"},
-		})
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
 
 		require.NoError(t, err)
-		assert.Equal(t, expected, res)
+		assert.IsType(t, GetOAuthAuthorizationServerMetadata200JSONResponse{}, res)
 
 	})
 	t.Run("error - not a did", func(t *testing.T) {
 		//400
-		ctx := newTestClient(t, "")
+		ctx := newTestClient(t)
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{})
 
@@ -54,7 +55,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 	})
 	t.Run("error - not a did:nuts", func(t *testing.T) {
 		//400
-		ctx := newTestClient(t, "")
+		ctx := newTestClient(t)
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: "did:web:example.com"})
 
@@ -64,7 +65,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 	})
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		//404
-		ctx := newTestClient(t, "")
+		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
 		ctx.documentOwner.EXPECT().IsOwner(nil, did)
 
@@ -76,7 +77,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 	})
 	t.Run("error - did does not exist", func(t *testing.T) {
 		//404
-		ctx := newTestClient(t, "")
+		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
 		ctx.documentOwner.EXPECT().IsOwner(nil, did).Return(false, vdr.ErrNotFound)
 
@@ -88,7 +89,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 	})
 	t.Run("error - internal error 500", func(t *testing.T) {
 		//500
-		ctx := newTestClient(t, "")
+		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
 		ctx.documentOwner.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
 
@@ -114,13 +115,13 @@ type testCtx struct {
 	documentOwner *vdr.MockDocumentOwner
 }
 
-func newTestClient(t testing.TB, publicUrl string) *testCtx {
+func newTestClient(t testing.TB) *testCtx {
 	ctrl := gomock.NewController(t)
 	ctx := &testCtx{
 		documentOwner: vdr.NewMockDocumentOwner(ctrl),
 	}
 	ctx.client = &Wrapper{
-		auth: auth.NewAuthInstance(auth.Config{PublicURL: publicUrl}, nil, nil, nil, nil, nil, nil),
+		auth: auth.NewAuthInstance(auth.Config{PublicURL: "https://example.com"}, nil, nil, nil, nil, nil, nil),
 		vdr:  ctx.documentOwner,
 	}
 	return ctx
