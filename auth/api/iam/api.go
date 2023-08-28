@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package iam
 
 import (
@@ -8,9 +26,11 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"sync"
@@ -165,20 +185,22 @@ func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, reques
 	}
 
 	if id.Method != "nuts" {
-		return nil, errors.New("only did:nuts is supported")
+		return nil, core.InvalidInputError("only did:nuts is supported")
 	}
 
 	owned, err := r.vdr.IsOwner(ctx, *id)
 	if err != nil {
-		// TODO: should this be not found?
+		if didservice.IsFunctionalResolveError(err) {
+			return nil, core.NotFoundError(err.Error())
+		}
+		log.Logger().WithField("did", id.String()).Errorf("failed to assert ownership of did: %s", err.Error())
 		return nil, err
 	}
 	if !owned {
-		// TODO: probably not the error we want?
-		return nil, vdr.ErrDIDNotManagedByThisNode
+		return nil, core.NotFoundError(err.Error())
 	}
 
-	identity := r.auth.PublicURL().JoinPath("iam", id.WithoutURL().String()).String()
+	identity := r.auth.PublicURL().JoinPath("iam", id.WithoutURL().String())
 
-	return GetOAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(identity)), nil
+	return GetOAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
 }

@@ -126,6 +126,11 @@ paths:
       description: >
         Specified by https://www.rfc-editor.org/info/rfc8414
         The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
+        
+        error returns:
+        * 400 - invalid input
+        * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
+        * 500 - internal server error
       operationId: getOAuthAuthorizationServerMetadata
       parameters:
         - name: did
@@ -142,12 +147,8 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
-        "404":
-          description: Unknown issuer
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
+        default:
+          $ref: '../common/error_response.yaml'
 #  /internal/auth/v2/{did}/request-presentation:
 #    post:
 #      operationId: requestPresentation
@@ -280,30 +281,6 @@ components:
         OAuth2 Authorization Server Metadata
         Contain properties from several specifications and will grow over time
       type: object
-      required:
-        - issuer
-        - authorization_endpoint
-        - token_endpoint
-      properties:
-        issuer:
-          type: string
-          description: |
-            The authorization server's issuer identifier, which is
-            a URL that uses the "https" scheme and has no query or fragment
-            components.
-          example: https://issuer.example.com
-        authorization_endpoint:
-          type: string
-          description: |
-            URL of the authorization server's authorization endpoint [RFC6749].
-          example: https://issuer.example.com/authorize
-        token_endpoint:
-          type: string
-          description: |
-            URL of the authorization server's token endpoint [RFC6749].
-          example: https://issuer.example.com/token
-
-
     ErrorResponse:
       type: object
       required:

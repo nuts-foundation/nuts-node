@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package iam
 
 // responseType
@@ -62,29 +80,19 @@ var grantTypesSupported = []grantType{grantTypeAuthorizationCode, grantTypeVPTok
 // TODO: validate list, should reflect current recommendations from https://www.ncsc.nl
 var algValuesSupported = []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}
 
-// proofTypesSupported contains a list of supported cipher suites for ldp_vc & ldp_vp presentation formats
+// proofTypeValuesSupported contains a list of supported cipher suites for ldp_vc & ldp_vp presentation formats
 // Recommended list of options https://w3c-ccg.github.io/ld-cryptosuite-registry/
-var proofTypesSupported = []string{"JsonWebSignature2020"}
+var proofTypeValuesSupported = []string{"JsonWebSignature2020"}
 
 // vpFormatsSupported defines the supported formats and is used in the
 //   - Authorization Server's metadata field `vp_formats_supported`
 //   - Client's metadata field `vp_formats`
 //
 // TODO: spec is very unclear about this part.
-//
-//	It refers to the OpenID4VCI spec for definition of valid credential formats but then also defines its own,
-//	but neither is followed in the examples.
-//
-// OpenID4VCI defined formats are jwt_vc_json, jwt_vc_json-ld, ldp_vc
-//
-// OpenID4VP defines:
-//   - jwt_vc_json & jwt_vp_json   that should use values defined on https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-algorithms
-//   - ldp_vc      & ldp_vp		that should use valued defined on https://w3c-ccg.github.io/ld-cryptosuite-registry/
-//
-// but the examples then seem to be a mix and match of everything.
+// See https://github.com/nuts-foundation/nuts-node/issues/2447
 var vpFormatsSupported = map[string]map[string][]string{
-	"jwt_vp": {"algValuesSupported": algValuesSupported},
-	"ldp_vc": {"algValuesSupported": proofTypesSupported}, // certain examples suggest that "algValuesSupported" should be "proof_types" but this is not specced
+	"jwt_vp": {"alg_values_supported": algValuesSupported},
+	"ldp_vc": {"proof_type_values_supported": proofTypeValuesSupported},
 }
 
 // clientIdSchemesSupported lists the supported client_id_scheme

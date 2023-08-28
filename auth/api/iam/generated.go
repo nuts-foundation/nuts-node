@@ -376,13 +376,25 @@ func (response GetOAuthAuthorizationServerMetadata200JSONResponse) VisitGetOAuth
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetOAuthAuthorizationServerMetadata404JSONResponse ErrorResponse
+type GetOAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
 
-func (response GetOAuthAuthorizationServerMetadata404JSONResponse) VisitGetOAuthAuthorizationServerMetadataResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
 
-	return json.NewEncoder(w).Encode(response)
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetOAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse) VisitGetOAuthAuthorizationServerMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type HandleAuthorizeRequestRequestObject struct {
