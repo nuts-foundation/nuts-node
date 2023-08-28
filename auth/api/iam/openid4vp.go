@@ -197,7 +197,7 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	}
 	presentationSubmissionJSON, _ := json.Marshal(presentationSubmission)
 	resultParams[presentationSubmissionParam] = string(presentationSubmissionJSON)
-	verifiablePresentation, err := r.VCR.Holder().BuildVP(c.Request().Context(), credentials, holder.PresentationOptions{}, &session.OwnDID, false)
+	verifiablePresentation, err := r.VCR.Wallet().BuildPresentation(c.Request().Context(), credentials, holder.PresentationOptions{}, &session.OwnDID, false)
 	if err != nil {
 		return err
 	}
