@@ -181,23 +181,23 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, request GetOAuthAuthorizationServerMetadataRequestObject) (GetOAuthAuthorizationServerMetadataResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, err
+		return nil, core.InvalidInputError("authz server metadata: %w", err)
 	}
 
 	if id.Method != "nuts" {
-		return nil, core.InvalidInputError("only did:nuts is supported")
+		return nil, core.InvalidInputError("authz server metadata: only did:nuts is supported")
 	}
 
 	owned, err := r.vdr.IsOwner(ctx, *id)
 	if err != nil {
 		if didservice.IsFunctionalResolveError(err) {
-			return nil, core.NotFoundError(err.Error())
+			return nil, core.NotFoundError("authz server metadata: %w", err)
 		}
-		log.Logger().WithField("did", id.String()).Errorf("failed to assert ownership of did: %s", err.Error())
-		return nil, err
+		log.Logger().WithField("did", id.String()).Errorf("authz server metadata: failed to assert ownership of did: %s", err.Error())
+		return nil, core.Error(500, "authz server metadata: %w", err)
 	}
 	if !owned {
-		return nil, core.NotFoundError(err.Error())
+		return nil, core.NotFoundError("authz server metadata: did not owned")
 	}
 
 	identity := r.auth.PublicURL().JoinPath("iam", id.WithoutURL().String())
