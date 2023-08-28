@@ -123,6 +123,7 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	// mocks
 	publicKey := signer.Public()
 
+	ctx.vdr.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 	ctx.didResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(documentWithPublicKey(t, publicKey), nil, nil)
 
 	// Publish a VC
