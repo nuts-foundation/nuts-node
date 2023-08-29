@@ -15,6 +15,7 @@ import (
 )
 
 func newAuthorizedCodeFlow(sessions *SessionManager) *authorizedCodeFlow {
+	// TODO: localize the template path, but how can we do that without the http request headers here?
 	authzTemplate, _ := template.ParseFS(assets, "assets/authz_en.html")
 	return &authorizedCodeFlow{
 		sessions:      sessions,
@@ -38,7 +39,7 @@ func (a authorizedCodeFlow) handleAuthzRequest(params map[string]string, session
 
 	// Render HTML
 	buf := new(bytes.Buffer)
-	// TODO: Support multiple languages
+	// TODO: Support multiple languages -- but how with the template path hardcoded prior to the request?
 	err := a.authzTemplate.Execute(buf, struct {
 		SessionID string
 		Session

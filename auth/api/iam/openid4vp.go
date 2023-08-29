@@ -146,9 +146,12 @@ func (r *Wrapper) handlePresentationRequest(httpRequest *http.Request, params ma
 
 	templateParams.SessionID = r.sessions.Create(*session)
 
-	// TODO: Support multiple languages
+	// Determine the preferred language of the user-agent (browser)
+	acceptLanguage := httpRequest.Header.Get("Accept-Language")
+	templatePath := localize("authz_wallet_en.html", map[string]string{"nl": "authz_wallet_nl.html"}, acceptLanguage)
+
 	buf := new(bytes.Buffer)
-	err = r.templates.ExecuteTemplate(buf, "authz_wallet_en.html", templateParams)
+	err = r.templates.ExecuteTemplate(buf, templatePath, templateParams)
 	if err != nil {
 		return nil, fmt.Errorf("unable to render authz page: %w", err)
 	}

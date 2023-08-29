@@ -1,0 +1,14 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Autorisatie vereist</title>
+</head>
+<body>
+    <h1>Autorisatie vereist</h1>
+    <p>U moet toestemming geven om deze applicatie toegang te krijgen tot uw account.</p>
+    <form method="post" action="./authz_consent">
+        <input type="hidden" name="sessionID" value="{{.SessionID}}">
+        <input type="submit" value="Toestaan">
+    </form>
+</body>
+</html>
