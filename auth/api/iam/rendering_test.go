@@ -1,24 +1,26 @@
 package iam
 
 import (
-	"context"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-func TestHtmlCredentialRenderer_Render(t *testing.T) {
+func Test_makeCredentialInfo(t *testing.T) {
 	var cred vc.VerifiableCredential
 	err := cred.UnmarshalJSON([]byte(nutsOrgCredentialJSON))
 	require.NoError(t, err)
-	jsonldManager := jsonld.NewTestJSONLDManager(t)
-	renderer := HtmlCredentialRenderer{DocumentLoader: jsonldManager.DocumentLoader()}
 
-	result, err := renderer.Render(context.Background(), cred)
+	info := makeCredentialInfo(cred)
 
-	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.Equal(t, cred.ID.String(), info.ID)
+	assert.Equal(t, []string{"NutsOrganizationCredential"}, info.Type)
+	assert.Len(t, info.Attributes, 2)
+	assert.Equal(t, "organization city", info.Attributes[0].Name)
+	assert.Equal(t, "IJbergen", info.Attributes[0].Value)
+	assert.Equal(t, "organization name", info.Attributes[1].Name)
+	assert.Equal(t, "Because we care B.V.", info.Attributes[1].Value)
 }
 
 const nutsOrgCredentialJSON = `
