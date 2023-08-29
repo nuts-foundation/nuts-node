@@ -5,9 +5,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
-// MedicalMetadataScope is the scope for interacting with medical metadata (non-PII).
 // TODO: We need to decide on these.
-const MedicalMetadataScope = "medical-metadata"
+const eOverdrachtOverdrachtsberichtScope = "eOverdracht-overdrachtsbericht"
 
 // presentationDefinitionRegistry is a registry for presentation definitions.
 type presentationDefinitionRegistry interface {
@@ -20,7 +19,7 @@ type nutsPresentationDefinitionRegistry struct {
 }
 
 func (n nutsPresentationDefinitionRegistry) ByScope(scope string) *pe.PresentationDefinition {
-	if scope != MedicalMetadataScope {
+	if scope != eOverdrachtOverdrachtsberichtScope {
 		return nil
 	}
 	return &pe.PresentationDefinition{

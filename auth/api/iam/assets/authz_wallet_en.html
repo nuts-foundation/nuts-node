@@ -18,14 +18,33 @@
                             {{if $i}}, {{end}}{{ $type }}
                         {{ end }}
                     </h5>
-                    {{ range $attr := $credential.Attributes }}
                     <ul>
+                        {{ range $attr := $credential.Attributes }}
                         <li>
                             <span>{{ $attr.Name }}:</span>
                             <span>{{ $attr.Value }}</span>
                         </li>
+                        {{ end }}
                     </ul>
-                    {{ end }}
+                </div>
+            </div>
+            {{ end }}
+            {{ if .RequiresUserIdentity }}
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        ZorgverlenerCredential
+                    </h5>
+                    <ul>
+                        <li>
+                            <span>Naam:</span>
+                            <span>M. Visser (zorgverlener)</span>
+                        </li>
+                        <li>
+                            <span>Rol:</span>
+                            <span>Verpleegkundige niveau 4</span>
+                        </li>
+                    </ul>
                 </div>
             </div>
             {{ end }}

@@ -8,8 +8,14 @@
 <h1>OpenID4VP Demo (Verifier)</h1>
 <p>This is a demo to have a verifier request a Verifiable Presentation from a wallet.</p>
 <form method="post" class="form-control">
-    <div>Scope: <input class="form-control" type="text" name="scope" value="medical-metadata"></div>
-    <div>Verifier Identifier: <input class="form-control" type="text" name="verifier_id" value="{{.VerifierID}}"></div>
+    <div>
+        Scope:
+        <select name="scope" class="form-control">
+            <option value="eOverdracht-overdrachtsbericht" selected>eOverdracht-overdrachtsbericht (requires user identity)</option>
+            <option>eOverdracht-aanmeldbericht</option>
+        </select>
+    </div>
+    <input type="hidden" name="verifier_id" value="{{.VerifierID}}">
     <div>Wallet Identifier: <input class="form-control" type="text" name="wallet_id" value="{{.WalletID}}"></div>
     <div><input type="submit" value="Request Presentation"></div>
 </form>
