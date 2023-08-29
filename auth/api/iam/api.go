@@ -175,7 +175,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	case "vp_token id_token":
 		// Options:
 		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
-		return r.handlePresentationRequest(params, session)
+		return r.handlePresentationRequest(httpRequest, params, session)
 	default:
 		// TODO: This should be a redirect?
 		// TODO: Don't use openid4vci package for errors

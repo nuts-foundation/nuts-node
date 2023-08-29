@@ -58,7 +58,7 @@ func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.Res
 
 // handlePresentationRequest handles an Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is handled by a wallet, called by a verifier who wants the wallet to present one or more verifiable credentials.
-func (r *Wrapper) handlePresentationRequest(params map[string]string, session *Session) (HandleAuthorizeRequestResponseObject, error) {
+func (r *Wrapper) handlePresentationRequest(httpRequest *http.Request, params map[string]string, session *Session) (HandleAuthorizeRequestResponseObject, error) {
 	ctx := context.TODO()
 	// Presentation definition is always derived from the scope.
 	// Later on, we might support presentation_definition and/or presentation_definition_uri parameters instead of scope as well.
