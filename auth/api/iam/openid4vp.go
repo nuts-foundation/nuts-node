@@ -16,6 +16,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 const clientIDParam = "client_id"
@@ -93,12 +94,14 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 
 	// Render HTML
 	templateParams := struct {
-		SessionID    string
-		VerifierName string
-		Credentials  []CredentialInfo
+		SessionID            string
+		RequiresUserIdentity bool
+		VerifierName         string
+		Credentials          []CredentialInfo
 	}{
 		// TODO: Maybe this should the verifier name be read from registered client metadata?
-		VerifierName: ssi.MustParseURI(session.RedirectURI).Host,
+		VerifierName:         ssi.MustParseURI(session.RedirectURI).Host,
+		RequiresUserIdentity: strings.Contains(session.ResponseType, "id_token"),
 	}
 
 	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2357

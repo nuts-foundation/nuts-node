@@ -167,8 +167,9 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		ClientState: params[stateParam],
 		ServerState: map[string]interface{}{},
 		// TODO: Validate according to https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
-		RedirectURI: params[redirectURIParam],
-		OwnDID:      *ownDID,
+		RedirectURI:  params[redirectURIParam],
+		OwnDID:       *ownDID,
+		ResponseType: params[responseTypeParam],
 	}
 	if session.RedirectURI == "" {
 		// TODO: Spec says that the redirect URI is optional, but it's not clear what to do if it's not provided.

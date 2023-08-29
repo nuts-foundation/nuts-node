@@ -30,12 +30,13 @@ func (s *SessionManager) Get(id string) *Session {
 }
 
 type Session struct {
-	ClientID    string
-	Scope       string
-	OwnDID      did.DID
-	ClientState string
-	RedirectURI string
-	ServerState map[string]interface{}
+	ClientID     string
+	Scope        string
+	OwnDID       did.DID
+	ClientState  string
+	RedirectURI  string
+	ServerState  map[string]interface{}
+	ResponseType string
 }
 
 func AddQueryParams(u url.URL, params map[string]string) url.URL {
