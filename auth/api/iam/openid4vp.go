@@ -129,7 +129,6 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 	}
 
 	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2359
-	// TODO: Match presentation definition (search for org credential for now)
 	// TODO: What if multiple credentials of the same type match?
 	_, matchingCredentials, err := presentationDefinition.Match(credentials)
 	if err != nil {
