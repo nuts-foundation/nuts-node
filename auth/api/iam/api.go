@@ -159,18 +159,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	for key, value := range httpRequest.URL.Query() {
 		params[key] = value[0]
 	}
-	session := &Session{
-		// TODO: Validate client ID
-		ClientID: params[clientIDParam],
-		// TODO: Validate scope
-		Scope:       params[scopeParam],
-		ClientState: params[stateParam],
-		ServerState: map[string]interface{}{},
-		// TODO: Validate according to https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
-		RedirectURI:  params[redirectURIParam],
-		OwnDID:       *ownDID,
-		ResponseType: params[responseTypeParam],
-	}
+	session := createSession(params, *ownDID)
 	if session.RedirectURI == "" {
 		// TODO: Spec says that the redirect URI is optional, but it's not clear what to do if it's not provided.
 		//       Threat models say it's unsafe to omit redirect_uri.
@@ -240,4 +229,20 @@ func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, reques
 	identity := r.auth.PublicURL().JoinPath("iam", id.WithoutURL().String())
 
 	return GetOAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
+}
+
+func createSession(params map[string]string, ownDID did.DID) *Session {
+	session := &Session{
+		// TODO: Validate client ID
+		ClientID: params[clientIDParam],
+		// TODO: Validate scope
+		Scope:       params[scopeParam],
+		ClientState: params[stateParam],
+		ServerState: map[string]interface{}{},
+		// TODO: Validate according to https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
+		RedirectURI:  params[redirectURIParam],
+		OwnDID:       ownDID,
+		ResponseType: params[responseTypeParam],
+	}
+	return session
 }
