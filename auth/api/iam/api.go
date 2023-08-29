@@ -1,7 +1,6 @@
 package iam
 
 import (
-	"bytes"
 	"context"
 	"embed"
 	"errors"
@@ -16,8 +15,6 @@ import (
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"html/template"
 	"net/http"
-	"net/url"
-	"strings"
 	"sync"
 )
 
@@ -84,57 +81,15 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 	}))
 	// The following handler is of the OpenID4VCI wallet which is called by the holder (wallet owner)
 	// when accepting an OpenID4VP authorization request.
-	router.POST("/iam/:did/openid4vp_authz_accept", func(echoCtx echo.Context) error {
-		return r.handlePresentationRequestAccept(echoCtx)
-	}, audit.Middleware(vcr.ModuleName+"/v2", "openid4vp_authz_accept"))
+	router.POST("/iam/:did/openid4vp_authz_accept", r.handlePresentationRequestAccept, audit.Middleware(vcr.ModuleName+"/v2", "openid4vp_authz_accept"))
 	// The following handler is of the OpenID4VP verifier where the browser will be redirected to by the wallet,
 	// after completing a presentation exchange.
-	router.GET("/iam/:did/openid4vp_completed", func(echoCtx echo.Context) error {
-		// TODO: error case
-		return r.handlePresentationRequestCompleted(echoCtx)
-	}, audit.Middleware(vcr.ModuleName+"/v2", "openid4vp_completed"))
+	router.GET("/iam/:did/openid4vp_completed", r.handlePresentationRequestCompleted, audit.Middleware(vcr.ModuleName+"/v2", "openid4vp_completed"))
 	// The following 2 handlers are used to test/demo the OpenID4VP flow.
 	// - GET renders an HTML page with a form to start the flow.
 	// - POST handles the form submission, initiating the flow.
-	router.GET("/iam/:did/openid4vp_demo", func(echoCtx echo.Context) error {
-		requestURL := *echoCtx.Request().URL
-		requestURL.Host = echoCtx.Request().Host
-		requestURL.Scheme = "http"
-		verifierID := requestURL.String()
-		verifierID, _ = strings.CutSuffix(verifierID, "/openid4vp_demo")
-
-		buf := new(bytes.Buffer)
-		if err := r.templates.ExecuteTemplate(buf, "openid4vp_demo.html", struct {
-			VerifierID string
-			WalletID   string
-		}{
-			VerifierID: verifierID,
-			WalletID:   verifierID,
-		}); err != nil {
-			return err
-		}
-		return echoCtx.HTML(http.StatusOK, buf.String())
-	})
-	router.POST("/iam/:did/openid4vp_demo", func(echoCtx echo.Context) error {
-		verifierID := echoCtx.FormValue("verifier_id")
-		if verifierID == "" {
-			return errors.New("missing verifier_id")
-		}
-		walletID := echoCtx.FormValue("wallet_id")
-		if walletID == "" {
-			return errors.New("missing wallet_id")
-		}
-		scope := echoCtx.FormValue("scope")
-		if scope == "" {
-			return errors.New("missing scope")
-		}
-		walletURL, _ := url.Parse(walletID)
-		verifierURL, _ := url.Parse(verifierID)
-		return r.sendPresentationRequest(
-			echoCtx.Request().Context(), echoCtx.Response(), scope,
-			*walletURL.JoinPath("openid4vp_completed"), *verifierURL, *walletURL,
-		)
-	})
+	router.GET("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoLanding)
+	router.POST("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoSendRequest)
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
