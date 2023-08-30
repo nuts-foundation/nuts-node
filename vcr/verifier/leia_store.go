@@ -37,9 +37,7 @@ const revocationBackupShelf = "revocations"
 // leiaVerifierStore implements the verifier Store interface. It is a simple and fast JSON store.
 // Note: It can not be used in a clustered setup.
 type leiaVerifierStore struct {
-	// revocations is a leia collection containing all the revocations
-	revocations leia.Collection
-	store       storage.KVBackedLeiaStore
+	store storage.KVBackedLeiaStore
 }
 
 // NewLeiaVerifierStore creates a new instance of leiaVerifierStore which implements the Store interface.
@@ -63,12 +61,10 @@ func NewLeiaVerifierStore(dbPath string, backupStore stoabs.KVStore) (Store, err
 		SearchQuery:    leia.NewJSONPath(credential.RevocationSubjectPath),
 	})
 
-	revocations := kvBackedStore.Collection(leia.JSONCollection, "revocations")
 	newLeiaStore := &leiaVerifierStore{
-		revocations: revocations,
-		store:       kvBackedStore,
+		store: kvBackedStore,
 	}
-	if err = newLeiaStore.createIndices(revocations); err != nil {
+	if err = newLeiaStore.createIndices(); err != nil {
 		return nil, err
 	}
 
@@ -81,13 +77,13 @@ func NewLeiaVerifierStore(dbPath string, backupStore stoabs.KVStore) (Store, err
 
 func (s leiaVerifierStore) StoreRevocation(revocation credential.Revocation) error {
 	revocationAsBytes, _ := json.Marshal(revocation)
-	return s.revocations.Add([]leia.Document{revocationAsBytes})
+	return s.revocationCollection().Add([]leia.Document{revocationAsBytes})
 }
 
 func (s leiaVerifierStore) GetRevocations(id ssi.URI) ([]*credential.Revocation, error) {
 	query := leia.New(leia.Eq(leia.NewJSONPath(credential.RevocationSubjectPath), leia.MustParseScalar(id.String())))
 
-	results, err := s.revocations.Find(context.Background(), query)
+	results, err := s.revocationCollection().Find(context.Background(), query)
 	if err != nil {
 		return nil, fmt.Errorf("error while getting revocation by id: %w", err)
 	}
@@ -111,19 +107,23 @@ func (s leiaVerifierStore) Close() error {
 	return s.store.Close()
 }
 
+func (s leiaVerifierStore) revocationCollection() leia.Collection {
+	return s.store.Collection(leia.JSONCollection, "revocations")
+}
+
 // createIndices creates the needed indices for the issued VC store
 // It allows faster searching on context, type issuer and subject values.
-func (s leiaVerifierStore) createIndices(collection leia.Collection) error {
+func (s leiaVerifierStore) createIndices() error {
 	// Index used for getting issued VCs by id
-	revocationBySubjectIDIndex := collection.NewIndex("revocationBySubjectIDIndex",
+	revocationBySubjectIDIndex := s.revocationCollection().NewIndex("revocationBySubjectIDIndex",
 		leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath)))
-	return s.revocations.AddIndex(revocationBySubjectIDIndex)
+	return s.revocationCollection().AddIndex(revocationBySubjectIDIndex)
 }
 
 func (s leiaVerifierStore) Diagnostics() []core.DiagnosticResult {
 	var count int
 	var err error
-	count, err = s.revocations.DocumentCount()
+	count, err = s.revocationCollection().DocumentCount()
 	if err != nil {
 		count = -1
 		log.Logger().

@@ -188,7 +188,7 @@ func Test_leiaStore_GetCredential(t *testing.T) {
 			ID *ssi.URI `json:"id,omitempty"`
 		}{ID: vcToGet.ID}
 		asBytes, _ := json.Marshal(rawStructWithSameID)
-		lstore.issuedCredentials.Add([]leia.Document{asBytes})
+		lstore.issuedCollection().Add([]leia.Document{asBytes})
 
 		t.Run("it fails", func(t *testing.T) {
 			foundCredential, err := store.GetCredential(*vcToGet.ID)
