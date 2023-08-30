@@ -2,6 +2,7 @@ package iam
 
 import (
 	"bytes"
+	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -12,12 +13,40 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"net/http"
+	"net/url"
 	"testing"
 )
 
+var holderDID = did.MustParseDID("did:web:example.com:holder")
+var issuerDID = did.MustParseDID("did:web:example.com:issuer")
+
+func TestWrapper_sendPresentationRequest(t *testing.T) {
+	instance := New(nil, nil, nil, nil)
+
+	redirectURI, _ := url.Parse("https://example.com/redirect")
+	verifierID, _ := url.Parse("https://example.com/verifier")
+	walletID, _ := url.Parse("https://example.com/wallet")
+
+	httpResponse := &stubResponseWriter{}
+
+	err := instance.sendPresentationRequest(context.Background(), httpResponse, "test-scope", *redirectURI, *verifierID, *walletID)
+
+	require.NoError(t, err)
+	require.Equal(t, http.StatusFound, httpResponse.statusCode)
+	location := httpResponse.headers.Get("Location")
+	require.NotEmpty(t, location)
+	locationURL, err := url.Parse(location)
+	require.NoError(t, err)
+	assert.Equal(t, "https", locationURL.Scheme)
+	assert.Equal(t, "example.com", locationURL.Host)
+	assert.Equal(t, "/wallet/authorize", locationURL.Path)
+	assert.Equal(t, "test-scope", locationURL.Query().Get("scope"))
+	assert.Equal(t, "vp_token id_token", locationURL.Query().Get("response_type"))
+	assert.Equal(t, "direct_post", locationURL.Query().Get("response_mode"))
+	assert.Equal(t, "https://example.com/verifier/.well-known/openid-wallet-metadata/metadata.xml", locationURL.Query().Get("client_metadata_uri"))
+}
+
 func TestWrapper_handlePresentationRequest(t *testing.T) {
-	holderDID := did.MustParseDID("did:web:example.com:holder")
-	issuerDID := did.MustParseDID("did:web:example.com:issuer")
 	credentialID, _ := ssi.ParseURI("did:web:example.com:issuer#6AF53584-3337-4766-8C8D-0BFD54F6E527")
 	walletCredentials := []vc.VerifiableCredential{
 		{
@@ -60,13 +89,13 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		httpResponse := &stubResponseWriter{}
 		_ = response.VisitHandleAuthorizeRequestResponse(httpResponse)
 		require.Equal(t, http.StatusOK, httpResponse.statusCode)
-		assert.Contains(t, httpResponse.buffer.String(), "</html>")
+		assert.Contains(t, httpResponse.body.String(), "</html>")
 	})
 }
 
 type stubResponseWriter struct {
 	headers    http.Header
-	buffer     *bytes.Buffer
+	body       *bytes.Buffer
 	statusCode int
 }
 
@@ -79,10 +108,10 @@ func (s *stubResponseWriter) Header() http.Header {
 }
 
 func (s *stubResponseWriter) Write(i []byte) (int, error) {
-	if s.buffer == nil {
-		s.buffer = new(bytes.Buffer)
+	if s.body == nil {
+		s.body = new(bytes.Buffer)
 	}
-	return s.buffer.Write(i)
+	return s.body.Write(i)
 }
 
 func (s *stubResponseWriter) WriteHeader(statusCode int) {
