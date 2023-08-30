@@ -31,4 +31,10 @@ func TestLocalize(t *testing.T) {
 		)
 		require.Equal(t, localized, "value_nl")
 	})
+
+	// Test the scenario when no header is sent
+	t.Run("empty accept-languages header", func(t *testing.T) {
+		localized := localize("value_default", map[string]string{"it": "value_it"}, "")
+		require.Equal(t, localized, "value_default")
+	})
 }
