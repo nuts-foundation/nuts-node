@@ -63,7 +63,7 @@ func NewLeiaVerifierStore(dbPath string, backupStore stoabs.KVStore) (Store, err
 		SearchQuery:    leia.NewJSONPath(credential.RevocationSubjectPath),
 	})
 
-	revocations := store.Collection(leia.JSONCollection, "revocations")
+	revocations := kvBackedStore.Collection(leia.JSONCollection, "revocations")
 	newLeiaStore := &leiaVerifierStore{
 		revocations: revocations,
 		store:       kvBackedStore,
