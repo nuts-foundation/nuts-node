@@ -83,7 +83,7 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 	// Accept
 	acceptedText, err := selfSigned.Accept()
 	require.NoError(t, err)
-	require.Equal(t, "The identificatie is voltooid.", acceptedText)
+	require.Equal(t, "De identificatie is voltooid.", acceptedText)
 
 	// Check resulting VP
 	status, presentation, err := selfSigned.GetSessionStatus(session.ID)
