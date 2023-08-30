@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
+	"strings"
 )
 
 // StrictMiddleware is like SetOnEchoContext but then as handler for strict server interfaces.
@@ -29,6 +30,19 @@ func StrictMiddleware(next func(ctx echo.Context, args interface{}) (interface{}
 	return func(ctx echo.Context, args interface{}) (interface{}, error) {
 		SetOnEchoContext(ctx, moduleName, operationID)
 		return next(ctx, args)
+	}
+}
+
+// Middleware is like SetOnEchoContext but then as handler for server interfaces.
+// The operation ID is derived from the last part of the request path.
+func Middleware(moduleName string) func(echo.HandlerFunc) echo.HandlerFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			pathParts := strings.Split(c.Request().URL.Path, "/")
+			operationID := pathParts[len(pathParts)-1]
+			SetOnEchoContext(c, moduleName, operationID)
+			return next(c)
+		}
 	}
 }
 

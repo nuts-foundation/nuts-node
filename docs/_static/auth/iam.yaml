@@ -73,29 +73,16 @@ paths:
           schema:
             type: string
             example: did:nuts:123
-      requestBody:
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              description: See https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1
-              type: object
-              required:
-                - response_type
-                - client_id
-              properties:
-                response_type:
-                  type: string
-                  example: code
-                client_id:
-                  type: string
-                redirect_uri:
-                  type: string
-                scope:
-                  type: string
-                state:
-                  type: string
-              additionalProperties:
-                type: string
+        # Way to specify dynamic query parameters
+        # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
+        - in: query
+          name: params
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          style: form
+          explode: true
       responses:
         "200":
           description: Authorization request accepted, user is asked for consent.

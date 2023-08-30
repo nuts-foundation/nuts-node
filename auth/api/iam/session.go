@@ -2,6 +2,7 @@ package iam
 
 import (
 	"github.com/google/uuid"
+	"github.com/nuts-foundation/go-did/did"
 	"net/url"
 	"sync"
 )
@@ -29,18 +30,26 @@ func (s *SessionManager) Get(id string) *Session {
 }
 
 type Session struct {
-	ClientID    string
-	Scope       string
-	ClientState string
-	RedirectURI string
+	ClientID     string
+	Scope        string
+	OwnDID       did.DID
+	ClientState  string
+	RedirectURI  string
+	ServerState  map[string]interface{}
+	ResponseType string
+}
+
+func AddQueryParams(u url.URL, params map[string]string) url.URL {
+	values := u.Query()
+	for key, value := range params {
+		values.Add(key, value)
+	}
+	u.RawQuery = values.Encode()
+	return u
 }
 
 func (s Session) CreateRedirectURI(params map[string]string) string {
 	redirectURI, _ := url.Parse(s.RedirectURI)
-	query := redirectURI.Query()
-	for key, value := range params {
-		query.Add(key, value)
-	}
-	redirectURI.RawQuery = query.Encode()
-	return redirectURI.String()
+	r := AddQueryParams(*redirectURI, params)
+	return r.String()
 }
