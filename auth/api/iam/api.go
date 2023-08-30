@@ -95,17 +95,18 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, auth.ModuleName+"/v2", operationID)
 		},
 	}))
+	auditMiddleware := audit.Middleware(vcr.ModuleName + "/v2")
 	// The following handler is of the OpenID4VCI wallet which is called by the holder (wallet owner)
 	// when accepting an OpenID4VP authorization request.
-	router.POST("/iam/:did/openid4vp_authz_accept", r.handlePresentationRequestAccept, audit.Middleware(vcr.ModuleName+"/v2", "openid4vp_authz_accept"))
+	router.POST("/iam/:did/openid4vp_authz_accept", r.handlePresentationRequestAccept, auditMiddleware)
 	// The following handler is of the OpenID4VP verifier where the browser will be redirected to by the wallet,
 	// after completing a presentation exchange.
-	router.GET("/iam/:did/openid4vp_completed", r.handlePresentationRequestCompleted, audit.Middleware(vcr.ModuleName+"/v2", "openid4vp_completed"))
+	router.GET("/iam/:did/openid4vp_completed", r.handlePresentationRequestCompleted, auditMiddleware)
 	// The following 2 handlers are used to test/demo the OpenID4VP flow.
 	// - GET renders an HTML page with a form to start the flow.
 	// - POST handles the form submission, initiating the flow.
-	router.GET("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoLanding)
-	router.POST("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoSendRequest)
+	router.GET("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoLanding, auditMiddleware)
+	router.POST("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoSendRequest, auditMiddleware)
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
