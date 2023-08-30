@@ -257,10 +257,12 @@ func TestNewLeiaIssuerStore(t *testing.T) {
 		backupMockStore := stoabs.NewMockKVStore(ctrl)
 		backupStorePath := path.Join(t.TempDir(), "backup-issued-credentials.db")
 		emptyBackupStore, err := bbolt.CreateBBoltStore(backupStorePath)
+		require.NoError(t, err)
 		dbPath := path.Join(t.TempDir(), "issuer.db")
 
 		// first create a store with 1 credential
 		store, err := NewLeiaIssuerStore(dbPath, emptyBackupStore)
+		defer store.Close()
 		require.NoError(t, err)
 		vc := vc.VerifiableCredential{}
 		_ = json.Unmarshal([]byte(jsonld.TestCredential), &vc)
@@ -334,5 +336,6 @@ func newStoreInDir(t *testing.T, testDir string) Store {
 	require.NoError(t, err)
 	store, err := NewLeiaIssuerStore(issuerStorePath, backupStore)
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
 	return store
 }
