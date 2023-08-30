@@ -80,6 +80,10 @@ func (m *mockAuthClient) ContractNotary() services.ContractNotary {
 	return m.contractNotary
 }
 
+func (m *mockAuthClient) PublicURL() *url.URL {
+	return nil
+}
+
 func createContext(t *testing.T) *TestContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)

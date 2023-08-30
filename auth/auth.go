@@ -22,6 +22,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"net/url"
 	"path"
 	"time"
 
@@ -71,6 +72,15 @@ func (auth *Auth) Config() interface{} {
 // V2APIEnabled returns true if the v2 API is enabled
 func (auth *Auth) V2APIEnabled() bool {
 	return auth.config.V2APIEnabled
+}
+
+// PublicURL returns the public URL of the node.
+func (auth *Auth) PublicURL() *url.URL {
+	if auth.config.PublicURL == "" {
+		panic("auth.publicurl must be set")
+	}
+	publicURL, _ := url.Parse(auth.config.PublicURL)
+	return publicURL
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.

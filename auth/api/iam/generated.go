@@ -261,6 +261,9 @@ func (a HandleTokenRequestFormdataBody) MarshalJSON() ([]byte, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Get the OAuth2 Authorization Server metadata
+	// (GET /.well-known/oauth-authorization-server/iam/{did})
+	GetOAuthAuthorizationServerMetadata(ctx echo.Context, did string) error
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{did}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, did string) error
@@ -272,6 +275,22 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// GetOAuthAuthorizationServerMetadata converts echo context to params.
+func (w *ServerInterfaceWrapper) GetOAuthAuthorizationServerMetadata(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetOAuthAuthorizationServerMetadata(ctx, did)
+	return err
 }
 
 // HandleAuthorizeRequest converts echo context to params.
@@ -334,9 +353,48 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:did", wrapper.GetOAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/iam/:did/authorize", wrapper.HandleAuthorizeRequest)
 	router.POST(baseURL+"/iam/:did/token", wrapper.HandleTokenRequest)
 
+}
+
+type GetOAuthAuthorizationServerMetadataRequestObject struct {
+	Did string `json:"did"`
+}
+
+type GetOAuthAuthorizationServerMetadataResponseObject interface {
+	VisitGetOAuthAuthorizationServerMetadataResponse(w http.ResponseWriter) error
+}
+
+type GetOAuthAuthorizationServerMetadata200JSONResponse OAuthAuthorizationServerMetadata
+
+func (response GetOAuthAuthorizationServerMetadata200JSONResponse) VisitGetOAuthAuthorizationServerMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetOAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse) VisitGetOAuthAuthorizationServerMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type HandleAuthorizeRequestRequestObject struct {
@@ -419,6 +477,9 @@ func (response HandleTokenRequest404JSONResponse) VisitHandleTokenRequestRespons
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Get the OAuth2 Authorization Server metadata
+	// (GET /.well-known/oauth-authorization-server/iam/{did})
+	GetOAuthAuthorizationServerMetadata(ctx context.Context, request GetOAuthAuthorizationServerMetadataRequestObject) (GetOAuthAuthorizationServerMetadataResponseObject, error)
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{did}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
@@ -437,6 +498,31 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// GetOAuthAuthorizationServerMetadata operation middleware
+func (sh *strictHandler) GetOAuthAuthorizationServerMetadata(ctx echo.Context, did string) error {
+	var request GetOAuthAuthorizationServerMetadataRequestObject
+
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetOAuthAuthorizationServerMetadata(ctx.Request().Context(), request.(GetOAuthAuthorizationServerMetadataRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetOAuthAuthorizationServerMetadata")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetOAuthAuthorizationServerMetadataResponseObject); ok {
+		return validResponse.VisitGetOAuthAuthorizationServerMetadataResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // HandleAuthorizeRequest operation middleware

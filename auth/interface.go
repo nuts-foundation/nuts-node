@@ -21,6 +21,7 @@ package auth
 import (
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
+	"net/url"
 )
 
 // AuthenticationServices is the interface which should be implemented for clients or mocks
@@ -34,4 +35,6 @@ type AuthenticationServices interface {
 	// V2APIEnabled returns true if the V2 API is enabled.
 	// It is disabled by default, since it's still in development.
 	V2APIEnabled() bool
+	// PublicURL returns the public URL of the node.
+	PublicURL() *url.URL
 }
