@@ -148,7 +148,11 @@ func (r *Wrapper) handlePresentationRequest(httpRequest *http.Request, params ma
 
 	// Determine the preferred language of the user-agent (browser)
 	acceptLanguage := httpRequest.Header.Get("Accept-Language")
-	templatePath := localize("authz_wallet_en.html", map[string]string{"nl": "authz_wallet_nl.html"}, acceptLanguage)
+	templatePath := localize(
+		"authz_wallet_en.html",
+		map[string]string{"nl": "authz_wallet_nl.html", "nl-BE": "authz_wallet_nl.html", "nl-NL": "authz_wallet_nl.html"},
+		acceptLanguage,
+	)
 
 	buf := new(bytes.Buffer)
 	err = r.templates.ExecuteTemplate(buf, templatePath, templateParams)
