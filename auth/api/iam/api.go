@@ -28,10 +28,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"html/template"
@@ -167,7 +165,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		return nil, errors.New("missing redirect URI")
 	}
 
-	switch request.Body.ResponseType {
+	switch session.ResponseType {
 	case responseTypeCode:
 		// Options:
 		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.

@@ -112,7 +112,7 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
-	credentials, err := r.VCR.Search(ctx, searchTerms, false, nil)
+	credentials, err := r.vcr.Search(ctx, searchTerms, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to search for credentials: %w", err)
 	}
@@ -125,7 +125,7 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 		if len(subject) != 1 {
 			continue
 		}
-		isOwner, _ := r.VDR.IsOwner(ctx, did.MustParseDID(subject[0].ID))
+		isOwner, _ := r.vdr.IsOwner(ctx, did.MustParseDID(subject[0].ID))
 		if isOwner {
 			ownCredentials = append(ownCredentials, cred)
 		}
@@ -180,7 +180,7 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 		if credentialID == nil {
 			continue // should be impossible
 		}
-		cred, err := r.VCR.Resolve(*credentialID, nil)
+		cred, err := r.vcr.Resolve(*credentialID, nil)
 		if err != nil {
 			return err
 		}
@@ -199,7 +199,7 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	}
 	presentationSubmissionJSON, _ := json.Marshal(presentationSubmission)
 	resultParams[presentationSubmissionParam] = string(presentationSubmissionJSON)
-	verifiablePresentation, err := r.VCR.Wallet().BuildPresentation(c.Request().Context(), credentials, holder.PresentationOptions{}, &session.OwnDID, false)
+	verifiablePresentation, err := r.vcr.Wallet().BuildPresentation(c.Request().Context(), credentials, holder.PresentationOptions{}, &session.OwnDID, false)
 	if err != nil {
 		return err
 	}

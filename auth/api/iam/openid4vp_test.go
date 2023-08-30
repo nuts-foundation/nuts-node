@@ -21,7 +21,7 @@ var holderDID = did.MustParseDID("did:web:example.com:holder")
 var issuerDID = did.MustParseDID("did:web:example.com:issuer")
 
 func TestWrapper_sendPresentationRequest(t *testing.T) {
-	instance := New(nil, nil, nil, nil)
+	instance := New(nil, nil, nil)
 
 	redirectURI, _ := url.Parse("https://example.com/redirect")
 	verifierID, _ := url.Parse("https://example.com/verifier")
@@ -72,7 +72,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockVDR := types.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
-		instance := New(nil, mockVCR, mockVDR, nil)
+		instance := New(nil, mockVCR, mockVDR)
 		mockVCR.EXPECT().Search(gomock.Any(), gomock.Any(), false, nil).Return(walletCredentials, nil)
 		mockVDR.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 
