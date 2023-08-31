@@ -25,9 +25,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"net"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -135,71 +133,6 @@ type Contact struct {
 // NutsCommServiceType holds the DID document service type that specifies the Nuts network service address of the Nuts node.
 const NutsCommServiceType = "NutsComm"
 
-// ParseNutsCommAddress parses the given input string to a gRPC target address.
-// The input must include the protocol scheme (e.g. grpc://).
-// The address must NOT be an IP address.
-// The input must not be a reserved address or TLD as described in RFC2606 or https://www.ietf.org/archive/id/draft-chapin-rfc2606bis-00.html.
-func parseNutsCommAddress(input string) (*url.URL, error) {
-	parsed, err := url.Parse(input)
-	if err != nil {
-		return nil, err
-	}
-	if parsed.Scheme != "grpc" {
-		return nil, errors.New("scheme must be grpc")
-	}
-	if net.ParseIP(parsed.Hostname()) != nil {
-		return nil, errors.New("hostname is IP")
-	}
-	if isReserved(parsed) {
-		return nil, errors.New("hostname is reserved")
-	}
-	return parsed, nil
-}
-
-// isReserved returns true if URL uses any of the reserved TLDs or addresses
-func isReserved(URL *url.URL) bool {
-	parts := strings.Split(strings.ToLower(URL.Hostname()), ".")
-	tld := parts[len(parts)-1]
-	if contains(reservedTLDs, tld) {
-		return true
-	}
-
-	if len(parts) > 1 {
-		l2address := strings.Join(parts[len(parts)-2:], ".")
-		return contains(reservedAddresses, l2address)
-	}
-
-	return false
-}
-
-func contains(haystack []string, needle string) bool {
-	for _, curr := range haystack {
-		if curr == needle {
-			return true
-		}
-	}
-	return false
-}
-
-var reservedTLDs = []string{
-	"", // no domain specified
-	"corp",
-	"example",
-	"home",
-	"host",
-	"invalid",
-	"lan",
-	"local",
-	"localdomain",
-	"localhost",
-	"test",
-}
-var reservedAddresses = []string{
-	"example.com",
-	"example.net",
-	"example.org",
-}
-
 // NutsCommURL is the type which can be used to store a NutsComm endpoint in a DID Document.
 // It contains the checks to validate if the endpoint is valid.
 type NutsCommURL struct {
@@ -211,9 +144,12 @@ func (s *NutsCommURL) UnmarshalJSON(bytes []byte) error {
 	if err := json.Unmarshal(bytes, &str); err != nil {
 		return errors.New("endpoint not a string")
 	}
-	endpoint, err := parseNutsCommAddress(str)
+	endpoint, err := core.ParsePublicURL(str)
 	if err != nil {
 		return err
+	}
+	if endpoint.Scheme != "grpc" {
+		return errors.New("scheme must be grpc")
 	}
 	*s = NutsCommURL{*endpoint}
 	return nil

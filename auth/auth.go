@@ -20,10 +20,13 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"net"
 	"net/url"
 	"path"
+	"slices"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
@@ -57,6 +60,7 @@ type Auth struct {
 	pkiProvider     pki.Provider
 	shutdownFunc    func()
 	vdrInstance     types.VDR
+	publicURL       *url.URL
 }
 
 // Name returns the name of the module.
@@ -76,11 +80,7 @@ func (auth *Auth) V2APIEnabled() bool {
 
 // PublicURL returns the public URL of the node.
 func (auth *Auth) PublicURL() *url.URL {
-	if auth.config.PublicURL == "" {
-		panic("auth.publicurl must be set")
-	}
-	publicURL, _ := url.Parse(auth.config.PublicURL)
-	return publicURL
+	return auth.publicURL
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.
@@ -123,8 +123,31 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	}
 
 	// TODO: this is verifier/signer specific
-	if auth.config.PublicURL == "" && config.Strictmode {
+	if auth.config.PublicURL == "" {
 		return ErrMissingPublicURL
+	}
+	var err error
+	if config.Strictmode {
+		// PublicURL cannot use a reserved address, IP, or http:// in strictmode
+		auth.publicURL, err = core.ParsePublicURL(auth.config.PublicURL)
+		if err != nil {
+			return fmt.Errorf("invalid auth.publicurl: %w", err)
+		}
+		if auth.publicURL.Scheme != "https" {
+			return errors.New("invalid auth.publicurl: must use scheme 'https' in strictmode")
+		}
+	} else {
+		// PublicURL cannot be an IP (did:web requirement) and scheme must be http or https
+		auth.publicURL, err = url.Parse(auth.config.PublicURL)
+		if err != nil {
+			return fmt.Errorf("invalid auth.publicurl: %w", err)
+		}
+		if !slices.Contains([]string{"https", "http"}, auth.publicURL.Scheme) {
+			return errors.New("invalid auth.publicurl: must include scheme 'http(s)'")
+		}
+		if net.ParseIP(auth.publicURL.Hostname()) != nil {
+			return errors.New("invalid auth.publicurl: must use a domain name, not an IP address")
+		}
 	}
 
 	auth.contractNotary = notary.NewNotary(notary.Config{
