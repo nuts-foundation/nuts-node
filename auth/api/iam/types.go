@@ -45,18 +45,15 @@ const (
 
 var responseTypesSupported = []responseType{responseTypeCode, responseTypeVPToken, responseTypeVPIDToken}
 
-// responseMode
-type responseMode = string
-
 const (
 	// responseModeQuery returns the answer to the authorization request append as query parameters to the provided redirect_uri
-	responseModeQuery responseMode = "query" // default if no response_mode is specified
+	responseModeQuery = "query" // default if no response_mode is specified
 	// responseModeDirectPost signals the Authorization Server to POST the requested presentation definition to the provided response_uri
 	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-response-mode-direct_post
-	responseModeDirectPost responseMode = "direct_post"
+	responseModeDirectPost = "direct_post"
 )
 
-var responseModesSupported = []responseMode{responseModeQuery, responseModeDirectPost}
+var responseModesSupported = []string{responseModeQuery, responseModeDirectPost}
 
 // grantType
 type grantType = string
@@ -98,6 +95,58 @@ var vpFormatsSupported = map[string]map[string][]string{
 // clientIdSchemesSupported lists the supported client_id_scheme
 // https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-verifier-metadata-managemen
 var clientIdSchemesSupported = []string{"did"}
+
+// clientIDParam is the name of the client_id parameter.
+// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-2.2
+const clientIDParam = "client_id"
+
+// responseTypeParam is the name of the response_type parameter.
+// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.1
+const responseTypeParam = "response_type"
+
+// scopeParam is the name of the scope parameter.
+// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.3
+const scopeParam = "scope"
+
+// stateParam is the name of the state parameter.
+// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1
+const stateParam = "state"
+
+// redirectURIParam is the name of the redirect_uri parameter.
+// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
+const redirectURIParam = "redirect_uri"
+
+// presentationDefParam is the name of the OpenID4VP presentation_definition parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-presentation_definition-par
+const presentationDefParam = "presentation_definition"
+
+// presentationDefUriParam is the name of the OpenID4VP presentation_definition_uri parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-presentation_definition_uri
+const presentationDefUriParam = "presentation_definition_uri"
+
+// presentationSubmissionParam is the name of the OpenID4VP presentation_submission parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-response-parameters
+const presentationSubmissionParam = "presentation_submission"
+
+// clientMetadataParam is the name of the OpenID4VP client_metadata parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
+const clientMetadataParam = "client_metadata"
+
+// clientMetadataParam is the name of the OpenID4VP client_metadata_uri parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
+const clientMetadataURIParam = "client_metadata_uri"
+
+// clientIDSchemeParam is the name of the OpenID4VP client_id_scheme parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
+const clientIDSchemeParam = "client_id_scheme"
+
+// vpTokenParam is the name of the OpenID4VP vp_token parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-response-type-vp_token
+const vpTokenParam = "vp_token"
+
+// responseModeParam is the name of the OAuth2 response_mode parameter.
+// Specified by https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
+const responseModeParam = "response_mode"
 
 // OAuthAuthorizationServerMetadata defines the OAuth Authorization Server metadata.
 // Specified by https://www.rfc-editor.org/rfc/rfc8414.txt
