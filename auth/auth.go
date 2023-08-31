@@ -40,9 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 )
 
-// ErrMissingPublicURL is returned when the publicUrl is missing from the config
-var ErrMissingPublicURL = errors.New("auth.publicurl must be set in strictmode")
-
 const contractValidity = 60 * time.Minute
 
 var _ AuthenticationServices = (*Auth)(nil)
@@ -123,32 +120,11 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	}
 
 	// TODO: this is verifier/signer specific
-	if auth.config.PublicURL == "" {
-		return ErrMissingPublicURL
+	publicURL, err := parsePublicURL(auth.config.PublicURL, config.Strictmode)
+	if err != nil {
+		return fmt.Errorf("invalid auth.publicurl: %w", err)
 	}
-	var err error
-	if config.Strictmode {
-		// PublicURL cannot use a reserved address, IP, or http:// in strictmode
-		auth.publicURL, err = core.ParsePublicURL(auth.config.PublicURL)
-		if err != nil {
-			return fmt.Errorf("invalid auth.publicurl: %w", err)
-		}
-		if auth.publicURL.Scheme != "https" {
-			return errors.New("invalid auth.publicurl: must use scheme 'https' in strictmode")
-		}
-	} else {
-		// PublicURL cannot be an IP (did:web requirement) and scheme must be http or https
-		auth.publicURL, err = url.Parse(auth.config.PublicURL)
-		if err != nil {
-			return fmt.Errorf("invalid auth.publicurl: %w", err)
-		}
-		if !slices.Contains([]string{"https", "http"}, auth.publicURL.Scheme) {
-			return errors.New("invalid auth.publicurl: must include scheme 'http(s)'")
-		}
-		if net.ParseIP(auth.publicURL.Hostname()) != nil {
-			return errors.New("invalid auth.publicurl: must use a domain name, not an IP address")
-		}
-	}
+	auth.publicURL = publicURL
 
 	auth.contractNotary = notary.NewNotary(notary.Config{
 		PublicURL:             auth.config.PublicURL,
@@ -195,4 +171,38 @@ func (auth *Auth) Start() error {
 // Shutdown stops the Auth engine
 func (auth *Auth) Shutdown() error {
 	return nil
+}
+
+// parsePublicURL parses publicURLStr and validates according to strictmode
+func parsePublicURL(publicURLStr string, strictmode bool) (*url.URL, error) {
+	if publicURLStr == "" {
+		return nil, errors.New("must provide url")
+	}
+
+	var publicURL *url.URL
+	var err error
+	if strictmode {
+		// PublicURL cannot use a reserved address, IP, or http:// in strictmode
+		publicURL, err = core.ParsePublicURL(publicURLStr)
+		if err != nil {
+			return nil, err
+		}
+		if publicURL.Scheme != "https" {
+			return nil, errors.New("must use scheme 'https' in strictmode")
+		}
+	} else {
+		// PublicURL cannot be an IP (did:web requirement) and scheme must be http or https
+		publicURL, err = url.Parse(publicURLStr)
+		if err != nil {
+			return nil, err
+		}
+		if !slices.Contains([]string{"https", "http"}, publicURL.Scheme) {
+			return nil, errors.New("must include scheme 'http(s)'")
+		}
+		if net.ParseIP(publicURL.Hostname()) != nil {
+			return nil, errors.New("must use a domain name, not an IP address")
+		}
+	}
+
+	return publicURL, nil
 }

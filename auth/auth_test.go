@@ -53,16 +53,6 @@ func TestAuth_Configure(t *testing.T) {
 		require.NoError(t, i.Configure(tlsServerConfig))
 	})
 
-	t.Run("error - no publicUrl", func(t *testing.T) {
-		authCfg := TestConfig()
-		authCfg.Irma.SchemeManager = "pbdf"
-		authCfg.PublicURL = ""
-		i := testInstance(t, authCfg)
-		cfg := core.NewServerConfig()
-		cfg.Strictmode = true
-		assert.Equal(t, ErrMissingPublicURL, i.Configure(*cfg))
-	})
-
 	t.Run("error - IRMA config failure", func(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.Irma.SchemeManager = "non-existing"
@@ -105,6 +95,34 @@ func TestAuth_Configure(t *testing.T) {
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, assert.AnError)
 		err := i.Configure(tlsServerConfig)
 		assert.ErrorIs(t, err, assert.AnError)
+	})
+	t.Run("public url", func(t *testing.T) {
+		type test struct {
+			strict bool
+			pURL   string
+			errStr string
+		}
+		tt := []test{
+			{true, "", "invalid auth.publicurl: must provide url"},
+			{true, ":invalid", "invalid auth.publicurl: parse \":invalid\": missing protocol scheme"},
+			{true, "https://127.0.0.1", "invalid auth.publicurl: hostname is IP"},
+			{true, "https://example.com", "invalid auth.publicurl: hostname is reserved"},
+			{true, "https://localhost", "invalid auth.publicurl: hostname is reserved"},
+			{true, "http://nuts.nl", "invalid auth.publicurl: must use scheme 'https' in strictmode"},
+
+			{false, "", "invalid auth.publicurl: must provide url"},
+			{false, ":invalid", "invalid auth.publicurl: parse \":invalid\": missing protocol scheme"},
+			{false, "https://127.0.0.1", "invalid auth.publicurl: must use a domain name, not an IP address"},
+			{false, "something://nuts.nl", "invalid auth.publicurl: must include scheme 'http(s)'"},
+		}
+		authCfg := TestConfig()
+		cfg := core.NewServerConfig()
+		for _, test := range tt {
+			authCfg.PublicURL = test.pURL
+			i := testInstance(t, authCfg)
+			cfg.Strictmode = test.strict
+			assert.EqualError(t, i.Configure(*cfg), test.errStr, "url=%s; strict=%s", test.pURL, test.strict)
+		}
 	})
 }
 
