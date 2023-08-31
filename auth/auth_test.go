@@ -40,6 +40,7 @@ func TestAuth_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		config := DefaultConfig()
 		config.ContractValidators = []string{"uzi"}
+		config.PublicURL = "https://nuts.nl"
 		ctrl := gomock.NewController(t)
 		pkiMock := pki.NewMockProvider(ctrl)
 		pkiMock.EXPECT().AddTruststore(gomock.Any())   // uzi
@@ -49,12 +50,13 @@ func TestAuth_Configure(t *testing.T) {
 
 		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
 
-		_ = i.Configure(tlsServerConfig)
+		require.NoError(t, i.Configure(tlsServerConfig))
 	})
 
 	t.Run("error - no publicUrl", func(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.Irma.SchemeManager = "pbdf"
+		authCfg.PublicURL = ""
 		i := testInstance(t, authCfg)
 		cfg := core.NewServerConfig()
 		cfg.Strictmode = true
@@ -89,7 +91,6 @@ func TestAuth_Configure(t *testing.T) {
 
 	t.Run("error - TLS required in strict mode", func(t *testing.T) {
 		authCfg := TestConfig()
-		authCfg.PublicURL = "https://example.com"
 		i := testInstance(t, authCfg)
 		serverConfig := core.NewServerConfig()
 		serverConfig.Strictmode = true

@@ -35,7 +35,7 @@ func TestJoinURLPaths(t *testing.T) {
 }
 
 func Test_ParsePublicURL(t *testing.T) {
-	errMissingScheme := errors.New("URL missing scheme")
+	errIncompleteURL := errors.New("url must contain scheme and host")
 	errIsIp := errors.New("hostname is IP")
 	errIsReserved := errors.New("hostname is reserved")
 
@@ -47,14 +47,14 @@ func Test_ParsePublicURL(t *testing.T) {
 		{"https://foo.bar:5050", "foo.bar:5050", nil},
 		{"http://foo.BAR", "foo.BAR", nil},
 		{"grpc://fooBAR", "fooBAR", nil},
-		{"fooBAR", "fooBAR", errMissingScheme},
+		{"fooBAR", "fooBAR", errIncompleteURL},
+		{"https://:5555", "", errIncompleteURL},
 		{"https://1.2.3.4:5555", "", errIsIp},
 		{"https://[::1]:5555", "", errIsIp},
-		{"https://localhost", "", errIsReserved},
+		{"http://localhost", "", errIsReserved},
 		{"http://my.localhost:5555", "", errIsReserved},
 		{"http://my.local", "", errIsReserved},
-		{"http://LOCALhost:5555", "", errIsReserved},
-		{"grpc://:5555", "", errIsReserved},
+		{"grpc://LOCALhost:5555", "", errIsReserved},
 		{"grpc://example.com", "", errIsReserved},
 		{"grpc://my.example.com:5555", "", errIsReserved},
 	}

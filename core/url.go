@@ -47,12 +47,12 @@ func JoinURLPaths(parts ...string) string {
 // it is not an IP address, and
 // it is not a reserved address or TLD as described in RFC2606 or https://www.ietf.org/archive/id/draft-chapin-rfc2606bis-00.html.
 func ParsePublicURL(input string) (*url.URL, error) {
-	if !strings.Contains(input, "://") {
-		return nil, errors.New("URL missing scheme")
-	}
 	parsed, err := url.Parse(input)
 	if err != nil {
 		return nil, err
+	}
+	if parsed.Scheme == "" || parsed.Hostname() == "" {
+		return nil, errors.New("url must contain scheme and host")
 	}
 	if net.ParseIP(parsed.Hostname()) != nil {
 		return nil, errors.New("hostname is IP")

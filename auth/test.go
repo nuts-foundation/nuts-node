@@ -31,6 +31,7 @@ import (
 func TestConfig() Config {
 	config := DefaultConfig()
 	config.ContractValidators = []string{"dummy"}
+	config.PublicURL = "https://nuts.nl"
 	return config
 }
 
