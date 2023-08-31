@@ -1,6 +1,6 @@
 verbosity: debug
 auth:
-  publicurl: http://node-A
+  publicurl: https://node-A
   contractvalidators:
     - dummy
   irma:

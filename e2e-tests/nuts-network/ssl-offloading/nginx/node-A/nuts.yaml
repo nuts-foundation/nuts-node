@@ -1,7 +1,7 @@
 verbosity: debug
 internalratelimiter: false
 auth:
-  publicurl: http://node-A
+  publicurl: https://node-A
   contractvalidators:
     - dummy
   irma:
