@@ -604,7 +604,7 @@ func (c *vcr) writeCredentialToWallet(cred vc.VerifiableCredential) (bool, error
 	if len(subject) < 1 || subject[0].ID.Empty() {
 		return false, nil
 	}
-	ctx := context.Background()
+	ctx := context.TODO()
 	isOwner, err := c.vdrInstance.IsOwner(ctx, subject[0].ID)
 	if err != nil || !isOwner {
 		return false, err
