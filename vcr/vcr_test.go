@@ -451,33 +451,44 @@ func TestVcr_Migrate(t *testing.T) {
         "VerifiableCredential"
     ]
 }`
-	ctx := audit.TestContext()
-	ctrl := gomock.NewController(t)
-	instance := NewTestVCRInstance(t)
-	mockVDR := types.NewMockVDR(ctrl)
-	ownedDID := did.MustParseDID("did:nuts:owned")
-	mockVDR.EXPECT().IsOwner(gomock.Any(), ownedDID).Return(true, nil)
-	mockVDR.EXPECT().IsOwner(gomock.Any(), did.MustParseDID("did:nuts:foo")).Return(false, nil)
-	instance.vdrInstance = mockVDR
+	const invalidCred = `{"id": "1", "issuer": false}`
 
-	// 3 credentials: 1 owned NutsAuthorizationCredential that must be ignored, 1 non-owned credential and finally 1 credential that should end up in the wallet
-	require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(authCred)}))
-	require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(ownedNutsOrgCred)}))
-	require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(otherNutsOrgCred)}))
-	// Wallet should be empty beforehand
-	list, err := instance.wallet.List(ctx, ownedDID)
-	require.NoError(t, err)
-	require.Empty(t, list)
-	require.NoError(t, err)
+	t.Run("ok", func(t *testing.T) {
+		ctx := audit.TestContext()
+		ctrl := gomock.NewController(t)
+		instance := NewTestVCRInstance(t)
+		mockVDR := types.NewMockVDR(ctrl)
+		ownedDID := did.MustParseDID("did:nuts:owned")
+		mockVDR.EXPECT().IsOwner(gomock.Any(), ownedDID).Return(true, nil)
+		mockVDR.EXPECT().IsOwner(gomock.Any(), did.MustParseDID("did:nuts:foo")).Return(false, nil)
+		instance.vdrInstance = mockVDR
 
-	err = instance.Migrate()
-	require.NoError(t, err)
+		// 3 credentials: 1 owned NutsAuthorizationCredential that must be ignored, 1 non-owned credential and finally 1 credential that should end up in the wallet
+		require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(authCred)}))
+		require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(ownedNutsOrgCred)}))
+		require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(otherNutsOrgCred)}))
+		// Wallet should be empty beforehand
+		list, err := instance.wallet.List(ctx, ownedDID)
+		require.NoError(t, err)
+		require.Empty(t, list)
+		require.NoError(t, err)
 
-	// Check if the owned credential is now in the wallet
-	list, err = instance.wallet.List(ctx, ownedDID)
-	require.NoError(t, err)
-	require.Len(t, list, 1)
-	assert.Equal(t, "owned", list[0].ID.String())
+		err = instance.Migrate()
+		require.NoError(t, err)
+
+		// Check if the owned credential is now in the wallet
+		list, err = instance.wallet.List(ctx, ownedDID)
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+		assert.Equal(t, "owned", list[0].ID.String())
+	})
+	t.Run("invalid credential in store (unmarshal error)", func(t *testing.T) {
+		instance := NewTestVCRInstance(t)
+		require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(invalidCred)}))
+
+		err := instance.Migrate()
+		require.EqualError(t, err, "unable to unmarshal credential (leia key=fc69766520403a8f007e428b0c268da0ce2379a9): json: cannot unmarshal bool into Go struct field Alias.issuer of type string")
+	})
 }
 
 func TestVcr_restoreFromShelf(t *testing.T) {

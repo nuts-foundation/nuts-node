@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -152,13 +151,12 @@ func (c *vcr) Migrate() error {
 	count := 0
 	startTime := time.Now()
 	defer func() {
-		log.Logger().Infof("Imported %d credentials into wallet in %s", count, time.Now().Sub(startTime))
+		log.Logger().Infof("Copied %d credentials into wallet in %s", count, time.Now().Sub(startTime))
 	}()
 	return c.credentialCollection().Iterate(leia.Query{}, func(key leia.Reference, value []byte) error {
 		var cred vc.VerifiableCredential
 		if err := json.Unmarshal(value, &cred); err != nil {
-			hex, err := hash.ParseHex(key.EncodeToString())
-			return fmt.Errorf("unable to unmarshal credential %s: %w", hex, err)
+			return fmt.Errorf("unable to unmarshal credential (leia key=%s): %w", key.EncodeToString(), err)
 		}
 		stored, err := c.writeCredentialToWallet(cred)
 		if err != nil {
@@ -592,6 +590,10 @@ func (c *vcr) Diagnostics() []core.DiagnosticResult {
 	}
 }
 
+// writeCredentialToWallet writes a credential to the wallet if the subject is owned by this node.
+// If it's not written to the wallet (because it's not owned by this node), it returns false.
+// If it's written to the wallet, it returns true.
+// If an error occurs, it returns false and the error.
 func (c *vcr) writeCredentialToWallet(cred vc.VerifiableCredential) (bool, error) {
 	if cred.IsType(*credential.NutsAuthorizationCredentialTypeURI) {
 		return false, nil
