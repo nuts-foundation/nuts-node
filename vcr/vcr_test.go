@@ -171,7 +171,6 @@ func TestVCR_Diagnostics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	vdrInstance := types.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().AnyTimes()
-	vdrInstance.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{did.MustParseDID("did:web:example.com")}, nil)
 	instance := NewVCRInstance(
 		nil,
 		vdrInstance,
