@@ -144,12 +144,9 @@ func (s *NutsCommURL) UnmarshalJSON(bytes []byte) error {
 	if err := json.Unmarshal(bytes, &str); err != nil {
 		return errors.New("endpoint not a string")
 	}
-	endpoint, err := core.ParsePublicURL(str)
+	endpoint, err := core.ParsePublicURL(str, false, "grpc")
 	if err != nil {
 		return err
-	}
-	if endpoint.Scheme != "grpc" {
-		return errors.New("scheme must be grpc")
 	}
 	*s = NutsCommURL{*endpoint}
 	return nil

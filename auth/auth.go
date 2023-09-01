@@ -23,10 +23,8 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"net"
 	"net/url"
 	"path"
-	"slices"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
@@ -120,11 +118,18 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	}
 
 	// TODO: this is verifier/signer specific
-	publicURL, err := parsePublicURL(auth.config.PublicURL, config.Strictmode)
+	if auth.config.PublicURL == "" {
+		return errors.New("invalid auth.publicurl: must provide url")
+	}
+	var err error
+	if config.Strictmode {
+		auth.publicURL, err = core.ParsePublicURL(auth.config.PublicURL, false, "https")
+	} else {
+		auth.publicURL, err = core.ParsePublicURL(auth.config.PublicURL, true, "http", "https")
+	}
 	if err != nil {
 		return fmt.Errorf("invalid auth.publicurl: %w", err)
 	}
-	auth.publicURL = publicURL
 
 	auth.contractNotary = notary.NewNotary(notary.Config{
 		PublicURL:             auth.config.PublicURL,
@@ -171,38 +176,4 @@ func (auth *Auth) Start() error {
 // Shutdown stops the Auth engine
 func (auth *Auth) Shutdown() error {
 	return nil
-}
-
-// parsePublicURL parses publicURLStr and validates according to strictmode
-func parsePublicURL(publicURLStr string, strictmode bool) (*url.URL, error) {
-	if publicURLStr == "" {
-		return nil, errors.New("must provide url")
-	}
-
-	var publicURL *url.URL
-	var err error
-	if strictmode {
-		// PublicURL cannot use a reserved address, IP, or http:// in strictmode
-		publicURL, err = core.ParsePublicURL(publicURLStr)
-		if err != nil {
-			return nil, err
-		}
-		if publicURL.Scheme != "https" {
-			return nil, errors.New("must use scheme 'https' in strictmode")
-		}
-	} else {
-		// PublicURL cannot be an IP (did:web requirement) and scheme must be http or https
-		publicURL, err = url.Parse(publicURLStr)
-		if err != nil {
-			return nil, err
-		}
-		if !slices.Contains([]string{"https", "http"}, publicURL.Scheme) {
-			return nil, errors.New("must include scheme 'http(s)'")
-		}
-		if net.ParseIP(publicURL.Hostname()) != nil {
-			return nil, errors.New("must use a domain name, not an IP address")
-		}
-	}
-
-	return publicURL, nil
 }

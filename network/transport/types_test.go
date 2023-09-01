@@ -49,7 +49,7 @@ func TestNutsCommURL_UnmarshalJSON(t *testing.T) {
 		assert.Equal(t, "foo.bar:5050", url.Host)
 	})
 
-	t.Run("error - invalid url, missing grpc", func(t *testing.T) {
+	t.Run("error - invalid url, scheme not grpc", func(t *testing.T) {
 		var url NutsCommURL
 		err := url.UnmarshalJSON([]byte(`"https://foo.bar:5050"`))
 		assert.EqualError(t, err, "scheme must be grpc")

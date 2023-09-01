@@ -20,6 +20,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"slices"
@@ -43,10 +44,10 @@ func JoinURLPaths(parts ...string) string {
 }
 
 // ParsePublicURL parses the given input string as URL and asserts that
-// it has a scheme,
+// it has a scheme and that it is in the allowedSchemes if provided,
 // it is not an IP address, and
-// it is not a reserved address or TLD as described in RFC2606 or https://www.ietf.org/archive/id/draft-chapin-rfc2606bis-00.html.
-func ParsePublicURL(input string) (*url.URL, error) {
+// it is not (depending on allowReserved) a reserved address or TLD as described in RFC2606 or https://www.ietf.org/archive/id/draft-chapin-rfc2606bis-00.html.
+func ParsePublicURL(input string, allowReserved bool, allowedSchemes ...string) (*url.URL, error) {
 	parsed, err := url.Parse(input)
 	if err != nil {
 		return nil, err
@@ -54,11 +55,14 @@ func ParsePublicURL(input string) (*url.URL, error) {
 	if parsed.Scheme == "" || parsed.Hostname() == "" {
 		return nil, errors.New("url must contain scheme and host")
 	}
+	if len(allowedSchemes) > 0 && !slices.Contains(allowedSchemes, parsed.Scheme) {
+		return nil, fmt.Errorf("scheme must be %s", strings.Join(allowedSchemes, " or "))
+	}
 	if net.ParseIP(parsed.Hostname()) != nil {
 		return nil, errors.New("hostname is IP")
 	}
-	if isReserved(parsed) {
-		return nil, errors.New("hostname is reserved")
+	if !allowReserved && isReserved(parsed) {
+		return nil, errors.New("hostname is RFC2606 reserved")
 	}
 	return parsed, nil
 }

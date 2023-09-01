@@ -106,14 +106,14 @@ func TestAuth_Configure(t *testing.T) {
 			{true, "", "invalid auth.publicurl: must provide url"},
 			{true, ":invalid", "invalid auth.publicurl: parse \":invalid\": missing protocol scheme"},
 			{true, "https://127.0.0.1", "invalid auth.publicurl: hostname is IP"},
-			{true, "https://example.com", "invalid auth.publicurl: hostname is reserved"},
-			{true, "https://localhost", "invalid auth.publicurl: hostname is reserved"},
-			{true, "http://nuts.nl", "invalid auth.publicurl: must use scheme 'https' in strictmode"},
+			{true, "https://example.com", "invalid auth.publicurl: hostname is RFC2606 reserved"},
+			{true, "https://localhost", "invalid auth.publicurl: hostname is RFC2606 reserved"},
+			{true, "http://nuts.nl", "invalid auth.publicurl: scheme must be https"},
 
 			{false, "", "invalid auth.publicurl: must provide url"},
 			{false, ":invalid", "invalid auth.publicurl: parse \":invalid\": missing protocol scheme"},
-			{false, "https://127.0.0.1", "invalid auth.publicurl: must use a domain name, not an IP address"},
-			{false, "something://nuts.nl", "invalid auth.publicurl: must include scheme 'http(s)'"},
+			{false, "https://127.0.0.1", "invalid auth.publicurl: hostname is IP"},
+			{false, "something://nuts.nl", "invalid auth.publicurl: scheme must be http or https"},
 		}
 		authCfg := TestConfig()
 		cfg := core.NewServerConfig()
@@ -121,7 +121,7 @@ func TestAuth_Configure(t *testing.T) {
 			authCfg.PublicURL = test.pURL
 			i := testInstance(t, authCfg)
 			cfg.Strictmode = test.strict
-			assert.EqualError(t, i.Configure(*cfg), test.errStr, "url=%s; strict=%s", test.pURL, test.strict)
+			assert.EqualError(t, i.Configure(*cfg), test.errStr, "test config: url=%s; strict=%s", test.pURL, test.strict)
 		}
 	})
 }

@@ -36,31 +36,35 @@ func TestJoinURLPaths(t *testing.T) {
 
 func Test_ParsePublicURL(t *testing.T) {
 	errIncompleteURL := errors.New("url must contain scheme and host")
-	errIsIp := errors.New("hostname is IP")
-	errIsReserved := errors.New("hostname is reserved")
+	errIsIpAddress := errors.New("hostname is IP")
+	errIsReserved := errors.New("hostname is RFC2606 reserved")
+	errInvalidScheme := errors.New("scheme must be http or https or grpc")
 
 	tests := []struct {
-		input  string
-		output string
-		err    error
+		allowReserved bool
+		err           error
+		input         string
+		output        string
 	}{
-		{"https://foo.bar:5050", "foo.bar:5050", nil},
-		{"http://foo.BAR", "foo.BAR", nil},
-		{"grpc://fooBAR", "fooBAR", nil},
-		{"fooBAR", "fooBAR", errIncompleteURL},
-		{"https://:5555", "", errIncompleteURL},
-		{"https://1.2.3.4:5555", "", errIsIp},
-		{"https://[::1]:5555", "", errIsIp},
-		{"http://localhost", "", errIsReserved},
-		{"http://my.localhost:5555", "", errIsReserved},
-		{"http://my.local", "", errIsReserved},
-		{"grpc://LOCALhost:5555", "", errIsReserved},
-		{"grpc://example.com", "", errIsReserved},
-		{"grpc://my.example.com:5555", "", errIsReserved},
+		{true, nil, "https://example.com", "example.com"},
+		{false, nil, "https://foo.bar:5050", "foo.bar:5050"},
+		{false, nil, "http://foo.BAR", "foo.BAR"},
+		{false, nil, "grpc://fooBAR", "fooBAR"},
+		{false, errInvalidScheme, "invalid://fooBAR", ""},
+		{false, errIncompleteURL, "fooBAR", "fooBAR"},
+		{false, errIncompleteURL, "https://:5555", ""},
+		{false, errIsIpAddress, "https://1.2.3.4:5555", ""},
+		{false, errIsIpAddress, "https://[::1]:5555", ""},
+		{false, errIsReserved, "http://localhost", ""},
+		{false, errIsReserved, "http://my.localhost:5555", ""},
+		{false, errIsReserved, "http://my.local", ""},
+		{false, errIsReserved, "grpc://LOCALhost:5555", ""},
+		{false, errIsReserved, "grpc://example.com", ""},
+		{false, errIsReserved, "grpc://my.example.com:5555", ""},
 	}
 
 	for _, tc := range tests {
-		addr, err := ParsePublicURL(tc.input)
+		addr, err := ParsePublicURL(tc.input, tc.allowReserved, "http", "https", "grpc")
 		if tc.err == nil {
 			// valid test cases
 			require.NoError(t, err, "test case: %v", tc)
