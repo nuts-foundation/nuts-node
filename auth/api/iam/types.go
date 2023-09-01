@@ -18,34 +18,36 @@
 
 package iam
 
-// responseType
-// TODO: reconsider the following
-// https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.1
-//
-//	Extension response types MAY contain a space-delimited (%x20) list of
-//	values, where the order of values does not matter (e.g., response
-//	type "a b" is the same as "b a").  The meaning of such composite
-//	response types is defined by their respective specifications.
-//
-//	If an authorization request is missing the "response_type" parameter,
-//	or if the response type is not understood, the authorization server
-//	MUST return an error response as described in Section 4.1.2.1.
-type responseType = string
-
 const (
+	// responseTypeParam is the name of the response_type parameter.
+	// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.1
+	//
+	// TODO: reconsider the following
+	//	Extension response types MAY contain a space-delimited (%x20) list of
+	//	values, where the order of values does not matter (e.g., response
+	//	type "a b" is the same as "b a").  The meaning of such composite
+	//	response types is defined by their respective specifications.
+	//
+	//	If an authorization request is missing the "response_type" parameter,
+	//	or if the response type is not understood, the authorization server
+	//	MUST return an error response as described in Section 4.1.2.1.
+	responseTypeParam = "response_type"
 	// responseTypeCode is the default response_type in the OAuth2 authorized code flow
-	responseTypeCode responseType = "code"
+	responseTypeCode = "code"
 	// responseTypeVPToken is defined in the OpenID4VP vp_token flow
 	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#appendix-B
-	responseTypeVPToken responseType = "vp_token"
+	responseTypeVPToken = "vp_token"
 	// responseTypeVPIDToken is defined in the OpenID4VP flow that combines its vp_token with SIOPv2's id_token
 	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#appendix-B
-	responseTypeVPIDToken responseType = "vp_token id_token"
+	responseTypeVPIDToken = "vp_token id_token"
 )
 
-var responseTypesSupported = []responseType{responseTypeCode, responseTypeVPToken, responseTypeVPIDToken}
+var responseTypesSupported = []string{responseTypeCode, responseTypeVPToken, responseTypeVPIDToken}
 
 const (
+	// responseModeParam is the name of the OAuth2 response_mode parameter.
+	// Specified by https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
+	responseModeParam = "response_mode"
 	// responseModeQuery returns the answer to the authorization request append as query parameters to the provided redirect_uri
 	responseModeQuery = "query" // default if no response_mode is specified
 	// responseModeDirectPost signals the Authorization Server to POST the requested presentation definition to the provided response_uri
@@ -55,22 +57,19 @@ const (
 
 var responseModesSupported = []string{responseModeQuery, responseModeDirectPost}
 
-// grantType
-type grantType = string
-
 const (
 	// grantTypeAuthorizationCode is the default OAuth2 grant type
-	grantTypeAuthorizationCode grantType = "authorization_code"
+	grantTypeAuthorizationCode = "authorization_code"
 	// grantTypeVPToken is used to present a vp_token in exchange for an access_token in service-to-service flows
 	// TODO: EBSI inspired flow that is not standardized
 	// 		 https://api-conformance.ebsi.eu/docs/ct/verifiable-presentation-exchange-guidelines-v3#service-to-service-token-flow
-	grantTypeVPToken grantType = "vp_token"
+	grantTypeVPToken = "vp_token"
 	// grantTypePreAuthorizedCode is defined in the pre-authorized_code flow of OpenID4VCI
 	// https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-sub-namespace-registration
-	grantTypePreAuthorizedCode grantType = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
+	grantTypePreAuthorizedCode = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
 )
 
-var grantTypesSupported = []grantType{grantTypeAuthorizationCode, grantTypeVPToken, grantTypePreAuthorizedCode}
+var grantTypesSupported = []string{grantTypeAuthorizationCode, grantTypeVPToken, grantTypePreAuthorizedCode}
 
 // algValuesSupported contains a list of supported cipher suites for jwt_vc_json & jwt_vp_json presentation formats
 // Recommended list of options https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-algorithms
@@ -100,9 +99,17 @@ var clientIdSchemesSupported = []string{"did"}
 // Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-2.2
 const clientIDParam = "client_id"
 
-// responseTypeParam is the name of the response_type parameter.
-// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.1
-const responseTypeParam = "response_type"
+// clientMetadataParam is the name of the OpenID4VP client_metadata parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
+const clientMetadataParam = "client_metadata"
+
+// clientMetadataParam is the name of the OpenID4VP client_metadata_uri parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
+const clientMetadataURIParam = "client_metadata_uri"
+
+// clientIDSchemeParam is the name of the OpenID4VP client_id_scheme parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
+const clientIDSchemeParam = "client_id_scheme"
 
 // scopeParam is the name of the scope parameter.
 // Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.3
@@ -128,25 +135,9 @@ const presentationDefUriParam = "presentation_definition_uri"
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-response-parameters
 const presentationSubmissionParam = "presentation_submission"
 
-// clientMetadataParam is the name of the OpenID4VP client_metadata parameter.
-// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
-const clientMetadataParam = "client_metadata"
-
-// clientMetadataParam is the name of the OpenID4VP client_metadata_uri parameter.
-// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
-const clientMetadataURIParam = "client_metadata_uri"
-
-// clientIDSchemeParam is the name of the OpenID4VP client_id_scheme parameter.
-// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
-const clientIDSchemeParam = "client_id_scheme"
-
 // vpTokenParam is the name of the OpenID4VP vp_token parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-response-type-vp_token
 const vpTokenParam = "vp_token"
-
-// responseModeParam is the name of the OAuth2 response_mode parameter.
-// Specified by https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
-const responseModeParam = "response_mode"
 
 // OAuthAuthorizationServerMetadata defines the OAuth Authorization Server metadata.
 // Specified by https://www.rfc-editor.org/rfc/rfc8414.txt
