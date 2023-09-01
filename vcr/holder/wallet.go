@@ -35,26 +35,33 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"sync/atomic"
 )
 
 type wallet struct {
-	keyResolver   vdr.KeyResolver
-	keyStore      crypto.KeyStore
-	verifier      verifier.Verifier
-	jsonldManager jsonld.JSONLD
-	walletStore   stoabs.KVStore
+	keyResolver         vdr.KeyResolver
+	keyStore            crypto.KeyStore
+	verifier            verifier.Verifier
+	jsonldManager       jsonld.JSONLD
+	walletStore         stoabs.KVStore
+	numCredentials      *atomic.Uint32
+	numCredentialsStale *atomic.Bool
 }
 
 // New creates a new Wallet.
 func New(
 	keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD,
 	walletStore stoabs.KVStore) Wallet {
+	numCredentialsStale := &atomic.Bool{}
+	numCredentialsStale.Store(true)
 	return &wallet{
-		keyResolver:   keyResolver,
-		keyStore:      keyStore,
-		verifier:      verifier,
-		jsonldManager: jsonldManager,
-		walletStore:   walletStore,
+		keyResolver:         keyResolver,
+		keyStore:            keyStore,
+		verifier:            verifier,
+		jsonldManager:       jsonldManager,
+		walletStore:         walletStore,
+		numCredentials:      &atomic.Uint32{},
+		numCredentialsStale: numCredentialsStale,
 	}
 }
 
@@ -132,6 +139,7 @@ func (h wallet) Put(ctx context.Context, credential vc.VerifiableCredential) err
 	}
 	err = h.walletStore.WriteShelf(ctx, subjectDID.String(), func(writer stoabs.Writer) error {
 		data, _ := credential.MarshalJSON()
+		h.numCredentialsStale.Store(true)
 		return writer.Put(stoabs.BytesKey(credential.ID.String()), data)
 	})
 	if err != nil {
@@ -160,34 +168,39 @@ func (h wallet) List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCre
 }
 
 func (h wallet) Diagnostics() []core.DiagnosticResult {
+	// The number of credentials is cached, since it could be an expensive operation if there's many (hundreds/thousands) DIDs owned by
+	// the node, since it's an O(n)-complexity operation at best (worse if each DID has multiple credentials).
+	// The cache is marked stale, and thus refreshed on next diagnostics invocation, when a credential is written to te wallet.
 	ctx := context.Background()
-	keyIDs := h.keyStore.List(ctx)
-	ownedDIDs := make(map[string]did.DID)
-	for _, keyID := range keyIDs {
-		ownedDIDURL, _ := did.ParseDIDURL(keyID)
-		if ownedDIDURL != nil {
-			ownedDID := ownedDIDURL.WithoutURL()
-			ownedDIDs[ownedDID.String()] = ownedDID
+	var count int
+	if h.numCredentialsStale.CompareAndSwap(true, false) {
+		keyIDs := h.keyStore.List(ctx)
+		ownedDIDs := make(map[string]did.DID)
+		for _, keyID := range keyIDs {
+			ownedDIDURL, _ := did.ParseDIDURL(keyID)
+			if ownedDIDURL != nil {
+				ownedDID := ownedDIDURL.WithoutURL()
+				ownedDIDs[ownedDID.String()] = ownedDID
+			}
 		}
-	}
-
-	walletCredentialCount := 0
-	for _, ownedDID := range ownedDIDs {
-		err := h.walletStore.ReadShelf(ctx, ownedDID.String(), func(reader stoabs.Reader) error {
-			return reader.Iterate(func(_ stoabs.Key, _ []byte) error {
-				walletCredentialCount++
-				return nil
-			}, stoabs.BytesKey{})
-		})
-		if err != nil {
-			log.Logger().WithError(err).Warn("unable to count credentials in wallet")
+		for _, ownedDID := range ownedDIDs {
+			err := h.walletStore.ReadShelf(ctx, ownedDID.String(), func(reader stoabs.Reader) error {
+				return reader.Iterate(func(_ stoabs.Key, _ []byte) error {
+					count++
+					return nil
+				}, stoabs.BytesKey{})
+			})
+			if err != nil {
+				log.Logger().WithError(err).Warnf("unable to count credentials in wallet for DID: %s", ownedDID)
+			}
 		}
+		h.numCredentials.Store(uint32(count))
 	}
 
 	return []core.DiagnosticResult{
 		core.GenericDiagnosticResult{
 			Title:   "credential_count",
-			Outcome: walletCredentialCount,
+			Outcome: int(h.numCredentials.Load()),
 		},
 	}
 }

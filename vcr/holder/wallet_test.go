@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -146,7 +147,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, true)
 
-			assert.EqualError(t, err, "invalid credential (id=did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0): failed")
+			assert.EqualError(t, err, "invalid credential (id="+testCredential.ID.String()+"): failed")
 			assert.Nil(t, resultingPresentation)
 		})
 	})
@@ -281,6 +282,36 @@ func Test_wallet_Diagnostics(t *testing.T) {
 		assert.Equal(t, "credential_count", actual[0].Name())
 		assert.Equal(t, 0, actual[0].Result())
 	})
+	t.Run("put dirties cache", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		keyStore := crypto.NewMockKeyStore(ctrl)
+		keyStore.EXPECT().List(gomock.Any()).Return([]string{
+			vdr.TestMethodDIDA.String(),
+		}).Times(2) // 1 time for initial diagnostics, 1 time for diagnostics after cache got stale
+
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+		sut := New(nil, keyStore, nil, nil, store)
+
+		// First invocation
+		err := sut.Put(context.Background(), createCredential(vdr.TestMethodDIDA.String()))
+		require.NoError(t, err)
+		actual := sut.Diagnostics()
+		require.Len(t, actual, 1)
+		require.Equal(t, 1, actual[0].Result())
+
+		// Second invocation, cached
+		actual = sut.Diagnostics()
+		require.Len(t, actual, 1)
+		require.Equal(t, 1, actual[0].Result())
+
+		// Write another credential, which dirties the cache
+		err = sut.Put(context.Background(), createCredential(vdr.TestMethodDIDA.String()))
+		require.NoError(t, err)
+		actual = sut.Diagnostics()
+		require.Len(t, actual, 1)
+		require.Equal(t, 2, actual[0].Result())
+	})
 }
 
 func createCredential(keyID string) vc.VerifiableCredential {
@@ -298,7 +329,6 @@ func createCredential(keyID string) vc.VerifiableCredential {
         },
         "id": "` + did.MustParseDIDURL(keyID).WithoutURL().String() + `"
     },
-    "id": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0",
     "issuanceDate": "2021-12-24T13:21:29.087205+01:00",
     "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",
     "proof": {
@@ -315,5 +345,6 @@ func createCredential(keyID string) vc.VerifiableCredential {
 }`
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(testCredentialJSON), &testCredential)
+	testCredential.ID, _ = ssi.ParseURI(testCredential.Issuer.String() + "#" + uuid.NewString())
 	return testCredential
 }
