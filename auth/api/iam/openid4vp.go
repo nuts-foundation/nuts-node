@@ -37,20 +37,6 @@ import (
 	"strings"
 )
 
-const clientIDParam = "client_id"
-const responseTypeParam = "response_type"
-const scopeParam = "scope"
-const stateParam = "state"
-const redirectURIParam = "redirect_uri"
-const presentationDefParam = "presentation_definition"
-const presentationDefUriParam = "presentation_definition_uri"
-const presentationSubmissionParam = "presentation_submission"
-const clientMetadataParam = "client_metadata"
-const clientMetadataURIParam = "client_metadata_uri"
-const clientIDSchemeParam = "client_id_scheme"
-const responseModeParam = "response_mode"
-const vpTokenParam = "vp_token"
-
 // createPresentationRequest creates a new Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is sent by a verifier to a wallet, to request one or more verifiable credentials as verifiable presentation from the wallet.
 func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.ResponseWriter, scope string,
@@ -62,10 +48,8 @@ func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.Res
 	params[redirectURIParam] = redirectURL.String()
 	// TODO: Check this
 	params[clientMetadataURIParam] = verifierIdentifier.JoinPath("/.well-known/openid-wallet-metadata/metadata.xml").String()
-	// TODO: use constants from @gsn
-	params[responseModeParam] = "direct_post"
-	// TODO: use constants from @gsn
-	params[responseTypeParam] = "vp_token id_token"
+	params[responseModeParam] = responseModeDirectPost
+	params[responseTypeParam] = responseTypeVPIDToken
 	// TODO: Depending on parameter size, we either use redirect with query parameters or a form post.
 	//       For simplicity, we now just query parameters.
 	result := AddQueryParams(*authzEndpoint, params)
@@ -98,8 +82,7 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 		return nil, err
 	}
 	// Response mode is always direct_post for now
-	// TODO: Use constant defined by @gsn
-	if params[responseModeParam] != "direct_post" {
+	if params[responseModeParam] != responseModeDirectPost {
 		return nil, errors.New("response_mode must be direct_post")
 	}
 
@@ -258,18 +241,18 @@ func (r *Wrapper) handlePresentationRequestCompleted(ctx echo.Context) error {
 }
 
 func assertParamPresent(params map[string]string, param ...string) error {
-	for _, param := range param {
-		if len(params[param]) == 0 {
-			return fmt.Errorf("%s parameter must be present", param)
+	for _, curr := range param {
+		if len(params[curr]) == 0 {
+			return fmt.Errorf("%s parameter must be present", curr)
 		}
 	}
 	return nil
 }
 
 func assertParamNotPresent(params map[string]string, param ...string) error {
-	for _, param := range param {
-		if len(params[param]) > 0 {
-			return fmt.Errorf("%s parameter must not be present", param)
+	for _, curr := range param {
+		if len(params[curr]) > 0 {
+			return fmt.Errorf("%s parameter must not be present", curr)
 		}
 	}
 	return nil
