@@ -35,7 +35,7 @@ var VerifiablePresentationLDType = ssi.MustParseURI("VerifiablePresentation")
 
 // Wallet holds Verifiable Credentials and can present them.
 type Wallet interface {
-	Diagnostics() []core.DiagnosticResult
+	core.Diagnosable
 
 	// BuildPresentation builds and signs a Verifiable Presentation using the given Verifiable Credentials.
 	// The assertion key used for signing it is taken from signerDID's DID document.

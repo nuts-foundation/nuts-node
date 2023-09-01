@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	bbolt2 "github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -171,10 +170,9 @@ func TestVCR_Diagnostics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	vdrInstance := types.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().AnyTimes()
-	keyStore := crypto.NewMockKeyStore(ctrl)
-	keyStore.EXPECT().List(gomock.Any()).Return([]string{"did:web:example.com#key-1"}).AnyTimes()
+	vdrInstance.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{did.MustParseDID("did:web:example.com")}, nil)
 	instance := NewVCRInstance(
-		keyStore,
+		nil,
 		vdrInstance,
 		network.NewTestNetworkInstance(t),
 		jsonld.NewTestJSONLDManager(t),

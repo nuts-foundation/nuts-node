@@ -271,7 +271,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager, c.walletStore)
+	c.wallet = holder.New(c.keyResolver, c.vdrInstance, c.keyStore, c.verifier, c.jsonldManager, c.walletStore)
 
 	if err = c.store.HandleRestore(); err != nil {
 		return err

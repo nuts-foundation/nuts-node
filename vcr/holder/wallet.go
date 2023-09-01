@@ -40,6 +40,7 @@ import (
 
 type wallet struct {
 	keyResolver         vdr.KeyResolver
+	documentOwner       vdr.DocumentOwner
 	keyStore            crypto.KeyStore
 	verifier            verifier.Verifier
 	jsonldManager       jsonld.JSONLD
@@ -50,11 +51,12 @@ type wallet struct {
 
 // New creates a new Wallet.
 func New(
-	keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD,
-	walletStore stoabs.KVStore) Wallet {
+	keyResolver vdr.KeyResolver, documentOwner vdr.DocumentOwner, keyStore crypto.KeyStore, verifier verifier.Verifier,
+	jsonldManager jsonld.JSONLD, walletStore stoabs.KVStore) Wallet {
 	numCredentialsStale := &atomic.Bool{}
 	numCredentialsStale.Store(true)
 	return &wallet{
+		documentOwner:       documentOwner,
 		keyResolver:         keyResolver,
 		keyStore:            keyStore,
 		verifier:            verifier,
@@ -174,14 +176,9 @@ func (h wallet) Diagnostics() []core.DiagnosticResult {
 	ctx := context.Background()
 	var count int
 	if h.numCredentialsStale.CompareAndSwap(true, false) {
-		keyIDs := h.keyStore.List(ctx)
-		ownedDIDs := make(map[string]did.DID)
-		for _, keyID := range keyIDs {
-			ownedDIDURL, _ := did.ParseDIDURL(keyID)
-			if ownedDIDURL != nil {
-				ownedDID := ownedDIDURL.WithoutURL()
-				ownedDIDs[ownedDID.String()] = ownedDID
-			}
+		ownedDIDs, err := h.documentOwner.ListOwned(ctx)
+		if err != nil {
+			log.Logger().WithError(err).Warn("unable to list owned DIDs")
 		}
 		for _, ownedDID := range ownedDIDs {
 			err := h.walletStore.ReadShelf(ctx, ownedDID.String(), func(reader stoabs.Reader) error {
