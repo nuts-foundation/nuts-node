@@ -66,6 +66,21 @@ func (mr *MockWalletMockRecorder) Diagnostics() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockWallet)(nil).Diagnostics))
 }
 
+// IsEmpty mocks base method.
+func (m *MockWallet) IsEmpty() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsEmpty")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsEmpty indicates an expected call of IsEmpty.
+func (mr *MockWalletMockRecorder) IsEmpty() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsEmpty", reflect.TypeOf((*MockWallet)(nil).IsEmpty))
+}
+
 // List mocks base method.
 func (m *MockWallet) List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()

@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -488,6 +489,24 @@ func TestVcr_Migrate(t *testing.T) {
 
 		err := instance.Migrate()
 		require.EqualError(t, err, "unable to unmarshal credential (leia key=fc69766520403a8f007e428b0c268da0ce2379a9): json: cannot unmarshal bool into Go struct field Alias.issuer of type string")
+	})
+	t.Run("no need to migrate", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		instance := NewTestVCRInstance(t)
+		wallet := holder.NewMockWallet(ctrl)
+		instance.wallet = wallet
+		wallet.EXPECT().IsEmpty().Times(2).
+			Return(true, nil). // before migration
+			Return(false, nil) // after migration
+		require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(ownedNutsOrgCred)}))
+
+		// First time, migration should happen since the wallet is empty
+		err := instance.Migrate()
+		require.NoError(t, err)
+
+		// Second time, migration should happen since the wallet is empty
+		err = instance.Migrate()
+		require.NoError(t, err)
 	})
 }
 
