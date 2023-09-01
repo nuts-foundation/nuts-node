@@ -40,6 +40,7 @@ func TestAuth_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		config := DefaultConfig()
 		config.ContractValidators = []string{"uzi"}
+		config.PublicURL = "https://nuts.nl"
 		ctrl := gomock.NewController(t)
 		pkiMock := pki.NewMockProvider(ctrl)
 		pkiMock.EXPECT().AddTruststore(gomock.Any())   // uzi
@@ -49,16 +50,7 @@ func TestAuth_Configure(t *testing.T) {
 
 		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
 
-		_ = i.Configure(tlsServerConfig)
-	})
-
-	t.Run("error - no publicUrl", func(t *testing.T) {
-		authCfg := TestConfig()
-		authCfg.Irma.SchemeManager = "pbdf"
-		i := testInstance(t, authCfg)
-		cfg := core.NewServerConfig()
-		cfg.Strictmode = true
-		assert.Equal(t, ErrMissingPublicURL, i.Configure(*cfg))
+		require.NoError(t, i.Configure(tlsServerConfig))
 	})
 
 	t.Run("error - IRMA config failure", func(t *testing.T) {
@@ -89,7 +81,6 @@ func TestAuth_Configure(t *testing.T) {
 
 	t.Run("error - TLS required in strict mode", func(t *testing.T) {
 		authCfg := TestConfig()
-		authCfg.PublicURL = "https://example.com"
 		i := testInstance(t, authCfg)
 		serverConfig := core.NewServerConfig()
 		serverConfig.Strictmode = true
@@ -104,6 +95,34 @@ func TestAuth_Configure(t *testing.T) {
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, assert.AnError)
 		err := i.Configure(tlsServerConfig)
 		assert.ErrorIs(t, err, assert.AnError)
+	})
+	t.Run("public url", func(t *testing.T) {
+		type test struct {
+			strict bool
+			pURL   string
+			errStr string
+		}
+		tt := []test{
+			{true, "", "invalid auth.publicurl: must provide url"},
+			{true, ":invalid", "invalid auth.publicurl: parse \":invalid\": missing protocol scheme"},
+			{true, "https://127.0.0.1", "invalid auth.publicurl: hostname is IP"},
+			{true, "https://example.com", "invalid auth.publicurl: hostname is RFC2606 reserved"},
+			{true, "https://localhost", "invalid auth.publicurl: hostname is RFC2606 reserved"},
+			{true, "http://nuts.nl", "invalid auth.publicurl: scheme must be https"},
+
+			{false, "", "invalid auth.publicurl: must provide url"},
+			{false, ":invalid", "invalid auth.publicurl: parse \":invalid\": missing protocol scheme"},
+			{false, "https://127.0.0.1", "invalid auth.publicurl: hostname is IP"},
+			{false, "something://nuts.nl", "invalid auth.publicurl: scheme must be http or https"},
+		}
+		authCfg := TestConfig()
+		cfg := core.NewServerConfig()
+		for _, test := range tt {
+			authCfg.PublicURL = test.pURL
+			i := testInstance(t, authCfg)
+			cfg.Strictmode = test.strict
+			assert.EqualError(t, i.Configure(*cfg), test.errStr, "test config: url=%s; strict=%s", test.pURL, test.strict)
+		}
 	})
 }
 

@@ -9,6 +9,7 @@ install-tools:
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 
 gen-mocks:
+	mockgen -destination=auth/mock.go -package=auth -source=auth/interface.go
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
 	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
 	mockgen -destination=auth/services/oauth/mock.go -package=oauth -source=auth/services/oauth/interface.go

@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"net/url"
 	"testing"
 )
 
@@ -41,7 +42,6 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.IsType(t, GetOAuthAuthorizationServerMetadata200JSONResponse{}, res)
-
 	})
 	t.Run("error - not a did", func(t *testing.T) {
 		//400
@@ -112,17 +112,23 @@ func statusCodeFrom(err error) int {
 
 type testCtx struct {
 	client        *Wrapper
+	authnServices *auth.MockAuthenticationServices
 	documentOwner *vdr.MockDocumentOwner
 }
 
 func newTestClient(t testing.TB) *testCtx {
+	publicURL, err := url.Parse("https://nuts.nl")
+	require.NoError(t, err)
 	ctrl := gomock.NewController(t)
-	ctx := &testCtx{
-		documentOwner: vdr.NewMockDocumentOwner(ctrl),
+	authnServices := auth.NewMockAuthenticationServices(ctrl)
+	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
+	documentOwner := vdr.NewMockDocumentOwner(ctrl)
+	return &testCtx{
+		authnServices: authnServices,
+		documentOwner: documentOwner,
+		client: &Wrapper{
+			auth: authnServices,
+			vdr:  documentOwner,
+		},
 	}
-	ctx.client = &Wrapper{
-		auth: auth.NewAuthInstance(auth.Config{PublicURL: "https://example.com"}, nil, nil, nil, nil, nil, nil),
-		vdr:  ctx.documentOwner,
-	}
-	return ctx
 }

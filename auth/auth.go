@@ -20,6 +20,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/url"
@@ -36,9 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
 )
-
-// ErrMissingPublicURL is returned when the publicUrl is missing from the config
-var ErrMissingPublicURL = errors.New("auth.publicurl must be set in strictmode")
 
 const contractValidity = 60 * time.Minute
 
@@ -57,6 +55,7 @@ type Auth struct {
 	pkiProvider     pki.Provider
 	shutdownFunc    func()
 	vdrInstance     types.VDR
+	publicURL       *url.URL
 }
 
 // Name returns the name of the module.
@@ -76,11 +75,7 @@ func (auth *Auth) V2APIEnabled() bool {
 
 // PublicURL returns the public URL of the node.
 func (auth *Auth) PublicURL() *url.URL {
-	if auth.config.PublicURL == "" {
-		panic("auth.publicurl must be set")
-	}
-	publicURL, _ := url.Parse(auth.config.PublicURL)
-	return publicURL
+	return auth.publicURL
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.
@@ -123,8 +118,17 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	}
 
 	// TODO: this is verifier/signer specific
-	if auth.config.PublicURL == "" && config.Strictmode {
-		return ErrMissingPublicURL
+	if auth.config.PublicURL == "" {
+		return errors.New("invalid auth.publicurl: must provide url")
+	}
+	var err error
+	if config.Strictmode {
+		auth.publicURL, err = core.ParsePublicURL(auth.config.PublicURL, false, "https")
+	} else {
+		auth.publicURL, err = core.ParsePublicURL(auth.config.PublicURL, true, "http", "https")
+	}
+	if err != nil {
+		return fmt.Errorf("invalid auth.publicurl: %w", err)
 	}
 
 	auth.contractNotary = notary.NewNotary(notary.Config{

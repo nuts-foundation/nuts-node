@@ -218,7 +218,7 @@ func getIntegrationTestConfig(t *testing.T, testDirectory string) (core.ServerCo
 
 	authConfig := auth.DefaultConfig()
 	authConfig.ContractValidators = []string{"dummy"} // disables IRMA
-	authConfig.PublicURL = "nuts.nl"
+	authConfig.PublicURL = "https://nuts.nl"
 
 	cryptoConfig := crypto.Config{Storage: "fs"}
 

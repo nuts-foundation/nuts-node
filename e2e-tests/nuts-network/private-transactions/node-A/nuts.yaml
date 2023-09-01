@@ -6,7 +6,7 @@ http:
   default:
     address: :1323
 auth:
-  publicurl: http://node-A
+  publicurl: https://node-A
   contractvalidators:
     - dummy
   irma:

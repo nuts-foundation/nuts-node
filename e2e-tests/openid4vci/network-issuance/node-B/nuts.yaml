@@ -10,7 +10,7 @@ http:
       address: :443
       tls: server-client
 auth:
-  publicurl: http://nodeB:1323
+  publicurl: https://nodeB:1323
   contractvalidators:
     - dummy
   irma:
