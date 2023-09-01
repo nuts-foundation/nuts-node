@@ -66,7 +66,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 		keyResolver := types.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-		w := New(keyResolver, nil, keyStore, nil, jsonldManager, nil)
+		w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
 		resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
 
@@ -87,7 +87,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 		keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-		w := New(keyResolver, nil, keyStore, nil, jsonldManager, nil)
+		w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
 		resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
 
@@ -106,7 +106,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 		keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
 
-		w := New(keyResolver, nil, keyStore, nil, jsonldManager, nil)
+		w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
 		resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, testCredential}, options, &testDID, false)
 
@@ -126,7 +126,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-			w := New(keyResolver, nil, keyStore, mockVerifier, jsonldManager, nil)
+			w := New(keyResolver, keyStore, mockVerifier, jsonldManager, nil)
 
 			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, true)
 
@@ -142,7 +142,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-			w := New(keyResolver, nil, keyStore, mockVerifier, jsonldManager, nil)
+			w := New(keyResolver, keyStore, mockVerifier, jsonldManager, nil)
 
 			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, true)
 
@@ -160,7 +160,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-			w := New(keyResolver, nil, keyStore, nil, jsonldManager, nil)
+			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
 			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, testCredential}, options, nil, false)
 
@@ -175,7 +175,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
 
-			w := New(keyResolver, nil, keyStore, nil, jsonldManager, nil)
+			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
 			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
 
@@ -190,7 +190,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
 
-			w := New(keyResolver, nil, keyStore, nil, jsonldManager, nil)
+			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
 			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
 
@@ -204,7 +204,7 @@ func Test_wallet_Put(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
-		sut := New(nil, nil, nil, nil, nil, store)
+		sut := New(nil, nil, nil, nil, store)
 		expected := createCredential(vdr.TestMethodDIDA.String())
 
 		err := sut.Put(context.Background(), expected)
@@ -215,13 +215,30 @@ func Test_wallet_Put(t *testing.T) {
 		require.Len(t, list, 1)
 		assert.Equal(t, expected.ID.String(), list[0].ID.String())
 	})
+	t.Run("duplicate credential", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+		sut := New(nil, nil, nil, nil, store)
+		expected := createCredential(vdr.TestMethodDIDA.String())
+
+		err := sut.Put(context.Background(), expected)
+		require.NoError(t, err)
+		err = sut.Put(context.Background(), expected)
+		require.NoError(t, err)
+
+		list, err := sut.List(context.Background(), vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+		assert.Equal(t, expected.ID.String(), list[0].ID.String())
+		assert.Equal(t, 1, sut.Diagnostics()[0].Result(), "duplicate credential should not increment total number of credentials")
+	})
 }
 
 func Test_wallet_List(t *testing.T) {
 	t.Run("invalid credential returns error", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
-		sut := New(nil, nil, nil, nil, nil, store)
+		sut := New(nil, nil, nil, nil, store)
 		err := store.WriteShelf(context.Background(), vdr.TestDIDA.String(), func(writer stoabs.Writer) error {
 			return writer.Put(stoabs.BytesKey("invalid"), []byte("invalid"))
 		})
@@ -233,17 +250,20 @@ func Test_wallet_List(t *testing.T) {
 }
 
 func Test_wallet_Diagnostics(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		documentOwner := types.NewMockDocumentOwner(ctrl)
-		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{
-			did.MustParseDID("did:web:example.com"),
-			vdr.TestDIDA,
-		}, nil)
-
+	t.Run("empty wallet", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
-		sut := New(nil, documentOwner, nil, nil, nil, store)
+		sut := New(nil, nil, nil, nil, store)
+
+		actual := sut.Diagnostics()
+		require.Len(t, actual, 1)
+		assert.Equal(t, "credential_count", actual[0].Name())
+		assert.Equal(t, 0, actual[0].Result())
+	})
+	t.Run("1 credential", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+		sut := New(nil, nil, nil, nil, store)
 		cred := createCredential(vdr.TestMethodDIDA.String())
 
 		err := sut.Put(context.Background(), cred)
@@ -254,31 +274,25 @@ func Test_wallet_Diagnostics(t *testing.T) {
 		assert.Equal(t, "credential_count", actual[0].Name())
 		assert.Equal(t, 1, actual[0].Result())
 	})
-	t.Run("document owner error", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		documentOwner := types.NewMockDocumentOwner(ctrl)
-		documentOwner.EXPECT().ListOwned(gomock.Any()).Return(nil, errors.New("failed`"))
-
+	t.Run("2 credentials", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
-		sut := New(nil, documentOwner, nil, nil, nil, store)
+		sut := New(nil, nil, nil, nil, store)
+
+		err := sut.Put(context.Background(), createCredential(vdr.TestMethodDIDA.String()))
+		require.NoError(t, err)
+		err = sut.Put(context.Background(), createCredential(vdr.TestMethodDIDA.String()))
+		require.NoError(t, err)
 
 		actual := sut.Diagnostics()
 		require.Len(t, actual, 1)
 		assert.Equal(t, "credential_count", actual[0].Name())
-		assert.Equal(t, 0, actual[0].Result())
+		assert.Equal(t, 2, actual[0].Result())
 	})
 	t.Run("IO error", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		documentOwner := types.NewMockDocumentOwner(ctrl)
-		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{
-			did.MustParseDID("did:web:example.com"),
-			vdr.TestDIDA,
-		}, nil)
-
 		storageEngine := storage.NewTestStorageEngine(t)
 		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
-		sut := New(nil, documentOwner, nil, nil, nil, store)
+		sut := New(nil, nil, nil, nil, store)
 		cred := createCredential(vdr.TestMethodDIDA.String())
 
 		err := sut.Put(context.Background(), cred)
@@ -290,37 +304,6 @@ func Test_wallet_Diagnostics(t *testing.T) {
 		require.Len(t, actual, 1)
 		assert.Equal(t, "credential_count", actual[0].Name())
 		assert.Equal(t, 0, actual[0].Result())
-	})
-	t.Run("put dirties cache", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		documentOwner := types.NewMockDocumentOwner(ctrl)
-		documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{
-			did.MustParseDID("did:web:example.com"),
-			vdr.TestDIDA,
-		}, nil).Times(2) // 1 time for initial diagnostics, 1 time for diagnostics after cache got stale
-
-		storageEngine := storage.NewTestStorageEngine(t)
-		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
-		sut := New(nil, documentOwner, nil, nil, nil, store)
-
-		// First invocation
-		err := sut.Put(context.Background(), createCredential(vdr.TestMethodDIDA.String()))
-		require.NoError(t, err)
-		actual := sut.Diagnostics()
-		require.Len(t, actual, 1)
-		require.Equal(t, 1, actual[0].Result())
-
-		// Second invocation, cached
-		actual = sut.Diagnostics()
-		require.Len(t, actual, 1)
-		require.Equal(t, 1, actual[0].Result())
-
-		// Write another credential, which dirties the cache
-		err = sut.Put(context.Background(), createCredential(vdr.TestMethodDIDA.String()))
-		require.NoError(t, err)
-		actual = sut.Diagnostics()
-		require.Len(t, actual, 1)
-		require.Equal(t, 2, actual[0].Result())
 	})
 }
 
@@ -357,4 +340,40 @@ func createCredential(keyID string) vc.VerifiableCredential {
 	_ = json.Unmarshal([]byte(testCredentialJSON), &testCredential)
 	testCredential.ID, _ = ssi.ParseURI(testCredential.Issuer.String() + "#" + uuid.NewString())
 	return testCredential
+}
+
+func Test_wallet_IsEmpty(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+		sut := New(nil, nil, nil, nil, store)
+
+		empty, err := sut.IsEmpty()
+
+		require.NoError(t, err)
+		assert.True(t, empty)
+	})
+	t.Run("2 credentials", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+		sut := New(nil, nil, nil, nil, store)
+
+		err := sut.Put(context.Background(), createCredential(vdr.TestMethodDIDA.String()))
+		require.NoError(t, err)
+
+		empty, err := sut.IsEmpty()
+
+		require.NoError(t, err)
+		assert.False(t, empty)
+	})
+	t.Run("error", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+		sut := New(nil, nil, nil, nil, store).(*wallet)
+		_ = sut.walletStore.Close(context.Background())
+
+		_, err := sut.IsEmpty()
+
+		require.Error(t, err)
+	})
 }

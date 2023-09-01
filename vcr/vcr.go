@@ -147,7 +147,15 @@ func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (stri
 }
 
 func (c *vcr) Migrate() error {
-	log.Logger().Debug("Migrating credentials to wallet...")
+	walletIsEmpty, err := c.wallet.IsEmpty()
+	if err != nil {
+		return fmt.Errorf("unable to check if wallet is empty: %w", err)
+	}
+	if !walletIsEmpty {
+		// Nothing to do
+		return nil
+	}
+	log.Logger().Info("Migrating credentials to wallet...")
 	count := 0
 	startTime := time.Now()
 	defer func() {
@@ -269,7 +277,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-	c.wallet = holder.New(c.keyResolver, c.vdrInstance, c.keyStore, c.verifier, c.jsonldManager, c.walletStore)
+	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager, c.walletStore)
 
 	if err = c.store.HandleRestore(); err != nil {
 		return err

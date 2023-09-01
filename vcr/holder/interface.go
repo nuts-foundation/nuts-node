@@ -47,6 +47,9 @@ type Wallet interface {
 
 	// Put adds the given credential to the wallet.
 	Put(ctx context.Context, credential vc.VerifiableCredential) error
+
+	// IsEmpty returns true if the wallet contains no credentials at all (for all holder DIDs).
+	IsEmpty() (bool, error)
 }
 
 // PresentationOptions contains parameters used to create the right VerifiablePresentation
