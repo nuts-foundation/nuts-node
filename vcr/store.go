@@ -65,7 +65,6 @@ func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.
 }
 
 func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
-	// Store in verifier store
 	vcType := "VerifiableCredential"
 	customTypes := credential.ExtractTypes(subject)
 	if len(customTypes) > 0 {

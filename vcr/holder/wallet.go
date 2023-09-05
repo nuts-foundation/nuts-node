@@ -188,9 +188,6 @@ func (h wallet) List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCre
 }
 
 func (h wallet) Diagnostics() []core.DiagnosticResult {
-	// The number of credentials is cached, since it could be an expensive operation if there's many (hundreds/thousands) DIDs owned by
-	// the node, since it's an O(n)-complexity operation at best (worse if each DID has multiple credentials).
-	// The cache is marked stale, and thus refreshed on next diagnostics invocation, when a credential is written to te wallet.
 	ctx := context.Background()
 	var count uint32
 	var err error
