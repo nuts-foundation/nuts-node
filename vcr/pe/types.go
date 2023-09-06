@@ -22,10 +22,13 @@ package pe
 // PresentationDefinitionClaimFormatDesignations (replaces generated one)
 type PresentationDefinitionClaimFormatDesignations map[string]map[string][]string
 
-// PresentationSubmission
+// PresentationSubmission describes how the VCs in the VP match the input descriptors in the PD
 type PresentationSubmission struct {
-	Id            string                         `json:"id"`
-	DefinitionId  string                         `json:"definition_id"`
+	// Id is the id of the presentation submission, which is a UUID
+	Id string `json:"id"`
+	// DefinitionId is the id of the presentation definition that this submission is for
+	DefinitionId string `json:"definition_id"`
+	// DescriptorMap is a list of mappings from input descriptors to VCs
 	DescriptorMap []InputDescriptorMappingObject `json:"descriptor_map"`
 }
 
@@ -69,13 +72,16 @@ type IsHolderItems struct {
 
 // PresentationDefinition
 type PresentationDefinition struct {
-	Format                 *PresentationDefinitionClaimFormatDesignations `json:"format,omitempty"`
-	Frame                  *Frame                                         `json:"frame,omitempty"`
-	Id                     string                                         `json:"id"`
-	InputDescriptors       []*InputDescriptor                             `json:"input_descriptors"`
-	Name                   string                                         `json:"name,omitempty"`
-	Purpose                string                                         `json:"purpose,omitempty"`
-	SubmissionRequirements []*SubmissionRequirement                       `json:"submission_requirements,omitempty"`
+	Format *PresentationDefinitionClaimFormatDesignations `json:"format,omitempty"`
+	Frame  *Frame                                         `json:"frame,omitempty"`
+	// Id is the id of the presentation definition, it must be unique within the context.
+	Id               string             `json:"id"`
+	InputDescriptors []*InputDescriptor `json:"input_descriptors"`
+	// Name is the name of the presentation definition. Correlates to ID
+	Name                   string                   `json:"name,omitempty"`
+	// Purpose is the purpose of the presentation definition, what is it used for?
+	Purpose                *string                  `json:"purpose,omitempty"`
+	SubmissionRequirements []*SubmissionRequirement `json:"submission_requirements,omitempty"`
 }
 
 // SameSubjectItems

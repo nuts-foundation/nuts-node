@@ -1,0 +1,37 @@
+{
+  "eOverdracht-overdrachtsbericht": {
+    "ldp_vc": {
+      "proof_type": ["JsonWebSignature2020"]
+    },
+    "id": "pd_any_care_organization",
+    "name": "Care organization",
+    "purpose": "Finding a care organization for authorizing access to medical metadata",
+    "input_descriptors": [
+      {
+        "constraints": {
+          "fields": [
+            {
+              "path": ["$.type"],
+              "filter": {
+                "type": "string",
+                "const": "NutsOrganizationCredential"
+              }
+            },
+            {
+              "path": ["$.credentialSubject.organization.name"],
+              "filter": {
+                "type": "string"
+              }
+            },
+            {
+              "path": ["$.credentialSubject.organization.city"],
+              "filter": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

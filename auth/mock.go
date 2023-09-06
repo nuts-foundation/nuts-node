@@ -10,6 +10,7 @@ import (
 
 	services "github.com/nuts-foundation/nuts-node/auth/services"
 	oauth "github.com/nuts-foundation/nuts-node/auth/services/oauth"
+	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -62,6 +63,20 @@ func (m *MockAuthenticationServices) ContractNotary() services.ContractNotary {
 func (mr *MockAuthenticationServicesMockRecorder) ContractNotary() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContractNotary", reflect.TypeOf((*MockAuthenticationServices)(nil).ContractNotary))
+}
+
+// PresentationDefinitions mocks base method.
+func (m *MockAuthenticationServices) PresentationDefinitions() *pe.Store {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PresentationDefinitions")
+	ret0, _ := ret[0].(*pe.Store)
+	return ret0
+}
+
+// PresentationDefinitions indicates an expected call of PresentationDefinitions.
+func (mr *MockAuthenticationServicesMockRecorder) PresentationDefinitions() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinitions", reflect.TypeOf((*MockAuthenticationServices)(nil).PresentationDefinitions))
 }
 
 // PublicURL mocks base method.

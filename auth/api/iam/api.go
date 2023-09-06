@@ -49,7 +49,6 @@ type Wrapper struct {
 	vdr                     vdr.DocumentOwner
 	auth                    auth.AuthenticationServices
 	sessions                *SessionManager
-	presentationDefinitions presentationDefinitionRegistry
 	templates               *template.Template
 }
 
@@ -64,7 +63,6 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 		auth:                    authInstance,
 		vcr:                     vcrInstance,
 		vdr:                     vdrInstance,
-		presentationDefinitions: nutsPresentationDefinitionRegistry{},
 		templates:               templates,
 	}
 }
