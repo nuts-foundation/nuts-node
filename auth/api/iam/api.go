@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -52,21 +53,23 @@ type Wrapper struct {
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 	auth          auth.AuthenticationServices
-	templates     *template.Template
+	keyStore      crypto.KeyStore
 	storageEngine storage.Engine
+	templates     *template.Template
 }
 
-func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine) *Wrapper {
+func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, keyStore crypto.KeyStore, storageEngine storage.Engine) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assets, "assets/*.html")
 	if err != nil {
 		panic(err)
 	}
 	return &Wrapper{
-		storageEngine: storageEngine,
 		auth:          authInstance,
 		vcr:           vcrInstance,
 		vdr:           vdrInstance,
+		keyStore:      keyStore,
+		storageEngine: storageEngine,
 		templates:     templates,
 	}
 }
@@ -86,11 +89,21 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 	// The following handler is of the OpenID4VP verifier where the browser will be redirected to by the wallet,
 	// after completing a presentation exchange.
 	router.GET("/iam/:did/openid4vp_completed", r.handlePresentationRequestCompleted, auditMiddleware)
-	// The following 2 handlers are used to test/demo the OpenID4VP flow.
-	// - GET renders an HTML page with a form to start the flow.
-	// - POST handles the form submission, initiating the flow.
-	router.GET("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoLanding, auditMiddleware)
-	router.POST("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoSendRequest, auditMiddleware)
+	router.POST("/iam/:did/openid4vp_completed", r.handlePresentationRequestCompleted, auditMiddleware)
+	// The following handler is of the OpenID4VP verifier where the wallet can retrieve the Authorization Request Object,
+	// as specified by https://www.rfc-editor.org/rfc/rfc9101.txt
+	router.GET("/iam/openid4vp/authzreq/:sessionID", r.getOpenID4VPAuthzRequest, auditMiddleware)
+	// The following handler is of the OpenID4VP or SIOPv2 verifier where the user-agent can retrieve the session object,
+	// which can be used to retrieve the Authorization Response.
+	router.GET("/iam/openid/session/:sessionID", r.getOpenIDSession, auditMiddleware)
+	// The following handlers are used to test/demo the OpenID4VP flows.
+	// - GET  /openid4vp_demo: renders an HTML page with a form to start the OpenID4VP flow.
+	// - POST /openid4vp_demo: handles the form submission, initiating the flow.
+	// - GET  /openid4vp_demo_status: API for XIS to retrieve the status of the flow (if sessionID param is present)
+	router.GET("/iam/openid4vp_demo", r.handleOpenID4VPDemoLanding, auditMiddleware)
+	router.POST("/iam/openid4vp_demo", r.handleOpenID4VPDemoSendRequest, auditMiddleware)
+	router.GET("/iam/:did/openid4vp_demo/:sessionID", r.handleOpenID4VPDemoGetRequestURI, auditMiddleware)
+	router.GET("/iam/:did/openid4vp_demo_status", r.handleOpenID4VPDemoRequestWalletStatus, auditMiddleware)
 }
 
 func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
@@ -180,7 +193,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		// TODO: Check parameters for right flow
 		// TODO: Do we actually need this? (probably not)
 		panic("not implemented")
-	case responseTypeVPIDToken:
+	case responseTypeIDToken:
 		// Options:
 		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
 		return r.handlePresentationRequest(params, session)

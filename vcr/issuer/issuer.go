@@ -106,7 +106,7 @@ func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, opt
 		return nil, err
 	}
 
-	// Validate the VC using the type-specific validator
+	// Validate the VC using the type-specific validator:
 	validator := credential.FindValidator(*createdVC)
 	if err := validator.Validate(*createdVC); err != nil {
 		return nil, err

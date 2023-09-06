@@ -20,17 +20,20 @@ package iam
 
 import (
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"net/url"
 )
 
 type Session struct {
-	ClientID     string
-	Scope        string
-	OwnDID       did.DID
-	ClientState  string
-	RedirectURI  string
-	ServerState  map[string]interface{}
-	ResponseType string
+	ClientID      string                     `json:"client_id"`
+	Scope         string                     `json:"scope"`
+	OwnDID        did.DID                    `json:"own_did"`
+	ClientState   string                     `json:"-"`
+	RedirectURI   string                     `json:"-"`
+	ServerState   map[string]interface{}     `json:"-"`
+	Presentation  *vc.VerifiablePresentation `json:"presentation,omitempty"`
+	ResponseType  string                     `json:"-"`
+	RequestObject string                     `json:"-"`
 }
 
 func AddQueryParams(u url.URL, params map[string]string) url.URL {

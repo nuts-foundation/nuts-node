@@ -10,14 +10,20 @@
 <form method="post" class="form-control">
     <div>
         Scope:
-        <select name="scope" class="form-control">
-            <option value="eOverdracht-overdrachtsbericht" selected>eOverdracht-overdrachtsbericht (requires user identity)</option>
-            <option>eOverdracht-aanmeldbericht</option>
-        </select>
+        <input class="form-control" type="text" name="scope" value="openid">
     </div>
-    <input type="hidden" name="verifier_id" value="{{.VerifierID}}">
-    <div>Wallet Identifier: <input class="form-control" type="text" name="wallet_id" value="{{.WalletID}}"></div>
-    <div><input type="submit" value="Request Presentation"></div>
+    <div>
+        Wallet Identifier:
+        <input class="form-control" type="text" name="wallet_id" value="{{.WalletID}}">
+    </div>
+    <div>
+        Verifier Identifier:
+        <input type="text" class="form-control" name="verifier_id" value="{{.VerifierID}}">
+    </div>
+    <div>
+        <input type="submit" name="serverWallet" value="Request Presentation from server wallet">
+        <input type="submit" name="mobileWallet" value="Scan QR">
+    </div>
 </form>
 </body>
 </html>

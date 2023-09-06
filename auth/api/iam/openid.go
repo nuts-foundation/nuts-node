@@ -26,11 +26,14 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/url"
 	"strings"
@@ -39,7 +42,84 @@ import (
 
 const sessionExpiry = 5 * time.Minute
 
-// createPresentationRequest creates a new Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
+// createOpenIDAuthzRequest creates a new Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
+// It is sent by a verifier to a wallet, to request one or more verifiable credentials as verifiable presentation from the wallet.
+func (r *Wrapper) createOpenIDAuthzRequest(ctx context.Context, scope string, state string, presentationDefinition pe.PresentationDefinition, responseTypes []string, redirectURL url.URL, verifierDID did.DID, identifierPath string) (string, error) {
+	params := make(map[string]interface{})
+	params[scopeParam] = scope
+	params[redirectURIParam] = redirectURL.String()
+	// TODO: Specifying client_metadata_uri causes Sphereon Wallet to conclude the RP (Nuts Node) does not support SIOPv2 ID1
+	// (since client_metadata_uri was specified later, in d11?).
+	// Leading to the error message: RP does not support spec version 70, supported versions: 71
+	// Which is actually pretty weird, since the URI scheme used is openid-vc: (from JWT VC presentation profile),
+	// instead of openid: (from SIOPv2 ID1).
+	//params[clientMetadataURIParam] = r.auth.PublicURL().JoinPath(".well-known", "oauth-authorization-server", identifierPath).String()
+	params[responseTypeParam] = strings.Join(responseTypes, " ")
+	// TODO: What about including other (than openid) scopes?
+	params[clientIDParam] = verifierDID.String()
+	params["iss"] = verifierDID.String()
+	params["sub"] = verifierDID.String()
+	params["nbf"] = time.Now()
+	params["jti"] = uuid.NewString()
+	params["iat"] = time.Now()
+	params["exp"] = time.Now().Add(time.Minute)
+	params["nonce"] = generateCode()
+	params["state"] = state
+	// TODO: This should be the RPs metadata
+	params["registration"] = map[string]interface{}{
+		"client_name":                                 "Nuts Node",
+		"client_purpose":                              "Please share this information to perform medical data exchanges.",
+		"id_token_signing_alg_values_supported":       []string{"EdDSA", "ES256", "ES256K"},
+		"request_object_signing_alg_values_supported": []string{"EdDSA", "ES256", "ES256K"},
+		//"response_types_supported":                    []string{"id_token", "vp_token"},
+		"response_types_supported":       []string{"id_token"}, // TODO
+		"scopes_supported":               []string{scope},
+		"subject_types_supported":        []string{"pairwise"},                                             // what is this?
+		"subject_syntax_types_supported": []string{"did:jwk", "did:web", "did:ion", "did:key", "did:ethr"}, // TODO: did:ion, did:ethr is not actually supported
+		"vp_formats": map[string]interface{}{
+			// TODO: JWT VC presentation profile implementation, does not specify JSON-LD
+			"jwt_vc": map[string]interface{}{
+				"alg": []string{"EdDSA", "ES256", "ES256K"},
+			},
+			"jwt_vp": map[string]interface{}{
+				"alg": []string{"EdDSA", "ES256", "ES256K"},
+			},
+		},
+	}
+
+	for _, responseType := range responseTypes {
+		switch responseType {
+		case responseTypeIDToken:
+			// JWT-VC Presentation profile (SIOPv2)
+			params[responseModeParam] = responseModePost
+			params["claims"] = map[string]interface{}{
+				"vp_token": map[string]interface{}{
+					"presentation_definition": presentationDefinition,
+				},
+			}
+		case responseTypeVPToken:
+			// OpenID4VP
+			params[responseModeParam] = responseModeDirectPost
+		}
+	}
+
+	requestObjectJSON, _ := json.MarshalIndent(params, " ", "  ")
+	println(string(requestObjectJSON))
+
+	// Create request JWT
+	// Sign Request Object with assertionMethod key of verifier DID
+	keyResolver := resolver.PrivateKeyResolver{
+		DIDResolver:     r.vdr.Resolver(),
+		PrivKeyResolver: r.keyStore,
+	}
+	signingKey, err := keyResolver.ResolvePrivateKey(ctx, verifierDID, nil, resolver.NutsSigningKeyType)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve signing key (did=%s): %w", verifierDID, err)
+	}
+	return r.keyStore.SignJWT(ctx, params, nil, signingKey)
+}
+
+// sendPresentationRequest creates a new OpenID4VP Presentation Requests and "sends" it to the wallet, by redirecting the user-agent to the wallet's authorization endpoint.
 // It is sent by a verifier to a wallet, to request one or more verifiable credentials as verifiable presentation from the wallet.
 func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.ResponseWriter, scope string,
 	redirectURL url.URL, verifierIdentifier url.URL, walletIdentifier url.URL) error {
@@ -51,7 +131,7 @@ func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.Res
 	// TODO: Check this
 	params[clientMetadataURIParam] = verifierIdentifier.JoinPath("/.well-known/openid-wallet-metadata/metadata.xml").String()
 	params[responseModeParam] = responseModeDirectPost
-	params[responseTypeParam] = responseTypeVPIDToken
+	params[responseTypeParam] = strings.Join([]string{responseTypeVPToken, responseTypeIDToken}, " ")
 	// TODO: Depending on parameter size, we either use redirect with query parameters or a form post.
 	//       For simplicity, we now just query parameters.
 	result := AddQueryParams(*authzEndpoint, params)
@@ -225,31 +305,109 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 }
 
 func (r *Wrapper) handlePresentationRequestCompleted(ctx echo.Context) error {
-	// TODO: response direct_post mode
-	vpToken := ctx.QueryParams()[vpTokenParam]
-	if len(vpToken) == 0 {
-		// TODO: User-agent is a browser, need to render an HTML page
-		return errors.New("missing parameter " + vpTokenParam)
+	switch ctx.Request().Method {
+	case http.MethodPost:
+		type authzResponse struct {
+			VPToken string `form:"vp_token"`
+			State   string `form:"state"`
+		}
+		var resp authzResponse
+		if err := ctx.Bind(&resp); err != nil {
+			return err
+		}
+		if resp.State == "" {
+			return errors.New("missing state parameter")
+		}
+		sessionID := resp.State
+		session := r.sessions.Get(sessionID)
+		if session == nil {
+			return errors.New("invalid/expired session")
+		}
+		if resp.VPToken == "" {
+			return errors.New("missing vp_token parameter")
+		}
+		// TODO: Verify presentation and VCs. But signer is did:key, which we don't support...
+		vpToken, err := jwt.Parse([]byte(resp.VPToken))
+		if err != nil {
+			return fmt.Errorf("invalid vp_token: %w", err)
+		}
+		var vp vc.VerifiablePresentation
+		if verifiablePresentationMap, ok := vpToken.Get("vp"); !ok {
+			return errors.New("missing vp claim in vp_token")
+		} else {
+			vpJSON, _ := json.Marshal(verifiablePresentationMap)
+			if err := json.Unmarshal(vpJSON, &vp); err != nil {
+				return fmt.Errorf("vp unmarshal failed: %w", err)
+			}
+		}
+		session.Presentation = &vp
+		r.sessions.Update(sessionID, *session)
+		return ctx.NoContent(http.StatusOK)
+	case http.MethodGet:
+		fallthrough
+	default:
+		// TODO: response direct_post mode
+		sessionID := ctx.QueryParams().Get("sessionID")
+		vp := vc.VerifiablePresentation{}
+		if sessionID == "" {
+			// Redirect from wallet to RP/Verifier
+			// TODO: authenticate AS/OP (access to this endpoint)?
+			vpToken := ctx.QueryParams()[vpTokenParam]
+			if len(vpToken) == 0 {
+				// TODO: User-agent is a browser, need to render an HTML page
+				return errors.New("missing parameter " + vpTokenParam)
+			}
+			if err := vp.UnmarshalJSON([]byte(vpToken[0])); err != nil {
+				// TODO: User-agent is a browser, need to render an HTML page
+				return err
+			}
+			// TODO: verify signature and credentials of VP
+		} else {
+			// Have session ID, so result VP should be in session
+			session := r.sessions.Get(sessionID)
+			if session == nil {
+				return errors.New("invalid/expired session")
+			}
+			if session.Presentation == nil {
+				return errors.New("missing presentation in session")
+			}
+			vp = *session.Presentation
+		}
+		var credentials []CredentialInfo
+		for _, cred := range vp.VerifiableCredential {
+			credentials = append(credentials, makeCredentialInfo(cred))
+		}
+		buf := new(bytes.Buffer)
+		if err := r.templates.ExecuteTemplate(buf, "openid4vp_demo_completed.html", struct {
+			Credentials []CredentialInfo
+		}{
+			Credentials: credentials,
+		}); err != nil {
+			return err
+		}
+		return ctx.HTML(http.StatusOK, buf.String())
 	}
-	vp := vc.VerifiablePresentation{}
-	if err := vp.UnmarshalJSON([]byte(vpToken[0])); err != nil {
-		// TODO: User-agent is a browser, need to render an HTML page
-		return err
+}
+
+func (r Wrapper) getOpenID4VPAuthzRequest(echoCtx echo.Context) error {
+	sessionID := echoCtx.Param("sessionID")
+	if sessionID == "" {
+		return echoCtx.String(http.StatusBadRequest, "missing sessionID")
 	}
-	// TODO: verify signature and credentials of VP
-	var credentials []CredentialInfo
-	for _, cred := range vp.VerifiableCredential {
-		credentials = append(credentials, makeCredentialInfo(cred))
+	session := r.sessions.Get(sessionID)
+	return echoCtx.String(http.StatusOK, session.RequestObject)
+}
+
+func (r Wrapper) getOpenIDSession(echoCtx echo.Context) error {
+	sessionID := echoCtx.Param("sessionID")
+	if sessionID == "" {
+		return echoCtx.String(http.StatusBadRequest, "missing sessionID")
 	}
-	buf := new(bytes.Buffer)
-	if err := r.templates.ExecuteTemplate(buf, "openid4vp_demo_completed.html", struct {
-		Credentials []CredentialInfo
-	}{
-		Credentials: credentials,
-	}); err != nil {
-		return err
+	session := r.sessions.Get(sessionID)
+	if session == nil {
+		return echoCtx.String(http.StatusNotFound, "unknown/expired session")
 	}
-	return ctx.HTML(http.StatusOK, buf.String())
+	return echoCtx.JSON(http.StatusOK, session)
 }
 
 func assertParamPresent(params map[string]string, param ...string) error {

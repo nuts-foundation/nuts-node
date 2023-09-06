@@ -21,18 +21,28 @@ package iam
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
 	"net/url"
-	"strings"
+)
+
+type Protocol int
+
+const (
+	SIOPv2Protocol    Protocol = iota
+	OpenID4VPProtocol Protocol = iota
 )
 
 func (r *Wrapper) handleOpenID4VPDemoLanding(echoCtx echo.Context) error {
-	requestURL := *echoCtx.Request().URL
-	requestURL.Host = echoCtx.Request().Host
-	requestURL.Scheme = "http"
-	verifierID := requestURL.String()
-	verifierID, _ = strings.CutSuffix(verifierID, "/openid4vp_demo")
+	ownedDIDs, _ := r.vdr.ListOwned(echoCtx.Request().Context())
+	if len(ownedDIDs) == 0 {
+		return errors.New("no owned DIDs")
+	}
+	verifierID := r.auth.PublicURL().JoinPath("iam", ownedDIDs[0].ID).String()
 
 	buf := new(bytes.Buffer)
 	if err := r.templates.ExecuteTemplate(buf, "openid4vp_demo.html", struct {
@@ -52,6 +62,11 @@ func (r *Wrapper) handleOpenID4VPDemoSendRequest(echoCtx echo.Context) error {
 	if verifierID == "" {
 		return errors.New("missing verifier_id")
 	}
+	verifierURL, _ := url.Parse(verifierID)
+	verifierDID, err := didweb.URLToDID(*verifierURL)
+	if err != nil {
+		return fmt.Errorf("invalid verifier DID: %w", err)
+	}
 	walletID := echoCtx.FormValue("wallet_id")
 	if walletID == "" {
 		return errors.New("missing wallet_id")
@@ -61,9 +76,103 @@ func (r *Wrapper) handleOpenID4VPDemoSendRequest(echoCtx echo.Context) error {
 		return errors.New("missing scope")
 	}
 	walletURL, _ := url.Parse(walletID)
-	verifierURL, _ := url.Parse(verifierID)
-	return r.sendPresentationRequest(
-		echoCtx.Request().Context(), echoCtx.Response(), scope,
-		*walletURL.JoinPath("openid4vp_completed"), *verifierURL, *walletURL,
-	)
+
+	ctx := echoCtx.Request().Context()
+	if echoCtx.Param("serverWallet") != "" {
+		return r.sendPresentationRequest(
+			ctx, echoCtx.Response(), scope,
+			*walletURL.JoinPath("openid4vp_completed"), *verifierURL, *walletURL,
+		)
+	} else {
+		// Render QR code
+		session := Session{
+			Scope:  scope,
+			OwnDID: *verifierDID,
+		}
+		sessionID := r.sessions.Create(session)
+		pePurpose := "For this demo you can provide any credential"
+		pattern := "Sphereon Guest"
+		presentationDefinition := pe.PresentationDefinition{
+			Id:      "sphereon",
+			Purpose: &pePurpose,
+			InputDescriptors: []*pe.InputDescriptor{
+				{
+					Id:      uuid.NewString(),
+					Name:    "Sphereon Guest",
+					Purpose: "Any credential suffices",
+					Schema: []map[string]interface{}{
+						{
+							"uri": "GuestCredential",
+						},
+					},
+					Constraints: &pe.Constraints{
+						Fields: []pe.Field{
+							{
+								Path: []string{
+									"$.credentialSubject.type",
+									"$.vc.credentialSubject.type",
+								},
+								Filter: &pe.Filter{
+									Type:    "string",
+									Pattern: &pattern,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		requestObject, err := r.createOpenIDAuthzRequest(ctx, scope, sessionID, presentationDefinition,
+			[]string{responseTypeIDToken}, *verifierURL.JoinPath("openid4vp_completed"), *verifierDID, verifierURL.Path)
+		if err != nil {
+			return fmt.Errorf("failed to create request object: %w", err)
+		}
+		session.RequestObject = requestObject
+		r.sessions.Update(sessionID, session)
+
+		requestURI := r.auth.PublicURL().JoinPath("iam", "openid4vp", "authzreq", sessionID)
+		// openid-vc is JWT VC Presentation Profile scheme?
+		qrCode := "openid-vc://?" + url.Values{"request_uri": []string{requestURI.String()}}.Encode()
+
+		// Show QR code to scan using (mobile) wallet
+		buf := new(bytes.Buffer)
+		if err := r.templates.ExecuteTemplate(buf, "openid4vp_demo_qrcode.html", struct {
+			SessionID string
+			QRCode    string
+		}{
+			SessionID: sessionID,
+			QRCode:    qrCode,
+		}); err != nil {
+			return err
+		}
+		return echoCtx.HTML(http.StatusOK, buf.String())
+	}
+}
+
+func (r *Wrapper) handleOpenID4VPDemoGetRequestURI(echoCtx echo.Context) error {
+	sessionID := echoCtx.Param("sessionID")
+	if sessionID == "" {
+		return echoCtx.JSON(http.StatusBadRequest, "missing sessionID")
+	}
+	session := r.sessions.Get(sessionID)
+	if session == nil {
+		return echoCtx.JSON(http.StatusNotFound, "unknown session")
+	}
+	return echoCtx.Blob(http.StatusOK, "text/plain", []byte(session.RequestObject))
+}
+
+func (r *Wrapper) handleOpenID4VPDemoRequestWalletStatus(echoCtx echo.Context) error {
+	sessionID := echoCtx.FormValue("sessionID")
+	if sessionID == "" {
+		return echoCtx.JSON(http.StatusBadRequest, "missing sessionID")
+	}
+	session := r.sessions.Get(sessionID)
+	if session == nil {
+		return echoCtx.JSON(http.StatusNotFound, "unknown session")
+	}
+	if session.Presentation == nil {
+		// No VP yet, keep polling
+		return echoCtx.NoContent(http.StatusNoContent)
+	}
+	return echoCtx.JSON(http.StatusOK, session.Presentation)
 }

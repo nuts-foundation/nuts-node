@@ -51,12 +51,11 @@ const (
 	// responseTypeVPToken is defined in the OpenID4VP vp_token flow
 	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#appendix-B
 	responseTypeVPToken = "vp_token"
-	// responseTypeVPIDToken is defined in the OpenID4VP flow that combines its vp_token with SIOPv2's id_token
-	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#appendix-B
-	responseTypeVPIDToken = "vp_token id_token"
+	// responseTypeVPIDToken is by OpenID Connect
+	responseTypeIDToken = "id_token"
 )
 
-var responseTypesSupported = []string{responseTypeCode, responseTypeVPToken, responseTypeVPIDToken}
+var responseTypesSupported = []string{responseTypeIDToken, responseTypeVPToken}
 
 const (
 	// responseModeParam is the name of the OAuth2 response_mode parameter.
@@ -67,6 +66,7 @@ const (
 	// responseModeDirectPost signals the Authorization Server to POST the requested presentation definition to the provided response_uri
 	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-response-mode-direct_post
 	responseModeDirectPost = "direct_post"
+	responseModePost       = "post"
 )
 
 var responseModesSupported = []string{responseModeQuery, responseModeDirectPost}
