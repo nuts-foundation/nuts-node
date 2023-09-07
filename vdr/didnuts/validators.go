@@ -25,7 +25,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -186,21 +186,21 @@ func (m managedServiceValidator) Validate(document did.Document) error {
 	return nil
 }
 
-func (m managedServiceValidator) resolveOrReturnEndpoint(service did.Service, cache map[string]*did.Document) (any, error) {
+func (m managedServiceValidator) resolveOrReturnEndpoint(svc did.Service, cache map[string]*did.Document) (any, error) {
 	var serviceEndpoint string
-	if err := service.UnmarshalServiceEndpoint(&serviceEndpoint); err != nil {
+	if err := svc.UnmarshalServiceEndpoint(&serviceEndpoint); err != nil {
 		return nil, errors.New("invalid service format")
 	}
 	// make sure that it resolves if it is a reference
-	if didservice.IsServiceReference(serviceEndpoint) {
+	if service.IsServiceReference(serviceEndpoint) {
 		serviceURI, err := ssi.ParseURI(serviceEndpoint)
 		if err != nil {
 			return nil, err
 		}
-		if err = didservice.ValidateServiceReference(*serviceURI); err != nil {
+		if err = service.ValidateServiceReference(*serviceURI); err != nil {
 			return nil, err
 		}
-		resolvedService, err := m.serviceResolver.ResolveEx(*serviceURI, 0, didservice.DefaultMaxServiceReferenceDepth, cache)
+		resolvedService, err := m.serviceResolver.ResolveEx(*serviceURI, 0, service.DefaultMaxServiceReferenceDepth, cache)
 		if err != nil {
 			return nil, err
 		}

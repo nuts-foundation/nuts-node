@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -172,7 +172,7 @@ func NewAuthorizationServer(
 	serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
 	contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD, accessTokenLifeSpan time.Duration) AuthorizationServer {
 	return &authzServer{
-		keyResolver:         didservice.KeyResolver{Resolver: didResolver},
+		keyResolver:         service.KeyResolver{Resolver: didResolver},
 		serviceResolver:     serviceResolver,
 		contractNotary:      contractNotary,
 		jsonldManager:       jsonldManager,

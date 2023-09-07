@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"testing"
 	"time"
 
@@ -239,7 +239,7 @@ func TestNewContractNotary(t *testing.T) {
 				ContractValidity: 60 * time.Minute,
 			},
 			vcr.NewTestVCRInstance(t),
-			didservice.KeyResolver{},
+			service.KeyResolver{},
 			crypto.NewMemoryCryptoInstance(),
 			nil,
 			nil,

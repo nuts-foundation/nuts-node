@@ -25,7 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"net/url"
 	"sync"
 
@@ -246,8 +246,8 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	documentsCache := map[string]*did.Document{document.ID.String(): document}
 
 	// First, resolve the compound endpoint
-	serviceResolver := didservice.ServiceResolver{Resolver: d.vdr.Resolver()}
-	compoundService, err := serviceResolver.ResolveEx(didservice.MakeServiceReference(id, compoundServiceType), referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
+	serviceResolver := service.ServiceResolver{Resolver: d.vdr.Resolver()}
+	compoundService, err := serviceResolver.ResolveEx(service.MakeServiceReference(id, compoundServiceType), referenceDepth, service.DefaultMaxServiceReferenceDepth, documentsCache)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}
 	}
@@ -262,13 +262,13 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	if endpoint == "" {
 		return "", types.ErrServiceNotFound
 	}
-	if resolveReferences && didservice.IsServiceReference(endpoint) {
+	if resolveReferences && service.IsServiceReference(endpoint) {
 		endpointURI, err := ssi.ParseURI(endpoint)
 		if err != nil {
 			// Not sure when this could ever happen
 			return "", err
 		}
-		resolvedEndpoint, err := serviceResolver.ResolveEx(*endpointURI, referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
+		resolvedEndpoint, err := serviceResolver.ResolveEx(*endpointURI, referenceDepth, service.DefaultMaxServiceReferenceDepth, documentsCache)
 		if err != nil {
 			return "", err
 		}
@@ -282,7 +282,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 }
 
 func (d *didman) DeleteService(ctx context.Context, serviceID ssi.URI) error {
-	id, err := didservice.GetDIDFromURL(serviceID.String())
+	id, err := service.GetDIDFromURL(serviceID.String())
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 	log.Logger().
 		WithField(core.LogFieldServiceID, serviceID.String()).
 		Debug("Deleting service")
-	id, err := didservice.GetDIDFromURL(serviceID.String())
+	id, err := service.GetDIDFromURL(serviceID.String())
 	if err != nil {
 		return err
 	}
@@ -308,19 +308,19 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 		return err
 	}
 
-	var service *did.Service
+	var svc *did.Service
 	for i, s := range doc.Service {
 		if s.ID == serviceID {
-			service = &doc.Service[i]
+			svc = &doc.Service[i]
 			break
 		}
 	}
-	if service == nil {
+	if svc == nil {
 		return types.ErrServiceNotFound
 	}
 
 	// check for existing use on this document
-	if referencedService(doc, didservice.MakeServiceReference(doc.ID, service.Type).String()) {
+	if referencedService(doc, service.MakeServiceReference(doc.ID, svc.Type).String()) {
 		return ErrServiceInUse
 	}
 
@@ -468,7 +468,7 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 	j := 0
 	for i, organization := range organizations {
 		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
-		if didservice.IsFunctionalResolveError(err) {
+		if service.IsFunctionalResolveError(err) {
 			// Just ignore deactivated DID documents or VCs that don't refer to an existing DID document.
 			// Log it on debug, because it might be useful for finding VCs that need to be revoked (since they're invalid).
 			log.Logger().

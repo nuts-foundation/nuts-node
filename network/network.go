@@ -26,7 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -149,11 +149,11 @@ func NewNetworkInstance(
 ) *Network {
 	return &Network{
 		config:            config,
-		keyResolver:       didservice.KeyResolver{Resolver: store},
+		keyResolver:       service.KeyResolver{Resolver: store},
 		keyStore:          keyStore,
 		didStore:          store,
 		didDocumentFinder: didstore.Finder{Store: store},
-		serviceResolver:   didservice.ServiceResolver{Resolver: store},
+		serviceResolver:   service.ServiceResolver{Resolver: store},
 		eventPublisher:    eventPublisher,
 		storeProvider:     storeProvider,
 		pkiValidator:      pkiValidator,
@@ -390,7 +390,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	}
 
 	// start connecting to published NutsComm addresses
-	otherNodes, err := n.didDocumentFinder.Find(didservice.IsActive(), didservice.ValidAt(time.Now()), didservice.ByServiceType(transport.NutsCommServiceType))
+	otherNodes, err := n.didDocumentFinder.Find(service.IsActive(), service.ValidAt(time.Now()), service.ByServiceType(transport.NutsCommServiceType))
 	if err != nil {
 		return err
 	}
@@ -477,8 +477,8 @@ func (n *Network) checkNodeDIDHealth(ctx context.Context, nodeDID did.DID) core.
 	}
 
 	// Check if the DID document has a resolvable and valid NutsComm endpoint
-	serviceRef := didservice.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
-	nutsCommService, err := n.serviceResolver.Resolve(serviceRef, didservice.DefaultMaxServiceReferenceDepth)
+	serviceRef := service.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
+	nutsCommService, err := n.serviceResolver.Resolve(serviceRef, service.DefaultMaxServiceReferenceDepth)
 	if err != nil {
 		// Non-existing NutsComm results in HealthStatusUnknown to make it easier to fix the issue (HealthStatusDown kills the node in certain environments)
 		return core.Health{

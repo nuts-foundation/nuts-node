@@ -31,7 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -48,9 +48,9 @@ func NewNetworkPublisher(networkTx network.Transactions, didResolver vdr.DIDReso
 	return &networkPublisher{
 		networkTx:       networkTx,
 		didResolver:     didResolver,
-		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
+		serviceResolver: service.ServiceResolver{Resolver: didResolver},
 		keyResolver: vdrKeyResolver{
-			publicKeyResolver:  didservice.KeyResolver{Resolver: didResolver},
+			publicKeyResolver:  service.KeyResolver{Resolver: didResolver},
 			privateKeyResolver: keyResolver,
 		},
 	}
@@ -131,7 +131,7 @@ func (p networkPublisher) generateParticipants(verifiableCredential vc.Verifiabl
 }
 
 func (p networkPublisher) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, error) {
-	serviceUser := didservice.MakeServiceReference(DID, transport.NutsCommServiceType)
+	serviceUser := service.MakeServiceReference(DID, transport.NutsCommServiceType)
 
 	service, err := p.serviceResolver.Resolve(serviceUser, 5)
 	if err != nil {

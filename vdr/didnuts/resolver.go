@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -116,7 +116,7 @@ func resolveControllers(resolver types.DIDResolver, doc did.Document, metadata *
 	// filter deactivated
 	j := 0
 	for _, leaf := range leaves {
-		if !didservice.IsDeactivated(leaf) {
+		if !service.IsDeactivated(leaf) {
 			leaves[j] = leaf
 			j++
 		}

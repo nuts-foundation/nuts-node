@@ -17,7 +17,7 @@
 
 // Package service contains DID Document related functionality that only matters to the current node.
 // All functionality here has zero relations to the network.
-package didservice
+package service
 
 import (
 	"crypto"

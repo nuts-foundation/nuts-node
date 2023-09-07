@@ -30,7 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"html/template"
 	"net/http"
@@ -215,7 +215,7 @@ func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, reques
 
 	owned, err := r.vdr.IsOwner(ctx, *id)
 	if err != nil {
-		if didservice.IsFunctionalResolveError(err) {
+		if service.IsFunctionalResolveError(err) {
 			return nil, core.NotFoundError("authz server metadata: %w", err)
 		}
 		log.Logger().WithField("did", id.String()).Errorf("authz server metadata: failed to assert ownership of did: %s", err.Error())

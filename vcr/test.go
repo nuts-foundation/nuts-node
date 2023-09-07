@@ -32,7 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -54,7 +54,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	ctx := TestVCRContext{
 		DIDStore:    didStore,
 		KeyStore:    keyStore,
-		KeyResolver: didservice.KeyResolver{Resolver: didResolver},
+		KeyResolver: service.KeyResolver{Resolver: didResolver},
 	}
 
 	testDirectory := io.TestDirectory(t)

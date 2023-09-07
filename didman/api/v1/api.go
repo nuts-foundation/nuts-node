@@ -25,7 +25,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"net/http"
 	"net/url"
 	"strings"
@@ -66,7 +66,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		return http.StatusNotFound
 	case errors.As(err, new(didnuts.InvalidServiceError)):
 		return http.StatusBadRequest
-	case errors.As(err, new(didservice.ServiceQueryError)):
+	case errors.As(err, new(service.ServiceQueryError)):
 		return http.StatusBadRequest
 	case errors.Is(err, types.ErrServiceReferenceToDeep):
 		return http.StatusNotAcceptable

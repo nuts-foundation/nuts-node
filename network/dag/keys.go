@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -53,7 +53,7 @@ func resolvePublicKey(resolver types.DIDResolver, kid string, metadata types.Res
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
 	}
-	holder, _ := didservice.GetDIDFromURL(kid) // can't fail, already parsed
+	holder, _ := service.GetDIDFromURL(kid) // can't fail, already parsed
 	doc, _, err := resolver.Resolve(holder, &metadata)
 	if err != nil {
 		return nil, err

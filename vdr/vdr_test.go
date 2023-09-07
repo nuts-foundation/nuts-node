@@ -31,7 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"io"
 	"net/http"
 	"strings"
@@ -68,7 +68,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockStore := didstore.NewMockStore(ctrl)
 	mockNetwork := network.NewMockTransactions(ctrl)
 	mockKeyStore := crypto.NewMockKeyStore(ctrl)
-	resolverRouter := &didservice.DIDResolverRouter{}
+	resolverRouter := &service.DIDResolverRouter{}
 	vdr := VDR{
 		store:             mockStore,
 		network:           mockNetwork,

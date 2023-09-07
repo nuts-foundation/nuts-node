@@ -24,7 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"net/url"
@@ -57,14 +57,14 @@ type DIDIdentifierResolver struct {
 }
 
 func (i DIDIdentifierResolver) Resolve(id did.DID) (string, error) {
-	service, err := i.ServiceResolver.Resolve(didservice.MakeServiceReference(id, types.BaseURLServiceType), didservice.DefaultMaxServiceReferenceDepth)
-	if didservice.IsFunctionalResolveError(err) {
+	svc, err := i.ServiceResolver.Resolve(service.MakeServiceReference(id, types.BaseURLServiceType), service.DefaultMaxServiceReferenceDepth)
+	if service.IsFunctionalResolveError(err) {
 		return "", nil
 	} else if err != nil {
 		return "", fmt.Errorf("unable to resolve %s service: %w", types.BaseURLServiceType, err)
 	}
 	var result string
-	_ = service.UnmarshalServiceEndpoint(&result)
+	_ = svc.UnmarshalServiceEndpoint(&result)
 	if result != "" {
 		result = CreateIdentifier(result, id)
 	}

@@ -33,8 +33,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -61,7 +61,7 @@ type VDR struct {
 	network           network.Transactions
 	networkAmbassador didnuts.Ambassador
 	didDocCreator     types.DocCreator
-	didResolver       *didservice.DIDResolverRouter
+	didResolver       *service.DIDResolverRouter
 	serviceResolver   types.ServiceResolver
 	documentOwner     types.DocumentOwner
 	keyStore          crypto.KeyStore
@@ -76,14 +76,14 @@ func (r *VDR) Resolver() types.DIDResolver {
 // NewVDR creates a new VDR with provided params
 func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	didStore didnutsStore.Store, eventManager events.Event) *VDR {
-	didResolver := &didservice.DIDResolverRouter{}
+	didResolver := &service.DIDResolverRouter{}
 	return &VDR{
 		network:         networkClient,
 		eventManager:    eventManager,
 		didDocCreator:   didnuts.Creator{KeyStore: cryptoClient},
 		didResolver:     didResolver,
 		store:           didStore,
-		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
+		serviceResolver: service.ServiceResolver{Resolver: didResolver},
 		documentOwner:   newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, didResolver),
 		keyStore:        cryptoClient,
 	}
@@ -290,7 +290,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	if err != nil {
 		return fmt.Errorf("update DID document: %w", err)
 	}
-	if didservice.IsDeactivated(*currentDIDDocument) {
+	if service.IsDeactivated(*currentDIDDocument) {
 		return fmt.Errorf("update DID document: %w", types.ErrDeactivated)
 	}
 

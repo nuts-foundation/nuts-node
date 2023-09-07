@@ -22,7 +22,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 
 	ssi "github.com/nuts-foundation/go-did"
 
@@ -153,7 +153,7 @@ func (n Creator) Create(ctx context.Context, options vdr.DIDCreationOptions) (*d
 	}
 
 	// Create the bare document. The Document DID will be the keyIDStr without the fragment.
-	didID, _ := didservice.GetDIDFromURL(key.KID())
+	didID, _ := service.GetDIDFromURL(key.KID())
 	doc := CreateDocument()
 	doc.ID = didID
 	doc.Controller = options.Controllers

@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"io/fs"
 	"net/http"
 	"path"
@@ -197,8 +197,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	var openidHandlerFn func(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error)
 
 	didResolver := c.vdrInstance.Resolver()
-	c.keyResolver = didservice.KeyResolver{Resolver: didResolver}
-	c.serviceResolver = didservice.ServiceResolver{Resolver: didResolver}
+	c.keyResolver = service.KeyResolver{Resolver: didResolver}
+	c.serviceResolver = service.ServiceResolver{Resolver: didResolver}
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, didResolver, c.keyStore)
 	if c.config.OpenID4VCI.Enabled {

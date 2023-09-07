@@ -25,7 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/url"
 	"strings"
@@ -55,7 +55,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, peer transport.Peer) (tr
 	}
 
 	// Resolve NutsComm endpoint of contained in DID document associated with node DID
-	nutsCommService, err := t.serviceResolver.Resolve(didservice.MakeServiceReference(nodeDID, transport.NutsCommServiceType), didservice.DefaultMaxServiceReferenceDepth)
+	nutsCommService, err := t.serviceResolver.Resolve(service.MakeServiceReference(nodeDID, transport.NutsCommServiceType), service.DefaultMaxServiceReferenceDepth)
 	var nutsCommURL *url.URL
 	if err == nil {
 		var nutsCommURLStr string

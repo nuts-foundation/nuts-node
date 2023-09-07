@@ -17,7 +17,7 @@
  *
  */
 
-package didservice
+package service
 
 import (
 	ssi "github.com/nuts-foundation/go-did"

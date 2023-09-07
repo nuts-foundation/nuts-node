@@ -19,7 +19,7 @@ package didstore
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/service"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -39,7 +39,7 @@ func TestFinder_Find(t *testing.T) {
 			f(did.Document{}, types.DocumentMetadata{})
 		})
 
-		docs, err := finder.Find(didservice.IsActive())
+		docs, err := finder.Find(service.IsActive())
 
 		require.NoError(t, err)
 		assert.Len(t, docs, 1)
@@ -51,7 +51,7 @@ func TestFinder_Find(t *testing.T) {
 		finder := Finder{Store: didStore}
 		didStore.EXPECT().Iterate(gomock.Any()).Return(errors.New("b00m!"))
 
-		_, err := finder.Find(didservice.IsActive())
+		_, err := finder.Find(service.IsActive())
 
 		assert.Error(t, err)
 	})
