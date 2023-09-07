@@ -156,25 +156,29 @@ func (c *vcr) Migrate() error {
 		return nil
 	}
 	log.Logger().Info("Migrating credentials to wallet...")
-	count := 0
+	var credentials []vc.VerifiableCredential
 	startTime := time.Now()
 	defer func() {
-		log.Logger().Infof("Copied %d credentials into wallet in %s", count, time.Now().Sub(startTime))
+		log.Logger().Infof("Copied %d credentials into wallet in %s", len(credentials), time.Now().Sub(startTime))
 	}()
-	return c.credentialCollection().Iterate(leia.Query{}, func(key leia.Reference, value []byte) error {
+	err = c.credentialCollection().Iterate(leia.Query{}, func(key leia.Reference, value []byte) error {
 		var cred vc.VerifiableCredential
 		if err := json.Unmarshal(value, &cred); err != nil {
 			return fmt.Errorf("unable to unmarshal credential (leia key=%s): %w", key.EncodeToString(), err)
 		}
-		stored, err := c.writeCredentialToWallet(cred)
+		putInWallet, err := c.canWalletHoldCredential(cred)
 		if err != nil {
-			return fmt.Errorf("unable to write credential to wallet (id=%s): %w", cred.ID, err)
+			return err
 		}
-		if stored {
-			count++
+		if putInWallet {
+			credentials = append(credentials, cred)
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	return c.wallet.Put(context.TODO(), credentials...)
 }
 
 func (c *vcr) Issuer() issuer.Issuer {
@@ -603,21 +607,28 @@ func (c *vcr) Diagnostics() []core.DiagnosticResult {
 // If it's written to the wallet, it returns true.
 // If an error occurs, it returns false and the error.
 func (c *vcr) writeCredentialToWallet(cred vc.VerifiableCredential) (bool, error) {
+	put, err := c.canWalletHoldCredential(cred)
+	if err != nil {
+		return false, err
+	}
+	if put {
+		return true, c.wallet.Put(context.TODO(), cred)
+	}
+	return false, nil
+}
+
+// canWalletHoldCredential returns true if the credential is subject to the wallet of the node, meaning:
+// - It is of a type that can be stored in the wallet
+// - The subject of the credential is owned by this node
+// If these conditions are met, it returns true.
+// If an error occurs, it returns false and the error.
+func (c *vcr) canWalletHoldCredential(cred vc.VerifiableCredential) (bool, error) {
 	if cred.IsType(*credential.NutsAuthorizationCredentialTypeURI) {
 		return false, nil
 	}
-	type credentialSubject struct {
-		ID did.DID `json:"id"`
-	}
-	var subject []credentialSubject
-	_ = cred.UnmarshalCredentialSubject(&subject)
-	if len(subject) < 1 || subject[0].ID.Empty() {
+	subjectDID, _ := cred.SubjectDID()
+	if subjectDID == nil {
 		return false, nil
 	}
-	ctx := context.TODO()
-	isOwner, err := c.vdrInstance.IsOwner(ctx, subject[0].ID)
-	if err != nil || !isOwner {
-		return false, err
-	}
-	return true, c.wallet.Put(ctx, cred)
+	return c.vdrInstance.IsOwner(context.Background(), *subjectDID)
 }

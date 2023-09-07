@@ -130,40 +130,43 @@ func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.Verifiab
 	return &signedVP, nil
 }
 
-func (h wallet) Put(ctx context.Context, credential vc.VerifiableCredential) error {
-	subjectDID, err := h.resolveSubjectDID([]vc.VerifiableCredential{credential})
-	if err != nil {
-		return err
-	}
-	err = h.walletStore.Write(ctx, func(tx stoabs.WriteTx) error {
-		walletKey := stoabs.BytesKey(credential.ID.String())
-		walletShelf := tx.GetShelfWriter(subjectDID.String())
-		// First check if the VC doesn't already exist; otherwise stats will be incorrect
-		_, err := walletShelf.Get(walletKey)
-		if err == nil {
-			// Already exists
-			return nil
-		} else if !errors.Is(err, stoabs.ErrKeyNotFound) {
-			// Other error
-			return err
-		}
-		// Write credential
-		data, _ := credential.MarshalJSON()
-		err = walletShelf.Put(walletKey, data)
-		if err != nil {
-			return err
+func (h wallet) Put(ctx context.Context, credentials ...vc.VerifiableCredential) error {
+	err := h.walletStore.Write(ctx, func(tx stoabs.WriteTx) error {
+		stats := tx.GetShelfWriter(statsShelf)
+		var newCredentials uint32
+		for _, credential := range credentials {
+			subjectDID, err := h.resolveSubjectDID([]vc.VerifiableCredential{credential})
+			if err != nil {
+				return fmt.Errorf("unable to resolve subject DID from VC %s: %w", credential.ID, err)
+			}
+			walletKey := stoabs.BytesKey(credential.ID.String())
+			// First check if the VC doesn't already exist; otherwise stats will be incorrect
+			walletShelf := tx.GetShelfWriter(subjectDID.String())
+			_, err = walletShelf.Get(walletKey)
+			if err == nil {
+				// Already exists
+				continue
+			} else if !errors.Is(err, stoabs.ErrKeyNotFound) {
+				// Other error
+				return fmt.Errorf("unable to check if credential %s already exists: %w", credential.ID, err)
+			}
+			// Write credential
+			data, _ := credential.MarshalJSON()
+			err = walletShelf.Put(walletKey, data)
+			if err != nil {
+				return fmt.Errorf("unable to store credential %s: %w", credential.ID, err)
+			}
+			newCredentials++
 		}
 		// Update stats
-		statsShelf := tx.GetShelfWriter(statsShelf)
-		count, err := h.readCredentialCount(statsShelf)
+		currentCount, err := h.readCredentialCount(stats)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to read wallet credential count: %w", err)
 		}
-		count++
-		return statsShelf.Put(credentialCountStatsKey, binary.BigEndian.AppendUint32([]byte{}, count))
+		return stats.Put(credentialCountStatsKey, binary.BigEndian.AppendUint32([]byte{}, currentCount+newCredentials))
 	}, stoabs.WithWriteLock()) // lock required for stats consistency
 	if err != nil {
-		return fmt.Errorf("unable to store credential: %w", err)
+		return fmt.Errorf("unable to store credential(s): %w", err)
 	}
 	return nil
 }

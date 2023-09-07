@@ -45,8 +45,9 @@ type Wallet interface {
 	// List returns all credentials in the wallet for the given holder.
 	List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)
 
-	// Put adds the given credential to the wallet.
-	Put(ctx context.Context, credential vc.VerifiableCredential) error
+	// Put adds the given credentials to the wallet. It is an all-or-nothing operation:
+	// if one of them fails, none of the credentials are added.
+	Put(ctx context.Context, credentials ...vc.VerifiableCredential) error
 
 	// IsEmpty returns true if the wallet contains no credentials at all (for all holder DIDs).
 	IsEmpty() (bool, error)

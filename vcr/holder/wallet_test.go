@@ -201,7 +201,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 }
 
 func Test_wallet_Put(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
+	t.Run("put 1 credential", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
 		sut := New(nil, nil, nil, nil, store)
@@ -214,6 +214,53 @@ func Test_wallet_Put(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, list, 1)
 		assert.Equal(t, expected.ID.String(), list[0].ID.String())
+	})
+	t.Run("put 2 credentials", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+		sut := New(nil, nil, nil, nil, store)
+		expected := []vc.VerifiableCredential{
+			createCredential(vdr.TestMethodDIDA.String()),
+			createCredential(vdr.TestMethodDIDB.String()),
+		}
+
+		err := sut.Put(context.Background(), expected...)
+		require.NoError(t, err)
+
+		// For DID A
+		list, err := sut.List(context.Background(), vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+		assert.Equal(t, expected[0].ID.String(), list[0].ID.String())
+
+		// For DID B
+		list, err = sut.List(context.Background(), vdr.TestDIDB)
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+		assert.Equal(t, expected[1].ID.String(), list[0].ID.String())
+	})
+	t.Run("put 3 credentials, 1 fails", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+		sut := New(nil, nil, nil, nil, store)
+		expected := []vc.VerifiableCredential{
+			createCredential(vdr.TestMethodDIDA.String()),
+			createCredential(vdr.TestMethodDIDB.String()),
+			{}, // no subject, causes error
+		}
+
+		err := sut.Put(context.Background(), expected...)
+		require.Error(t, err)
+
+		// For DID A
+		list, err := sut.List(context.Background(), vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Empty(t, list)
+
+		// For DID B
+		list, err = sut.List(context.Background(), vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Empty(t, list)
 	})
 	t.Run("duplicate credential", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)

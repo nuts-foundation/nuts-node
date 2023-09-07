@@ -97,15 +97,20 @@ func (mr *MockWalletMockRecorder) List(ctx, holderDID interface{}) *gomock.Call 
 }
 
 // Put mocks base method.
-func (m *MockWallet) Put(ctx context.Context, credential vc.VerifiableCredential) error {
+func (m *MockWallet) Put(ctx context.Context, credentials ...vc.VerifiableCredential) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Put", ctx, credential)
+	varargs := []interface{}{ctx}
+	for _, a := range credentials {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Put", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Put indicates an expected call of Put.
-func (mr *MockWalletMockRecorder) Put(ctx, credential interface{}) *gomock.Call {
+func (mr *MockWalletMockRecorder) Put(ctx interface{}, credentials ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockWallet)(nil).Put), ctx, credential)
+	varargs := append([]interface{}{ctx}, credentials...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockWallet)(nil).Put), varargs...)
 }
