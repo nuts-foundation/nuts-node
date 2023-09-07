@@ -67,18 +67,33 @@ func TestLeiaStore_Close(t *testing.T) {
 func Test_leiaVerifierStore_StoreRevocation(t *testing.T) {
 	testDir := io.TestDirectory(t)
 	verifierStorePath := path.Join(testDir, "vcr", "verifier-store.db")
-	backupStore := newMockKVStore(t)
+	backupStorePath := path.Join(testDir, "vcr", "backup-revoked-credentials.db")
+	backupStore, err := bbolt.CreateBBoltStore(backupStorePath)
+	require.NoError(t, err)
 	sut, _ := NewLeiaVerifierStore(verifierStorePath, backupStore)
+	defer sut.Close()
 
-	t.Run("it stores a revocation and can find it back", func(t *testing.T) {
-		subjectID := ssi.MustParseURI("did:nuts:123#ab-c")
-		revocation := &credential.Revocation{Subject: subjectID}
-		err := sut.StoreRevocation(*revocation)
-		assert.NoError(t, err)
-		result, err := sut.GetRevocations(subjectID)
-		assert.NoError(t, err)
-		assert.Equal(t, []*credential.Revocation{revocation}, result)
+	// store revocation
+	subjectID := ssi.MustParseURI("did:nuts:123#ab-c")
+	revocation := &credential.Revocation{Subject: subjectID}
+	err = sut.StoreRevocation(*revocation)
+	assert.NoError(t, err)
+
+	// exists in verifier-store.db
+	result, err := sut.GetRevocations(subjectID)
+	assert.NoError(t, err)
+	assert.Equal(t, []*credential.Revocation{revocation}, result)
+
+	// exists in backup-revoked-credentials.db
+	revocationBytes, _ := json.Marshal(revocation)
+	ref := sha1.Sum(revocationBytes)
+	var backupBytes []byte
+	err = backupStore.ReadShelf(context.Background(), revocationBackupShelf, func(reader stoabs.Reader) error {
+		backupBytes, err = reader.Get(stoabs.BytesKey(ref[:]))
+		return err
 	})
+	assert.NoError(t, err)
+	assert.Equal(t, revocationBytes, backupBytes)
 }
 
 func Test_leiaVerifierStore_GetRevocation(t *testing.T) {
@@ -147,6 +162,7 @@ func Test_restoreFromShelf(t *testing.T) {
 
 	store, err := NewLeiaVerifierStore(issuerStorePath, backupStore)
 	require.NoError(t, err)
+	defer store.Close()
 	result, err := store.GetRevocations(subjectID)
 	require.NoError(t, err)
 	assert.Equal(t, []*credential.Revocation{revocation}, result)
@@ -154,13 +170,8 @@ func Test_restoreFromShelf(t *testing.T) {
 
 // newMockKVStore create a mockStore with contents
 func newMockKVStore(t *testing.T) stoabs.KVStore {
-	ctrl := gomock.NewController(t)
-	backupStore := stoabs.NewMockKVStore(ctrl)
-	mockReader := stoabs.NewMockReader(ctrl)
-	mockReader.EXPECT().Empty().Return(false, nil).AnyTimes()
-	mockReader.EXPECT().Iterate(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	backupStore.EXPECT().ReadShelf(context.Background(), revocationBackupShelf, gomock.Any()).Do(func(arg0 context.Context, arg1 string, arg2 func(reader stoabs.Reader) error) error {
-		return arg2(mockReader)
-	}).AnyTimes()
+	backupStore := stoabs.NewMockKVStore(gomock.NewController(t))
+	backupStore.EXPECT().ReadShelf(context.Background(), revocationBackupShelf, gomock.Any()).AnyTimes()
+	backupStore.EXPECT().WriteShelf(context.Background(), revocationBackupShelf, gomock.Any()).AnyTimes()
 	return backupStore
 }
