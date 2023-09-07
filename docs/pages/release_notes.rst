@@ -4,6 +4,16 @@ Release notes
 #############
 
 ************************
+Hazelnut update (v5.4.3)
+************************
+
+Release date: 2023-09-07
+
+- Fixed a performance issue with initializing the backup databases.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.2...v5.4.3
+
+************************
 Hazelnut update (v5.4.2)
 ************************
 
