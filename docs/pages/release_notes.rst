@@ -21,6 +21,7 @@ Hazelnut update (v5.4.2)
 Release date: 2023-08-20
 
 - Fixed issue where NutsEmployeeCredentials needed to be explicitly trusted when issued by another node
+- Reduced number of pages transmitted on a full sync to enhance performance
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.1...v5.4.2
 
