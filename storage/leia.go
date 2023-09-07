@@ -127,7 +127,7 @@ func (k *kvBackedLeiaStore) handleRestore(config LeiaBackupConfiguration) error 
 		ref leia.Reference
 		doc leia.Document
 	}
-	var set []refDoc
+
 	writeDocuments := func(set []refDoc) error {
 		return k.backup.Write(context.Background(), func(tx stoabs.WriteTx) error {
 			writer := tx.GetShelfWriter(config.BackupShelf)
@@ -140,6 +140,7 @@ func (k *kvBackedLeiaStore) handleRestore(config LeiaBackupConfiguration) error 
 		})
 	}
 
+	var set []refDoc
 	err := collection.Iterate(query, func(ref leia.Reference, value []byte) error {
 		set = append(set, refDoc{ref: ref, doc: value})
 		if len(set) >= limit {
