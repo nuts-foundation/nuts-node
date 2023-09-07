@@ -27,7 +27,7 @@ import (
 
 func TestStore_LoadFromFile(t *testing.T) {
 	t.Run("loads the mapping from the file", func(t *testing.T) {
-		store := Store{}
+		store := DefinitionResolver{}
 
 		err := store.LoadFromFile("test/definition_mapping.json")
 
@@ -37,7 +37,7 @@ func TestStore_LoadFromFile(t *testing.T) {
 	})
 
 	t.Run("returns an error if the file doesn't exist", func(t *testing.T) {
-		store := Store{}
+		store := DefinitionResolver{}
 
 		err := store.LoadFromFile("test/doesntexist.json")
 
@@ -47,7 +47,7 @@ func TestStore_LoadFromFile(t *testing.T) {
 
 func TestStore_ByScope(t *testing.T) {
 	t.Run("returns nil if the scope doesn't exist", func(t *testing.T) {
-		store := Store{}
+		store := DefinitionResolver{}
 
 		result := store.ByScope("eOverdracht-overdrachtsbericht2")
 
@@ -55,7 +55,7 @@ func TestStore_ByScope(t *testing.T) {
 	})
 
 	t.Run("returns the presentation definition if the scope exists", func(t *testing.T) {
-		store := Store{}
+		store := DefinitionResolver{}
 		err := store.LoadFromFile("test/definition_mapping.json")
 		require.NoError(t, err)
 

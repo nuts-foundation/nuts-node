@@ -85,8 +85,8 @@ func (m *mockAuthClient) PublicURL() *url.URL {
 	return nil
 }
 
-func (m *mockAuthClient) PresentationDefinitions() *pe.Store {
-	return &pe.Store{}
+func (m *mockAuthClient) PresentationDefinitions() *pe.DefinitionResolver {
+	return &pe.DefinitionResolver{}
 }
 
 func createContext(t *testing.T) *TestContext {

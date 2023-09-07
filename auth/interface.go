@@ -38,7 +38,6 @@ type AuthenticationServices interface {
 	V2APIEnabled() bool
 	// PublicURL returns the public URL of the node.
 	PublicURL() *url.URL
-
-	// PresentationDefinitions returns the PresentationDefinitions
-	PresentationDefinitions() *pe.Store
+	// PresentationDefinitions returns the DefinitionResolver for mapping scopes to presentation definitions
+	PresentationDefinitions() *pe.DefinitionResolver
 }

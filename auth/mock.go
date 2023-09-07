@@ -66,10 +66,10 @@ func (mr *MockAuthenticationServicesMockRecorder) ContractNotary() *gomock.Call 
 }
 
 // PresentationDefinitions mocks base method.
-func (m *MockAuthenticationServices) PresentationDefinitions() *pe.Store {
+func (m *MockAuthenticationServices) PresentationDefinitions() *pe.DefinitionResolver {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PresentationDefinitions")
-	ret0, _ := ret[0].(*pe.Store)
+	ret0, _ := ret[0].(*pe.DefinitionResolver)
 	return ret0
 }
 

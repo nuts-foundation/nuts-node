@@ -24,15 +24,15 @@ import (
 	"os"
 )
 
-// Store is a store for presentation definitions
+// DefinitionResolver is a store for presentation definitions
 // It loads a file with the mapping from oauth scope to presentation definition
-type Store struct {
+type DefinitionResolver struct {
 	// mapping holds the oauth scope to presentation definition mapping
 	mapping map[string]PresentationDefinition
 }
 
 // LoadFromFile loads the mapping from the given file
-func (s *Store) LoadFromFile(filename string) error {
+func (s *DefinitionResolver) LoadFromFile(filename string) error {
 	// read the bytes from the file
 	reader, err := os.Open(filename)
 	if err != nil {
@@ -44,26 +44,14 @@ func (s *Store) LoadFromFile(filename string) error {
 		return err
 	}
 
-	return s.LoadFromBytes(bytes)
-}
-
-func (s *Store) LoadFromBytes(bytes []byte) error {
 	// unmarshal the bytes into the mapping
 	s.mapping = make(map[string]PresentationDefinition)
-	err := json.Unmarshal(bytes, &s.mapping)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return json.Unmarshal(bytes, &s.mapping)
 }
 
 // ByScope returns the presentation definition for the given scope.
 // Returns nil if it doesn't exist or if no mappings are loaded.
-func (s *Store) ByScope(scope string) *PresentationDefinition {
-	if s.mapping == nil {
-		return nil
-	}
+func (s *DefinitionResolver) ByScope(scope string) *PresentationDefinition {
 	mapping, ok := s.mapping[scope]
 	if !ok {
 		return nil

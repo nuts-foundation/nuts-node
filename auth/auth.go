@@ -57,7 +57,7 @@ type Auth struct {
 	shutdownFunc            func()
 	vdrInstance             types.VDR
 	publicURL               *url.URL
-	presentationDefinitions *pe.Store
+	presentationDefinitions *pe.DefinitionResolver
 }
 
 // Name returns the name of the module.
@@ -85,7 +85,7 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 	return auth.contractNotary
 }
 
-func (auth *Auth) PresentationDefinitions() *pe.Store {
+func (auth *Auth) PresentationDefinitions() *pe.DefinitionResolver {
 	return auth.presentationDefinitions
 }
 
@@ -100,7 +100,7 @@ func NewAuthInstance(config Config, vdrInstance types.VDR, vcr vcr.VCR, keyStore
 		pkiProvider:             pkiProvider,
 		serviceResolver:         serviceResolver,
 		shutdownFunc:            func() {},
-		presentationDefinitions: &pe.Store{},
+		presentationDefinitions: &pe.DefinitionResolver{},
 	}
 }
 

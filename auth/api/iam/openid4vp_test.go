@@ -90,7 +90,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 	}
 	t.Run("with scope", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		peStore := &pe.Store{}
+		peStore := &pe.DefinitionResolver{}
 		_ = peStore.LoadFromBytes([]byte("{\"eOverdracht-overdrachtsbericht\":\"{}\"}"))
 		mockVDR := types.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
