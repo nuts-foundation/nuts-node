@@ -140,12 +140,12 @@ func (k *kvBackedLeiaStore) handleRestore(config LeiaBackupConfiguration) error 
 		})
 	}
 
-	var set []refDoc
+	set := make([]refDoc, 0, limit)
 	err := collection.Iterate(query, func(ref leia.Reference, value []byte) error {
 		set = append(set, refDoc{ref: ref, doc: value})
 		if len(set) >= limit {
 			err := writeDocuments(set)
-			set = make([]refDoc, 0)
+			set = make([]refDoc, 0, limit)
 			return err
 		}
 		return nil
