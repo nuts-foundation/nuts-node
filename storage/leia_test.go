@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
+	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
@@ -30,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"path"
 	"testing"
 )
@@ -120,6 +122,42 @@ func Test_leiaIssuerStore_handleRestore(t *testing.T) {
 			})
 		})
 	}
+
+	t.Run("exact number of documents is written", func(t *testing.T) {
+		backupConfig := LeiaBackupConfiguration{
+			BackupShelf:    "JSON",
+			CollectionName: "JSON",
+			CollectionType: leia.JSONCollection,
+			SearchQuery:    leia.NewJSONPath("id"),
+		}
+		documentSet := make([]leia.Document, 102)
+		for i := 0; i < 102; i++ {
+			documentSet[i] = []byte(fmt.Sprintf("{\"id\":\"%d\"}", i))
+		}
+		testDir := io.TestDirectory(t)
+		issuerStorePath := path.Join(testDir, "vcr", "private-credentials.db")
+		leiaStore, err := leia.NewStore(issuerStorePath)
+		require.NoError(t, err)
+		ctrl := gomock.NewController(t)
+		mockBackup := stoabs.NewMockKVStore(ctrl)
+		store := kvBackedLeiaStore{
+			store:               leiaStore,
+			backup:              mockBackup,
+			collectionConfigSet: nil,
+		}
+		collection := store.store.Collection(leia.JSONCollection, backupConfig.CollectionName)
+		idIndex := collection.NewIndex("byID", leia.NewFieldIndexer(backupConfig.SearchQuery))
+		err = collection.AddIndex(idIndex)
+		require.NoError(t, err)
+		err = collection.Add(documentSet)
+		require.NoError(t, err)
+		mockBackup.EXPECT().ReadShelf(ctx, backupConfig.BackupShelf, gomock.Any())
+		mockBackup.EXPECT().Write(context.Background(), gomock.Any()).Times(2)
+
+		err = store.handleRestore(backupConfig)
+
+		require.NoError(t, err)
+	})
 }
 
 func assertCredential(t *testing.T, store *kvBackedLeiaStore, config LeiaBackupConfiguration, expected vc.VerifiableCredential) {
