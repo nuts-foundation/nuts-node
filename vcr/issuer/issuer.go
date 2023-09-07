@@ -156,19 +156,11 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 // issueUsingOpenID4VCI tries to issue the credential over OpenID4VCI. It returns whether the credential was offered successfully.
 // If no error is returned and bool is false, it means the wallet does not support OpenID4VCI.
 func (i issuer) issueUsingOpenID4VCI(ctx context.Context, credential vc.VerifiableCredential) (bool, error) {
-	type credentialSubject struct {
-		ID did.DID `json:"id"`
-	}
-	var subjects []credentialSubject
-	err := credential.UnmarshalCredentialSubject(&subjects)
+	subjectID, err := credential.SubjectDID()
 	if err != nil {
-		return false, fmt.Errorf("unable to unmarshal credential subject: %w", err)
+		return false, err
 	}
-	if len(subjects) != 1 {
-		return false, fmt.Errorf("expected exactly 1 credential subject, got %d", len(subjects))
-	}
-
-	walletIdentifier, err := i.walletResolver.Resolve(subjects[0].ID)
+	walletIdentifier, err := i.walletResolver.Resolve(*subjectID)
 	if err != nil {
 		return false, fmt.Errorf("unable to discover wallet identifier: %w", err)
 	}

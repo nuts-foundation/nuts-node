@@ -250,7 +250,7 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request ope
 	}
 
 	credential := flow.Credentials[0] // there's always just one (at least for now)
-	subjectDID, _ := getSubjectDID(credential)
+	subjectDID, _ := credential.SubjectDID()
 
 	// check credential.Issuer against given issuer
 	if credential.Issuer.String() != i.issuerDID.String() {
@@ -290,7 +290,7 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request ope
 // See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-proof-types
 func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request openid4vci.CredentialRequest) error {
 	credential := flow.Credentials[0] // there's always just one (at least for now)
-	wallet, _ := getSubjectDID(credential)
+	wallet, _ := credential.SubjectDID()
 
 	// augment invalid_proof errors according to §7.3.2 of openid4vci spec
 	generateProofError := func(err openid4vci.Error) error {
@@ -433,7 +433,7 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 			openid4vci.PreAuthorizedCodeGrant: grantParams,
 		},
 	}
-	subjectDID, _ := getSubjectDID(credential) // succeeded in previous step, can't fail
+	subjectDID, _ := credential.SubjectDID() // succeeded in previous step, can't fail
 
 	flow := Flow{
 		ID:          uuid.NewString(),
@@ -501,22 +501,6 @@ func (i *openidHandler) loadCredentialDefinitions() error {
 	}
 
 	return err
-
-}
-
-func getSubjectDID(verifiableCredential vc.VerifiableCredential) (did.DID, error) {
-	type subjectType struct {
-		ID did.DID `json:"id"`
-	}
-	var subject []subjectType
-	err := verifiableCredential.UnmarshalCredentialSubject(&subject)
-	if err != nil {
-		return did.DID{}, fmt.Errorf("unable to unmarshal credential subject: %w", err)
-	}
-	if len(subject) == 0 {
-		return did.DID{}, errors.New("missing subject ID")
-	}
-	return subject[0].ID, err
 }
 
 func generateCode() string {
