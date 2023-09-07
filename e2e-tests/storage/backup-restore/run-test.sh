@@ -65,15 +65,6 @@ runOnAlpine "$(pwd):/host/" rm -rf /host/node-data
 runOnAlpine "$(pwd):/host/" mv -f /host/node-backup /host/node-data
 BACKUP_INTERVAL=0 docker compose up --wait
 
-echo "Rebuilding data"
-# Sanity check for test; assert that the data is not there before rebuild
-assertDiagnostic "http://localhost:11323" "revocations_count: 0"
-docker compose exec nodeA nuts network reprocess "application/vc+json"
-docker compose exec nodeA nuts network reprocess "application/ld+json;type=revocation"
-
-# Wait for reprocess to finish
-waitForDiagnostic "nodeA" revocations_count 1
-
 assertDiagnostic "http://localhost:11323" "transaction_count: 5"
 assertDiagnostic "http://localhost:11323" "credential_count: 2"
 assertDiagnostic "http://localhost:11323" "issued_credentials_count: 2"

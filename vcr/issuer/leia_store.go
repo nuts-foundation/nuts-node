@@ -41,9 +41,7 @@ const revocationBackupShelf = "revocations"
 // leiaIssuerStore implements the issuer Store interface. It is a simple and fast JSON store.
 // Note: It can not be used in a clustered setup.
 type leiaIssuerStore struct {
-	issuedCredentials  leia.Collection
-	revokedCredentials leia.Collection
-	store              storage.KVBackedLeiaStore
+	store storage.KVBackedLeiaStore
 }
 
 // NewLeiaIssuerStore creates a new instance of leiaIssuerStore which implements the Store interface.
@@ -72,21 +70,15 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 		SearchQuery:    leia.NewJSONPath(credential.RevocationSubjectPath),
 	})
 
-	// collections
-	issuedCollection := kvBackedStore.Collection(leia.JSONCollection, "issuedCredentials")
-	revokedCollection := kvBackedStore.Collection(leia.JSONCollection, "revokedCredentials")
-
 	newLeiaStore := &leiaIssuerStore{
-		issuedCredentials:  issuedCollection,
-		revokedCredentials: revokedCollection,
-		store:              kvBackedStore,
+		store: kvBackedStore,
 	}
 
 	// initialize indices, this is required for handleRestore. Without the index metadata it can't iterate and detect data entries.
-	if err = newLeiaStore.createIssuedIndices(issuedCollection); err != nil {
+	if err = newLeiaStore.createIssuedIndices(); err != nil {
 		return nil, err
 	}
-	if err = newLeiaStore.createRevokedIndices(revokedCollection); err != nil {
+	if err = newLeiaStore.createRevokedIndices(); err != nil {
 		return nil, err
 	}
 
@@ -98,7 +90,7 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 
 func (s leiaIssuerStore) StoreCredential(vc vc.VerifiableCredential) error {
 	vcAsBytes, _ := json.Marshal(vc)
-	return s.issuedCredentials.Add([]leia.Document{vcAsBytes})
+	return s.issuedCollection().Add([]leia.Document{vcAsBytes})
 }
 
 func (s leiaIssuerStore) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
@@ -111,7 +103,7 @@ func (s leiaIssuerStore) SearchCredential(credentialType ssi.URI, issuer did.DID
 		}
 	}
 
-	docs, err := s.issuedCredentials.Find(context.Background(), query)
+	docs, err := s.issuedCollection().Find(context.Background(), query)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +120,7 @@ func (s leiaIssuerStore) SearchCredential(credentialType ssi.URI, issuer did.DID
 func (s leiaIssuerStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) {
 	query := leia.New(leia.Eq(leia.NewJSONPath("id"), leia.MustParseScalar(id.String())))
 
-	results, err := s.issuedCredentials.Find(context.Background(), query)
+	results, err := s.issuedCollection().Find(context.Background(), query)
 	if err != nil {
 		return nil, fmt.Errorf("could not get credential by id: %w", err)
 	}
@@ -148,13 +140,13 @@ func (s leiaIssuerStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, er
 
 func (s leiaIssuerStore) StoreRevocation(revocation credential.Revocation) error {
 	revocationAsBytes, _ := json.Marshal(revocation)
-	return s.revokedCredentials.Add([]leia.Document{revocationAsBytes})
+	return s.revokedCollection().Add([]leia.Document{revocationAsBytes})
 }
 
 func (s leiaIssuerStore) GetRevocation(subject ssi.URI) (*credential.Revocation, error) {
 	query := leia.New(leia.Eq(leia.NewJSONPath(credential.RevocationSubjectPath), leia.MustParseScalar(subject.String())))
 
-	results, err := s.revokedCredentials.Find(context.Background(), query)
+	results, err := s.revokedCollection().Find(context.Background(), query)
 	if err != nil {
 		return nil, fmt.Errorf("error while getting revocation by id: %w", err)
 	}
@@ -177,34 +169,42 @@ func (s leiaIssuerStore) Close() error {
 	return s.store.Close()
 }
 
+func (s leiaIssuerStore) issuedCollection() leia.Collection {
+	return s.store.Collection(leia.JSONCollection, "issuedCredentials")
+}
+
+func (s leiaIssuerStore) revokedCollection() leia.Collection {
+	return s.store.Collection(leia.JSONCollection, "revokedCredentials")
+}
+
 // createIssuedIndices creates the needed indices for the issued VC store
 // It allows faster searching on context, type issuer and subject values.
-func (s leiaIssuerStore) createIssuedIndices(collection leia.Collection) error {
-	searchIndex := collection.NewIndex("issuedVCs",
+func (s leiaIssuerStore) createIssuedIndices() error {
+	searchIndex := s.issuedCollection().NewIndex("issuedVCs",
 		leia.NewFieldIndexer(leia.NewJSONPath("issuer")),
 		leia.NewFieldIndexer(leia.NewJSONPath("type")),
 		leia.NewFieldIndexer(leia.NewJSONPath("credentialSubject.id")),
 	)
 
 	// Index used for getting issued VCs by id
-	idIndex := collection.NewIndex("issuedVCByID",
+	idIndex := s.issuedCollection().NewIndex("issuedVCByID",
 		leia.NewFieldIndexer(leia.NewJSONPath("id")))
-	return s.issuedCredentials.AddIndex(searchIndex, idIndex)
+	return s.issuedCollection().AddIndex(searchIndex, idIndex)
 }
 
 // createRevokedIndices creates the needed indices for the issued VC store
 // It allows faster searching on context, type issuer and subject values.
-func (s leiaIssuerStore) createRevokedIndices(collection leia.Collection) error {
+func (s leiaIssuerStore) createRevokedIndices() error {
 	// Index used for getting issued VCs by id
-	revocationBySubjectIDIndex := collection.NewIndex("revocationBySubjectIDIndex",
+	revocationBySubjectIDIndex := s.revokedCollection().NewIndex("revocationBySubjectIDIndex",
 		leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath)))
-	return s.revokedCredentials.AddIndex(revocationBySubjectIDIndex)
+	return s.revokedCollection().AddIndex(revocationBySubjectIDIndex)
 }
 
 func (s leiaIssuerStore) Diagnostics() []core.DiagnosticResult {
 	var err error
 	var issuedCredentialCount int
-	issuedCredentialCount, err = s.issuedCredentials.DocumentCount()
+	issuedCredentialCount, err = s.issuedCollection().DocumentCount()
 	if err != nil {
 		issuedCredentialCount = -1
 		log.Logger().
@@ -212,7 +212,7 @@ func (s leiaIssuerStore) Diagnostics() []core.DiagnosticResult {
 			Warn("unable to retrieve issuedCredentials document count")
 	}
 	var revokedCredentialsCount int
-	revokedCredentialsCount, err = s.revokedCredentials.DocumentCount()
+	revokedCredentialsCount, err = s.revokedCollection().DocumentCount()
 	if err != nil {
 		revokedCredentialsCount = -1
 		log.Logger().
