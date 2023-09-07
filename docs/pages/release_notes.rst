@@ -11,6 +11,7 @@ Release date: 2023-09-07
 
 - Fixed an issue where revocations received through the network were not written to a backup that was introduced in v5.4.0.
 Nodes upgrading from v5.4.0-v5.4.2 need to make an empty POST call to ``<node-address>/internal/network/v1/reprocess?type=application/ld+json%3Btype=revocation``.
+- Reduced number of pages transmitted per message on a full sync to enhance performance
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.2...v5.4.3
 
@@ -21,7 +22,6 @@ Hazelnut update (v5.4.2)
 Release date: 2023-08-20
 
 - Fixed issue where NutsEmployeeCredentials needed to be explicitly trusted when issued by another node
-- Reduced number of pages transmitted on a full sync to enhance performance
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.1...v5.4.2
 
