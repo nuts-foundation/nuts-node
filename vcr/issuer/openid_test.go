@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
@@ -65,21 +66,21 @@ var issuedVC = vc.VerifiableCredential{
 
 func TestNew(t *testing.T) {
 	t.Run("custom definitions", func(t *testing.T) {
-		iss, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/valid", nil, nil, NewOpenIDMemoryStore())
+		iss, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/valid", nil, nil, storage.NewTestInMemorySessionDatabase(t))
 
 		require.NoError(t, err)
 		assert.Len(t, iss.(*openidHandler).credentialsSupported, 3)
 	})
 
 	t.Run("error - invalid json", func(t *testing.T) {
-		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/invalid", nil, nil, NewOpenIDMemoryStore())
+		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/invalid", nil, nil, storage.NewTestInMemorySessionDatabase(t))
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to parse credential definition from test/invalid/invalid.json: unexpected end of JSON input")
 	})
 
 	t.Run("error - invalid directory", func(t *testing.T) {
-		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/non_existing", nil, nil, NewOpenIDMemoryStore())
+		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/non_existing", nil, nil, storage.NewTestInMemorySessionDatabase(t))
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to load credential definitions: lstat ./test/non_existing: no such file or directory")
@@ -396,7 +397,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		assert.NotEmpty(t, accessToken)
 	})
 	t.Run("pre-authorized code issued by other issuer", func(t *testing.T) {
-		store := NewOpenIDMemoryStore()
+		store := storage.NewTestInMemorySessionDatabase(t)
 		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, &http.Client{}, nil, store)
 		require.NoError(t, err)
 		_, err = service.(*openidHandler).createOffer(ctx, issuedVC, "code")
@@ -435,7 +436,7 @@ func assertProtocolError(t *testing.T, err error, statusCode int, message string
 }
 
 func requireNewTestHandler(t *testing.T, keyResolver resolver.KeyResolver) *openidHandler {
-	service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, &http.Client{}, keyResolver, NewOpenIDMemoryStore())
+	service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, &http.Client{}, keyResolver, storage.NewTestInMemorySessionDatabase(t))
 	require.NoError(t, err)
 	return service.(*openidHandler)
 }

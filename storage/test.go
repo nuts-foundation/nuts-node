@@ -67,3 +67,11 @@ func (p *StaticKVStoreProvider) GetKVStore(_ string, _ Class) (stoabs.KVStore, e
 	}
 	return p.Store, nil
 }
+
+func NewTestInMemorySessionDatabase(t *testing.T) SessionDatabase {
+	db := NewInMemorySessionDatabase()
+	t.Cleanup(func() {
+		db.Close()
+	})
+	return db
+}

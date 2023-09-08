@@ -19,6 +19,7 @@
 package storage
 
 import (
+	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"time"
@@ -34,6 +35,8 @@ type Engine interface {
 
 	// GetProvider returns the Provider for the given module.
 	GetProvider(moduleName string) Provider
+	// GetSessionDatabase returns the SessionDatabase
+	GetSessionDatabase() SessionDatabase
 }
 
 // Provider lets callers get access to stores.
@@ -58,4 +61,34 @@ type database interface {
 	createStore(moduleName string, storeName string) (stoabs.KVStore, error)
 	getClass() Class
 	close()
+}
+
+var ErrNotFound = errors.New("not found")
+
+// SessionDatabase is an in memory database that holds session data on a KV basis.
+// Keys could be access tokens, nonce's, authorization codes, etc.
+// All entries are stored with a TTL, so they will be removed automatically.
+type SessionDatabase interface {
+	// GetStore returns a SessionStore with the given keys as key prefixes.
+	// The keys are used to logically partition the store.
+	// The TTL is the time-to-live for the entries in the store.
+	GetStore(ttl time.Duration, keys ...string) SessionStore
+	// Close stops any background processes and closes the database.
+	Close()
+}
+
+// SessionStore is a key-value store that holds session data.
+// The SessionStore is a wrapper for the SessionDatabase, it automatically adds prefixes for logical partitions.
+// It uses JSON marshalling to store the entries.
+type SessionStore interface {
+	// Delete deletes the entry for the given key.
+	// It does not return an error if the key does not exist.
+	Delete(key string) error
+	// Exists returns true if the key exists.
+	Exists(key string) bool
+	// Get returns the value for the given key.
+	// Returns ErrNotFound if the key does not exist.
+	Get(key string, target interface{}) error
+	// Put stores the given value for the given key.
+	Put(key string, value interface{}) error
 }

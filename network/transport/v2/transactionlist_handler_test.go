@@ -37,9 +37,7 @@ import (
 )
 
 func TestTransactionListHandler(t *testing.T) {
-	t.Cleanup(func() {
-		goleak.VerifyNone(t)
-	})
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	t.Run("fn is called", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())

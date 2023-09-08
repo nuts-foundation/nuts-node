@@ -36,17 +36,19 @@ const storeShutdownTimeout = 5 * time.Second
 // New creates a new instance of the storage engine.
 func New() Engine {
 	return &engine{
-		storesMux: &sync.Mutex{},
-		stores:    map[string]stoabs.Store{},
+		storesMux:       &sync.Mutex{},
+		stores:          map[string]stoabs.Store{},
+		sessionDatabase: NewInMemorySessionDatabase(),
 	}
 }
 
 type engine struct {
-	datadir   string
-	storesMux *sync.Mutex
-	stores    map[string]stoabs.Store
-	databases []database
-	config    Config
+	datadir         string
+	storesMux       *sync.Mutex
+	stores          map[string]stoabs.Store
+	databases       []database
+	sessionDatabase SessionDatabase
+	config          Config
 }
 
 func (e *engine) Config() interface{} {
@@ -84,9 +86,13 @@ func (e engine) Shutdown() error {
 			failures = true
 		}
 	}
+
 	if failures {
 		return errors.New("one or more stores failed to close")
 	}
+
+	e.sessionDatabase.Close()
+
 	return nil
 }
 
@@ -108,6 +114,7 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("unable to configure BBolt database: %w", err)
 	}
 	e.databases = append(e.databases, bboltDB)
+
 	return nil
 }
 
@@ -116,6 +123,10 @@ func (e *engine) GetProvider(moduleName string) Provider {
 		moduleName: strings.ToLower(moduleName),
 		engine:     e,
 	}
+}
+
+func (e *engine) GetSessionDatabase() SessionDatabase {
+	return e.sessionDatabase
 }
 
 type provider struct {
