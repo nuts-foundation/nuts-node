@@ -20,9 +20,11 @@
 package vcr
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/sha1"
 	"encoding/json"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/require"
@@ -40,6 +42,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	target := vc.VerifiableCredential{}
 	vcJSON, _ := os.ReadFile("test/vc.json")
 	json.Unmarshal(vcJSON, &target)
+	holderDID := did.MustParseDID(target.CredentialSubject[0].(map[string]interface{})["id"].(string))
 
 	// load pub key
 	pke := spi.PublicKeyEntry{}
@@ -48,20 +51,37 @@ func TestVcr_StoreCredential(t *testing.T) {
 	var pk = new(ecdsa.PublicKey)
 	pke.JWK().Raw(pk)
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ok - not owned, do not store in wallet", func(t *testing.T) {
 		ctx := newMockContext(t)
 
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, nil)
 
 		assert.NoError(t, err)
+		list, err := ctx.vcr.wallet.List(context.Background(), holderDID)
+		assert.NoError(t, err)
+		assert.Empty(t, list)
+	})
+	t.Run("ok - owned, store in wallet", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{}).Return(documentWithPublicKey(t, pk), nil, nil)
+
+		err := ctx.vcr.StoreCredential(target, nil)
+
+		assert.NoError(t, err)
+		list, err := ctx.vcr.wallet.List(context.Background(), holderDID)
+		assert.NoError(t, err)
+		assert.Len(t, list, 1)
 	})
 
 	t.Run("ok - with validAt", func(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
-
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, &now)
@@ -72,7 +92,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("ok - already exists", func(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
-
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		_ = ctx.vcr.StoreCredential(target, &now)
@@ -85,7 +105,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("error - already exists, but differs", func(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
-
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		_ = ctx.vcr.StoreCredential(target, &now)
@@ -120,6 +140,7 @@ func TestStore_writeCredential(t *testing.T) {
 
 	t.Run("ok - stored in JSON-LD collection", func(t *testing.T) {
 		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 		vcBytes, _ := json.Marshal(target)
 		ref := sha1.Sum(vcBytes)
 

@@ -10,6 +10,7 @@ import (
 
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
+	core "github.com/nuts-foundation/nuts-node/core"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -49,4 +50,67 @@ func (m *MockWallet) BuildPresentation(ctx context.Context, credentials []vc.Ver
 func (mr *MockWalletMockRecorder) BuildPresentation(ctx, credentials, options, signerDID, validateVC interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPresentation", reflect.TypeOf((*MockWallet)(nil).BuildPresentation), ctx, credentials, options, signerDID, validateVC)
+}
+
+// Diagnostics mocks base method.
+func (m *MockWallet) Diagnostics() []core.DiagnosticResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Diagnostics")
+	ret0, _ := ret[0].([]core.DiagnosticResult)
+	return ret0
+}
+
+// Diagnostics indicates an expected call of Diagnostics.
+func (mr *MockWalletMockRecorder) Diagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockWallet)(nil).Diagnostics))
+}
+
+// IsEmpty mocks base method.
+func (m *MockWallet) IsEmpty() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsEmpty")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsEmpty indicates an expected call of IsEmpty.
+func (mr *MockWalletMockRecorder) IsEmpty() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsEmpty", reflect.TypeOf((*MockWallet)(nil).IsEmpty))
+}
+
+// List mocks base method.
+func (m *MockWallet) List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx, holderDID)
+	ret0, _ := ret[0].([]vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List.
+func (mr *MockWalletMockRecorder) List(ctx, holderDID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockWallet)(nil).List), ctx, holderDID)
+}
+
+// Put mocks base method.
+func (m *MockWallet) Put(ctx context.Context, credentials ...vc.VerifiableCredential) error {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx}
+	for _, a := range credentials {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Put", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Put indicates an expected call of Put.
+func (mr *MockWalletMockRecorder) Put(ctx interface{}, credentials ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx}, credentials...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockWallet)(nil).Put), varargs...)
 }
