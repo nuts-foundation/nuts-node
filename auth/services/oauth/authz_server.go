@@ -473,15 +473,12 @@ func (s *authzServer) validateAuthorizationCredentials(context *validationContex
 		}
 
 		// The credential credentialSubject.id equals the iss field of the JWT.
-		authCredSubjects := make([]credential.NutsAuthorizationCredentialSubject, 0)
-		if err := authCred.UnmarshalCredentialSubject(&authCredSubjects); err != nil {
+		subjectDID, err := authCred.SubjectDID()
+		if err != nil {
 			return fmt.Errorf(errInvalidVCClaim, err)
 		}
-		// should be only 1 credentialSubject, but we do the range just to make sure and to avoid [0] specific code.
-		for _, authCredSubject := range authCredSubjects {
-			if authCredSubject.ID != iss {
-				return fmt.Errorf("credentialSubject.ID %s of authorization credential with ID: %s does not match jwt.iss: %s", authCredSubject.ID, authCred.ID.String(), iss)
-			}
+		if subjectDID.String() != iss {
+			return fmt.Errorf("credentialSubject.ID %s of authorization credential with ID: %s does not match jwt.iss: %s", subjectDID, authCred.ID.String(), iss)
 		}
 	}
 

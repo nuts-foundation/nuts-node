@@ -121,21 +121,16 @@ func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.Verifiab
 }
 
 func (h wallet) resolveSubjectDID(credentials []vc.VerifiableCredential) (*did.DID, error) {
-	type credentialSubject struct {
-		ID did.DID `json:"id"`
-	}
 	var subjectID did.DID
 	for _, credential := range credentials {
-		var subjects []credentialSubject
-		err := credential.UnmarshalCredentialSubject(&subjects)
-		if err != nil || len(subjects) != 1 {
-			return nil, errors.New("not all VCs contain credentialSubject.id")
+		sid, err := credential.SubjectDID()
+		if err != nil {
+			return nil, err
 		}
-		subject := subjects[0]
-		if !subjectID.Empty() && !subjectID.Equals(subject.ID) {
+		if !subjectID.Empty() && !subjectID.Equals(*sid) {
 			return nil, errors.New("not all VCs have the same credentialSubject.id")
 		}
-		subjectID = subject.ID
+		subjectID = *sid
 	}
 
 	if subjectID.Empty() {

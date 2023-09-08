@@ -220,7 +220,7 @@ func TestWallet_Present(t *testing.T) {
 
 			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
 
-			assert.EqualError(t, err, "unable to resolve signer DID from VCs for creating VP: not all VCs contain credentialSubject.id")
+			assert.EqualError(t, err, "unable to resolve signer DID from VCs for creating VP: unable to get subject DID from VC: there must be at least 1 credentialSubject")
 			assert.Nil(t, resultingPresentation)
 		})
 	})
