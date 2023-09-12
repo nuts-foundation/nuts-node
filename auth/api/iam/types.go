@@ -87,8 +87,10 @@ var proofTypeValuesSupported = []string{"JsonWebSignature2020"}
 // TODO: spec is very unclear about this part.
 // See https://github.com/nuts-foundation/nuts-node/issues/2447
 var vpFormatsSupported = map[string]map[string][]string{
-	"jwt_vp": {"alg_values_supported": algValuesSupported},
-	"ldp_vc": {"proof_type_values_supported": proofTypeValuesSupported},
+	"jwt_vp_json": {"alg_values_supported": algValuesSupported},
+	"jwt_vc_json": {"alg_values_supported": algValuesSupported},
+	"ldp_vc":      {"proof_type_values_supported": proofTypeValuesSupported},
+	"ldp_vp":      {"proof_type_values_supported": proofTypeValuesSupported},
 }
 
 // clientIdSchemesSupported lists the supported client_id_scheme
