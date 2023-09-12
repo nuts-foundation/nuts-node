@@ -194,6 +194,9 @@ type OAuthAuthorizationServerMetadata struct {
 	// VPFormatsSupported is an object containing a list of key value pairs, where the key is a string identifying a Credential format supported by the Wallet.
 	VPFormatsSupported map[string]map[string][]string `json:"vp_formats_supported,omitempty"`
 
+	// VPFormats is an object containing a list of key value pairs, where the key is a string identifying a Credential format supported by the Verifier.
+	VPFormats map[string]map[string][]string `json:"vp_formats,omitempty"`
+
 	// ClientIdSchemesSupported defines the `client_id_schemes` currently supported.
 	// If omitted, the default value is `pre-registered` (referring to the client), which is currently not supported.
 	ClientIdSchemesSupported []string `json:"client_id_schemes_supported,omitempty"`

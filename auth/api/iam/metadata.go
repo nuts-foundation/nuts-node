@@ -29,7 +29,8 @@ func authorizationServerMetadata(identity url.URL) OAuthAuthorizationServerMetad
 		TokenEndpoint:          identity.JoinPath("token").String(),
 		GrantTypesSupported:    grantTypesSupported,
 		PreAuthorizedGrantAnonymousAccessSupported: true,
-		VPFormatsSupported:                         vpFormatsSupported,
-		ClientIdSchemesSupported:                   clientIdSchemesSupported,
+		VPFormats:                vpFormatsSupported,
+		VPFormatsSupported:       vpFormatsSupported,
+		ClientIdSchemesSupported: clientIdSchemesSupported,
 	}
 }
