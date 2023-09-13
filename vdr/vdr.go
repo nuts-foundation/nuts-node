@@ -87,37 +87,23 @@ func (r *VDR) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID
 		return nil, types.ErrNotFound
 	}
 
-	// Replace did:nuts DIDs with did:web, but only for owned DIDs
-	ownedNutsDIDs := []did.DID{nutsDID}
-	for _, controller := range nutsDIDDocument.Controller {
-		for _, curr := range ownedNutsDIDs {
-			if curr.String() == controller.String() {
-				continue
-			}
-		}
-		if controller.Method == didnuts.MethodName && !controller.IsURL() {
-			isOwner, err := r.IsOwner(ctx, controller)
-			if err != nil {
-				return nil, err
-			}
-			if isOwner {
-				ownedNutsDIDs = append(ownedNutsDIDs, controller)
-			}
-		}
-	}
 	resultDIDDocumentData, _ := nutsDIDDocument.MarshalJSON()
-	for _, ownedNutsDID := range ownedNutsDIDs {
-		webDID, err := didweb.URLToDID(*baseURL.JoinPath(ownedNutsDID.ID))
-		if err != nil {
-			return nil, fmt.Errorf("unable to derive Web DID from Nuts DID (%s): %w", nutsDID, err)
-		}
-		resultDIDDocumentData = bytes.ReplaceAll(resultDIDDocumentData, []byte(ownedNutsDID.String()), []byte(webDID.String()))
+	// Replace did:nuts DIDs with did:web, but only for owned DIDs
+	webDID, err := didweb.URLToDID(*baseURL.JoinPath(nutsDID.ID))
+	if err != nil {
+		return nil, fmt.Errorf("unable to derive Web DID from Nuts DID (%s): %w", nutsDID, err)
 	}
+	resultDIDDocumentData = bytes.ReplaceAll(resultDIDDocumentData, []byte(nutsDID.String()), []byte(webDID.String()))
 	var result did.Document
 	if err = result.UnmarshalJSON(resultDIDDocumentData); err != nil {
 		return nil, fmt.Errorf("did:web unmarshal error (%s): %w", nutsDID, err)
 	}
 	result.AlsoKnownAs = append(result.AlsoKnownAs, nutsDID.URI())
+	// did:web support is currently just for supporting third party systems resolving key material,
+	// so no need to retain services (which often refer to services in other did:nuts documents, complicating things).
+	result.Service = nil
+	// did:web does not authenticate DID documents with signatures like did:nuts does, so no need for controllers.
+	result.Controller = nil
 	return &result, nil
 }
 

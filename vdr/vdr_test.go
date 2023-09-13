@@ -568,7 +568,8 @@ func TestVDR_DeriveWebDIDDocument(t *testing.T) {
 	webDID := did.MustParseDID("did:web:example.com:iam:123")
 	baseURL, _ := url.Parse("https://example.com/iam")
 	nutsDIDDoc := did.Document{
-		ID: nutsDID,
+		ID:         nutsDID,
+		Controller: []did.DID{nutsDID},
 		Service: []did.Service{
 			{
 				ID:              ssi.MustParseURI(nutsDID.String() + "#service1"),
@@ -595,13 +596,6 @@ func TestVDR_DeriveWebDIDDocument(t *testing.T) {
 		ID: webDID,
 		AlsoKnownAs: []ssi.URI{
 			nutsDID.URI(),
-		},
-		Service: []did.Service{
-			{
-				ID:              ssi.MustParseURI(webDID.String() + "#service1"),
-				Type:            "eOverdracht-sender",
-				ServiceEndpoint: ssi.MustParseURI(webDID.String() + "#service2"),
-			},
 		},
 		VerificationMethod: []*did.VerificationMethod{
 			{
@@ -632,37 +626,6 @@ func TestVDR_DeriveWebDIDDocument(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, expectedWebDIDDoc, *actual)
-	})
-	t.Run("ok - owned other controller", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-
-		ownedController := did.MustParseDID("did:nuts:owned-controller")
-		unownedController := did.MustParseDID("did:nuts:not-owned-controller")
-		nonNutsController := did.MustParseDID("did:btcr:some-bitcoin-address")
-		nutsDIDDocWithMoreControllers := nutsDIDDoc
-		nutsDIDDocWithMoreControllers.Controller = []did.DID{
-			nutsDID,
-			ownedController,
-			unownedController,
-			nonNutsController,
-		}
-
-		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(&nutsDIDDocWithMoreControllers, nil, nil)
-		ctx.mockStore.EXPECT().Resolve(ownedController, nil).Return(&did.Document{ID: ownedController}, nil, nil)
-		ctx.mockStore.EXPECT().Resolve(unownedController, nil).Return(&did.Document{ID: unownedController}, nil, nil)
-		ctx.mockStore.EXPECT().Resolve(nonNutsController, nil).Return(nil, nil, types.ErrDIDMethodNotSupported)
-		ctx.mockOwner.EXPECT().IsOwner(gomock.Any(), nutsDID).MinTimes(1).Return(true, nil)
-		ctx.mockOwner.EXPECT().IsOwner(gomock.Any(), ownedController).Return(true, nil)
-		ctx.mockOwner.EXPECT().IsOwner(gomock.Any(), unownedController).Return(false, nil)
-
-		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
-
-		require.NoError(t, err)
-		assert.Len(t, actual.Controller, 4)
-		assert.Contains(t, actual.Controller, webDID)
-		assert.Contains(t, actual.Controller, did.MustParseDID("did:web:example.com:iam:owned-controller"))
-		assert.Contains(t, actual.Controller, unownedController)
-		assert.Contains(t, actual.Controller, nonNutsController)
 	})
 	t.Run("not owned by the node", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
