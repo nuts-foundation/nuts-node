@@ -38,7 +38,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 		//	200
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(nil, did).Return(true, nil)
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
 
@@ -69,7 +69,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.vdrInstance.EXPECT().IsOwner(nil, did)
+		ctx.vdr.EXPECT().IsOwner(nil, did)
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
 
@@ -81,7 +81,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(false, vdr.ErrNotFound)
+		ctx.vdr.EXPECT().IsOwner(nil, did).Return(false, vdr.ErrNotFound)
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
 
@@ -93,7 +93,7 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 		//500
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
+		ctx.vdr.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
 
 		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
 
@@ -118,7 +118,7 @@ func TestWrapper_GetWebDID(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
-		test.vdrInstance.EXPECT().DeriveWebDIDDocument(gomock.Any(), *webDIDBaseURL, nutsDID).Return(&expectedWebDIDDoc, nil)
+		test.vdr.EXPECT().DeriveWebDIDDocument(gomock.Any(), *webDIDBaseURL, nutsDID).Return(&expectedWebDIDDoc, nil)
 
 		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{nutsDID.ID})
 
@@ -127,7 +127,7 @@ func TestWrapper_GetWebDID(t *testing.T) {
 	})
 	t.Run("unknown DID", func(t *testing.T) {
 		test := newTestClient(t)
-		test.vdrInstance.EXPECT().DeriveWebDIDDocument(ctx, *webDIDBaseURL, nutsDID).Return(nil, vdr.ErrNotFound)
+		test.vdr.EXPECT().DeriveWebDIDDocument(ctx, *webDIDBaseURL, nutsDID).Return(nil, vdr.ErrNotFound)
 
 		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{nutsDID.ID})
 
@@ -136,7 +136,7 @@ func TestWrapper_GetWebDID(t *testing.T) {
 	})
 	t.Run("other error", func(t *testing.T) {
 		test := newTestClient(t)
-		test.vdrInstance.EXPECT().DeriveWebDIDDocument(gomock.Any(), *webDIDBaseURL, nutsDID).Return(nil, errors.New("failed"))
+		test.vdr.EXPECT().DeriveWebDIDDocument(gomock.Any(), *webDIDBaseURL, nutsDID).Return(nil, errors.New("failed"))
 
 		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{nutsDID.ID})
 
@@ -227,7 +227,8 @@ func statusCodeFrom(err error) int {
 type testCtx struct {
 	client        *Wrapper
 	authnServices *auth.MockAuthenticationServices
-	vdrInstance   *vdr.MockVDR
+	vdr           *vdr.MockVDR
+	resolver      *vdr.MockDIDResolver
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -236,13 +237,16 @@ func newTestClient(t testing.TB) *testCtx {
 	ctrl := gomock.NewController(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
-	vdrInstance := vdr.NewMockVDR(ctrl)
+	resolver := vdr.NewMockDIDResolver(ctrl)
+	vdr := vdr.NewMockVDR(ctrl)
+	vdr.EXPECT().Resolver().Return(resolver).AnyTimes()
 	return &testCtx{
 		authnServices: authnServices,
-		vdrInstance:   vdrInstance,
+		resolver:      resolver,
+		vdr:           vdr,
 		client: &Wrapper{
 			auth: authnServices,
-			vdr:  vdrInstance,
+			vdr:  vdr,
 		},
 	}
 }

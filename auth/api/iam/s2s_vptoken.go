@@ -19,9 +19,12 @@
 package iam
 
 import (
+	"context"
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 )
 
@@ -59,4 +62,40 @@ func (s serviceToService) validateVPToken(params map[string]string) (string, err
 func (s serviceToService) handleAuthzRequest(_ map[string]string, _ *Session) (*authzResponse, error) {
 	// Protocol does not support authorization code flow
 	return nil, nil
+}
+
+func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
+	if request.Body == nil {
+		// why did oapi-codegen generate a pointer for the body??
+		return nil, core.InvalidInputError("missing request body")
+	}
+	// resolve wallet
+	requestHolder, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, core.NotFoundError("did not found: %w", err)
+	}
+	isWallet, err := r.vdr.IsOwner(ctx, *requestHolder)
+	if err != nil {
+		return nil, err
+	}
+	if !isWallet {
+		return nil, core.InvalidInputError("did not owned by this node: %w", err)
+	}
+
+	// resolve verifier metadata
+	requestVerifier, err := did.ParseDID(request.Body.Verifier)
+	if err != nil {
+		return nil, core.InvalidInputError("invalid verifier: %w", err)
+	}
+	_, _, err = r.vdr.Resolver().Resolve(*requestVerifier, nil)
+	if err != nil {
+		if errors.Is(err, types.ErrNotFound) {
+			return nil, core.InvalidInputError("verifier not found: %w", err)
+		}
+		return nil, err
+	}
+
+	// todo fetch metadata using didDocument service data or .well-known path
+
+	return RequestAccessToken200JSONResponse{}, nil
 }
