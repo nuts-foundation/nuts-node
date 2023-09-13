@@ -45,11 +45,11 @@ var assets embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	vcr                     vcr.VCR
-	vdr                     vdr.DocumentOwner
-	auth                    auth.AuthenticationServices
-	sessions                *SessionManager
-	templates               *template.Template
+	vcr       vcr.VCR
+	vdr       vdr.DocumentOwner
+	auth      auth.AuthenticationServices
+	sessions  *SessionManager
+	templates *template.Template
 }
 
 func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.DocumentOwner) *Wrapper {
@@ -59,11 +59,11 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 		panic(err)
 	}
 	return &Wrapper{
-		sessions:                &SessionManager{sessions: new(sync.Map)},
-		auth:                    authInstance,
-		vcr:                     vcrInstance,
-		vdr:                     vdrInstance,
-		templates:               templates,
+		sessions:  &SessionManager{sessions: new(sync.Map)},
+		auth:      authInstance,
+		vcr:       vcrInstance,
+		vdr:       vdrInstance,
+		templates: templates,
 	}
 }
 

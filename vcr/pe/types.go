@@ -78,7 +78,7 @@ type PresentationDefinition struct {
 	Id               string             `json:"id"`
 	InputDescriptors []*InputDescriptor `json:"input_descriptors"`
 	// Name is the name of the presentation definition. Correlates to ID
-	Name                   string                   `json:"name,omitempty"`
+	Name string `json:"name,omitempty"`
 	// Purpose is the purpose of the presentation definition, what is it used for?
 	Purpose                *string                  `json:"purpose,omitempty"`
 	SubmissionRequirements []*SubmissionRequirement `json:"submission_requirements,omitempty"`
