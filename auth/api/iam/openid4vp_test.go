@@ -91,7 +91,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 	t.Run("with scope", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		peStore := &pe.DefinitionResolver{}
-		_ = peStore.LoadFromBytes([]byte("{\"eOverdracht-overdrachtsbericht\":\"{}\"}"))
+		_ = peStore.LoadFromFile("test/presentation_definition_mapping.json")
 		mockVDR := types.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockAuth := auth.NewMockAuthenticationServices(ctrl)
