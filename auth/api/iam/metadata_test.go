@@ -27,6 +27,12 @@ import (
 func Test_authorizationServerMetadata(t *testing.T) {
 	identity := "https://example.com/iam/did:nuts:123"
 	identityURL, _ := url.Parse(identity)
+	vpFormats := map[string]map[string][]string{
+		"jwt_vc_json": {"alg_values_supported": []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}},
+		"jwt_vp_json": {"alg_values_supported": []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}},
+		"ldp_vc":      {"proof_type_values_supported": []string{"JsonWebSignature2020"}},
+		"ldp_vp":      {"proof_type_values_supported": []string{"JsonWebSignature2020"}},
+	}
 	expected := OAuthAuthorizationServerMetadata{
 		Issuer:                 identity,
 		AuthorizationEndpoint:  identity + "/authorize",
@@ -35,10 +41,8 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		TokenEndpoint:          identity + "/token",
 		GrantTypesSupported:    []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
 		PreAuthorizedGrantAnonymousAccessSupported: true,
-		VPFormatsSupported: map[string]map[string][]string{
-			"jwt_vp": {"alg_values_supported": []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}},
-			"ldp_vc": {"proof_type_values_supported": []string{"JsonWebSignature2020"}},
-		},
+		VPFormats:                vpFormats,
+		VPFormatsSupported:       vpFormats,
 		ClientIdSchemesSupported: []string{"did"},
 	}
 	assert.Equal(t, expected, authorizationServerMetadata(*identityURL))
