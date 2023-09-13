@@ -64,6 +64,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.Bool(ConfV2APIEnabled, defs.V2APIEnabled, "enables experimental v2 API endpoints")
 	flags.String(ConfPresentationExchangeMappingFile, defs.PresentationExchangeMappingFile, "sets the path to the presentation exchange mapping file")
 	_ = flags.MarkHidden(ConfV2APIEnabled)
+	_ = flags.MarkHidden(ConfPresentationExchangeMappingFile)
 
 	return flags
 }

@@ -19,7 +19,6 @@ The following options apply to the server commands below:
       --auth.http.timeout int                         HTTP timeout (in seconds) used by the Auth API HTTP client (default 30)
       --auth.irma.autoupdateschemas                   set if you want automatically update the IRMA schemas every 60 minutes. (default true)
       --auth.irma.schememanager string                IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'. (default "pbdf")
-      --auth.presentationexchangemappingfile string   sets the path to the presentation exchange mapping file
       --auth.publicurl string                         public URL which can be reached by a users IRMA client, this should include the scheme and domain: https://example.com. Additional paths should only be added if some sort of url-rewriting is done in a reverse-proxy.
       --configfile string                             Nuts config file (default "nuts.yaml")
       --cpuprofile string                             When set, a CPU profile is written to the given path. Ignored when strictmode is set.
