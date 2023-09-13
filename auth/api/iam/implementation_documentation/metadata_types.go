@@ -280,3 +280,273 @@ type OpenID4VCIFields struct {
 	PreAuthorizedGrantAnonymousAccessSupported bool `json:"pre-authorized_grant_anonymous_access_supported"`
 	//OPTIONAL. A JSON Boolean indicating whether the issuer accepts a Token Request with a Pre-Authorized Code but without a client id. The default is false.
 }
+
+/********** OAuthClientMetadata **********/
+// TODO: our custom /.well-known/openid-credential-wallet endpoint returns the Oauth Client Metadata
+// Clients should either be `pre-registered` meaning that they have this value for `client_id_scheme` in
+// When `client_id_scheme` is empty or `pre-registered`
+
+// OAuthClientMetadata (dynamic client registration)
+// Full registry at https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#client-metadata
+type RFC7591Fields struct {
+	RedirectURIs []string `json:"redirect_uris"`
+	//Array of redirection URI strings for use in redirect-based flows
+	//such as the authorization code and implicit flows.  As required by
+	//Section 2 of OAuth 2.0 [RFC6749], clients using flows with
+	//redirection MUST register their redirection URI values.
+	//Authorization servers that support dynamic registration for
+	//redirect-based flows MUST implement support for this metadata
+	//value.
+
+	// RFC8705 describes mTLS https://www.rfc-editor.org/rfc/rfc8705.html
+	TokenEndpointAuthMethod string `json:"token_endpoint_auth_method"`
+	//REQUIRED String indicator of the requested authentication method for the
+	//token endpoint.  Values defined by this specification are:
+	//
+	//	*  "none": The client is a public client as defined in OAuth 2.0,
+	//	Section 2.1, and does not have a client secret.
+	//
+	//	*  "client_secret_post": The client uses the HTTP POST parameters
+	//	as defined in OAuth 2.0, Section 2.3.1.
+	//
+	//	*  "client_secret_basic": The client uses HTTP Basic as defined in
+	//	OAuth 2.0, Section 2.3.1.
+	//
+	//Additional values can be defined via the IANA "OAuth Token
+	//Endpoint Authentication Methods" registry established in
+	//Section 4.2.  Absolute URIs can also be used as values for this
+	//parameter without being registered.  If unspecified or omitted,
+	//the default is "client_secret_basic", denoting the HTTP Basic
+	//authentication scheme as specified in Section 2.3.1 of OAuth 2.0.
+
+	GrantTypes []string `json:"grant_types"`
+	//REQUIRED Array of OAuth 2.0 grant type strings that the client can use at
+	//the token endpoint.  These grant types are defined as follows:
+	//
+	//*  "authorization_code": The authorization code grant type defined
+	//in OAuth 2.0, Section 4.1.
+	//
+	//*  "implicit": The implicit grant type defined in OAuth 2.0,
+	//Section 4.2.
+	//
+	//*  "password": The resource owner password credentials grant type
+	//defined in OAuth 2.0, Section 4.3.
+	//
+	//*  "client_credentials": The client credentials grant type defined
+	//in OAuth 2.0, Section 4.4.
+	//
+	//*  "refresh_token": The refresh token grant type defined in OAuth
+	//2.0, Section 6.
+	//
+	//*  "urn:ietf:params:oauth:grant-type:jwt-bearer": The JWT Bearer
+	//Token Grant Type defined in OAuth JWT Bearer Token Profiles [RFC7523].
+	//
+	//*  "urn:ietf:params:oauth:grant-type:saml2-bearer": The SAML 2.0
+	//Bearer Assertion Grant defined in OAuth SAML 2 Bearer Token
+	//Profiles [RFC7522].
+	//
+	//If the token endpoint is used in the grant type, the value of this
+	//parameter MUST be the same as the value of the "grant_type"
+	//parameter passed to the token endpoint defined in the grant type
+	//definition.  Authorization servers MAY allow for other values as
+	//defined in the grant type extension process described in OAuth
+	//2.0, Section 4.5.  If omitted, the default behavior is that the
+	//client will use only the "authorization_code" Grant Type.
+
+	ResponseTypes []string `json:"response_types"`
+	//Array of the OAuth 2.0 response type strings that the client can
+	//use at the authorization endpoint.  These response types are
+	//defined as follows:
+	//
+	//*  "code": The authorization code response type defined in OAuth
+	//2.0, Section 4.1.
+	//
+	//*  "token": The implicit response type defined in OAuth 2.0,
+	//Section 4.2.
+	//
+	//If the authorization endpoint is used by the grant type, the value
+	//of this parameter MUST be the same as the value of the
+	//"response_type" parameter passed to the authorization endpoint
+	//defined in the grant type definition.  Authorization servers MAY
+	//allow for other values as defined in the grant type extension
+	//process is described in OAuth 2.0, Section 4.5.  If omitted, the
+	//default is that the client will use only the "code" response type.
+
+	ClientName string `json:"client_name"`
+	//Human-readable string name of the client to be presented to the
+	//end-user during authorization.  If omitted, the authorization
+	//server MAY display the raw "client_id" value to the end-user
+	//instead.  It is RECOMMENDED that clients always send this field.
+	//The value of this field MAY be internationalized, as described in
+	//Section 2.2.
+
+	ClientURI string `json:"client_uri"`
+	//URL string of a web page providing information about the client.
+	//If present, the server SHOULD display this URL to the end-user in
+	//a clickable fashion.  It is RECOMMENDED that clients always send
+	//this field.  The value of this field MUST point to a valid web
+	//page.  The value of this field MAY be internationalized, as
+	//described in Section 2.2.
+
+	LogoURI string `json:"logo_uri"`
+	//URL string that references a logo for the client.  If present, the
+	//server SHOULD display this image to the end-user during approval.
+	//The value of this field MUST point to a valid image file.  The
+	//value of this field MAY be internationalized, as described in
+	//Section 2.2.
+
+	Scope string `json:"scope"`
+	//String containing a space-separated list of scope values (as
+	//described in Section 3.3 of OAuth 2.0 [RFC6749]) that the client
+	//can use when requesting access tokens.  The semantics of values in
+	//this list are service specific.  If omitted, an authorization
+	//server MAY register a client with a default set of scopes.
+
+	Contacts []string `json:"contacts"`
+	//OPTIONAL: Array of strings representing ways to contact people responsible
+	//for this client, typically email addresses.  The authorization
+	//server MAY make these contact addresses available to end-users for
+	//support requests for the client.  See Section 6 for information on
+	//Privacy Considerations.
+
+	TosURI string `json:"tos_uri"`
+	//URL string that points to a human-readable terms of service
+	//document for the client that describes a contractual relationship
+	//between the end-user and the client that the end-user accepts when
+	//authorizing the client.  The authorization server SHOULD display
+	//this URL to the end-user if it is provided.  The value of this
+	//field MUST point to a valid web page.  The value of this field MAY
+	//be internationalized, as described in Section 2.2.
+
+	PolicyURI string `json:"policy_uri"`
+	//URL string that points to a human-readable privacy policy document
+	//that describes how the deployment organization collects, uses,
+	//retains, and discloses personal data.  The authorization server
+	//SHOULD display this URL to the end-user if it is provided.  The
+	//value of this field MUST point to a valid web page.  The value of
+	//this field MAY be internationalized, as described in Section 2.2.
+
+	JwksURI string `json:"jwks_uri"`
+	//URL string referencing the client's JSON Web Key (JWK) Set
+	//[RFC7517] document, which contains the client's public keys.  The
+	//value of this field MUST point to a valid JWK Set document.  These
+	//keys can be used by higher-level protocols that use signing or
+	//encryption.  For instance, these keys might be used by some
+	//applications for validating signed requests made to the token
+	//endpoint when using JWTs for client authentication [RFC7523].  Use
+	//of this parameter is preferred over the "jwks" parameter, as it
+	//allows for easier key rotation.  The "jwks_uri" and "jwks"
+	//parameters MUST NOT both be present in the same request or
+	//response.
+
+	Jwks any `json:"jwks"`
+	//Client's JSON Web Key Set [RFC7517] document value, which contains
+	//the client's public keys.  The value of this field MUST be a JSON
+	//object containing a valid JWK Set.  These keys can be used by
+	//higher-level protocols that use signing or encryption.  This
+	//parameter is intended to be used by clients that cannot use the
+	//"jwks_uri" parameter, such as native clients that cannot host
+	//public URLs.  The "jwks_uri" and "jwks" parameters MUST NOT both
+	//be present in the same request or response.
+
+	SoftwareID string `json:"software_id"`
+	//A unique identifier string (e.g., a Universally Unique Identifier
+	//(UUID)) assigned by the client developer or software publisher
+	//used by registration endpoints to identify the client software to
+	//be dynamically registered.  Unlike "client_id", which is issued by
+	//the authorization server and SHOULD vary between instances, the
+	//"software_id" SHOULD remain the same for all instances of the
+	//client software.  The "software_id" SHOULD remain the same across
+	//multiple updates or versions of the same piece of software.  The
+	//value of this field is not intended to be human readable and is
+	//usually opaque to the client and authorization server.
+
+	SoftwareVersion string `json:"software_version"`
+	//A version identifier string for the client software identified by
+	//"software_id".  The value of the "software_version" SHOULD change
+	//on any update to the client software identified by the same
+	//"software_id".  The value of this field is intended to be compared
+	//using string equality matching and no other comparison semantics
+	//are defined by this specification.  The value of this field is
+	//outside the scope of this specification, but it is not intended to
+	//be human readable and is usually opaque to the client and
+	//authorization server.  The definition of what constitutes an
+	//update to client software that would trigger a change to this
+	//value is specific to the software itself and is outside the scope
+	//of this specification.
+}
+
+// https://openid.bitbucket.io/connect/openid-4-verifiable-credential-issuance-1_0.html#name-client-metadata
+type OpenID4VCIClientMetadataFields struct {
+	// On a server/organization wallet the credentials are accepted automatically after receiving an offer since there is no user for manual approval.
+	// To prevent spamming the endpoint needs some form of protection. Currently the endpoint is on n2n which requires mTLS.
+	// (We need to look into OAuth PKI client authentication. It is not described for the credential offer,
+	// but the NutsNode could refuse any offer if the /token endpoint where the offer is exchanged for  credential does not support this. https://www.rfc-editor.org/rfc/rfc8705.html)
+	CredentialOfferEndpoint string `json:"credential_offer_endpoint"`
+	//OPTIONAL. Credential Offer Endpoint of a Wallet.
+}
+
+// TODO: per convention the Client Metadata values are `key_name(s)` (plural if the value's type can be plural) followed by all supported values
+//
+//	------------- while the Server Metadata uses value `key_names_supported` (always plural) for the list of supported values.
+//
+// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-verifier-metadata-client-me
+type OpenID4VPClientMetadataFields struct {
+	VPFormats any `json:"vp_formats"`
+	//REQUIRED. An object defining the formats and proof types of Verifiable Presentations and Verifiable Credentials
+	//that a Verifier supports. For specific values that can be used, see Appendix A. Deployments can extend the formats supported,
+	//provided Issuers, Holders and Verifiers all understand the new format.
+
+	// := did
+	ClientIdScheme string `json:"client_id_scheme"`
+	//OPTIONAL. JSON String identifying the Client Identifier scheme. The value range defined by this specification is
+	//pre-registered, redirect_uri, entity_id, did. If omitted, the default value is pre-registered.
+}
+
+// TODO: EBSI uses server metadata convention for client metadata (see TODO on OpenID4VPClientMetadataFields)
+// https://api-conformance.ebsi.eu/docs/ct/providers-and-wallets-metadata#holder-wallet-metadata
+// Holder Wallets are non-reachable, and they can use the client_metadata field in the initial Authorisation Request to deliver the configuration,
+// the default configuration will be used if not explicitly provided. All provided fields in client_metadata will fully replace the default properties.
+type EBSIHolderWalletMeta struct {
+	AuthorizationEndpoint string `json:"authorization_endpoint"`
+	//OPTIONAL	URL of the authorization server's authorization endpoint
+	ScopesSupported []string `json:"scopes_supported"`
+	//OPTIONAL	A JSON array containing a list of the OAuth 2.0 "scope" values that this authorization server supports
+	ResponseTypesSupported []string `json:"response_types_supported"`
+	//OPTIONAL	A JSON array containing a list of the OAuth 2.0 "response_type" values that this authorization server supports
+	SubjectTypesSupported []string `json:"subject_types_supported"`
+	//OPTIONAL	A JSON array containing a list of the Subject Identifier types that this OP supports
+	IDTokenSigningAlgValuesSupported []string `json:"id_token_signing_alg_values_supported"`
+	//OPTIONAL	A JSON array containing a list of the JWS "alg" values supported by the OP for the ID Token
+	RequestObjectSigningAlgValuesSupported []string `json:"request_object_signing_alg_values_supported"`
+	//OPTIONAL	A JSON array containing a list of the JWS "alg" values supported by the OP for Request Objects
+	VPFormatsSupported any `json:"vp_formats_supported"`
+	//REQUIRED	A JSON Object containing a list of key value pairs, where the key is a string identifying a Credential format supported by the Wallet
+	//vp_formats_supported
+	//.jwt_vp
+	////OPTIONAL	A JSON Object, defining support for Verifiable Presentations in JWT format
+	////vp_formats_supported
+	////.jwt_vp
+	////.alg_values_supported
+	//////OPTIONAL	A JSON Array of case sensitive strings that identify the cryptographic suites that are supported
+	//vp_formats_supported
+	//.jwt_vc
+	////OPTIONAL	A JSON Object, defining support for Verifiable Credentials in JWT format
+	////vp_formats_supported
+	////.jwt_vc
+	////.alg_values_supported
+	//////OPTIONAL	A JSON Array of case sensitive strings that identify the cryptographic suites that are supported
+	SubjectSyntaxTypesSupported []string `json:"subject_syntax_types_supported"`
+	//OPTIONAL	A JSON Array of supported DID methods and their possible sub types.
+	IDTokenTypesSupported []string `json:"id_token_types_supported"`
+	//OPTIONAL	A JSON array of strings containing the list of ID Token types supported by the OP
+
+	//	TODO: EBSI aso defines Service Wallet Metadata https://api-conformance.ebsi.eu/docs/ct/providers-and-wallets-metadata#service-wallet-metadata
+	//	Service Wallet is a decoupled construct, having a composite relationship with an Issuer or a Verifier, with purpose of requesting, signing and managing Verifiable Credentials.
+	//	These share the same client_id as the main functionality (verification or issuance), but expose own configuration through client_metadata in Authorisation Request.
+	//	The configuration contains all fields from Holder Wallet Metadata, and the following extension.
+	JwksURI string `json:"jwks_uri"`
+	//REQUIRED	URL of the authorization server's JWK Set document. Must start with client_id.
+}
+
+// TODO - EBSI states: Authorisation Server will expose /.well-known/openid-configuration while. This is only mentioned in SIOPv2, others use /.well-known/authorization-server-metadata

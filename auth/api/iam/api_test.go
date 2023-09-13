@@ -145,6 +145,76 @@ func TestWrapper_GetWebDID(t *testing.T) {
 	})
 }
 
+func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		//	200
+		ctx := newTestClient(t)
+		did := did.MustParseDID("did:nuts:123")
+		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(true, nil)
+
+		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
+
+		require.NoError(t, err)
+		assert.IsType(t, GetOAuthClientMetadata200JSONResponse{}, res)
+	})
+	t.Run("error - not a did", func(t *testing.T) {
+		//400
+		ctx := newTestClient(t)
+
+		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{})
+
+		assert.Equal(t, 400, statusCodeFrom(err))
+		assert.EqualError(t, err, "client metadata: invalid DID")
+		assert.Nil(t, res)
+	})
+	t.Run("error - contains full did:nuts", func(t *testing.T) {
+		//400
+		ctx := newTestClient(t)
+
+		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: "did:nuts:123"})
+
+		assert.Equal(t, 400, statusCodeFrom(err))
+		assert.EqualError(t, err, "client metadata: id contains full did")
+		assert.Nil(t, res)
+	})
+	t.Run("error - did not managed by this node", func(t *testing.T) {
+		//404
+		ctx := newTestClient(t)
+		did := did.MustParseDID("did:nuts:123")
+		ctx.vdrInstance.EXPECT().IsOwner(nil, did)
+
+		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
+
+		assert.Equal(t, 404, statusCodeFrom(err))
+		assert.EqualError(t, err, "client metadata: did not owned")
+		assert.Nil(t, res)
+	})
+	t.Run("error - did does not exist", func(t *testing.T) {
+		//404
+		ctx := newTestClient(t)
+		did := did.MustParseDID("did:nuts:123")
+		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(false, vdr.ErrNotFound)
+
+		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
+
+		assert.Equal(t, 404, statusCodeFrom(err))
+		assert.EqualError(t, err, "client metadata: unable to find the DID document")
+		assert.Nil(t, res)
+	})
+	t.Run("error - internal error 500", func(t *testing.T) {
+		//500
+		ctx := newTestClient(t)
+		did := did.MustParseDID("did:nuts:123")
+		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
+
+		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
+
+		assert.Equal(t, 500, statusCodeFrom(err))
+		assert.EqualError(t, err, "client metadata: unknown error")
+		assert.Nil(t, res)
+	})
+}
+
 // statusCodeFrom returns the statuscode if err is core.HTTPStatusCodeError, or 0 if it isn't
 func statusCodeFrom(err error) int {
 	var SE core.HTTPStatusCodeError

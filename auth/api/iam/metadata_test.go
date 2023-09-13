@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/url"
@@ -64,15 +65,16 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 	})
 }
 
+var vpFormats = map[string]map[string][]string{
+	"jwt_vc_json": {"alg_values_supported": []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}},
+	"jwt_vp_json": {"alg_values_supported": []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}},
+	"ldp_vc":      {"proof_type_values_supported": []string{"JsonWebSignature2020"}},
+	"ldp_vp":      {"proof_type_values_supported": []string{"JsonWebSignature2020"}},
+}
+
 func Test_authorizationServerMetadata(t *testing.T) {
 	identity := "https://example.com/iam/did:nuts:123"
 	identityURL, _ := url.Parse(identity)
-	vpFormats := map[string]map[string][]string{
-		"jwt_vc_json": {"alg_values_supported": []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}},
-		"jwt_vp_json": {"alg_values_supported": []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}},
-		"ldp_vc":      {"proof_type_values_supported": []string{"JsonWebSignature2020"}},
-		"ldp_vp":      {"proof_type_values_supported": []string{"JsonWebSignature2020"}},
-	}
 	expected := OAuthAuthorizationServerMetadata{
 		Issuer:                 identity,
 		AuthorizationEndpoint:  identity + "/authorize",
@@ -86,4 +88,24 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		ClientIdSchemesSupported: []string{"did"},
 	}
 	assert.Equal(t, expected, authorizationServerMetadata(*identityURL))
+}
+
+func Test_clientMetadata(t *testing.T) {
+	core.GitVersion = "testVersion"
+	expected := OAuthClientMetadata{
+		RedirectURIs:            nil,
+		TokenEndpointAuthMethod: "client_secret_basic",
+		GrantTypes:              []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
+		ResponseTypes:           []string{"code", "vp_token", "vp_token id_token"},
+		Scope:                   "",
+		Contacts:                nil,
+		JwksURI:                 "",
+		Jwks:                    nil,
+		SoftwareID:              "nuts-node-refimpl",
+		SoftwareVersion:         "testVersion",
+		CredentialOfferEndpoint: "",
+		VPFormats:               vpFormats,
+		ClientIdScheme:          "did",
+	}
+	assert.Equal(t, expected, clientMetadata(url.URL{}))
 }

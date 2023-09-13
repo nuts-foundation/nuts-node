@@ -8,3 +8,4 @@ output-options:
   exclude-schemas:
     - DIDDocument
     - OAuthAuthorizationServerMetadata
+    - OAuthClientMetadata
