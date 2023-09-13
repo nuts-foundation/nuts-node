@@ -24,8 +24,10 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -88,9 +90,13 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 	}
 	t.Run("with scope", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
+		peStore := &pe.DefinitionResolver{}
+		_ = peStore.LoadFromFile("test/presentation_definition_mapping.json")
 		mockVDR := types.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
-		instance := New(nil, mockVCR, mockVDR)
+		mockAuth := auth.NewMockAuthenticationServices(ctrl)
+		instance := New(mockAuth, mockVCR, mockVDR)
+		mockAuth.EXPECT().PresentationDefinitions().Return(peStore)
 		mockVCR.EXPECT().Search(gomock.Any(), gomock.Any(), false, nil).Return(walletCredentials, nil)
 		mockVDR.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 

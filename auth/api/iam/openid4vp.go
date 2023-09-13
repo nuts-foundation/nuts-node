@@ -88,7 +88,7 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 
 	// TODO: This is the easiest for now, but is this the way?
 	// For compatibility, we probably need to support presentation_definition and/or presentation_definition_uri.
-	presentationDefinition := r.presentationDefinitions.ByScope(params[scopeParam])
+	presentationDefinition := r.auth.PresentationDefinitions().ByScope(params[scopeParam])
 	if presentationDefinition == nil {
 		return nil, fmt.Errorf("unsupported scope for presentation exchange: %s", params[scopeParam])
 	}
@@ -187,7 +187,7 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 		}
 		credentials = append(credentials, *cred)
 	}
-	presentationDefinition := r.presentationDefinitions.ByScope(session.Scope)
+	presentationDefinition := r.auth.PresentationDefinitions().ByScope(session.Scope)
 	if presentationDefinition == nil {
 		return fmt.Errorf("unsupported scope for presentation exchange: %s", session.Scope)
 	}
