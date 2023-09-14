@@ -203,7 +203,6 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
 	ownDID := idToDID(request.Id)
-
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
 		if didservice.IsFunctionalResolveError(err) {
