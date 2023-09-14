@@ -244,7 +244,7 @@ func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) 
 		if didservice.IsFunctionalResolveError(err) {
 			return GetWebDID404Response{}, nil
 		}
-		log.Logger().WithError(err).Warnf("Could not resolve Nuts DID: %s", nutsDID.String())
+		log.Logger().WithError(err).Errorf("Could not resolve Nuts DID: %s", nutsDID.String())
 		return nil, errors.New("unable to resolve DID")
 	}
 	return GetWebDID200JSONResponse(*document), nil
