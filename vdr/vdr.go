@@ -24,26 +24,27 @@
 package vdr
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
-
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"net/url"
 )
 
 // ModuleName is the name of the engine
@@ -67,6 +68,43 @@ type VDR struct {
 	keyStore          crypto.KeyStore
 	storageProvider   storage.Provider
 	eventManager      events.Event
+}
+
+func (r *VDR) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID did.DID) (*did.Document, error) {
+	nutsDIDDocument, _, err := r.Resolver().Resolve(nutsDID, nil)
+	if err != nil {
+		return nil, err
+	}
+	isOwner, err := r.IsOwner(ctx, nutsDID)
+	if err != nil {
+		return nil, err
+	}
+	if !isOwner {
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldDID, nutsDID).
+			Info("Tried to derive did:web document from Nuts DID that is not owned by this node")
+		return nil, types.ErrNotFound
+	}
+
+	resultDIDDocumentData, _ := nutsDIDDocument.MarshalJSON()
+	// Replace did:nuts DIDs with did:web, but only for owned DIDs
+	webDID, err := didweb.URLToDID(*baseURL.JoinPath(nutsDID.ID))
+	if err != nil {
+		return nil, fmt.Errorf("unable to derive Web DID from Nuts DID (%s): %w", nutsDID, err)
+	}
+	resultDIDDocumentData = bytes.ReplaceAll(resultDIDDocumentData, []byte(nutsDID.String()), []byte(webDID.String()))
+	var result did.Document
+	if err = result.UnmarshalJSON(resultDIDDocumentData); err != nil {
+		return nil, fmt.Errorf("did:web unmarshal error (%s): %w", nutsDID, err)
+	}
+	result.AlsoKnownAs = append(result.AlsoKnownAs, nutsDID.URI())
+	// did:web support is currently just for supporting third party systems resolving key material,
+	// so no need to retain services (which often refer to services in other did:nuts documents, complicating things).
+	result.Service = nil
+	// did:web does not authenticate DID documents with signatures like did:nuts does, so no need for controllers.
+	result.Controller = nil
+	return &result, nil
 }
 
 func (r *VDR) Resolver() types.DIDResolver {

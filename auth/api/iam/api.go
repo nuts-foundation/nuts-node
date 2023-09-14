@@ -40,19 +40,22 @@ import (
 var _ core.Routable = &Wrapper{}
 var _ StrictServerInterface = &Wrapper{}
 
+const apiPath = "iam"
+const httpRequestContextKey = "http-request"
+
 //go:embed assets
 var assets embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
 	vcr       vcr.VCR
-	vdr       vdr.DocumentOwner
+	vdr       vdr.VDR
 	auth      auth.AuthenticationServices
 	sessions  *SessionManager
 	templates *template.Template
 }
 
-func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.DocumentOwner) *Wrapper {
+func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assets, "assets/*.html")
 	if err != nil {
@@ -68,13 +71,14 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 }
 
 func (r Wrapper) Routes(router core.EchoRouter) {
+	const apiModuleName = auth.ModuleName + "/" + apiPath
 	RegisterHandlers(router, NewStrictHandler(r, []StrictMiddlewareFunc{
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
 				ctx.Set(core.OperationIDContextKey, operationID)
-				ctx.Set(core.ModuleNameContextKey, auth.ModuleName+"/v2")
+				ctx.Set(core.ModuleNameContextKey, apiModuleName)
 				// Add http.Request to context, to allow reading URL query parameters
-				requestCtx := context.WithValue(ctx.Request().Context(), "http-request", ctx.Request())
+				requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 				ctx.SetRequest(ctx.Request().WithContext(requestCtx))
 				// TODO: Do we need a generic error handler?
 				// ctx.Set(core.ErrorWriterContextKey, &protocolErrorWriter{})
@@ -90,10 +94,10 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
-			return audit.StrictMiddleware(f, auth.ModuleName+"/v2", operationID)
+			return audit.StrictMiddleware(f, apiModuleName, operationID)
 		},
 	}))
-	auditMiddleware := audit.Middleware(vcr.ModuleName + "/v2")
+	auditMiddleware := audit.Middleware(apiModuleName)
 	// The following handler is of the OpenID4VCI wallet which is called by the holder (wallet owner)
 	// when accepting an OpenID4VP authorization request.
 	router.POST("/iam/:did/openid4vp_authz_accept", r.handlePresentationRequestAccept, auditMiddleware)
@@ -151,7 +155,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
-	httpRequest := ctx.Value("http-request").(*http.Request)
+	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
 	params := make(map[string]string)
 	for key, value := range httpRequest.URL.Query() {
 		params[key] = value[0]
@@ -223,9 +227,27 @@ func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, reques
 		return nil, core.NotFoundError("authz server metadata: did not owned")
 	}
 
-	identity := r.auth.PublicURL().JoinPath("iam", id.WithoutURL().String())
+	identity := r.auth.PublicURL().JoinPath(apiPath, id.WithoutURL().String())
 
 	return GetOAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
+}
+
+func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
+	baseURL := *(r.auth.PublicURL().JoinPath(apiPath))
+	nutsDID, err := did.ParseDID("did:nuts:" + request.Did)
+	if err != nil {
+		return nil, err
+	}
+
+	document, err := r.vdr.DeriveWebDIDDocument(ctx, baseURL, *nutsDID)
+	if err != nil {
+		if didservice.IsFunctionalResolveError(err) {
+			return GetWebDID404Response{}, nil
+		}
+		log.Logger().WithError(err).Errorf("Could not resolve Nuts DID: %s", nutsDID.String())
+		return nil, errors.New("unable to resolve DID")
+	}
+	return GetWebDID200JSONResponse(*document), nil
 }
 
 func createSession(params map[string]string, ownDID did.DID) *Session {

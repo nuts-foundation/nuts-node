@@ -53,6 +53,28 @@ func TestAuth_Configure(t *testing.T) {
 		require.NoError(t, i.Configure(tlsServerConfig))
 	})
 
+	t.Run("publicUrl", func(t *testing.T) {
+		t.Run("error - missing", func(t *testing.T) {
+			authCfg := TestConfig()
+			authCfg.PublicURL = ""
+			authCfg.Irma.SchemeManager = "pbdf"
+			i := testInstance(t, authCfg)
+			cfg := core.NewServerConfig()
+			cfg.Strictmode = true
+			cfg.TLS.CertFile = "certificate.pem"
+			assert.EqualError(t, i.Configure(*cfg), "invalid auth.publicurl: must provide url")
+		})
+		t.Run("error - invalid URL (must be hostname, not IP)", func(t *testing.T) {
+			authCfg := TestConfig()
+			authCfg.Irma.SchemeManager = "pbdf"
+			authCfg.PublicURL = "https://127.0.0.1"
+			i := testInstance(t, authCfg)
+			cfg := core.NewServerConfig()
+			cfg.Strictmode = true
+			assert.EqualError(t, i.Configure(*cfg), "invalid auth.publicurl: hostname is IP")
+		})
+	})
+
 	t.Run("error - IRMA config failure", func(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.Irma.SchemeManager = "non-existing"

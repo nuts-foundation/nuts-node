@@ -7,10 +7,11 @@ package types
 import (
 	context "context"
 	crypto "crypto"
+	url "net/url"
 	reflect "reflect"
 	time "time"
 
-	ssi "github.com/nuts-foundation/go-did"
+	go_did "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	crypto0 "github.com/nuts-foundation/nuts-node/crypto"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -272,10 +273,10 @@ func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
 }
 
 // ResolveKey mocks base method.
-func (m *MockKeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (ssi.URI, crypto.PublicKey, error) {
+func (m *MockKeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (go_did.URI, crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveKey", id, validAt, relationType)
-	ret0, _ := ret[0].(ssi.URI)
+	ret0, _ := ret[0].(go_did.URI)
 	ret1, _ := ret[1].(crypto.PublicKey)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -393,6 +394,21 @@ func (m *MockVDR) Create(ctx context.Context, options DIDCreationOptions) (*did.
 func (mr *MockVDRMockRecorder) Create(ctx, options interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), ctx, options)
+}
+
+// DeriveWebDIDDocument mocks base method.
+func (m *MockVDR) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID did.DID) (*did.Document, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeriveWebDIDDocument", ctx, baseURL, nutsDID)
+	ret0, _ := ret[0].(*did.Document)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeriveWebDIDDocument indicates an expected call of DeriveWebDIDDocument.
+func (mr *MockVDRMockRecorder) DeriveWebDIDDocument(ctx, baseURL, nutsDID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeriveWebDIDDocument", reflect.TypeOf((*MockVDR)(nil).DeriveWebDIDDocument), ctx, baseURL, nutsDID)
 }
 
 // IsOwner mocks base method.
@@ -596,7 +612,7 @@ func (m *MockServiceResolver) EXPECT() *MockServiceResolverMockRecorder {
 }
 
 // Resolve mocks base method.
-func (m *MockServiceResolver) Resolve(query ssi.URI, maxDepth int) (did.Service, error) {
+func (m *MockServiceResolver) Resolve(query go_did.URI, maxDepth int) (did.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", query, maxDepth)
 	ret0, _ := ret[0].(did.Service)
@@ -611,7 +627,7 @@ func (mr *MockServiceResolverMockRecorder) Resolve(query, maxDepth interface{}) 
 }
 
 // ResolveEx mocks base method.
-func (m *MockServiceResolver) ResolveEx(endpoint ssi.URI, depth, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
+func (m *MockServiceResolver) ResolveEx(endpoint go_did.URI, depth, maxDepth int, documentCache map[string]*did.Document) (did.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveEx", endpoint, depth, maxDepth, documentCache)
 	ret0, _ := ret[0].(did.Service)

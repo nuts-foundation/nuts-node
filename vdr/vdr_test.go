@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -59,6 +60,7 @@ type vdrTestCtx struct {
 	mockKeyStore   *crypto.MockKeyStore
 	mockAmbassador *didnuts.MockAmbassador
 	ctx            context.Context
+	mockOwner      *types.MockDocumentOwner
 }
 
 func newVDRTestCtx(t *testing.T) vdrTestCtx {
@@ -68,6 +70,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockStore := didstore.NewMockStore(ctrl)
 	mockNetwork := network.NewMockTransactions(ctrl)
 	mockKeyStore := crypto.NewMockKeyStore(ctrl)
+	mockDocumentOwner := types.NewMockDocumentOwner(ctrl)
 	resolverRouter := &didservice.DIDResolverRouter{}
 	vdr := VDR{
 		store:             mockStore,
@@ -75,6 +78,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		networkAmbassador: mockAmbassador,
 		didDocCreator:     didnuts.Creator{KeyStore: mockKeyStore},
 		didResolver:       resolverRouter,
+		documentOwner:     mockDocumentOwner,
 		keyStore:          mockKeyStore,
 	}
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
@@ -85,6 +89,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		mockStore:      mockStore,
 		mockNetwork:    mockNetwork,
 		mockKeyStore:   mockKeyStore,
+		mockOwner:      mockDocumentOwner,
 		ctx:            audit.TestContext(),
 	}
 }
@@ -556,4 +561,102 @@ type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return fn(r)
+}
+
+func TestVDR_DeriveWebDIDDocument(t *testing.T) {
+	nutsDID := did.MustParseDID("did:nuts:123")
+	webDID := did.MustParseDID("did:web:example.com:iam:123")
+	baseURL, _ := url.Parse("https://example.com/iam")
+	nutsDIDDoc := did.Document{
+		ID:         nutsDID,
+		Controller: []did.DID{nutsDID},
+		Service: []did.Service{
+			{
+				ID:              ssi.MustParseURI(nutsDID.String() + "#service1"),
+				Type:            "eOverdracht-sender",
+				ServiceEndpoint: ssi.MustParseURI(nutsDID.String() + "#service2"),
+			},
+		},
+		VerificationMethod: []*did.VerificationMethod{
+			{
+				ID:         did.MustParseDIDURL(nutsDID.String() + "#key1"),
+				Controller: nutsDID,
+			},
+		},
+		CapabilityInvocation: []did.VerificationRelationship{
+			{
+				VerificationMethod: &did.VerificationMethod{
+					ID:         did.MustParseDIDURL(nutsDID.String() + "#key1"),
+					Controller: nutsDID,
+				},
+			},
+		},
+	}
+	expectedWebDIDDoc := did.Document{
+		ID: webDID,
+		AlsoKnownAs: []ssi.URI{
+			nutsDID.URI(),
+		},
+		VerificationMethod: []*did.VerificationMethod{
+			{
+				ID:         did.MustParseDIDURL(webDID.String() + "#key1"),
+				Controller: webDID,
+			},
+		},
+		CapabilityInvocation: []did.VerificationRelationship{
+			{
+				VerificationMethod: &did.VerificationMethod{
+					ID:         did.MustParseDIDURL(webDID.String() + "#key1"),
+					Controller: webDID,
+				},
+			},
+		},
+	}
+	// remarshal expectedWebDIDDoc to make sure in-memory format is the same as the one returned by the API
+	data, _ := expectedWebDIDDoc.MarshalJSON()
+	_ = expectedWebDIDDoc.UnmarshalJSON(data)
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+
+		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(&nutsDIDDoc, nil, nil)
+		ctx.mockOwner.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(true, nil)
+
+		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
+
+		require.NoError(t, err)
+		assert.Equal(t, expectedWebDIDDoc, *actual)
+	})
+	t.Run("not owned by the node", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+
+		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(&nutsDIDDoc, nil, nil)
+		ctx.mockOwner.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(false, nil)
+
+		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
+
+		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Nil(t, actual)
+	})
+	t.Run("resolver error", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+
+		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(nil, nil, types.ErrNotFound)
+
+		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
+
+		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Nil(t, actual)
+	})
+	t.Run("ownership check error", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+
+		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(&nutsDIDDoc, nil, nil)
+		ctx.mockOwner.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(false, errors.New("failed"))
+
+		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
+
+		assert.EqualError(t, err, "failed")
+		assert.Nil(t, actual)
+	})
 }

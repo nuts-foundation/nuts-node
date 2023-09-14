@@ -6,4 +6,5 @@ generate:
 output-options:
   skip-prune: false
   exclude-schemas:
+    - DIDDocument
     - OAuthAuthorizationServerMetadata

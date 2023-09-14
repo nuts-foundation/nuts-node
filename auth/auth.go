@@ -124,7 +124,6 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return errors.New("in strictmode the only valid irma-scheme-manager is 'pbdf'")
 	}
 
-	// TODO: this is verifier/signer specific
 	if auth.config.PublicURL == "" {
 		return errors.New("invalid auth.publicurl: must provide url")
 	}
