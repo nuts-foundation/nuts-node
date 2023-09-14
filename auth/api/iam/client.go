@@ -26,7 +26,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 )
@@ -57,6 +57,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, serve
 		return nil, fmt.Errorf("unsupported DID method: %s", serverDID.Method)
 	}
 	// TODO: ignoring root web did for now. We can't use the generated client for that type of web:did :(
+	// TODO: use IssuerIdToWellKnown func when merged
 	serverURL := strings.ReplaceAll(serverDID.ID, ":", "/")
 	// remove % encodings
 	serverURL, err := url.QueryUnescape(serverURL)
