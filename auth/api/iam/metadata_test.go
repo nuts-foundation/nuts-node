@@ -47,19 +47,19 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 	t.Run("https in strictmode", func(t *testing.T) {
 		issuer := "http://nuts.nl/iam/id"
 		u, err := IssuerIdToWellKnown(issuer, authzServerWellKnown, true)
-		require.ErrorContains(t, err, "scheme must be https")
+		assert.ErrorContains(t, err, "scheme must be https")
 		assert.Nil(t, u)
 	})
 	t.Run("no IP allowed", func(t *testing.T) {
 		issuer := "http://127.0.0.1/iam/id"
 		u, err := IssuerIdToWellKnown(issuer, authzServerWellKnown, false)
-		require.ErrorContains(t, err, "hostname is IP")
+		assert.ErrorContains(t, err, "hostname is IP")
 		assert.Nil(t, u)
 	})
 	t.Run("invalid URL", func(t *testing.T) {
 		issuer := "http:// /iam/id"
 		u, err := IssuerIdToWellKnown(issuer, authzServerWellKnown, true)
-		require.ErrorContains(t, err, "invalid character \" \" in host name")
+		assert.ErrorContains(t, err, "invalid character \" \" in host name")
 		assert.Nil(t, u)
 	})
 }
