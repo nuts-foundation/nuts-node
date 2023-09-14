@@ -101,7 +101,7 @@ func TestResolver_Resolve(t *testing.T) {
 			writer.WriteHeader(http.StatusNotFound)
 		}
 	}))
-	keyPair, err := tls.LoadX509KeyPair("cert.pem", "key.pem")
+	keyPair, err := tls.LoadX509KeyPair("../../http/test/cert.pem", "../../http/test/key.pem")
 	require.NoError(t, err)
 	tlsServer.TLS = &tls.Config{
 		Certificates: []tls.Certificate{keyPair},

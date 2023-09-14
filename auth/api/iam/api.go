@@ -200,8 +200,8 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	}
 }
 
-// GetOAuthAuthorizationServerMetadata returns the Authorization Server's metadata
-func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, request GetOAuthAuthorizationServerMetadataRequestObject) (GetOAuthAuthorizationServerMetadataResponseObject, error) {
+// OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
+func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
 	ownDID := idToDID(request.Id)
 
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
@@ -218,7 +218,7 @@ func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, reques
 
 	identity := r.auth.PublicURL().JoinPath("iam", request.Id)
 
-	return GetOAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
+	return OAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
 }
 
 func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {

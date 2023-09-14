@@ -143,7 +143,7 @@ paths:
         * 400 - invalid input
         * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
         * 500 - internal server error
-      operationId: getOAuthAuthorizationServerMetadata
+      operationId: OAuthAuthorizationServerMetadata
       parameters:
         - name: id
           in: path

@@ -1,6 +1,7 @@
 package: iam
 generate:
   echo-server: true
+  client: true
   models: true
   strict-server: true
 output-options:
