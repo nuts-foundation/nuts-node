@@ -61,7 +61,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	storageEngine := storage.NewTestStorageEngine(t)
 	networkInstance := network.NewTestNetworkInstance(t)
 	eventManager := events.NewTestManager(t)
-	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager)
+	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager)
 	err := vdrInstance.Configure(core.ServerConfig{})
 	require.NoError(t, err)
 	newInstance := NewVCRInstance(
@@ -91,15 +91,18 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 	testDirectory := io.TestDirectory(t)
 	didStore := didstore.NewTestStore(t)
 	storageEngine := storage.NewTestStorageEngine(t)
-	networkInstance := network.NewTestNetworkInstance(t)
+	keyStore := crypto.NewMemoryCryptoInstance()
 	eventManager := events.NewTestManager(t)
-	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager)
+	networkInstance := network.NewNetworkInstance(network.TestNetworkConfig(), didStore, keyStore, eventManager, storageEngine.GetProvider("network"), nil)
+	serverCfg := core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})
+	_ = networkInstance.Configure(serverCfg)
+	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager)
 	err := vdrInstance.Configure(core.ServerConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	newInstance := NewVCRInstance(
-		nil,
+		keyStore,
 		vdrInstance,
 		networkInstance,
 		jsonld.NewTestJSONLDManager(t),
@@ -107,8 +110,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		storageEngine,
 		pki.New(),
 	).(*vcr)
-
-	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
+	if err := newInstance.Configure(serverCfg); err != nil {
 		t.Fatal(err)
 	}
 	if err := newInstance.Start(); err != nil {
@@ -153,6 +155,7 @@ type mockContext struct {
 	vcr         *vcr
 	didResolver *types.MockDIDResolver
 	crypto      *crypto.Crypto
+	vdr         *types.MockVDR
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -188,6 +191,7 @@ func newMockContext(t *testing.T) mockContext {
 		ctrl:        ctrl,
 		crypto:      cryptoInstance,
 		vcr:         vcr,
+		vdr:         vdrInstance,
 		didResolver: didResolver,
 	}
 }

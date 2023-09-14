@@ -47,7 +47,6 @@ The following options apply to the server commands below:
       --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
-      --methods stringArray                           List of enabled DID methods (default [nuts])
       --network.bootstrapnodes strings                List of bootstrap nodes ('<host>:<port>') which the node initially connect to.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)

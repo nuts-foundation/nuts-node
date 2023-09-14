@@ -21,6 +21,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/url"
@@ -44,18 +45,19 @@ var _ AuthenticationServices = (*Auth)(nil)
 
 // Auth is the main struct of the Auth service
 type Auth struct {
-	config          Config
-	jsonldManager   jsonld.JSONLD
-	authzServer     oauth.AuthorizationServer
-	relyingParty    oauth.RelyingParty
-	contractNotary  services.ContractNotary
-	serviceResolver didman.CompoundServiceResolver
-	keyStore        crypto.KeyStore
-	vcr             vcr.VCR
-	pkiProvider     pki.Provider
-	shutdownFunc    func()
-	vdrInstance     types.VDR
-	publicURL       *url.URL
+	config                  Config
+	jsonldManager           jsonld.JSONLD
+	authzServer             oauth.AuthorizationServer
+	relyingParty            oauth.RelyingParty
+	contractNotary          services.ContractNotary
+	serviceResolver         didman.CompoundServiceResolver
+	keyStore                crypto.KeyStore
+	vcr                     vcr.VCR
+	pkiProvider             pki.Provider
+	shutdownFunc            func()
+	vdrInstance             types.VDR
+	publicURL               *url.URL
+	presentationDefinitions *pe.DefinitionResolver
 }
 
 // Name returns the name of the module.
@@ -83,17 +85,22 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 	return auth.contractNotary
 }
 
+func (auth *Auth) PresentationDefinitions() *pe.DefinitionResolver {
+	return auth.presentationDefinitions
+}
+
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
 func NewAuthInstance(config Config, vdrInstance types.VDR, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
 	return &Auth{
-		config:          config,
-		jsonldManager:   jsonldManager,
-		vdrInstance:     vdrInstance,
-		keyStore:        keyStore,
-		vcr:             vcr,
-		pkiProvider:     pkiProvider,
-		serviceResolver: serviceResolver,
-		shutdownFunc:    func() {},
+		config:                  config,
+		jsonldManager:           jsonldManager,
+		vdrInstance:             vdrInstance,
+		keyStore:                keyStore,
+		vcr:                     vcr,
+		pkiProvider:             pkiProvider,
+		serviceResolver:         serviceResolver,
+		shutdownFunc:            func() {},
+		presentationDefinitions: &pe.DefinitionResolver{},
 	}
 }
 
@@ -152,6 +159,13 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 
 	if err := auth.contractNotary.Configure(); err != nil {
 		return err
+	}
+
+	// load presentation definitions
+	if auth.config.PresentationExchangeMappingFile != "" {
+		if err := auth.presentationDefinitions.LoadFromFile(auth.config.PresentationExchangeMappingFile); err != nil {
+			return fmt.Errorf("failed to load presentation exchange mapping file: %w", err)
+		}
 	}
 
 	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second

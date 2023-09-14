@@ -25,7 +25,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"io/fs"
@@ -55,6 +57,8 @@ import (
 )
 
 const credentialsBackupShelf = "credentials"
+
+var _ core.Migratable = (*vcr)(nil)
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(keyStore crypto.KeyStore, vdrInstance vdr.VDR,
@@ -91,6 +95,7 @@ type vcr struct {
 	wallet              holder.Wallet
 	issuerStore         issuer.Store
 	verifierStore       verifier.Store
+	walletStore         stoabs.KVStore
 	jsonldManager       jsonld.JSONLD
 	eventManager        events.Event
 	storageClient       storage.Engine
@@ -141,6 +146,41 @@ func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (stri
 	return identifier, nil
 }
 
+func (c *vcr) Migrate() error {
+	walletIsEmpty, err := c.wallet.IsEmpty()
+	if err != nil {
+		return fmt.Errorf("unable to check if wallet is empty: %w", err)
+	}
+	if !walletIsEmpty {
+		// Nothing to do
+		return nil
+	}
+	log.Logger().Info("Migrating credentials to wallet...")
+	var credentials []vc.VerifiableCredential
+	startTime := time.Now()
+	defer func() {
+		log.Logger().Infof("Copied %d credentials into wallet in %s", len(credentials), time.Now().Sub(startTime))
+	}()
+	err = c.credentialCollection().Iterate(leia.Query{}, func(key leia.Reference, value []byte) error {
+		var cred vc.VerifiableCredential
+		if err := json.Unmarshal(value, &cred); err != nil {
+			return fmt.Errorf("unable to unmarshal credential (leia key=%s): %w", key.EncodeToString(), err)
+		}
+		putInWallet, err := c.canWalletHoldCredential(cred)
+		if err != nil {
+			return err
+		}
+		if putInWallet {
+			credentials = append(credentials, cred)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return c.wallet.Put(context.TODO(), credentials...)
+}
+
 func (c *vcr) Issuer() issuer.Issuer {
 	return c.issuer
 }
@@ -184,7 +224,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	// create credentials store (for public credentials and this node's wallet)
+	// create credentials store (for public credentials)
 	if err = c.createCredentialsStore(); err != nil {
 		return err
 	}
@@ -236,7 +276,12 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
-	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager)
+	// Create holder/wallet
+	c.walletStore, err = c.storageClient.GetProvider(ModuleName).GetKVStore("wallet", storage.PersistentStorageClass)
+	if err != nil {
+		return err
+	}
+	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager, c.walletStore)
 
 	if err = c.store.HandleRestore(); err != nil {
 		return err
@@ -550,5 +595,40 @@ func (c *vcr) Diagnostics() []core.DiagnosticResult {
 			Title:   "credential_count",
 			Outcome: credentialCount,
 		},
+		core.DiagnosticResultMap{
+			Title: "wallet_credential_count",
+			Items: c.wallet.Diagnostics(),
+		},
 	}
+}
+
+// writeCredentialToWallet writes a credential to the wallet if the subject is owned by this node.
+// If it's not written to the wallet (because it's not owned by this node), it returns false.
+// If it's written to the wallet, it returns true.
+// If an error occurs, it returns false and the error.
+func (c *vcr) writeCredentialToWallet(cred vc.VerifiableCredential) (bool, error) {
+	put, err := c.canWalletHoldCredential(cred)
+	if err != nil {
+		return false, err
+	}
+	if put {
+		return true, c.wallet.Put(context.TODO(), cred)
+	}
+	return false, nil
+}
+
+// canWalletHoldCredential returns true if the credential is subject to the wallet of the node, meaning:
+// - It is of a type that can be stored in the wallet
+// - The subject of the credential is owned by this node
+// If these conditions are met, it returns true.
+// If an error occurs, it returns false and the error.
+func (c *vcr) canWalletHoldCredential(cred vc.VerifiableCredential) (bool, error) {
+	if cred.IsType(*credential.NutsAuthorizationCredentialTypeURI) {
+		return false, nil
+	}
+	subjectDID, _ := cred.SubjectDID()
+	if subjectDID == nil {
+		return false, nil
+	}
+	return c.vdrInstance.IsOwner(context.Background(), *subjectDID)
 }
