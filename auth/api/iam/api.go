@@ -148,11 +148,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
-	ownDID, err := did.ParseDID(request.Did)
-	if err != nil {
-		// TODO: Redirect instead
-		return nil, err
-	}
+	ownDID := idToDID(request.Id)
 	// Create session object to be passed to handler
 
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
@@ -162,7 +158,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	for key, value := range httpRequest.URL.Query() {
 		params[key] = value[0]
 	}
-	session := createSession(params, *ownDID)
+	session := createSession(params, ownDID)
 	if session.RedirectURI == "" {
 		// TODO: Spec says that the redirect URI is optional, but it's not clear what to do if it's not provided.
 		//       Threat models say it's unsafe to omit redirect_uri.
@@ -208,45 +204,35 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 // GetOAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, request GetOAuthAuthorizationServerMetadataRequestObject) (GetOAuthAuthorizationServerMetadataResponseObject, error) {
-	id, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, core.InvalidInputError("authz server metadata: %w", err)
-	}
+	ownDID := idToDID(request.Id)
 
-	if id.Method != "nuts" {
-		return nil, core.InvalidInputError("authz server metadata: only did:nuts is supported")
-	}
-
-	owned, err := r.vdr.IsOwner(ctx, *id)
+	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
 		if didservice.IsFunctionalResolveError(err) {
 			return nil, core.NotFoundError("authz server metadata: %w", err)
 		}
-		log.Logger().WithField("did", id.String()).Errorf("authz server metadata: failed to assert ownership of did: %s", err.Error())
+		log.Logger().WithField("did", ownDID.String()).Errorf("authz server metadata: failed to assert ownership of did: %s", err.Error())
 		return nil, core.Error(500, "authz server metadata: %w", err)
 	}
 	if !owned {
 		return nil, core.NotFoundError("authz server metadata: did not owned")
 	}
 
-	identity := r.auth.PublicURL().JoinPath(apiPath, id.WithoutURL().String())
+	identity := r.auth.PublicURL().JoinPath(ownDID.WithoutURL().String())
 
 	return GetOAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
 }
 
 func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
 	baseURL := *(r.auth.PublicURL().JoinPath(apiPath))
-	nutsDID, err := did.ParseDID("did:nuts:" + request.Did)
-	if err != nil {
-		return nil, err
-	}
+	ownDID := idToDID(request.Id)
 
-	document, err := r.vdr.DeriveWebDIDDocument(ctx, baseURL, *nutsDID)
+	document, err := r.vdr.DeriveWebDIDDocument(ctx, baseURL, ownDID)
 	if err != nil {
 		if didservice.IsFunctionalResolveError(err) {
 			return GetWebDID404Response{}, nil
 		}
-		log.Logger().WithError(err).Errorf("Could not resolve Nuts DID: %s", nutsDID.String())
+		log.Logger().WithError(err).Errorf("Could not resolve Nuts DID: %s", ownDID.String())
 		return nil, errors.New("unable to resolve DID")
 	}
 	return GetWebDID200JSONResponse(*document), nil
@@ -303,4 +289,13 @@ func createSession(params map[string]string, ownDID did.DID) *Session {
 		ResponseType: params[responseTypeParam],
 	}
 	return session
+}
+
+func idToDID(id string) did.DID {
+	return did.DID{
+		// should be changed to web when migrated to web DID
+		Method:    "nuts",
+		ID:        fmt.Sprintf("%s", id),
+		DecodedID: fmt.Sprintf("%s", id),
+	}
 }

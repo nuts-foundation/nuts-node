@@ -141,20 +141,20 @@ func (a HandleTokenRequestFormdataBody) MarshalJSON() ([]byte, error) {
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata
-	// (GET /.well-known/oauth-authorization-server/iam/{did})
-	GetOAuthAuthorizationServerMetadata(ctx echo.Context, did string) error
+	// (GET /.well-known/oauth-authorization-server/iam/{id})
+	GetOAuthAuthorizationServerMetadata(ctx echo.Context, id string) error
 	// Used by resource owners to initiate the authorization code flow.
-	// (GET /iam/{did}/authorize)
-	HandleAuthorizeRequest(ctx echo.Context, did string, params HandleAuthorizeRequestParams) error
+	// (GET /iam/{id}/authorize)
+	HandleAuthorizeRequest(ctx echo.Context, id string, params HandleAuthorizeRequestParams) error
 	// Returns the did:web version of a Nuts DID document
-	// (GET /iam/{did}/did.json)
-	GetWebDID(ctx echo.Context, did string) error
-	// Used by to request access- or refresh tokens.
-	// (POST /iam/{did}/token)
-	HandleTokenRequest(ctx echo.Context, did string) error
+	// (GET /iam/{id}/did.json)
+	GetWebDID(ctx echo.Context, id string) error
 	// Get the OAuth2 Client metadata
 	// (GET /iam/{id}/oauth-client)
 	GetOAuthClientMetadata(ctx echo.Context, id string) error
+	// Used by to request access- or refresh tokens.
+	// (POST /iam/{id}/token)
+	HandleTokenRequest(ctx echo.Context, id string) error
 	// Requests an access token using the vp_token-bearer grant.
 	// (POST /internal/auth/v2/{did}/request-access-token)
 	RequestAccessToken(ctx echo.Context, did string) error
@@ -168,28 +168,28 @@ type ServerInterfaceWrapper struct {
 // GetOAuthAuthorizationServerMetadata converts echo context to params.
 func (w *ServerInterfaceWrapper) GetOAuthAuthorizationServerMetadata(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "id" -------------
+	var id string
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetOAuthAuthorizationServerMetadata(ctx, did)
+	err = w.Handler.GetOAuthAuthorizationServerMetadata(ctx, id)
 	return err
 }
 
 // HandleAuthorizeRequest converts echo context to params.
 func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "id" -------------
+	var id string
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
@@ -202,39 +202,23 @@ func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error 
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.HandleAuthorizeRequest(ctx, did, params)
+	err = w.Handler.HandleAuthorizeRequest(ctx, id, params)
 	return err
 }
 
 // GetWebDID converts echo context to params.
 func (w *ServerInterfaceWrapper) GetWebDID(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "id" -------------
+	var id string
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetWebDID(ctx, did)
-	return err
-}
-
-// HandleTokenRequest converts echo context to params.
-func (w *ServerInterfaceWrapper) HandleTokenRequest(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.HandleTokenRequest(ctx, did)
+	err = w.Handler.GetWebDID(ctx, id)
 	return err
 }
 
@@ -251,6 +235,22 @@ func (w *ServerInterfaceWrapper) GetOAuthClientMetadata(ctx echo.Context) error 
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.GetOAuthClientMetadata(ctx, id)
+	return err
+}
+
+// HandleTokenRequest converts echo context to params.
+func (w *ServerInterfaceWrapper) HandleTokenRequest(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.HandleTokenRequest(ctx, id)
 	return err
 }
 
@@ -298,17 +298,17 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:did", wrapper.GetOAuthAuthorizationServerMetadata)
-	router.GET(baseURL+"/iam/:did/authorize", wrapper.HandleAuthorizeRequest)
-	router.GET(baseURL+"/iam/:did/did.json", wrapper.GetWebDID)
-	router.POST(baseURL+"/iam/:did/token", wrapper.HandleTokenRequest)
+	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:id", wrapper.GetOAuthAuthorizationServerMetadata)
+	router.GET(baseURL+"/iam/:id/authorize", wrapper.HandleAuthorizeRequest)
+	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetWebDID)
 	router.GET(baseURL+"/iam/:id/oauth-client", wrapper.GetOAuthClientMetadata)
+	router.POST(baseURL+"/iam/:id/token", wrapper.HandleTokenRequest)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-access-token", wrapper.RequestAccessToken)
 
 }
 
 type GetOAuthAuthorizationServerMetadataRequestObject struct {
-	Did string `json:"did"`
+	Id string `json:"id"`
 }
 
 type GetOAuthAuthorizationServerMetadataResponseObject interface {
@@ -346,7 +346,7 @@ func (response GetOAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJ
 }
 
 type HandleAuthorizeRequestRequestObject struct {
-	Did    string `json:"did"`
+	Id     string `json:"id"`
 	Params HandleAuthorizeRequestParams
 }
 
@@ -388,7 +388,7 @@ func (response HandleAuthorizeRequest302Response) VisitHandleAuthorizeRequestRes
 }
 
 type GetWebDIDRequestObject struct {
-	Did string `json:"did"`
+	Id string `json:"id"`
 }
 
 type GetWebDIDResponseObject interface {
@@ -410,42 +410,6 @@ type GetWebDID404Response struct {
 func (response GetWebDID404Response) VisitGetWebDIDResponse(w http.ResponseWriter) error {
 	w.WriteHeader(404)
 	return nil
-}
-
-type HandleTokenRequestRequestObject struct {
-	Did  string `json:"did"`
-	Body *HandleTokenRequestFormdataRequestBody
-}
-
-type HandleTokenRequestResponseObject interface {
-	VisitHandleTokenRequestResponse(w http.ResponseWriter) error
-}
-
-type HandleTokenRequest200JSONResponse TokenResponse
-
-func (response HandleTokenRequest200JSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type HandleTokenRequest400JSONResponse ErrorResponse
-
-func (response HandleTokenRequest400JSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type HandleTokenRequest404JSONResponse ErrorResponse
-
-func (response HandleTokenRequest404JSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
 }
 
 type GetOAuthClientMetadataRequestObject struct {
@@ -484,6 +448,42 @@ func (response GetOAuthClientMetadatadefaultApplicationProblemPlusJSONResponse) 
 	w.WriteHeader(response.StatusCode)
 
 	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type HandleTokenRequestRequestObject struct {
+	Id   string `json:"id"`
+	Body *HandleTokenRequestFormdataRequestBody
+}
+
+type HandleTokenRequestResponseObject interface {
+	VisitHandleTokenRequestResponse(w http.ResponseWriter) error
+}
+
+type HandleTokenRequest200JSONResponse TokenResponse
+
+func (response HandleTokenRequest200JSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type HandleTokenRequest400JSONResponse ErrorResponse
+
+func (response HandleTokenRequest400JSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type HandleTokenRequest404JSONResponse ErrorResponse
+
+func (response HandleTokenRequest404JSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type RequestAccessTokenRequestObject struct {
@@ -528,20 +528,20 @@ func (response RequestAccessTokendefaultApplicationProblemPlusJSONResponse) Visi
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata
-	// (GET /.well-known/oauth-authorization-server/iam/{did})
+	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	GetOAuthAuthorizationServerMetadata(ctx context.Context, request GetOAuthAuthorizationServerMetadataRequestObject) (GetOAuthAuthorizationServerMetadataResponseObject, error)
 	// Used by resource owners to initiate the authorization code flow.
-	// (GET /iam/{did}/authorize)
+	// (GET /iam/{id}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
 	// Returns the did:web version of a Nuts DID document
-	// (GET /iam/{did}/did.json)
+	// (GET /iam/{id}/did.json)
 	GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error)
-	// Used by to request access- or refresh tokens.
-	// (POST /iam/{did}/token)
-	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
 	// Get the OAuth2 Client metadata
 	// (GET /iam/{id}/oauth-client)
 	GetOAuthClientMetadata(ctx context.Context, request GetOAuthClientMetadataRequestObject) (GetOAuthClientMetadataResponseObject, error)
+	// Used by to request access- or refresh tokens.
+	// (POST /iam/{id}/token)
+	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
 	// Requests an access token using the vp_token-bearer grant.
 	// (POST /internal/auth/v2/{did}/request-access-token)
 	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
@@ -560,10 +560,10 @@ type strictHandler struct {
 }
 
 // GetOAuthAuthorizationServerMetadata operation middleware
-func (sh *strictHandler) GetOAuthAuthorizationServerMetadata(ctx echo.Context, did string) error {
+func (sh *strictHandler) GetOAuthAuthorizationServerMetadata(ctx echo.Context, id string) error {
 	var request GetOAuthAuthorizationServerMetadataRequestObject
 
-	request.Did = did
+	request.Id = id
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.GetOAuthAuthorizationServerMetadata(ctx.Request().Context(), request.(GetOAuthAuthorizationServerMetadataRequestObject))
@@ -585,10 +585,10 @@ func (sh *strictHandler) GetOAuthAuthorizationServerMetadata(ctx echo.Context, d
 }
 
 // HandleAuthorizeRequest operation middleware
-func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, did string, params HandleAuthorizeRequestParams) error {
+func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, id string, params HandleAuthorizeRequestParams) error {
 	var request HandleAuthorizeRequestRequestObject
 
-	request.Did = did
+	request.Id = id
 	request.Params = params
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
@@ -611,10 +611,10 @@ func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, did string, pa
 }
 
 // GetWebDID operation middleware
-func (sh *strictHandler) GetWebDID(ctx echo.Context, did string) error {
+func (sh *strictHandler) GetWebDID(ctx echo.Context, id string) error {
 	var request GetWebDIDRequestObject
 
-	request.Did = did
+	request.Id = id
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.GetWebDID(ctx.Request().Context(), request.(GetWebDIDRequestObject))
@@ -629,41 +629,6 @@ func (sh *strictHandler) GetWebDID(ctx echo.Context, did string) error {
 		return err
 	} else if validResponse, ok := response.(GetWebDIDResponseObject); ok {
 		return validResponse.VisitGetWebDIDResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
-// HandleTokenRequest operation middleware
-func (sh *strictHandler) HandleTokenRequest(ctx echo.Context, did string) error {
-	var request HandleTokenRequestRequestObject
-
-	request.Did = did
-
-	if form, err := ctx.FormParams(); err == nil {
-		var body HandleTokenRequestFormdataRequestBody
-		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
-			return err
-		}
-		request.Body = &body
-	} else {
-		return err
-	}
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.HandleTokenRequest(ctx.Request().Context(), request.(HandleTokenRequestRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "HandleTokenRequest")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(HandleTokenRequestResponseObject); ok {
-		return validResponse.VisitHandleTokenRequestResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -689,6 +654,41 @@ func (sh *strictHandler) GetOAuthClientMetadata(ctx echo.Context, id string) err
 		return err
 	} else if validResponse, ok := response.(GetOAuthClientMetadataResponseObject); ok {
 		return validResponse.VisitGetOAuthClientMetadataResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// HandleTokenRequest operation middleware
+func (sh *strictHandler) HandleTokenRequest(ctx echo.Context, id string) error {
+	var request HandleTokenRequestRequestObject
+
+	request.Id = id
+
+	if form, err := ctx.FormParams(); err == nil {
+		var body HandleTokenRequestFormdataRequestBody
+		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
+			return err
+		}
+		request.Body = &body
+	} else {
+		return err
+	}
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.HandleTokenRequest(ctx.Request().Context(), request.(HandleTokenRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "HandleTokenRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(HandleTokenRequestResponseObject); ok {
+		return validResponse.VisitHandleTokenRequestResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

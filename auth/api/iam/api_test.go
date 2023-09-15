@@ -34,44 +34,24 @@ import (
 )
 
 func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
+	testDID := did.MustParseDID("did:nuts:123")
+
 	t.Run("ok", func(t *testing.T) {
 		//	200
 		ctx := newTestClient(t)
-		did := did.MustParseDID("did:nuts:123")
-		ctx.vdr.EXPECT().IsOwner(nil, did).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(true, nil)
 
-		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
+		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Id: "123"})
 
 		require.NoError(t, err)
 		assert.IsType(t, GetOAuthAuthorizationServerMetadata200JSONResponse{}, res)
 	})
-	t.Run("error - not a did", func(t *testing.T) {
-		//400
-		ctx := newTestClient(t)
-
-		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{})
-
-		assert.Equal(t, 400, statusCodeFrom(err))
-		assert.EqualError(t, err, "authz server metadata: invalid DID")
-		assert.Nil(t, res)
-	})
-	t.Run("error - not a did:nuts", func(t *testing.T) {
-		//400
-		ctx := newTestClient(t)
-
-		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: "did:web:example.com"})
-
-		assert.Equal(t, 400, statusCodeFrom(err))
-		assert.EqualError(t, err, "authz server metadata: only did:nuts is supported")
-		assert.Nil(t, res)
-	})
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
-		did := did.MustParseDID("did:nuts:123")
-		ctx.vdr.EXPECT().IsOwner(nil, did)
+		ctx.vdr.EXPECT().IsOwner(nil, testDID)
 
-		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
+		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Id: "123"})
 
 		assert.Equal(t, 404, statusCodeFrom(err))
 		assert.EqualError(t, err, "authz server metadata: did not owned")
@@ -80,10 +60,9 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - did does not exist", func(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
-		did := did.MustParseDID("did:nuts:123")
-		ctx.vdr.EXPECT().IsOwner(nil, did).Return(false, vdr.ErrNotFound)
+		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(false, vdr.ErrNotFound)
 
-		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
+		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Id: "123"})
 
 		assert.Equal(t, 404, statusCodeFrom(err))
 		assert.EqualError(t, err, "authz server metadata: unable to find the DID document")
@@ -92,10 +71,9 @@ func TestWrapper_GetOAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - internal error 500", func(t *testing.T) {
 		//500
 		ctx := newTestClient(t)
-		did := did.MustParseDID("did:nuts:123")
-		ctx.vdr.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
+		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(false, errors.New("unknown error"))
 
-		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Did: did.String()})
+		res, err := ctx.client.GetOAuthAuthorizationServerMetadata(nil, GetOAuthAuthorizationServerMetadataRequestObject{Id: "123"})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "authz server metadata: unknown error")
