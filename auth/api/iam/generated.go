@@ -28,6 +28,11 @@ type TokenResponse struct {
 	TokenType string `json:"token_type"`
 }
 
+// PresentationDefinitionParams defines parameters for PresentationDefinition.
+type PresentationDefinitionParams struct {
+	Scope []string `form:"scope" json:"scope"`
+}
+
 // HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
 type HandleAuthorizeRequestParams struct {
 	Params *map[string]string `form:"params,omitempty" json:"params,omitempty"`
@@ -137,6 +142,9 @@ type ServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata
 	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	OAuthAuthorizationServerMetadata(ctx echo.Context, id string) error
+	// Used by relying parties to obtain a presentation definition for desired scopes.
+	// (GET /iam/{did}/presentation_definition)
+	PresentationDefinition(ctx echo.Context, did string, params PresentationDefinitionParams) error
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{id}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, id string, params HandleAuthorizeRequestParams) error
@@ -172,6 +180,31 @@ func (w *ServerInterfaceWrapper) OAuthAuthorizationServerMetadata(ctx echo.Conte
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.OAuthAuthorizationServerMetadata(ctx, id)
+	return err
+}
+
+// PresentationDefinition converts echo context to params.
+func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PresentationDefinitionParams
+	// ------------- Required query parameter "scope" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "scope", ctx.QueryParams(), &params.Scope)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter scope: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PresentationDefinition(ctx, did, params)
 	return err
 }
 
@@ -293,6 +326,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:id", wrapper.OAuthAuthorizationServerMetadata)
+	router.GET(baseURL+"/iam/:did/presentation_definition", wrapper.PresentationDefinition)
 	router.GET(baseURL+"/iam/:id/authorize", wrapper.HandleAuthorizeRequest)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetWebDID)
 	router.GET(baseURL+"/iam/:id/oauth-client", wrapper.OAuthClientMetadata)
@@ -337,6 +371,32 @@ func (response OAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSON
 	w.WriteHeader(response.StatusCode)
 
 	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type PresentationDefinitionRequestObject struct {
+	Did    string `json:"did"`
+	Params PresentationDefinitionParams
+}
+
+type PresentationDefinitionResponseObject interface {
+	VisitPresentationDefinitionResponse(w http.ResponseWriter) error
+}
+
+type PresentationDefinition200JSONResponse []PresentationDefinition
+
+func (response PresentationDefinition200JSONResponse) VisitPresentationDefinitionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PresentationDefinition404Response struct {
+}
+
+func (response PresentationDefinition404Response) VisitPresentationDefinitionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
 }
 
 type HandleAuthorizeRequestRequestObject struct {
@@ -524,6 +584,9 @@ type StrictServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata
 	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error)
+	// Used by relying parties to obtain a presentation definition for desired scopes.
+	// (GET /iam/{did}/presentation_definition)
+	PresentationDefinition(ctx context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error)
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{id}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
@@ -572,6 +635,32 @@ func (sh *strictHandler) OAuthAuthorizationServerMetadata(ctx echo.Context, id s
 		return err
 	} else if validResponse, ok := response.(OAuthAuthorizationServerMetadataResponseObject); ok {
 		return validResponse.VisitOAuthAuthorizationServerMetadataResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PresentationDefinition operation middleware
+func (sh *strictHandler) PresentationDefinition(ctx echo.Context, did string, params PresentationDefinitionParams) error {
+	var request PresentationDefinitionRequestObject
+
+	request.Did = did
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PresentationDefinition(ctx.Request().Context(), request.(PresentationDefinitionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PresentationDefinition")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PresentationDefinitionResponseObject); ok {
+		return validResponse.VisitPresentationDefinitionResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

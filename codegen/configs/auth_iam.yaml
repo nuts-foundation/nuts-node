@@ -10,3 +10,4 @@ output-options:
     - OAuthAuthorizationServerMetadata
     - OAuthClientMetadata
     - ErrorResponse
+    - PresentationDefinition

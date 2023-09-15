@@ -123,6 +123,45 @@ paths:
               schema:
                 type: string
                 format: uri
+  "/iam/{did}/presentation_definition":
+    get:
+      summary: Used by relying parties to obtain a presentation definition for desired scopes.
+      description: |
+        Specified by https://identity.foundation/presentation-exchange/spec/v2.0.0/
+        The presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
+        A presentation definition is matched against a wallet. If verifiable credentials matching the definition are found, 
+        a presentation can created and submitted together with a presentation submission.
+        The API returns an array of definitions, one per scope/backend combination if applicable.
+      operationId: presentationDefinition
+      tags:
+        - oauth2
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+        - name: scope
+          in: query
+          required: true
+          schema:
+            type: array
+            description: The scope for which a presentation definition is requested. Multiple scopes can be specified by separating them with a space.
+            items:
+              type: string
+              example: patient:x:read
+      responses:
+        "200":
+          description: Authorization request accepted, user is asked for consent.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/PresentationDefinition"
+        "404":
+          description: Unknown DID
   # TODO: What format to use? (codegenerator breaks on aliases)
   # See issue https://github.com/nuts-foundation/nuts-node/issues/2365
   # create aliases for the specced path
@@ -331,6 +370,10 @@ components:
       description: |
         OAuth2 Client Metadata
         Contain properties from several specifications and may grow over time
+      type: object
+    PresentationDefinition:
+      description: |
+        A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
       type: object
     ErrorResponse:
       type: object

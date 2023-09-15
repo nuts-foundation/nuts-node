@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -55,9 +56,9 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 		return nil, err
 	}
 
-	request := &http.Request{
-		Method: "GET",
-		URL:    metadataURL,
+	request, err := http.NewRequest(http.MethodGet, metadataURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 	response, err := hb.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
@@ -79,4 +80,40 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 	}
 
 	return &metadata, nil
+}
+
+// PresentationDefinition retrieves the presentation definition for the given web DID and scope(s).
+// We pass the endpoint url for the presentation definition endpoint because we already retrieved the metadata in a previous step.
+// The scopes are evaluated as raw query params and encoded if needed.
+func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes []string) ([]PresentationDefinition, error) {
+	presentationDefinitionURL, err := url.Parse(definitionEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	presentationDefinitionURL.RawQuery = url.Values{"scope": scopes}.Encode()
+
+	// create a GET request with scope query param
+	request, err := http.NewRequest(http.MethodGet, presentationDefinitionURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	}
+
+	definitions := make([]PresentationDefinition, 0)
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return nil, fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &definitions); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(data))
+	}
+
+	return definitions, nil
 }

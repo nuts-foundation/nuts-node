@@ -21,21 +21,23 @@ package iam
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"testing"
 )
 
 var nutsDID = did.MustParseDID("did:nuts:123")
@@ -156,6 +158,45 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "unknown error")
 		assert.Nil(t, res)
+	})
+}
+func TestWrapper_PresentationDefinition(t *testing.T) {
+	webDID := did.MustParseDID("did:web:example.com:iam:123")
+	ctx := audit.TestContext()
+	definitionResolver := pe.DefinitionResolver{}
+	_ = definitionResolver.LoadFromFile("test/presentation_definition_mapping.json")
+
+	t.Run("ok", func(t *testing.T) {
+		test := newTestClient(t)
+		test.authnServices.EXPECT().PresentationDefinitions().Return(&definitionResolver)
+
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: []string{"test"}}})
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		definitions := []PresentationDefinition(response.(PresentationDefinition200JSONResponse))
+		assert.Len(t, definitions, 1)
+	})
+
+	t.Run("ok - missing scope", func(t *testing.T) {
+		test := newTestClient(t)
+
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{}})
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		definitions := []PresentationDefinition(response.(PresentationDefinition200JSONResponse))
+		assert.Len(t, definitions, 0)
+	})
+
+	t.Run("error - unknown scope", func(t *testing.T) {
+		test := newTestClient(t)
+		test.authnServices.EXPECT().PresentationDefinitions().Return(&definitionResolver)
+
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: []string{"unknown"}}})
+
+		assert.EqualError(t, err, "unsupported scope: unknown")
+		assert.Nil(t, response)
 	})
 }
 

@@ -97,6 +97,80 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 	})
 }
 
+func TestHTTPClient_PresentationDefinition(t *testing.T) {
+	ctx := context.Background()
+	definitions := []PresentationDefinition{
+		{
+			Id: "123",
+		},
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: definitions}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.PresentationDefinition(ctx, tlsServer.URL, []string{"test"})
+
+		require.NoError(t, err)
+		require.NotNil(t, definitions)
+		assert.Equal(t, definitions, response)
+		require.NotNil(t, handler.Request)
+	})
+	t.Run("ok - multiple scopes", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: definitions}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.PresentationDefinition(ctx, tlsServer.URL, []string{"first", "second"})
+
+		require.NoError(t, err)
+		require.NotNil(t, definitions)
+		assert.Equal(t, definitions, response)
+		require.NotNil(t, handler.Request)
+		assert.Equal(t, url.Values{"scope": []string{"first", "second"}}, handler.Request.URL.Query())
+	})
+
+	t.Run("error - not found", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusNotFound}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.PresentationDefinition(ctx, tlsServer.URL, []string{"test"})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "server returned HTTP 404 (expected: 200)")
+		assert.Nil(t, response)
+	})
+	t.Run("error - invalid URL", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusNotFound}
+		_, client := testServerAndClient(t, &handler)
+
+		response, err := client.PresentationDefinition(ctx, ":", []string{"test"})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+		assert.Nil(t, response)
+	})
+	t.Run("error - unknown host", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusNotFound}
+		_, client := testServerAndClient(t, &handler)
+
+		response, err := client.PresentationDefinition(ctx, "http://localhost", []string{"test"})
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "connection refused")
+		assert.Nil(t, response)
+	})
+	t.Run("error - invalid response", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.PresentationDefinition(ctx, tlsServer.URL, []string{"test"})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "unable to unmarshal response")
+		assert.Nil(t, response)
+	})
+}
+
 func testServerAndClient(t *testing.T, handler http.Handler) (*httptest.Server, *HTTPClient) {
 	tlsServer := http2.TestTLSServer(t, handler)
 	return tlsServer, &HTTPClient{
