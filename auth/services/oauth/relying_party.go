@@ -20,9 +20,11 @@ package oauth
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
+	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/url"
 	"strings"
@@ -31,11 +33,16 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
+	"github.com/nuts-foundation/nuts-node/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 var _ RelyingParty = (*relyingParty)(nil)
@@ -44,49 +51,25 @@ type relyingParty struct {
 	keyResolver       resolver.KeyResolver
 	privateKeyStore   nutsCrypto.KeyStore
 	serviceResolver   didman.CompoundServiceResolver
-	secureMode        bool
+	strictMode        bool
 	httpClientTimeout time.Duration
 	httpClientTLS     *tls.Config
+	wallet            holder.Wallet
 }
 
-// NewRelyingParty returns an implementation of RelyingParty
+// NewRelyingParty returns an implementation of OAuthRelyingParty
 func NewRelyingParty(
 	didResolver resolver.DIDResolver, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
-	httpClientTimeout time.Duration, httpClientTLS *tls.Config) RelyingParty {
+	wallet holder.Wallet, httpClientTimeout time.Duration, httpClientTLS *tls.Config, strictMode bool) RelyingParty {
 	return &relyingParty{
 		keyResolver:       resolver.DIDKeyResolver{Resolver: didResolver},
 		serviceResolver:   serviceResolver,
 		privateKeyStore:   privateKeyStore,
 		httpClientTimeout: httpClientTimeout,
 		httpClientTLS:     httpClientTLS,
+		strictMode:        strictMode,
+		wallet:            wallet,
 	}
-}
-
-// Configure the service
-func (s *relyingParty) Configure(secureMode bool) {
-	s.secureMode = secureMode
-}
-
-// RequestAccessToken is called by the local EHR node to request an access token from a remote Nuts node.
-func (s *relyingParty) RequestAccessToken(ctx context.Context, jwtGrantToken string, authorizationServerEndpoint url.URL) (*services.AccessTokenResult, error) {
-	if s.secureMode && strings.ToLower(authorizationServerEndpoint.Scheme) != "https" {
-		return nil, fmt.Errorf("authorization server endpoint must be HTTPS when in strict mode: %s", authorizationServerEndpoint.String())
-	}
-	httpClient := &http.Client{}
-	if s.httpClientTLS != nil {
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: s.httpClientTLS,
-		}
-	}
-	authClient, err := client.NewHTTPClient("", s.httpClientTimeout, client.WithHTTPClient(httpClient), client.WithRequestEditorFn(core.UserAgentRequestEditor))
-	if err != nil {
-		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
-	}
-	accessTokenResponse, err := authClient.CreateAccessToken(ctx, authorizationServerEndpoint, jwtGrantToken)
-	if err != nil {
-		return nil, fmt.Errorf("remote server/nuts node returned error creating access token: %w", err)
-	}
-	return accessTokenResponse, nil
 }
 
 // CreateJwtGrant creates a JWT Grant from the given CreateJwtGrantRequest
@@ -128,6 +111,104 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 	return &services.JwtBearerTokenResult{BearerToken: signingString, AuthorizationServerEndpoint: endpointURL}, nil
 }
 
+func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantToken string, authorizationServerEndpoint url.URL) (*oauth.TokenResponse, error) {
+	if s.strictMode && strings.ToLower(authorizationServerEndpoint.Scheme) != "https" {
+		return nil, fmt.Errorf("authorization server endpoint must be HTTPS when in strict mode: %s", authorizationServerEndpoint.String())
+	}
+	httpClient := &http.Client{}
+	if s.httpClientTLS != nil {
+		httpClient.Transport = &http.Transport{
+			TLSClientConfig: s.httpClientTLS,
+		}
+	}
+	authClient, err := client.NewHTTPClient("", s.httpClientTimeout, client.WithHTTPClient(httpClient), client.WithRequestEditorFn(core.UserAgentRequestEditor))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
+	}
+	accessTokenResponse, err := authClient.CreateAccessToken(ctx, authorizationServerEndpoint, jwtGrantToken)
+	if err != nil {
+		return nil, fmt.Errorf("remote server/nuts node returned error creating access token: %w", err)
+	}
+	return accessTokenResponse, nil
+}
+
+func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
+	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+	}
+
+	// get the presentation definition from the verifier
+	presentationDefinition, err := iamClient.PresentationDefinition(ctx, metadata.PresentationDefinitionEndpoint, scopes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
+	}
+
+	walletCredentials, err := s.wallet.List(ctx, requestHolder)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
+	}
+
+	// match against the wallet's credentials
+	// if there's a match, create a VP and call the token endpoint
+	// If the token endpoint succeeds, return the access token
+	// If no presentation definition matches, return a 412 "no matching credentials" error
+	submission, credentials, err := presentationDefinition.Match(walletCredentials)
+	if err != nil {
+		return nil, fmt.Errorf("failed to match presentation definition: %w", err)
+	}
+	if len(credentials) == 0 {
+		return nil, core.Error(http.StatusPreconditionFailed, "no matching credentials")
+	}
+	expires := time.Now().Add(time.Minute * 15) //todo
+	nonce := generateNonce()
+	// determine the format to use
+	format, err := determineFormat(metadata.VPFormats)
+	if err != nil {
+		return nil, err
+	}
+	vp, err := s.wallet.BuildPresentation(ctx, credentials, holder.PresentationOptions{
+		Format: format,
+		ProofOptions: proof.ProofOptions{
+			Created:   time.Now(),
+			Challenge: &nonce,
+			Expires:   &expires,
+		},
+	}, &requestHolder, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create verifiable presentation: %w", err)
+	}
+	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, *vp, submission, scopes)
+	if err != nil {
+		// the error could be a http error, we just relay it here to make use of any 400 status codes.
+		return nil, err
+	}
+	return &oauth.TokenResponse{
+		AccessToken: token.AccessToken,
+		ExpiresIn:   token.ExpiresIn,
+		TokenType:   token.TokenType,
+		Scope:       &scopes,
+	}, nil
+}
+
+func determineFormat(formats map[string]map[string][]string) (format string, err error) {
+	for format = range formats {
+		switch format {
+		case "jwt_vp_json":
+			fallthrough
+		case "jwt_vp":
+			fallthrough
+		case "ldp_vp":
+			return
+		default:
+			err = errors.New("unsupported format")
+		}
+	}
+	err = errors.New("authorization server metadata does not contain any supported formats")
+	return
+}
+
 var timeFunc = time.Now
 
 // standalone func for easier testing
@@ -147,4 +228,13 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	result[vcClaim] = request.Credentials
 
 	return result
+}
+
+func generateNonce() string {
+	buf := make([]byte, 128/8)
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+	return base64.URLEncoding.EncodeToString(buf)
 }

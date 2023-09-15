@@ -22,11 +22,11 @@ package vcr
 import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
 	"testing"
 )
 
@@ -37,7 +37,7 @@ func TestNutsV1Context(t *testing.T) {
 	reader := jsonld.Reader{DocumentLoader: jsonldManager.DocumentLoader()}
 
 	t.Run("NutsOrganizationCredential", func(t *testing.T) {
-		vcJSON, _ := os.ReadFile("test/vc.json")
+		vcJSON, _ := assets.TestAssets.ReadFile("test_assets/vc.json")
 		documents, err := reader.ReadBytes(vcJSON)
 		if err != nil {
 			panic(err)

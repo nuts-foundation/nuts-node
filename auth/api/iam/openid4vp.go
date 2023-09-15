@@ -29,6 +29,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"net/http"
@@ -85,8 +86,8 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 	}
 	// Response mode is always direct_post for now
 	if params[responseModeParam] != responseModeDirectPost {
-		return nil, OAuth2Error{
-			Code:        InvalidRequest,
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
 			Description: "response_mode must be direct_post",
 			RedirectURI: session.RedirectURI,
 		}
@@ -96,8 +97,8 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 	// For compatibility, we probably need to support presentation_definition and/or presentation_definition_uri.
 	presentationDefinition := r.auth.PresentationDefinitions().ByScope(params[scopeParam])
 	if presentationDefinition == nil {
-		return nil, OAuth2Error{
-			Code:        InvalidRequest,
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
 			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", params[scopeParam]),
 			RedirectURI: session.RedirectURI,
 		}

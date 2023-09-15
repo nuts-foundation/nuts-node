@@ -31,6 +31,8 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	oauthServices "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -196,9 +198,9 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: "unknown"}})
 
-		require.NoError(t, err)
-		require.NotNil(t, response)
-		assert.Equal(t, InvalidScope, (response.(PresentationDefinition400JSONResponse)).Code)
+		require.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, string(oauth.InvalidScope), err.Error())
 	})
 }
 
@@ -210,7 +212,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			Id: nutsDID.String(),
 		})
 
-		requireOAuthError(t, err, InvalidRequest, "redirect_uri is required")
+		requireOAuthError(t, err, oauth.InvalidRequest, "redirect_uri is required")
 		assert.Nil(t, res)
 	})
 	t.Run("unsupported response type", func(t *testing.T) {
@@ -223,7 +225,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			Id: nutsDID.String(),
 		})
 
-		requireOAuthError(t, err, UnsupportedResponseType, "")
+		requireOAuthError(t, err, oauth.UnsupportedResponseType, "")
 		assert.Nil(t, res)
 	})
 }
@@ -239,13 +241,13 @@ func TestWrapper_HandleTokenRequest(t *testing.T) {
 			},
 		})
 
-		requireOAuthError(t, err, UnsupportedGrantType, "")
+		requireOAuthError(t, err, oauth.UnsupportedGrantType, "")
 		assert.Nil(t, res)
 	})
 }
 
-func requireOAuthError(t *testing.T, err error, errorCode ErrorCode, errorDescription string) {
-	var oauthErr OAuth2Error
+func requireOAuthError(t *testing.T, err error, errorCode oauth.ErrorCode, errorDescription string) {
+	var oauthErr oauth.OAuth2Error
 	require.ErrorAs(t, err, &oauthErr)
 	assert.Equal(t, errorCode, oauthErr.Code)
 	assert.Equal(t, errorDescription, oauthErr.Description)
@@ -278,6 +280,7 @@ type testCtx struct {
 	authnServices *auth.MockAuthenticationServices
 	vdr           *vdr.MockVDR
 	resolver      *resolver.MockDIDResolver
+	relyingParty  *oauthServices.MockRelyingParty
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -288,11 +291,16 @@ func newTestClient(t testing.TB) *testCtx {
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	resolver := resolver.NewMockDIDResolver(ctrl)
+	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
 	vdr := vdr.NewMockVDR(ctrl)
+
+	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
+	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
 	vdr.EXPECT().Resolver().Return(resolver).AnyTimes()
 
 	return &testCtx{
 		authnServices: authnServices,
+		relyingParty:  relyingPary,
 		resolver:      resolver,
 		vdr:           vdr,
 		client: &Wrapper{
@@ -347,7 +355,7 @@ func TestWrapper_middleware(t *testing.T) {
 			ctx := server.NewContext(httptest.NewRequest("GET", "/iam/foo", nil), httptest.NewRecorder())
 			_, _ = Wrapper{auth: authService}.middleware(ctx, nil, "Test", handler.handle)
 
-			assert.IsType(t, &oauth2ErrorWriter{}, ctx.Get(core.ErrorWriterContextKey))
+			assert.IsType(t, &oauth.Oauth2ErrorWriter{}, ctx.Get(core.ErrorWriterContextKey))
 		})
 		t.Run("other path", func(t *testing.T) {
 			ctx := server.NewContext(httptest.NewRequest("GET", "/internal/foo", nil), httptest.NewRecorder())

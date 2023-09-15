@@ -54,9 +54,7 @@ import (
 )
 
 func testCredential(t *testing.T) vc.VerifiableCredential {
-	subject := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("../test/vc.json")
-	require.NoError(t, json.Unmarshal(vcJSON, &subject))
+	subject := credential.ValidNutsOrganizationCredential(t)
 	return subject
 }
 

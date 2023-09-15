@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -32,6 +31,7 @@ import (
 	vc2 "github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/log"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -40,6 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 const errInvalidIssuerFmt = "invalid jwt.issuer: %w"
@@ -56,21 +57,6 @@ const userIdentityClaim = "usi"
 const secureAccessTokenLifeSpan = time.Minute
 
 var _ AuthorizationServer = (*authzServer)(nil)
-
-// ErrorResponse models an error returned from an OAuth flow according to RFC6749 (https://tools.ietf.org/html/rfc6749#page-45)
-type ErrorResponse struct {
-	Description error
-	Code        string
-}
-
-// Error returns the error detail, if any. If there's no detailed error message, it returns a generic error message.
-// This aids hiding internal errors from clients.
-func (e ErrorResponse) Error() string {
-	if e.Description != nil {
-		return e.Description.Error()
-	}
-	return "failed"
-}
 
 type authzServer struct {
 	vcFinder            vcr.Finder
@@ -165,7 +151,7 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 	return vcs, nil
 }
 
-// NewAuthorizationServer accepts a vendorID, and several Nuts engines and returns an implementation of services.AuthorizationServer
+// NewAuthorizationServer accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthAuthorizationServer
 func NewAuthorizationServer(
 	didResolver resolver.DIDResolver, vcFinder vcr.Finder, vcVerifier verifier.Verifier,
 	serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
@@ -197,27 +183,30 @@ func (s *authzServer) Configure(clockSkewInMilliseconds int, secureMode bool) er
 }
 
 // CreateAccessToken extracts the claims out of the request, checks the validity and builds the access token
-func (s *authzServer) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse) {
-	var oauthError *ErrorResponse
-	var result *services.AccessTokenResult
+func (s *authzServer) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.ErrorResponse) {
+	var oauthError *oauth.ErrorResponse
+	var result *oauth.TokenResponse
 
 	validationCtx, err := s.validateAccessTokenRequest(ctx, request.RawJwtBearerToken)
 	if err != nil {
-		oauthError = &ErrorResponse{Code: "invalid_request", Description: err}
+		errStr := err.Error()
+		oauthError = &oauth.ErrorResponse{Error: "invalid_request", Description: &errStr}
 	} else {
 		var accessToken string
 		var rawToken services.NutsAccessToken
 		accessToken, rawToken, err = s.buildAccessToken(ctx, *validationCtx.requester, *validationCtx.authorizer, validationCtx.purposeOfUse, validationCtx.contractVerificationResult, validationCtx.credentialIDs)
 		if err == nil {
-			result = &services.AccessTokenResult{
+			expires := int(rawToken.Expiration - rawToken.IssuedAt)
+			result = &oauth.TokenResponse{
 				AccessToken: accessToken,
-				ExpiresIn:   int(rawToken.Expiration - rawToken.IssuedAt),
+				ExpiresIn:   &expires,
 			}
 		} else {
-			oauthError = &ErrorResponse{Code: "server_error"}
+			oauthError = &oauth.ErrorResponse{Error: "server_error"}
 			if !s.secureMode {
 				// Only set details when secure mode is disabled
-				oauthError.Description = err
+				errStr := err.Error()
+				oauthError.Description = &errStr
 			}
 		}
 	}

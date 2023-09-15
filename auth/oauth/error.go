@@ -16,7 +16,7 @@
  *
  */
 
-package iam
+package oauth
 
 import (
 	"encoding/json"
@@ -88,9 +88,10 @@ func (e OAuth2Error) Error() string {
 	return strings.Join(parts, " - ")
 }
 
-type oauth2ErrorWriter struct{}
+// Oauth2ErrorWriter is a HTTP response writer for OAuth errors
+type Oauth2ErrorWriter struct{}
 
-func (p oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err error) error {
+func (p Oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err error) error {
 	var oauthErr OAuth2Error
 	if !errors.As(err, &oauthErr) {
 		// Internal error, wrap it in an OAuth2 error

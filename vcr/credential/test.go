@@ -21,7 +21,8 @@ package credential
 
 import (
 	"encoding/json"
-	"os"
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
+	"testing"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -54,11 +55,17 @@ func ValidNutsAuthorizationCredential() *vc.VerifiableCredential {
 	}
 }
 
-func validNutsOrganizationCredential() *vc.VerifiableCredential {
+func ValidNutsOrganizationCredential(t *testing.T) vc.VerifiableCredential {
 	inputVC := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("../test/vc.json")
-	_ = json.Unmarshal(vcJSON, &inputVC)
-	return &inputVC
+	vcJSON, err := assets.TestAssets.ReadFile("test_assets/vc.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = json.Unmarshal(vcJSON, &inputVC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return inputVC
 }
 
 func stringToURI(input string) ssi.URI {

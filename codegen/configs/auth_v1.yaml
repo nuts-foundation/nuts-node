@@ -10,3 +10,4 @@ output-options:
   - VerifiableCredential
   - VerifiablePresentation
   - AccessTokenResponse
+  - AccessTokenRequestFailedResponse

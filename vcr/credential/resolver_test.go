@@ -35,8 +35,8 @@ func TestFindValidator(t *testing.T) {
 	})
 
 	t.Run("validator and builder found for NutsOrganizationCredential", func(t *testing.T) {
-		vc := validNutsOrganizationCredential()
-		v := FindValidator(*vc)
+		vc := ValidNutsOrganizationCredential(t)
+		v := FindValidator(vc)
 
 		assert.NotNil(t, v)
 	})

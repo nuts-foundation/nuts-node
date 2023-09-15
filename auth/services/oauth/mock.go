@@ -13,6 +13,8 @@ import (
 	url "net/url"
 	reflect "reflect"
 
+	did "github.com/nuts-foundation/go-did/did"
+	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
 	services "github.com/nuts-foundation/nuts-node/auth/services"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -55,19 +57,34 @@ func (mr *MockRelyingPartyMockRecorder) CreateJwtGrant(ctx, request any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtGrant", reflect.TypeOf((*MockRelyingParty)(nil).CreateJwtGrant), ctx, request)
 }
 
-// RequestAccessToken mocks base method.
-func (m *MockRelyingParty) RequestAccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint url.URL) (*services.AccessTokenResult, error) {
+// RequestRFC003AccessToken mocks base method.
+func (m *MockRelyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint url.URL) (*oauth.TokenResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestAccessToken", ctx, jwtGrantToken, authServerEndpoint)
-	ret0, _ := ret[0].(*services.AccessTokenResult)
+	ret := m.ctrl.Call(m, "RequestRFC003AccessToken", ctx, jwtGrantToken, authServerEndpoint)
+	ret0, _ := ret[0].(*oauth.TokenResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// RequestAccessToken indicates an expected call of RequestAccessToken.
-func (mr *MockRelyingPartyMockRecorder) RequestAccessToken(ctx, jwtGrantToken, authServerEndpoint any) *gomock.Call {
+// RequestRFC003AccessToken indicates an expected call of RequestRFC003AccessToken.
+func (mr *MockRelyingPartyMockRecorder) RequestRFC003AccessToken(ctx, jwtGrantToken, authServerEndpoint any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestAccessToken", reflect.TypeOf((*MockRelyingParty)(nil).RequestAccessToken), ctx, jwtGrantToken, authServerEndpoint)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestRFC003AccessToken", reflect.TypeOf((*MockRelyingParty)(nil).RequestRFC003AccessToken), ctx, jwtGrantToken, authServerEndpoint)
+}
+
+// RequestRFC021AccessToken mocks base method.
+func (m *MockRelyingParty) RequestRFC021AccessToken(ctx context.Context, requestHolder, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestRFC021AccessToken", ctx, requestHolder, verifier, scopes)
+	ret0, _ := ret[0].(*oauth.TokenResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestRFC021AccessToken indicates an expected call of RequestRFC021AccessToken.
+func (mr *MockRelyingPartyMockRecorder) RequestRFC021AccessToken(ctx, requestHolder, verifier, scopes any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestRFC021AccessToken", reflect.TypeOf((*MockRelyingParty)(nil).RequestRFC021AccessToken), ctx, requestHolder, verifier, scopes)
 }
 
 // MockAuthorizationServer is a mock of AuthorizationServer interface.
@@ -108,11 +125,11 @@ func (mr *MockAuthorizationServerMockRecorder) Configure(clockSkewInMilliseconds
 }
 
 // CreateAccessToken mocks base method.
-func (m *MockAuthorizationServer) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse) {
+func (m *MockAuthorizationServer) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.ErrorResponse) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateAccessToken", ctx, request)
-	ret0, _ := ret[0].(*services.AccessTokenResult)
-	ret1, _ := ret[1].(*ErrorResponse)
+	ret0, _ := ret[0].(*oauth.TokenResponse)
+	ret1, _ := ret[1].(*oauth.ErrorResponse)
 	return ret0, ret1
 }
 

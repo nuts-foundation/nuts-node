@@ -38,44 +38,44 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	validator := nutsOrganizationCredentialValidator{}
 
 	t.Run("ok", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("failed - missing custom type", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		v.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: type 'NutsOrganizationCredential' is required")
 	})
 
 	t.Run("failed - missing credential subject", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		v.CredentialSubject = []interface{}{}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: single CredentialSubject expected")
 	})
 
 	t.Run("failed - missing organization", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.organization' is empty")
 	})
 
 	t.Run("failed - missing organization name", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
@@ -83,13 +83,13 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		}
 		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.name' is empty")
 	})
 
 	t.Run("failed - missing organization city", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
@@ -97,13 +97,13 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		}
 		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.city' is empty")
 	})
 
 	t.Run("failed - empty organization city", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
@@ -112,13 +112,13 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		}
 		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.city' is empty")
 	})
 
 	t.Run("failed - empty organization name", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
@@ -127,13 +127,13 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		}
 		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.name' is empty")
 	})
 
 	t.Run("failed - missing credentialSubject.ID", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["organization"] = map[string]interface{}{
 			"name": "Because we care B.V.",
@@ -141,13 +141,13 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		}
 		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.ID' is nil")
 	})
 
 	t.Run("failed - invalid credentialSubject.ID", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = "invalid"
 		credentialSubject["organization"] = map[string]interface{}{
@@ -156,27 +156,27 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		}
 		v.CredentialSubject = []interface{}{credentialSubject}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID")
 	})
 
 	t.Run("failed - invalid ID", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		otherID := vdr.TestDIDB.URI()
 		v.ID = &otherID
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: credential ID must start with issuer")
 	})
 
 	t.Run("failed - missing nuts context", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		v.Context = []ssi.URI{stringToURI("https://www.w3.org/2018/credentials/v1")}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' is required")
 	})
@@ -373,7 +373,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 func TestAllFieldsDefinedValidator(t *testing.T) {
 	validator := AllFieldsDefinedValidator{jsonld.NewTestJSONLDManager(t).DocumentLoader()}
 	t.Run("ok", func(t *testing.T) {
-		inputVC := *validNutsOrganizationCredential()
+		inputVC := ValidNutsOrganizationCredential(t)
 
 		err := validator.Validate(inputVC)
 
@@ -387,7 +387,7 @@ func TestAllFieldsDefinedValidator(t *testing.T) {
 			"city": "EIbergen",
 		}
 
-		inputVC := *validNutsOrganizationCredential()
+		inputVC := ValidNutsOrganizationCredential(t)
 		inputVC.CredentialSubject[0] = invalidCredentialSubject
 
 		err := validator.Validate(inputVC)
@@ -400,7 +400,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	validator := defaultCredentialValidator{}
 
 	t.Run("ok - NutsOrganizationCredential", func(t *testing.T) {
-		err := validator.Validate(*validNutsOrganizationCredential())
+		err := validator.Validate(ValidNutsOrganizationCredential(t))
 
 		assert.NoError(t, err)
 	})
@@ -420,37 +420,37 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	})
 
 	t.Run("failed - missing ID", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		v.ID = nil
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: 'ID' is required")
 	})
 
 	t.Run("failed - missing proof", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		v.Proof = nil
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: 'proof' is required for JSON-LD credentials")
 	})
 
 	t.Run("failed - missing default context", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		v.Context = []ssi.URI{stringToURI(NutsV1Context)}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: default context is required")
 	})
 
 	t.Run("failed - missing default type", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
+		v := ValidNutsOrganizationCredential(t)
 		v.Type = []ssi.URI{stringToURI(NutsOrganizationCredentialType)}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: type 'VerifiableCredential' is required")
 	})

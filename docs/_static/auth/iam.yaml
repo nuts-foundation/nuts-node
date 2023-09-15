@@ -69,20 +69,8 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/TokenResponse"
-        "404":
-          description: Unknown issuer
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        "400":
-          description: >
-            Invalid request. Code can be "invalid_request", "invalid_client", "invalid_grant", "unauthorized_client", "unsupported_grant_type" or "invalid_scope".
-            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-error-response
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
+        "default":
+          $ref: '../common/error_response.yaml'
   "/iam/{id}/authorize":
     get:
       summary: Used by resource owners to initiate the authorization code flow.
@@ -156,14 +144,8 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/PresentationDefinition"
-        "400":
-          description: invalid scope
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/ErrorResponse"
-        "404":
-          description: Unknown DID
+        "default":
+          $ref: '../common/error_response.yaml'
   # TODO: What format to use? (codegenerator breaks on aliases)
   # See issue https://github.com/nuts-foundation/nuts-node/issues/2365
   # create aliases for the specced path
@@ -292,6 +274,7 @@ paths:
 
         error returns:
         * 400 - one of the parameters has the wrong format
+        * 412 - the organization wallet does not contain the correct credentials
         * 503 - the authorizer could not be reached or returned an error
       tags:
         - auth
@@ -350,8 +333,6 @@ components:
           description: |
             The type of the token issued as described in [RFC6749].
           example: "bearer"
-        scope:
-          type: string
         expires_in:
           type: integer
           description: |
@@ -377,13 +358,3 @@ components:
       description: |
         A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
         Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
-      type: object
-    ErrorResponse:
-      type: object
-      required:
-        - error
-      properties:
-        error:
-          type: string
-          description: Code identifying the error that occurred.
-          example: "invalid_request"

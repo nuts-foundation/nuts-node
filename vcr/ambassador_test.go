@@ -107,9 +107,7 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	ctx.vcr.ambassador.(*ambassador).writer = mockWriter
 
 	// load VC
-	vc := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("test/vc.json")
-	json.Unmarshal(vcJSON, &vc)
+	vc := credential.ValidNutsOrganizationCredential(t)
 
 	// load key
 	pem, _ := os.ReadFile("test/private.pem")

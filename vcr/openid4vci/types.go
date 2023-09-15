@@ -150,25 +150,6 @@ type CredentialResponse struct {
 	CNonce     *string                 `json:"c_nonce,omitempty"`
 }
 
-// TokenResponse defines the response for OAuth2 access token requests, extended with OpenID4VCI parameters.
-// Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-successful-token-response
-type TokenResponse struct {
-	// AccessToken defines the access token issued by the authorization server.
-	AccessToken string `json:"access_token"`
-
-	// CNonce defines the JSON string containing a nonce to be used to create a proof of possession of key material when requesting a Credential.
-	// When received, the WalletAPIClient MUST use this nonce value for its subsequent credential requests until the Credential Issuer provides a fresh nonce.
-	// Although optional in the spec, we use a concrete value since we always fill it.
-	CNonce string `json:"c_nonce,omitempty"`
-
-	// ExpiresIn defines the lifetime in seconds of the access token.
-	// Although optional in the spec, we use a concrete value since we always fill it.
-	ExpiresIn int `json:"expires_in,omitempty"`
-
-	// TokenType defines the type of the token issued as described in [RFC6749].
-	TokenType string `json:"token_type"`
-}
-
 // Config holds the config for the OpenID4VCI credential issuer and wallet
 type Config struct {
 	// DefinitionsDIR defines the directory where the additional credential definitions are stored
