@@ -251,6 +251,24 @@ func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMet
 
 	return OAuthClientMetadata200JSONResponse(clientMetadata(*identity)), nil
 }
+func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error) {
+	if len(request.Params.Scope) == 0 {
+		return PresentationDefinition200JSONResponse([]PresentationDefinition{}), nil
+	}
+
+	// todo: only const scopes supported, scopes with variable arguments not supported yet
+	// map all scopes to a presentation definition
+	presentationDefinitions := make([]PresentationDefinition, 0, len(request.Params.Scope))
+	for _, scope := range request.Params.Scope {
+		presentationDefinition := r.auth.PresentationDefinitions().ByScope(scope)
+		if presentationDefinition == nil {
+			return nil, core.InvalidInputError("unsupported scope: %s", scope)
+		}
+		presentationDefinitions = append(presentationDefinitions, *presentationDefinition)
+	}
+
+	return PresentationDefinition200JSONResponse(presentationDefinitions), nil
+}
 
 func createSession(params map[string]string, ownDID did.DID) *Session {
 	session := &Session{

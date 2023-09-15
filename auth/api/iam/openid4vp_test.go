@@ -101,7 +101,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		mockVDR.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 
 		params := map[string]string{
-			"scope":               "eOverdracht-overdrachtsbericht",
+			"scope":               "test",
 			"response_type":       "code",
 			"response_mode":       "direct_post",
 			"client_metadata_uri": "https://example.com/client_metadata.xml",
