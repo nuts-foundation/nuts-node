@@ -69,7 +69,7 @@ func clientMetadata(identity url.URL) OAuthClientMetadata {
 	softwareID, softwareVersion, _ := strings.Cut(core.UserAgent(), "/")
 	return OAuthClientMetadata{
 		//RedirectURIs:            nil,
-		TokenEndpointAuthMethod: "client_secret_basic", // TODO: this is the default value, what do we support
+		TokenEndpointAuthMethod: "none", // defaults is "client_secret_basic" if not provided
 		GrantTypes:              grantTypesSupported,
 		ResponseTypes:           responseTypesSupported,
 		//Scope:                   "",

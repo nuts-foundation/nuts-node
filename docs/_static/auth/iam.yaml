@@ -162,7 +162,6 @@ paths:
                 "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
         default:
           $ref: '../common/error_response.yaml'
-#  TODO: what should this path be? It is not a /.well-known/. It will be provided in an authorization request as the "client_metadata_uri"
   /iam/{id}/oauth-client:
     get:
       tags:

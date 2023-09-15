@@ -320,7 +320,7 @@ type RFC7591Fields struct {
 	//authentication scheme as specified in Section 2.3.1 of OAuth 2.0.
 
 	GrantTypes []string `json:"grant_types"`
-	//REQUIRED Array of OAuth 2.0 grant type strings that the client can use at
+	//Array of OAuth 2.0 grant type strings that the client can use at
 	//the token endpoint.  These grant types are defined as follows:
 	//
 	//*  "authorization_code": The authorization code grant type defined
