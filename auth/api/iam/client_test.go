@@ -20,7 +20,6 @@ package iam
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
@@ -83,16 +82,7 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 }
 
 func testServerAndClient(t *testing.T, handler http.Handler) (*httptest.Server, *HTTPClient) {
-	tlsServer := httptest.NewUnstartedServer(handler)
-	keyPair, err := tls.LoadX509KeyPair("../../../http/test/cert.pem", "../../../http/test/key.pem")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tlsServer.TLS = &tls.Config{
-		Certificates: []tls.Certificate{keyPair},
-	}
-	tlsServer.StartTLS()
-	t.Cleanup(tlsServer.Close)
+	tlsServer := http2.TestTLSServer(t, handler)
 	return tlsServer, &HTTPClient{
 		httpClient: tlsServer.Client(),
 	}

@@ -21,11 +21,11 @@ package didweb
 import (
 	"crypto/tls"
 	"github.com/nuts-foundation/go-did/did"
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -63,7 +63,7 @@ func TestResolver_NewResolver(t *testing.T) {
 
 func TestResolver_Resolve(t *testing.T) {
 	var baseDID did.DID
-	tlsServer := httptest.NewUnstartedServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	tlsServer := http2.TestTLSServer(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		switch request.URL.Path {
 		case "/.well-known/did.json":
 			writer.Header().Add("Content-Type", "application/did+json")
@@ -101,13 +101,6 @@ func TestResolver_Resolve(t *testing.T) {
 			writer.WriteHeader(http.StatusNotFound)
 		}
 	}))
-	keyPair, err := tls.LoadX509KeyPair("../../http/test/cert.pem", "../../http/test/key.pem")
-	require.NoError(t, err)
-	tlsServer.TLS = &tls.Config{
-		Certificates: []tls.Certificate{keyPair},
-	}
-	tlsServer.StartTLS()
-	defer tlsServer.Close()
 	resolver := &Resolver{
 		HttpClient: tlsServer.Client(),
 	}
