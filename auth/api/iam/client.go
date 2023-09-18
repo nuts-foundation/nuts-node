@@ -46,6 +46,8 @@ func NewHTTPClient(config core.ClientConfig) HTTPClient {
 func (hb HTTPClient) clientWithBase(baseURL string) ClientInterface {
 	// can only be used for public APIs
 	response, err := NewClientWithResponses(baseURL, WithHTTPClient(hb.httpClient))
+	// NewClientWithResponses can only return an error if an option returns an error.
+	// When adding options, make sure to check if it can return an error, if so refactor to handle the error properly.
 	if err != nil {
 		panic(err)
 	}
