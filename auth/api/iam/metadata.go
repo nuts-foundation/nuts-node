@@ -21,6 +21,7 @@ package iam
 import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"net/url"
+	"strings"
 )
 
 const (
@@ -60,5 +61,25 @@ func authorizationServerMetadata(identity url.URL) OAuthAuthorizationServerMetad
 		VPFormats:                vpFormatsSupported,
 		VPFormatsSupported:       vpFormatsSupported,
 		ClientIdSchemesSupported: clientIdSchemesSupported,
+	}
+}
+
+// clientMetadata should only be used for dids managed by the node. It assumes the provided identity URL is correct.
+func clientMetadata(identity url.URL) OAuthClientMetadata {
+	softwareID, softwareVersion, _ := strings.Cut(core.UserAgent(), "/")
+	return OAuthClientMetadata{
+		//RedirectURIs:            nil,
+		TokenEndpointAuthMethod: "none", // defaults is "client_secret_basic" if not provided
+		GrantTypes:              grantTypesSupported,
+		ResponseTypes:           responseTypesSupported,
+		//Scope:                   "",
+		//Contacts:                nil,
+		//JwksURI:                 "",
+		//Jwks:                    nil,
+		SoftwareID:      softwareID,      // nuts-node-refimpl
+		SoftwareVersion: softwareVersion, // version tag or "unknown"
+		//CredentialOfferEndpoint: "",
+		VPFormats:      vpFormatsSupported,
+		ClientIdScheme: "did",
 	}
 }
