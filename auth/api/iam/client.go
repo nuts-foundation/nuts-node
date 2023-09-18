@@ -22,13 +22,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"io"
+	"net/http"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -54,20 +52,14 @@ func (hb HTTPClient) clientWithBase(baseURL string) ClientInterface {
 	return response
 }
 
-func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, serverDID did.DID) (*OAuthAuthorizationServerMetadata, error) {
-	if serverDID.Method != "web" {
-		return nil, fmt.Errorf("unsupported DID method: %s", serverDID.Method)
-	}
+func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDID did.DID) (*OAuthAuthorizationServerMetadata, error) {
 	// TODO: ignoring root web did for now. We can't use the generated client for that type of web:did :(
-	// TODO: use IssuerIdToWellKnown func when merged
-	serverURL := strings.ReplaceAll(serverDID.ID, ":", "/")
-	// remove % encodings
-	serverURL, err := url.QueryUnescape(serverURL)
+	serverURL, err := didweb.DIDToURL(webDID)
 	if err != nil {
 		return nil, err
 	}
 
-	response, err := hb.clientWithBase(fmt.Sprintf("https://%s", serverURL)).OAuthAuthorizationServerMetadata(ctx, serverDID.String())
+	response, err := hb.clientWithBase(serverURL.String()).OAuthAuthorizationServerMetadata(ctx, webDID.String())
 	if err != nil {
 		return nil, err
 	}

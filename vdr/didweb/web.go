@@ -26,9 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"io"
 	"mime"
-	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -68,43 +66,19 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 		return nil, nil, errors.New("DID is not did:web")
 	}
 
-	var baseID = id.ID
-	var path string
-	subpathIdx := strings.Index(id.ID, ":")
-	if subpathIdx == -1 {
-		path = "/.well-known/did.json"
-	} else {
-		// subpaths are encoded as / -> :
-		baseID = id.ID[:subpathIdx]
-		path = id.ID[subpathIdx:]
-		path = strings.ReplaceAll(path, ":", "/") + "/did.json"
-		// Paths can't be empty; it should not contain subsequent slashes, or end with a slash
-		if strings.HasSuffix(path, "/") || strings.Contains(path, "//") {
-			return nil, nil, fmt.Errorf("invalid did:web: contains empty path elements")
-		}
-	}
-
-	unescapedID, err := url.PathUnescape(baseID)
+	baseURL, err := DIDToURL(id)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid did:web: %w", err)
-	}
-	targetURL := "https://" + unescapedID + path
-
-	// Use url.Parse() to check that;
-	// - the DID does not contain a sneaky percent-encoded path or other illegal stuff
-	// - the DID does not contain an IP address
-	parsedURL, err := url.Parse(targetURL)
-	if err != nil {
-		// came from a DID, not sure how it could fail
 		return nil, nil, err
 	}
-	if parsedURL.Host != unescapedID {
-		return nil, nil, fmt.Errorf("invalid did:web: illegal characters in domain name")
+	splitted := strings.Split(id.ID, ":")
+	if len(splitted) == 1 {
+		// if the id doesn't contain a path we set '/.well-known/did.json' s path
+		baseURL.Path = "/.well-known/did.json"
+	} else {
+		// if there's a path we prepend `./well-known/` to the path
+		baseURL.Path = strings.Join(splitted[1:], "/") + "/did.json"
 	}
-	parsedIP := net.ParseIP(parsedURL.Hostname())
-	if parsedIP != nil {
-		return nil, nil, fmt.Errorf("invalid did:web: ID must be a domain name, not IP address")
-	}
+	targetURL := baseURL.String()
 
 	// TODO: Support DNS over HTTPS (DOH), https://www.rfc-editor.org/rfc/rfc8484
 	httpResponse, err := w.HttpClient.Get(targetURL)

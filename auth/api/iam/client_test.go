@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -89,6 +90,7 @@ func testServerAndClient(t *testing.T, handler http.Handler) (*httptest.Server, 
 }
 
 func stringURLToDID(t *testing.T, stringUrl string) did.DID {
+	stringUrl = strings.ReplaceAll(stringUrl, "127.0.0.1", "localhost")
 	asURL, err := url.Parse(stringUrl)
 	require.NoError(t, err)
 	testDID, err := didweb.URLToDID(*asURL)

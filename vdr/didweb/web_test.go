@@ -210,52 +210,6 @@ func TestResolver_Resolve(t *testing.T) {
 			assert.Nil(t, md)
 			assert.Nil(t, doc)
 		})
-		t.Run("contains empty paths (every : must be followed by a path)", func(t *testing.T) {
-			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com:sub::path"), nil)
-
-			assert.EqualError(t, err, "invalid did:web: contains empty path elements")
-			assert.Nil(t, md)
-			assert.Nil(t, doc)
-		})
-		t.Run("ends with empty path (every : must be followed by a path)", func(t *testing.T) {
-			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com:"), nil)
-
-			assert.EqualError(t, err, "invalid did:web: contains empty path elements")
-			assert.Nil(t, md)
-			assert.Nil(t, doc)
-		})
-		t.Run("ID must be just domain (contains encoded path)", func(t *testing.T) {
-			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com%2Fpath"), nil)
-
-			assert.EqualError(t, err, "invalid did:web: illegal characters in domain name")
-			assert.Nil(t, md)
-			assert.Nil(t, doc)
-		})
-		t.Run("ID must be just domain, with port (contains encoded path)", func(t *testing.T) {
-			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:example.com%3A443%2Fpath"), nil)
-
-			assert.EqualError(t, err, "invalid did:web: illegal characters in domain name")
-			assert.Nil(t, md)
-			assert.Nil(t, doc)
-		})
-		t.Run("ID can't be an IP address (IPv4)", func(t *testing.T) {
-			doc, md, err := resolver.Resolve(did.MustParseDID("did:web:127.0.0.1"), nil)
-
-			assert.EqualError(t, err, "invalid did:web: ID must be a domain name, not IP address")
-			assert.Nil(t, md)
-			assert.Nil(t, doc)
-		})
-		t.Run("ID can't be an IP address (IPv6)", func(t *testing.T) {
-			// did.Parse() rejects IPv6 addresses in DIDs, so we have to "build" it
-			doc, md, err := resolver.Resolve(did.DID{
-				Method: MethodName,
-				ID:     "[%3A%3A1]",
-			}, nil)
-
-			assert.EqualError(t, err, "invalid did:web: ID must be a domain name, not IP address")
-			assert.Nil(t, md)
-			assert.Nil(t, doc)
-		})
 	})
 }
 
