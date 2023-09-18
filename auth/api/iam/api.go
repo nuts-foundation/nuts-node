@@ -280,7 +280,7 @@ func (r Wrapper) validateAsNutsFingerprint(ctx context.Context, fingerprint stri
 			return core.NotFoundError(err.Error())
 		}
 		log.Logger().WithField("did", nutsDID.String()).Errorf("oauth metadata: failed to assert ownership of did: %s", err.Error())
-		return err
+		return core.Error(500, err.Error())
 	}
 	if !owned {
 		return core.NotFoundError("did not owned")
