@@ -27,7 +27,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -70,14 +69,11 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 	if err != nil {
 		return nil, nil, err
 	}
-	splitted := strings.Split(id.ID, ":")
-	if len(splitted) == 1 {
+	if len(baseURL.Path) == 0 {
 		// if the id doesn't contain a path we set '/.well-known/did.json' s path
-		baseURL.Path = "/.well-known/did.json"
-	} else {
-		// if there's a path we prepend `./well-known/` to the path
-		baseURL.Path = strings.Join(splitted[1:], "/") + "/did.json"
+		baseURL.Path = "/.well-known"
 	}
+	baseURL.Path = baseURL.Path + "/did.json"
 	targetURL := baseURL.String()
 
 	// TODO: Support DNS over HTTPS (DOH), https://www.rfc-editor.org/rfc/rfc8484
