@@ -52,6 +52,7 @@ func (hb HTTPClient) clientWithBase(baseURL string) ClientInterface {
 	return response
 }
 
+// OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given web DID.
 func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDID did.DID) (*OAuthAuthorizationServerMetadata, error) {
 	// TODO: ignoring root web did for now. We can't use the generated client for that type of web:did :(
 	serverURL, err := didweb.DIDToURL(webDID)
