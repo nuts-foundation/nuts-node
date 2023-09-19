@@ -20,7 +20,6 @@ package iam
 
 import (
 	"context"
-	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
@@ -36,7 +35,7 @@ import (
 func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("ok using web:did", func(t *testing.T) {
+	t.Run("ok using root web:did", func(t *testing.T) {
 		result := OAuthAuthorizationServerMetadata{TokenEndpoint: "/token"}
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: result}
 		tlsServer, client := testServerAndClient(t, &handler)
@@ -49,7 +48,23 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.Equal(t, "/token", metadata.TokenEndpoint)
 		require.NotNil(t, handler.Request)
 		assert.Equal(t, "GET", handler.Request.Method)
-		assert.Equal(t, fmt.Sprintf("/.well-known/oauth-authorization-server/iam/%s", testDID), handler.Request.URL.Path)
+		assert.Equal(t, "/.well-known/oauth-authorization-server", handler.Request.URL.Path)
+	})
+	t.Run("ok using user web:did", func(t *testing.T) {
+		result := OAuthAuthorizationServerMetadata{TokenEndpoint: "/token"}
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: result}
+		tlsServer, client := testServerAndClient(t, &handler)
+		testDID := stringURLToDID(t, tlsServer.URL)
+		testDID = did.MustParseDID(testDID.String() + ":iam:123")
+
+		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
+
+		require.NoError(t, err)
+		require.NotNil(t, metadata)
+		assert.Equal(t, "/token", metadata.TokenEndpoint)
+		require.NotNil(t, handler.Request)
+		assert.Equal(t, "GET", handler.Request.Method)
+		assert.Equal(t, "/.well-known/oauth-authorization-server/iam/123", handler.Request.URL.Path)
 	})
 	t.Run("error - non 200 return value", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadRequest}

@@ -31,36 +31,35 @@ import (
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
+	config     core.ClientConfig
 	httpClient core.HTTPRequestDoer
 }
 
 // NewHTTPClient creates a new api client.
 func NewHTTPClient(config core.ClientConfig) HTTPClient {
 	return HTTPClient{
+		config:     config,
 		httpClient: core.MustCreateHTTPClient(config, nil),
 	}
 }
 
-func (hb HTTPClient) clientWithBase(baseURL string) ClientInterface {
-	// can only be used for public APIs
-	response, err := NewClientWithResponses(baseURL, WithHTTPClient(hb.httpClient))
-	// NewClientWithResponses can only return an error if an option returns an error.
-	// When adding options, make sure to check if it can return an error, if so refactor to handle the error properly.
-	if err != nil {
-		panic(err)
-	}
-	return response
-}
-
 // OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given web DID.
 func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDID did.DID) (*OAuthAuthorizationServerMetadata, error) {
-	// TODO: ignoring root web did for now. We can't use the generated client for that type of web:did :(
 	serverURL, err := didweb.DIDToURL(webDID)
 	if err != nil {
 		return nil, err
 	}
 
-	response, err := hb.clientWithBase(serverURL.String()).OAuthAuthorizationServerMetadata(ctx, webDID.String())
+	metadataURL, err := IssuerIdToWellKnown(serverURL.String(), authzServerWellKnown, hb.config.Strictmode)
+	if err != nil {
+		return nil, err
+	}
+
+	request := &http.Request{
+		Method: "GET",
+		URL:    metadataURL,
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
