@@ -150,7 +150,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		//	200
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(nil, did).Return(true, nil)
 
 		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
 
@@ -181,7 +181,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.vdrInstance.EXPECT().IsOwner(nil, did)
+		ctx.vdr.EXPECT().IsOwner(nil, did)
 
 		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
 
@@ -193,7 +193,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(false, vdr.ErrNotFound)
+		ctx.vdr.EXPECT().IsOwner(nil, did).Return(false, vdr.ErrNotFound)
 
 		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
 
@@ -205,7 +205,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		//500
 		ctx := newTestClient(t)
 		did := did.MustParseDID("did:nuts:123")
-		ctx.vdrInstance.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
+		ctx.vdr.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
 
 		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
 
