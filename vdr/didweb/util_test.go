@@ -97,6 +97,14 @@ func TestDIDToURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expected, result)
 	})
+	t.Run("encoded illegal traversal path", func(t *testing.T) {
+		did := did2.MustParseDID("did:web:localhost:x:y:%2E%2E:z")
+		expected, _ := url.Parse("https://localhost/x/y/%2E%2E/z")
+		result, err := DIDToURL(did)
+
+		require.NoError(t, err)
+		assert.Equal(t, expected, result)
+	})
 	t.Run("contains empty paths (every : must be followed by a path)", func(t *testing.T) {
 		did := did2.MustParseDID("did:web:example.com:sub::path")
 		_, err := DIDToURL(did)
