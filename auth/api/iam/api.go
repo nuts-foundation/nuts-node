@@ -22,7 +22,6 @@ import (
 	"context"
 	"embed"
 	"errors"
-	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -35,7 +34,6 @@ import (
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"html/template"
 	"net/http"
-	"strings"
 	"sync"
 )
 
@@ -240,39 +238,19 @@ func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) 
 
 // GetOAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
 func (r Wrapper) GetOAuthClientMetadata(ctx context.Context, request GetOAuthClientMetadataRequestObject) (GetOAuthClientMetadataResponseObject, error) {
-	if err := r.validateAsNutsFingerprint(ctx, request.Id); err != nil {
-		return nil, fmt.Errorf("client metadata: %w", err)
+	ownDID := idToDID(request.Id)
+	owned, err := r.vdr.IsOwner(ctx, ownDID)
+	if err != nil {
+		log.Logger().WithField("did", ownDID.String()).Errorf("oauth metadata: failed to assert ownership of did: %s", err.Error())
+		return nil, core.Error(500, err.Error())
+	}
+	if !owned {
+		return nil, core.NotFoundError("did not owned")
 	}
 
 	identity := r.auth.PublicURL().JoinPath("iam", request.Id)
 
 	return GetOAuthClientMetadata200JSONResponse(clientMetadata(*identity)), nil
-}
-
-func (r Wrapper) validateAsNutsFingerprint(ctx context.Context, fingerprint string) error {
-	// convert fingerprint to did:nuts
-	if strings.HasPrefix(fingerprint, "did:") {
-		return core.InvalidInputError("id contains full did")
-	}
-	nutsDID, err := did.ParseDID("did:nuts:" + fingerprint)
-	if err != nil {
-		return core.InvalidInputError(err.Error())
-	}
-
-	// assert ownership of did
-	owned, err := r.vdr.IsOwner(ctx, *nutsDID)
-	if err != nil {
-		if didservice.IsFunctionalResolveError(err) {
-			return core.NotFoundError(err.Error())
-		}
-		log.Logger().WithField("did", nutsDID.String()).Errorf("oauth metadata: failed to assert ownership of did: %s", err.Error())
-		return core.Error(500, err.Error())
-	}
-	if !owned {
-		return core.NotFoundError("did not owned")
-	}
-
-	return nil
 }
 
 func createSession(params map[string]string, ownDID did.DID) *Session {
@@ -295,7 +273,7 @@ func idToDID(id string) did.DID {
 	return did.DID{
 		// should be changed to web when migrated to web DID
 		Method:    "nuts",
-		ID:        fmt.Sprintf("%s", id),
-		DecodedID: fmt.Sprintf("%s", id),
+		ID:        id,
+		DecodedID: id,
 	}
 }
