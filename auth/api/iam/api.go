@@ -216,7 +216,7 @@ func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, reques
 		return nil, core.NotFoundError("authz server metadata: did not owned")
 	}
 
-	identity := r.auth.PublicURL().JoinPath(ownDID.WithoutURL().String())
+	identity := r.auth.PublicURL().JoinPath("iam", request.Id)
 
 	return GetOAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
 }
