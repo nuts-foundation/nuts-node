@@ -46,8 +46,18 @@ type HandleTokenRequestFormdataBody struct {
 	AdditionalProperties map[string]string `json:"-"`
 }
 
+// RequestAccessTokenJSONBody defines parameters for RequestAccessToken.
+type RequestAccessTokenJSONBody struct {
+	// Scope The scope that will be The service for which this access token can be used.
+	Scope    string `json:"scope"`
+	Verifier string `json:"verifier"`
+}
+
 // HandleTokenRequestFormdataRequestBody defines body for HandleTokenRequest for application/x-www-form-urlencoded ContentType.
 type HandleTokenRequestFormdataRequestBody HandleTokenRequestFormdataBody
+
+// RequestAccessTokenJSONRequestBody defines body for RequestAccessToken for application/json ContentType.
+type RequestAccessTokenJSONRequestBody RequestAccessTokenJSONBody
 
 // Getter for additional properties for HandleTokenRequestFormdataBody. Returns the specified
 // element and whether it was found
@@ -145,6 +155,9 @@ type ServerInterface interface {
 	// Get the OAuth2 Client metadata
 	// (GET /iam/{id}/oauth-client)
 	GetOAuthClientMetadata(ctx echo.Context, id string) error
+	// Requests an access token using the vp_token-bearer grant.
+	// (POST /internal/auth/v2/{did}/request-access-token)
+	RequestAccessToken(ctx echo.Context, did string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -241,6 +254,22 @@ func (w *ServerInterfaceWrapper) GetOAuthClientMetadata(ctx echo.Context) error 
 	return err
 }
 
+// RequestAccessToken converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RequestAccessToken(ctx, did)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -274,6 +303,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/iam/:did/did.json", wrapper.GetWebDID)
 	router.POST(baseURL+"/iam/:did/token", wrapper.HandleTokenRequest)
 	router.GET(baseURL+"/iam/:id/oauth-client", wrapper.GetOAuthClientMetadata)
+	router.POST(baseURL+"/internal/auth/v2/:did/request-access-token", wrapper.RequestAccessToken)
 
 }
 
@@ -456,6 +486,45 @@ func (response GetOAuthClientMetadatadefaultApplicationProblemPlusJSONResponse) 
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type RequestAccessTokenRequestObject struct {
+	Did  string `json:"did"`
+	Body *RequestAccessTokenJSONRequestBody
+}
+
+type RequestAccessTokenResponseObject interface {
+	VisitRequestAccessTokenResponse(w http.ResponseWriter) error
+}
+
+type RequestAccessToken200JSONResponse TokenResponse
+
+func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestAccessTokendefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RequestAccessTokendefaultApplicationProblemPlusJSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata
@@ -473,6 +542,9 @@ type StrictServerInterface interface {
 	// Get the OAuth2 Client metadata
 	// (GET /iam/{id}/oauth-client)
 	GetOAuthClientMetadata(ctx context.Context, request GetOAuthClientMetadataRequestObject) (GetOAuthClientMetadataResponseObject, error)
+	// Requests an access token using the vp_token-bearer grant.
+	// (POST /internal/auth/v2/{did}/request-access-token)
+	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
 }
 
 type StrictHandlerFunc = strictecho.StrictEchoHandlerFunc
@@ -617,6 +689,37 @@ func (sh *strictHandler) GetOAuthClientMetadata(ctx echo.Context, id string) err
 		return err
 	} else if validResponse, ok := response.(GetOAuthClientMetadataResponseObject); ok {
 		return validResponse.VisitGetOAuthClientMetadataResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RequestAccessToken operation middleware
+func (sh *strictHandler) RequestAccessToken(ctx echo.Context, did string) error {
+	var request RequestAccessTokenRequestObject
+
+	request.Did = did
+
+	var body RequestAccessTokenJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestAccessToken(ctx.Request().Context(), request.(RequestAccessTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestAccessToken")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RequestAccessTokenResponseObject); ok {
+		return validResponse.VisitRequestAccessTokenResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

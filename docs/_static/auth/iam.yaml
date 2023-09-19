@@ -242,52 +242,52 @@ paths:
 #                    type: string
 #        default:
 #          $ref: '../common/error_response.yaml'
-#  /internal/auth/v2/{did}/request-access-token:
-#    post:
-#      operationId: requestAccessToken
-#      summary: Requests an access token using OAuth2.
-#      description: |
-#        Initiates an OAuth2 flow to request an access token from a remote authorization server.
-#
-#        error returns:
-#        * 400 - one of the parameters has the wrong format
-#        * 503 - the authorizer could not be reached or returned an error
-#      tags:
-#        - auth
-#      parameters:
-#        - name: did
-#          in: path
-#          required: true
-#          schema:
-#            type: string
-#            example: did:nuts:123
-#      requestBody:
-#        required: true
-#        content:
-#          application/json:
-#            schema:
-#              required:
-#                - authorizer
-#                - requester
-#                - scope
-#              properties:
-#                authorizer:
-#                  type: string
-#                requester:
-#                  type: string
-#                scope:
-#                  type: string
-#                  description: The scope that will be The service for which this access token can be used. The right oauth endpoint is selected based on the service.
-#                  example: nuts-patient-transfer
-#      responses:
-#        '200':
-#          description: Successful request. Responds with an access token as described in rfc6749 section 5.1.
-#          content:
-#            application/json:
-#              schema:
-#                $ref: '#/components/schemas/TokenResponse'
-#        default:
-#          $ref: '../common/error_response.yaml'
+  /internal/auth/v2/{did}/request-access-token:
+    post:
+      operationId: requestAccessToken
+      summary: Requests an access token using the vp_token-bearer grant.
+      description: |
+        Initiates an OAuth2 flow to request an access token from a remote authorization server.
+        This endpoint is only usable for a service 2 service flow.
+
+        error returns:
+        * 400 - one of the parameters has the wrong format
+        * 503 - the authorizer could not be reached or returned an error
+      tags:
+        - auth
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: The DID of the requester, a Wallet owner at this node.
+          schema:
+            type: string
+            example: did:nuts:123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - verifier
+                - scope
+              properties:
+                verifier:
+                  type: string
+                  example: did:nuts:123
+                scope:
+                  type: string
+                  description: The scope that will be The service for which this access token can be used.
+                  example: eOverdracht-sender
+      responses:
+        '200':
+          description: Successful request. Responds with an access token as described in rfc6749 section 5.1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     DIDDocument:
