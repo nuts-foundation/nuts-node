@@ -285,8 +285,8 @@ github.com/hashicorp/mdns v1.0.4/go.mod h1:mtBihi+LeNXGtG8L9dX59gAEa12BDtBQSp4v/
 github.com/hashicorp/memberlist v0.3.0/go.mod h1:MS2lj3INKhZjWNqd3N0m3J+Jxf3DAOnAH9VT3Sh9MUE=
 github.com/hashicorp/serf v0.9.6/go.mod h1:TXZNMjZQijwlDvp+r0b63xZ45H7JmCmgg4gpTwn9UV4=
 github.com/hashicorp/vault/api v1.0.4/go.mod h1:gDcqh3WGcR1cpF5AJz/B1UFheUEneMoIospckxBxk6Q=
-github.com/hashicorp/vault/api v1.9.2 h1:YjkZLJ7K3inKgMZ0wzCU9OHqc+UqMQyXsPXnf3Cl2as=
-github.com/hashicorp/vault/api v1.9.2/go.mod h1:jo5Y/ET+hNyz+JnKDt8XLAdKs+AM0G5W0Vp1IrFI8N8=
+github.com/hashicorp/vault/api v1.10.0 h1:/US7sIjWN6Imp4o/Rj1Ce2Nr5bki/AXi9vAW3p2tOJQ=
+github.com/hashicorp/vault/api v1.10.0/go.mod h1:jo5Y/ET+hNyz+JnKDt8XLAdKs+AM0G5W0Vp1IrFI8N8=
 github.com/hashicorp/vault/sdk v0.1.13/go.mod h1:B+hVj7TpuQY1Y/GPbCpffmgd+tSEwvhkWnjtSYCaS2M=
 github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
 github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
@@ -435,8 +435,6 @@ github.com/nightlyone/lockfile v1.0.0/go.mod h1:rywoIealpdNse2r832aiD9jRk8ErCatR
 github.com/npillmayer/nestext v0.1.3/go.mod h1:h2lrijH8jpicr25dFY+oAJLyzlya6jhnuG+zWp9L0Uk=
 github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b h1:80icUxWHwE1MrIOOEK5rxrtyKOgZeq5Iu1IjAEkggTY=
 github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b/go.mod h1:6YUioYirD6/8IahZkoS4Ypc8xbeJW76Xdk1QKcziNTM=
-github.com/nuts-foundation/go-did v0.6.3 h1:jN6Y8TWieyHjIetxvO4W467fwjJ5JQo50HpAKgaU9ig=
-github.com/nuts-foundation/go-did v0.6.3/go.mod h1:Jb3IgnO2Zeed970JMIlfjr4g1kvikmgWUJA0EfeDEFE=
 github.com/nuts-foundation/go-did v0.6.5 h1:y2gPygRN1gBeMI9y8OIWwARp8NpHHheqnbpLwCxajFw=
 github.com/nuts-foundation/go-did v0.6.5/go.mod h1:Jb3IgnO2Zeed970JMIlfjr4g1kvikmgWUJA0EfeDEFE=
 github.com/nuts-foundation/go-leia/v4 v4.0.0 h1:/unYCk18qGG2HWcJK4ld4CaM6k7Tdr0bR1vQd1Jwfcg=
