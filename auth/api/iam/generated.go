@@ -151,7 +151,7 @@ type ServerInterface interface {
 	GetWebDID(ctx echo.Context, id string) error
 	// Get the OAuth2 Client metadata
 	// (GET /iam/{id}/oauth-client)
-	GetOAuthClientMetadata(ctx echo.Context, id string) error
+	OAuthClientMetadata(ctx echo.Context, id string) error
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{id}/token)
 	HandleTokenRequest(ctx echo.Context, id string) error
@@ -222,8 +222,8 @@ func (w *ServerInterfaceWrapper) GetWebDID(ctx echo.Context) error {
 	return err
 }
 
-// GetOAuthClientMetadata converts echo context to params.
-func (w *ServerInterfaceWrapper) GetOAuthClientMetadata(ctx echo.Context) error {
+// OAuthClientMetadata converts echo context to params.
+func (w *ServerInterfaceWrapper) OAuthClientMetadata(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "id" -------------
 	var id string
@@ -234,7 +234,7 @@ func (w *ServerInterfaceWrapper) GetOAuthClientMetadata(ctx echo.Context) error 
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetOAuthClientMetadata(ctx, id)
+	err = w.Handler.OAuthClientMetadata(ctx, id)
 	return err
 }
 
@@ -301,7 +301,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:id", wrapper.OAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/iam/:id/authorize", wrapper.HandleAuthorizeRequest)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetWebDID)
-	router.GET(baseURL+"/iam/:id/oauth-client", wrapper.GetOAuthClientMetadata)
+	router.GET(baseURL+"/iam/:id/oauth-client", wrapper.OAuthClientMetadata)
 	router.POST(baseURL+"/iam/:id/token", wrapper.HandleTokenRequest)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-access-token", wrapper.RequestAccessToken)
 
@@ -412,24 +412,24 @@ func (response GetWebDID404Response) VisitGetWebDIDResponse(w http.ResponseWrite
 	return nil
 }
 
-type GetOAuthClientMetadataRequestObject struct {
+type OAuthClientMetadataRequestObject struct {
 	Id string `json:"id"`
 }
 
-type GetOAuthClientMetadataResponseObject interface {
-	VisitGetOAuthClientMetadataResponse(w http.ResponseWriter) error
+type OAuthClientMetadataResponseObject interface {
+	VisitOAuthClientMetadataResponse(w http.ResponseWriter) error
 }
 
-type GetOAuthClientMetadata200JSONResponse OAuthClientMetadata
+type OAuthClientMetadata200JSONResponse OAuthClientMetadata
 
-func (response GetOAuthClientMetadata200JSONResponse) VisitGetOAuthClientMetadataResponse(w http.ResponseWriter) error {
+func (response OAuthClientMetadata200JSONResponse) VisitOAuthClientMetadataResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetOAuthClientMetadatadefaultApplicationProblemPlusJSONResponse struct {
+type OAuthClientMetadatadefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -443,7 +443,7 @@ type GetOAuthClientMetadatadefaultApplicationProblemPlusJSONResponse struct {
 	StatusCode int
 }
 
-func (response GetOAuthClientMetadatadefaultApplicationProblemPlusJSONResponse) VisitGetOAuthClientMetadataResponse(w http.ResponseWriter) error {
+func (response OAuthClientMetadatadefaultApplicationProblemPlusJSONResponse) VisitOAuthClientMetadataResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -538,7 +538,7 @@ type StrictServerInterface interface {
 	GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error)
 	// Get the OAuth2 Client metadata
 	// (GET /iam/{id}/oauth-client)
-	GetOAuthClientMetadata(ctx context.Context, request GetOAuthClientMetadataRequestObject) (GetOAuthClientMetadataResponseObject, error)
+	OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error)
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{id}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
@@ -635,25 +635,25 @@ func (sh *strictHandler) GetWebDID(ctx echo.Context, id string) error {
 	return nil
 }
 
-// GetOAuthClientMetadata operation middleware
-func (sh *strictHandler) GetOAuthClientMetadata(ctx echo.Context, id string) error {
-	var request GetOAuthClientMetadataRequestObject
+// OAuthClientMetadata operation middleware
+func (sh *strictHandler) OAuthClientMetadata(ctx echo.Context, id string) error {
+	var request OAuthClientMetadataRequestObject
 
 	request.Id = id
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetOAuthClientMetadata(ctx.Request().Context(), request.(GetOAuthClientMetadataRequestObject))
+		return sh.ssi.OAuthClientMetadata(ctx.Request().Context(), request.(OAuthClientMetadataRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetOAuthClientMetadata")
+		handler = middleware(handler, "OAuthClientMetadata")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(GetOAuthClientMetadataResponseObject); ok {
-		return validResponse.VisitGetOAuthClientMetadataResponse(ctx.Response())
+	} else if validResponse, ok := response.(OAuthClientMetadataResponseObject); ok {
+		return validResponse.VisitOAuthClientMetadataResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

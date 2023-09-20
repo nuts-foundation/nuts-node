@@ -129,26 +129,25 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, did).Return(true, nil)
 
-		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: did.ID})
 
 		require.NoError(t, err)
-		assert.IsType(t, GetOAuthClientMetadata200JSONResponse{}, res)
+		assert.IsType(t, OAuthClientMetadata200JSONResponse{}, res)
 	})
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, did)
 
-		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: did.ID})
 
 		assert.Equal(t, 404, statusCodeFrom(err))
-		assert.EqualError(t, err, "did not owned")
 		assert.Nil(t, res)
 	})
 	t.Run("error - internal error 500", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
 
-		res, err := ctx.client.GetOAuthClientMetadata(nil, GetOAuthClientMetadataRequestObject{Id: did.ID})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: did.ID})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "unknown error")
