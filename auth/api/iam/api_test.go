@@ -40,7 +40,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(true, nil)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.String()})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.ID})
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
@@ -51,7 +51,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, testDID)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.String()})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.ID})
 
 		assert.Equal(t, 404, statusCodeFrom(err))
 		assert.EqualError(t, err, "authz server metadata: did not owned")
@@ -62,7 +62,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(false, vdr.ErrNotFound)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.String()})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.ID})
 
 		assert.Equal(t, 404, statusCodeFrom(err))
 		assert.EqualError(t, err, "authz server metadata: unable to find the DID document")
@@ -73,7 +73,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(false, errors.New("unknown error"))
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.String()})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.ID})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "authz server metadata: unknown error")
