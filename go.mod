@@ -18,8 +18,8 @@ require (
 	github.com/lestrrat-go/jwx v1.2.26
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.1.1
-	github.com/nats-io/nats-server/v2 v2.9.22
-	github.com/nats-io/nats.go v1.28.0
+	github.com/nats-io/nats-server/v2 v2.10.0
+	github.com/nats-io/nats.go v1.29.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.6.5
 	github.com/nuts-foundation/go-leia/v4 v4.0.0
@@ -102,7 +102,7 @@ require (
 	github.com/jinzhu/gorm v1.9.16 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/klauspost/compress v1.16.7 // indirect
+	github.com/klauspost/compress v1.17.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/gommon v0.4.0 // indirect
 	github.com/lestrrat-go/backoff/v2 v2.0.8 // indirect
@@ -125,8 +125,8 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/mr-tron/base58 v1.1.3 // indirect
 	github.com/multiformats/go-multihash v0.0.11 // indirect
-	github.com/nats-io/jwt/v2 v2.5.0 // indirect
-	github.com/nats-io/nkeys v0.4.4 // indirect
+	github.com/nats-io/jwt/v2 v2.5.2 // indirect
+	github.com/nats-io/nkeys v0.4.5 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nightlyone/lockfile v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
