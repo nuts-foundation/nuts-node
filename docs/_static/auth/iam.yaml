@@ -5,12 +5,11 @@ info:
 servers:
   - url: "http://localhost:1323"
 paths:
-  # TODO: Decide on /iam: https://github.com/nuts-foundation/nuts-node/issues/2439
-  /iam/{did}/did.json:
+  /iam/{id}/did.json:
     parameters:
-      - name: did
+      - name: id
         in: path
-        description: ID of the corresponding Nuts DID document without the `did:nuts:` prefix.
+        description: ID of DID.
         required: true
         example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         schema:
@@ -18,7 +17,7 @@ paths:
     get:
       summary: "Returns the did:web version of a Nuts DID document"
       description: |
-        Returns the did:web equivalent of a Nuts DID document, if it is owned by this node.
+        Returns the did:web DID document, if it is owned by this node.
       operationId: "getWebDID"
       tags:
         - DID
@@ -31,8 +30,7 @@ paths:
                 $ref: '#/components/schemas/DIDDocument'
         "404":
           description: DID does not exist.
-  # TODO: Decide on /iam: https://github.com/nuts-foundation/nuts-node/issues/2439
-  "/iam/{did}/token":
+  "/iam/{id}/token":
     post:
       summary: Used by to request access- or refresh tokens.
       description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint
@@ -40,12 +38,13 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: did
+        - name: id
           in: path
           required: true
+          description: the id part of the web DID
           schema:
             type: string
-            example: did:nuts:123
+            example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -84,8 +83,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  # TODO: Decide on /iam: https://github.com/nuts-foundation/nuts-node/issues/2439
-  "/iam/{did}/authorize":
+  "/iam/{id}/authorize":
     get:
       summary: Used by resource owners to initiate the authorization code flow.
       description: Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
@@ -93,12 +91,13 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: did
+        - name: id
           in: path
           required: true
+          description: the id part of the web DID
           schema:
             type: string
-            example: did:nuts:123
+            example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         # Way to specify dynamic query parameters
         # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
         - in: query
@@ -131,7 +130,7 @@ paths:
 #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
 #  /iam/{did}/.well-known/oauth-authorization-server:
 #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
-  /.well-known/oauth-authorization-server/iam/{did}:
+  /.well-known/oauth-authorization-server/iam/{id}:
     get:
       tags:
         - well-known
@@ -146,13 +145,13 @@ paths:
         * 500 - internal server error
       operationId: getOAuthAuthorizationServerMetadata
       parameters:
-        - name: did
+        - name: id
           in: path
           required: true
+          description: the id part of the web DID
           schema:
-            description: must be did:nuts for now
             type: string
-            example: did:nuts:123
+            example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
       responses:
         "200":
           description: OK
