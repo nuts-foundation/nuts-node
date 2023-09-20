@@ -42,11 +42,12 @@ var userHomeDirFn = os.UserHomeDir
 
 // ClientConfig has CLI client settings.
 type ClientConfig struct {
-	Address   string        `koanf:"address"`
-	Verbosity string        `koanf:"verbosity"`
-	Timeout   time.Duration `koanf:"timeout"`
-	Token     string        `koanf:"token"`
-	TokenFile string        `koanf:"token-file"`
+	Address    string        `koanf:"address"`
+	Strictmode bool          `koanf:"strictmode"`
+	Timeout    time.Duration `koanf:"timeout"`
+	Token      string        `koanf:"token"`
+	TokenFile  string        `koanf:"token-file"`
+	Verbosity  string        `koanf:"verbosity"`
 }
 
 // NewClientConfigForCommand loads all the values for a given command into the provided configMap.

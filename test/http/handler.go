@@ -29,6 +29,7 @@ import (
 //
 // Then s.URL must be configured in the client.
 type Handler struct {
+	Request        *http.Request
 	RequestHeaders http.Header
 	StatusCode     int
 	RequestData    []byte
@@ -36,6 +37,7 @@ type Handler struct {
 }
 
 func (h *Handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
+	h.Request = req
 	h.RequestData, _ = io.ReadAll(req.Body)
 	h.RequestHeaders = req.Header.Clone()
 

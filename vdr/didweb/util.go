@@ -20,7 +20,9 @@ package didweb
 
 import (
 	"errors"
+	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"net"
 	"net/url"
 	"strings"
 )
@@ -51,6 +53,88 @@ func URLToDID(u url.URL) (*did.DID, error) {
 		return nil, errors.Join(errInvalidWebDIDURL, err)
 	}
 	return result, nil
+}
+
+// DIDToURL converts a Web DID (did:web) to a URL.
+// Examples:
+// - did:web:localhost -> https://localhost
+// - did:web:localhost:alice%2Band%2Bbob:path -> https://localhost/alice+and+bob/path
+// - did:web:localhost%3A3000:alice -> https://localhost:3000/alice
+func DIDToURL(id did.DID) (*url.URL, error) {
+	if id.Method != "web" {
+		return nil, errors.Join(errInvalidWebDIDURL, fmt.Errorf("unsupported DID method: %s", id.Method))
+	}
+	var baseID = id.ID
+	var path string
+	subpathIdx := strings.Index(id.ID, ":")
+	if subpathIdx != -1 {
+		// subpaths are encoded as / -> :
+		baseID = id.ID[:subpathIdx]
+		path = id.ID[subpathIdx:]
+		path = strings.ReplaceAll(path, ":", "/")
+		// Paths can't be empty; it should not contain subsequent slashes, or end with a slash
+		if strings.HasSuffix(path, "/") || strings.Contains(path, "//") {
+			return nil, fmt.Errorf("invalid did:web: contains empty path elements")
+		}
+	}
+
+	unescapedID, err := url.PathUnescape(baseID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid did:web: %w", err)
+	}
+	// only certain chars allowed, '/' for example may not be unescaped
+	unescapedPath := percentDecodeString(path)
+	if err != nil {
+		return nil, fmt.Errorf("invalid did:web: %w", err)
+	}
+	targetURL := "https://" + unescapedID + unescapedPath
+
+	// Use url.Parse() to check that;
+	// - the DID does not contain a sneaky percent-encoded path or other illegal stuff
+	// - the DID does not contain an IP address
+	parsedURL, err := url.Parse(targetURL)
+	if err != nil {
+		// came from a DID, not sure how it could fail
+		return nil, err
+	}
+	if parsedURL.Host != unescapedID {
+		return nil, fmt.Errorf("invalid did:web: illegal characters in domain name")
+	}
+	parsedIP := net.ParseIP(parsedURL.Hostname())
+	if parsedIP != nil {
+		return nil, fmt.Errorf("invalid did:web: ID must be a domain name, not IP address")
+	}
+	return parsedURL, nil
+}
+
+// percentDecodeString decodes all percent-encoded characters in a DID-specific ID string.
+func percentDecodeString(s string) string {
+	result := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == '%' && i+2 < len(s) {
+			if c, ok := percentDecodeChar(s[i : i+3]); ok {
+				result = append(result, c)
+				i += 2
+				continue
+			}
+		}
+		result = append(result, s[i])
+	}
+	return string(result)
+}
+
+func isHex(c byte) bool {
+	return ('0' <= c && c <= '9') || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f')
+}
+
+func unhex(c byte) byte {
+	if '0' <= c && c <= '9' {
+		return c - '0'
+	}
+	if 'A' <= c && c <= 'F' {
+		return c - 'A' + 10
+	}
+	return c - 'a' + 10
 }
 
 // percentEncodeString applies percent-encoding to all subjective characters in a DID-specific ID string.
@@ -96,4 +180,24 @@ func shouldPercentEncode(c rune) bool {
 		return true
 	}
 	return false
+}
+
+func percentDecodeChar(encoded string) (byte, bool) {
+	if len(encoded) != 3 {
+		return ' ', false
+	}
+	if encoded[0] != '%' {
+		return ' ', false
+	}
+	a := encoded[1]
+	b := encoded[2]
+	if !isHex(a) || !isHex(b) {
+		return ' ', false
+	}
+	c := unhex(a)*16 + unhex(b)
+	switch c {
+	case '~', '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '@':
+		return c, true
+	}
+	return ' ', false
 }

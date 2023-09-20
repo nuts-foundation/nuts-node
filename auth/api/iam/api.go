@@ -200,8 +200,8 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	}
 }
 
-// GetOAuthAuthorizationServerMetadata returns the Authorization Server's metadata
-func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, request GetOAuthAuthorizationServerMetadataRequestObject) (GetOAuthAuthorizationServerMetadataResponseObject, error) {
+// OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
+func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
 	ownDID := idToDID(request.Id)
 
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
@@ -218,7 +218,7 @@ func (r Wrapper) GetOAuthAuthorizationServerMetadata(ctx context.Context, reques
 
 	identity := r.auth.PublicURL().JoinPath("iam", request.Id)
 
-	return GetOAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
+	return OAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
 }
 
 func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
@@ -236,8 +236,8 @@ func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) 
 	return GetWebDID200JSONResponse(*document), nil
 }
 
-// GetOAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
-func (r Wrapper) GetOAuthClientMetadata(ctx context.Context, request GetOAuthClientMetadataRequestObject) (GetOAuthClientMetadataResponseObject, error) {
+// OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
+func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error) {
 	ownDID := idToDID(request.Id)
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
@@ -250,7 +250,7 @@ func (r Wrapper) GetOAuthClientMetadata(ctx context.Context, request GetOAuthCli
 
 	identity := r.auth.PublicURL().JoinPath("iam", request.Id)
 
-	return GetOAuthClientMetadata200JSONResponse(clientMetadata(*identity)), nil
+	return OAuthClientMetadata200JSONResponse(clientMetadata(*identity)), nil
 }
 
 func createSession(params map[string]string, ownDID did.DID) *Session {
