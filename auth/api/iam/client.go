@@ -23,11 +23,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -56,7 +59,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 		return nil, err
 	}
 
-	request, err := http.NewRequest(http.MethodGet, metadataURL.String(), nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +96,7 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpo
 	presentationDefinitionURL.RawQuery = url.Values{"scope": scopes}.Encode()
 
 	// create a GET request with scope query param
-	request, err := http.NewRequest(http.MethodGet, presentationDefinitionURL.String(), nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, presentationDefinitionURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -116,4 +119,42 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpo
 	}
 
 	return definitions, nil
+}
+
+func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp vc.VerifiablePresentation, submission pe.PresentationSubmission, scopes []string) (TokenResponse, error) {
+	var token TokenResponse
+	presentationDefinitionURL, err := url.Parse(tokenEndpoint)
+	if err != nil {
+		return token, err
+	}
+
+	// create a POST request with x-www-form-urlencoded body
+	assertion, _ := json.Marshal(vp)
+	presentationSubmission, _ := json.Marshal(submission)
+	data := url.Values{}
+	data.Set("grant_type", "vp_token-bearer")
+	data.Set("assertion", string(assertion))
+	data.Set("presentation_submission", string(presentationSubmission))
+	data.Set("scope", strings.Join(scopes, " "))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, presentationDefinitionURL.String(), strings.NewReader(data.Encode()))
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	if err != nil {
+		return token, err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return token, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return token, err
+	}
+
+	var responseData []byte
+	if responseData, err = io.ReadAll(response.Body); err != nil {
+		return token, fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(responseData, &token); err != nil {
+		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
+	}
+	return token, nil
 }

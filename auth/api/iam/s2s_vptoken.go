@@ -20,12 +20,23 @@ package iam
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"net/http"
 )
 
 // serviceToService adds support for service-to-service OAuth2 flows,
@@ -94,8 +105,79 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		}
 		return nil, err
 	}
+	client := NewHTTPClient(core.ClientConfig{}) // todo: how to get this config?
+	metadata, err := client.OAuthAuthorizationServerMetadata(ctx, *requestVerifier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+	}
 
-	// todo fetch metadata using didDocument service data or .well-known path
+	// get the presentation definition from the verifier
+	scopes := strings.Split(request.Body.Scope, " ") // form encoded, so space delimited
+	presentationDefinitions, err := client.PresentationDefinition(ctx, metadata.PresentationDefinitionEndpoint, scopes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve presentation definitions: %w", err)
+	}
 
-	return RequestAccessToken200JSONResponse{}, nil
+	walletCredentials, err := r.vcr.Wallet().List(ctx, *requestHolder)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
+	}
+
+	// for each presentation definition, match against the wallet's credentials
+	// if there's a match, create a VP and call the token endpoint
+	// If the token endpoint fails with an invalid_grant error, try the next presentation definition
+	// If the token endpoint fails with any other error, return the error
+	// If the token endpoint succeeds, return the access token
+	// If no presentation definition matches, return a 400 "no matching credentials" error
+	for _, presentationDefinition := range presentationDefinitions {
+		submission, credentials, err := presentationDefinition.Match(walletCredentials)
+		if err != nil {
+			return nil, fmt.Errorf("failed to match presentation definition: %w", err)
+		}
+		if len(credentials) == 0 {
+			continue
+		}
+		expires := time.Now().Add(time.Minute * 15) //todo
+		nonce := generateNonce()
+		vp, err := r.vcr.Wallet().BuildPresentation(ctx, credentials, holder.PresentationOptions{ProofOptions: proof.ProofOptions{
+			Created:   time.Now(),
+			Challenge: &nonce,
+			Expires:   &expires,
+		}}, requestHolder, true)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create verifiable presentation: %w", err)
+		}
+		token, err := client.AccessToken(ctx, metadata.TokenEndpoint, *vp, submission, scopes)
+		if err != nil {
+			if isInvalidGrantError(err) {
+				log.Logger().Debugf("token endpoint returned invalid_grant, trying next presentation definition: %w", err)
+				continue
+			}
+			return nil, fmt.Errorf("failed to request access token: %w", err)
+		}
+		return RequestAccessToken200JSONResponse(token), nil
+	}
+
+	return nil, core.Error(http.StatusPreconditionFailed, "no matching credentials")
+}
+
+func generateNonce() string {
+	buf := make([]byte, 128/8)
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+	return base64.URLEncoding.EncodeToString(buf)
+}
+
+func isInvalidGrantError(err error) bool {
+	var target *core.HttpError
+	var response client.AccessTokenRequestFailedResponse // todo, to be generated
+	if errors.As(err, target) {
+		_ = json.Unmarshal(target.ResponseBody, &response)
+		if response.Error == "invalid_grant" {
+			return true
+		}
+	}
+	return false
 }
