@@ -548,7 +548,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		params := CreateAccessTokenRequest{GrantType: "unknown type"}
 
 		errorDescription := "grant_type must be: 'urn:ietf:params:oauth:grant-type:jwt-bearer'"
-		expectedResponse := CreateAccessToken400JSONResponse{ErrorDescription: errorDescription, Error: errOauthUnsupportedGrant}
+		expectedResponse := CreateAccessToken400JSONResponse{Description: &errorDescription, Error: errOauthUnsupportedGrant}
 
 		response, err := ctx.wrapper.CreateAccessToken(ctx.audit, CreateAccessTokenRequestObject{Body: &params})
 
@@ -562,7 +562,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: "invalid jwt"}
 
 		errorDescription := "Assertion must be a valid encoded jwt"
-		expectedResponse := CreateAccessToken400JSONResponse{ErrorDescription: errorDescription, Error: errOauthInvalidGrant}
+		expectedResponse := CreateAccessToken400JSONResponse{Description: &errorDescription, Error: errOauthInvalidGrant}
 
 		response, err := ctx.wrapper.CreateAccessToken(ctx.audit, CreateAccessTokenRequestObject{Body: &params})
 
@@ -576,11 +576,11 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: validJwt}
 
 		errorDescription := "oh boy"
-		expectedResponse := CreateAccessToken400JSONResponse{ErrorDescription: errorDescription, Error: errOauthInvalidRequest}
+		expectedResponse := CreateAccessToken400JSONResponse{Description: &errorDescription, Error: errOauthInvalidRequest}
 
 		ctx.authzServerMock.EXPECT().CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth2.ErrorResponse{
-			Description: errors.New(errorDescription),
-			Code:        errOauthInvalidRequest,
+			Description: &errorDescription,
+			Error:       errOauthInvalidRequest,
 		})
 
 		response, err := ctx.wrapper.CreateAccessToken(ctx.audit, CreateAccessTokenRequestObject{Body: &params})

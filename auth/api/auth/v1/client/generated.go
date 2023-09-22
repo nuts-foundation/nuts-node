@@ -20,13 +20,6 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
-// Defines values for AccessTokenRequestFailedResponseError.
-const (
-	InvalidGrant         AccessTokenRequestFailedResponseError = "invalid_grant"
-	InvalidRequest       AccessTokenRequestFailedResponseError = "invalid_request"
-	UnsupportedGrantType AccessTokenRequestFailedResponseError = "unsupported_grant_type"
-)
-
 // Defines values for SignSessionRequestMeans.
 const (
 	SignSessionRequestMeansDummy      SignSessionRequestMeans = "dummy"
@@ -47,17 +40,6 @@ const (
 	Low         TokenIntrospectionResponseAssuranceLevel = "low"
 	Substantial TokenIntrospectionResponseAssuranceLevel = "substantial"
 )
-
-// AccessTokenRequestFailedResponse Error response when access token request fails as described in rfc6749 section 5.2
-type AccessTokenRequestFailedResponse struct {
-	Error AccessTokenRequestFailedResponseError `json:"error"`
-
-	// ErrorDescription Human-readable ASCII text providing additional information, used to assist the client developer in understanding the error that occurred.
-	ErrorDescription string `json:"error_description"`
-}
-
-// AccessTokenRequestFailedResponseError defines model for AccessTokenRequestFailedResponse.Error.
-type AccessTokenRequestFailedResponseError string
 
 // Contract defines model for Contract.
 type Contract struct {

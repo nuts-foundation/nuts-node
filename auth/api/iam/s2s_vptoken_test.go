@@ -20,7 +20,9 @@ package iam
 
 import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"net/http"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -59,7 +61,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		require.EqualError(t, err, "did not found: invalid DID")
 	})
-	t.Run("missing request body", func(t *testing.T) {
+	t.Run("error - missing request body", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String()})
@@ -67,7 +69,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t, err, "missing request body")
 	})
-	t.Run("invalid verifier did", func(t *testing.T) {
+	t.Run("error - invalid verifier did", func(t *testing.T) {
 		ctx := newTestClient(t)
 		body := &RequestAccessTokenJSONRequestBody{Verifier: "invalid"}
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
@@ -77,7 +79,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t, err, "invalid verifier: invalid DID")
 	})
-	t.Run("verifier not found", func(t *testing.T) {
+	t.Run("error - verifier not found", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(nil, nil, types.ErrNotFound)
@@ -86,5 +88,16 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "verifier not found: unable to find the DID document")
+	})
+	t.Run("error - verifier error", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &types.DocumentMetadata{}, nil)
+		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, []string{"first", "second"}).Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
+
+		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "no matching credentials")
 	})
 }

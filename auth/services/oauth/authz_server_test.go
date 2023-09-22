@@ -116,7 +116,8 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: "foo"})
 
 		assert.Nil(t, response)
-		require.ErrorContains(t, err, "jwt bearer token validation failed")
+		require.NotNil(t, err.Description)
+		assert.Contains(t, *err.Description, "jwt bearer token validation failed")
 	})
 
 	t.Run("broken identity token", func(t *testing.T) {
@@ -133,7 +134,8 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 		assert.Nil(t, response)
-		require.ErrorContains(t, err, "identity validation failed")
+		require.NotNil(t, err.Description)
+		assert.Contains(t, *err.Description, "identity validation failed")
 	})
 
 	t.Run("JWT validity too long", func(t *testing.T) {
@@ -148,7 +150,8 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 		assert.Nil(t, response)
-		assert.ErrorContains(t, err, "JWT validity too long")
+		require.NotNil(t, err.Description)
+		assert.Contains(t, *err.Description, "JWT validity too long")
 	})
 
 	t.Run("invalid identity token", func(t *testing.T) {
@@ -166,7 +169,8 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 		assert.Nil(t, response)
-		assert.ErrorContains(t, err, "identity validation failed: because of reasons")
+		require.NotNil(t, err.Description)
+		assert.Contains(t, *err.Description, "identity validation failed: because of reasons")
 	})
 
 	t.Run("error detail masking", func(t *testing.T) {
@@ -195,9 +199,9 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 			response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
-			require.Error(t, err)
 			assert.Nil(t, response)
-			assert.EqualError(t, err, "could not build accessToken: signing error")
+			require.NotNil(t, err.Description)
+			assert.Contains(t, *err.Description, "could not build accessToken: signing error")
 		})
 		t.Run("mask internal errors when secureMode=true", func(t *testing.T) {
 			ctx := setup(createContext(t))
@@ -208,9 +212,9 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 			response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
-			require.Error(t, err)
 			assert.Nil(t, response)
-			assert.EqualError(t, err, "failed")
+			assert.Nil(t, err.Description)
+			assert.Equal(t, err.Error, "server_error")
 		})
 	})
 
@@ -272,7 +276,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		signToken(tokenCtx)
 
 		_, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
-		require.Error(t, err)
+		require.NotNil(t, err)
 	})
 }
 

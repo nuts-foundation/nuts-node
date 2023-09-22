@@ -27,6 +27,7 @@ import (
 	stdHttp "net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestHTTPClient(t *testing.T) {
@@ -89,7 +90,7 @@ func TestHTTPClient(t *testing.T) {
 
 func TestStrictHTTPClient_Do(t *testing.T) {
 	t.Run("error on HTTP call when strictmode is enabled", func(t *testing.T) {
-		client := NewStrictHTTPClient(true, &stdHttp.Client{})
+		client := NewStrictHTTPClient(true, time.Second, nil)
 		httpRequest, _ := stdHttp.NewRequest("GET", "http://example.com", nil)
 
 		_, err := client.Do(httpRequest)

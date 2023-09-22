@@ -21,10 +21,12 @@ package core
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 // HttpError describes an error returned when invoking a remote server.
@@ -140,20 +142,37 @@ func newEmptyTokenGenerator() AuthorizationTokenGenerator {
 }
 
 // NewStrictHTTPClient creates a HTTPRequestDoer that only allows HTTPS calls when strictmode is enabled.
-func NewStrictHTTPClient(strictmode bool, client *http.Client) HTTPRequestDoer {
-	return &strictHTTPClient{
-		client:     client,
-		strictmode: strictmode,
+func NewStrictHTTPClient(strictmode bool, timeout time.Duration, tlsConfig *tls.Config) *StrictHTTPClient {
+	if tlsConfig == nil {
+		tlsConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+	}
+
+	transport := http.DefaultTransport
+	if httpTransport, ok := transport.(*http.Transport); ok {
+		// Might not be http.Transport in testing
+		httpTransport = httpTransport.Clone()
+		httpTransport.TLSClientConfig = tlsConfig
+		transport = httpTransport
+	}
+
+	return &StrictHTTPClient{
+		client: &http.Client{
+			Transport: transport,
+			Timeout:   timeout,
+		},
+		strictMode: strictmode,
 	}
 }
 
-type strictHTTPClient struct {
+type StrictHTTPClient struct {
 	client     *http.Client
-	strictmode bool
+	strictMode bool
 }
 
-func (s *strictHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	if s.strictmode && req.URL.Scheme != "https" {
+func (s *StrictHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	if s.strictMode && req.URL.Scheme != "https" {
 		return nil, errors.New("strictmode is enabled, but request is not over HTTPS")
 	}
 	return s.client.Do(req)

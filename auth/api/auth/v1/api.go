@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -310,22 +311,21 @@ func (w Wrapper) CreateAccessToken(ctx context.Context, request CreateAccessToke
 
 	if request.Body.GrantType != client.JwtBearerGrantType {
 		errDesc := fmt.Sprintf("grant_type must be: '%s'", client.JwtBearerGrantType)
-		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthUnsupportedGrant, ErrorDescription: errDesc}
+		errorResponse := oauth.ErrorResponse{Error: errOauthUnsupportedGrant, Description: &errDesc}
 		return CreateAccessToken400JSONResponse(errorResponse), nil
 	}
 
 	const jwtPattern = `^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$`
 	if matched, err := regexp.Match(jwtPattern, []byte(request.Body.Assertion)); !matched || err != nil {
 		errDesc := "Assertion must be a valid encoded jwt"
-		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthInvalidGrant, ErrorDescription: errDesc}
+		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthInvalidGrant, Description: &errDesc}
 		return CreateAccessToken400JSONResponse(errorResponse), nil
 	}
 
 	catRequest := services.CreateAccessTokenRequest{RawJwtBearerToken: request.Body.Assertion}
 	acResponse, oauthError := w.Auth.AuthzServer().CreateAccessToken(ctx, catRequest)
 	if oauthError != nil {
-		errorResponse := AccessTokenRequestFailedResponse{Error: AccessTokenRequestFailedResponseError(oauthError.Code), ErrorDescription: oauthError.Error()}
-		return CreateAccessToken400JSONResponse(errorResponse), nil
+		return CreateAccessToken400JSONResponse(*oauthError), nil
 	}
 	response := AccessTokenResponse{
 		AccessToken: acResponse.AccessToken,

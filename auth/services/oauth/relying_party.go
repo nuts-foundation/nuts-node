@@ -136,7 +136,7 @@ func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantTok
 }
 
 func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes []string) (*oauth.TokenResponse, error) {
-	iamClient := iam.NewHTTPClient(core.ClientConfig{})
+	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
@@ -167,7 +167,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requestHold
 		if len(credentials) == 0 {
 			continue
 		}
-		expires := time.Now().Add(time.Minute * 15) //todo
+		expires := time.Now().Add(time.Minute * 15) // TODO
 		nonce := generateNonce()
 		vp, err := s.wallet.BuildPresentation(ctx, credentials, holder.PresentationOptions{ProofOptions: proof.ProofOptions{
 			Created:   time.Now(),
@@ -227,7 +227,7 @@ func generateNonce() string {
 
 func isInvalidGrantError(err error) bool {
 	var target *core.HttpError
-	var response client.AccessTokenRequestFailedResponse // todo, to be generated
+	var response oauth.ErrorResponse
 	if errors.As(err, target) {
 		_ = json.Unmarshal(target.ResponseBody, &response)
 		if response.Error == "invalid_grant" {

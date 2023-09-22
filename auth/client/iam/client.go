@@ -20,31 +20,34 @@ package iam
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
-	config     core.ClientConfig
-	httpClient core.HTTPRequestDoer
+	strictMode bool
+	httpClient *core.StrictHTTPClient
 }
 
 // NewHTTPClient creates a new api client.
-func NewHTTPClient(config core.ClientConfig) HTTPClient {
+func NewHTTPClient(strictMode bool, timeout time.Duration, tlsConfig *tls.Config) HTTPClient {
 	return HTTPClient{
-		config:     config,
-		httpClient: core.MustCreateHTTPClient(config, nil),
+		strictMode: strictMode,
+		httpClient: core.NewStrictHTTPClient(strictMode, timeout, tlsConfig),
 	}
 }
 
@@ -55,7 +58,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 		return nil, err
 	}
 
-	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL.String(), oauth.AuthzServerWellKnown, hb.config.Strictmode)
+	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL.String(), oauth.AuthzServerWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}

@@ -21,10 +21,15 @@ package oauth
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -45,11 +50,11 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestRelyingParty_RequestAccessToken(t *testing.T) {
+func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 	const bearerToken = "jwt-bearer-token"
 
 	t.Run("ok", func(t *testing.T) {
-		ctx := createRPContext(t)
+		ctx := createRPContext(t, nil)
 		httpHandler := &http2.Handler{
 			StatusCode: http.StatusOK,
 		}
@@ -63,7 +68,7 @@ func TestRelyingParty_RequestAccessToken(t *testing.T) {
 		assert.Equal(t, "nuts-node-refimpl/unknown", httpHandler.RequestHeaders.Get("User-Agent"))
 	})
 	t.Run("returns error when HTTP create access token fails", func(t *testing.T) {
-		ctx := createRPContext(t)
+		ctx := createRPContext(t, nil)
 		server := httptest.NewServer(&http2.Handler{
 			StatusCode: http.StatusBadGateway,
 		})
@@ -76,7 +81,7 @@ func TestRelyingParty_RequestAccessToken(t *testing.T) {
 	})
 
 	t.Run("endpoint security validation (only HTTPS in strict mode)", func(t *testing.T) {
-		ctx := createRPContext(t)
+		ctx := createRPContext(t, nil)
 		httpServer := httptest.NewServer(&http2.Handler{
 			StatusCode: http.StatusOK,
 		})
@@ -113,6 +118,50 @@ func TestRelyingParty_RequestAccessToken(t *testing.T) {
 	})
 }
 
+func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
+	walletDID := did.MustParseDID("did:test:123")
+	scopes := []string{"first", "second"}
+
+	t.Run("ok", func(t *testing.T) {
+		authzServerMetadata := oauth.AuthorizationServerMetadata{}
+		handler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.URL.Path {
+			case "/.well-known/did.json":
+				writer.Header().Add("Content-Type", "application/did+json")
+				writer.WriteHeader(http.StatusOK)
+				_, _ = writer.Write([]byte("{}"))
+				return
+			case "/.well-known/oauth-authorization-server":
+				writer.Header().Add("Content-Type", "application/json")
+				writer.WriteHeader(http.StatusOK)
+				bytes, _ := json.Marshal(authzServerMetadata)
+				_, _ = writer.Write(bytes)
+				return
+			case "/presentation-definitions":
+				writer.Header().Add("Content-Type", "application/json")
+				writer.WriteHeader(http.StatusOK)
+				_, _ = writer.Write([]byte("[]"))
+			default:
+				writer.WriteHeader(http.StatusNotFound)
+			}
+		})
+		tlsServer := http2.TestTLSServer(t, handler)
+		verifierDID := didweb.ServerURLToDIDWeb(t, tlsServer.URL)
+		authzServerMetadata.PresentationDefinitionEndpoint = tlsServer.URL + "/presentation-definitions"
+		ctx := createRPContext(t, tlsServer.TLS)
+		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return([]vcr.VerifiableCredential{}, nil)
+
+		// todo, test PresentationDefinition that matches a test credential
+
+		response, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, verifierDID, scopes)
+
+		assert.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "token", response.AccessToken)
+		assert.Equal(t, "bearer", response.TokenType)
+	})
+}
+
 func TestService_CreateJwtBearerToken(t *testing.T) {
 	usi := vc.VerifiablePresentation{}
 
@@ -146,7 +195,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 	}
 
 	t.Run("create a JwtBearerToken", func(t *testing.T) {
-		ctx := createRPContext(t)
+		ctx := createRPContext(t, nil)
 
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
@@ -163,7 +212,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("create a JwtBearerToken with valid credentials", func(t *testing.T) {
-		ctx := createRPContext(t)
+		ctx := createRPContext(t, nil)
 
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
@@ -180,7 +229,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("create a JwtBearerToken with invalid credentials fails", func(t *testing.T) {
-		ctx := createRPContext(t)
+		ctx := createRPContext(t, nil)
 
 		invalidCredential := validCredential
 		invalidCredential.Type = []ssi.URI{}
@@ -197,7 +246,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("authorizer without endpoint", func(t *testing.T) {
-		ctx := createRPContext(t)
+		ctx := createRPContext(t, nil)
 		document := getAuthorizerDIDDocument()
 		document.Service = []did.Service{}
 
@@ -210,7 +259,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("request without authorizer", func(t *testing.T) {
-		ctx := createRPContext(t)
+		ctx := createRPContext(t, nil)
 
 		request := services.CreateJwtGrantRequest{
 			Requester:  requesterDID.String(),
@@ -224,7 +273,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("signing error", func(t *testing.T) {
-		ctx := createRPContext(t)
+		ctx := createRPContext(t, nil)
 
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
@@ -239,38 +288,45 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 }
 
 type rpTestContext struct {
-	ctrl            *gomock.Controller
-	keyStore        *crypto.MockKeyStore
-	didResolver     *types.MockDIDResolver
-	keyResolver     *types.MockKeyResolver
-	serviceResolver *didman.MockCompoundServiceResolver
-	relyingParty    *relyingParty
 	audit           context.Context
+	ctrl            *gomock.Controller
+	didResolver     *types.MockDIDResolver
+	keyStore        *crypto.MockKeyStore
+	keyResolver     *types.MockKeyResolver
+	relyingParty    *relyingParty
+	serviceResolver *didman.MockCompoundServiceResolver
+	wallet          *holder.MockWallet
 }
 
-var createRPContext = func(t *testing.T) *rpTestContext {
+func createRPContext(t *testing.T, tlsConfig *tls.Config) *rpTestContext {
 	ctrl := gomock.NewController(t)
 
 	privateKeyStore := crypto.NewMockKeyStore(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	serviceResolver := didman.NewMockCompoundServiceResolver(ctrl)
 	didResolver := types.NewMockDIDResolver(ctrl)
+	wallet := holder.NewMockWallet(ctrl)
+
+	if tlsConfig == nil {
+		tlsConfig = &tls.Config{}
+	}
+	tlsConfig.InsecureSkipVerify = true
 
 	return &rpTestContext{
-		ctrl:            ctrl,
-		keyStore:        privateKeyStore,
-		keyResolver:     keyResolver,
-		serviceResolver: serviceResolver,
-		didResolver:     didResolver,
+		audit:       audit.TestContext(),
+		ctrl:        ctrl,
+		didResolver: didResolver,
+		keyStore:    privateKeyStore,
+		keyResolver: keyResolver,
 		relyingParty: &relyingParty{
+			httpClientTLS:   tlsConfig,
 			keyResolver:     keyResolver,
 			privateKeyStore: privateKeyStore,
 			serviceResolver: serviceResolver,
-			httpClientTLS: &tls.Config{
-				InsecureSkipVerify: true,
-			},
+			wallet:          wallet,
 		},
-		audit: audit.TestContext(),
+		serviceResolver: serviceResolver,
+		wallet:          wallet,
 	}
 }
 

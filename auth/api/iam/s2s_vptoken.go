@@ -98,7 +98,7 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 
 	tokenResult, err := r.auth.RelyingParty().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, strings.Split(request.Body.Scope, " "))
 	if err != nil {
-		// todo, correct error codes
+		// this can be an internal server error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
 	}
 	return RequestAccessToken200JSONResponse(*tokenResult), nil

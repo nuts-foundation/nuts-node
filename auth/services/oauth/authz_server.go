@@ -190,7 +190,8 @@ func (s *authzServer) CreateAccessToken(ctx context.Context, request services.Cr
 
 	validationCtx, err := s.validateAccessTokenRequest(ctx, request.RawJwtBearerToken)
 	if err != nil {
-		oauthError = &oauth.ErrorResponse{Code: "invalid_request", Description: err}
+		errStr := err.Error()
+		oauthError = &oauth.ErrorResponse{Error: "invalid_request", Description: &errStr}
 	} else {
 		var accessToken string
 		var rawToken services.NutsAccessToken
@@ -202,10 +203,11 @@ func (s *authzServer) CreateAccessToken(ctx context.Context, request services.Cr
 				ExpiresIn:   &expires,
 			}
 		} else {
-			oauthError = &oauth.ErrorResponse{Code: "server_error"}
+			oauthError = &oauth.ErrorResponse{Error: "server_error"}
 			if !s.secureMode {
 				// Only set details when secure mode is disabled
-				oauthError.Description = err
+				errStr := err.Error()
+				oauthError.Description = &errStr
 			}
 		}
 	}

@@ -127,15 +127,6 @@ type AuthorizationServerMetadata struct {
 
 // ErrorResponse models an error returned from an OAuth flow according to RFC6749 (https://tools.ietf.org/html/rfc6749#page-45)
 type ErrorResponse struct {
-	Description error
-	Code        string
-}
-
-// Error returns the error detail, if any. If there's no detailed error message, it returns a generic error message.
-// This aids hiding internal errors from clients.
-func (e ErrorResponse) Error() string {
-	if e.Description != nil {
-		return e.Description.Error()
-	}
-	return "failed"
+	Description *string `json:"error_description,omitempty"`
+	Error       string  `json:"error"`
 }

@@ -20,17 +20,18 @@ package iam
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,7 +43,7 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		result := oauth.AuthorizationServerMetadata{TokenEndpoint: "/token"}
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: result}
 		tlsServer, client := testServerAndClient(t, &handler)
-		testDID := stringURLToDID(t, tlsServer.URL)
+		testDID := didweb.ServerURLToDIDWeb(t, tlsServer.URL)
 
 		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
 
@@ -57,7 +58,7 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		result := oauth.AuthorizationServerMetadata{TokenEndpoint: "/token"}
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: result}
 		tlsServer, client := testServerAndClient(t, &handler)
-		testDID := stringURLToDID(t, tlsServer.URL)
+		testDID := didweb.ServerURLToDIDWeb(t, tlsServer.URL)
 		testDID = did.MustParseDID(testDID.String() + ":iam:123")
 
 		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
@@ -72,7 +73,7 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - non 200 return value", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadRequest}
 		tlsServer, client := testServerAndClient(t, &handler)
-		testDID := stringURLToDID(t, tlsServer.URL)
+		testDID := didweb.ServerURLToDIDWeb(t, tlsServer.URL)
 
 		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
 
@@ -82,7 +83,7 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - bad contents", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "not json"}
 		tlsServer, client := testServerAndClient(t, &handler)
-		testDID := stringURLToDID(t, tlsServer.URL)
+		testDID := didweb.ServerURLToDIDWeb(t, tlsServer.URL)
 
 		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
 
@@ -91,7 +92,7 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 	})
 	t.Run("error - server not responding", func(t *testing.T) {
 		_, client := testServerAndClient(t, nil)
-		testDID := stringURLToDID(t, "https://localhost:1234")
+		testDID := didweb.ServerURLToDIDWeb(t, "https://localhost:1234")
 
 		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
 
@@ -177,15 +178,6 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 func testServerAndClient(t *testing.T, handler http.Handler) (*httptest.Server, *HTTPClient) {
 	tlsServer := http2.TestTLSServer(t, handler)
 	return tlsServer, &HTTPClient{
-		httpClient: tlsServer.Client(),
+		httpClient: core.NewStrictHTTPClient(false, time.Second, tlsServer.TLS),
 	}
-}
-
-func stringURLToDID(t *testing.T, stringUrl string) did.DID {
-	stringUrl = strings.ReplaceAll(stringUrl, "127.0.0.1", "localhost")
-	asURL, err := url.Parse(stringUrl)
-	require.NoError(t, err)
-	testDID, err := didweb.URLToDID(*asURL)
-	require.NoError(t, err)
-	return *testDID
 }
