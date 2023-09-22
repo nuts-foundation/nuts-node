@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"testing"
@@ -51,7 +52,7 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	clientTest.issuerMetadataHandler = clientTest.httpGetHandler(issuerMetadata)
 	clientTest.providerMetadataHandler = clientTest.httpGetHandler(providerMetadata)
 	clientTest.credentialHandler = clientTest.httpPostHandler(credentialResponse)
-	clientTest.tokenHandler = clientTest.httpPostHandler(TokenResponse{AccessToken: "secret"})
+	clientTest.tokenHandler = clientTest.httpPostHandler(oauth.TokenResponse{AccessToken: "secret"})
 	clientTest.walletMetadataHandler = clientTest.httpGetHandler(walletMetadata)
 	clientTest.credentialOfferHandler = clientTest.httpGetHandler(CredentialOfferResponse{CredentialOfferStatusReceived})
 

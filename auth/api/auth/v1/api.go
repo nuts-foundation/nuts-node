@@ -295,7 +295,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		return nil, core.InvalidInputError("invalid authorization server endpoint: %s", jwtGrant.AuthorizationServerEndpoint)
 	}
 
-	accessTokenResult, err := w.Auth.RelyingParty().RequestAccessToken(ctx, jwtGrant.BearerToken, *authServerEndpoint)
+	accessTokenResult, err := w.Auth.RelyingParty().RequestRFC003AccessToken(ctx, jwtGrant.BearerToken, *authServerEndpoint)
 	if err != nil {
 		return nil, core.Error(http.StatusServiceUnavailable, err.Error())
 	}

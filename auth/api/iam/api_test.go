@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
@@ -209,6 +210,7 @@ type testCtx struct {
 	authnServices *auth.MockAuthenticationServices
 	vdr           *vdr.MockVDR
 	resolver      *vdr.MockDIDResolver
+	relyingParty  *oauth.MockRelyingParty
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -216,12 +218,17 @@ func newTestClient(t testing.TB) *testCtx {
 	require.NoError(t, err)
 	ctrl := gomock.NewController(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
-	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
+	relyingPary := oauth.NewMockRelyingParty(ctrl)
 	resolver := vdr.NewMockDIDResolver(ctrl)
 	vdr := vdr.NewMockVDR(ctrl)
+
+	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
+	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
 	vdr.EXPECT().Resolver().Return(resolver).AnyTimes()
+
 	return &testCtx{
 		authnServices: authnServices,
+		relyingParty:  relyingPary,
 		resolver:      resolver,
 		vdr:           vdr,
 		client: &Wrapper{

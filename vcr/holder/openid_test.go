@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -71,17 +72,16 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		CredentialIssuer:   issuerDID.String(),
 		CredentialEndpoint: "credential-endpoint",
 	}
+	nonce := "nonsens"
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		nonce := "nonsens"
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
 		issuerAPIClient.EXPECT().Metadata().Return(metadata)
 		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
 			"pre-authorized_code": "code",
-		}).Return(&openid4vci.TokenResponse{
+		}).Return(&oauth.TokenResponse{
 			AccessToken: "access-token",
-			CNonce:      nonce,
-			ExpiresIn:   0,
+			CNonce:      &nonce,
 			TokenType:   "bearer",
 		}, nil)
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
@@ -92,11 +92,15 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		credentialStore := types.NewMockWriter(ctrl)
 		jwtSigner := crypto.NewMockJWTSigner(ctrl)
-		jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
-			"aud":   issuerDID.String(),
-			"iat":   int64(1735689600),
-			"nonce": nonce,
-		}, gomock.Any(), "key-id").Return("signed-jwt", nil)
+		jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "key-id").DoAndReturn(
+			func(_ interface{}, args interface{}, _ interface{}, _ interface{}) (string, error) {
+				asMap, ok := args.(map[string]interface{})
+				assert.True(t, ok)
+				assert.Equal(t, issuerDID.String(), asMap["aud"])
+				assert.Equal(t, int64(1735689600), asMap["iat"])
+				assert.Equal(t, nonce, *(asMap["nonce"].(*string)))
+				return "signed-jwt", nil
+			})
 		keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolveKey(holderDID, nil, vdrTypes.NutsSigningKeyType).Return(ssi.MustParseURI("key-id"), nil, nil)
 
@@ -176,7 +180,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	t.Run("error - empty access token", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
-		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&openid4vci.TokenResponse{}, nil)
+		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oauth.TokenResponse{}, nil)
 
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
 		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error) {
@@ -190,7 +194,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	t.Run("error - empty c_nonce", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
-		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&openid4vci.TokenResponse{AccessToken: "foo"}, nil)
+		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oauth.TokenResponse{AccessToken: "foo"}, nil)
 
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
 		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error) {
@@ -230,7 +234,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
 		issuerAPIClient.EXPECT().Metadata().Return(metadata)
-		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&openid4vci.TokenResponse{AccessToken: "access-token", CNonce: "c_nonce"}, nil)
+		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oauth.TokenResponse{AccessToken: "access-token", CNonce: &nonce}, nil)
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), gomock.Any()).Return(&vc.VerifiableCredential{
 			Context: offer.CredentialDefinition.Context,
 			Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential")},

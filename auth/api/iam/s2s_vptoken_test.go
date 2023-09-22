@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"testing"
 
@@ -30,12 +31,13 @@ import (
 func TestWrapper_RequestAccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:test:123")
 	verifierDID := did.MustParseDID("did:test:456")
-	body := &RequestAccessTokenJSONRequestBody{Verifier: verifierDID.String()}
+	body := &RequestAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second"}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &types.DocumentMetadata{}, nil)
+		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, []string{"first", "second"}).Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 

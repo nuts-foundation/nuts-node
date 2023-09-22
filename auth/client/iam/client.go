@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
@@ -48,13 +49,13 @@ func NewHTTPClient(config core.ClientConfig) HTTPClient {
 }
 
 // OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given web DID.
-func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDID did.DID) (*OAuthAuthorizationServerMetadata, error) {
+func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDID did.DID) (*oauth.AuthorizationServerMetadata, error) {
 	serverURL, err := didweb.DIDToURL(webDID)
 	if err != nil {
 		return nil, err
 	}
 
-	metadataURL, err := IssuerIdToWellKnown(serverURL.String(), authzServerWellKnown, hb.config.Strictmode)
+	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL.String(), oauth.AuthzServerWellKnown, hb.config.Strictmode)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 		return nil, err
 	}
 
-	var metadata OAuthAuthorizationServerMetadata
+	var metadata oauth.AuthorizationServerMetadata
 	var data []byte
 
 	if data, err = io.ReadAll(response.Body); err != nil {
@@ -88,7 +89,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 // PresentationDefinition retrieves the presentation definition for the given web DID and scope(s).
 // We pass the endpoint url for the presentation definition endpoint because we already retrieved the metadata in a previous step.
 // The scopes are evaluated as raw query params and encoded if needed.
-func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes []string) ([]PresentationDefinition, error) {
+func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes []string) ([]pe.PresentationDefinition, error) {
 	presentationDefinitionURL, err := url.Parse(definitionEndpoint)
 	if err != nil {
 		return nil, err
@@ -108,7 +109,7 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpo
 		return nil, err
 	}
 
-	definitions := make([]PresentationDefinition, 0)
+	definitions := make([]pe.PresentationDefinition, 0)
 	var data []byte
 
 	if data, err = io.ReadAll(response.Body); err != nil {
@@ -121,8 +122,8 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpo
 	return definitions, nil
 }
 
-func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp vc.VerifiablePresentation, submission pe.PresentationSubmission, scopes []string) (TokenResponse, error) {
-	var token TokenResponse
+func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp vc.VerifiablePresentation, submission pe.PresentationSubmission, scopes []string) (oauth.TokenResponse, error) {
+	var token oauth.TokenResponse
 	presentationDefinitionURL, err := url.Parse(tokenEndpoint)
 	if err != nil {
 		return token, err

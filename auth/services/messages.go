@@ -54,16 +54,6 @@ type CreateJwtGrantRequest struct {
 	Credentials []vc.VerifiableCredential
 }
 
-// AccessTokenResult defines the return value back to the api for the CreateAccessToken method
-type AccessTokenResult struct {
-	// AccessToken contains the JWT in compact serialization form
-	AccessToken string `json:"access_token"`
-	// ExpiresIn defines the expiration in seconds
-	ExpiresIn int `json:"expires_in"`
-	// TokenType The type of the token issued
-	TokenType string `json:"token_type"`
-}
-
 // JwtBearerTokenResult defines the return value back to the api for the createJwtBearerToken method
 type JwtBearerTokenResult struct {
 	BearerToken                 string

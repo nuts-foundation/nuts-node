@@ -20,7 +20,7 @@ package client
 
 import (
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 )
 
 // JwtBearerGrantType defines the grant-type to use in the access token request
@@ -33,4 +33,4 @@ type VerifiableCredential = vc.VerifiableCredential
 type VerifiablePresentation = vc.VerifiablePresentation
 
 // AccessTokenResponse is an alias to use from within the API
-type AccessTokenResponse = services.AccessTokenResult
+type AccessTokenResponse = oauth.TokenResponse

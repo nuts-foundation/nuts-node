@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	pkg2 "github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
+	oauth2 "github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
@@ -470,7 +471,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				BearerToken:                 bearerToken,
 				AuthorizationServerEndpoint: authEndpointURL.String(),
 			}, nil)
-		ctx.relyingPartyMock.EXPECT().RequestAccessToken(gomock.Any(), bearerToken, *authEndpointURL).Return(nil, errors.New("random error"))
+		ctx.relyingPartyMock.EXPECT().RequestRFC003AccessToken(gomock.Any(), bearerToken, *authEndpointURL).Return(nil, errors.New("random error"))
 
 		response, err := ctx.wrapper.RequestAccessToken(ctx.audit, RequestAccessTokenRequestObject{Body: &fakeRequest})
 
@@ -508,9 +509,10 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		request := fakeRequest
 		request.Credentials = credentials
 
+		in10 := 10
 		expectedResponse := AccessTokenResponse{
 			TokenType:   "token-type",
-			ExpiresIn:   10,
+			ExpiresIn:   &in10,
 			AccessToken: "actual-token",
 		}
 
@@ -527,7 +529,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				AuthorizationServerEndpoint: authEndpointURL.String(),
 			}, nil)
 		ctx.relyingPartyMock.EXPECT().
-			RequestAccessToken(gomock.Any(), bearerToken, *authEndpointURL).
+			RequestRFC003AccessToken(gomock.Any(), bearerToken, *authEndpointURL).
 			Return(&expectedResponse, nil)
 
 		response, err := ctx.wrapper.RequestAccessToken(ctx.audit, RequestAccessTokenRequestObject{Body: &request})
@@ -576,7 +578,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		errorDescription := "oh boy"
 		expectedResponse := CreateAccessToken400JSONResponse{ErrorDescription: errorDescription, Error: errOauthInvalidRequest}
 
-		ctx.authzServerMock.EXPECT().CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth.ErrorResponse{
+		ctx.authzServerMock.EXPECT().CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth2.ErrorResponse{
 			Description: errors.New(errorDescription),
 			Code:        errOauthInvalidRequest,
 		})
@@ -592,12 +594,13 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: validJwt}
 
-		pkgResponse := &services.AccessTokenResult{AccessToken: "foo", ExpiresIn: 800000}
+		in800000 := 800000
+		pkgResponse := &oauth2.TokenResponse{AccessToken: "foo", ExpiresIn: &in800000}
 		ctx.authzServerMock.EXPECT().CreateAccessToken(gomock.Any(), services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(pkgResponse, nil)
 
 		expectedResponse := CreateAccessToken200JSONResponse{
 			AccessToken: pkgResponse.AccessToken,
-			ExpiresIn:   800000,
+			ExpiresIn:   &in800000,
 			TokenType:   "bearer",
 		}
 

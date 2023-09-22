@@ -20,23 +20,26 @@ package iam
 
 import (
 	"context"
-	"github.com/nuts-foundation/go-did/did"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("ok using root web:did", func(t *testing.T) {
-		result := OAuthAuthorizationServerMetadata{TokenEndpoint: "/token"}
+		result := oauth.AuthorizationServerMetadata{TokenEndpoint: "/token"}
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: result}
 		tlsServer, client := testServerAndClient(t, &handler)
 		testDID := stringURLToDID(t, tlsServer.URL)
@@ -51,7 +54,7 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.Equal(t, "/.well-known/oauth-authorization-server", handler.Request.URL.Path)
 	})
 	t.Run("ok using user web:did", func(t *testing.T) {
-		result := OAuthAuthorizationServerMetadata{TokenEndpoint: "/token"}
+		result := oauth.AuthorizationServerMetadata{TokenEndpoint: "/token"}
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: result}
 		tlsServer, client := testServerAndClient(t, &handler)
 		testDID := stringURLToDID(t, tlsServer.URL)
@@ -99,7 +102,7 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 
 func TestHTTPClient_PresentationDefinition(t *testing.T) {
 	ctx := context.Background()
-	definitions := []PresentationDefinition{
+	definitions := []pe.PresentationDefinition{
 		{
 			Id: "123",
 		},
@@ -166,7 +169,7 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		response, err := client.PresentationDefinition(ctx, tlsServer.URL, []string{"test"})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "unable to unmarshal response")
+		assert.ErrorContains(t, err, "unable to unmarshal response")
 		assert.Nil(t, response)
 	})
 }

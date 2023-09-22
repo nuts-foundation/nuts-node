@@ -20,7 +20,7 @@ package v1
 
 import (
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 )
 
 // VerifiableCredential is an alias to use from within the API
@@ -30,4 +30,4 @@ type VerifiableCredential = vc.VerifiableCredential
 type VerifiablePresentation = vc.VerifiablePresentation
 
 // AccessTokenResponse is an alias to use from within the API
-type AccessTokenResponse = services.AccessTokenResult
+type AccessTokenResponse = oauth.TokenResponse

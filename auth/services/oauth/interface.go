@@ -20,15 +20,21 @@ package oauth
 
 import (
 	"context"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"net/url"
 )
 
 // RelyingParty implements the OAuth2 relying party role.
 type RelyingParty interface {
-	// RequestAccessToken is called by the local EHR node to request an access token from a remote Nuts node.
-	RequestAccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint url.URL) (*services.AccessTokenResult, error)
 	CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error)
+
+	// RequestRFC003AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC003.
+	RequestRFC003AccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint url.URL) (*oauth.TokenResponse, error)
+
+	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC021.
+	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes []string) (*oauth.TokenResponse, error)
 }
 
 // AuthorizationServer implements the OAuth2 authorization server role.
@@ -38,6 +44,6 @@ type AuthorizationServer interface {
 	// CreateAccessToken is called by remote Nuts nodes to create an access token,
 	// which can be used to access the local organization's XIS resources.
 	// It returns an oauth.ErrorResponse rather than a regular Go error, because the errors that may be returned are tightly specified.
-	CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse)
+	CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.ErrorResponse)
 	IntrospectAccessToken(ctx context.Context, token string) (*services.NutsAccessToken, error)
 }

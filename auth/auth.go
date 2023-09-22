@@ -104,12 +104,12 @@ func NewAuthInstance(config Config, vdrInstance types.VDR, vcr vcr.VCR, keyStore
 	}
 }
 
-// AuthzServer returns the oauth.AuthorizationServer
+// AuthzServer returns the oauth.OAuthAuthorizationServer
 func (auth *Auth) AuthzServer() oauth.AuthorizationServer {
 	return auth.authzServer
 }
 
-// RelyingParty returns the oauth.RelyingParty
+// RelyingParty returns the oauth.OAuthRelyingParty
 func (auth *Auth) RelyingParty() oauth.RelyingParty {
 	return auth.relyingParty
 }
@@ -172,7 +172,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	auth.authzServer = oauth.NewAuthorizationServer(auth.vdrInstance.Resolver(), auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
 		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenLifeSpan)
 	auth.relyingParty = oauth.NewRelyingParty(auth.vdrInstance.Resolver(), auth.serviceResolver,
-		auth.keyStore, time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig)
+		auth.keyStore, auth.vcr.Wallet(), time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig, config.Strictmode)
 
 	if err := auth.authzServer.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err

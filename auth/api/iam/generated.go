@@ -15,25 +15,6 @@ import (
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
 
-// ErrorResponse defines model for ErrorResponse.
-type ErrorResponse struct {
-	// Error Code identifying the error that occurred.
-	Error string `json:"error"`
-}
-
-// TokenResponse Token Responses are made as defined in (RFC6749)[https://datatracker.ietf.org/doc/html/rfc6749#section-5.1]
-type TokenResponse struct {
-	// AccessToken The access token issued by the authorization server.
-	AccessToken string `json:"access_token"`
-
-	// ExpiresIn The lifetime in seconds of the access token.
-	ExpiresIn *int    `json:"expires_in,omitempty"`
-	Scope     *string `json:"scope,omitempty"`
-
-	// TokenType The type of the token issued as described in [RFC6749].
-	TokenType string `json:"token_type"`
-}
-
 // PresentationDefinitionParams defines parameters for PresentationDefinition.
 type PresentationDefinitionParams struct {
 	Scope []string `form:"scope" json:"scope"`

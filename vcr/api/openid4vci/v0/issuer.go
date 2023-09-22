@@ -129,10 +129,11 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	if err != nil {
 		return nil, err
 	}
+	expiresIn := int(issuer.TokenTTL.Seconds())
 	return RequestAccessToken200JSONResponse(TokenResponse{
 		AccessToken: accessToken,
-		CNonce:      cNonce,
-		ExpiresIn:   int(issuer.TokenTTL.Seconds()),
+		CNonce:      &cNonce,
+		ExpiresIn:   &expiresIn,
 		TokenType:   "bearer",
 	}), nil
 }
