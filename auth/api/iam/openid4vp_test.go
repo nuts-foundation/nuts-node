@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -94,11 +95,13 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		_ = peStore.LoadFromFile("test/presentation_definition_mapping.json")
 		mockVDR := types.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
+		mockWallet := holder.NewMockWallet(ctrl)
+		mockVCR.EXPECT().Wallet().Return(mockWallet)
 		mockAuth := auth.NewMockAuthenticationServices(ctrl)
-		instance := New(mockAuth, mockVCR, mockVDR)
 		mockAuth.EXPECT().PresentationDefinitions().Return(peStore)
-		mockVCR.EXPECT().Search(gomock.Any(), gomock.Any(), false, nil).Return(walletCredentials, nil)
+		mockWallet.EXPECT().List(gomock.Any(), holderDID).Return(walletCredentials, nil)
 		mockVDR.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		instance := New(mockAuth, mockVCR, mockVDR)
 
 		params := map[string]string{
 			"scope":               "eOverdracht-overdrachtsbericht",

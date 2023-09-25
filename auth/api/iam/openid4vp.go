@@ -28,8 +28,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"net/http"
@@ -107,15 +105,9 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 
 	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2357
 	// TODO: Retrieve presentation definition
-	// TODO: Match on wallet instead
-	searchTerms := []vcr.SearchTerm{
-		{IRIPath: jsonld.CredentialSubjectPath, Type: vcr.Exact, Value: session.OwnDID.String()},
-		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
-		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
-	}
-	credentials, err := r.vcr.Search(ctx, searchTerms, false, nil)
+	credentials, err := r.vcr.Wallet().List(ctx, session.OwnDID)
 	if err != nil {
-		return nil, fmt.Errorf("unable to search for credentials: %w", err)
+		return nil, err
 	}
 	var ownCredentials []vc.VerifiableCredential
 	for _, cred := range credentials {
