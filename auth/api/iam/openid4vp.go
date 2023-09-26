@@ -212,7 +212,6 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 }
 
 func (r *Wrapper) handlePresentationRequestCompleted(ctx echo.Context) error {
-	// TODO: support error response
 	// TODO: response direct_post mode
 	vpToken := ctx.QueryParams()[vpTokenParam]
 	if len(vpToken) == 0 {
