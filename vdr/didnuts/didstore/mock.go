@@ -12,7 +12,8 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
-	types "github.com/nuts-foundation/nuts-node/vdr/types"
+	management "github.com/nuts-foundation/nuts-node/vdr/management"
+	resolver "github.com/nuts-foundation/nuts-node/vdr/resolver"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -54,7 +55,7 @@ func (mr *MockStoreMockRecorder) Add(didDocument, transaction any) *gomock.Call 
 }
 
 // Conflicted mocks base method.
-func (m *MockStore) Conflicted(fn types.DocIterator) error {
+func (m *MockStore) Conflicted(fn management.DocIterator) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Conflicted", fn)
 	ret0, _ := ret[0].(error)
@@ -98,7 +99,7 @@ func (mr *MockStoreMockRecorder) DocumentCount() *gomock.Call {
 }
 
 // Iterate mocks base method.
-func (m *MockStore) Iterate(fn types.DocIterator) error {
+func (m *MockStore) Iterate(fn management.DocIterator) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Iterate", fn)
 	ret0, _ := ret[0].(error)
@@ -112,11 +113,11 @@ func (mr *MockStoreMockRecorder) Iterate(fn any) *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockStore) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
+func (m *MockStore) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", id, metadata)
 	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(*types.DocumentMetadata)
+	ret1, _ := ret[1].(*resolver.DocumentMetadata)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }

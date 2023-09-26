@@ -22,46 +22,45 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // SourceTXKeyResolver implements the SourceTXKeyResolver interface.
 type SourceTXKeyResolver struct {
-	Resolver types.DIDResolver
+	Resolver resolver.DIDResolver
 }
 
 func (r SourceTXKeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
 	// try all keys, continue when err == types.ErrNotFound
 	for _, h := range sourceTransactionsRefs {
-		publicKey, err := resolvePublicKey(r.Resolver, kid, types.ResolveMetadata{
+		publicKey, err := resolvePublicKey(r.Resolver, kid, resolver.ResolveMetadata{
 			SourceTransaction: &h,
 		})
 		if err == nil {
 			return publicKey, nil
 		}
-		if err != types.ErrNotFound {
+		if err != resolver.ErrNotFound {
 			return nil, err
 		}
 	}
 
-	return nil, types.ErrNotFound
+	return nil, resolver.ErrNotFound
 }
 
-func resolvePublicKey(resolver types.DIDResolver, kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
+func resolvePublicKey(didResolver resolver.DIDResolver, kid string, metadata resolver.ResolveMetadata) (crypto.PublicKey, error) {
 	id, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
 	}
-	holder, _ := didservice.GetDIDFromURL(kid) // can't fail, already parsed
-	doc, _, err := resolver.Resolve(holder, &metadata)
+	holder, _ := resolver.GetDIDFromURL(kid) // can't fail, already parsed
+	doc, _, err := didResolver.Resolve(holder, &metadata)
 	if err != nil {
 		return nil, err
 	}
 
 	vm := doc.VerificationMethod.FindByID(*id)
 	if vm == nil {
-		return nil, types.ErrKeyNotFound
+		return nil, resolver.ErrKeyNotFound
 	}
 
 	return vm.PublicKey()

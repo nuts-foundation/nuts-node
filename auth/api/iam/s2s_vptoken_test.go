@@ -19,7 +19,7 @@
 package iam
 
 import (
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -35,7 +35,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &types.DocumentMetadata{}, nil)
+		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
 
 		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
@@ -78,7 +78,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	t.Run("verifier not found", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(nil, nil, types.ErrNotFound)
+		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(nil, nil, resolver.ErrNotFound)
 
 		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 

@@ -37,8 +37,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/issuer/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io/fs"
 	"net/http"
 	"os"
@@ -106,7 +105,7 @@ type OpenIDHandler interface {
 }
 
 // NewOpenIDHandler creates a new OpenIDHandler instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, httpClient core.HTTPRequestDoer, keyResolver types.KeyResolver, store OpenIDStore) (OpenIDHandler, error) {
+func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, httpClient core.HTTPRequestDoer, keyResolver resolver.KeyResolver, store OpenIDStore) (OpenIDHandler, error) {
 	i := &openidHandler{
 		issuerIdentifierURL: issuerIdentifierURL,
 		issuerDID:           issuerDID,
@@ -126,7 +125,7 @@ type openidHandler struct {
 	issuerDID            did.DID
 	definitionsDIR       string
 	credentialsSupported []map[string]interface{}
-	keyResolver          types.KeyResolver
+	keyResolver          resolver.KeyResolver
 	store                OpenIDStore
 	walletClientCreator  func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (openid4vci.WalletAPIClient, error)
 	httpClient           core.HTTPRequestDoer
@@ -321,7 +320,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	var signingKeyID string
 	token, err := crypto.ParseJWT(request.Proof.Jwt, func(kid string) (crypt.PublicKey, error) {
 		signingKeyID = kid
-		return i.keyResolver.ResolveKeyByID(kid, nil, types.NutsSigningKeyType)
+		return i.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(5*time.Second))
 	if err != nil {
 		return generateProofError(openid4vci.Error{
@@ -332,7 +331,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	}
 
 	// Proof must be signed by wallet to which it was offered (proof signer == offer receiver)
-	if signerDID, err := didservice.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
+	if signerDID, err := resolver.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
 		return generateProofError(openid4vci.Error{
 			Err:        fmt.Errorf("credential offer was signed by other DID than intended wallet: %s", signingKeyID),
 			Code:       openid4vci.InvalidProof,

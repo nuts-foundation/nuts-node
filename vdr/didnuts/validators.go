@@ -25,8 +25,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // NetworkDocumentValidator creates a DID Document validator that checks for inconsistencies in the DID Document:
@@ -50,7 +49,7 @@ func NetworkDocumentValidator() did.Validator {
 }
 
 // ManagedDocumentValidator extends NetworkDocumentValidator with extra safety checks to be performed on DID documents managed by this node before they are published on the network.
-func ManagedDocumentValidator(serviceResolver types.ServiceResolver) did.Validator {
+func ManagedDocumentValidator(serviceResolver resolver.ServiceResolver) did.Validator {
 	return &did.MultiValidator{Validators: []did.Validator{
 		NetworkDocumentValidator(),
 		managedServiceValidator{serviceResolver},
@@ -113,7 +112,7 @@ func (b basicServiceValidator) Validate(document did.Document) error {
 		// service.type
 		if knownServiceTypes[service.Type] {
 			// RFC006 §4: A DID Document MAY NOT contain more than one service with the same type.
-			return InvalidServiceError{types.ErrDuplicateService}
+			return InvalidServiceError{resolver.ErrDuplicateService}
 		}
 		knownServiceTypes[service.Type] = true
 	}
@@ -125,7 +124,7 @@ func (b basicServiceValidator) Validate(document did.Document) error {
 // This validator is exists to guarantee that the service endpoints are at least valid at time of publication.
 // Should be used together with basicServiceValidator for full service validation.
 type managedServiceValidator struct {
-	serviceResolver types.ServiceResolver
+	serviceResolver resolver.ServiceResolver
 }
 
 func (m managedServiceValidator) Validate(document did.Document) error {
@@ -192,15 +191,15 @@ func (m managedServiceValidator) resolveOrReturnEndpoint(service did.Service, ca
 		return nil, errors.New("invalid service format")
 	}
 	// make sure that it resolves if it is a reference
-	if didservice.IsServiceReference(serviceEndpoint) {
+	if resolver.IsServiceReference(serviceEndpoint) {
 		serviceURI, err := ssi.ParseURI(serviceEndpoint)
 		if err != nil {
 			return nil, err
 		}
-		if err = didservice.ValidateServiceReference(*serviceURI); err != nil {
+		if err = resolver.ValidateServiceReference(*serviceURI); err != nil {
 			return nil, err
 		}
-		resolvedService, err := m.serviceResolver.ResolveEx(*serviceURI, 0, didservice.DefaultMaxServiceReferenceDepth, cache)
+		resolvedService, err := m.serviceResolver.ResolveEx(*serviceURI, 0, resolver.DefaultMaxServiceReferenceDepth, cache)
 		if err != nil {
 			return nil, err
 		}

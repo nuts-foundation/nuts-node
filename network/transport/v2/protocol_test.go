@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"strings"
@@ -43,14 +44,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 type protocolMocks struct {
 	Controller       *gomock.Controller
 	State            *dag.MockState
 	PayloadScheduler *dag.MockNotifier
-	DIDResolver      *vdr.MockDIDResolver
+	DIDResolver      *resolver.MockDIDResolver
 	Decrypter        *crypto.MockDecrypter
 	Gossip           *gossip.MockManager
 	ConnectionList   *grpc.MockConnectionList
@@ -79,7 +79,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	ctrl := gomock.NewController(t)
 	dirname := io.TestDirectory(t)
 
-	didResolver := vdr.NewMockDIDResolver(ctrl)
+	didResolver := resolver.NewMockDIDResolver(ctrl)
 	decrypter := crypto.NewMockDecrypter(ctrl)
 	state := dag.NewMockState(ctrl)
 	gMan := gossip.NewMockManager(ctrl)

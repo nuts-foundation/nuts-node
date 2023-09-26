@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"time"
 
@@ -34,7 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // OpenIDHandler is the interface for handling issuer operations using OpenID4VCI.
@@ -50,7 +50,7 @@ var nowFunc = time.Now
 var _ OpenIDHandler = (*openidHandler)(nil)
 
 // NewOpenIDHandler creates an OpenIDHandler that tries to retrieve offered credentials, to store it in the given credential store.
-func NewOpenIDHandler(did did.DID, identifier string, httpClient core.HTTPRequestDoer, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OpenIDHandler {
+func NewOpenIDHandler(did did.DID, identifier string, httpClient core.HTTPRequestDoer, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver resolver.KeyResolver) OpenIDHandler {
 	return &openidHandler{
 		did:                 did,
 		identifier:          identifier,
@@ -67,7 +67,7 @@ type openidHandler struct {
 	identifier          string
 	credentialStore     vcrTypes.Writer
 	signer              crypto.JWTSigner
-	resolver            vdr.KeyResolver
+	resolver            resolver.KeyResolver
 	issuerClientCreator func(ctx context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error)
 	httpClient          core.HTTPRequestDoer
 	jsonldReader        jsonld.Reader
@@ -193,7 +193,7 @@ func getPreAuthorizedCodeFromOffer(offer openid4vci.CredentialOffer) string {
 }
 
 func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, offer *openid4vci.CredentialDefinition, tokenResponse *openid4vci.TokenResponse) (*vc.VerifiableCredential, error) {
-	keyID, _, err := h.resolver.ResolveKey(h.did, nil, vdr.NutsSigningKeyType)
+	keyID, _, err := h.resolver.ResolveKey(h.did, nil, resolver.NutsSigningKeyType)
 	headers := map[string]interface{}{
 		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
 		"kid": keyID.String(),                    // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.

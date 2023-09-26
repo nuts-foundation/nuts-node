@@ -24,14 +24,13 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
-
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -77,10 +76,10 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		vcrTypes.ErrNotFound:        http.StatusNotFound,
-		vdrTypes.ErrServiceNotFound: http.StatusPreconditionFailed,
+		resolver.ErrServiceNotFound: http.StatusPreconditionFailed,
 		vcrTypes.ErrRevoked:         http.StatusConflict,
-		vdrTypes.ErrNotFound:        http.StatusBadRequest,
-		vdrTypes.ErrKeyNotFound:     http.StatusBadRequest,
+		resolver.ErrNotFound:        http.StatusBadRequest,
+		resolver.ErrKeyNotFound:     http.StatusBadRequest,
 		did.ErrInvalidDID:           http.StatusBadRequest,
 	})
 }

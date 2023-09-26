@@ -29,7 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -122,8 +122,8 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		return keyID, nil
 	})
 	ctrl := gomock.NewController(t)
-	keyResolver := types.NewMockKeyResolver(ctrl)
-	keyResolver.EXPECT().ResolveKeyByID(keyID, nil, types.NutsSigningKeyType).AnyTimes().Return(signerKey.Public(), nil)
+	keyResolver := resolver.NewMockKeyResolver(ctrl)
+	keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).AnyTimes().Return(signerKey.Public(), nil)
 
 	createHeaders := func() map[string]interface{} {
 		return map[string]interface{}{
@@ -264,8 +264,8 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				assert.Nil(t, response)
 			})
 			t.Run("signing key is unknown", func(t *testing.T) {
-				keyResolver := types.NewMockKeyResolver(ctrl)
-				keyResolver.EXPECT().ResolveKeyByID(keyID, nil, types.NutsSigningKeyType).AnyTimes().Return(nil, types.ErrKeyNotFound)
+				keyResolver := resolver.NewMockKeyResolver(ctrl)
+				keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).AnyTimes().Return(nil, resolver.ErrKeyNotFound)
 				service := requireNewTestHandler(t, keyResolver)
 				_, err := service.createOffer(ctx, issuedVC, preAuthCode)
 				require.NoError(t, err)
@@ -434,7 +434,7 @@ func assertProtocolError(t *testing.T, err error, statusCode int, message string
 	assert.Equal(t, statusCode, protocolError.StatusCode)
 }
 
-func requireNewTestHandler(t *testing.T, keyResolver types.KeyResolver) *openidHandler {
+func requireNewTestHandler(t *testing.T, keyResolver resolver.KeyResolver) *openidHandler {
 	service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, &http.Client{}, keyResolver, NewOpenIDMemoryStore())
 	require.NoError(t, err)
 	return service.(*openidHandler)

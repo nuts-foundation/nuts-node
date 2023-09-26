@@ -29,7 +29,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io/fs"
 	"net/http"
 	"path"
@@ -52,7 +53,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"gopkg.in/yaml.v3"
 )
 
@@ -85,8 +85,8 @@ type vcr struct {
 	config              Config
 	store               storage.KVBackedLeiaStore
 	keyStore            crypto.KeyStore
-	keyResolver         vdr.KeyResolver
-	serviceResolver     vdr.ServiceResolver
+	keyResolver         resolver.KeyResolver
+	serviceResolver     resolver.ServiceResolver
 	ambassador          Ambassador
 	network             network.Transactions
 	trustConfig         *trust.Config
@@ -237,8 +237,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	var openidHandlerFn func(ctx context.Context, id did.DID) (issuer.OpenIDHandler, error)
 
 	didResolver := c.vdrInstance.Resolver()
-	c.keyResolver = didservice.KeyResolver{Resolver: didResolver}
-	c.serviceResolver = didservice.ServiceResolver{Resolver: didResolver}
+	c.keyResolver = resolver.DIDKeyResolver{Resolver: didResolver}
+	c.serviceResolver = resolver.DIDServiceResolver{Resolver: didResolver}
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, didResolver, c.keyStore)
 	if c.config.OpenID4VCI.Enabled {
@@ -549,7 +549,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 			}
 			_, _, err = didResolver.Resolve(*issuerDid, nil)
 			if err != nil {
-				if !(errors.Is(err, did.DeactivatedErr) || errors.Is(err, vdr.ErrNoActiveController)) {
+				if !(errors.Is(err, did.DeactivatedErr) || errors.Is(err, resolver.ErrNoActiveController)) {
 					return err
 				}
 			} else {

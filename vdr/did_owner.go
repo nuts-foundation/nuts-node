@@ -23,14 +23,14 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
 	"sync"
 )
 
-var _ types.DocumentOwner = (*cachingDocumentOwner)(nil)
-var _ types.DocumentOwner = (*privateKeyDocumentOwner)(nil)
+var _ management.DocumentOwner = (*cachingDocumentOwner)(nil)
+var _ management.DocumentOwner = (*privateKeyDocumentOwner)(nil)
 
 // cachingDocumentOwner is a types.DocumentOwner that caches the result, minimizing expensive lookups.
 // It assumes:
@@ -40,17 +40,17 @@ var _ types.DocumentOwner = (*privateKeyDocumentOwner)(nil)
 // Before calling the more expensive, underlying types.DocumentOwner, it checks whether the DID actually exists.
 // The ListOwned call is not cached.
 type cachingDocumentOwner struct {
-	underlying   types.DocumentOwner
+	underlying   management.DocumentOwner
 	ownedDIDs    *sync.Map
 	notOwnedDIDs *sync.Map
-	didResolver  types.DIDResolver
+	didResolver  resolver.DIDResolver
 }
 
 func (t *cachingDocumentOwner) ListOwned(ctx context.Context) ([]did.DID, error) {
 	return t.underlying.ListOwned(ctx)
 }
 
-func newCachingDocumentOwner(underlying types.DocumentOwner, didResolver types.DIDResolver) *cachingDocumentOwner {
+func newCachingDocumentOwner(underlying management.DocumentOwner, didResolver resolver.DIDResolver) *cachingDocumentOwner {
 	return &cachingDocumentOwner{
 		didResolver:  didResolver,
 		underlying:   underlying,
@@ -76,7 +76,7 @@ func (t *cachingDocumentOwner) IsOwner(ctx context.Context, id did.DID) (bool, e
 	// First perform a cheap DID existence check (subsequent checks are more expensive),
 	// without caching it as negative match (would allow unbound number of negative matches).
 	_, _, err := t.didResolver.Resolve(id, nil)
-	if didservice.IsFunctionalResolveError(err) {
+	if resolver.IsFunctionalResolveError(err) {
 		return false, nil
 	} else if err != nil {
 		return false, fmt.Errorf("unable to check ownership of DID: %w", err)

@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io"
 	"mime"
 	"net/http"
@@ -33,7 +33,7 @@ import (
 // MethodName is the DID method name used by did:web
 const MethodName = "web"
 
-var _ types.DIDResolver = (*Resolver)(nil)
+var _ resolver.DIDResolver = (*Resolver)(nil)
 
 // Resolver is a DID resolver for the did:web method.
 type Resolver struct {
@@ -60,7 +60,7 @@ func NewResolver() *Resolver {
 }
 
 // Resolve implements the DIDResolver interface.
-func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
+func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
 	if id.Method != "web" {
 		return nil, nil, errors.New("DID is not did:web")
 	}
@@ -121,5 +121,5 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 		return nil, nil, fmt.Errorf("did:web document ID mismatch: %s != %s", document.ID, id.WithoutURL())
 	}
 
-	return &document, &types.DocumentMetadata{}, nil
+	return &document, &resolver.DocumentMetadata{}, nil
 }

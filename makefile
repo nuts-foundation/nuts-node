@@ -48,7 +48,12 @@ gen-mocks:
 	mockgen -destination=vcr/verifier/mock.go -package=verifier -source=vcr/verifier/interface.go
 	mockgen -destination=vdr/didnuts/ambassador_mock.go -package=didnuts -source=vdr/didnuts/ambassador.go
 	mockgen -destination=vdr/didnuts/didstore/mock.go -package=didstore -source=vdr/didnuts/didstore/interface.go
-	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
+	mockgen -destination=vdr/mock.go -package=vdr -source=vdr/interface.go
+	mockgen -destination=vdr/resolver/did_mock.go -package=resolver -source=vdr/resolver/did.go
+	mockgen -destination=vdr/resolver/service_mock.go -package=resolver -source=vdr/resolver/service.go
+	mockgen -destination=vdr/resolver/key_mock.go -package=resolver -source=vdr/resolver/key.go
+	mockgen -destination=vdr/management/management_mock.go -package=management -source=vdr/management/management.go
+	mockgen -destination=vdr/management/finder_mock.go -package=management -source=vdr/management/finder.go
 
 gen-api:
 	oapi-codegen --config codegen/configs/common_ssi_types.yaml docs/_static/common/ssi_types.yaml | gofmt > api/ssi_types.go

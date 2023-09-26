@@ -29,9 +29,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
@@ -56,12 +56,12 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		ID: vendorDID,
 		Service: []did.Service{
 			{
-				Type:            types.BaseURLServiceType,
+				Type:            resolver.BaseURLServiceType,
 				ServiceEndpoint: "https://example.com",
 			},
 			{
 				Type:            transport.NutsCommServiceType,
-				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
+				ServiceEndpoint: resolver.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
 			},
 		},
 	}
@@ -78,19 +78,19 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		Service: []did.Service{
 			{
 				Type:            transport.NutsCommServiceType,
-				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
+				ServiceEndpoint: resolver.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
 			},
 		},
 	}
 	var clientDocumentWithBaseURL = did.Document{
 		Service: []did.Service{
 			{
-				Type:            types.BaseURLServiceType,
-				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, types.BaseURLServiceType),
+				Type:            resolver.BaseURLServiceType,
+				ServiceEndpoint: resolver.MakeServiceReference(vendorDID, resolver.BaseURLServiceType),
 			},
 			{
 				Type:            transport.NutsCommServiceType,
-				ServiceEndpoint: didservice.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
+				ServiceEndpoint: resolver.MakeServiceReference(vendorDID, transport.NutsCommServiceType),
 			},
 		},
 	}
@@ -109,11 +109,11 @@ func TestGoldenHammer_Fix(t *testing.T) {
 	t.Run("nothing to fix", func(t *testing.T) {
 		// vendor and care organization DIDs already have the required service, so there's nothing to fix
 		ctrl := gomock.NewController(t)
-		didResolver := types.NewMockDIDResolver(ctrl)
+		didResolver := resolver.NewMockDIDResolver(ctrl)
 		didResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil).MinTimes(1)
 		didResolver.EXPECT().Resolve(clientADID, gomock.Any()).Return(&clientDocumentWithBaseURL, nil, nil).MinTimes(1)
 		didResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&clientDocumentWithBaseURL, nil, nil).MinTimes(1)
-		vdr := types.NewMockVDR(ctrl)
+		vdr := vdr.NewMockVDR(ctrl)
 		vdr.EXPECT().Resolver().Return(didResolver).MinTimes(1)
 		vdr.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID, clientADID, clientBDID}, nil)
 		service := New(vdr, nil)
@@ -138,7 +138,7 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		docClientB := clientDocumentWithoutBaseURL
 		docClientB.ID = clientBDID
 
-		vdr := types.NewMockVDR(ctrl)
+		vdr := vdr.NewMockVDR(ctrl)
 		vdr.EXPECT().Resolver().Return(didResolver).MinTimes(1)
 		// Order DIDs such that care organization DID is first, to test ordering
 		vdr.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{clientADID, vendorDID, clientBDID}, nil)
@@ -150,15 +150,15 @@ func TestGoldenHammer_Fix(t *testing.T) {
 			didResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&docClientB, nil, nil),
 
 			// Vendor document is fixed first
-			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), vendorDID, types.BaseURLServiceType, *expectedBaseURL).Return(nil, nil),
+			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), vendorDID, resolver.BaseURLServiceType, *expectedBaseURL).Return(nil, nil),
 
 			// Then client A
 			didResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil),
-			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientADID, types.BaseURLServiceType, *serviceRef).Return(nil, nil),
+			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientADID, resolver.BaseURLServiceType, *serviceRef).Return(nil, nil),
 
 			// Then client B
 			didResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithBaseURL, nil, nil),
-			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientBDID, types.BaseURLServiceType, *serviceRef).Return(nil, nil),
+			didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientBDID, resolver.BaseURLServiceType, *serviceRef).Return(nil, nil),
 		)
 		service := New(vdr, didmanAPI)
 		service.tlsConfig = tlsServer.TLS
@@ -173,7 +173,7 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		didResolver := didstore.NewMockStore(ctrl)
 		didResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(&vendorDocumentWithoutBaseURL, nil, nil).MinTimes(1)
-		vdr := types.NewMockVDR(ctrl)
+		vdr := vdr.NewMockVDR(ctrl)
 		vdr.EXPECT().Resolver().Return(didResolver).MinTimes(1)
 		vdr.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID}, nil)
 		service := New(vdr, nil)
@@ -199,14 +199,14 @@ func TestGoldenHammer_Fix(t *testing.T) {
 		didResolver.EXPECT().Resolve(clientBDID, gomock.Any()).Return(&docClientB, nil, nil).MinTimes(1)
 		// Client C is owned, but not linked to the vendor (via NutsComm service), so do not register the service on that one
 		didResolver.EXPECT().Resolve(clientCDID, gomock.Any()).Return(&did.Document{ID: clientCDID}, nil, nil).MinTimes(1)
-		vdr := types.NewMockVDR(ctrl)
+		vdr := vdr.NewMockVDR(ctrl)
 		vdr.EXPECT().Resolver().Return(didResolver).MinTimes(1)
 		vdr.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID, clientADID, clientBDID, clientCDID}, nil)
 		didmanAPI := didman.NewMockDidman(ctrl)
 		// AddEndpoint is not called for vendor DID (URL already present), but for client DIDs.
 		// Not for clientC, since it's not linked to the vendor (doesn't have a NutsComm endpoint).
-		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientADID, types.BaseURLServiceType, *serviceRef).Return(nil, nil)
-		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientBDID, types.BaseURLServiceType, *serviceRef).Return(nil, nil)
+		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientADID, resolver.BaseURLServiceType, *serviceRef).Return(nil, nil)
+		didmanAPI.EXPECT().AddEndpoint(gomock.Any(), clientBDID, resolver.BaseURLServiceType, *serviceRef).Return(nil, nil)
 		service := New(vdr, didmanAPI)
 		service.tlsConfig = tlsServer.TLS
 		service.tlsConfig.InsecureSkipVerify = true
@@ -218,9 +218,9 @@ func TestGoldenHammer_Fix(t *testing.T) {
 	})
 	t.Run("resolve error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		didResolver := types.NewMockDIDResolver(ctrl)
+		didResolver := resolver.NewMockDIDResolver(ctrl)
 		didResolver.EXPECT().Resolve(vendorDID, gomock.Any()).Return(nil, nil, fmt.Errorf("resolve error"))
-		vdr := types.NewMockVDR(ctrl)
+		vdr := vdr.NewMockVDR(ctrl)
 		vdr.EXPECT().Resolver().Return(didResolver)
 		vdr.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{vendorDID}, nil)
 		service := New(vdr, nil)
@@ -241,7 +241,7 @@ func TestGoldenHammer_Lifecycle(t *testing.T) {
 
 		fixCalled := &atomic.Int64{}
 		ctrl := gomock.NewController(t)
-		vdr := types.NewMockVDR(ctrl)
+		vdr := vdr.NewMockVDR(ctrl)
 		vdr.EXPECT().ListOwned(gomock.Any()).DoAndReturn(func(_ context.Context) ([]did.DID, error) {
 			fixCalled.Add(1)
 			return []did.DID{}, nil

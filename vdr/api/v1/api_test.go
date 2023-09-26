@@ -19,7 +19,10 @@ import (
 	"context"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"testing"
 	"time"
@@ -27,7 +30,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -104,13 +106,13 @@ func TestWrapper_GetDID(t *testing.T) {
 	didDoc := &did.Document{
 		ID: *id,
 	}
-	meta := &types.DocumentMetadata{}
+	meta := &resolver.DocumentMetadata{}
 	versionId := "e6efa34322812bd5ddec7f1aa3389957a2c35d19949913287407cb1068e16eb9"
 	versionTime := "2021-11-03T08:25:13Z"
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.didResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(didDoc, meta, nil)
+		ctx.didResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(didDoc, meta, nil)
 
 		response, err := ctx.client.GetDID(nil, GetDIDRequestObject{Did: id.String()})
 
@@ -122,7 +124,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx := newMockContext(t)
 		expectedVersionHash, err := hash.ParseHex(versionId)
 		require.NoError(t, err)
-		ctx.didResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, Hash: &expectedVersionHash}).Return(didDoc, meta, nil)
+		ctx.didResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true, Hash: &expectedVersionHash}).Return(didDoc, meta, nil)
 
 		response, err := ctx.client.GetDID(nil, GetDIDRequestObject{Did: id.String(), Params: GetDIDParams{VersionId: &versionId}})
 
@@ -134,7 +136,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx := newMockContext(t)
 		expectedTime, err := time.Parse(time.RFC3339, versionTime)
 		require.NoError(t, err)
-		ctx.didResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, ResolveTime: &expectedTime}).Return(didDoc, meta, nil)
+		ctx.didResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true, ResolveTime: &expectedTime}).Return(didDoc, meta, nil)
 
 		response, err := ctx.client.GetDID(nil, GetDIDRequestObject{Did: id.String(), Params: GetDIDParams{VersionTime: &versionTime}})
 
@@ -189,18 +191,18 @@ func TestWrapper_GetDID(t *testing.T) {
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.didResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, types.ErrNotFound)
+		ctx.didResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, resolver.ErrNotFound)
 
 		response, err := ctx.client.GetDID(nil, GetDIDRequestObject{Did: id.String()})
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
 
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.didResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, errors.New("b00m!"))
+		ctx.didResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, errors.New("b00m!"))
 
 		response, err := ctx.client.GetDID(nil, GetDIDRequestObject{Did: id.String()})
 
@@ -214,11 +216,11 @@ func TestWrapper_ConflictedDIDs(t *testing.T) {
 	didDoc := &did.Document{
 		ID: *id,
 	}
-	meta := &types.DocumentMetadata{}
+	meta := &resolver.DocumentMetadata{}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().ConflictedDocuments().Return([]did.Document{*didDoc}, []types.DocumentMetadata{*meta}, nil)
+		ctx.vdr.EXPECT().ConflictedDocuments().Return([]did.Document{*didDoc}, []resolver.DocumentMetadata{*meta}, nil)
 
 		response, err := ctx.client.ConflictedDIDs(nil, ConflictedDIDsRequestObject{})
 
@@ -268,11 +270,11 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(types.ErrNotFound)
+		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(resolver.ErrNotFound)
 
 		response, err := ctx.client.UpdateDID(nil, UpdateDIDRequestObject{Did: id.String(), Body: &request})
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
@@ -289,22 +291,22 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 	t.Run("error - document deactivated", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(types.ErrDeactivated)
+		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(resolver.ErrDeactivated)
 
 		response, err := ctx.client.UpdateDID(nil, UpdateDIDRequestObject{Did: id.String(), Body: &request})
 
-		assert.ErrorIs(t, err, types.ErrDeactivated)
+		assert.ErrorIs(t, err, resolver.ErrDeactivated)
 		assert.Equal(t, http.StatusConflict, ctx.client.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
+		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(resolver.ErrDIDNotManagedByThisNode)
 
 		response, err := ctx.client.UpdateDID(nil, UpdateDIDRequestObject{Did: id.String(), Body: &request})
 
-		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
+		assert.ErrorIs(t, err, resolver.ErrDIDNotManagedByThisNode)
 		assert.Equal(t, http.StatusForbidden, ctx.client.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
@@ -333,31 +335,31 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(types.ErrNotFound)
+		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrNotFound)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - document already deactivated", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(types.ErrDeactivated)
+		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDeactivated)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
-		assert.ErrorIs(t, err, types.ErrDeactivated)
+		assert.ErrorIs(t, err, resolver.ErrDeactivated)
 		assert.Equal(t, http.StatusConflict, ctx.client.ResolveStatusCode(err))
 	})
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(types.ErrDIDNotManagedByThisNode)
+		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDIDNotManagedByThisNode)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
-		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
+		assert.ErrorIs(t, err, resolver.ErrDIDNotManagedByThisNode)
 		assert.Equal(t, http.StatusForbidden, ctx.client.ResolveStatusCode(err))
 	})
 }
@@ -380,7 +382,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - with key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		expectedKeyUsage := didnuts.DefaultCreationOptions().KeyFlags | types.AuthenticationUsage | types.CapabilityDelegationUsage
+		expectedKeyUsage := didnuts.DefaultCreationOptions().KeyFlags | management.AuthenticationUsage | management.CapabilityDelegationUsage
 		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, expectedKeyUsage).Return(newMethod, nil)
 		trueBool := true
 		request := AddNewVerificationMethodJSONRequestBody{
@@ -464,9 +466,9 @@ func Test_ErrorStatusCodes(t *testing.T) {
 
 type mockContext struct {
 	ctrl        *gomock.Controller
-	vdr         *types.MockVDR
-	didResolver *types.MockDIDResolver
-	docUpdater  *types.MockDocManipulator
+	vdr         *vdr.MockVDR
+	didResolver *resolver.MockDIDResolver
+	docUpdater  *management.MockDocManipulator
 	client      *Wrapper
 	requestCtx  context.Context
 }
@@ -474,10 +476,10 @@ type mockContext struct {
 func newMockContext(t *testing.T) mockContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	didResolver := types.NewMockDIDResolver(ctrl)
-	vdr := types.NewMockVDR(ctrl)
+	didResolver := resolver.NewMockDIDResolver(ctrl)
+	vdr := vdr.NewMockVDR(ctrl)
 	vdr.EXPECT().Resolver().Return(didResolver).AnyTimes()
-	docManipulator := types.NewMockDocManipulator(ctrl)
+	docManipulator := management.NewMockDocManipulator(ctrl)
 	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator}
 	requestCtx := audit.TestContext()
 

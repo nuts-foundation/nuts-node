@@ -1,6 +1,5 @@
 /*
- * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,20 +13,32 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
  */
 
-package types
+package resolver
 
 import (
 	"errors"
-	"time"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"sync"
+	"time"
 )
 
-// ErrKeyNotFound is returned when a particular key or type of key is not found.
-var ErrKeyNotFound = errors.New("key not found in DID document")
+// DIDResolver is the interface for DID resolvers: the process of getting the backing document of a DID.
+type DIDResolver interface {
+	// Resolve returns a DID Document for the provided DID.
+	// If metadata is not provided the latest version is returned.
+	// If metadata is provided then the result is filtered or scoped on that metadata.
+	// It returns ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata
+	// It returns ErrDeactivated if the DID Document has been deactivated and metadata is unset or metadata.AllowDeactivated is false.
+	// It returns ErrNoActiveController if all of the DID Documents controllers have been deactivated and metadata is unset or metadata.AllowDeactivated is false.
+	Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error)
+}
+
+// ErrDIDMethodNotSupported is returned when a DID method is not supported by the DID resolver
+var ErrDIDMethodNotSupported = errors.New("DID method not supported")
 
 // ErrDIDNotManagedByThisNode is returned when an operation needs the private key and if is not found on this host
 var ErrDIDNotManagedByThisNode = errors.New("DID document not managed by this node")
@@ -40,18 +51,6 @@ var ErrDeactivated = deactivatedError{msg: "the DID document has been deactivate
 
 // ErrNoActiveController The DID supplied to the DID resolution does not have any active controllers.
 var ErrNoActiveController = deactivatedError{msg: "no active controllers for DID Document"}
-
-// ErrDIDAlreadyExists is returned when a DID already exists.
-var ErrDIDAlreadyExists = errors.New("DID document already exists in the store")
-
-// ErrDuplicateService is returned when a DID Document contains a multiple services with the same type
-var ErrDuplicateService = errors.New("service type is duplicate")
-
-// ErrServiceNotFound is returned when the service is not found on a DID
-var ErrServiceNotFound = errors.New("service not found in DID Document")
-
-// ErrServiceReferenceToDeep is returned when a service reference is chain is nested too deeply.
-var ErrServiceReferenceToDeep = errors.New("service references are nested to deeply before resolving to a non-reference")
 
 // BaseURLServiceType is type of the DID service which holds the base URL of the node's HTTP services,
 // exposed to other Nuts nodes. E.g. OpenID4VCI or OAuth2 endpoints.
@@ -118,40 +117,51 @@ type ResolveMetadata struct {
 	AllowDeactivated bool
 }
 
-// CompoundService is a service type that can be used as target for github.com/nuts-foundation/go-did/did/document.go#UnmarshalServiceEndpoint
-type CompoundService map[string]string
+var _ DIDResolver = &DIDResolverRouter{}
 
-// DIDKeyFlags is a bitmask used for specifying for what purposes a key in a DID document can be used (a.k.a. Verification Method relationships).
-type DIDKeyFlags uint
-
-// Is returns whether the specified DIDKeyFlags is enabled.
-func (k DIDKeyFlags) Is(other DIDKeyFlags) bool {
-	return k&other == other
+// DIDResolverRouter is a DID resolver that can route to different DID resolvers based on the DID method
+type DIDResolverRouter struct {
+	resolvers sync.Map
 }
 
-const (
-	// AssertionMethodUsage indicates if the generated key pair can be used for assertions.
-	AssertionMethodUsage DIDKeyFlags = 1 << iota
-	// AuthenticationUsage indicates if the generated key pair can be used for authentication.
-	AuthenticationUsage
-	// CapabilityDelegationUsage indicates if the generated key pair can be used for altering DID Documents.
-	CapabilityDelegationUsage
-	// CapabilityInvocationUsage indicates if the generated key pair can be used for capability invocations.
-	CapabilityInvocationUsage
-	// KeyAgreementUsage indicates if the generated key pair can be used for Key agreements.
-	KeyAgreementUsage
-)
+// Resolve looks up the right resolver for the given DID and delegates the resolution to it.
+// If no resolver is registered for the given DID method, ErrDIDMethodNotSupported is returned.
+func (r *DIDResolverRouter) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
+	method := id.Method
+	didResolver, registered := r.resolvers.Load(method)
+	if !registered {
+		return nil, nil, ErrDIDMethodNotSupported
+	}
+	return didResolver.(DIDResolver).Resolve(id, metadata)
+}
 
-// DIDCreationOptions defines options for creating a DID Document.
-type DIDCreationOptions struct {
-	// Controllers lists the DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
-	// the newly generated DID will be added to the list of controllers.
-	Controllers []did.DID
+// Register registers a DID resolver for the given DID method.
+func (r *DIDResolverRouter) Register(method string, resolver DIDResolver) {
+	r.resolvers.Store(method, resolver)
+}
 
-	// KeyFlags specifies for what purposes the generated key can be used
-	KeyFlags DIDKeyFlags
+// IsFunctionalResolveError returns true if the given error indicates the DID or service not being found or invalid,
+// e.g. because it is deactivated, referenced too deeply, etc.
+func IsFunctionalResolveError(target error) bool {
+	return errors.Is(target, ErrNotFound) ||
+		errors.Is(target, ErrDeactivated) ||
+		errors.Is(target, ErrServiceNotFound) ||
+		errors.Is(target, ErrNoActiveController) ||
+		errors.Is(target, ErrServiceReferenceToDeep) ||
+		errors.Is(target, did.InvalidDIDErr) ||
+		errors.As(target, new(ServiceQueryError))
+}
 
-	// SelfControl indicates whether the generated DID Document can be altered with its own capabilityInvocation key.
-	// Defaults to true when not given.
-	SelfControl bool
+// GetDIDFromURL returns the DID from the given URL, stripping any query parameters, path segments and fragments.
+func GetDIDFromURL(didURL string) (did.DID, error) {
+	parsed, err := did.ParseDIDURL(didURL)
+	if err != nil {
+		return did.DID{}, err
+	}
+	return parsed.WithoutURL(), nil
+}
+
+// IsDeactivated returns true if the DID.Document has already been deactivated
+func IsDeactivated(document did.Document) bool {
+	return len(document.Controller) == 0 && len(document.CapabilityInvocation) == 0
 }

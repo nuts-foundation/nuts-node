@@ -23,8 +23,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 const maxControllerDepth = 5
@@ -37,7 +36,7 @@ type Resolver struct {
 	Store didstore.Store
 }
 
-func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
+func (d Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
 	if metadata != nil && metadata.AllowDeactivated {
 		// No need to check whether controllers are active if we allow deactivated documents
 		return d.Store.Resolve(id, metadata)
@@ -45,12 +44,12 @@ func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Doc
 	return resolve(d.Store, id, metadata, 0)
 }
 
-func resolve(resolver types.DIDResolver, id did.DID, metadata *types.ResolveMetadata, depth int) (*did.Document, *types.DocumentMetadata, error) {
+func resolve(didResolver resolver.DIDResolver, id did.DID, metadata *resolver.ResolveMetadata, depth int) (*did.Document, *resolver.DocumentMetadata, error) {
 	if depth >= maxControllerDepth {
 		return nil, nil, ErrNestedDocumentsTooDeep
 	}
 
-	doc, meta, err := resolver.Resolve(id, metadata)
+	doc, meta, err := didResolver.Resolve(id, metadata)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -59,13 +58,13 @@ func resolve(resolver types.DIDResolver, id did.DID, metadata *types.ResolveMeta
 	if len(doc.Controller) > 0 && (metadata == nil || !metadata.AllowDeactivated) {
 		// also check if the controller is not deactivated
 		// since ResolveControllers calls Resolve and propagates the metadata
-		controllers, err := resolveControllers(resolver, *doc, metadata, depth+1)
+		controllers, err := resolveControllers(didResolver, *doc, metadata, depth+1)
 		if err != nil {
 			return nil, nil, err
 		}
 		// doc should have controllers, but no results, so they are not active, return error:
 		if len(controllers) == 0 {
-			return nil, nil, types.ErrNoActiveController
+			return nil, nil, resolver.ErrNoActiveController
 		}
 	}
 
@@ -73,11 +72,11 @@ func resolve(resolver types.DIDResolver, id did.DID, metadata *types.ResolveMeta
 }
 
 // ResolveControllers finds the DID Document controllers
-func ResolveControllers(resolver types.DIDResolver, doc did.Document, metadata *types.ResolveMetadata) ([]did.Document, error) {
+func ResolveControllers(resolver resolver.DIDResolver, doc did.Document, metadata *resolver.ResolveMetadata) ([]did.Document, error) {
 	return resolveControllers(resolver, doc, metadata, 0)
 }
 
-func resolveControllers(resolver types.DIDResolver, doc did.Document, metadata *types.ResolveMetadata, depth int) ([]did.Document, error) {
+func resolveControllers(didResolver resolver.DIDResolver, doc did.Document, metadata *resolver.ResolveMetadata, depth int) ([]did.Document, error) {
 	var leaves []did.Document
 	var refsToResolve []did.DID
 
@@ -100,8 +99,8 @@ func resolveControllers(resolver types.DIDResolver, doc did.Document, metadata *
 
 	// resolve all unresolved doc
 	for _, ref := range refsToResolve {
-		node, _, err := resolve(resolver, ref, metadata, depth)
-		if errors.Is(err, types.ErrDeactivated) || errors.Is(err, types.ErrNoActiveController) || errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrDIDMethodNotSupported) {
+		node, _, err := resolve(didResolver, ref, metadata, depth)
+		if errors.Is(err, resolver.ErrDeactivated) || errors.Is(err, resolver.ErrNoActiveController) || errors.Is(err, resolver.ErrNotFound) || errors.Is(err, resolver.ErrDIDMethodNotSupported) {
 			continue
 		}
 		if errors.Is(err, ErrNestedDocumentsTooDeep) {
@@ -116,7 +115,7 @@ func resolveControllers(resolver types.DIDResolver, doc did.Document, metadata *
 	// filter deactivated
 	j := 0
 	for _, leaf := range leaves {
-		if !didservice.IsDeactivated(leaf) {
+		if !resolver.IsDeactivated(leaf) {
 			leaves[j] = leaf
 			j++
 		}

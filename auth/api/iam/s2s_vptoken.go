@@ -24,7 +24,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 )
 
@@ -89,7 +89,7 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	}
 	_, _, err = r.vdr.Resolver().Resolve(*requestVerifier, nil)
 	if err != nil {
-		if errors.Is(err, types.ErrNotFound) {
+		if errors.Is(err, resolver.ErrNotFound) {
 			return nil, core.InvalidInputError("verifier not found: %w", err)
 		}
 		return nil, err

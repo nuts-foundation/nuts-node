@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,7 +39,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // TimeFunc is a function that returns the time used, for e.g. signing time. It can be set for testing purposes.
@@ -53,10 +52,10 @@ var TimeFunc = time.Now
 // See https://github.com/nuts-foundation/nuts-node/issues/2063
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
-	didResolver vdr.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
+	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
 ) Issuer {
-	resolver := vdrKeyResolver{
-		publicKeyResolver:  didservice.KeyResolver{Resolver: didResolver},
+	keyResolver := vdrKeyResolver{
+		publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
 		privateKeyResolver: keyStore,
 	}
 	return &issuer{
@@ -64,9 +63,9 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 		networkPublisher: networkPublisher,
 		openidHandlerFn:  openidHandlerFn,
 		walletResolver: openid4vci.DIDIdentifierResolver{
-			ServiceResolver: didservice.ServiceResolver{Resolver: didResolver},
+			ServiceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
 		},
-		keyResolver:   resolver,
+		keyResolver:   keyResolver,
 		keyStore:      keyStore,
 		jsonldManager: jsonldManager,
 		trustConfig:   trustConfig,
@@ -78,7 +77,7 @@ type issuer struct {
 	store            Store
 	networkPublisher Publisher
 	openidHandlerFn  func(ctx context.Context, id did.DID) (OpenIDHandler, error)
-	serviceResolver  vdr.ServiceResolver
+	serviceResolver  resolver.ServiceResolver
 	keyResolver      keyResolver
 	keyStore         crypto.KeyStore
 	trustConfig      *trust.Config
@@ -194,7 +193,7 @@ func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCred
 	if err != nil {
 		const errString = "failed to sign credential: could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:
-		if didservice.IsFunctionalResolveError(err) {
+		if resolver.IsFunctionalResolveError(err) {
 			return nil, core.InvalidInputError(errString, err)
 		}
 		return nil, fmt.Errorf(errString, err)
@@ -298,7 +297,7 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 	if err != nil {
 		const errString = "failed to revoke credential (%s): could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:
-		if didservice.IsFunctionalResolveError(err) {
+		if resolver.IsFunctionalResolveError(err) {
 			return nil, core.InvalidInputError(errString, credentialID, err)
 		}
 		return nil, fmt.Errorf(errString, credentialID, err)

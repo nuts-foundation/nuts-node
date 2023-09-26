@@ -19,10 +19,10 @@
 package didstore
 
 import (
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // documentMetadata is like VDR documentMetadata but usable for storage
@@ -43,8 +43,8 @@ type documentMetadata struct {
 	Deactivated bool `json:"deactivated"`
 }
 
-func (md documentMetadata) asVDRMetadata() vdr.DocumentMetadata {
-	result := vdr.DocumentMetadata{
+func (md documentMetadata) asVDRMetadata() resolver.DocumentMetadata {
+	result := resolver.DocumentMetadata{
 		Created:            md.Created,
 		Hash:               md.Hash,
 		PreviousHash:       md.PreviousHash,

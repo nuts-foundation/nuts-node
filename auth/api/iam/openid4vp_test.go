@@ -29,7 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -93,7 +93,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		peStore := &pe.DefinitionResolver{}
 		_ = peStore.LoadFromFile("test/presentation_definition_mapping.json")
-		mockVDR := types.NewMockVDR(ctrl)
+		mockVDR := vdr.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockWallet := holder.NewMockWallet(ctrl)
 		mockVCR.EXPECT().Wallet().Return(mockWallet)

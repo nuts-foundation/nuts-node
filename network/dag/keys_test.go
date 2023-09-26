@@ -24,7 +24,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -33,7 +33,7 @@ import (
 
 func TestNutsKeyResolver_ResolvePublicKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	didResolver := types.NewMockDIDResolver(ctrl)
+	didResolver := resolver.NewMockDIDResolver(ctrl)
 	keyResolver := SourceTXKeyResolver{Resolver: didResolver}
 	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	doc := &did.Document{
@@ -47,7 +47,7 @@ func TestNutsKeyResolver_ResolvePublicKey(t *testing.T) {
 
 	t.Run("ok by hash", func(t *testing.T) {
 		didResolver.EXPECT().Resolve(doc.ID, gomock.Any()).Do(func(arg0 interface{}, arg1 interface{}) {
-			resolveMetadata := arg1.(*types.ResolveMetadata)
+			resolveMetadata := arg1.(*resolver.ResolveMetadata)
 			assert.Equal(t, hash.EmptyHash(), *resolveMetadata.SourceTransaction)
 		}).Return(doc, nil, nil)
 

@@ -32,8 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"path"
@@ -44,7 +43,7 @@ import (
 type TestVCRContext struct {
 	DIDStore    didstore.Store
 	KeyStore    crypto.KeyStore
-	KeyResolver types.KeyResolver
+	KeyResolver resolver.KeyResolver
 	VCR         VCR
 }
 
@@ -54,7 +53,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	ctx := TestVCRContext{
 		DIDStore:    didStore,
 		KeyStore:    keyStore,
-		KeyResolver: didservice.KeyResolver{Resolver: didResolver},
+		KeyResolver: resolver.DIDKeyResolver{Resolver: didResolver},
 	}
 
 	testDirectory := io.TestDirectory(t)
@@ -153,9 +152,9 @@ func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 type mockContext struct {
 	ctrl        *gomock.Controller
 	vcr         *vcr
-	didResolver *types.MockDIDResolver
+	didResolver *resolver.MockDIDResolver
 	crypto      *crypto.Crypto
-	vdr         *types.MockVDR
+	vdr         *vdr.MockVDR
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -166,8 +165,8 @@ func newMockContext(t *testing.T) mockContext {
 	tx.EXPECT().Subscribe("vcr_vcs", gomock.Any(), gomock.Any())
 	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
 	tx.EXPECT().CleanupSubscriberEvents("vcr_vcs", gomock.Any())
-	didResolver := types.NewMockDIDResolver(ctrl)
-	vdrInstance := types.NewMockVDR(ctrl)
+	didResolver := resolver.NewMockDIDResolver(ctrl)
+	vdrInstance := vdr.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().Return(didResolver).AnyTimes()
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)

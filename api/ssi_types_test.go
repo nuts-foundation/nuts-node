@@ -31,7 +31,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	vcr "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
-	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 const (
@@ -183,8 +183,8 @@ func createDidDocument() did.Document {
 	}
 }
 
-func createDidDocumentMetadata() vdrTypes.DocumentMetadata {
-	return vdrTypes.DocumentMetadata{
+func createDidDocumentMetadata() resolver.DocumentMetadata {
+	return resolver.DocumentMetadata{
 		Created:     time.Now(),
 		Hash:        hash.RandomHash(),
 		Deactivated: true,

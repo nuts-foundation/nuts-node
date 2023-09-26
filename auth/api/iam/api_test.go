@@ -25,7 +25,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/core"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -60,7 +61,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - did does not exist", func(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(false, vdr.ErrNotFound)
+		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(false, resolver.ErrNotFound)
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.ID})
 
@@ -105,7 +106,7 @@ func TestWrapper_GetWebDID(t *testing.T) {
 	})
 	t.Run("unknown DID", func(t *testing.T) {
 		test := newTestClient(t)
-		test.vdr.EXPECT().DeriveWebDIDDocument(ctx, *webDIDBaseURL, nutsDID).Return(nil, vdr.ErrNotFound)
+		test.vdr.EXPECT().DeriveWebDIDDocument(ctx, *webDIDBaseURL, nutsDID).Return(nil, resolver.ErrNotFound)
 
 		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{nutsDID.ID})
 
@@ -168,7 +169,7 @@ type testCtx struct {
 	client        *Wrapper
 	authnServices *auth.MockAuthenticationServices
 	vdr           *vdr.MockVDR
-	resolver      *vdr.MockDIDResolver
+	resolver      *resolver.MockDIDResolver
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -177,7 +178,7 @@ func newTestClient(t testing.TB) *testCtx {
 	ctrl := gomock.NewController(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
-	resolver := vdr.NewMockDIDResolver(ctrl)
+	resolver := resolver.NewMockDIDResolver(ctrl)
 	vdr := vdr.NewMockVDR(ctrl)
 	vdr.EXPECT().Resolver().Return(resolver).AnyTimes()
 	return &testCtx{

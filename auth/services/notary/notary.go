@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"reflect"
@@ -42,7 +43,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // ErrMissingOrganizationKey is used to indicate that this node has no private key of the indicated organization.
@@ -78,7 +78,7 @@ func (c Config) hasContractValidator(cv string) bool {
 type notary struct {
 	config                Config
 	jsonldManager         jsonld.JSONLD
-	keyResolver           types.KeyResolver
+	keyResolver           resolver.KeyResolver
 	privateKeyStore       crypto.KeyStore
 	verifiers             map[string]contract.VPVerifier
 	signers               map[string]contract.Signer
@@ -90,7 +90,7 @@ type notary struct {
 var timeNow = time.Now
 
 // NewNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, pkiValidator pki.Validator) services.ContractNotary {
+func NewNotary(config Config, vcr vcr.VCR, keyResolver resolver.KeyResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, pkiValidator pki.Validator) services.ContractNotary {
 	return &notary{
 		config:                config,
 		jsonldManager:         jsonldManager,
@@ -107,8 +107,8 @@ func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keySto
 // If the duration is 0 than the default duration is used.
 func (n *notary) DrawUpContract(ctx context.Context, template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error) {
 	// Test if the org in managed by this node:
-	signingKeyID, _, err := n.keyResolver.ResolveKey(orgID, &validFrom, types.NutsSigningKeyType)
-	if errors.Is(err, types.ErrNotFound) {
+	signingKeyID, _, err := n.keyResolver.ResolveKey(orgID, &validFrom, resolver.NutsSigningKeyType)
+	if errors.Is(err, resolver.ErrNotFound) {
 		return nil, services.InvalidContractRequestError{Message: "no valid organization credential at provided validFrom date"}
 	} else if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)

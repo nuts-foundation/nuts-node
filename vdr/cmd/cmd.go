@@ -24,7 +24,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io"
 	"os"
 	"strings"
@@ -32,7 +33,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
-	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -100,11 +100,11 @@ func createCmd() *cobra.Command {
 		}
 		return fmt.Sprintf(usage, !def, opposite)
 	}
-	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", defs.KeyFlags.Is(vdrTypes.AssertionMethodUsage), setUsage(defs.KeyFlags.Is(vdrTypes.AssertionMethodUsage), "Pass '%t' to %s assertionMethod capabilities."))
-	result.Flags().BoolVar(createRequest.Authentication, "authentication", defs.KeyFlags.Is(vdrTypes.AuthenticationUsage), setUsage(defs.KeyFlags.Is(vdrTypes.AuthenticationUsage), "Pass '%t' to %s authentication capabilities."))
-	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", defs.KeyFlags.Is(vdrTypes.CapabilityDelegationUsage), setUsage(defs.KeyFlags.Is(vdrTypes.CapabilityDelegationUsage), "Pass '%t' to %s capabilityDelegation capabilities."))
-	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.KeyFlags.Is(vdrTypes.CapabilityInvocationUsage), setUsage(defs.KeyFlags.Is(vdrTypes.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
-	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.KeyFlags.Is(vdrTypes.KeyAgreementUsage), setUsage(defs.KeyFlags.Is(vdrTypes.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
+	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", defs.KeyFlags.Is(management.AssertionMethodUsage), setUsage(defs.KeyFlags.Is(management.AssertionMethodUsage), "Pass '%t' to %s assertionMethod capabilities."))
+	result.Flags().BoolVar(createRequest.Authentication, "authentication", defs.KeyFlags.Is(management.AuthenticationUsage), setUsage(defs.KeyFlags.Is(management.AuthenticationUsage), "Pass '%t' to %s authentication capabilities."))
+	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", defs.KeyFlags.Is(management.CapabilityDelegationUsage), setUsage(defs.KeyFlags.Is(management.CapabilityDelegationUsage), "Pass '%t' to %s capabilityDelegation capabilities."))
+	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.KeyFlags.Is(management.CapabilityInvocationUsage), setUsage(defs.KeyFlags.Is(management.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
+	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.KeyFlags.Is(management.KeyAgreementUsage), setUsage(defs.KeyFlags.Is(management.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
 	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", defs.SelfControl, setUsage(defs.SelfControl, "Pass '%t' to %s DID Document control."))
 	result.Flags().StringSliceVar(createRequest.Controllers, "controllers", []string{}, "Comma-separated list of DIDs that can control the generated DID Document.")
 
@@ -286,7 +286,7 @@ func addKeyAgreementKeyCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("invalid key ID '%s': %w", args[0], err)
 			}
-			targetDID, _ := didservice.GetDIDFromURL(args[0]) // can't fail because we already parsed the key ID
+			targetDID, _ := resolver.GetDIDFromURL(args[0]) // can't fail because we already parsed the key ID
 
 			clientConfig := core.NewClientConfigForCommand(cmd)
 			client := httpClient(clientConfig)

@@ -24,8 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/url"
 	"sync/atomic"
@@ -53,15 +52,15 @@ func (n NoopIdentifierResolver) Resolve(id did.DID) (string, error) {
 
 // DIDIdentifierResolver is a IdentifierResolver that resolves identifiers from DID documents.
 type DIDIdentifierResolver struct {
-	ServiceResolver types.ServiceResolver
+	ServiceResolver resolver.ServiceResolver
 }
 
 func (i DIDIdentifierResolver) Resolve(id did.DID) (string, error) {
-	service, err := i.ServiceResolver.Resolve(didservice.MakeServiceReference(id, types.BaseURLServiceType), didservice.DefaultMaxServiceReferenceDepth)
-	if didservice.IsFunctionalResolveError(err) {
+	service, err := i.ServiceResolver.Resolve(resolver.MakeServiceReference(id, resolver.BaseURLServiceType), resolver.DefaultMaxServiceReferenceDepth)
+	if resolver.IsFunctionalResolveError(err) {
 		return "", nil
 	} else if err != nil {
-		return "", fmt.Errorf("unable to resolve %s service: %w", types.BaseURLServiceType, err)
+		return "", fmt.Errorf("unable to resolve %s service: %w", resolver.BaseURLServiceType, err)
 	}
 	var result string
 	_ = service.UnmarshalServiceEndpoint(&result)

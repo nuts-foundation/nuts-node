@@ -29,7 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
-	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -97,8 +97,8 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			"iat":   int64(1735689600),
 			"nonce": nonce,
 		}, gomock.Any(), "key-id").Return("signed-jwt", nil)
-		keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(holderDID, nil, vdrTypes.NutsSigningKeyType).Return(ssi.MustParseURI("key-id"), nil, nil)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("key-id"), nil, nil)
 
 		nowFunc = func() time.Time {
 			return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -237,8 +237,8 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		}, nil)
 		jwtSigner := crypto.NewMockJWTSigner(ctrl)
 		jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
-		keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(holderDID, nil, vdrTypes.NutsSigningKeyType)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType)
 
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, jwtSigner, keyResolver).(*openidHandler)
 		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.IssuerAPIClient, error) {

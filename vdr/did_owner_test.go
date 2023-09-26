@@ -23,7 +23,8 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -34,9 +35,9 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	id := did.MustParseDID("did:nuts:example.com")
 	t.Run("owned, cached", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		resolver := types.NewMockDIDResolver(ctrl)
+		resolver := resolver.NewMockDIDResolver(ctrl)
 		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, nil)
-		underlying := types.NewMockDocumentOwner(ctrl)
+		underlying := management.NewMockDocumentOwner(ctrl)
 		underlying.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 
 		documentOwner := newCachingDocumentOwner(underlying, resolver)
@@ -50,9 +51,9 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	})
 	t.Run("not owned, cached", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		resolver := types.NewMockDIDResolver(ctrl)
+		resolver := resolver.NewMockDIDResolver(ctrl)
 		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, nil)
-		underlying := types.NewMockDocumentOwner(ctrl)
+		underlying := management.NewMockDocumentOwner(ctrl)
 		underlying.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 
 		documentOwner := newCachingDocumentOwner(underlying, resolver)
@@ -66,11 +67,11 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	})
 	t.Run("DID does not exist", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		underlying := types.NewMockDocumentOwner(ctrl)
-		resolver := types.NewMockDIDResolver(ctrl)
-		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		underlying := management.NewMockDocumentOwner(ctrl)
+		didResolver := resolver.NewMockDIDResolver(ctrl)
+		didResolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, resolver.ErrNotFound)
 
-		documentOwner := newCachingDocumentOwner(underlying, resolver)
+		documentOwner := newCachingDocumentOwner(underlying, didResolver)
 
 		result, err := documentOwner.IsOwner(context.Background(), id)
 
@@ -80,11 +81,11 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 
 	t.Run("DID is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		underlying := types.NewMockDocumentOwner(ctrl)
-		resolver := types.NewMockDIDResolver(ctrl)
-		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, types.ErrDeactivated)
+		underlying := management.NewMockDocumentOwner(ctrl)
+		didResolver := resolver.NewMockDIDResolver(ctrl)
+		didResolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
 
-		documentOwner := newCachingDocumentOwner(underlying, resolver)
+		documentOwner := newCachingDocumentOwner(underlying, didResolver)
 
 		result, err := documentOwner.IsOwner(context.Background(), id)
 
@@ -93,8 +94,8 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	})
 	t.Run("error - DID resolve fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		underlying := types.NewMockDocumentOwner(ctrl)
-		resolver := types.NewMockDIDResolver(ctrl)
+		underlying := management.NewMockDocumentOwner(ctrl)
+		resolver := resolver.NewMockDIDResolver(ctrl)
 		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, errors.New("b00m"))
 
 		documentOwner := newCachingDocumentOwner(underlying, resolver)

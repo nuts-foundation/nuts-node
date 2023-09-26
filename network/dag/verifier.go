@@ -23,10 +23,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // ErrPreviousTransactionMissing indicates one or more of the previous transactions (which the transaction refers to)
@@ -41,7 +41,7 @@ type Verifier func(tx stoabs.ReadTx, transaction Transaction) error
 
 // NewTransactionSignatureVerifier creates a transaction verifier that checks the signature of the transaction.
 // It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
-func NewTransactionSignatureVerifier(resolver types.NutsKeyResolver) Verifier {
+func NewTransactionSignatureVerifier(resolver resolver.NutsKeyResolver) Verifier {
 	return func(_ stoabs.ReadTx, transaction Transaction) error {
 		var signingKey crypto2.PublicKey
 		if transaction.SigningKey() != nil {

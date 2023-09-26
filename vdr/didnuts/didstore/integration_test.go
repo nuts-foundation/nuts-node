@@ -21,12 +21,12 @@ package didstore
 import (
 	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -145,7 +145,7 @@ func TestStore_deactivated(t *testing.T) {
 	add(t, store, create, tx)
 
 	t.Run("meta shows deactivated", func(t *testing.T) {
-		doc, meta, err := store.Resolve(testDID, &types.ResolveMetadata{AllowDeactivated: true})
+		doc, meta, err := store.Resolve(testDID, &resolver.ResolveMetadata{AllowDeactivated: true})
 		require.NoError(t, err)
 
 		require.NotNil(t, doc)
@@ -167,7 +167,7 @@ func TestStore_conflicted(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, uint(0), count)
 
-		err = store.Conflicted(func(doc did.Document, metadata types.DocumentMetadata) error {
+		err = store.Conflicted(func(doc did.Document, metadata resolver.DocumentMetadata) error {
 			t.Fail()
 			return nil
 		})
@@ -185,7 +185,7 @@ func TestStore_conflicted(t *testing.T) {
 		assert.Equal(t, uint(1), count)
 		assert.Len(t, store.conflictedDocuments, 1)
 
-		err = store.Conflicted(func(doc did.Document, metadata types.DocumentMetadata) error {
+		err = store.Conflicted(func(doc did.Document, metadata resolver.DocumentMetadata) error {
 			assert.NotEqual(t, doc1, doc)
 			assert.NotEqual(t, doc2, doc)
 			assert.True(t, metadata.IsConflicted())
@@ -207,7 +207,7 @@ func TestStore_conflicted(t *testing.T) {
 		assert.Equal(t, uint(0), count)
 		assert.Len(t, store.conflictedDocuments, 0)
 
-		err = store.Conflicted(func(doc did.Document, metadata types.DocumentMetadata) error {
+		err = store.Conflicted(func(doc did.Document, metadata resolver.DocumentMetadata) error {
 			t.Fail()
 			return nil
 		})
@@ -222,7 +222,7 @@ func TestStore_duplicate(t *testing.T) {
 	add(t, store, create, tx)
 	add(t, store, create, tx)
 
-	doc, meta, err := store.Resolve(testDID, &types.ResolveMetadata{AllowDeactivated: true})
+	doc, meta, err := store.Resolve(testDID, &resolver.ResolveMetadata{AllowDeactivated: true})
 	require.NoError(t, err)
 
 	require.NotNil(t, doc)

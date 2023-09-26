@@ -23,6 +23,7 @@ import (
 	crypt "crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"time"
 
@@ -34,7 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
@@ -43,15 +43,15 @@ var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	C crypto.KeyStore
-	K types.KeyResolver
+	K resolver.KeyResolver
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		crypto.ErrPrivateKeyNotFound: http.StatusBadRequest,
-		types.ErrNotFound:            http.StatusNotFound,
-		types.ErrKeyNotFound:         http.StatusNotFound,
+		resolver.ErrNotFound:         http.StatusNotFound,
+		resolver.ErrKeyNotFound:      http.StatusNotFound,
 	})
 }
 
@@ -173,7 +173,7 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 	}
 	key, keyID, err := w.resolvePublicKey(id)
 	if err != nil {
-		if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrKeyNotFound) {
+		if errors.Is(err, resolver.ErrNotFound) || errors.Is(err, resolver.ErrKeyNotFound) {
 			return nil, core.InvalidInputError("unable to locate receiver %s: %w", receiver, err)
 		}
 		return nil, core.InvalidInputError("invalid receiver: %w", err)
@@ -195,14 +195,14 @@ func (w *Wrapper) resolvePublicKey(id *did.DID) (key crypt.PublicKey, keyID ssi.
 	if id.IsURL() {
 		// Assume it is a keyId
 		now := time.Now()
-		key, err = w.K.ResolveKeyByID(id.String(), &now, types.KeyAgreement)
+		key, err = w.K.ResolveKeyByID(id.String(), &now, resolver.KeyAgreement)
 		if err != nil {
 			return nil, ssi.URI{}, err
 		}
 		keyID = id.URI()
 	} else {
 		// Assume it is a DID
-		keyID, key, err = w.K.ResolveKey(*id, nil, types.KeyAgreement)
+		keyID, key, err = w.K.ResolveKey(*id, nil, resolver.KeyAgreement)
 		if err != nil {
 			return nil, ssi.URI{}, err
 		}

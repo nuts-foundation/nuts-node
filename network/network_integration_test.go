@@ -25,7 +25,7 @@ import (
 	"fmt"
 	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"hash/crc32"
 	"math/rand"
 	"net/url"
@@ -1110,8 +1110,8 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		config:          config,
 		didStore:        didStore,
 		keyStore:        keyStore,
-		keyResolver:     didservice.KeyResolver{Resolver: didStore},
-		serviceResolver: didservice.ServiceResolver{Resolver: didStore},
+		keyResolver:     resolver.DIDKeyResolver{Resolver: didStore},
+		serviceResolver: resolver.DIDServiceResolver{Resolver: didStore},
 		eventPublisher:  eventPublisher,
 		storeProvider:   &storeProvider,
 		pkiValidator:    pkiValidator,

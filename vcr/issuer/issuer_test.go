@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"path"
 	"testing"
@@ -45,7 +46,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 func Test_issuer_buildVC(t *testing.T) {
@@ -158,7 +158,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(nil, vdr.ErrNotFound)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(nil, resolver.ErrNotFound)
 			sut := issuer{keyResolver: keyResolverMock}
 
 			credentialOptions := vc.VerifiableCredential{
@@ -479,7 +479,7 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 			ctrl := gomock.NewController(t)
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, issuerDID).Return(nil, vdr.ErrNotFound)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, issuerDID).Return(nil, resolver.ErrNotFound)
 			sut := issuer{keyResolver: keyResolverMock}
 
 			_, err := sut.buildRevocation(ctx, *testVC.ID)

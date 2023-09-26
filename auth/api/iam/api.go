@@ -30,8 +30,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"html/template"
 	"net/http"
 	"sync"
@@ -206,7 +206,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
-		if didservice.IsFunctionalResolveError(err) {
+		if resolver.IsFunctionalResolveError(err) {
 			return nil, core.NotFoundError("authz server metadata: %w", err)
 		}
 		log.Logger().WithField("did", ownDID.String()).Errorf("authz server metadata: failed to assert ownership of did: %s", err.Error())
@@ -227,7 +227,7 @@ func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) 
 
 	document, err := r.vdr.DeriveWebDIDDocument(ctx, baseURL, ownDID)
 	if err != nil {
-		if didservice.IsFunctionalResolveError(err) {
+		if resolver.IsFunctionalResolveError(err) {
 			return GetWebDID404Response{}, nil
 		}
 		log.Logger().WithError(err).Errorf("Could not resolve Nuts DID: %s", ownDID.String())

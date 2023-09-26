@@ -25,7 +25,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,7 +34,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
@@ -50,25 +49,25 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 	switch {
 	case errors.Is(err, did.ErrInvalidDID):
 		return http.StatusBadRequest
-	case errors.Is(err, types.ErrNotFound):
+	case errors.Is(err, resolver.ErrNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, types.ErrDIDNotManagedByThisNode):
+	case errors.Is(err, resolver.ErrDIDNotManagedByThisNode):
 		return http.StatusBadRequest
-	case errors.Is(err, types.ErrDeactivated):
+	case errors.Is(err, resolver.ErrDeactivated):
 		return http.StatusConflict
-	case errors.Is(err, types.ErrDuplicateService):
+	case errors.Is(err, resolver.ErrDuplicateService):
 		return http.StatusConflict
 	case errors.Is(err, didman.ErrServiceInUse):
 		return http.StatusConflict
 	case errors.Is(err, didnuts.ErrInvalidOptions):
 		return http.StatusBadRequest
-	case errors.Is(err, types.ErrServiceNotFound):
+	case errors.Is(err, resolver.ErrServiceNotFound):
 		return http.StatusNotFound
 	case errors.As(err, new(didnuts.InvalidServiceError)):
 		return http.StatusBadRequest
-	case errors.As(err, new(didservice.ServiceQueryError)):
+	case errors.As(err, new(resolver.ServiceQueryError)):
 		return http.StatusBadRequest
-	case errors.Is(err, types.ErrServiceReferenceToDeep):
+	case errors.Is(err, resolver.ErrServiceReferenceToDeep):
 		return http.StatusNotAcceptable
 	case errors.As(err, new(didman.ErrReferencedServiceNotAnEndpoint)):
 		return http.StatusNotAcceptable

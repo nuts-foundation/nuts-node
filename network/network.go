@@ -26,7 +26,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -45,7 +46,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
 )
 
@@ -80,13 +80,13 @@ type Network struct {
 	connectionManager transport.ConnectionManager
 	state             dag.State
 	keyStore          crypto.KeyStore
-	keyResolver       types.KeyResolver
+	keyResolver       resolver.KeyResolver
 	startTime         atomic.Pointer[time.Time]
 	peerID            transport.PeerID
 	nodeDID           did.DID
 	didStore          didstore.Store
-	didDocumentFinder types.DocFinder
-	serviceResolver   types.ServiceResolver
+	didDocumentFinder management.DocFinder
+	serviceResolver   resolver.ServiceResolver
 	eventPublisher    events.Event
 	storeProvider     storage.Provider
 	pkiValidator      pki.Validator
@@ -149,11 +149,11 @@ func NewNetworkInstance(
 ) *Network {
 	return &Network{
 		config:            config,
-		keyResolver:       didservice.KeyResolver{Resolver: store},
+		keyResolver:       resolver.DIDKeyResolver{Resolver: store},
 		keyStore:          keyStore,
 		didStore:          store,
 		didDocumentFinder: didstore.Finder{Store: store},
-		serviceResolver:   didservice.ServiceResolver{Resolver: store},
+		serviceResolver:   resolver.DIDServiceResolver{Resolver: store},
 		eventPublisher:    eventPublisher,
 		storeProvider:     storeProvider,
 		pkiValidator:      pkiValidator,
@@ -390,7 +390,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	}
 
 	// start connecting to published NutsComm addresses
-	otherNodes, err := n.didDocumentFinder.Find(didservice.IsActive(), didservice.ValidAt(time.Now()), didservice.ByServiceType(transport.NutsCommServiceType))
+	otherNodes, err := n.didDocumentFinder.Find(management.IsActive(), management.ValidAt(time.Now()), management.ByServiceType(transport.NutsCommServiceType))
 	if err != nil {
 		return err
 	}
@@ -477,8 +477,8 @@ func (n *Network) checkNodeDIDHealth(ctx context.Context, nodeDID did.DID) core.
 	}
 
 	// Check if the DID document has a resolvable and valid NutsComm endpoint
-	serviceRef := didservice.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
-	nutsCommService, err := n.serviceResolver.Resolve(serviceRef, didservice.DefaultMaxServiceReferenceDepth)
+	serviceRef := resolver.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
+	nutsCommService, err := n.serviceResolver.Resolve(serviceRef, resolver.DefaultMaxServiceReferenceDepth)
 	if err != nil {
 		// Non-existing NutsComm results in HealthStatusUnknown to make it easier to fix the issue (HealthStatusDown kills the node in certain environments)
 		return core.Health{

@@ -25,12 +25,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // palHeaderDIDSeparator holds the character(s) that separate DID entries in the PAL header, before being encrypted.
@@ -53,12 +53,12 @@ func (pal PAL) Contains(id did.DID) bool {
 // Encrypt encodes and encrypts the given participant DIDs.
 // It uses the given types.KeyResolver to look up the public encryption key for each participant,
 // and then encrypts the PAL header using each.
-func (pal PAL) Encrypt(keyResolver types.KeyResolver) (EncryptedPAL, error) {
+func (pal PAL) Encrypt(keyResolver resolver.KeyResolver) (EncryptedPAL, error) {
 	var encryptionKeys []*ecdsa.PublicKey
 	var recipients [][]byte
 	for _, recipient := range pal {
 		recipients = append(recipients, []byte(recipient.String()))
-		_, rawKak, err := keyResolver.ResolveKey(recipient, nil, types.KeyAgreement)
+		_, rawKak, err := keyResolver.ResolveKey(recipient, nil, resolver.KeyAgreement)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve keyAgreement key (recipient=%s): %w", recipient, err)
 		}

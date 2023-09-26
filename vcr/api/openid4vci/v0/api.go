@@ -28,7 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"net/http"
 )
 
@@ -84,7 +84,7 @@ var _ StrictServerInterface = (*Wrapper)(nil)
 // Wrapper wraps the OpenID4VCI API
 type Wrapper struct {
 	VCR           vcr.VCR
-	DocumentOwner types.DocumentOwner
+	DocumentOwner management.DocumentOwner
 }
 
 // Routes registers the API routes

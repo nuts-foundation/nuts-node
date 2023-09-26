@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"
 
@@ -35,7 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	irma "github.com/privacybydesign/irmago"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +67,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("draw up valid contract", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, types.NutsSigningKeyType).Return(keyID, nil, nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, resolver.NutsSigningKeyType).Return(keyID, nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
@@ -83,7 +82,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		test := buildContext(t)
 		defer test.ctrl.Finish()
 
-		test.keyResolver.EXPECT().ResolveKey(orgID, gomock.Any(), types.NutsSigningKeyType).Return(keyID, nil, nil)
+		test.keyResolver.EXPECT().ResolveKey(orgID, gomock.Any(), resolver.NutsSigningKeyType).Return(keyID, nil, nil)
 		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, &testCredential)
@@ -128,7 +127,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("nok - unknown organization", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(ssi.URI{}, nil, types.ErrNotFound)
+		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(ssi.URI{}, nil, resolver.ErrNotFound)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
 
@@ -239,7 +238,7 @@ func TestNewContractNotary(t *testing.T) {
 				ContractValidity: 60 * time.Minute,
 			},
 			vcr.NewTestVCRInstance(t),
-			didservice.KeyResolver{},
+			resolver.DIDKeyResolver{},
 			crypto.NewMemoryCryptoInstance(),
 			nil,
 			nil,
@@ -372,7 +371,7 @@ type testContext struct {
 
 	signerMock  *contract.MockSigner
 	vcr         *vcr.MockVCR
-	keyResolver *types.MockKeyResolver
+	keyResolver *resolver.MockKeyResolver
 	keyStore    *crypto.MockKeyStore
 	notary      notary
 }
@@ -388,7 +387,7 @@ func buildContext(t *testing.T) *testContext {
 	ctx := &testContext{
 		ctrl:        ctrl,
 		vcr:         vcr.NewMockVCR(ctrl),
-		keyResolver: types.NewMockKeyResolver(ctrl),
+		keyResolver: resolver.NewMockKeyResolver(ctrl),
 		keyStore:    crypto.NewMockKeyStore(ctrl),
 		signerMock:  signerMock,
 	}

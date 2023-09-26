@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +33,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"schneider.vip/problem"
 )
@@ -68,7 +68,7 @@ func TestHttpClient_Get(t *testing.T) {
 	didDoc := did.Document{
 		ID: vdr.TestDIDA,
 	}
-	meta := types.DocumentMetadata{}
+	meta := resolver.DocumentMetadata{}
 
 	t.Run("ok", func(t *testing.T) {
 		resolutionResult := DIDResolutionResult{
@@ -112,7 +112,7 @@ func TestHTTPClient_ConflictedDIDs(t *testing.T) {
 	didDoc := did.Document{
 		ID: vdr.TestDIDA,
 	}
-	meta := types.DocumentMetadata{}
+	meta := resolver.DocumentMetadata{}
 
 	t.Run("ok", func(t *testing.T) {
 		resolutionResults := []DIDResolutionResult{{
