@@ -60,7 +60,7 @@ type OAuth2Error struct {
 	RedirectURI string `json:"-"`
 }
 
-// StatusCode returns the HTTP status code to be returned to the client. It is defined for compatibility with core.HTTPStatusCodeError.
+// StatusCode returns the HTTP status code to be returned to the client, in case the user-agent can't be redirected with HTTP 302 - Found.
 func (e OAuth2Error) StatusCode() int {
 	switch e.Code {
 	case ServerError:
