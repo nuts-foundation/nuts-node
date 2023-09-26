@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"context"
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -30,18 +31,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"net/http"
 	"net/url"
 	"testing"
 )
 
+var nutsDID = did.MustParseDID("did:nuts:123")
+
 func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
-	testDID := did.MustParseDID("did:nuts:123")
 	t.Run("ok", func(t *testing.T) {
 		//	200
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(true, nil)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.ID})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: nutsDID.ID})
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
@@ -50,9 +53,9 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, testDID)
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.ID})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: nutsDID.ID})
 
 		assert.Equal(t, 404, statusCodeFrom(err))
 		assert.EqualError(t, err, "authz server metadata: did not owned")
@@ -61,9 +64,9 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - did does not exist", func(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(false, resolver.ErrNotFound)
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, resolver.ErrNotFound)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.ID})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: nutsDID.ID})
 
 		assert.Equal(t, 404, statusCodeFrom(err))
 		assert.EqualError(t, err, "authz server metadata: unable to find the DID document")
@@ -72,9 +75,9 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - internal error 500", func(t *testing.T) {
 		//500
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, testDID).Return(false, errors.New("unknown error"))
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, errors.New("unknown error"))
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: testDID.ID})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: nutsDID.ID})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "authz server metadata: unknown error")
@@ -83,7 +86,6 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 }
 
 func TestWrapper_GetWebDID(t *testing.T) {
-	nutsDID := did.MustParseDID("did:nuts:123")
 	webDID := did.MustParseDID("did:web:example.com:iam:123")
 	publicURL := ssi.MustParseURI("https://example.com").URL
 	webDIDBaseURL := publicURL.JoinPath("/iam")
@@ -125,35 +127,96 @@ func TestWrapper_GetWebDID(t *testing.T) {
 }
 
 func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
-	did := did.MustParseDID("did:nuts:123")
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, did).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(true, nil)
 
-		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: did.ID})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: nutsDID.ID})
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthClientMetadata200JSONResponse{}, res)
 	})
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, did)
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID)
 
-		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: did.ID})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: nutsDID.ID})
 
 		assert.Equal(t, 404, statusCodeFrom(err))
 		assert.Nil(t, res)
 	})
 	t.Run("error - internal error 500", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, did).Return(false, errors.New("unknown error"))
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, errors.New("unknown error"))
 
-		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: did.ID})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: nutsDID.ID})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "unknown error")
 		assert.Nil(t, res)
 	})
+}
+
+func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
+	t.Run("missing redirect_uri", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{}), HandleAuthorizeRequestRequestObject{
+			Id: nutsDID.String(),
+		})
+
+		requireOAuthError(t, err, InvalidRequest, "redirect_uri is required")
+		assert.Nil(t, res)
+	})
+	t.Run("unsupported response type", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
+			"redirect_uri":  "https://example.com",
+			"response_type": "unsupported",
+		}), HandleAuthorizeRequestRequestObject{
+			Id: nutsDID.String(),
+		})
+
+		requireOAuthError(t, err, UnsupportedResponseType, "")
+		assert.Nil(t, res)
+	})
+}
+
+func TestWrapper_HandleTokenRequest(t *testing.T) {
+	t.Run("unsupported grant type", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		res, err := ctx.client.HandleTokenRequest(nil, HandleTokenRequestRequestObject{
+			Id: nutsDID.String(),
+			Body: &HandleTokenRequestFormdataRequestBody{
+				GrantType: "unsupported",
+			},
+		})
+
+		requireOAuthError(t, err, InvalidRequest, "unsupported grant_type")
+		assert.Nil(t, res)
+	})
+}
+
+func requireOAuthError(t *testing.T, err error, errorCode ErrorCode, errorDescription string) {
+	var oauthErr OAuth2Error
+	require.ErrorAs(t, err, &oauthErr)
+	assert.Equal(t, errorCode, oauthErr.Code)
+	assert.Equal(t, errorDescription, oauthErr.Description)
+}
+
+func requestContext(queryParams map[string]string) context.Context {
+	vals := url.Values{}
+	for key, value := range queryParams {
+		vals.Add(key, value)
+	}
+	httpRequest := &http.Request{
+		URL: &url.URL{
+			RawQuery: vals.Encode(),
+		},
+	}
+	return context.WithValue(audit.TestContext(), httpRequestContextKey, httpRequest)
 }
 
 // statusCodeFrom returns the statuscode if err is core.HTTPStatusCodeError, or 0 if it isn't

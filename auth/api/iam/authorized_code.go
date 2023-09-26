@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -92,20 +91,16 @@ func (a authorizedCodeFlow) handleAuthConsent(c echo.Context) error {
 
 func (a authorizedCodeFlow) validateCode(params map[string]string) (string, error) {
 	code, ok := params["code"]
+	invalidCodeError := OAuth2Error{
+		Code:        InvalidRequest,
+		Description: "missing or invalid code parameter",
+	}
 	if !ok {
-		return "", openid4vci.Error{
-			Code:       openid4vci.InvalidRequest,
-			StatusCode: http.StatusBadRequest,
-			//Description: "missing or invalid code parameter",
-		}
+		return "", invalidCodeError
 	}
 	session := a.sessions.Get(code)
 	if session == nil {
-		return "", openid4vci.Error{
-			Code:       openid4vci.InvalidRequest,
-			StatusCode: http.StatusBadRequest,
-			//Description: "invalid code",
-		}
+		return "", invalidCodeError
 	}
 	return session.Scope, nil
 }

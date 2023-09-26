@@ -29,7 +29,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"html/template"
@@ -80,8 +79,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 				// Add http.Request to context, to allow reading URL query parameters
 				requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 				ctx.SetRequest(ctx.Request().WithContext(requestCtx))
-				// TODO: Do we need a generic error handler?
-				// ctx.Set(core.ErrorWriterContextKey, &protocolErrorWriter{})
+				ctx.Set(core.ErrorWriterContextKey, &oauth2ErrorWriter{})
 				return f(ctx, request)
 			}
 		},
@@ -118,30 +116,21 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		// Options:
 		// - OpenID4VCI
 		// - OpenID4VP, vp_token is sent in Token Response
+		panic("not implemented")
 	case "vp_token":
 		// Options:
 		// - service-to-service vp_token flow
+		panic("not implemented")
 	case "urn:ietf:params:oauth:grant-type:pre-authorized_code":
 		// Options:
 		// - OpenID4VCI
+		panic("not implemented")
 	default:
-		// TODO: Don't use openid4vci package for errors
-		return nil, openid4vci.Error{
-			Code:       openid4vci.InvalidRequest,
-			StatusCode: http.StatusBadRequest,
-			//Description: "invalid grant type",
+		return nil, OAuth2Error{
+			Code:        InvalidRequest,
+			Description: "unsupported grant_type",
 		}
 	}
-
-	// TODO: Handle?
-	//scope, err := handler(request.Body.AdditionalProperties)
-	//if err != nil {
-	//	return nil, err
-	//}
-	// TODO: Generate access token with scope
-	return HandleTokenRequest200JSONResponse(TokenResponse{
-		AccessToken: "",
-	}), nil
 }
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
@@ -161,7 +150,10 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		// TODO: Spec says that the redirect URI is optional, but it's not clear what to do if it's not provided.
 		//       Threat models say it's unsafe to omit redirect_uri.
 		//       See https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1
-		return nil, errors.New("missing redirect URI")
+		return nil, OAuth2Error{
+			Code:        InvalidRequest,
+			Description: "redirect_uri is required",
+		}
 	}
 
 	switch session.ResponseType {
@@ -171,32 +163,23 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		// - OpenID4VCI; authorization code flow for credential issuance to (end-user) wallet
 		// - OpenID4VP, vp_token is sent in Token Response; authorization code flow for presentation exchange (not required a.t.m.)
 		// TODO: Switch on parameters to right flow
+		panic("not implemented")
 	case responseTypeVPToken:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
 		// TODO: Check parameters for right flow
 		// TODO: Do we actually need this? (probably not)
+		panic("not implemented")
 	case responseTypeVPIDToken:
 		// Options:
 		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
 		return r.handlePresentationRequest(params, session)
 	default:
 		// TODO: This should be a redirect?
-		// TODO: Don't use openid4vci package for errors
-		return nil, openid4vci.Error{
-			Code:       openid4vci.InvalidRequest,
-			StatusCode: http.StatusBadRequest,
-			//Description: "invalid/unsupported response_type",
+		return nil, OAuth2Error{
+			Code:        UnsupportedResponseType,
+			RedirectURI: session.RedirectURI,
 		}
-	}
-
-	// No handler could handle the request
-	// TODO: This should be a redirect?
-	// TODO: Don't use openid4vci package for errors
-	return nil, openid4vci.Error{
-		Code:       openid4vci.InvalidRequest,
-		StatusCode: http.StatusBadRequest,
-		//Description: "missing or invalid parameters",
 	}
 }
 

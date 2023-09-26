@@ -81,14 +81,22 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 	}
 	// Response mode is always direct_post for now
 	if params[responseModeParam] != responseModeDirectPost {
-		return nil, errors.New("response_mode must be direct_post")
+		return nil, OAuth2Error{
+			Code:        InvalidRequest,
+			Description: "response_mode must be direct_post",
+			RedirectURI: session.RedirectURI,
+		}
 	}
 
 	// TODO: This is the easiest for now, but is this the way?
 	// For compatibility, we probably need to support presentation_definition and/or presentation_definition_uri.
 	presentationDefinition := r.auth.PresentationDefinitions().ByScope(params[scopeParam])
 	if presentationDefinition == nil {
-		return nil, fmt.Errorf("unsupported scope for presentation exchange: %s", params[scopeParam])
+		return nil, OAuth2Error{
+			Code:        InvalidRequest,
+			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", params[scopeParam]),
+			RedirectURI: session.RedirectURI,
+		}
 	}
 
 	// Render HTML

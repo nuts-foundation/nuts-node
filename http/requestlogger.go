@@ -21,7 +21,6 @@ package http
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 	"mime"
 	"net/http"
@@ -40,12 +39,13 @@ func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) e
 		LogValuesFunc: func(c echo.Context, values middleware.RequestLoggerValues) error {
 			status := values.Status
 			if values.Error != nil {
-				switch errWithStatus := values.Error.(type) {
-				case *echo.HTTPError:
-					status = errWithStatus.Code
-				case core.HTTPStatusCodeError:
-					status = errWithStatus.StatusCode()
-				default:
+				// In case the error provides `func StatusCode() int`
+				// (e.g. core.HTTPStatusCodeError)
+				if x, ok := values.Error.(interface{ StatusCode() int }); ok {
+					status = x.StatusCode()
+				} else if x, ok := values.Error.(*echo.HTTPError); ok {
+					status = x.Code
+				} else {
 					status = http.StatusInternalServerError
 				}
 			}

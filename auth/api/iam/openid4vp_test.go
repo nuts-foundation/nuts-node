@@ -118,6 +118,40 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		require.Equal(t, http.StatusOK, httpResponse.statusCode)
 		assert.Contains(t, httpResponse.body.String(), "</html>")
 	})
+	t.Run("unsupported scope", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		peStore := &pe.DefinitionResolver{}
+		_ = peStore.LoadFromFile("test/presentation_definition_mapping.json")
+		mockAuth := auth.NewMockAuthenticationServices(ctrl)
+		mockAuth.EXPECT().PresentationDefinitions().Return(peStore)
+		instance := New(mockAuth, nil, nil)
+
+		params := map[string]string{
+			"scope":               "unsupported",
+			"response_type":       "code",
+			"response_mode":       "direct_post",
+			"client_metadata_uri": "https://example.com/client_metadata.xml",
+		}
+
+		response, err := instance.handlePresentationRequest(params, createSession(params, holderDID))
+
+		requireOAuthError(t, err, InvalidRequest, "unsupported scope for presentation exchange: unsupported")
+		assert.Nil(t, response)
+	})
+	t.Run("invalid response_mode", func(t *testing.T) {
+		instance := New(nil, nil, nil)
+		params := map[string]string{
+			"scope":               "eOverdracht-overdrachtsbericht",
+			"response_type":       "code",
+			"response_mode":       "invalid",
+			"client_metadata_uri": "https://example.com/client_metadata.xml",
+		}
+
+		response, err := instance.handlePresentationRequest(params, createSession(params, holderDID))
+
+		requireOAuthError(t, err, InvalidRequest, "response_mode must be direct_post")
+		assert.Nil(t, response)
+	})
 }
 
 type stubResponseWriter struct {

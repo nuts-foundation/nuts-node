@@ -160,7 +160,7 @@ func startServer(ctx context.Context, system *core.System) error {
 	logrus.Info("Shutting down...")
 	err := system.Shutdown()
 	if err != nil {
-		logrus.Errorf("Error shutting down system: %v", err)
+		logrus.Errorf("OAuth2Error shutting down system: %v", err)
 	} else {
 		logrus.Info("Shutdown complete. Goodbye!")
 	}
