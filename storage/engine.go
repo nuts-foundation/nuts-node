@@ -91,7 +91,7 @@ func (e engine) Shutdown() error {
 		return errors.New("one or more stores failed to close")
 	}
 
-	e.sessionDatabase.Close()
+	e.sessionDatabase.close()
 
 	return nil
 }

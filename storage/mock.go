@@ -235,18 +235,6 @@ func (m *MockSessionDatabase) EXPECT() *MockSessionDatabaseMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method.
-func (m *MockSessionDatabase) Close() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Close")
-}
-
-// Close indicates an expected call of Close.
-func (mr *MockSessionDatabaseMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockSessionDatabase)(nil).Close))
-}
-
 // GetStore mocks base method.
 func (m *MockSessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
 	m.ctrl.T.Helper()
@@ -264,6 +252,18 @@ func (mr *MockSessionDatabaseMockRecorder) GetStore(ttl interface{}, keys ...int
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ttl}, keys...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStore", reflect.TypeOf((*MockSessionDatabase)(nil).GetStore), varargs...)
+}
+
+// close mocks base method.
+func (m *MockSessionDatabase) close() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "close")
+}
+
+// close indicates an expected call of close.
+func (mr *MockSessionDatabaseMockRecorder) close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "close", reflect.TypeOf((*MockSessionDatabase)(nil).close))
 }
 
 // MockSessionStore is a mock of SessionStore interface.

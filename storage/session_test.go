@@ -37,7 +37,7 @@ func TestNewInMemorySessionDatabase(t *testing.T) {
 func TestInMemorySessionDatabase_GetStore(t *testing.T) {
 	db := createDatabase(t)
 
-	store := db.GetStore(time.Minute, "key1", "key2").(inMemorySessionStore)
+	store := db.GetStore(time.Minute, "key1", "key2").(InMemorySessionStore)
 
 	require.NotNil(t, store)
 	assert.Equal(t, time.Minute, store.ttl)
@@ -46,7 +46,7 @@ func TestInMemorySessionDatabase_GetStore(t *testing.T) {
 
 func TestInMemorySessionStore_Put(t *testing.T) {
 	db := createDatabase(t)
-	store := db.GetStore(time.Minute, "prefix").(inMemorySessionStore)
+	store := db.GetStore(time.Minute, "prefix").(InMemorySessionStore)
 
 	t.Run("string value is stored", func(t *testing.T) {
 		err := store.Put("key", "value")
@@ -82,7 +82,7 @@ func TestInMemorySessionStore_Put(t *testing.T) {
 
 func TestInMemorySessionStore_Get(t *testing.T) {
 	db := createDatabase(t)
-	store := db.GetStore(time.Minute, "prefix").(inMemorySessionStore)
+	store := db.GetStore(time.Minute, "prefix").(InMemorySessionStore)
 
 	t.Run("string value is retrieved correctly", func(t *testing.T) {
 		_ = store.Put(t.Name(), "value")
@@ -160,7 +160,7 @@ func TestInMemorySessionStore_Get(t *testing.T) {
 
 func TestInMemorySessionStore_Delete(t *testing.T) {
 	db := createDatabase(t)
-	store := db.GetStore(time.Minute, "prefix").(inMemorySessionStore)
+	store := db.GetStore(time.Minute, "prefix").(InMemorySessionStore)
 
 	t.Run("value is deleted", func(t *testing.T) {
 		_ = store.Put(t.Name(), "value")
@@ -189,7 +189,7 @@ func TestInMemorySessionDatabase_Close(t *testing.T) {
 		}()
 		store := NewInMemorySessionDatabase()
 		time.Sleep(50 * time.Millisecond) // make sure pruning is running
-		store.Close()
+		store.close()
 	})
 }
 
@@ -197,8 +197,9 @@ func Test_memoryStore_prune(t *testing.T) {
 	t.Run("automatic", func(t *testing.T) {
 		store := createDatabase(t)
 		// we call startPruning a second time ourselves to speed things up, make sure not to leak the original goroutine
-		cancelFunc := store.cancel
-		defer cancelFunc()
+		defer func() {
+			store.done <- struct{}{}
+		}()
 		store.startPruning(10 * time.Millisecond)
 
 		err := store.GetStore(time.Millisecond).Put("key", "value")
@@ -213,7 +214,7 @@ func Test_memoryStore_prune(t *testing.T) {
 	})
 	t.Run("prunes expired flows", func(t *testing.T) {
 		store := createDatabase(t)
-		defer store.Close()
+		defer store.close()
 
 		_ = store.GetStore(0).Put("key1", "value")
 		_ = store.GetStore(time.Minute).Put("key2", "value")
@@ -233,6 +234,6 @@ type testStruct struct {
 	Field1 string `json:"field1"`
 }
 
-func createDatabase(t *testing.T) *inMemorySessionDatabase {
-	return NewTestInMemorySessionDatabase(t).(*inMemorySessionDatabase)
+func createDatabase(t *testing.T) *InMemorySessionDatabase {
+	return NewTestInMemorySessionDatabase(t)
 }

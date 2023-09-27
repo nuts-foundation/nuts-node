@@ -65,21 +65,20 @@ type database interface {
 
 var ErrNotFound = errors.New("not found")
 
-// SessionDatabase is an in memory database that holds session data on a KV basis.
+// SessionDatabase is a non-persistent database that holds session data on a KV basis.
 // Keys could be access tokens, nonce's, authorization codes, etc.
 // All entries are stored with a TTL, so they will be removed automatically.
 type SessionDatabase interface {
 	// GetStore returns a SessionStore with the given keys as key prefixes.
-	// The keys are used to logically partition the store.
+	// The keys are used to logically partition the store, eg: tenants and/or flows that are not allowed to overlap like credential issuance and verification.
 	// The TTL is the time-to-live for the entries in the store.
 	GetStore(ttl time.Duration, keys ...string) SessionStore
-	// Close stops any background processes and closes the database.
-	Close()
+	// close stops any background processes and closes the database.
+	close()
 }
 
 // SessionStore is a key-value store that holds session data.
-// The SessionStore is a wrapper for the SessionDatabase, it automatically adds prefixes for logical partitions.
-// It uses JSON marshalling to store the entries.
+// The SessionStore is an abstraction for underlying storage, it automatically adds prefixes for logical partitions.
 type SessionStore interface {
 	// Delete deletes the entry for the given key.
 	// It does not return an error if the key does not exist.

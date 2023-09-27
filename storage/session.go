@@ -19,7 +19,6 @@
 package storage
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"strings"
@@ -27,8 +26,8 @@ import (
 	"time"
 )
 
-var _ SessionDatabase = (*inMemorySessionDatabase)(nil)
-var _ SessionStore = (*inMemorySessionStore)(nil)
+var _ SessionDatabase = (*InMemorySessionDatabase)(nil)
+var _ SessionStore = (*InMemorySessionStore)(nil)
 
 var sessionStorePruneInterval = 10 * time.Minute
 
@@ -38,49 +37,47 @@ type expiringEntry struct {
 	Expiry time.Time
 }
 
-// SessionDatabase is an in memory database that holds session data on a KV basis.
+// InMemorySessionDatabase is an in memory database that holds session data on a KV basis.
 // Keys could be access tokens, nonce's, authorization codes, etc.
 // All entries are stored with a TTL, so they will be removed automatically.
-type inMemorySessionDatabase struct {
-	cancel   context.CancelFunc
-	ctx      context.Context
+type InMemorySessionDatabase struct {
+	done     chan struct{}
 	mux      sync.RWMutex
 	routines sync.WaitGroup
 	entries  map[string]expiringEntry
 }
 
 // NewInMemorySessionDatabase creates a new in memory session database.
-func NewInMemorySessionDatabase() SessionDatabase {
-	result := &inMemorySessionDatabase{
+func NewInMemorySessionDatabase() *InMemorySessionDatabase {
+	result := &InMemorySessionDatabase{
 		entries: map[string]expiringEntry{},
+		done:    make(chan struct{}, 10),
 	}
-	result.ctx, result.cancel = context.WithCancel(context.Background())
 	result.startPruning(sessionStorePruneInterval)
 	return result
 }
 
-func (i *inMemorySessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
-	return inMemorySessionStore{
+func (i *InMemorySessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
+	return InMemorySessionStore{
 		ttl:      ttl,
 		prefixes: keys,
 		db:       i,
 	}
 }
 
-func (i *inMemorySessionDatabase) Close() {
+func (i *InMemorySessionDatabase) close() {
 	// Signal pruner to stop and wait for it to finish
-	i.cancel()
-	i.routines.Wait()
+	i.done <- struct{}{}
 }
 
-func (i *inMemorySessionDatabase) startPruning(interval time.Duration) {
+func (i *InMemorySessionDatabase) startPruning(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	i.routines.Add(1)
-	go func(ctx context.Context) {
+	go func() {
 		defer i.routines.Done()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-i.done:
 				ticker.Stop()
 				return
 			case <-ticker.C:
@@ -90,10 +87,10 @@ func (i *inMemorySessionDatabase) startPruning(interval time.Duration) {
 				}
 			}
 		}
-	}(i.ctx)
+	}()
 }
 
-func (i *inMemorySessionDatabase) prune() int {
+func (i *InMemorySessionDatabase) prune() int {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 
@@ -111,13 +108,13 @@ func (i *inMemorySessionDatabase) prune() int {
 	return count
 }
 
-type inMemorySessionStore struct {
+type InMemorySessionStore struct {
 	ttl      time.Duration
 	prefixes []string
-	db       *inMemorySessionDatabase
+	db       *InMemorySessionDatabase
 }
 
-func (i inMemorySessionStore) Delete(key string) error {
+func (i InMemorySessionStore) Delete(key string) error {
 	i.db.mux.Lock()
 	defer i.db.mux.Unlock()
 
@@ -125,7 +122,7 @@ func (i inMemorySessionStore) Delete(key string) error {
 	return nil
 }
 
-func (i inMemorySessionStore) Exists(key string) bool {
+func (i InMemorySessionStore) Exists(key string) bool {
 	i.db.mux.Lock()
 	defer i.db.mux.Unlock()
 
@@ -133,7 +130,7 @@ func (i inMemorySessionStore) Exists(key string) bool {
 	return ok
 }
 
-func (i inMemorySessionStore) Get(key string, target interface{}) error {
+func (i InMemorySessionStore) Get(key string, target interface{}) error {
 	i.db.mux.Lock()
 	defer i.db.mux.Unlock()
 
@@ -150,7 +147,7 @@ func (i inMemorySessionStore) Get(key string, target interface{}) error {
 	return json.Unmarshal([]byte(entry.Value), target)
 }
 
-func (i inMemorySessionStore) Put(key string, value interface{}) error {
+func (i InMemorySessionStore) Put(key string, value interface{}) error {
 	i.db.mux.Lock()
 	defer i.db.mux.Unlock()
 
@@ -167,6 +164,6 @@ func (i inMemorySessionStore) Put(key string, value interface{}) error {
 	return nil
 }
 
-func (i inMemorySessionStore) getFullKey(key string) string {
+func (i InMemorySessionStore) getFullKey(key string) string {
 	return strings.Join(append(i.prefixes, key), "/")
 }
