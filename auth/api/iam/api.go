@@ -251,11 +251,14 @@ func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationD
 
 	// todo: only const scopes supported, scopes with variable arguments not supported yet
 	// map all scopes to a presentation definition
-	presentationDefinitions := make([]PresentationDefinition, 0, len(request.Params.Scope))
-	for _, scope := range request.Params.Scope {
+	scopes := strings.Split(request.Params.Scope, " ")
+	presentationDefinitions := make([]PresentationDefinition, 0, len(scopes))
+	for _, scope := range scopes {
 		presentationDefinition := r.auth.PresentationDefinitions().ByScope(scope)
 		if presentationDefinition == nil {
-			return nil, core.InvalidInputError("unsupported scope: %s", scope)
+			return PresentationDefinition400JSONResponse{
+				Error: "invalid_scope",
+			}, nil
 		}
 		presentationDefinitions = append(presentationDefinitions, *presentationDefinition)
 	}

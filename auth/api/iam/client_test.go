@@ -126,7 +126,7 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		require.NotNil(t, definitions)
 		assert.Equal(t, definitions, response)
 		require.NotNil(t, handler.Request)
-		assert.Equal(t, url.Values{"scope": []string{"first", "second"}}, handler.Request.URL.Query())
+		assert.Equal(t, url.Values{"scope": []string{"first second"}}, handler.Request.URL.Query())
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -166,7 +166,7 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		response, err := client.PresentationDefinition(ctx, tlsServer.URL, []string{"test"})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "unable to unmarshal response")
+		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value")
 		assert.Nil(t, response)
 	})
 }

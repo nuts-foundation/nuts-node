@@ -170,7 +170,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		test := newTestClient(t)
 		test.authnServices.EXPECT().PresentationDefinitions().Return(&definitionResolver)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: []string{"test"}}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: "test"}})
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -193,10 +193,11 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		test := newTestClient(t)
 		test.authnServices.EXPECT().PresentationDefinitions().Return(&definitionResolver)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: []string{"unknown"}}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: "unknown"}})
 
-		assert.EqualError(t, err, "unsupported scope: unknown")
-		assert.Nil(t, response)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "invalid_scope", (response.(PresentationDefinition400JSONResponse)).Error)
 	})
 }
 

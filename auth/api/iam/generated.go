@@ -30,7 +30,7 @@ type TokenResponse struct {
 
 // PresentationDefinitionParams defines parameters for PresentationDefinition.
 type PresentationDefinitionParams struct {
-	Scope []string `form:"scope" json:"scope"`
+	Scope string `form:"scope" json:"scope"`
 }
 
 // HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
@@ -142,7 +142,7 @@ type ServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata
 	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	OAuthAuthorizationServerMetadata(ctx echo.Context, id string) error
-	// Used by relying parties to obtain a presentation definition for desired scopes.
+	// Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
 	// (GET /iam/{did}/presentation_definition)
 	PresentationDefinition(ctx echo.Context, did string, params PresentationDefinitionParams) error
 	// Used by resource owners to initiate the authorization code flow.
@@ -391,6 +391,15 @@ func (response PresentationDefinition200JSONResponse) VisitPresentationDefinitio
 	return json.NewEncoder(w).Encode(response)
 }
 
+type PresentationDefinition400JSONResponse ErrorResponse
+
+func (response PresentationDefinition400JSONResponse) VisitPresentationDefinitionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type PresentationDefinition404Response struct {
 }
 
@@ -584,7 +593,7 @@ type StrictServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata
 	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error)
-	// Used by relying parties to obtain a presentation definition for desired scopes.
+	// Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
 	// (GET /iam/{did}/presentation_definition)
 	PresentationDefinition(ctx context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error)
 	// Used by resource owners to initiate the authorization code flow.

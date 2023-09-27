@@ -28,6 +28,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -82,15 +83,13 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 	return &metadata, nil
 }
 
-// PresentationDefinition retrieves the presentation definition for the given web DID and scope(s).
-// We pass the endpoint url for the presentation definition endpoint because we already retrieved the metadata in a previous step.
-// The scopes are evaluated as raw query params and encoded if needed.
+// PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
 func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes []string) ([]PresentationDefinition, error) {
 	presentationDefinitionURL, err := url.Parse(definitionEndpoint)
 	if err != nil {
 		return nil, err
 	}
-	presentationDefinitionURL.RawQuery = url.Values{"scope": scopes}.Encode()
+	presentationDefinitionURL.RawQuery = url.Values{"scope": []string{strings.Join(scopes, " ")}}.Encode()
 
 	// create a GET request with scope query param
 	request, err := http.NewRequest(http.MethodGet, presentationDefinitionURL.String(), nil)
@@ -112,7 +111,7 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpo
 		return nil, fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(data, &definitions); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(data))
+		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
 	}
 
 	return definitions, nil
