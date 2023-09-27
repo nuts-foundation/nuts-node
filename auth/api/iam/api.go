@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"html/template"
 	"net/http"
+	"strings"
 	"sync"
 )
 
@@ -40,6 +41,7 @@ var _ core.Routable = &Wrapper{}
 var _ StrictServerInterface = &Wrapper{}
 
 const apiPath = "iam"
+const apiModuleName = auth.ModuleName + "/" + apiPath
 const httpRequestContextKey = "http-request"
 
 //go:embed assets
@@ -70,29 +72,11 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 }
 
 func (r Wrapper) Routes(router core.EchoRouter) {
-	const apiModuleName = auth.ModuleName + "/" + apiPath
 	RegisterHandlers(router, NewStrictHandler(r, []StrictMiddlewareFunc{
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
-				ctx.Set(core.OperationIDContextKey, operationID)
-				ctx.Set(core.ModuleNameContextKey, apiModuleName)
-				// Add http.Request to context, to allow reading URL query parameters
-				requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
-				ctx.SetRequest(ctx.Request().WithContext(requestCtx))
-				ctx.Set(core.ErrorWriterContextKey, &oauth2ErrorWriter{})
-				return f(ctx, request)
+				return r.middleware(ctx, request, operationID, f)
 			}
-		},
-		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
-			return func(ctx echo.Context, args interface{}) (interface{}, error) {
-				if !r.auth.V2APIEnabled() {
-					return nil, core.Error(http.StatusForbidden, "Access denied")
-				}
-				return f(ctx, args)
-			}
-		},
-		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
-			return audit.StrictMiddleware(f, apiModuleName, operationID)
 		},
 	}))
 	auditMiddleware := audit.Middleware(apiModuleName)
@@ -107,6 +91,24 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 	// - POST handles the form submission, initiating the flow.
 	router.GET("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoLanding, auditMiddleware)
 	router.POST("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoSendRequest, auditMiddleware)
+}
+
+func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
+	ctx.Set(core.OperationIDContextKey, operationID)
+	ctx.Set(core.ModuleNameContextKey, apiModuleName)
+
+	if !r.auth.V2APIEnabled() {
+		return nil, core.Error(http.StatusForbidden, "Access denied")
+	}
+
+	// Add http.Request to context, to allow reading URL query parameters
+	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
+	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
+	if strings.HasPrefix(ctx.Request().URL.Path, "/iam/") {
+		ctx.Set(core.ErrorWriterContextKey, &oauth2ErrorWriter{})
+	}
+	audit.StrictMiddleware(f, apiModuleName, operationID)
+	return f(ctx, request)
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.

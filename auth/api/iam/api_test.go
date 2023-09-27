@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	"errors"
+	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -32,6 +33,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 )
@@ -194,7 +196,7 @@ func TestWrapper_HandleTokenRequest(t *testing.T) {
 			},
 		})
 
-		requireOAuthError(t, err, InvalidRequest, "unsupported grant_type")
+		requireOAuthError(t, err, UnsupportedGrantType, "")
 		assert.Nil(t, res)
 	})
 }
@@ -253,4 +255,67 @@ func newTestClient(t testing.TB) *testCtx {
 			vdr:  vdr,
 		},
 	}
+}
+
+func TestWrapper_Routes(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	router := core.NewMockEchoRouter(ctrl)
+
+	router.EXPECT().GET(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+
+	Wrapper{}.Routes(router)
+}
+
+func TestWrapper_middleware(t *testing.T) {
+	server := echo.New()
+	ctrl := gomock.NewController(t)
+	authService := auth.NewMockAuthenticationServices(ctrl)
+	authService.EXPECT().V2APIEnabled().Return(true).AnyTimes()
+
+	t.Run("API enabling", func(t *testing.T) {
+		t.Run("enabled", func(t *testing.T) {
+			var called strictServerCallCapturer
+
+			ctx := server.NewContext(httptest.NewRequest("GET", "/iam/foo", nil), httptest.NewRecorder())
+			_, _ = Wrapper{auth: authService}.middleware(ctx, nil, "Test", called.handle)
+
+			assert.True(t, bool(called))
+		})
+		t.Run("disabled", func(t *testing.T) {
+			var called strictServerCallCapturer
+
+			authService := auth.NewMockAuthenticationServices(ctrl)
+			authService.EXPECT().V2APIEnabled().Return(false).AnyTimes()
+
+			ctx := server.NewContext(httptest.NewRequest("GET", "/iam/foo", nil), httptest.NewRecorder())
+			_, _ = Wrapper{auth: authService}.middleware(ctx, nil, "Test", called.handle)
+
+			assert.False(t, bool(called))
+		})
+	})
+
+	t.Run("OAuth2 error handling", func(t *testing.T) {
+		var handler strictServerCallCapturer
+		t.Run("OAuth2 path", func(t *testing.T) {
+			ctx := server.NewContext(httptest.NewRequest("GET", "/iam/foo", nil), httptest.NewRecorder())
+			_, _ = Wrapper{auth: authService}.middleware(ctx, nil, "Test", handler.handle)
+
+			assert.IsType(t, &oauth2ErrorWriter{}, ctx.Get(core.ErrorWriterContextKey))
+		})
+		t.Run("other path", func(t *testing.T) {
+			ctx := server.NewContext(httptest.NewRequest("GET", "/internal/foo", nil), httptest.NewRecorder())
+			_, _ = Wrapper{auth: authService}.middleware(ctx, nil, "Test", handler.handle)
+
+			assert.Nil(t, ctx.Get(core.ErrorWriterContextKey))
+		})
+	})
+
+}
+
+type strictServerCallCapturer bool
+
+func (s *strictServerCallCapturer) handle(ctx echo.Context, request interface{}) (response interface{}, err error) {
+	*s = true
+	return nil, nil
 }
