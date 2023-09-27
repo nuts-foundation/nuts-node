@@ -93,14 +93,12 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 	}
 	t.Run("with scope", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		peStore := &pe.DefinitionResolver{}
-		require.NoError(t, peStore.LoadFromFile("test/presentation_definition_mapping.json"))
 		mockVDR := vdr.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockWallet := holder.NewMockWallet(ctrl)
 		mockVCR.EXPECT().Wallet().Return(mockWallet)
 		mockAuth := auth.NewMockAuthenticationServices(ctrl)
-		mockAuth.EXPECT().PresentationDefinitions().Return(peStore)
+		mockAuth.EXPECT().PresentationDefinitions().Return(pe.TestDefinitionResolver(t))
 		mockWallet.EXPECT().List(gomock.Any(), holderDID).Return(walletCredentials, nil)
 		mockVDR.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t))

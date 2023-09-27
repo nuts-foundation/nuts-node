@@ -120,7 +120,12 @@ func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID s
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
-func (r Wrapper) HandleTokenRequest(_ context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
+	ownDID, err := r.idToOwnedDID(ctx, request.Id)
+	if err != nil {
+		return nil, err
+	}
+
 	switch request.Body.GrantType {
 	case "authorization_code":
 		// Options:
@@ -144,6 +149,9 @@ func (r Wrapper) HandleTokenRequest(_ context.Context, request HandleTokenReques
 			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
 		}
+	case "vp_token-bearer":
+		// Nuts RFC021 vp_token bearer flow
+		return r.handleS2SAccessTokenRequest(*ownDID, request.Body.AdditionalProperties)
 	default:
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
@@ -232,8 +240,10 @@ func toAnyMap(input any) (*map[string]any, error) {
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
-	// TODO: must be web DID once web DID creation and DB are implemented
-	ownDID := idToNutsDID(request.Id)
+	ownDID, err := r.idToOwnedDID(ctx, request.Id)
+	if err != nil {
+		return nil, err
+	}
 	// Create session object to be passed to handler
 
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
@@ -243,7 +253,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	for key, value := range httpRequest.URL.Query() {
 		params[key] = value[0]
 	}
-	session := createSession(params, ownDID)
+	session := createSession(params, *ownDID)
 	if session.RedirectURI == "" {
 		// TODO: Spec says that the redirect URI is optional, but it's not clear what to do if it's not provided.
 		//       Threat models say it's unsafe to omit redirect_uri.
@@ -348,6 +358,27 @@ func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationD
 	}
 
 	return PresentationDefinition200JSONResponse(*presentationDefinition), nil
+}
+
+func (r Wrapper) idToOwnedDID(ctx context.Context, id string) (*did.DID, error) {
+	ownDID := idToDID(id)
+	owned, err := r.vdr.IsOwner(ctx, ownDID)
+	if err != nil {
+		if resolver.IsFunctionalResolveError(err) {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "invalid issuer DID: " + err.Error(),
+			}
+		}
+		return nil, fmt.Errorf("DID resolution failed: %w", err)
+	}
+	if !owned {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "issuer DID not owned by the server",
+		}
+	}
+	return &ownDID, nil
 }
 
 func createSession(params map[string]string, ownDID did.DID) *Session {

@@ -29,6 +29,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -56,6 +57,25 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, credentials ...vc.V
 	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	token, _ := jwt.Sign(unsignedToken, jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
 	result, err := vc.ParseVerifiablePresentation(string(token))
+	require.NoError(t, err)
+	return *result
+}
+
+// CreateJSONLDPresentation creates a JSON-LD presentation with the given subject DID and credentials.
+// The presentation is not actually signed.
+func CreateJSONLDPresentation(t *testing.T, subjectDID did.DID, verifiableCredential ...vc.VerifiableCredential) vc.VerifiablePresentation {
+	id := ssi.MustParseURI(subjectDID.String() + "#" + uuid.NewString())
+	data, _ := vc.VerifiablePresentation{
+		ID:                   &id,
+		VerifiableCredential: verifiableCredential,
+		Proof: []interface{}{
+			proof.LDProof{
+				Type:               ssi.JsonWebSignature2020,
+				VerificationMethod: ssi.MustParseURI(subjectDID.String() + "#1"),
+			},
+		},
+	}.MarshalJSON()
+	result, err := vc.ParseVerifiablePresentation(string(data))
 	require.NoError(t, err)
 	return *result
 }

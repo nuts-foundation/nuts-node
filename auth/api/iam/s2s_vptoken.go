@@ -20,18 +20,19 @@ package iam
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"net/http"
+	"net/url"
 	"time"
 
-	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
@@ -40,40 +41,106 @@ import (
 // TODO: Might want to make this configurable at some point
 const accessTokenValidity = 15 * time.Minute
 
-// serviceToService adds support for service-to-service OAuth2 flows,
-// which uses a custom vp_token grant to authenticate calls to the token endpoint.
-// Clients first call the presentation definition endpoint to get a presentation definition for the desired scope,
-// then create a presentation submission given the definition which is posted to the token endpoint as vp_token.
-// The AS then returns an access token with the requested scope.
-// Requires:
-// - GET /presentation_definition?scope=... (returns a presentation definition)
-// - POST /token (with vp_token grant)
-type serviceToService struct {
-}
-
-func (s serviceToService) Routes(router core.EchoRouter) {
-	router.Add("GET", "/public/oauth2/:did/presentation_definition", func(echoCtx echo.Context) error {
-		// TODO: Read scope, map to presentation definition, return
-		return echoCtx.JSON(http.StatusOK, map[string]string{})
-	})
-}
-
-func (s serviceToService) validateVPToken(params map[string]string) (string, error) {
-	submission := params["presentation_submission"]
-	scope := params["scope"]
-	vp_token := params["vp_token"]
-	if submission == "" || scope == "" || vp_token == "" {
-		// TODO: right error response
-		return "", errors.New("missing required parameters")
+// handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
+// It performs cheap checks first (parameter presence and validity), then the more expensive ones (checking signatures and matching VCs to the presentation definition):
+// 1. Check presence and format of parameters
+// 2. Check VC issuer trust
+// 3. Check signer of VP == subject of VCs
+// 4. Check signatures of VP and VCs
+func (s Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]string) (HandleTokenRequestResponseObject, error) {
+	submissionEncoded := params["presentation_submission"]
+	scope := params[scopeParam]
+	assertionEncoded := params["assertion"]
+	if submissionEncoded == "" || scope == "" || assertionEncoded == "" {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "missing required parameters",
+		}
 	}
-	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2418
-	// TODO: verify parameters
-	return scope, nil
-}
 
-func (s serviceToService) handleAuthzRequest(_ map[string]string, _ *Session) (*authzResponse, error) {
-	// Protocol does not support authorization code flow
-	return nil, nil
+	// Unmarshal VP, which can be in URL-encoded JSON(LD) or JWT format.
+	assertionDecoded, err := url.QueryUnescape(assertionEncoded)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "assertion parameter is invalid: invalid query escaping",
+			InternalError: err,
+		}
+	}
+	pexEnvelope, err := pe.ParseEnvelope([]byte(assertionDecoded))
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "assertion parameter is invalid: " + err.Error(),
+		}
+	}
+
+	// Unmarshal presentation submission
+	submissionDecoded, err := url.QueryUnescape(submissionEncoded)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "presentation_submission parameter is invalid: invalid query escaping",
+			InternalError: err,
+		}
+	}
+	submission, err := pe.ParsePresentationSubmission([]byte(submissionDecoded))
+	if err = json.Unmarshal([]byte(submissionDecoded), &submission); err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "presentation_submission parameter is invalid: invalid JSON",
+			InternalError: err,
+		}
+	}
+
+	for _, presentation := range pexEnvelope.Presentations {
+		err = credential.VerifyPresenterIsCredentialSubject(presentation)
+		if err != nil {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: fmt.Sprintf("verifiable presentation is invalid: %s", err.Error()),
+			}
+		}
+	}
+
+	// Validate the presentation submission:
+	// 1. Resolve presentation definition for the requested scope
+	// 2. Check submission against presentation and definition
+	definition := s.auth.PresentationDefinitions().ByScope(scope)
+	if definition == nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidScope,
+			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", scope),
+		}
+	}
+
+	_, err = submission.Validate(*pexEnvelope, *definition)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "presentation submission does not conform to Presentation Definition",
+			InternalError: err,
+		}
+	}
+
+	// Check signatures of VP and VCs. Trust should be established by the Presentation Definition.
+	for _, presentation := range pexEnvelope.Presentations {
+		_, err = s.vcr.Verifier().VerifyVP(presentation, true, true, nil)
+		if err != nil {
+			return nil, oauth.OAuth2Error{
+				Code:          oauth.InvalidRequest,
+				Description:   "verifiable presentation is invalid",
+				InternalError: err,
+			}
+		}
+	}
+
+	// All OK, allow access
+	response, err := s.createAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope)
+	if err != nil {
+		return nil, err
+	}
+	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
 func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
@@ -115,20 +182,19 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	return RequestAccessToken200JSONResponse(*tokenResult), nil
 }
 
-func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentation vc.VerifiablePresentation, scope string) (*oauth.TokenResponse, error) {
+func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation,
+	submission pe.PresentationSubmission, definition PresentationDefinition, scope string) (*oauth.TokenResponse, error) {
 	accessToken := AccessToken{
 		Token:  crypto.GenerateNonce(),
 		Issuer: issuer.String(),
 		// TODO: set ClientId
-		ClientId:   "",
-		IssuedAt:   issueTime,
-		Expiration: issueTime.Add(accessTokenValidity),
-		Scope:      scope,
-		// TODO: set values
-		InputDescriptorConstraintIdMap: nil,
-		VPToken:                        []VerifiablePresentation{presentation},
-		PresentationDefinition:         nil,
-		PresentationSubmission:         nil,
+		ClientId:               "",
+		IssuedAt:               issueTime,
+		Expiration:             issueTime.Add(accessTokenValidity),
+		Scope:                  scope,
+		VPToken:                presentations,
+		PresentationDefinition: &definition,
+		PresentationSubmission: &submission,
 	}
 	err := r.s2sAccessTokenStore().Put(accessToken.Token, accessToken)
 	if err != nil {

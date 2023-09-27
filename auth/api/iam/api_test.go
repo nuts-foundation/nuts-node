@@ -37,7 +37,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
@@ -175,7 +177,6 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
-		test.authnServices.EXPECT().PresentationDefinitions().Return(&definitionResolver)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: "eOverdracht-overdrachtsbericht"}})
 
@@ -198,7 +199,6 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("error - unknown scope", func(t *testing.T) {
 		test := newTestClient(t)
-		test.authnServices.EXPECT().PresentationDefinitions().Return(&definitionResolver)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: "unknown"}})
 
@@ -211,9 +211,10 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	t.Run("missing redirect_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(true, nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{}), HandleAuthorizeRequestRequestObject{
-			Id: nutsDID.String(),
+			Id: nutsDID.ID,
 		})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "redirect_uri is required")
@@ -221,12 +222,13 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	})
 	t.Run("unsupported response type", func(t *testing.T) {
 		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(true, nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
 			"redirect_uri":  "https://example.com",
 			"response_type": "unsupported",
 		}), HandleAuthorizeRequestRequestObject{
-			Id: nutsDID.String(),
+			Id: nutsDID.ID,
 		})
 
 		requireOAuthError(t, err, oauth.UnsupportedResponseType, "")
@@ -237,9 +239,10 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 func TestWrapper_HandleTokenRequest(t *testing.T) {
 	t.Run("unsupported grant type", func(t *testing.T) {
 		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(true, nil)
 
 		res, err := ctx.client.HandleTokenRequest(nil, HandleTokenRequestRequestObject{
-			Id: nutsDID.String(),
+			Id: nutsDID.ID,
 			Body: &HandleTokenRequestFormdataRequestBody{
 				GrantType: "unsupported",
 			},
@@ -372,6 +375,8 @@ type testCtx struct {
 	vdr           *vdr.MockVDR
 	resolver      *resolver.MockDIDResolver
 	relyingParty  *oauthServices.MockRelyingParty
+	verifier      *verifier.MockVerifier
+	vcr           *vcr.MockVCR
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -379,14 +384,21 @@ func newTestClient(t testing.TB) *testCtx {
 	require.NoError(t, err)
 	ctrl := gomock.NewController(t)
 	storageEngine := storage.NewTestStorageEngine(t)
+	mockVerifier := verifier.NewMockVerifier(ctrl)
+	mockVCR := vcr.NewMockVCR(ctrl)
+	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
+	authnServices.EXPECT().PresentationDefinitions().Return(pe.TestDefinitionResolver(t)).AnyTimes()
 	resolver := resolver.NewMockDIDResolver(ctrl)
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
+	verifier := verifier.NewMockVerifier(ctrl)
 	vdr := vdr.NewMockVDR(ctrl)
+	vcr := vcr.NewMockVCR(ctrl)
 
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
+	vcr.EXPECT().Verifier().Return(verifier).AnyTimes()
 	vdr.EXPECT().Resolver().Return(resolver).AnyTimes()
 
 	return &testCtx{
@@ -394,9 +406,12 @@ func newTestClient(t testing.TB) *testCtx {
 		relyingParty:  relyingPary,
 		resolver:      resolver,
 		vdr:           vdr,
+		verifier:      mockVerifier,
+		vcr:           mockVCR,
 		client: &Wrapper{
 			auth:          authnServices,
 			vdr:           vdr,
+			vcr:           mockVCR,
 			storageEngine: storageEngine,
 		},
 	}
@@ -456,6 +471,41 @@ func TestWrapper_middleware(t *testing.T) {
 		})
 	})
 
+}
+
+func TestWrapper_idToOwnedDID(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(true, nil)
+
+		_, err := ctx.client.idToOwnedDID(nil, nutsDID.ID)
+
+		assert.NoError(t, err)
+	})
+	t.Run("error - did not managed by this node", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID)
+
+		_, err := ctx.client.idToOwnedDID(nil, nutsDID.ID)
+
+		assert.EqualError(t, err, "invalid_request - issuer DID not owned by the server")
+	})
+	t.Run("DID does not exist (functional resolver error)", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, resolver.ErrNotFound)
+
+		_, err := ctx.client.idToOwnedDID(nil, nutsDID.ID)
+
+		assert.EqualError(t, err, "invalid_request - invalid issuer DID: unable to find the DID document")
+	})
+	t.Run("other resolver error", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, errors.New("unknown error"))
+
+		_, err := ctx.client.idToOwnedDID(nil, nutsDID.ID)
+
+		assert.EqualError(t, err, "DID resolution failed: unknown error")
+	})
 }
 
 type strictServerCallCapturer bool
