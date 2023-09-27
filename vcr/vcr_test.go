@@ -32,6 +32,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"os"
 	"path"
@@ -51,7 +53,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -66,7 +67,7 @@ func TestVCR_Configure(t *testing.T) {
 	t.Run("openid4vci", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		ctrl := gomock.NewController(t)
-		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 		pkiProvider := pki.NewMockProvider(ctrl)
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
@@ -89,7 +90,7 @@ func TestVCR_Configure(t *testing.T) {
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
 		localWalletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		localWalletResolver.EXPECT().Resolve(issuerDID).Return("https://example.com", nil).AnyTimes()
-		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 		vdrInstance.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
 		instance := NewVCRInstance(nil, vdrInstance, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
@@ -119,7 +120,7 @@ func TestVCR_Start(t *testing.T) {
 	t.Run("loads default indices", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		ctrl := gomock.NewController(t)
-		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 		instance := NewVCRInstance(
 			nil,
@@ -169,7 +170,7 @@ func TestVCR_Start(t *testing.T) {
 func TestVCR_Diagnostics(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	ctrl := gomock.NewController(t)
-	vdrInstance := types.NewMockVDR(ctrl)
+	vdrInstance := vdr.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().AnyTimes()
 	instance := NewVCRInstance(
 		nil,
@@ -292,7 +293,7 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 	ctx := context.Background()
 	t.Run("found DID, owned", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().IsOwner(ctx, id).Return(true, nil)
 		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
@@ -307,7 +308,7 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 	})
 	t.Run("found DID, not owned", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		vdrInstance := types.NewMockVDR(ctrl)
+		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().IsOwner(ctx, id).Return(false, nil)
 		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
@@ -340,7 +341,7 @@ func Test_vcr_GetOIDCWallet(t *testing.T) {
 	ctx := context.Background()
 
 	ctrl := gomock.NewController(t)
-	vdrInstance := types.NewMockVDR(ctrl)
+	vdrInstance := vdr.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().IsOwner(ctx, id).Return(true, nil)
 	identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 	identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
@@ -356,8 +357,8 @@ func Test_vcr_GetOIDCWallet(t *testing.T) {
 func TestVcr_Untrusted(t *testing.T) {
 	instance := NewTestVCRInstance(t)
 	ctrl := gomock.NewController(t)
-	mockDidResolver := types.NewMockDIDResolver(ctrl)
-	vdrInstance := types.NewMockVDR(ctrl)
+	mockDidResolver := resolver.NewMockDIDResolver(ctrl)
+	vdrInstance := vdr.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().Return(mockDidResolver).AnyTimes()
 	instance.vdrInstance = vdrInstance
 	testCredential := vc.VerifiableCredential{}
@@ -393,7 +394,7 @@ func TestVcr_Untrusted(t *testing.T) {
 	})
 	t.Run("Untrusted - no active controller", func(t *testing.T) {
 		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
-			mockDidResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, types.ErrNoActiveController)
+			mockDidResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, resolver.ErrNoActiveController)
 			return instance.Untrusted(issuer)
 		}, 0)
 	})
@@ -457,7 +458,7 @@ func TestVcr_Migrate(t *testing.T) {
 		ctx := audit.TestContext()
 		ctrl := gomock.NewController(t)
 		instance := NewTestVCRInstance(t)
-		mockVDR := types.NewMockVDR(ctrl)
+		mockVDR := vdr.NewMockVDR(ctrl)
 		ownedDID := did.MustParseDID("did:nuts:owned")
 		mockVDR.EXPECT().IsOwner(gomock.Any(), ownedDID).Return(true, nil)
 		mockVDR.EXPECT().IsOwner(gomock.Any(), did.MustParseDID("did:nuts:foo")).Return(false, nil)

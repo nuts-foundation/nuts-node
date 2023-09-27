@@ -24,7 +24,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"testing"
 
@@ -252,7 +252,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 			Payload:  payload,
 			Headers:  headers,
 		}
-		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, types.KeyAgreement).Return(ssi.URI{}, nil, errors.New("FAIL"))
+		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, resolver.KeyAgreement).Return(ssi.URI{}, nil, errors.New("FAIL"))
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 		assert.EqualError(t, err, "invalid receiver: FAIL")
@@ -267,7 +267,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 			Payload:  payload,
 			Headers:  headers,
 		}
-		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, types.KeyAgreement).Return(ssi.URI{}, nil, errors.New("FAIL"))
+		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, resolver.KeyAgreement).Return(ssi.URI{}, nil, errors.New("FAIL"))
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 		assert.EqualError(t, err, "invalid receiver: FAIL")
@@ -282,7 +282,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 			Payload:  payload,
 			Headers:  headers,
 		}
-		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), types.KeyAgreement).Return(ssi.URI{}, errors.New("FAIL"))
+		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), resolver.KeyAgreement).Return(ssi.URI{}, errors.New("FAIL"))
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 		assert.EqualError(t, err, "invalid receiver: FAIL")
@@ -297,7 +297,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 			Payload:  payload,
 			Headers:  headers,
 		}
-		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, types.KeyAgreement).Return(ssi.URI{}, nil, types.ErrNotFound)
+		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, resolver.KeyAgreement).Return(ssi.URI{}, nil, resolver.ErrNotFound)
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 		assert.EqualError(t, err, "unable to locate receiver did:nuts:12345: unable to find the DID document")
@@ -312,7 +312,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 			Payload:  payload,
 			Headers:  headers,
 		}
-		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, types.KeyAgreement).Return(ssi.URI{}, nil, types.ErrNotFound)
+		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, resolver.KeyAgreement).Return(ssi.URI{}, nil, resolver.ErrNotFound)
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 		assert.EqualError(t, err, "unable to locate receiver did:nuts:12345: unable to find the DID document")
@@ -327,7 +327,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 			Payload:  payload,
 			Headers:  headers,
 		}
-		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), types.KeyAgreement).Return(ssi.URI{}, types.ErrNotFound)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), resolver.KeyAgreement).Return(ssi.URI{}, resolver.ErrNotFound)
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 		assert.EqualError(t, err, "unable to locate receiver did:nuts:12345#key-1: unable to find the DID document")
@@ -359,7 +359,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		did, _ := ssi.ParseURI("did:nuts:12345")
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("b00m!"))
 
-		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, types.KeyAgreement).Return(*did, nil, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, resolver.KeyAgreement).Return(*did, nil, nil)
 
 		jwe, err := ctx.client.EncryptJwe(audit.TestContext(), EncryptJweRequestObject{Body: &request})
 
@@ -377,7 +377,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 			Payload:  payload,
 		}
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("jwe", nil)
-		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, types.KeyAgreement).Return(*did, nil, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, resolver.KeyAgreement).Return(*did, nil, nil)
 
 		resp, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 
@@ -395,7 +395,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 			Payload:  payload,
 		}
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("jwe", nil)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), types.KeyAgreement).Return(*did, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), resolver.KeyAgreement).Return(*did, nil)
 
 		resp, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 
@@ -413,7 +413,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		}
 		did, _ := ssi.ParseURI(kid)
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("jwe", nil)
-		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, types.KeyAgreement).Return(*did, nil, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, resolver.KeyAgreement).Return(*did, nil, nil)
 
 		resp, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 
@@ -429,7 +429,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 			Receiver: did.String(),
 		}
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("jwe", nil)
-		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, types.KeyAgreement).Return(*did, nil, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(gomock.Any(), nil, resolver.KeyAgreement).Return(*did, nil, nil)
 
 		resp, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 
@@ -474,14 +474,14 @@ func TestWrapper_DecryptJwe(t *testing.T) {
 type mockContext struct {
 	ctrl        *gomock.Controller
 	keyStore    *crypto.MockKeyStore
-	keyResolver *types.MockKeyResolver
+	keyResolver *resolver.MockKeyResolver
 	client      *Wrapper
 }
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	keyStore := crypto.NewMockKeyStore(ctrl)
-	keyResolver := types.NewMockKeyResolver(ctrl)
+	keyResolver := resolver.NewMockKeyResolver(ctrl)
 	client := &Wrapper{C: keyStore, K: keyResolver}
 
 	return mockContext{

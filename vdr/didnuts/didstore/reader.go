@@ -22,11 +22,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 func readDocument(tx stoabs.ReadTx, documentHash hash.SHA256Hash) (did.Document, error) {
@@ -37,7 +36,7 @@ func readDocument(tx stoabs.ReadTx, documentHash hash.SHA256Hash) (did.Document,
 		return document, err
 	}
 	if len(documentBytes) == 0 {
-		return document, types.ErrNotFound
+		return document, resolver.ErrNotFound
 	}
 	if err := json.Unmarshal(documentBytes, &document); err != nil {
 		return document, fmt.Errorf("unmarshal error on document: %w", err)

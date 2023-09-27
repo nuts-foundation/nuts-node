@@ -17,14 +17,15 @@ package v1
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // DIDDocument is an alias
 type DIDDocument = did.Document
 
 // DIDDocumentMetadata is an alias
-type DIDDocumentMetadata = types.DocumentMetadata
+type DIDDocumentMetadata = resolver.DocumentMetadata
 
 // VerificationMethod is an alias
 type VerificationMethod = did.VerificationMethod
@@ -64,13 +65,13 @@ type VerificationMethodRelationship struct {
 
 // ToFlags takes default key flags, and enabled/disables the flags which are set on the VerificationMethodRelationship,
 // and the result is returned.
-func (r VerificationMethodRelationship) ToFlags(defaults types.DIDKeyFlags) types.DIDKeyFlags {
+func (r VerificationMethodRelationship) ToFlags(defaults management.DIDKeyFlags) management.DIDKeyFlags {
 	result := defaults
-	result = withKeyFlag(result, types.AuthenticationUsage, r.Authentication)
-	result = withKeyFlag(result, types.AssertionMethodUsage, r.AssertionMethod)
-	result = withKeyFlag(result, types.CapabilityDelegationUsage, r.CapabilityDelegation)
-	result = withKeyFlag(result, types.CapabilityInvocationUsage, r.CapabilityInvocation)
-	result = withKeyFlag(result, types.KeyAgreementUsage, r.KeyAgreement)
+	result = withKeyFlag(result, management.AuthenticationUsage, r.Authentication)
+	result = withKeyFlag(result, management.AssertionMethodUsage, r.AssertionMethod)
+	result = withKeyFlag(result, management.CapabilityDelegationUsage, r.CapabilityDelegation)
+	result = withKeyFlag(result, management.CapabilityInvocationUsage, r.CapabilityInvocation)
+	result = withKeyFlag(result, management.KeyAgreementUsage, r.KeyAgreement)
 	return result
 }
 
@@ -78,7 +79,7 @@ func (r VerificationMethodRelationship) ToFlags(defaults types.DIDKeyFlags) type
 // - bool == nil: do nothing
 // - bool == true: enable flag
 // - bool == false: disable flag
-func withKeyFlag(current, flag types.DIDKeyFlags, value *bool) types.DIDKeyFlags {
+func withKeyFlag(current, flag management.DIDKeyFlags, value *bool) management.DIDKeyFlags {
 	switch {
 	case value == nil: // no setting
 		return current

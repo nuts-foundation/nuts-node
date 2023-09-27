@@ -26,7 +26,7 @@ import (
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -55,7 +55,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
-		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{}).Return(documentWithPublicKey(t, pk), nil, nil)
+		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &resolver.ResolveMetadata{}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, nil)
 
@@ -68,7 +68,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
-		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{}).Return(documentWithPublicKey(t, pk), nil, nil)
+		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &resolver.ResolveMetadata{}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, nil)
 
@@ -82,7 +82,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
-		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
+		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &resolver.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, &now)
 
@@ -93,7 +93,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
-		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
+		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &resolver.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		_ = ctx.vcr.StoreCredential(target, &now)
 
@@ -106,7 +106,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
-		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &types.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
+		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &resolver.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		_ = ctx.vcr.StoreCredential(target, &now)
 

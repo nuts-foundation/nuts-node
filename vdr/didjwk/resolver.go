@@ -21,9 +21,8 @@ package didjwk
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"reflect"
-
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	godid "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -34,7 +33,7 @@ import (
 // MethodName is the name of this DID method.
 const MethodName = "jwk"
 
-var _ types.DIDResolver = (*Resolver)(nil)
+var _ resolver.DIDResolver = (*Resolver)(nil)
 
 // Resolver is a DID resolver for the did:jwk method.
 type Resolver struct{}
@@ -45,7 +44,7 @@ func NewResolver() *Resolver {
 }
 
 // Resolve implements the DIDResolver interface.
-func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
+func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
 	// Ensure this is a did:jwk
 	if id.Method != "jwk" {
 		return nil, nil, fmt.Errorf("unsupported DID method: %s", id.Method)
@@ -100,7 +99,7 @@ func (w Resolver) Resolve(id did.DID, _ *types.ResolveMetadata) (*did.Document, 
 	document.AddAssertionMethod(verificationMethod)
 
 	// Return the newly created document
-	return &document, &types.DocumentMetadata{}, nil
+	return &document, &resolver.DocumentMetadata{}, nil
 }
 
 // rawPrivateKeyOf returns the private key component of a jwk.Key, or nil if one is not available (e.g. public key only JWK's). An error is returned if a public key is not contained in the JWK. This is more tricky than it might seem at first

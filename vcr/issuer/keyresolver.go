@@ -23,18 +23,18 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // vdrKeyResolver resolves private keys based upon the VDR document resolver
 type vdrKeyResolver struct {
-	publicKeyResolver  vdr.KeyResolver
+	publicKeyResolver  resolver.KeyResolver
 	privateKeyResolver crypto.KeyResolver
 }
 
 // ResolveAssertionKey is a convenience method which tries to find a assertionKey on in the VDR for a given issuerDID.
 func (r vdrKeyResolver) ResolveAssertionKey(ctx context.Context, issuerDID did.DID) (crypto.Key, error) {
-	kid, _, err := r.publicKeyResolver.ResolveKey(issuerDID, nil, vdr.AssertionMethod)
+	kid, _, err := r.publicKeyResolver.ResolveKey(issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}

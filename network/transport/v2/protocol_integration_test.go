@@ -23,7 +23,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"hash/crc32"
 	"path"
 	"sync"
@@ -162,7 +162,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
 	ctx.protocol = New(*cfg, did.DID{}, ctx.state, didResolver, keyStore, nil, bboltStore).(*protocol)
 
-	authenticator := grpc.NewTLSAuthenticator(didservice.ServiceResolver{Resolver: didResolver})
+	authenticator := grpc.NewTLSAuthenticator(resolver.DIDServiceResolver{Resolver: didResolver})
 	connectionsStore, _ := storageClient.GetProvider("network").GetKVStore("connections", storage.VolatileStorageClass)
 	grpcCfg, err := grpc.NewConfig(listenAddress, peerID)
 	require.NoError(t, err)

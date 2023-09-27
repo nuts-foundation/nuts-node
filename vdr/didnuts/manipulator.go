@@ -22,7 +22,8 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // Manipulator contains helper methods to update a Nuts DID document.
@@ -30,15 +31,15 @@ type Manipulator struct {
 	// KeyCreator is used for getting a fresh key and use it to generate the Nuts DID
 	KeyCreator nutsCrypto.KeyCreator
 	// Updater is used for updating DID documents after the operation has been performed
-	Updater types.DocUpdater
+	Updater management.DocUpdater
 	// Resolver is used for resolving DID Documents
-	Resolver types.DIDResolver
+	Resolver resolver.DIDResolver
 }
 
 // Deactivate updates the DID Document so it can no longer be updated
 // It removes key material, services and controllers.
 func (u Manipulator) Deactivate(ctx context.Context, id did.DID) error {
-	_, _, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
+	_, _, err := u.Resolver.Resolve(id, &resolver.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err
 	}
@@ -50,13 +51,13 @@ func (u Manipulator) Deactivate(ctx context.Context, id did.DID) error {
 
 // AddVerificationMethod adds a new key as a VerificationMethod to the document.
 // The key is added to the VerficationMethod relationships specified by keyUsage.
-func (u Manipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage types.DIDKeyFlags) (*did.VerificationMethod, error) {
-	doc, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
+func (u Manipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage management.DIDKeyFlags) (*did.VerificationMethod, error) {
+	doc, meta, err := u.Resolver.Resolve(id, &resolver.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return nil, err
 	}
 	if meta.Deactivated {
-		return nil, types.ErrDeactivated
+		return nil, resolver.ErrDeactivated
 	}
 	method, err := CreateNewVerificationMethodForDID(ctx, doc.ID, u.KeyCreator)
 	if err != nil {
@@ -73,12 +74,12 @@ func (u Manipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyU
 
 // RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
 func (u Manipulator) RemoveVerificationMethod(ctx context.Context, id, keyID did.DID) error {
-	doc, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
+	doc, meta, err := u.Resolver.Resolve(id, &resolver.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err
 	}
 	if meta.Deactivated {
-		return types.ErrDeactivated
+		return resolver.ErrDeactivated
 	}
 	lenBefore := len(doc.VerificationMethod)
 	doc.RemoveVerificationMethod(keyID)

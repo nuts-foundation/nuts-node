@@ -22,11 +22,10 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	ssi "github.com/nuts-foundation/go-did"
-
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
@@ -67,10 +66,10 @@ type Creator struct {
 }
 
 // DefaultCreationOptions returns the default DIDCreationOptions when creating DID Documents.
-func DefaultCreationOptions() vdr.DIDCreationOptions {
-	return vdr.DIDCreationOptions{
+func DefaultCreationOptions() management.DIDCreationOptions {
+	return management.DIDCreationOptions{
 		Controllers: []did.DID{},
-		KeyFlags:    vdr.AssertionMethodUsage | vdr.CapabilityInvocationUsage | vdr.KeyAgreementUsage,
+		KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage,
 		SelfControl: true,
 	}
 }
@@ -127,11 +126,11 @@ var ErrInvalidOptions = errors.New("create request has invalid combination of op
 
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
-func (n Creator) Create(ctx context.Context, options vdr.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
+func (n Creator) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
 	var key nutsCrypto.Key
 	var err error
 
-	if options.SelfControl && !options.KeyFlags.Is(vdr.CapabilityInvocationUsage) {
+	if options.SelfControl && !options.KeyFlags.Is(management.CapabilityInvocationUsage) {
 		return nil, nil, ErrInvalidOptions
 	}
 
@@ -153,7 +152,7 @@ func (n Creator) Create(ctx context.Context, options vdr.DIDCreationOptions) (*d
 	}
 
 	// Create the bare document. The Document DID will be the keyIDStr without the fragment.
-	didID, _ := didservice.GetDIDFromURL(key.KID())
+	didID, _ := resolver.GetDIDFromURL(key.KID())
 	doc := CreateDocument()
 	doc.ID = didID
 	doc.Controller = options.Controllers
@@ -192,20 +191,20 @@ func (n Creator) Create(ctx context.Context, options vdr.DIDCreationOptions) (*d
 }
 
 // applyKeyUsage checks intendedKeyUsage and adds the given verificationMethod to every relationship specified as key usage.
-func applyKeyUsage(document *did.Document, keyToAdd *did.VerificationMethod, intendedKeyUsage vdr.DIDKeyFlags) {
-	if intendedKeyUsage.Is(vdr.CapabilityDelegationUsage) {
+func applyKeyUsage(document *did.Document, keyToAdd *did.VerificationMethod, intendedKeyUsage management.DIDKeyFlags) {
+	if intendedKeyUsage.Is(management.CapabilityDelegationUsage) {
 		document.AddCapabilityDelegation(keyToAdd)
 	}
-	if intendedKeyUsage.Is(vdr.CapabilityInvocationUsage) {
+	if intendedKeyUsage.Is(management.CapabilityInvocationUsage) {
 		document.AddCapabilityInvocation(keyToAdd)
 	}
-	if intendedKeyUsage.Is(vdr.AuthenticationUsage) {
+	if intendedKeyUsage.Is(management.AuthenticationUsage) {
 		document.AddAuthenticationMethod(keyToAdd)
 	}
-	if intendedKeyUsage.Is(vdr.AssertionMethodUsage) {
+	if intendedKeyUsage.Is(management.AssertionMethodUsage) {
 		document.AddAssertionMethod(keyToAdd)
 	}
-	if intendedKeyUsage.Is(vdr.KeyAgreementUsage) {
+	if intendedKeyUsage.Is(management.KeyAgreementUsage) {
 		document.AddKeyAgreement(keyToAdd)
 	}
 }

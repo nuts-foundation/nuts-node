@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -40,7 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 const errInvalidIssuerFmt = "invalid jwt.issuer: %w"
@@ -76,7 +75,7 @@ func (e ErrorResponse) Error() string {
 type authzServer struct {
 	vcFinder            vcr.Finder
 	vcVerifier          verifier.Verifier
-	keyResolver         types.KeyResolver
+	keyResolver         resolver.KeyResolver
 	privateKeyStore     nutsCrypto.KeyStore
 	contractNotary      services.ContractNotary
 	serviceResolver     didman.CompoundServiceResolver
@@ -168,11 +167,11 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 
 // NewAuthorizationServer accepts a vendorID, and several Nuts engines and returns an implementation of services.AuthorizationServer
 func NewAuthorizationServer(
-	didResolver types.DIDResolver, vcFinder vcr.Finder, vcVerifier verifier.Verifier,
+	didResolver resolver.DIDResolver, vcFinder vcr.Finder, vcVerifier verifier.Verifier,
 	serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
 	contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD, accessTokenLifeSpan time.Duration) AuthorizationServer {
 	return &authzServer{
-		keyResolver:         didservice.KeyResolver{Resolver: didResolver},
+		keyResolver:         resolver.DIDKeyResolver{Resolver: didResolver},
 		serviceResolver:     serviceResolver,
 		contractNotary:      contractNotary,
 		jsonldManager:       jsonldManager,
@@ -369,7 +368,7 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 	}
 
 	validationTime := vContext.jwtBearerToken.IssuedAt()
-	if _, err := s.keyResolver.ResolveKeyByID(vContext.kid, &validationTime, types.NutsSigningKeyType); err != nil {
+	if _, err := s.keyResolver.ResolveKeyByID(vContext.kid, &validationTime, resolver.NutsSigningKeyType); err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
@@ -421,7 +420,7 @@ func (s *authzServer) validateSubject(ctx context.Context, validationCtx *valida
 	validationCtx.authorizer = subject
 
 	iat := validationCtx.jwtBearerToken.IssuedAt()
-	signingKeyID, _, err := s.keyResolver.ResolveKey(*subject, &iat, types.NutsSigningKeyType)
+	signingKeyID, _, err := s.keyResolver.ResolveKey(*subject, &iat, resolver.NutsSigningKeyType)
 	if err != nil {
 		return err
 	}
@@ -490,7 +489,7 @@ func (s *authzServer) parseAndValidateJwtBearerToken(context *validationContext)
 	var kidHdr string
 	token, err := nutsCrypto.ParseJWT(context.rawJwtBearerToken, func(kid string) (crypto.PublicKey, error) {
 		kidHdr = kid
-		return s.keyResolver.ResolveKeyByID(kid, nil, types.NutsSigningKeyType)
+		return s.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(s.clockSkew))
 	if err != nil {
 		return err
@@ -508,7 +507,7 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 		if !s.privateKeyStore.Exists(ctx, kid) {
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
-		return s.keyResolver.ResolveKeyByID(kid, nil, types.NutsSigningKeyType)
+		return s.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(s.clockSkew))
 	if err != nil {
 		return nil, err
@@ -569,7 +568,7 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 	}
 
 	// Sign with the private key of the issuer
-	signingKeyID, _, err := s.keyResolver.ResolveKey(authorizer, &issueTime, types.NutsSigningKeyType)
+	signingKeyID, _, err := s.keyResolver.ResolveKey(authorizer, &issueTime, resolver.NutsSigningKeyType)
 	if err != nil {
 		return "", accessToken, err
 	}

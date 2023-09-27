@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -39,7 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -63,8 +63,8 @@ func TestWallet_BuildPresentation(t *testing.T) {
 	t.Run("ok - one VC", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
 		w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
@@ -83,9 +83,9 @@ func TestWallet_BuildPresentation(t *testing.T) {
 				ProofPurpose: "authentication",
 			},
 		}
-		keyResolver := types.NewMockKeyResolver(ctrl)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
 
-		keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+		keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
 		w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
@@ -102,9 +102,9 @@ func TestWallet_BuildPresentation(t *testing.T) {
 	t.Run("ok - multiple VCs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		keyResolver := types.NewMockKeyResolver(ctrl)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
 
-		keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
+		keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
 
 		w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
@@ -120,11 +120,11 @@ func TestWallet_BuildPresentation(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			keyResolver := types.NewMockKeyResolver(ctrl)
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
 			mockVerifier := verifier.NewMockVerifier(ctrl)
 			mockVerifier.EXPECT().Validate(testCredential, &created)
 
-			keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
 			w := New(keyResolver, keyStore, mockVerifier, jsonldManager, nil)
 
@@ -136,11 +136,11 @@ func TestWallet_BuildPresentation(t *testing.T) {
 		t.Run("error", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			keyResolver := types.NewMockKeyResolver(ctrl)
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
 			mockVerifier := verifier.NewMockVerifier(ctrl)
 			mockVerifier.EXPECT().Validate(testCredential, &created).Return(errors.New("failed"))
 
-			keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
 			w := New(keyResolver, keyStore, mockVerifier, jsonldManager, nil)
 
@@ -156,9 +156,9 @@ func TestWallet_BuildPresentation(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			keyResolver := types.NewMockKeyResolver(ctrl)
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
 
-			keyResolver.EXPECT().ResolveKey(testDID, nil, types.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
 			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
@@ -173,7 +173,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			ctrl := gomock.NewController(t)
 
-			keyResolver := types.NewMockKeyResolver(ctrl)
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
 
 			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
@@ -188,7 +188,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			ctrl := gomock.NewController(t)
 
-			keyResolver := types.NewMockKeyResolver(ctrl)
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
 
 			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 

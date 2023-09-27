@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"sort"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -40,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 // DIDDocumentType contains network transaction mime-type to identify a DID Document in the network.
@@ -61,8 +61,8 @@ type Ambassador interface {
 type ambassador struct {
 	networkClient network.Transactions
 	didStore      didstore.Store
-	keyResolver   types.NutsKeyResolver
-	didResolver   types.DIDResolver
+	keyResolver   resolver.NutsKeyResolver
+	didResolver   resolver.DIDResolver
 	eventManager  events.Event
 }
 
@@ -248,8 +248,8 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	var currentDIDDocument *did.Document
 	var err error
 	for _, ref := range transaction.Previous() {
-		currentDIDDocument, _, err = n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &ref})
-		if err != nil && !errors.Is(err, types.ErrNotFound) {
+		currentDIDDocument, _, err = n.didStore.Resolve(proposedDIDDocument.ID, &resolver.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &ref})
+		if err != nil && !errors.Is(err, resolver.ErrNotFound) {
 			return fmt.Errorf("unable to update DID document: %w", err)
 		}
 		if currentDIDDocument != nil {
@@ -258,7 +258,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	}
 	// fallback
 	if currentDIDDocument == nil {
-		currentDIDDocument, _, err = n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
+		currentDIDDocument, _, err = n.didStore.Resolve(proposedDIDDocument.ID, &resolver.ResolveMetadata{AllowDeactivated: true})
 		if err != nil {
 			return fmt.Errorf("unable to update DID document: %w", err)
 		}
@@ -327,9 +327,9 @@ func (n *ambassador) resolveControllers(document did.Document, transaction dag.T
 	signingTime := transaction.SigningTime()
 
 	for _, prev := range transaction.Previous() {
-		didControllers, err := ResolveControllers(n.didResolver, document, &types.ResolveMetadata{SourceTransaction: &prev})
+		didControllers, err := ResolveControllers(n.didResolver, document, &resolver.ResolveMetadata{SourceTransaction: &prev})
 		if err != nil {
-			if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrNoActiveController) {
+			if errors.Is(err, resolver.ErrNotFound) || errors.Is(err, resolver.ErrNoActiveController) {
 				continue
 			}
 			return nil, err
@@ -339,7 +339,7 @@ func (n *ambassador) resolveControllers(document did.Document, transaction dag.T
 
 	// legacy resolve
 	if len(controllers) == 0 {
-		didControllers, err := ResolveControllers(n.didResolver, document, &types.ResolveMetadata{ResolveTime: &signingTime})
+		didControllers, err := ResolveControllers(n.didResolver, document, &resolver.ResolveMetadata{ResolveTime: &signingTime})
 		if err != nil {
 			return nil, err
 		}

@@ -29,7 +29,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/redis7"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -221,7 +221,7 @@ func TestStore_Resolve(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		_, _, err := store.Resolve(did.MustParseDID("did:nuts:unknown"), nil)
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 	})
 
 	t.Run("latest", func(t *testing.T) {
@@ -234,7 +234,7 @@ func TestStore_Resolve(t *testing.T) {
 
 	t.Run("previous", func(t *testing.T) {
 		before := txUpdate.SigningTime.Add(-1 * time.Second)
-		doc, meta, err := store.Resolve(testDID, &types.ResolveMetadata{ResolveTime: &before})
+		doc, meta, err := store.Resolve(testDID, &resolver.ResolveMetadata{ResolveTime: &before})
 
 		require.NoError(t, err)
 		assert.Len(t, doc.Service, 0)
@@ -243,9 +243,9 @@ func TestStore_Resolve(t *testing.T) {
 
 	t.Run("to far back", func(t *testing.T) {
 		before := txUpdate.SigningTime.Add(-3 * time.Second)
-		_, _, err := store.Resolve(testDID, &types.ResolveMetadata{ResolveTime: &before})
+		_, _, err := store.Resolve(testDID, &resolver.ResolveMetadata{ResolveTime: &before})
 
-		assert.Equal(t, types.ErrNotFound, err)
+		assert.Equal(t, resolver.ErrNotFound, err)
 	})
 
 	t.Run("deactivated", func(t *testing.T) {
@@ -257,7 +257,7 @@ func TestStore_Resolve(t *testing.T) {
 
 		_, _, err := store.Resolve(testDID, nil)
 
-		assert.Equal(t, types.ErrDeactivated, err)
+		assert.Equal(t, resolver.ErrDeactivated, err)
 	})
 
 	t.Run("deactivated, but specifically asking for !allowDeactivated", func(t *testing.T) {
@@ -267,9 +267,9 @@ func TestStore_Resolve(t *testing.T) {
 		add(t, store, create, txCreate)
 		add(t, store, update, txUpdate)
 
-		_, _, err := store.Resolve(testDID, &types.ResolveMetadata{})
+		_, _, err := store.Resolve(testDID, &resolver.ResolveMetadata{})
 
-		assert.Equal(t, types.ErrDeactivated, err)
+		assert.Equal(t, resolver.ErrDeactivated, err)
 	})
 }
 
@@ -280,7 +280,7 @@ func TestStore_Iterate(t *testing.T) {
 	transaction := newTestTransaction(document)
 	add(t, store, document, transaction)
 
-	err := store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
+	err := store.Iterate(func(doc did.Document, metadata resolver.DocumentMetadata) error {
 		assert.Equal(t, document, doc)
 		assert.Equal(t, []hash.SHA256Hash{transaction.Ref}, metadata.SourceTransactions)
 		return nil
@@ -384,38 +384,38 @@ func Test_matches(t *testing.T) {
 		t.Run("time", func(t *testing.T) {
 			resolveTime := now.Add(-1 * time.Second)
 
-			assert.True(t, matches(metadata, &types.ResolveMetadata{ResolveTime: &resolveTime}))
+			assert.True(t, matches(metadata, &resolver.ResolveMetadata{ResolveTime: &resolveTime}))
 		})
 		t.Run("no resolveMetadata", func(t *testing.T) {
 			assert.True(t, matches(metadata, nil))
 		})
 		t.Run("empty resolveMetadata", func(t *testing.T) {
-			assert.True(t, matches(metadata, &types.ResolveMetadata{}))
+			assert.True(t, matches(metadata, &resolver.ResolveMetadata{}))
 		})
 		t.Run("deactivated", func(t *testing.T) {
-			assert.True(t, matches(deactivated, &types.ResolveMetadata{AllowDeactivated: true}))
+			assert.True(t, matches(deactivated, &resolver.ResolveMetadata{AllowDeactivated: true}))
 		})
 		t.Run("source transaction", func(t *testing.T) {
-			assert.True(t, matches(metadata, &types.ResolveMetadata{SourceTransaction: &h}))
+			assert.True(t, matches(metadata, &resolver.ResolveMetadata{SourceTransaction: &h}))
 		})
 		t.Run("hash", func(t *testing.T) {
-			assert.True(t, matches(metadata, &types.ResolveMetadata{Hash: &h}))
+			assert.True(t, matches(metadata, &resolver.ResolveMetadata{Hash: &h}))
 		})
 	})
 	t.Run("false", func(t *testing.T) {
 		t.Run("time", func(t *testing.T) {
 			resolveTime := now.Add(-3 * time.Second)
 
-			assert.False(t, matches(metadata, &types.ResolveMetadata{ResolveTime: &resolveTime}))
+			assert.False(t, matches(metadata, &resolver.ResolveMetadata{ResolveTime: &resolveTime}))
 		})
 		t.Run("no meta and deactivated", func(t *testing.T) {
 			assert.False(t, matches(deactivated, nil))
 		})
 		t.Run("hash", func(t *testing.T) {
-			assert.False(t, matches(metadata, &types.ResolveMetadata{Hash: &h2}))
+			assert.False(t, matches(metadata, &resolver.ResolveMetadata{Hash: &h2}))
 		})
 		t.Run("source transaction", func(t *testing.T) {
-			assert.False(t, matches(metadata, &types.ResolveMetadata{SourceTransaction: &h2}))
+			assert.False(t, matches(metadata, &resolver.ResolveMetadata{SourceTransaction: &h2}))
 		})
 	})
 }

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -39,7 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -150,7 +150,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		ctx.keyResolver.EXPECT().ResolveKey(requesterDID, nil, types.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKeyID, requesterSigningKey, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(requesterDID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKeyID, requesterSigningKey, nil)
 		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, requesterSigningKeyID.String()).Return("token", nil)
 
 		token, err := ctx.relyingParty.CreateJwtGrant(ctx.audit, request)
@@ -167,7 +167,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		ctx.keyResolver.EXPECT().ResolveKey(requesterDID, nil, types.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKeyID, requesterSigningKey, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(requesterDID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKeyID, requesterSigningKey, nil)
 		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, requesterSigningKeyID.String()).Return("token", nil)
 
 		validRequest := request
@@ -201,12 +201,12 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		document := getAuthorizerDIDDocument()
 		document.Service = []did.Service{}
 
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return("", types.ErrServiceNotFound)
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return("", resolver.ErrServiceNotFound)
 
 		token, err := ctx.relyingParty.CreateJwtGrant(ctx.audit, request)
 
 		assert.Empty(t, token)
-		assert.ErrorIs(t, err, types.ErrServiceNotFound)
+		assert.ErrorIs(t, err, resolver.ErrServiceNotFound)
 	})
 
 	t.Run("request without authorizer", func(t *testing.T) {
@@ -228,7 +228,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		ctx.keyResolver.EXPECT().ResolveKey(requesterDID, nil, types.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKeyID, requesterSigningKey, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(requesterDID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKeyID, requesterSigningKey, nil)
 		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, requesterSigningKeyID.String()).Return("", errors.New("boom!"))
 
 		token, err := ctx.relyingParty.CreateJwtGrant(ctx.audit, request)
@@ -251,8 +251,8 @@ func TestRelyingParty_Configure(t *testing.T) {
 type rpTestContext struct {
 	ctrl            *gomock.Controller
 	keyStore        *crypto.MockKeyStore
-	didResolver     *types.MockDIDResolver
-	keyResolver     *types.MockKeyResolver
+	didResolver     *resolver.MockDIDResolver
+	keyResolver     *resolver.MockKeyResolver
 	serviceResolver *didman.MockCompoundServiceResolver
 	relyingParty    *relyingParty
 	audit           context.Context
@@ -262,9 +262,9 @@ var createRPContext = func(t *testing.T) *rpTestContext {
 	ctrl := gomock.NewController(t)
 
 	privateKeyStore := crypto.NewMockKeyStore(ctrl)
-	keyResolver := types.NewMockKeyResolver(ctrl)
+	keyResolver := resolver.NewMockKeyResolver(ctrl)
 	serviceResolver := didman.NewMockCompoundServiceResolver(ctrl)
-	didResolver := types.NewMockDIDResolver(ctrl)
+	didResolver := resolver.NewMockDIDResolver(ctrl)
 
 	return &rpTestContext{
 		ctrl:            ctrl,

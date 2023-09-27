@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,42 +13,42 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
  */
 
-package didservice
+package management
 
 import (
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
-
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestIsActive(t *testing.T) {
 	p := IsActive()
 
 	t.Run("active", func(t *testing.T) {
-		assert.True(t, p.Match(did.Document{}, types.DocumentMetadata{Deactivated: false}))
+		assert.True(t, p.Match(did.Document{}, resolver.DocumentMetadata{Deactivated: false}))
 	})
 
 	t.Run("deactivated", func(t *testing.T) {
-		assert.False(t, p.Match(did.Document{}, types.DocumentMetadata{Deactivated: true}))
+		assert.False(t, p.Match(did.Document{}, resolver.DocumentMetadata{Deactivated: true}))
 	})
 }
 
 func TestValidAt(t *testing.T) {
 	now := time.Now()
 	later := now.AddDate(0, 0, 1)
-	meta := types.DocumentMetadata{
+	meta := resolver.DocumentMetadata{
 		Created: now.AddDate(0, 0, -1),
 		Updated: &later,
 	}
 
 	t.Run("ok - latest", func(t *testing.T) {
 		p := ValidAt(now)
-		assert.True(t, p.Match(did.Document{}, types.DocumentMetadata{Created: now.AddDate(0, 0, -1), Updated: nil}))
+		assert.True(t, p.Match(did.Document{}, resolver.DocumentMetadata{Created: now.AddDate(0, 0, -1), Updated: nil}))
 	})
 
 	t.Run("ok - updated", func(t *testing.T) {
@@ -79,7 +79,7 @@ func TestByServiceType(t *testing.T) {
 			},
 		}}
 
-		assert.True(t, p.Match(doc, types.DocumentMetadata{}))
+		assert.True(t, p.Match(doc, resolver.DocumentMetadata{}))
 	})
 
 	t.Run("ignore", func(t *testing.T) {
@@ -90,6 +90,6 @@ func TestByServiceType(t *testing.T) {
 			},
 		}}
 
-		assert.False(t, p.Match(docIgnore, types.DocumentMetadata{}))
+		assert.False(t, p.Match(docIgnore, resolver.DocumentMetadata{}))
 	})
 }

@@ -31,7 +31,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io"
 	"net/http"
 	"net/url"
@@ -43,7 +44,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -54,13 +54,13 @@ const expectedPayloadType = "application/did+json"
 // testCtx contains the controller and mocks needed fot testing the Manipulator
 type vdrTestCtx struct {
 	ctrl           *gomock.Controller
-	vdr            VDR
+	vdr            Module
 	mockStore      *didstore.MockStore
 	mockNetwork    *network.MockTransactions
 	mockKeyStore   *crypto.MockKeyStore
 	mockAmbassador *didnuts.MockAmbassador
 	ctx            context.Context
-	mockOwner      *types.MockDocumentOwner
+	mockOwner      *management.MockDocumentOwner
 }
 
 func newVDRTestCtx(t *testing.T) vdrTestCtx {
@@ -70,9 +70,9 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockStore := didstore.NewMockStore(ctrl)
 	mockNetwork := network.NewMockTransactions(ctrl)
 	mockKeyStore := crypto.NewMockKeyStore(ctrl)
-	mockDocumentOwner := types.NewMockDocumentOwner(ctrl)
-	resolverRouter := &didservice.DIDResolverRouter{}
-	vdr := VDR{
+	mockDocumentOwner := management.NewMockDocumentOwner(ctrl)
+	resolverRouter := &resolver.DIDResolverRouter{}
+	vdr := Module{
 		store:             mockStore,
 		network:           mockNetwork,
 		networkAmbassador: mockAmbassador,
@@ -107,10 +107,10 @@ func TestVDR_Update(t *testing.T) {
 
 		nextDIDDocument := didnuts.CreateDocument()
 		nextDIDDocument.ID = *id
-		expectedResolverMetadata := &types.ResolveMetadata{
+		expectedResolverMetadata := &resolver.ResolveMetadata{
 			AllowDeactivated: true,
 		}
-		resolvedMetadata := types.DocumentMetadata{
+		resolvedMetadata := resolver.DocumentMetadata{
 			SourceTransactions: []hash.SHA256Hash{currentHash},
 		}
 		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
@@ -130,17 +130,17 @@ func TestVDR_Update(t *testing.T) {
 		currentDIDDocument.Controller = []did.DID{currentDIDDocument.ID}
 
 		nextDIDDocument := did.Document{}
-		expectedResolverMetadata := &types.ResolveMetadata{
+		expectedResolverMetadata := &resolver.ResolveMetadata{
 			AllowDeactivated: true,
 		}
-		resolvedMetadata := types.DocumentMetadata{}
+		resolvedMetadata := resolver.DocumentMetadata{}
 		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
 		assert.EqualError(t, err, "update DID document: DID Document validation failed: invalid context")
 	})
 
 	t.Run("error - can only update did:nuts methods", func(t *testing.T) {
-		err := (&VDR{}).Update(context.Background(), did.MustParseDID("did:web:example.com"), did.Document{})
+		err := (&Module{}).Update(context.Background(), did.MustParseDID("did:web:example.com"), did.Document{})
 		assert.EqualError(t, err, "can't update DID document of type: web")
 	})
 
@@ -149,10 +149,10 @@ func TestVDR_Update(t *testing.T) {
 		document := didnuts.CreateDocument()
 		document.ID = *id
 
-		expectedResolverMetadata := &types.ResolveMetadata{
+		expectedResolverMetadata := &resolver.ResolveMetadata{
 			AllowDeactivated: true,
 		}
-		resolvedMetadata := types.DocumentMetadata{}
+		resolvedMetadata := resolver.DocumentMetadata{}
 		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&document, &resolvedMetadata, nil)
 		err := test.vdr.Update(test.ctx, *id, document)
 		assert.EqualError(t, err, "update DID document: the DID document has been deactivated")
@@ -160,10 +160,10 @@ func TestVDR_Update(t *testing.T) {
 	t.Run("error - could not resolve current document", func(t *testing.T) {
 		test := newVDRTestCtx(t)
 		nextDIDDocument := did.Document{}
-		expectedResolverMetadata := &types.ResolveMetadata{
+		expectedResolverMetadata := &resolver.ResolveMetadata{
 			AllowDeactivated: true,
 		}
-		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
+		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, resolver.ErrNotFound)
 		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
 		assert.EqualError(t, err, "update DID document: unable to find the DID document")
 	})
@@ -174,15 +174,15 @@ func TestVDR_Update(t *testing.T) {
 		nextDIDDocument.ID = *id
 		currentDIDDocument := nextDIDDocument
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		test.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
+		test.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
 		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound)
 
 		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "update DID document: DID document not managed by this node")
-		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
-		assert.True(t, errors.Is(err, types.ErrDIDNotManagedByThisNode),
+		assert.ErrorIs(t, err, resolver.ErrDIDNotManagedByThisNode)
+		assert.True(t, errors.Is(err, resolver.ErrDIDNotManagedByThisNode),
 			"expected ErrDIDNotManagedByThisNode error when the document is not managed by this node")
 	})
 }
@@ -221,13 +221,13 @@ func TestVDR_Create(t *testing.T) {
 		copiedDocument.Controller = []did.DID{controllerID, id}
 		expectedPayload, _ := json.Marshal(copiedDocument)
 		refs := []hash.SHA256Hash{hash.EmptyHash()}
-		creationOptions := types.DIDCreationOptions{
+		creationOptions := management.DIDCreationOptions{
 			Controllers: []did.DID{controllerID},
-			KeyFlags:    types.AssertionMethodUsage | types.CapabilityInvocationUsage | types.KeyAgreementUsage,
+			KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage,
 			SelfControl: true,
 		}
 		test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(key, nil)
-		test.mockStore.EXPECT().Resolve(controllerID, gomock.Any()).Return(&controllerDocument, &types.DocumentMetadata{SourceTransactions: refs}, nil)
+		test.mockStore.EXPECT().Resolve(controllerID, gomock.Any()).Return(&controllerDocument, &resolver.DocumentMetadata{SourceTransactions: refs}, nil)
 		test.mockNetwork.EXPECT().CreateTransaction(test.ctx, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey().WithAdditionalPrevs(refs))
 
 		didDoc, key, err := test.vdr.Create(test.ctx, creationOptions)
@@ -239,12 +239,12 @@ func TestVDR_Create(t *testing.T) {
 
 	t.Run("error - unknown controllers", func(t *testing.T) {
 		test := newVDRTestCtx(t)
-		creationOptions := types.DIDCreationOptions{
+		creationOptions := management.DIDCreationOptions{
 			Controllers: []did.DID{controllerID},
-			KeyFlags:    types.AssertionMethodUsage | types.CapabilityInvocationUsage | types.KeyAgreementUsage,
+			KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage,
 			SelfControl: true,
 		}
-		test.mockStore.EXPECT().Resolve(controllerID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+		test.mockStore.EXPECT().Resolve(controllerID, gomock.Any()).Return(nil, nil, resolver.ErrNotFound)
 
 		_, _, err := test.vdr.Create(test.ctx, creationOptions)
 
@@ -274,7 +274,7 @@ func TestVDR_Create(t *testing.T) {
 
 func TestNewVDR(t *testing.T) {
 	vdr := NewVDR(nil, nil, nil, nil)
-	assert.IsType(t, &VDR{}, vdr)
+	assert.IsType(t, &Module{}, vdr)
 }
 
 func TestVDR_Start(t *testing.T) {
@@ -368,10 +368,10 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			// organization
 			keyOrg := crypto.NewTestKey("did:nuts:org#keyOrg-1")
 			test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(keyOrg, nil).Times(2)
-			test.mockStore.EXPECT().Resolve(didDocVendor.ID, nil).Return(didDocVendor, &types.DocumentMetadata{}, nil)
-			didDocOrg, keyOrg, err := test.vdr.Create(test.ctx, types.DIDCreationOptions{
+			test.mockStore.EXPECT().Resolve(didDocVendor.ID, nil).Return(didDocVendor, &resolver.DocumentMetadata{}, nil)
+			didDocOrg, keyOrg, err := test.vdr.Create(test.ctx, management.DIDCreationOptions{
 				Controllers: []did.DID{didDocVendor.ID},
-				KeyFlags:    types.AssertionMethodUsage | types.KeyAgreementUsage,
+				KeyFlags:    management.AssertionMethodUsage | management.KeyAgreementUsage,
 				SelfControl: false,
 			})
 			require.NoError(t, err)
@@ -475,7 +475,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 
 		_, _, err := test.vdr.resolveControllerWithKey(test.ctx, currentDIDDocument)
 
-		assert.Equal(t, types.ErrDIDNotManagedByThisNode, err)
+		assert.Equal(t, resolver.ErrDIDNotManagedByThisNode, err)
 	})
 }
 
@@ -502,10 +502,10 @@ func TestVDR_IsOwner(t *testing.T) {
 	id := did.MustParseDID("did:nuts:123")
 	t.Run("delegates the call to the underlying DocumentOwner", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		owner := types.NewMockDocumentOwner(ctrl)
+		owner := management.NewMockDocumentOwner(ctrl)
 		owner.EXPECT().IsOwner(gomock.Any(), id).Return(true, nil)
 
-		result, err := (&VDR{documentOwner: owner}).IsOwner(context.Background(), id)
+		result, err := (&Module{documentOwner: owner}).IsOwner(context.Background(), id)
 
 		assert.NoError(t, err)
 		assert.True(t, result)
@@ -635,17 +635,17 @@ func TestVDR_DeriveWebDIDDocument(t *testing.T) {
 
 		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Nil(t, actual)
 	})
 	t.Run("resolver error", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
 
-		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(nil, nil, types.ErrNotFound)
+		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(nil, nil, resolver.ErrNotFound)
 
 		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Nil(t, actual)
 	})
 	t.Run("ownership check error", func(t *testing.T) {

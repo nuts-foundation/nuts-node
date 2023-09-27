@@ -23,8 +23,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -113,12 +112,12 @@ func Test_managedServiceValidator(t *testing.T) {
 	// comment out validatorTests in the table to find the culprit.
 	referencedDocument, _, _ := newDidDoc()
 	service := did.Service{Type: "referenced_service", ServiceEndpoint: "https://nuts.nl"}
-	serviceRef := didservice.MakeServiceReference(referencedDocument.ID, service.Type)
+	serviceRef := resolver.MakeServiceReference(referencedDocument.ID, service.Type)
 	referencedDocument.Service = append(referencedDocument.Service, service)
 
 	ctrl := gomock.NewController(t)
-	didResolver := types.NewMockDIDResolver(ctrl)
-	serviceResolver := didservice.ServiceResolver{Resolver: didResolver}
+	didResolver := resolver.NewMockDIDResolver(ctrl)
+	serviceResolver := resolver.DIDServiceResolver{Resolver: didResolver}
 
 	t.Run("basic", func(t *testing.T) {
 		table := []validatorTest{
@@ -157,7 +156,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				didDoc.Service = append(didDoc.Service, did.Service{
 					ID:              ssi.URI{},
 					Type:            "self_reference",
-					ServiceEndpoint: didservice.MakeServiceReference(didDoc.ID, didDoc.Service[0].Type),
+					ServiceEndpoint: resolver.MakeServiceReference(didDoc.ID, didDoc.Service[0].Type),
 				})
 
 				didResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
@@ -166,7 +165,7 @@ func Test_managedServiceValidator(t *testing.T) {
 			}, nil},
 			{"nok - resolve fails", func() did.Document {
 				didDoc, _, _ := newDidDoc()
-				didDoc.Service[0].ServiceEndpoint = didservice.MakeServiceReference(referencedDocument.ID, "does_not_exist")
+				didDoc.Service[0].ServiceEndpoint = resolver.MakeServiceReference(referencedDocument.ID, "does_not_exist")
 
 				didResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
 
@@ -203,7 +202,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				didDoc, _, _ := newDidDoc()
 				didDoc.Service = append(didDoc.Service, did.Service{
 					Type:            "NutsComm",
-					ServiceEndpoint: didservice.MakeServiceReference(didDoc.ID, didDoc.Service[0].Type),
+					ServiceEndpoint: resolver.MakeServiceReference(didDoc.ID, didDoc.Service[0].Type),
 				})
 				return didDoc
 			}, errors.New("invalid service: NutsComm: scheme must be grpc")},
@@ -242,7 +241,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				didDoc, _, _ := newDidDoc()
 				didDoc.Service[0] = did.Service{
 					Type:            "node-contact-info",
-					ServiceEndpoint: didservice.MakeServiceReference(didDoc.ID, "otherService"),
+					ServiceEndpoint: resolver.MakeServiceReference(didDoc.ID, "otherService"),
 				}
 				didDoc.Service = append(didDoc.Service, did.Service{
 					Type:            "otherService",

@@ -31,26 +31,25 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 type networkPublisher struct {
 	networkTx       network.Transactions
-	didResolver     vdr.DIDResolver
-	serviceResolver vdr.ServiceResolver
+	didResolver     resolver.DIDResolver
+	serviceResolver resolver.ServiceResolver
 	keyResolver     keyResolver
 }
 
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
 // It is the default implementation to use for issuers to publish credentials and revocations to the Nuts network.
-func NewNetworkPublisher(networkTx network.Transactions, didResolver vdr.DIDResolver, keyResolver crypto.KeyResolver) Publisher {
+func NewNetworkPublisher(networkTx network.Transactions, didResolver resolver.DIDResolver, keyResolver crypto.KeyResolver) Publisher {
 	return &networkPublisher{
 		networkTx:       networkTx,
 		didResolver:     didResolver,
-		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
+		serviceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
 		keyResolver: vdrKeyResolver{
-			publicKeyResolver:  didservice.KeyResolver{Resolver: didResolver},
+			publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
 			privateKeyResolver: keyResolver,
 		},
 	}
@@ -131,7 +130,7 @@ func (p networkPublisher) generateParticipants(verifiableCredential vc.Verifiabl
 }
 
 func (p networkPublisher) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, error) {
-	serviceUser := didservice.MakeServiceReference(DID, transport.NutsCommServiceType)
+	serviceUser := resolver.MakeServiceReference(DID, transport.NutsCommServiceType)
 
 	service, err := p.serviceResolver.Resolve(serviceUser, 5)
 	if err != nil {

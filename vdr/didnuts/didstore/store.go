@@ -27,7 +27,8 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 var _ core.Configurable = (*store)(nil)
@@ -134,7 +135,7 @@ func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
 	return nil
 }
 
-func (tl *store) Resolve(id did.DID, resolveMetadata *vdr.ResolveMetadata) (returnDocument *did.Document, returnMetadata *vdr.DocumentMetadata, txErr error) {
+func (tl *store) Resolve(id did.DID, resolveMetadata *resolver.ResolveMetadata) (returnDocument *did.Document, returnMetadata *resolver.DocumentMetadata, txErr error) {
 	txErr = tl.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		latestReader := tx.GetShelfReader(latestShelf)
 		latestMetaRef, err := latestReader.Get(stoabs.BytesKey(id.String()))
@@ -143,7 +144,7 @@ func (tl *store) Resolve(id did.DID, resolveMetadata *vdr.ResolveMetadata) (retu
 		}
 
 		if latestMetaRef == nil {
-			return vdr.ErrNotFound
+			return resolver.ErrNotFound
 		}
 
 		// loop over all versions
@@ -155,7 +156,7 @@ func (tl *store) Resolve(id did.DID, resolveMetadata *vdr.ResolveMetadata) (retu
 
 			if metadata.Deactivated && latestNonDeactivatedRequested(resolveMetadata) {
 				// We're trying to resolve the latest, it should not return an older (active) version when deactivated
-				return vdr.ErrDeactivated
+				return resolver.ErrDeactivated
 			}
 			if matches(metadata, resolveMetadata) {
 				mdTmp := metadata.asVDRMetadata()
@@ -172,12 +173,12 @@ func (tl *store) Resolve(id did.DID, resolveMetadata *vdr.ResolveMetadata) (retu
 			}
 			latestMetaRef = []byte(fmt.Sprintf("%s%d", id.String(), metadata.Version-1))
 		}
-		return vdr.ErrNotFound
+		return resolver.ErrNotFound
 	})
 	return
 }
 
-func (tl *store) Iterate(fn vdr.DocIterator) error {
+func (tl *store) Iterate(fn management.DocIterator) error {
 	return tl.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		latestReader := tx.GetShelfReader(latestShelf)
 
@@ -246,7 +247,7 @@ func (tl *store) removeCachedConflict(document did.Document) {
 	delete(tl.conflictedDocuments, document.ID.String())
 }
 
-func (tl *store) Conflicted(fn vdr.DocIterator) error {
+func (tl *store) Conflicted(fn management.DocIterator) error {
 	for _, conflicted := range tl.conflictedDocuments {
 		if err := fn(conflicted.didDocument, conflicted.metadata.asVDRMetadata()); err != nil {
 			return err
@@ -289,7 +290,7 @@ func (tl *store) DocumentCount() (uint, error) {
 	return uint(count), err
 }
 
-func matches(metadata documentMetadata, resolveMetadata *vdr.ResolveMetadata) bool {
+func matches(metadata documentMetadata, resolveMetadata *resolver.ResolveMetadata) bool {
 	if metadata.Deactivated && (resolveMetadata == nil || !resolveMetadata.AllowDeactivated) {
 		return false
 	}
@@ -334,7 +335,7 @@ func matches(metadata documentMetadata, resolveMetadata *vdr.ResolveMetadata) bo
 // if resolveTime, hash or sourceTransaction is given, most likely the latest version is not requested
 // the deactivated check is then done in matches()
 // finally, if the latest is requested and it is deactivated, the allowDeactivated flag is checked
-func latestNonDeactivatedRequested(resolveMetadata *vdr.ResolveMetadata) bool {
+func latestNonDeactivatedRequested(resolveMetadata *resolver.ResolveMetadata) bool {
 	if resolveMetadata == nil {
 		return true
 	}

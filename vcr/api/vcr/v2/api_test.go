@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"testing"
 	"time"
@@ -39,7 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -248,17 +248,17 @@ func TestWrapper_IssueVC(t *testing.T) {
 			},
 			{
 				name:       "missing service",
-				err:        fmt.Errorf("nested error for: %w", types.ErrServiceNotFound),
+				err:        fmt.Errorf("nested error for: %w", resolver.ErrServiceNotFound),
 				statusCode: http.StatusPreconditionFailed,
 			},
 			{
 				name:       "did not found",
-				err:        fmt.Errorf("nested error for: %w", types.ErrNotFound),
+				err:        fmt.Errorf("nested error for: %w", resolver.ErrNotFound),
 				statusCode: http.StatusBadRequest,
 			},
 			{
 				name:       "key not found",
-				err:        fmt.Errorf("nested error for: %w", types.ErrKeyNotFound),
+				err:        fmt.Errorf("nested error for: %w", resolver.ErrKeyNotFound),
 				statusCode: http.StatusBadRequest,
 			},
 		}

@@ -25,8 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/test/pki"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -44,9 +43,9 @@ var issuerIdentifier = "http://example.com/n2n/identity/" + issuerDID.String()
 var issuerService = did.Service{
 	ServiceEndpoint: "http://example.com/",
 }
-var issuerQuery = ssi.MustParseURI(issuerDID.String() + "/serviceEndpoint?type=" + types.BaseURLServiceType)
+var issuerQuery = ssi.MustParseURI(issuerDID.String() + "/serviceEndpoint?type=" + resolver.BaseURLServiceType)
 var holderDID = did.MustParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
-var holderQuery = ssi.MustParseURI(holderDID.String() + "/serviceEndpoint?type=" + types.BaseURLServiceType)
+var holderQuery = ssi.MustParseURI(holderDID.String() + "/serviceEndpoint?type=" + resolver.BaseURLServiceType)
 var holderIdentifier = "http://example.com/n2n/identity/" + holderDID.String()
 var holderService = did.Service{
 	ServiceEndpoint: "http://example.com/",
@@ -55,8 +54,8 @@ var holderService = did.Service{
 func TestDIDIdentifierResolver_Resolve(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		serviceResolver := types.NewMockServiceResolver(ctrl)
-		serviceResolver.EXPECT().Resolve(issuerQuery, didservice.DefaultMaxServiceReferenceDepth).Return(issuerService, nil)
+		serviceResolver := resolver.NewMockServiceResolver(ctrl)
+		serviceResolver.EXPECT().Resolve(issuerQuery, resolver.DefaultMaxServiceReferenceDepth).Return(issuerService, nil)
 		resolver := DIDIdentifierResolver{ServiceResolver: serviceResolver}
 
 		identifier, err := resolver.Resolve(issuerDID)
@@ -66,8 +65,8 @@ func TestDIDIdentifierResolver_Resolve(t *testing.T) {
 	})
 	t.Run("DID not found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		serviceResolver := types.NewMockServiceResolver(ctrl)
-		serviceResolver.EXPECT().Resolve(issuerQuery, didservice.DefaultMaxServiceReferenceDepth).Return(did.Service{}, types.ErrNotFound)
+		serviceResolver := resolver.NewMockServiceResolver(ctrl)
+		serviceResolver.EXPECT().Resolve(issuerQuery, resolver.DefaultMaxServiceReferenceDepth).Return(did.Service{}, resolver.ErrNotFound)
 		resolver := DIDIdentifierResolver{ServiceResolver: serviceResolver}
 
 		identifier, err := resolver.Resolve(issuerDID)
@@ -77,8 +76,8 @@ func TestDIDIdentifierResolver_Resolve(t *testing.T) {
 	})
 	t.Run("service not found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		serviceResolver := types.NewMockServiceResolver(ctrl)
-		serviceResolver.EXPECT().Resolve(issuerQuery, didservice.DefaultMaxServiceReferenceDepth).Return(did.Service{}, types.ErrServiceNotFound)
+		serviceResolver := resolver.NewMockServiceResolver(ctrl)
+		serviceResolver.EXPECT().Resolve(issuerQuery, resolver.DefaultMaxServiceReferenceDepth).Return(did.Service{}, resolver.ErrServiceNotFound)
 		resolver := DIDIdentifierResolver{ServiceResolver: serviceResolver}
 
 		identifier, err := resolver.Resolve(issuerDID)
@@ -88,8 +87,8 @@ func TestDIDIdentifierResolver_Resolve(t *testing.T) {
 	})
 	t.Run("invalid service", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		serviceResolver := types.NewMockServiceResolver(ctrl)
-		serviceResolver.EXPECT().Resolve(issuerQuery, didservice.DefaultMaxServiceReferenceDepth).
+		serviceResolver := resolver.NewMockServiceResolver(ctrl)
+		serviceResolver.EXPECT().Resolve(issuerQuery, resolver.DefaultMaxServiceReferenceDepth).
 			Return(did.Service{ServiceEndpoint: map[string]string{"foo": "bar"}}, nil)
 		resolver := DIDIdentifierResolver{ServiceResolver: serviceResolver}
 
@@ -100,8 +99,8 @@ func TestDIDIdentifierResolver_Resolve(t *testing.T) {
 	})
 	t.Run("other error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		serviceResolver := types.NewMockServiceResolver(ctrl)
-		serviceResolver.EXPECT().Resolve(issuerQuery, didservice.DefaultMaxServiceReferenceDepth).Return(did.Service{}, errors.New("b00m!"))
+		serviceResolver := resolver.NewMockServiceResolver(ctrl)
+		serviceResolver.EXPECT().Resolve(issuerQuery, resolver.DefaultMaxServiceReferenceDepth).Return(did.Service{}, errors.New("b00m!"))
 		resolver := DIDIdentifierResolver{ServiceResolver: serviceResolver}
 
 		identifier, err := resolver.Resolve(issuerDID)

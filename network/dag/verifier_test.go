@@ -26,6 +26,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"
 
@@ -33,7 +34,6 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -124,7 +124,7 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 	t.Run("unable to resolve key by hash", func(t *testing.T) {
 		d := CreateSignedTestTransaction(1, time.Now(), nil, "foo/bar", false)
 		ctrl := gomock.NewController(t)
-		keyResolver := types.NewMockNutsKeyResolver(ctrl)
+		keyResolver := resolver.NewMockNutsKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := NewTransactionSignatureVerifier(keyResolver)(nil, d)
@@ -133,7 +133,7 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 	})
 }
 
-var _ types.NutsKeyResolver = &staticKeyResolver{}
+var _ resolver.NutsKeyResolver = &staticKeyResolver{}
 
 type staticKeyResolver struct {
 	Key crypto.PublicKey

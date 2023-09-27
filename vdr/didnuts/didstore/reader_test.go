@@ -24,7 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -37,7 +37,7 @@ func Test_readDocument(t *testing.T) {
 		err := store.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 			_, err := readDocument(tx, hash.SHA256Hash{})
 
-			assert.Equal(t, types.ErrNotFound, err)
+			assert.Equal(t, resolver.ErrNotFound, err)
 
 			return nil
 		})

@@ -23,7 +23,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/url"
 	"testing"
@@ -32,7 +32,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -109,44 +108,44 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 
 	t.Run("error - AddEndpoint fails", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrNotFound)
+		test.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, resolver.ErrNotFound)
 
 		response, err := test.wrapper.AddEndpoint(ctx, request)
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, test.wrapper.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
 
 	t.Run("error - deactivated", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDeactivated)
+		test.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, resolver.ErrDeactivated)
 
 		response, err := test.wrapper.AddEndpoint(ctx, request)
 
-		assert.ErrorIs(t, err, types.ErrDeactivated)
+		assert.ErrorIs(t, err, resolver.ErrDeactivated)
 		assert.Equal(t, http.StatusConflict, test.wrapper.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
 
 	t.Run("error - not managed", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDIDNotManagedByThisNode)
+		test.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, resolver.ErrDIDNotManagedByThisNode)
 
 		response, err := test.wrapper.AddEndpoint(ctx, request)
 
-		assert.ErrorIs(t, err, types.ErrDIDNotManagedByThisNode)
+		assert.ErrorIs(t, err, resolver.ErrDIDNotManagedByThisNode)
 		assert.Equal(t, http.StatusBadRequest, test.wrapper.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
 
 	t.Run("error - duplicate", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDuplicateService)
+		test.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, resolver.ErrDuplicateService)
 
 		response, err := test.wrapper.AddEndpoint(ctx, request)
 
-		assert.ErrorIs(t, err, types.ErrDuplicateService)
+		assert.ErrorIs(t, err, resolver.ErrDuplicateService)
 		assert.Equal(t, http.StatusConflict, test.wrapper.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
@@ -281,9 +280,9 @@ func TestWrapper_DeleteEndpointsByType(t *testing.T) {
 
 	t.Run("error - didman.DeleteEndpointsByType returns error", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().DeleteEndpointsByType(audit.ContextWithAuditInfo(), *parsedID, endpointType).Return(types.ErrNotFound)
+		test.didman.EXPECT().DeleteEndpointsByType(audit.ContextWithAuditInfo(), *parsedID, endpointType).Return(resolver.ErrNotFound)
 		response, err := test.wrapper.DeleteEndpointsByType(ctx, request)
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Nil(t, response)
 	})
 }
@@ -431,10 +430,10 @@ func TestWrapper_GetCompoundServices(t *testing.T) {
 	})
 	t.Run("error - DID not found", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().GetCompoundServices(targetDID).Return(nil, types.ErrNotFound)
+		test.didman.EXPECT().GetCompoundServices(targetDID).Return(nil, resolver.ErrNotFound)
 		response, err := test.wrapper.GetCompoundServices(ctx, request)
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, test.wrapper.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
@@ -496,11 +495,11 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 	})
 	t.Run("error mapping", func(t *testing.T) {
 		ctx := newMockContext(t)
-		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(types.ErrServiceNotFound))
-		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(didservice.ServiceQueryError{errors.New("arbitrary")}))
-		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(types.ErrServiceReferenceToDeep))
+		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(resolver.ErrServiceNotFound))
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(resolver.ServiceQueryError{errors.New("arbitrary")}))
+		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(resolver.ErrServiceReferenceToDeep))
 		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrReferencedServiceNotAnEndpoint{}))
-		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(types.ErrNotFound))
+		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(resolver.ErrNotFound))
 	})
 }
 
@@ -533,11 +532,11 @@ func TestWrapper_DeleteService(t *testing.T) {
 
 	t.Run("error - service fails", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().DeleteService(audit.ContextWithAuditInfo(), gomock.Any()).Return(types.ErrNotFound)
+		test.didman.EXPECT().DeleteService(audit.ContextWithAuditInfo(), gomock.Any()).Return(resolver.ErrNotFound)
 
 		response, err := test.wrapper.DeleteService(ctx, request)
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, test.wrapper.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
@@ -577,11 +576,11 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 
 	t.Run("error - service fails DID", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().UpdateContactInformation(audit.ContextWithAuditInfo(), targetDID, info).Return(nil, types.ErrNotFound)
+		test.didman.EXPECT().UpdateContactInformation(audit.ContextWithAuditInfo(), targetDID, info).Return(nil, resolver.ErrNotFound)
 
 		response, err := test.wrapper.UpdateContactInformation(ctx, request)
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Equal(t, http.StatusNotFound, test.wrapper.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
@@ -617,10 +616,10 @@ func TestWrapper_GetContactInformation(t *testing.T) {
 	})
 	t.Run("error - service fails", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().GetContactInformation(targetDID).Return(nil, types.ErrNotFound)
+		test.didman.EXPECT().GetContactInformation(targetDID).Return(nil, resolver.ErrNotFound)
 		response, err := test.wrapper.GetContactInformation(ctx, request)
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Nil(t, response)
 	})
 	t.Run("error - contact information not found", func(t *testing.T) {
@@ -670,14 +669,14 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("error - service fails", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().SearchOrganizations(gomock.Any(), "query", nil).Return(nil, types.ErrNotFound)
+		test.didman.EXPECT().SearchOrganizations(gomock.Any(), "query", nil).Return(nil, resolver.ErrNotFound)
 		response, err := test.wrapper.SearchOrganizations(ctx, SearchOrganizationsRequestObject{
 			Params: SearchOrganizationsParams{
 				Query: "query",
 			},
 		})
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
 		assert.Nil(t, response)
 	})
 }

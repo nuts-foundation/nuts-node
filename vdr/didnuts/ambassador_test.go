@@ -29,6 +29,8 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"
 
@@ -41,7 +43,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -366,7 +367,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
 
 			// This is the metadata of the current version of the document which will be returned by the resolver
-			currentMetadata := &types.DocumentMetadata{
+			currentMetadata := &resolver.DocumentMetadata{
 				Created: createdAt,
 				Updated: nil,
 				Hash:    currentPayloadHash,
@@ -375,7 +376,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			var pKey crypto2.PublicKey
 			_ = signingKey.Raw(&pKey)
 
-			ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
+			ctx.didStore.EXPECT().Resolve(didDocument.ID, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
 			ctx.keyResolver.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 			ctx.didStore.EXPECT().Add(deactivatedDocument, toStoreTX(tx))
 
@@ -389,7 +390,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx := newMockContext(t)
 
 		controllerDoc, signingKey, _ := newDidDoc()
-		didDocument, _, _ := newDidDocWithOptions(types.DIDCreationOptions{Controllers: []did.DID{controllerDoc.ID}})
+		didDocument, _, _ := newDidDocWithOptions(management.DIDCreationOptions{Controllers: []did.DID{controllerDoc.ID}})
 
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
@@ -402,7 +403,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		_ = json.Unmarshal(didDocPayload, &expectedDocument)
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &types.DocumentMetadata{
+		currentMetadata := &resolver.DocumentMetadata{
 			Created: createdAt,
 			Updated: nil,
 			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
@@ -411,7 +412,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		var pKey crypto2.PublicKey
 		_ = signingKey.Raw(&pKey)
 
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
+		ctx.didStore.EXPECT().Resolve(didDocument.ID, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.didResolver.EXPECT().Resolve(controllerDoc.ID, gomock.Any()).Return(&controllerDoc, currentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
@@ -438,7 +439,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		tx.prevs = []hash.SHA256Hash{prev}
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &types.DocumentMetadata{
+		currentMetadata := &resolver.DocumentMetadata{
 			Created: createdAt,
 			Updated: nil,
 			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
@@ -447,7 +448,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		var pKey crypto2.PublicKey
 		_ = signingKey.Raw(&pKey)
 
-		ctx.didStore.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil)
+		ctx.didStore.EXPECT().Resolve(currentDoc.ID, &resolver.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(newDoc, toStoreTX(tx))
 
@@ -473,7 +474,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		tx.prevs = []hash.SHA256Hash{hash.RandomHash(), prev}
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &types.DocumentMetadata{
+		currentMetadata := &resolver.DocumentMetadata{
 			Created: createdAt,
 			Updated: nil,
 			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
@@ -483,8 +484,8 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		_ = signingKey.Raw(&pKey)
 
 		gomock.InOrder(
-			ctx.didStore.EXPECT().Resolve(currentDoc.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound),
-			ctx.didStore.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil),
+			ctx.didStore.EXPECT().Resolve(currentDoc.ID, gomock.Any()).Return(nil, nil, resolver.ErrNotFound),
+			ctx.didStore.EXPECT().Resolve(currentDoc.ID, &resolver.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil),
 		)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(newDoc, toStoreTX(tx))
@@ -533,13 +534,13 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &types.DocumentMetadata{
+		currentMetadata := &resolver.DocumentMetadata{
 			Created: createdAt,
 			Updated: nil,
 			Hash:    currentPayloadHash,
 		}
 
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
+		ctx.didStore.EXPECT().Resolve(didDocument.ID, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.didResolver.EXPECT().Resolve(didDocumentController.ID, gomock.Any()).Return(&didDocumentController, currentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
@@ -594,13 +595,13 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &types.DocumentMetadata{
+		currentMetadata := &resolver.DocumentMetadata{
 			Created: createdAt,
 			Updated: nil,
 			Hash:    currentPayloadHash,
 		}
 
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
+		ctx.didStore.EXPECT().Resolve(didDocument.ID, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.didResolver.EXPECT().Resolve(didDocumentController.ID, gomock.Any()).Return(&didDocumentController, currentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(keyID, gomock.Any()).Return(pKey, nil)
 
@@ -623,7 +624,7 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		didStoreMock := didstore.NewMockStore(ctrl)
-		keyStoreMock := types.NewMockNutsKeyResolver(ctrl)
+		keyStoreMock := resolver.NewMockNutsKeyResolver(ctrl)
 		didResolver := &Resolver{Store: didStoreMock}
 
 		am := ambassador{
@@ -637,7 +638,7 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 		didDocument.Controller = []did.DID{didDocumentController.ID}
 		tx := testTransaction{signingTime: time.Now()}
 
-		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&didDocument, &types.DocumentMetadata{}, nil)
+		didStoreMock.EXPECT().Resolve(didDocument.ID, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
 		didStoreMock.EXPECT().Resolve(didDocumentController.ID, gomock.Any()).Return(nil, nil, errors.New("failed"))
 
 		err := am.handleUpdateDIDDocument(&tx, didDocument)
@@ -795,7 +796,7 @@ func Test_uniqueTransactions(t *testing.T) {
 	})
 }
 
-func newDidDocWithOptions(opts types.DIDCreationOptions) (did.Document, jwk.Key, error) {
+func newDidDocWithOptions(opts management.DIDCreationOptions) (did.Document, jwk.Key, error) {
 	kc := &mockKeyCreator{}
 	docCreator := Creator{KeyStore: kc}
 	didDocument, key, err := docCreator.Create(audit.TestContext(), opts)
@@ -826,8 +827,8 @@ func newDidDoc() (did.Document, jwk.Key, error) {
 type mockContext struct {
 	ctrl         *gomock.Controller
 	didStore     *didstore.MockStore
-	keyResolver  *types.MockNutsKeyResolver
-	didResolver  *types.MockDIDResolver
+	keyResolver  *resolver.MockNutsKeyResolver
+	didResolver  *resolver.MockDIDResolver
 	eventManager *events.MockEvent
 	network      *network.MockTransactions
 	ambassador   ambassador
@@ -836,8 +837,8 @@ type mockContext struct {
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	storeMock := didstore.NewMockStore(ctrl)
-	keyResolverMock := types.NewMockNutsKeyResolver(ctrl)
-	resolverMock := types.NewMockDIDResolver(ctrl)
+	keyResolverMock := resolver.NewMockNutsKeyResolver(ctrl)
+	resolverMock := resolver.NewMockDIDResolver(ctrl)
 	eventManager := events.NewMockEvent(ctrl)
 	networkMock := network.NewMockTransactions(ctrl)
 	am := ambassador{

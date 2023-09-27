@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,18 +16,32 @@
  *
  */
 
-package didservice
+package management
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
 	"time"
 )
 
+// DocFinder is the interface that groups all methods for finding DID documents based on search conditions
+type DocFinder interface {
+	Find(...Predicate) ([]did.Document, error)
+}
+
+// Predicate is an interface for abstracting search options on DID documents
+type Predicate interface {
+	// Match returns true if the given DID Document passes the predicate condition
+	Match(did.Document, resolver.DocumentMetadata) bool
+}
+
+// DocIterator is the function type for iterating over the all current DID Documents in the store
+type DocIterator func(doc did.Document, metadata resolver.DocumentMetadata) error
+
 // ByServiceType returns a predicate that matches on service type
 // it only matches on DID Documents with a concrete endpoint (not starting with "did")
-func ByServiceType(serviceType string) types.Predicate {
+func ByServiceType(serviceType string) Predicate {
 	return servicePredicate{serviceType: serviceType}
 }
 
@@ -35,7 +49,7 @@ type servicePredicate struct {
 	serviceType string
 }
 
-func (s servicePredicate) Match(document did.Document, _ types.DocumentMetadata) bool {
+func (s servicePredicate) Match(document did.Document, _ resolver.DocumentMetadata) bool {
 	for _, service := range document.Service {
 		if service.Type == s.serviceType {
 			var nutsCommStr string
@@ -48,7 +62,7 @@ func (s servicePredicate) Match(document did.Document, _ types.DocumentMetadata)
 }
 
 // ValidAt returns a predicate that matches on validity period.
-func ValidAt(at time.Time) types.Predicate {
+func ValidAt(at time.Time) Predicate {
 	return validAtPredicate{validAt: at}
 }
 
@@ -56,7 +70,7 @@ type validAtPredicate struct {
 	validAt time.Time
 }
 
-func (v validAtPredicate) Match(_ did.Document, metadata types.DocumentMetadata) bool {
+func (v validAtPredicate) Match(_ did.Document, metadata resolver.DocumentMetadata) bool {
 	if v.validAt.Before(metadata.Created) {
 		return false
 	}
@@ -71,7 +85,7 @@ func (v validAtPredicate) Match(_ did.Document, metadata types.DocumentMetadata)
 }
 
 // IsActive returns a predicate that matches DID Documents that are not deactivated.
-func IsActive() types.Predicate {
+func IsActive() Predicate {
 	return deactivatedPredicate{deactivated: false}
 }
 
@@ -79,6 +93,6 @@ type deactivatedPredicate struct {
 	deactivated bool
 }
 
-func (d deactivatedPredicate) Match(_ did.Document, metadata types.DocumentMetadata) bool {
+func (d deactivatedPredicate) Match(_ did.Document, metadata resolver.DocumentMetadata) bool {
 	return d.deactivated == metadata.Deactivated
 }

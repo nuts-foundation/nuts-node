@@ -35,7 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 const statsShelf = "stats"
@@ -43,7 +43,7 @@ const statsShelf = "stats"
 var credentialCountStatsKey = stoabs.BytesKey("credential_count")
 
 type wallet struct {
-	keyResolver   vdr.KeyResolver
+	keyResolver   resolver.KeyResolver
 	keyStore      crypto.KeyStore
 	verifier      verifier.Verifier
 	jsonldManager jsonld.JSONLD
@@ -52,7 +52,7 @@ type wallet struct {
 
 // New creates a new Wallet.
 func New(
-	keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD,
+	keyResolver resolver.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD,
 	walletStore stoabs.KVStore) Wallet {
 	return &wallet{
 		keyResolver:   keyResolver,
@@ -72,7 +72,7 @@ func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.Verifiab
 		}
 	}
 
-	kid, _, err := h.keyResolver.ResolveKey(*signerDID, nil, vdr.NutsSigningKeyType)
+	kid, _, err := h.keyResolver.ResolveKey(*signerDID, nil, resolver.NutsSigningKeyType)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve assertion key for signing VP (did=%s): %w", *signerDID, err)
 	}

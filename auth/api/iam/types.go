@@ -20,14 +20,14 @@ package iam
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // DIDDocument is an alias
 type DIDDocument = did.Document
 
 // DIDDocumentMetadata is an alias
-type DIDDocumentMetadata = types.DocumentMetadata
+type DIDDocumentMetadata = resolver.DocumentMetadata
 
 const (
 	// responseTypeParam is the name of the response_type parameter.

@@ -22,7 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/url"
 	"strings"
@@ -36,13 +36,12 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var _ RelyingParty = (*relyingParty)(nil)
 
 type relyingParty struct {
-	keyResolver       types.KeyResolver
+	keyResolver       resolver.KeyResolver
 	privateKeyStore   nutsCrypto.KeyStore
 	serviceResolver   didman.CompoundServiceResolver
 	secureMode        bool
@@ -52,10 +51,10 @@ type relyingParty struct {
 
 // NewRelyingParty returns an implementation of RelyingParty
 func NewRelyingParty(
-	didResolver types.DIDResolver, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
+	didResolver resolver.DIDResolver, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
 	httpClientTimeout time.Duration, httpClientTLS *tls.Config) RelyingParty {
 	return &relyingParty{
-		keyResolver:       didservice.KeyResolver{Resolver: didResolver},
+		keyResolver:       resolver.DIDKeyResolver{Resolver: didResolver},
 		serviceResolver:   serviceResolver,
 		privateKeyStore:   privateKeyStore,
 		httpClientTimeout: httpClientTimeout,
@@ -117,7 +116,7 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 
 	keyVals := claimsFromRequest(request, endpointURL)
 
-	signingKeyID, _, err := s.keyResolver.ResolveKey(*requester, nil, types.NutsSigningKeyType)
+	signingKeyID, _, err := s.keyResolver.ResolveKey(*requester, nil, resolver.NutsSigningKeyType)
 	if err != nil {
 		return nil, err
 	}

@@ -26,6 +26,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"sync"
 	"testing"
@@ -42,7 +44,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -139,14 +140,14 @@ func TestVDRIntegration_Test(t *testing.T) {
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
 
-	docB, _, err = ctx.didStore.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
+	docB, _, err = ctx.didStore.Resolve(docB.ID, &resolver.ResolveMetadata{AllowDeactivated: true})
 	assert.NoError(t, err)
 	assert.Len(t, docB.CapabilityInvocation, 0,
 		"expected document B to not have any CapabilityInvocation methods after deactivation")
 
 	// try to deactivate the document again
 	err = docUpdater.Deactivate(ctx.audit, docB.ID)
-	assert.ErrorIs(t, err, types.ErrDeactivated,
+	assert.ErrorIs(t, err, resolver.ErrDeactivated,
 		"expected an error when trying to deactivate an already deactivated document")
 
 	// try to update document A should fail since it no longer has an active controller
@@ -225,9 +226,9 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 }
 
 type testContext struct {
-	vdr            *VDR
+	vdr            *Module
 	eventPublisher events.Event
-	docCreator     types.DocCreator
+	docCreator     management.DocCreator
 	didStore       didstore.Store
 	cryptoInstance *crypto.Crypto
 	audit          context.Context

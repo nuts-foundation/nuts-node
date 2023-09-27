@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
 	"sync"
 	"time"
@@ -38,7 +39,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var _ grpc.Protocol = (*protocol)(nil)
@@ -74,7 +74,7 @@ func New(
 	config Config,
 	nodeDID did.DID,
 	state dag.State,
-	didResolver vdr.DIDResolver,
+	didResolver resolver.DIDResolver,
 	decrypter crypto.Decrypter,
 	diagnosticsProvider func() transport.Diagnostics,
 	dagStore stoabs.KVStore,
@@ -101,7 +101,7 @@ type protocol struct {
 	state                  dag.State
 	ctx                    context.Context
 	routines               *sync.WaitGroup
-	didResolver            vdr.DIDResolver
+	didResolver            resolver.DIDResolver
 	privatePayloadReceiver dag.Notifier
 	decrypter              crypto.Decrypter
 	connectionList         grpc.ConnectionList

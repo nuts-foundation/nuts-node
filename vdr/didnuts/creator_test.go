@@ -24,6 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -33,7 +34,6 @@ import (
 	"go.uber.org/mock/gomock"
 
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
@@ -42,11 +42,11 @@ func TestDefaultCreationOptions(t *testing.T) {
 	ops := DefaultCreationOptions()
 
 	usage := ops.KeyFlags
-	assert.True(t, usage.Is(types.AssertionMethodUsage))
-	assert.False(t, usage.Is(types.AuthenticationUsage))
-	assert.False(t, usage.Is(types.CapabilityDelegationUsage))
-	assert.True(t, usage.Is(types.CapabilityInvocationUsage))
-	assert.True(t, usage.Is(types.KeyAgreementUsage))
+	assert.True(t, usage.Is(management.AssertionMethodUsage))
+	assert.False(t, usage.Is(management.AuthenticationUsage))
+	assert.False(t, usage.Is(management.CapabilityDelegationUsage))
+	assert.True(t, usage.Is(management.CapabilityInvocationUsage))
+	assert.True(t, usage.Is(management.KeyAgreementUsage))
 	assert.True(t, ops.SelfControl)
 	assert.Empty(t, ops.Controllers)
 }
@@ -72,12 +72,12 @@ func TestCreator_Create(t *testing.T) {
 		})
 
 		t.Run("all keys", func(t *testing.T) {
-			ops := types.DIDCreationOptions{
-				KeyFlags: types.AssertionMethodUsage |
-					types.AuthenticationUsage |
-					types.CapabilityDelegationUsage |
-					types.CapabilityInvocationUsage |
-					types.KeyAgreementUsage,
+			ops := management.DIDCreationOptions{
+				KeyFlags: management.AssertionMethodUsage |
+					management.AuthenticationUsage |
+					management.CapabilityDelegationUsage |
+					management.CapabilityInvocationUsage |
+					management.KeyAgreementUsage,
 				SelfControl: true,
 			}
 			doc, _, err := creator.Create(nil, ops)
@@ -93,8 +93,8 @@ func TestCreator_Create(t *testing.T) {
 
 		t.Run("extra controller", func(t *testing.T) {
 			c, _ := did.ParseDID("did:nuts:controller")
-			ops := types.DIDCreationOptions{
-				KeyFlags:    types.AssertionMethodUsage | types.CapabilityInvocationUsage,
+			ops := management.DIDCreationOptions{
+				KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage,
 				SelfControl: true,
 				Controllers: []did.DID{*c},
 			}
@@ -121,8 +121,8 @@ func TestCreator_Create(t *testing.T) {
 				}, nil
 			})
 
-			ops := types.DIDCreationOptions{
-				KeyFlags:    types.AssertionMethodUsage,
+			ops := management.DIDCreationOptions{
+				KeyFlags:    management.AssertionMethodUsage,
 				SelfControl: false,
 			}
 			doc, docCreationKey, err := creator.Create(nil, ops)
@@ -146,7 +146,7 @@ func TestCreator_Create(t *testing.T) {
 	})
 
 	t.Run("error - invalid combination", func(t *testing.T) {
-		ops := types.DIDCreationOptions{
+		ops := management.DIDCreationOptions{
 			// CapabilityInvocation is not enabled, required when SelfControl = true
 			SelfControl: true,
 		}
@@ -172,8 +172,8 @@ func TestCreator_Create(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
 		creator := Creator{KeyStore: mockKeyStore}
-		ops := types.DIDCreationOptions{
-			KeyFlags:    types.AssertionMethodUsage,
+		ops := management.DIDCreationOptions{
+			KeyFlags:    management.AssertionMethodUsage,
 			SelfControl: false,
 		}
 		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))

@@ -40,37 +40,37 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 )
 
 // ModuleName is the name of the engine
 const ModuleName = "VDR"
 
-var _ types.VDR = (*VDR)(nil)
-var _ core.Named = (*VDR)(nil)
-var _ core.Configurable = (*VDR)(nil)
+var _ VDR = (*Module)(nil)
+var _ core.Named = (*Module)(nil)
+var _ core.Configurable = (*Module)(nil)
 
-// VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
+// Module implements VDR, which stands for the Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
-type VDR struct {
+type Module struct {
 	store             didnutsStore.Store
 	network           network.Transactions
 	networkAmbassador didnuts.Ambassador
-	didDocCreator     types.DocCreator
-	didResolver       *didservice.DIDResolverRouter
-	serviceResolver   types.ServiceResolver
-	documentOwner     types.DocumentOwner
+	didDocCreator     management.DocCreator
+	didResolver       *resolver.DIDResolverRouter
+	serviceResolver   resolver.ServiceResolver
+	documentOwner     management.DocumentOwner
 	keyStore          crypto.KeyStore
 	storageProvider   storage.Provider
 	eventManager      events.Event
 }
 
-func (r *VDR) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID did.DID) (*did.Document, error) {
+func (r *Module) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID did.DID) (*did.Document, error) {
 	nutsDIDDocument, _, err := r.Resolver().Resolve(nutsDID, nil)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (r *VDR) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID
 			WithError(err).
 			WithField(core.LogFieldDID, nutsDID).
 			Info("Tried to derive did:web document from Nuts DID that is not owned by this node")
-		return nil, types.ErrNotFound
+		return nil, resolver.ErrNotFound
 	}
 
 	resultDIDDocumentData, _ := nutsDIDDocument.MarshalJSON()
@@ -107,32 +107,32 @@ func (r *VDR) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID
 	return &result, nil
 }
 
-func (r *VDR) Resolver() types.DIDResolver {
+func (r *Module) Resolver() resolver.DIDResolver {
 	return r.didResolver
 }
 
-// NewVDR creates a new VDR with provided params
+// NewVDR creates a new Module with provided params
 func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
-	didStore didnutsStore.Store, eventManager events.Event) *VDR {
-	didResolver := &didservice.DIDResolverRouter{}
-	return &VDR{
+	didStore didnutsStore.Store, eventManager events.Event) *Module {
+	didResolver := &resolver.DIDResolverRouter{}
+	return &Module{
 		network:         networkClient,
 		eventManager:    eventManager,
 		didDocCreator:   didnuts.Creator{KeyStore: cryptoClient},
 		didResolver:     didResolver,
 		store:           didStore,
-		serviceResolver: didservice.ServiceResolver{Resolver: didResolver},
+		serviceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
 		documentOwner:   newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, didResolver),
 		keyStore:        cryptoClient,
 	}
 }
 
-func (r *VDR) Name() string {
+func (r *Module) Name() string {
 	return ModuleName
 }
 
-// Configure configures the VDR engine.
-func (r *VDR) Configure(_ core.ServerConfig) error {
+// Configure configures the Module engine.
+func (r *Module) Configure(_ core.ServerConfig) error {
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
 
 	// Register DID methods
@@ -145,7 +145,7 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 	return nil
 }
 
-func (r *VDR) Start() error {
+func (r *Module) Start() error {
 	err := r.networkAmbassador.Start()
 	if err != nil {
 		return err
@@ -164,15 +164,15 @@ func (r *VDR) Start() error {
 	return err
 }
 
-func (r *VDR) Shutdown() error {
+func (r *Module) Shutdown() error {
 	return nil
 }
 
-func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, error) {
+func (r *Module) ConflictedDocuments() ([]did.Document, []resolver.DocumentMetadata, error) {
 	conflictedDocs := make([]did.Document, 0)
-	conflictedMeta := make([]types.DocumentMetadata, 0)
+	conflictedMeta := make([]resolver.DocumentMetadata, 0)
 
-	err := r.store.Conflicted(func(doc did.Document, metadata types.DocumentMetadata) error {
+	err := r.store.Conflicted(func(doc did.Document, metadata resolver.DocumentMetadata) error {
 		conflictedDocs = append(conflictedDocs, doc)
 		conflictedMeta = append(conflictedMeta, metadata)
 		return nil
@@ -180,18 +180,18 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 	return conflictedDocs, conflictedMeta, err
 }
 
-func (r *VDR) IsOwner(ctx context.Context, id did.DID) (bool, error) {
+func (r *Module) IsOwner(ctx context.Context, id did.DID) (bool, error) {
 	return r.documentOwner.IsOwner(ctx, id)
 }
 
-func (r *VDR) ListOwned(ctx context.Context) ([]did.DID, error) {
+func (r *Module) ListOwned(ctx context.Context) ([]did.DID, error) {
 	return r.documentOwner.ListOwned(ctx)
 }
 
 // newOwnConflictedDocIterator accepts two counters and returns a new DocIterator that counts the total number of
 // conflicted documents, both total and owned by this node.
-func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.DocIterator {
-	return func(doc did.Document, metadata types.DocumentMetadata) error {
+func (r *Module) newOwnConflictedDocIterator(totalCount, ownedCount *int) management.DocIterator {
+	return func(doc did.Document, metadata resolver.DocumentMetadata) error {
 		*totalCount++
 		controllers, err := didnuts.ResolveControllers(r.store, doc, nil)
 		if err != nil {
@@ -219,7 +219,7 @@ func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.Doc
 }
 
 // Diagnostics returns the diagnostics for this engine
-func (r *VDR) Diagnostics() []core.DiagnosticResult {
+func (r *Module) Diagnostics() []core.DiagnosticResult {
 	// return # conflicted docs
 	totalCount := 0
 	ownedCount := 0
@@ -262,12 +262,12 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 }
 
 // Create generates a new DID Document
-func (r *VDR) Create(ctx context.Context, options types.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (r *Module) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	log.Logger().Debug("Creating new DID Document.")
 
 	// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
 	// holder for all metadata of the controllers
-	controllerMetadata := make([]types.DocumentMetadata, len(options.Controllers))
+	controllerMetadata := make([]resolver.DocumentMetadata, len(options.Controllers))
 
 	// if any controllers have been added, check if they exist through the didResolver
 	if len(options.Controllers) > 0 {
@@ -310,11 +310,11 @@ func (r *VDR) Create(ctx context.Context, options types.DIDCreationOptions) (*di
 }
 
 // Update updates a DID Document based on the DID
-func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
+func (r *Module) Update(ctx context.Context, id did.DID, next did.Document) error {
 	log.Logger().
 		WithField(core.LogFieldDID, id).
 		Debug("Updating DID Document")
-	resolverMetadata := &types.ResolveMetadata{
+	resolverMetadata := &resolver.ResolveMetadata{
 		AllowDeactivated: true,
 	}
 
@@ -328,8 +328,8 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	if err != nil {
 		return fmt.Errorf("update DID document: %w", err)
 	}
-	if didservice.IsDeactivated(*currentDIDDocument) {
-		return fmt.Errorf("update DID document: %w", types.ErrDeactivated)
+	if resolver.IsDeactivated(*currentDIDDocument) {
+		return fmt.Errorf("update DID document: %w", resolver.ErrDeactivated)
 	}
 
 	// #1530: add nuts and JWS context if not present
@@ -365,7 +365,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	if err != nil {
 		log.Logger().WithError(err).Warn("Unable to update DID document")
 		if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
-			err = types.ErrDIDNotManagedByThisNode
+			err = resolver.ErrDIDNotManagedByThisNode
 		}
 		return fmt.Errorf("update DID document: %w", err)
 	}
@@ -377,7 +377,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	return nil
 }
 
-func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
+func (r *Module) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
 	controllers, err := didnuts.ResolveControllers(r.store, doc, nil)
 	if err != nil {
 		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
@@ -397,7 +397,7 @@ func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (d
 	}
 
 	if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
-		return did.Document{}, nil, types.ErrDIDNotManagedByThisNode
+		return did.Document{}, nil, resolver.ErrDIDNotManagedByThisNode
 	}
 
 	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)

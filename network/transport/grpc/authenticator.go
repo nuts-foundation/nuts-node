@@ -25,8 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"strings"
 )
@@ -40,12 +39,12 @@ type Authenticator interface {
 }
 
 // NewTLSAuthenticator creates an Authenticator that verifies node identities using TLS certificates.
-func NewTLSAuthenticator(serviceResolver types.ServiceResolver) Authenticator {
+func NewTLSAuthenticator(serviceResolver resolver.ServiceResolver) Authenticator {
 	return &tlsAuthenticator{serviceResolver: serviceResolver}
 }
 
 type tlsAuthenticator struct {
-	serviceResolver types.ServiceResolver
+	serviceResolver resolver.ServiceResolver
 }
 
 func (t tlsAuthenticator) Authenticate(nodeDID did.DID, peer transport.Peer) (transport.Peer, error) {
@@ -55,7 +54,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, peer transport.Peer) (tr
 	}
 
 	// Resolve NutsComm endpoint of contained in DID document associated with node DID
-	nutsCommService, err := t.serviceResolver.Resolve(didservice.MakeServiceReference(nodeDID, transport.NutsCommServiceType), didservice.DefaultMaxServiceReferenceDepth)
+	nutsCommService, err := t.serviceResolver.Resolve(resolver.MakeServiceReference(nodeDID, transport.NutsCommServiceType), resolver.DefaultMaxServiceReferenceDepth)
 	var nutsCommURL *url.URL
 	if err == nil {
 		var nutsCommURLStr string
@@ -84,7 +83,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, peer transport.Peer) (tr
 }
 
 // NewDummyAuthenticator creates an Authenticator that does not verify node identities
-func NewDummyAuthenticator(_ types.ServiceResolver) Authenticator {
+func NewDummyAuthenticator(_ resolver.ServiceResolver) Authenticator {
 	return &dummyAuthenticator{}
 }
 

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
 	"time"
 
@@ -34,7 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var timeFunc = time.Now
@@ -47,8 +47,8 @@ const (
 // It implements the generic methods for verifying verifiable credentials and verifiable presentations.
 // It does not know anything about the semantics of a credential. It should support a wide range of types.
 type verifier struct {
-	didResolver   vdr.DIDResolver
-	keyResolver   vdr.KeyResolver
+	didResolver   resolver.DIDResolver
+	keyResolver   resolver.KeyResolver
 	jsonldManager jsonld.JSONLD
 	store         Store
 	trustConfig   *trust.Config
@@ -79,7 +79,7 @@ func (e VerificationError) Error() string {
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(store Store, didResolver vdr.DIDResolver, keyResolver vdr.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Verifier {
+func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver resolver.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Verifier {
 	return &verifier{store: store, didResolver: didResolver, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig}
 }
 
@@ -128,7 +128,7 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 	}
 
 	// find key
-	pk, err := v.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), at, vdr.NutsSigningKeyType)
+	pk, err := v.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), at, resolver.NutsSigningKeyType)
 	if err != nil {
 		if at == nil {
 			return fmt.Errorf("unable to resolve signing key: %w", err)
@@ -179,7 +179,7 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	// Check signature
 	if checkSignature {
 		issuerDID, _ := did.ParseDID(credentialToVerify.Issuer.String())
-		_, _, err = v.didResolver.Resolve(*issuerDID, &vdr.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
+		_, _, err = v.didResolver.Resolve(*issuerDID, &resolver.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
 		if err != nil {
 			return fmt.Errorf("could not validate issuer: %w", err)
 		}
@@ -239,7 +239,7 @@ func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
 		return errors.New("verificationMethod should owned by the issuer")
 	}
 
-	pk, err := v.keyResolver.ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, vdr.NutsSigningKeyType)
+	pk, err := v.keyResolver.ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, resolver.NutsSigningKeyType)
 	if err != nil {
 		return fmt.Errorf("unable to resolve key for revocation: %w", err)
 	}
@@ -283,7 +283,7 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 	}
 
 	// Validate signature
-	signingKey, err := v.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), validAt, vdr.NutsSigningKeyType)
+	signingKey, err := v.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), validAt, resolver.NutsSigningKeyType)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve valid signing key: %w", err)
 	}

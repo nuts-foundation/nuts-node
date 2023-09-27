@@ -20,6 +20,7 @@ package grpc
 
 import (
 	"crypto/x509"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -27,7 +28,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -48,7 +48,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		serviceResolver := types.NewMockServiceResolver(ctrl)
+		serviceResolver := resolver.NewMockServiceResolver(ctrl)
 		serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nuts.nl:5555"}, nil)
 		authenticator := NewTLSAuthenticator(serviceResolver)
 
@@ -59,7 +59,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 	})
 	t.Run("ok - case insensitive comparison", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		serviceResolver := types.NewMockServiceResolver(ctrl)
+		serviceResolver := resolver.NewMockServiceResolver(ctrl)
 		serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://Nuts.nl:5555"}, nil)
 		authenticator := NewTLSAuthenticator(serviceResolver)
 
@@ -70,7 +70,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 	})
 	t.Run("ok - wildcard comparison", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		serviceResolver := types.NewMockServiceResolver(ctrl)
+		serviceResolver := resolver.NewMockServiceResolver(ctrl)
 		serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://node.nuts.nl:5555"}, nil)
 		authenticator := NewTLSAuthenticator(serviceResolver)
 		expectedPeer := transport.Peer{
@@ -88,7 +88,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		transportPeer := transport.Peer{ID: "peer", Certificate: cert}
 		t.Run("DNS names do not match", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			serviceResolver := types.NewMockServiceResolver(ctrl)
+			serviceResolver := resolver.NewMockServiceResolver(ctrl)
 			serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nootjes.nl:5555"}, nil)
 			authenticator := NewTLSAuthenticator(serviceResolver)
 
@@ -105,8 +105,8 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		})
 		t.Run("DID document not found", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			serviceResolver := types.NewMockServiceResolver(ctrl)
-			serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{}, types.ErrNotFound)
+			serviceResolver := resolver.NewMockServiceResolver(ctrl)
+			serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{}, resolver.ErrNotFound)
 			authenticator := NewTLSAuthenticator(serviceResolver)
 
 			authenticatedPeer, err := authenticator.Authenticate(nodeDID, transportPeer)

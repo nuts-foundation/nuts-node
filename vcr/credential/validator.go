@@ -24,7 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/piprate/json-gold/ld"
 	"strings"
 
@@ -238,7 +238,7 @@ func validOperation(operation string) bool {
 }
 
 func validateNutsCredentialID(credential vc.VerifiableCredential) error {
-	id, err := didservice.GetDIDFromURL(credential.ID.String())
+	id, err := resolver.GetDIDFromURL(credential.ID.String())
 	if err != nil {
 		return err
 	}

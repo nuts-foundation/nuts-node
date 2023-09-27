@@ -25,6 +25,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"time"
 
@@ -32,7 +34,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
@@ -40,20 +41,20 @@ var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
-	VDR            types.VDR
-	DocManipulator types.DocManipulator
+	VDR            vdr.VDR
+	DocManipulator management.DocManipulator
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (a *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
-		types.ErrNotFound:                http.StatusNotFound,
-		types.ErrDIDNotManagedByThisNode: http.StatusForbidden,
-		types.ErrDeactivated:             http.StatusConflict,
-		types.ErrNoActiveController:      http.StatusConflict,
-		types.ErrDuplicateService:        http.StatusBadRequest,
-		didnuts.ErrInvalidOptions:        http.StatusBadRequest,
-		did.ErrInvalidDID:                http.StatusBadRequest,
+		resolver.ErrNotFound:                http.StatusNotFound,
+		resolver.ErrDIDNotManagedByThisNode: http.StatusForbidden,
+		resolver.ErrDeactivated:             http.StatusConflict,
+		resolver.ErrNoActiveController:      http.StatusConflict,
+		resolver.ErrDuplicateService:        http.StatusBadRequest,
+		didnuts.ErrInvalidOptions:           http.StatusBadRequest,
+		did.ErrInvalidDID:                   http.StatusBadRequest,
 	})
 }
 
@@ -145,7 +146,7 @@ func (a *Wrapper) GetDID(ctx context.Context, request GetDIDRequestObject) (GetD
 	if err != nil {
 		return nil, core.InvalidInputError("given did is not valid: %w", err)
 	}
-	resolverMetadata := &types.ResolveMetadata{AllowDeactivated: true}
+	resolverMetadata := &resolver.ResolveMetadata{AllowDeactivated: true}
 
 	params := request.Params
 	if params.VersionId != nil {

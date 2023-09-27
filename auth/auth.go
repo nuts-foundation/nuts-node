@@ -22,8 +22,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"path"
 	"time"
@@ -55,7 +55,7 @@ type Auth struct {
 	vcr                     vcr.VCR
 	pkiProvider             pki.Provider
 	shutdownFunc            func()
-	vdrInstance             types.VDR
+	vdrInstance             vdr.VDR
 	publicURL               *url.URL
 	presentationDefinitions *pe.DefinitionResolver
 }
@@ -90,7 +90,7 @@ func (auth *Auth) PresentationDefinitions() *pe.DefinitionResolver {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, vdrInstance types.VDR, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
+func NewAuthInstance(config Config, vdrInstance vdr.VDR, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
 	return &Auth{
 		config:                  config,
 		jsonldManager:           jsonldManager,
@@ -145,7 +145,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
 		StrictMode:            config.Strictmode,
-	}, auth.vcr, didservice.KeyResolver{Resolver: auth.vdrInstance.Resolver()}, auth.keyStore, auth.jsonldManager, auth.pkiProvider)
+	}, auth.vcr, resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}, auth.keyStore, auth.jsonldManager, auth.pkiProvider)
 
 	tlsEnabled := config.TLS.Enabled()
 	if config.Strictmode && !tlsEnabled {
