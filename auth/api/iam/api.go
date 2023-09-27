@@ -116,19 +116,27 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		// Options:
 		// - OpenID4VCI
 		// - OpenID4VP, vp_token is sent in Token Response
-		panic("not implemented")
+		return nil, OAuth2Error{
+			Code:        UnsupportedGrantType,
+			Description: "not implemented yet",
+		}
 	case "vp_token":
 		// Options:
 		// - service-to-service vp_token flow
-		panic("not implemented")
+		return nil, OAuth2Error{
+			Code:        UnsupportedGrantType,
+			Description: "not implemented yet",
+		}
 	case "urn:ietf:params:oauth:grant-type:pre-authorized_code":
 		// Options:
 		// - OpenID4VCI
-		panic("not implemented")
+		return nil, OAuth2Error{
+			Code:        UnsupportedGrantType,
+			Description: "not implemented yet",
+		}
 	default:
 		return nil, OAuth2Error{
-			Code:        InvalidRequest,
-			Description: "unsupported grant_type",
+			Code: UnsupportedGrantType,
 		}
 	}
 }
