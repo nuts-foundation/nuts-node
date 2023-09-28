@@ -9,3 +9,4 @@ output-options:
     - DIDDocument
     - OAuthAuthorizationServerMetadata
     - OAuthClientMetadata
+    - ErrorResponse
