@@ -555,7 +555,35 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 }
 
 func TestVerifier_VerifyVP(t *testing.T) {
-	rawVP := `{
+	t.Run("JWT", func(t *testing.T) {
+		t.Skip()
+		// This VP was produced by a Sphereon Wallet, using did:key
+		// TODO: The signer of the VP is a did:key, but the holder of the contained credential is a did:jwt
+		//       So the presenter is not the holder. Weird?
+		const rawVP = `eyJraWQiOiJkaWQ6a2V5Ono2TWtzRXl4NmQ1cEIxZWtvYVZtYUdzaWJiY1lIRTlWeHg3VjEzUFNxUHd4WVJ6TCN6Nk1rc0V5eDZkNXBCMWVrb2FWbWFHc2liYmNZSEU5Vnh4N1YxM1BTcVB3eFlSekwiLCJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJ2cCI6eyJAY29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFscy92MSIsImh0dHBzOi8vaWRlbnRpdHkuZm91bmRhdGlvbi9wcmVzZW50YXRpb24tZXhjaGFuZ2Uvc3VibWlzc2lvbi92MSJdLCJ0eXBlIjpbIlZlcmlmaWFibGVQcmVzZW50YXRpb24iLCJQcmVzZW50YXRpb25TdWJtaXNzaW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImV5SmhiR2NpT2lKRlV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUpsZUhBaU9qRTJPVFl6TURFM01EZ3NJblpqSWpwN0lrQmpiMjUwWlhoMElqcGJJbWgwZEhCek9pOHZkM2QzTG5jekxtOXlaeTh5TURFNEwyTnlaV1JsYm5ScFlXeHpMM1l4SWwwc0luUjVjR1VpT2xzaVZtVnlhV1pwWVdKc1pVTnlaV1JsYm5ScFlXd2lMQ0pIZFdWemRFTnlaV1JsYm5ScFlXd2lYU3dpWTNKbFpHVnVkR2xoYkZOMVltcGxZM1FpT25zaVptbHljM1JPWVcxbElqb2lTR1ZzYkc4aUxDSnNZWE4wVG1GdFpTSTZJbE53YUdWeVpXOXVJaXdpWlcxaGFXd2lPaUp6Y0dobGNtVnZia0JsZUdGdGNHeGxMbU52YlNJc0luUjVjR1VpT2lKVGNHaGxjbVZ2YmlCSGRXVnpkQ0lzSW1sa0lqb2laR2xrT21wM2F6cGxlVXBvWWtkamFVOXBTa1pWZWtreFRtdHphVXhEU2pGak1sVnBUMmxLZW1GWFkybE1RMHB5WkVocmFVOXBTa1pSZVVselNXMU9lV1JwU1RaSmJrNXNXVE5CZVU1VVduSk5VMGx6U1c1bmFVOXBTbXBOVm1SWlkzcGtXRTB5TVRWak1sWldXbXMxUTJOWVRqUmFSa0pZVVd0c1NHRkZkR3RPUmxJMlRVVjRVMHhWV25GUFJWcE9WMWRGZDBscGQybGxVMGsyU1d4a2RHRXdUbGxrVkVZelpWaHdZVm93WkU5T01WWTBWRzFHZDJOSVJuVlVNVVpvVkRKMFdFMXJUbTVVTVU1MVZESTVOVlJWYkZWa1YwMXBabEVpZlgwc0lrQmpiMjUwWlhoMElqcGJJbWgwZEhCek9pOHZkM2QzTG5jekxtOXlaeTh5TURFNEwyTnlaV1JsYm5ScFlXeHpMM1l4SWwwc0luUjVjR1VpT2xzaVZtVnlhV1pwWVdKc1pVTnlaV1JsYm5ScFlXd2lMQ0pIZFdWemRFTnlaV1JsYm5ScFlXd2lYU3dpWlhod2FYSmhkR2x2YmtSaGRHVWlPaUl5TURJekxURXdMVEF6VkRBeU9qVTFPakE0TGpFek0xb2lMQ0pqY21Wa1pXNTBhV0ZzVTNWaWFtVmpkQ0k2ZXlKbWFYSnpkRTVoYldVaU9pSklaV3hzYnlJc0lteGhjM1JPWVcxbElqb2lVM0JvWlhKbGIyNGlMQ0psYldGcGJDSTZJbk53YUdWeVpXOXVRR1Y0WVcxd2JHVXVZMjl0SWl3aWRIbHdaU0k2SWxOd2FHVnlaVzl1SUVkMVpYTjBJaXdpYVdRaU9pSmthV1E2YW5kck9tVjVTbWhpUjJOcFQybEtSbFY2U1RGT2EzTnBURU5LTVdNeVZXbFBhVXA2WVZkamFVeERTbkprU0d0cFQybEtSbEY1U1hOSmJVNTVaR2xKTmtsdVRteFpNMEY1VGxSYWNrMVRTWE5KYm1kcFQybEthazFXWkZsamVtUllUVEl4TldNeVZsWmFhelZEWTFoT05GcEdRbGhSYTJ4SVlVVjBhMDVHVWpaTlJYaFRURlZhY1U5RldrNVhWMFYzU1dsM2FXVlRTVFpKYkdSMFlUQk9XV1JVUmpObFdIQmhXakJrVDA0eFZqUlViVVozWTBoR2RWUXhSbWhVTW5SWVRXdE9ibFF4VG5WVU1qazFWRlZzVldSWFRXbG1VU0o5TENKcGMzTjFaWElpT2lKa2FXUTZhbmRyT21WNVNtaGlSMk5wVDJsS1JsVjZTVEZPYVVselNXNVdlbHBUU1RaSmJrNXdXbmxKYzBsdGREQmxVMGsyU1d0V1JFbHBkMmxaTTBveVNXcHZhVlZETUhsT1ZGbHBURU5LTkVscWIybFdSV041VTBSS05FMXRVbGhYUlRSNlpGVk9lRmR1UW5oU2FrWTFZekJHVVZWV1drVlRhMVpQV0RCbmRGRXdNVEJaYldSeFdXa3hUMXA1U1hOSmJtdHBUMmxKTlZSVWFFOWxSMUYzVlVVMGVVMXJNRFZpUmtKRlpVZFNkMUpJUW5aV1JYZzJUVlJXTTFwdWJHRlRiazB5VjIxb1RGTldWa3ROZWswMFNXNHdJaXdpYVhOemRXRnVZMlZFWVhSbElqb2lNakF5TXkwd09TMHlPVlF4TWpvek1Ub3dPQzR4TXpOYUlpd2ljM1ZpSWpvaVpHbGtPbXAzYXpwbGVVcG9Za2RqYVU5cFNrWlZla2t4VG10emFVeERTakZqTWxWcFQybEtlbUZYWTJsTVEwcHlaRWhyYVU5cFNrWlJlVWx6U1cxT2VXUnBTVFpKYms1c1dUTkJlVTVVV25KTlUwbHpTVzVuYVU5cFNtcE5WbVJaWTNwa1dFMHlNVFZqTWxaV1dtczFRMk5ZVGpSYVJrSllVV3RzU0dGRmRHdE9SbEkyVFVWNFUweFZXbkZQUlZwT1YxZEZkMGxwZDJsbFUwazJTV3hrZEdFd1RsbGtWRVl6WlZod1lWb3daRTlPTVZZMFZHMUdkMk5JUm5WVU1VWm9WREowV0UxclRtNVVNVTUxVkRJNU5WUlZiRlZrVjAxcFpsRWlMQ0p1WW1ZaU9qRTJPVFU1T1RBMk5qZ3NJbWx6Y3lJNkltUnBaRHBxZDJzNlpYbEthR0pIWTJsUGFVcEdWWHBKTVU1cFNYTkpibFo2V2xOSk5rbHVUbkJhZVVselNXMTBNR1ZUU1RaSmExWkVTV2wzYVZrelNqSkphbTlwVlVNd2VVNVVXV2xNUTBvMFNXcHZhVlpGWTNsVFJFbzBUVzFTV0ZkRk5IcGtWVTU0VjI1Q2VGSnFSalZqTUVaUlZWWmFSVk5yVms5WU1HZDBVVEF4TUZsdFpIRlphVEZQV25sSmMwbHVhMmxQYVVrMVZGUm9UMlZIVVhkVlJUUjVUV3N3TldKR1FrVmxSMUozVWtoQ2RsWkZlRFpOVkZZeldtNXNZVk51VFRKWGJXaE1VMVpXUzAxNlRUUkpiakFpZlEud2RodExYRTRqVTFDLTNZQkJwUDktcUUteWgxeE9aNmxCTEotMGU1X1NhN2ZuclVIY0FhVTFuM2tOMkNlQ3lUVmp0bTFVeTNUbDZSelVPTTZNalAzdlEiXX0sInByZXNlbnRhdGlvbl9zdWJtaXNzaW9uIjp7ImlkIjoidG9DdGp5Y0V3QlZCWVBsbktBQTZGIiwiZGVmaW5pdGlvbl9pZCI6InNwaGVyZW9uIiwiZGVzY3JpcHRvcl9tYXAiOlt7ImlkIjoiNGNlN2FmZjEtMDIzNC00ZjM1LTlkMjEtMjUxNjY4YTYwOTUwIiwiZm9ybWF0Ijoiand0X3ZjIiwicGF0aCI6IiQudmVyaWZpYWJsZUNyZWRlbnRpYWxbMF0ifV19LCJuYmYiOjE2OTU5OTU2MzYsImlzcyI6ImRpZDprZXk6ejZNa3NFeXg2ZDVwQjFla29hVm1hR3NpYmJjWUhFOVZ4eDdWMTNQU3FQd3hZUnpMIn0.w3guHX-pmxJGGn5dGSSIKSba9xywnOutDk-l3tc_bpgHEOSbcR1mmmCqX5sSlZM_G0hgAbgpIv_YYI5iQNIfCw`
+		const keyID = "did:key:z6MksEyx6d5pB1ekoaVmaGsibbcYHE9Vxx7V13PSqPwxYRzL#z6MksEyx6d5pB1ekoaVmaGsibbcYHE9Vxx7V13PSqPwxYRzL"
+		keyAsJWK, err := jwk.ParseKey([]byte(`{
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "vgLDESnU0TIlW-PmajyrvSlk9VysAsRkSYiEPBELj-U"
+      }`))
+		require.NoError(t, err)
+		require.NoError(t, keyAsJWK.Set("kid", keyID))
+		publicKey, err := keyAsJWK.PublicKey()
+		require.NoError(t, err)
+
+		presentation, err := vc.ParseVerifiablePresentation(rawVP)
+		require.NoError(t, err)
+		ctx := newMockContext(t)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(keyID, gomock.Any(), resolver.NutsSigningKeyType).Return(publicKey, nil)
+
+		vcs, err := ctx.verifier.VerifyVP(*presentation, false, false, nil)
+
+		assert.NoError(t, err)
+		assert.Len(t, vcs, 1)
+	})
+	t.Run("JSONLD", func(t *testing.T) {
+		rawVP := `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
@@ -596,140 +624,141 @@ func TestVerifier_VerifyVP(t *testing.T) {
     ]
   }
 }`
-	vp := vc.VerifiablePresentation{}
-	_ = json.Unmarshal([]byte(rawVP), &vp)
-	vpSignerKeyID := did.MustParseDIDURL(vp.Proof[0].(map[string]interface{})["verificationMethod"].(string))
-
-	t.Run("ok - do not verify VCs", func(t *testing.T) {
+		vp := vc.VerifiablePresentation{}
 		_ = json.Unmarshal([]byte(rawVP), &vp)
+		vpSignerKeyID := did.MustParseDIDURL(vp.Proof[0].(map[string]interface{})["verificationMethod"].(string))
 
-		var validAt *time.Time
+		t.Run("ok - do not verify VCs", func(t *testing.T) {
+			_ = json.Unmarshal([]byte(rawVP), &vp)
 
-		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+			var validAt *time.Time
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
+			ctx := newMockContext(t)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
 
-		assert.NoError(t, err)
-		assert.Len(t, vcs, 1)
-	})
-	t.Run("ok - verify VCs (and verify trusted)", func(t *testing.T) {
-		_ = json.Unmarshal([]byte(rawVP), &vp)
+			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-		var validAt *time.Time
+			assert.NoError(t, err)
+			assert.Len(t, vcs, 1)
+		})
+		t.Run("ok - verify VCs (and verify trusted)", func(t *testing.T) {
+			_ = json.Unmarshal([]byte(rawVP), &vp)
 
-		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+			var validAt *time.Time
 
-		mockVerifier := NewMockVerifier(ctx.ctrl)
-		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt)
+			ctx := newMockContext(t)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
 
-		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, false, validAt)
+			mockVerifier := NewMockVerifier(ctx.ctrl)
+			mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt)
 
-		assert.NoError(t, err)
-		assert.Len(t, vcs, 1)
-	})
-	t.Run("ok - verify VCs (do not need to be trusted)", func(t *testing.T) {
-		_ = json.Unmarshal([]byte(rawVP), &vp)
+			vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, false, validAt)
 
-		var validAt *time.Time
+			assert.NoError(t, err)
+			assert.Len(t, vcs, 1)
+		})
+		t.Run("ok - verify VCs (do not need to be trusted)", func(t *testing.T) {
+			_ = json.Unmarshal([]byte(rawVP), &vp)
 
-		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+			var validAt *time.Time
 
-		mockVerifier := NewMockVerifier(ctx.ctrl)
-		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], true, true, validAt)
+			ctx := newMockContext(t)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
 
-		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, validAt)
+			mockVerifier := NewMockVerifier(ctx.ctrl)
+			mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], true, true, validAt)
 
-		assert.NoError(t, err)
-		assert.Len(t, vcs, 1)
-	})
-	t.Run("error - VP verification fails (not valid at time)", func(t *testing.T) {
-		_ = json.Unmarshal([]byte(rawVP), &vp)
+			vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, validAt)
 
-		var validAt time.Time
+			assert.NoError(t, err)
+			assert.Len(t, vcs, 1)
+		})
+		t.Run("error - VP verification fails (not valid at time)", func(t *testing.T) {
+			_ = json.Unmarshal([]byte(rawVP), &vp)
 
-		ctx := newMockContext(t)
+			var validAt time.Time
 
-		mockVerifier := NewMockVerifier(ctx.ctrl)
+			ctx := newMockContext(t)
 
-		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, &validAt)
+			mockVerifier := NewMockVerifier(ctx.ctrl)
 
-		assert.EqualError(t, err, "verification error: presentation not valid at given time")
-		assert.Empty(t, vcs)
-	})
-	t.Run("error - VC verification fails", func(t *testing.T) {
-		_ = json.Unmarshal([]byte(rawVP), &vp)
+			vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, &validAt)
 
-		var validAt *time.Time
+			assert.EqualError(t, err, "verification error: presentation not valid at given time")
+			assert.Empty(t, vcs)
+		})
+		t.Run("error - VC verification fails", func(t *testing.T) {
+			_ = json.Unmarshal([]byte(rawVP), &vp)
 
-		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+			var validAt *time.Time
 
-		mockVerifier := NewMockVerifier(ctx.ctrl)
-		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt).Return(errors.New("invalid"))
+			ctx := newMockContext(t)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
 
-		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, false, validAt)
+			mockVerifier := NewMockVerifier(ctx.ctrl)
+			mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt).Return(errors.New("invalid"))
 
-		assert.Error(t, err)
-		assert.Empty(t, vcs)
-	})
-	t.Run("error - invalid signature", func(t *testing.T) {
-		_ = json.Unmarshal([]byte(rawVP), &vp)
+			vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, false, validAt)
 
-		var validAt *time.Time
+			assert.Error(t, err)
+			assert.Empty(t, vcs)
+		})
+		t.Run("error - invalid signature", func(t *testing.T) {
+			_ = json.Unmarshal([]byte(rawVP), &vp)
 
-		ctx := newMockContext(t)
-		// Return incorrect key, causing signature verification failure
-		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDBPrivateKey().Public(), nil)
+			var validAt *time.Time
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
+			ctx := newMockContext(t)
+			// Return incorrect key, causing signature verification failure
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDBPrivateKey().Public(), nil)
 
-		assert.EqualError(t, err, "verification error: invalid signature: invalid proof signature: failed to verify signature using ecdsa")
-		assert.Empty(t, vcs)
-	})
-	t.Run("error - signing key unknown", func(t *testing.T) {
-		_ = json.Unmarshal([]byte(rawVP), &vp)
+			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-		var validAt *time.Time
+			assert.EqualError(t, err, "verification error: invalid signature: invalid proof signature: failed to verify signature using ecdsa")
+			assert.Empty(t, vcs)
+		})
+		t.Run("error - signing key unknown", func(t *testing.T) {
+			_ = json.Unmarshal([]byte(rawVP), &vp)
 
-		ctx := newMockContext(t)
-		// Return incorrect key, causing signature verification failure
-		ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(nil, resolver.ErrKeyNotFound)
+			var validAt *time.Time
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
+			ctx := newMockContext(t)
+			// Return incorrect key, causing signature verification failure
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(nil, resolver.ErrKeyNotFound)
 
-		assert.ErrorIs(t, err, resolver.ErrKeyNotFound)
-		assert.Empty(t, vcs)
-	})
-	t.Run("error - invalid proof", func(t *testing.T) {
-		_ = json.Unmarshal([]byte(rawVP), &vp)
+			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-		vp.Proof = []interface{}{"invalid"}
+			assert.ErrorIs(t, err, resolver.ErrKeyNotFound)
+			assert.Empty(t, vcs)
+		})
+		t.Run("error - invalid proof", func(t *testing.T) {
+			_ = json.Unmarshal([]byte(rawVP), &vp)
 
-		var validAt *time.Time
+			vp.Proof = []interface{}{"invalid"}
 
-		ctx := newMockContext(t)
+			var validAt *time.Time
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
+			ctx := newMockContext(t)
 
-		assert.EqualError(t, err, "verification error: unsupported proof type: json: cannot unmarshal string into Go value of type proof.LDProof")
-		assert.Empty(t, vcs)
-	})
-	t.Run("error - no proof", func(t *testing.T) {
-		_ = json.Unmarshal([]byte(rawVP), &vp)
+			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-		vp.Proof = nil
+			assert.EqualError(t, err, "verification error: unsupported proof type: json: cannot unmarshal string into Go value of type proof.LDProof")
+			assert.Empty(t, vcs)
+		})
+		t.Run("error - no proof", func(t *testing.T) {
+			_ = json.Unmarshal([]byte(rawVP), &vp)
 
-		var validAt *time.Time
+			vp.Proof = nil
 
-		ctx := newMockContext(t)
+			var validAt *time.Time
 
-		vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
+			ctx := newMockContext(t)
 
-		assert.EqualError(t, err, "verification error: exactly 1 proof is expected")
-		assert.Empty(t, vcs)
+			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
+
+			assert.EqualError(t, err, "verification error: exactly 1 proof is expected")
+			assert.Empty(t, vcs)
+		})
 	})
 }
 
