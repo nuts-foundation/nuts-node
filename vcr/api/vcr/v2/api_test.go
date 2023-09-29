@@ -68,7 +68,10 @@ func TestWrapper_IssueVC(t *testing.T) {
 			Visibility:        &public,
 		}
 		// assert that credential.NutsV1ContextURI is added if the request does not contain @context
-		testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Eq(expectedRequestedVC), true, true).Return(&expectedRequestedVC, nil)
+		testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, expectedRequestedVC, issuer.CredentialOptions{
+			Publish: true,
+			Public:  true,
+		}).Return(&expectedRequestedVC, nil)
 
 		response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
@@ -100,9 +103,8 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 			public := Public
 			request := IssueVCRequest{
-				Type:   expectedRequestedVC.Type[0].String(),
-				Issuer: expectedRequestedVC.Issuer.String(),
-				//CredentialSubject: expectedRequestedVC.CredentialSubject,
+				Type:       expectedRequestedVC.Type[0].String(),
+				Issuer:     expectedRequestedVC.Issuer.String(),
 				Visibility: &public,
 			}
 
@@ -129,7 +131,10 @@ func TestWrapper_IssueVC(t *testing.T) {
 				}
 				expectedVC := vc.VerifiableCredential{}
 				expectedResponse := IssueVC200JSONResponse(expectedVC)
-				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), true, false).Return(&expectedVC, nil)
+				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{
+					Publish: true,
+					Public:  false,
+				}).Return(&expectedVC, nil)
 
 				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
@@ -150,7 +155,10 @@ func TestWrapper_IssueVC(t *testing.T) {
 				}
 				expectedVC := vc.VerifiableCredential{}
 				expectedResponse := IssueVC200JSONResponse(expectedVC)
-				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), true, true).Return(&expectedVC, nil)
+				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{
+					Publish: true,
+					Public:  true,
+				}).Return(&expectedVC, nil)
 
 				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
@@ -219,7 +227,10 @@ func TestWrapper_IssueVC(t *testing.T) {
 			}
 			expectedVC := vc.VerifiableCredential{}
 			expectedResponse := IssueVC200JSONResponse(expectedVC)
-			testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), false, false).Return(&expectedVC, nil)
+			testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{
+				Publish: false,
+				Public:  false,
+			}).Return(&expectedVC, nil)
 
 			response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
@@ -267,7 +278,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 			t.Run(test.name, func(t *testing.T) {
 				testContext := newMockContext(t)
 
-				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, test.err)
+				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), gomock.Any()).Return(nil, test.err)
 
 				_, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &validIssueRequest})
 

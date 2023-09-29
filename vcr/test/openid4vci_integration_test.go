@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
@@ -69,7 +70,10 @@ func TestOpenID4VCIHappyFlow(t *testing.T) {
 		"id":           holderDID.URI().String(),
 		"purposeOfUse": "test",
 	})
-	issuedVC, err := vcrService.Issuer().Issue(ctx, credential, true, false)
+	issuedVC, err := vcrService.Issuer().Issue(ctx, credential, issuer.CredentialOptions{
+		Publish: true,
+		Public:  false,
+	})
 
 	require.NoError(t, err)
 	require.NotNil(t, issuedVC)
@@ -124,7 +128,10 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := vcrService.Issuer().Issue(ctx, credential, true, false)
+			_, err := vcrService.Issuer().Issue(ctx, credential, issuer.CredentialOptions{
+				Publish: true,
+				Public:  false,
+			})
 			if err != nil {
 				errChan <- err
 				return
@@ -200,7 +207,10 @@ func TestOpenID4VCIDisabled(t *testing.T) {
 		})
 
 		vcrService := system.FindEngineByName("vcr").(vcr.VCR)
-		_, err := vcrService.Issuer().Issue(audit.TestContext(), credential, true, false)
+		_, err := vcrService.Issuer().Issue(audit.TestContext(), credential, issuer.CredentialOptions{
+			Publish: true,
+			Public:  false,
+		})
 
 		assert.ErrorContains(t, err, "unable to publish the issued credential")
 	})
