@@ -343,6 +343,9 @@ func (client *Crypto) getPrivateKey(ctx context.Context, key interface{}) (crypt
 	switch k := key.(type) {
 	case exportableKey:
 		return k.Signer(), k.KID(), nil
+	case aliasedKey:
+		privateKey, _, err := client.getPrivateKey(ctx, k.aliasedKey)
+		return privateKey, k.KID(), err
 	case Key:
 		kid = k.KID()
 	case string:

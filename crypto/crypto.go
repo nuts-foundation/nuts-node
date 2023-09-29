@@ -218,6 +218,30 @@ func (client *Crypto) Resolve(ctx context.Context, kid string) (Key, error) {
 	}, nil
 }
 
+var _ Key = (*aliasedKey)(nil)
+
+type aliasedKey struct {
+	aliasedKey Key
+	alias      string
+}
+
+func (a aliasedKey) KID() string {
+	return a.alias
+}
+
+func (a aliasedKey) Public() crypto.PublicKey {
+	return a.Public()
+}
+
+// Alias returns a Key that is aliased to the given alias.
+// It will return the given alias as KID, but the underlying key will be used for cryptographic operations.
+func Alias(key Key, alias string) Key {
+	return aliasedKey{
+		aliasedKey: key,
+		alias:      alias,
+	}
+}
+
 // memoryKey is a Key that is only present in memory and not stored in the key store.
 type memoryKey struct {
 	basicKey
