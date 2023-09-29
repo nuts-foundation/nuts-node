@@ -455,6 +455,13 @@ components:
           description: RFC3339 time string until when the credential is valid.
           type: string
           example: "2012-01-02T12:00:00Z"
+        format:
+          description: Proof format for the credential (JSON-LD or JWT). If not set, it defaults to JSON-LD.
+          default: ldp_vc
+          type: string
+          enum:
+            - ldp_vc
+            - jwt_vc
         publishToNetwork:
           description: |
             If set, the node publishes this credential to the network. This is the default behaviour.
@@ -587,6 +594,13 @@ components:
           type: string
           description: Date and time at which proof will expire. If omitted, the proof does not have an end date.
           example: '2021-12-20T09:00:00Z'
+        format:
+          description: Proof format for the presentation (JSON-LD or JWT). If not set, it defaults to JSON-LD.
+          default: ldp_vp
+          type: string
+          enum:
+            - ldp_vp
+            - jwt_vp
 
     VPVerificationRequest:
       required:

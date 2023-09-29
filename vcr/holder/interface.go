@@ -33,6 +33,11 @@ var VerifiableCredentialLDContextV1 = ssi.MustParseURI("https://www.w3.org/2018/
 // VerifiablePresentationLDType holds the JSON-LD type for Verifiable Presentations.
 var VerifiablePresentationLDType = ssi.MustParseURI("VerifiablePresentation")
 
+const (
+	JSONLDPresentationFormat = vc.JSONLDPresentationProofFormat
+	JWTPresentationFormat    = vc.JWTPresentationProofFormat
+)
+
 // Wallet holds Verifiable Credentials and can present them.
 type Wallet interface {
 	core.Diagnosable
@@ -62,4 +67,7 @@ type PresentationOptions struct {
 	AdditionalTypes []ssi.URI
 	// ProofOptions contains the options for a specific proof.
 	ProofOptions proof.ProofOptions
+	// Format contains the requested format for the VerifiablePresentation. If not set, it defaults to JSON-LD.
+	// Valid options are: ldp_vp or jwt_vp
+	Format string
 }

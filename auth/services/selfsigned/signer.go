@@ -35,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"net/url"
 	"time"
@@ -119,7 +120,7 @@ func (v *signer) createVP(ctx context.Context, s types.Session, issuanceDate tim
 	}
 
 	expirationData := issuanceDate.Add(24 * time.Hour)
-	credentialOptions := vc.VerifiableCredential{
+	template := vc.VerifiableCredential{
 		Context:           []ssi.URI{credential.NutsV1ContextURI},
 		Type:              []ssi.URI{ssi.MustParseURI(credentialType)},
 		Issuer:            issuerID.URI(),
@@ -127,7 +128,7 @@ func (v *signer) createVP(ctx context.Context, s types.Session, issuanceDate tim
 		ExpirationDate:    &expirationData,
 		CredentialSubject: s.CredentialSubject(),
 	}
-	verifiableCredential, err := v.vcr.Issuer().Issue(ctx, credentialOptions, false, false)
+	verifiableCredential, err := v.vcr.Issuer().Issue(ctx, template, issuer.CredentialOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("issue VC failed: %w", err)
 	}
