@@ -86,8 +86,10 @@ type CredentialSearcher interface {
 }
 
 const (
-	JSONLDCredentialFormat = vc.JSONLDCredentialProofFormat
-	JWTCredentialFormat    = vc.JWTCredentialsProofFormat
+	JSONLDCredentialFormat   = vc.JSONLDCredentialProofFormat
+	JWTCredentialFormat      = vc.JWTCredentialsProofFormat
+	JSONLDPresentationFormat = vc.JSONLDPresentationProofFormat
+	JWTPresentationFormat    = vc.JWTPresentationProofFormat
 )
 
 // CredentialOptions specifies options for issuing a credential.
