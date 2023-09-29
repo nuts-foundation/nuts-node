@@ -19,10 +19,18 @@
 package verifier
 
 import (
+	crypt "crypto"
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -53,6 +61,7 @@ func testCredential(t *testing.T) vc.VerifiableCredential {
 }
 
 func Test_verifier_Validate(t *testing.T) {
+
 	const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
 
 	// load pub key
@@ -70,7 +79,7 @@ func Test_verifier_Validate(t *testing.T) {
 		timeFunc = time.Now
 	}()
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("JSON-LD", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.verifier
 
@@ -79,6 +88,68 @@ func Test_verifier_Validate(t *testing.T) {
 		err := instance.Validate(testCredential(t), nil)
 
 		assert.NoError(t, err)
+	})
+	t.Run("JWT", func(t *testing.T) {
+		// Create did:jwk for issuer, and sign credential
+		keyStore := crypto.NewMemoryCryptoInstance()
+		key, err := keyStore.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
+			keyAsJWK, _ := jwk.New(key)
+			keyJSON, _ := json.Marshal(keyAsJWK)
+			return "did:jwk:" + base64.RawStdEncoding.EncodeToString(keyJSON) + "#0", nil
+		})
+		require.NoError(t, err)
+
+		template := testCredential(t)
+		template.Issuer = did.MustParseDIDURL(key.KID()).WithoutURL().URI()
+
+		cred, err := issuer.BuildJWTCredential(audit.TestContext(), keyStore, template, key)
+		require.NoError(t, err)
+
+		t.Run("with kid header", func(t *testing.T) {
+			ctx := newMockContext(t)
+			instance := ctx.verifier
+
+			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), gomock.Any(), resolver.NutsSigningKeyType).Return(key.Public(), nil)
+			err = instance.Validate(*cred, nil)
+
+			assert.NoError(t, err)
+		})
+		t.Run("kid header does not match credential issuer", func(t *testing.T) {
+			ctx := newMockContext(t)
+			instance := ctx.verifier
+
+			cred, err := issuer.BuildJWTCredential(audit.TestContext(), keyStore, template, key)
+			require.NoError(t, err)
+			cred.Issuer = ssi.MustParseURI("did:example:test")
+
+			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), gomock.Any(), resolver.NutsSigningKeyType).Return(key.Public(), nil)
+			err = instance.Validate(*cred, nil)
+
+			assert.ErrorIs(t, err, errVerificationMethodNotOfIssuer)
+		})
+		t.Run("signature invalid", func(t *testing.T) {
+			ctx := newMockContext(t)
+			instance := ctx.verifier
+
+			realKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), gomock.Any(), resolver.NutsSigningKeyType).Return(realKey.Public(), nil)
+			err = instance.Validate(*cred, nil)
+
+			assert.EqualError(t, err, "unable to validate JWT credential: failed to verify jws signature: failed to verify message: failed to verify signature using ecdsa")
+		})
+		t.Run("without kid header, derived from issuer", func(t *testing.T) {
+			// Credential taken from Sphereon Wallet
+			const credentialJSON = `eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTYzMDE3MDgsInZjIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZUNyZWRlbnRpYWwiLCJHdWVzdENyZWRlbnRpYWwiXSwiY3JlZGVudGlhbFN1YmplY3QiOnsiZmlyc3ROYW1lIjoiSGVsbG8iLCJsYXN0TmFtZSI6IlNwaGVyZW9uIiwiZW1haWwiOiJzcGhlcmVvbkBleGFtcGxlLmNvbSIsInR5cGUiOiJTcGhlcmVvbiBHdWVzdCIsImlkIjoiZGlkOmp3azpleUpoYkdjaU9pSkZVekkxTmtzaUxDSjFjMlVpT2lKemFXY2lMQ0pyZEhraU9pSkZReUlzSW1OeWRpSTZJbk5sWTNBeU5UWnJNU0lzSW5naU9pSmpNVmRZY3pkWE0yMTVjMlZWWms1Q2NYTjRaRkJYUWtsSGFFdGtORlI2TUV4U0xVWnFPRVpOV1dFd0lpd2llU0k2SWxkdGEwTllkVEYzZVhwYVowZE9OMVY0VG1Gd2NIRnVUMUZoVDJ0WE1rTm5UMU51VDI5NVRVbFVkV01pZlEifX0sIkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZUNyZWRlbnRpYWwiLCJHdWVzdENyZWRlbnRpYWwiXSwiZXhwaXJhdGlvbkRhdGUiOiIyMDIzLTEwLTAzVDAyOjU1OjA4LjEzM1oiLCJjcmVkZW50aWFsU3ViamVjdCI6eyJmaXJzdE5hbWUiOiJIZWxsbyIsImxhc3ROYW1lIjoiU3BoZXJlb24iLCJlbWFpbCI6InNwaGVyZW9uQGV4YW1wbGUuY29tIiwidHlwZSI6IlNwaGVyZW9uIEd1ZXN0IiwiaWQiOiJkaWQ6andrOmV5SmhiR2NpT2lKRlV6STFOa3NpTENKMWMyVWlPaUp6YVdjaUxDSnJkSGtpT2lKRlF5SXNJbU55ZGlJNkluTmxZM0F5TlRack1TSXNJbmdpT2lKak1WZFljemRYTTIxNWMyVlZaazVDY1hONFpGQlhRa2xIYUV0a05GUjZNRXhTTFVacU9FWk5XV0V3SWl3aWVTSTZJbGR0YTBOWWRURjNlWHBhWjBkT04xVjRUbUZ3Y0hGdVQxRmhUMnRYTWtOblQxTnVUMjk1VFVsVWRXTWlmUSJ9LCJpc3N1ZXIiOiJkaWQ6andrOmV5SmhiR2NpT2lKRlV6STFOaUlzSW5WelpTSTZJbk5wWnlJc0ltdDBlU0k2SWtWRElpd2lZM0oySWpvaVVDMHlOVFlpTENKNElqb2lWRWN5U0RKNE1tUlhXRTR6ZFVOeFduQnhSakY1YzBGUVVWWkVTa1ZPWDBndFEwMTBZbWRxWWkxT1p5SXNJbmtpT2lJNVRUaE9lR1F3VUU0eU1rMDViRkJFZUdSd1JIQnZWRXg2TVRWM1pubGFTbk0yV21oTFNWVktNek00SW4wIiwiaXNzdWFuY2VEYXRlIjoiMjAyMy0wOS0yOVQxMjozMTowOC4xMzNaIiwic3ViIjoiZGlkOmp3azpleUpoYkdjaU9pSkZVekkxTmtzaUxDSjFjMlVpT2lKemFXY2lMQ0pyZEhraU9pSkZReUlzSW1OeWRpSTZJbk5sWTNBeU5UWnJNU0lzSW5naU9pSmpNVmRZY3pkWE0yMTVjMlZWWms1Q2NYTjRaRkJYUWtsSGFFdGtORlI2TUV4U0xVWnFPRVpOV1dFd0lpd2llU0k2SWxkdGEwTllkVEYzZVhwYVowZE9OMVY0VG1Gd2NIRnVUMUZoVDJ0WE1rTm5UMU51VDI5NVRVbFVkV01pZlEiLCJuYmYiOjE2OTU5OTA2NjgsImlzcyI6ImRpZDpqd2s6ZXlKaGJHY2lPaUpGVXpJMU5pSXNJblZ6WlNJNkluTnBaeUlzSW10MGVTSTZJa1ZESWl3aVkzSjJJam9pVUMweU5UWWlMQ0o0SWpvaVZFY3lTREo0TW1SWFdFNHpkVU54V25CeFJqRjVjMEZRVVZaRVNrVk9YMGd0UTAxMFltZHFZaTFPWnlJc0lua2lPaUk1VFRoT2VHUXdVRTR5TWswNWJGQkVlR1J3UkhCdlZFeDZNVFYzWm5sYVNuTTJXbWhMU1ZWS016TTRJbjAifQ.wdhtLXE4jU1C-3YBBpP9-qE-yh1xOZ6lBLJ-0e5_Sa7fnrUHcAaU1n3kN2CeCyTVjtm1Uy3Tl6RzUOM6MjP3vQ`
+			cred, _ := vc.ParseVerifiableCredential(credentialJSON)
+
+			keyResolver := resolver.DIDKeyResolver{
+				Resolver: didjwk.NewResolver(),
+			}
+			err := (&verifier{keyResolver: keyResolver}).Validate(*cred, nil)
+
+			assert.NoError(t, err)
+		})
 	})
 
 	t.Run("type", func(t *testing.T) {
@@ -114,7 +185,7 @@ func Test_verifier_Validate(t *testing.T) {
 		err := instance.Validate(vc2, nil)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "verification method is not of issuer")
+		assert.ErrorIs(t, err, errVerificationMethodNotOfIssuer)
 	})
 
 	t.Run("error - wrong hashed payload", func(t *testing.T) {
@@ -438,7 +509,7 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 		assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
 		revocation.Proof.VerificationMethod = ssi.MustParseURI("did:nuts:123#abc")
 		err := sut.verifier.RegisterRevocation(revocation)
-		assert.EqualError(t, err, "verificationMethod should owned by the issuer")
+		assert.ErrorIs(t, err, errVerificationMethodNotOfIssuer)
 	})
 
 	t.Run("it fails when the revoked credential and revocation-issuer are not from the same identity", func(t *testing.T) {
