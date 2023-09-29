@@ -19,8 +19,11 @@
 package iam
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	"embed"
+	"encoding/base64"
 	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
@@ -28,12 +31,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"html/template"
+	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -52,21 +58,23 @@ type Wrapper struct {
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 	auth          auth.AuthenticationServices
-	templates     *template.Template
+	keyStore      crypto.KeyStore
 	storageEngine storage.Engine
+	templates     *template.Template
 }
 
-func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine) *Wrapper {
+func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, keyStore crypto.KeyStore, storageEngine storage.Engine) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assets, "assets/*.html")
 	if err != nil {
 		panic(err)
 	}
 	return &Wrapper{
-		storageEngine: storageEngine,
 		auth:          authInstance,
 		vcr:           vcrInstance,
 		vdr:           vdrInstance,
+		keyStore:      keyStore,
+		storageEngine: storageEngine,
 		templates:     templates,
 	}
 }
@@ -82,15 +90,21 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 	auditMiddleware := audit.Middleware(apiModuleName)
 	// The following handler is of the OpenID4VCI wallet which is called by the holder (wallet owner)
 	// when accepting an OpenID4VP authorization request.
-	router.POST("/iam/:did/openid4vp_authz_accept", r.handlePresentationRequestAccept, auditMiddleware)
-	// The following handler is of the OpenID4VP verifier where the browser will be redirected to by the wallet,
-	// after completing a presentation exchange.
-	router.GET("/iam/:did/openid4vp_completed", r.handlePresentationRequestCompleted, auditMiddleware)
-	// The following 2 handlers are used to test/demo the OpenID4VP flow.
-	// - GET renders an HTML page with a form to start the flow.
-	// - POST handles the form submission, initiating the flow.
-	router.GET("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoLanding, auditMiddleware)
-	router.POST("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoSendRequest, auditMiddleware)
+	router.POST("/iam/:id/openid_authz_accept", r.handlePresentationRequestAccept, auditMiddleware)
+	// The following handler is of the OpenID4VP verifier where the wallet can retrieve the Authorization Request Object,
+	// as specified by https://www.rfc-editor.org/rfc/rfc9101.txt
+	router.GET("/iam/:id/openid/request/:sessionID", r.handleGetOpenIDRequestObject, auditMiddleware)
+	// The following handler is of the OpenID4VP or SIOPv2 verifier where the user-agent can retrieve the session object,
+	// which can be used to retrieve the Authorization Response.
+	router.GET("/iam/:id/openid/session/:sessionID", r.handleGetOpenIDSession, auditMiddleware)
+	// The following handlers are used to test/demo the OpenID4VP flows.
+	// - GET  /openid_demo: renders an HTML page with a form to start the SIOPv2/OpenID4VP flow (POST handles form submission).
+	// - GET  /openid_demo_completed: renders an HTML page with the result of the flow
+	// - GET  /openid4vp_demo_status: API for XIS to retrieve the status of the flow (if sessionID param is present)
+	router.GET("/iam/openid_demo", r.handleOpenIDDemoStart, auditMiddleware)
+	router.POST("/iam/openid_demo", r.handleOpenID4VPDemoSendRequest, auditMiddleware)
+	router.GET("/iam/:id/openid_demo_completed", r.handleOpenIDDemoCompleted, auditMiddleware)
+	router.GET("/iam/:id/openid_demo_status", r.handleOpenID4VPDemoRequestWalletStatus, auditMiddleware)
 }
 
 func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
@@ -112,7 +126,7 @@ func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID s
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
-func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) HandleTokenRequest(_ context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
 	switch request.Body.GrantType {
 	case "authorization_code":
 		// Options:
@@ -146,8 +160,6 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
 	ownDID := idToDID(request.Id)
-	// Create session object to be passed to handler
-
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
@@ -166,7 +178,10 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		}
 	}
 
-	switch session.ResponseType {
+	if len(session.ResponseType) != 1 {
+		return nil, errors.New("TODO: expected exactly one response_type")
+	}
+	switch session.ResponseType[0] {
 	case responseTypeCode:
 		// Options:
 		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.
@@ -176,13 +191,13 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		panic("not implemented")
 	case responseTypeVPToken:
 		// Options:
-		// - OpenID4VP flow, vp_token is sent in Authorization Response
+		// - OpenID4VP flow
 		// TODO: Check parameters for right flow
 		// TODO: Do we actually need this? (probably not)
 		panic("not implemented")
-	case responseTypeVPIDToken:
+	case responseTypeIDToken:
 		// Options:
-		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
+		// - SIOPv2 flow
 		return r.handlePresentationRequest(params, session)
 	default:
 		// TODO: This should be a redirect?
@@ -191,6 +206,90 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 			RedirectURI: session.RedirectURI,
 		}
 	}
+}
+
+func (r Wrapper) HandleAuthorizeRedirectResponse(ctx context.Context, authResponse HandleAuthorizeRedirectResponseRequestObject) (HandleAuthorizeRedirectResponseResponseObject, error) {
+	ownDID := idToDID(authResponse.Id)
+	// TODO: IsOwner
+	// For now, only query parameters are supported
+	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
+
+	session, err := r.handleAuthorizeResponse(ownDID, httpRequest.URL.Query())
+	if err != nil {
+		// TODO: render error HTML page for the browser
+		return nil, err
+	}
+	// Successful response, session can now contain id_token and/or vp_token
+	// TODO: We probably need to redirect back to XIS
+	var credentials []CredentialInfo
+	if session.IDToken != nil {
+		for _, cred := range session.IDToken.VerifiableCredential {
+			credentials = append(credentials, makeCredentialInfo(cred))
+		}
+	}
+	if session.VPToken != nil {
+		for _, cred := range session.VPToken.VerifiableCredential {
+			credentials = append(credentials, makeCredentialInfo(cred))
+		}
+	}
+	buf := new(bytes.Buffer)
+	if err := r.templates.ExecuteTemplate(buf, "openid_demo_completed.html", struct {
+		Credentials []CredentialInfo
+	}{
+		Credentials: credentials,
+	}); err != nil {
+		return nil, err
+	}
+	return HandleAuthorizeRedirectResponsedefaultTexthtmlResponse{
+		Body:          bytes.NewReader(buf.Bytes()),
+		StatusCode:    http.StatusOK,
+		ContentLength: int64(buf.Len()),
+	}, nil
+}
+
+func (r Wrapper) HandleAuthorizeResponse(_ context.Context, authResponse HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
+	ownDID := idToDID(authResponse.Id)
+	// TODO: IsOwner
+	requestData, err := io.ReadAll(authResponse.Body)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.Contains(authResponse.ContentType, "application/x-www-form-urlencoded") {
+		return nil, OAuth2Error{
+			Code:        InvalidRequest,
+			Description: "unsupported content type",
+		}
+	}
+	params, err := url.ParseQuery(string(requestData))
+	if err != nil {
+		return nil, OAuth2Error{
+			Code:        InvalidRequest,
+			Description: err.Error(),
+		}
+	}
+	_, err = r.handleAuthorizeResponse(ownDID, params)
+	if err != nil {
+		return nil, err
+	}
+	return HandleAuthorizeResponsedefaultTexthtmlResponse{
+		Body:       bytes.NewReader([]byte("OK")), // is this specified?
+		StatusCode: http.StatusOK,
+	}, nil
+}
+
+func (r Wrapper) handleAuthorizeResponse(ownDID did.DID, params url.Values) (*Session, error) {
+	sessionID, session, err := r.getSessionFromParams(ownDID, params)
+	if err != nil {
+		return nil, err
+	}
+	err = r.handleOpenIDAuthzResponse(session, params)
+	if err == nil {
+		err := r.setSession(ownDID, sessionID, *session)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return session, err
 }
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
@@ -251,15 +350,49 @@ func createSession(params map[string]string, ownDID did.DID) *Session {
 		// TODO: Validate client ID
 		ClientID: params[clientIDParam],
 		// TODO: Validate scope
-		Scope:       params[scopeParam],
-		ClientState: params[stateParam],
+		Scope:       strings.Split(params[scopeParam], " "),
 		ServerState: map[string]interface{}{},
 		// TODO: Validate according to https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
 		RedirectURI:  params[redirectURIParam],
 		OwnDID:       ownDID,
-		ResponseType: params[responseTypeParam],
+		ResponseType: strings.Split(params[responseTypeParam], " "),
 	}
 	return session
+}
+
+func (r Wrapper) getSessionByID(ownDID did.DID, sessionID string) (*Session, error) {
+	var session Session
+	sessionStore := r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, "openid", ownDID.String(), "session")
+	err := sessionStore.Get(sessionID, &session)
+	if errors.Is(err, storage.ErrNotFound) {
+		return nil, OAuth2Error{
+			Code:        InvalidRequest,
+			Description: "unknown/expired session",
+		}
+	} else if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+func (r Wrapper) getSessionFromParams(ownDID did.DID, params url.Values) (string, *Session, error) {
+	sessionID := params.Get("state")
+	if sessionID == "" {
+		return "", nil, OAuth2Error{
+			Code:        InvalidRequest,
+			Description: "missing state parameter",
+		}
+	}
+	session, err := r.getSessionByID(ownDID, sessionID)
+	if err != nil {
+		return "", nil, err
+	}
+	return sessionID, session, nil
+}
+
+func (r Wrapper) setSession(ownDID did.DID, sessionID string, session Session) error {
+	sessionStore := r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, "openid", ownDID.String(), "session")
+	return sessionStore.Put(sessionID, session)
 }
 
 func idToDID(id string) did.DID {
@@ -269,4 +402,13 @@ func idToDID(id string) did.DID {
 		ID:        id,
 		DecodedID: id,
 	}
+}
+
+func generateCode() string {
+	buf := make([]byte, 128/8)
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+	return base64.URLEncoding.EncodeToString(buf)
 }

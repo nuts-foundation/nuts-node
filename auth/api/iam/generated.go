@@ -33,6 +33,17 @@ type HandleAuthorizeRequestParams struct {
 	Params *map[string]string `form:"params,omitempty" json:"params,omitempty"`
 }
 
+// HandleAuthorizeRedirectResponseParams defines parameters for HandleAuthorizeRedirectResponse.
+type HandleAuthorizeRedirectResponseParams struct {
+	Params *map[string]string `form:"params,omitempty" json:"params,omitempty"`
+}
+
+// HandleAuthorizeResponseParams defines parameters for HandleAuthorizeResponse.
+type HandleAuthorizeResponseParams struct {
+	Params      *map[string]string `form:"params,omitempty" json:"params,omitempty"`
+	ContentType *string            `json:"Content-Type,omitempty"`
+}
+
 // HandleTokenRequestFormdataBody defines parameters for HandleTokenRequest.
 type HandleTokenRequestFormdataBody struct {
 	Code                 string            `form:"code" json:"code"`
@@ -140,6 +151,16 @@ type ServerInterface interface {
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{id}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, id string, params HandleAuthorizeRequestParams) error
+	// Used by authorization servers to:
+	//   - send the authorization response through a HTTP GET (e.g. query parameters)
+	//   - redirect the browser after successful authorization (response was POSTed via backchannel)
+	//   - redirect the browser after failed authorization
+	//
+	// (GET /iam/{id}/authresponse)
+	HandleAuthorizeRedirectResponse(ctx echo.Context, id string, params HandleAuthorizeRedirectResponseParams) error
+	// Used by authorization servers to send the authorization response.
+	// (POST /iam/{id}/authresponse)
+	HandleAuthorizeResponse(ctx echo.Context, id string, params HandleAuthorizeResponseParams) error
 	// Returns the did:web version of a Nuts DID document
 	// (GET /iam/{id}/did.json)
 	GetWebDID(ctx echo.Context, id string) error
@@ -197,6 +218,73 @@ func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error 
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.HandleAuthorizeRequest(ctx, id, params)
+	return err
+}
+
+// HandleAuthorizeRedirectResponse converts echo context to params.
+func (w *ServerInterfaceWrapper) HandleAuthorizeRedirectResponse(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params HandleAuthorizeRedirectResponseParams
+	// ------------- Optional query parameter "params" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "params", ctx.QueryParams(), &params.Params)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter params: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.HandleAuthorizeRedirectResponse(ctx, id, params)
+	return err
+}
+
+// HandleAuthorizeResponse converts echo context to params.
+func (w *ServerInterfaceWrapper) HandleAuthorizeResponse(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params HandleAuthorizeResponseParams
+	// ------------- Optional query parameter "params" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "params", ctx.QueryParams(), &params.Params)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter params: %s", err))
+	}
+
+	headers := ctx.Request().Header
+	// ------------- Optional header parameter "Content-Type" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Content-Type")]; found {
+		var ContentType string
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for Content-Type, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "Content-Type", runtime.ParamLocationHeader, valueList[0], &ContentType)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter Content-Type: %s", err))
+		}
+
+		params.ContentType = &ContentType
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.HandleAuthorizeResponse(ctx, id, params)
 	return err
 }
 
@@ -294,6 +382,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:id", wrapper.OAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/iam/:id/authorize", wrapper.HandleAuthorizeRequest)
+	router.GET(baseURL+"/iam/:id/authresponse", wrapper.HandleAuthorizeRedirectResponse)
+	router.POST(baseURL+"/iam/:id/authresponse", wrapper.HandleAuthorizeResponse)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetWebDID)
 	router.GET(baseURL+"/iam/:id/oauth-client", wrapper.OAuthClientMetadata)
 	router.POST(baseURL+"/iam/:id/token", wrapper.HandleTokenRequest)
@@ -379,6 +469,107 @@ func (response HandleAuthorizeRequest302Response) VisitHandleAuthorizeRequestRes
 	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
 	w.WriteHeader(302)
 	return nil
+}
+
+type HandleAuthorizeRedirectResponseRequestObject struct {
+	Id     string `json:"id"`
+	Params HandleAuthorizeRedirectResponseParams
+}
+
+type HandleAuthorizeRedirectResponseResponseObject interface {
+	VisitHandleAuthorizeRedirectResponseResponse(w http.ResponseWriter) error
+}
+
+type HandleAuthorizeRedirectResponsedefaultTexthtmlResponse struct {
+	Body          io.Reader
+	StatusCode    int
+	ContentLength int64
+}
+
+func (response HandleAuthorizeRedirectResponsedefaultTexthtmlResponse) VisitHandleAuthorizeRedirectResponseResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/html")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(response.StatusCode)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type HandleAuthorizeResponseRequestObject struct {
+	Id          string `json:"id"`
+	Params      HandleAuthorizeResponseParams
+	ContentType string
+	Body        io.Reader
+}
+
+type HandleAuthorizeResponseResponseObject interface {
+	VisitHandleAuthorizeResponseResponse(w http.ResponseWriter) error
+}
+
+type HandleAuthorizeResponse200TexthtmlResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response HandleAuthorizeResponse200TexthtmlResponse) VisitHandleAuthorizeResponseResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/html")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type HandleAuthorizeResponse200TextResponse string
+
+func (response HandleAuthorizeResponse200TextResponse) VisitHandleAuthorizeResponseResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(200)
+
+	_, err := w.Write([]byte(response))
+	return err
+}
+
+type HandleAuthorizeResponsedefaultJSONResponse struct {
+	Body       map[string]interface{}
+	StatusCode int
+}
+
+func (response HandleAuthorizeResponsedefaultJSONResponse) VisitHandleAuthorizeResponseResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type HandleAuthorizeResponsedefaultTexthtmlResponse struct {
+	Body          io.Reader
+	StatusCode    int
+	ContentLength int64
+}
+
+func (response HandleAuthorizeResponsedefaultTexthtmlResponse) VisitHandleAuthorizeResponseResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/html")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(response.StatusCode)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
 }
 
 type GetWebDIDRequestObject struct {
@@ -527,6 +718,16 @@ type StrictServerInterface interface {
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{id}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
+	// Used by authorization servers to:
+	//   - send the authorization response through a HTTP GET (e.g. query parameters)
+	//   - redirect the browser after successful authorization (response was POSTed via backchannel)
+	//   - redirect the browser after failed authorization
+	//
+	// (GET /iam/{id}/authresponse)
+	HandleAuthorizeRedirectResponse(ctx context.Context, request HandleAuthorizeRedirectResponseRequestObject) (HandleAuthorizeRedirectResponseResponseObject, error)
+	// Used by authorization servers to send the authorization response.
+	// (POST /iam/{id}/authresponse)
+	HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error)
 	// Returns the did:web version of a Nuts DID document
 	// (GET /iam/{id}/did.json)
 	GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error)
@@ -598,6 +799,61 @@ func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, id string, par
 		return err
 	} else if validResponse, ok := response.(HandleAuthorizeRequestResponseObject); ok {
 		return validResponse.VisitHandleAuthorizeRequestResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// HandleAuthorizeRedirectResponse operation middleware
+func (sh *strictHandler) HandleAuthorizeRedirectResponse(ctx echo.Context, id string, params HandleAuthorizeRedirectResponseParams) error {
+	var request HandleAuthorizeRedirectResponseRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.HandleAuthorizeRedirectResponse(ctx.Request().Context(), request.(HandleAuthorizeRedirectResponseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "HandleAuthorizeRedirectResponse")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(HandleAuthorizeRedirectResponseResponseObject); ok {
+		return validResponse.VisitHandleAuthorizeRedirectResponseResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// HandleAuthorizeResponse operation middleware
+func (sh *strictHandler) HandleAuthorizeResponse(ctx echo.Context, id string, params HandleAuthorizeResponseParams) error {
+	var request HandleAuthorizeResponseRequestObject
+
+	request.Id = id
+	request.Params = params
+	request.ContentType = ctx.Request().Header.Get("Content-Type")
+
+	request.Body = ctx.Request().Body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.HandleAuthorizeResponse(ctx.Request().Context(), request.(HandleAuthorizeResponseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "HandleAuthorizeResponse")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(HandleAuthorizeResponseResponseObject); ok {
+		return validResponse.VisitHandleAuthorizeResponseResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
