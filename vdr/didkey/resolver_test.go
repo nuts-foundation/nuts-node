@@ -1,6 +1,7 @@
 package didkey
 
 import (
+	"crypto/ed25519"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,5 +53,9 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NotNil(t, md)
 		docJSON, _ := doc.MarshalJSON()
 		assert.JSONEq(t, expected, string(docJSON))
+		// Test the public key
+		publicKey, err := doc.VerificationMethod[0].PublicKey()
+		require.NoError(t, err)
+		require.IsType(t, ed25519.PublicKey{}, publicKey)
 	})
 }
