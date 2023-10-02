@@ -84,15 +84,11 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	}
 
 	document := did.Document{
-		Context:              nil,
-		ID:                   id,
-		AlsoKnownAs:          nil,
-		Authentication:       nil,
-		AssertionMethod:      nil,
-		KeyAgreement:         nil,
-		CapabilityInvocation: nil,
-		CapabilityDelegation: nil,
-		Service:              nil,
+		Context: []ssi.URI{
+			ssi.MustParseURI("https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"),
+			did.DIDContextV1URI(),
+		},
+		ID: id,
 	}
 	keyID := id
 	keyID.Fragment = id.ID
@@ -105,5 +101,5 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	document.AddKeyAgreement(vm)
 	document.AddCapabilityDelegation(vm)
 	document.AddCapabilityInvocation(vm)
-	return nil, nil, nil
+	return &document, &resolver.DocumentMetadata{}, nil
 }
