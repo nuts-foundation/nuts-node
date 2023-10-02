@@ -29,6 +29,9 @@ type DIDDocument = did.Document
 // DIDDocumentMetadata is an alias
 type DIDDocumentMetadata = resolver.DocumentMetadata
 
+// ErrorResponse is an alias
+type ErrorResponse = OAuth2Error
+
 const (
 	// responseTypeParam is the name of the response_type parameter.
 	// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.1

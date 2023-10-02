@@ -15,12 +15,6 @@ import (
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
 
-// ErrorResponse defines model for ErrorResponse.
-type ErrorResponse struct {
-	// Error Code identifying the error that occurred.
-	Error string `json:"error"`
-}
-
 // TokenResponse Token Responses are made as defined in (RFC6749)[https://datatracker.ietf.org/doc/html/rfc6749#section-5.1]
 type TokenResponse struct {
 	// AccessToken The access token issued by the authorization server.
