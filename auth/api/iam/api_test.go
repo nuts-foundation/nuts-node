@@ -197,7 +197,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
-		assert.Equal(t, "invalid_scope", (response.(PresentationDefinition400JSONResponse)).Error)
+		assert.Equal(t, InvalidScope, (response.(PresentationDefinition400JSONResponse)).Code)
 	})
 }
 

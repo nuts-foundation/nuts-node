@@ -100,8 +100,12 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpo
 	if err != nil {
 		return nil, fmt.Errorf("failed to call endpoint: %w", err)
 	}
-	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		return nil, err
+	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
+		rse := httpErr.(core.HttpError)
+		if TestOAuthErrorCode(rse.ResponseBody, InvalidScope) {
+			return nil, ErrInvalidScope
+		}
+		return nil, httpErr
 	}
 
 	definitions := make([]PresentationDefinition, 0)

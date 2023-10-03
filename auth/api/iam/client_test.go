@@ -128,7 +128,16 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		require.NotNil(t, handler.Request)
 		assert.Equal(t, url.Values{"scope": []string{"first second"}}, handler.Request.URL.Query())
 	})
+	t.Run("error - invalid_scope", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: OAuth2Error{Code: InvalidScope}}
+		tlsServer, client := testServerAndClient(t, &handler)
 
+		response, err := client.PresentationDefinition(ctx, tlsServer.URL, []string{"test"})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "invalid scope")
+		assert.Nil(t, response)
+	})
 	t.Run("error - not found", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusNotFound}
 		tlsServer, client := testServerAndClient(t, &handler)

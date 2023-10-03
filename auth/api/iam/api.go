@@ -255,7 +255,7 @@ func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationD
 	presentationDefinition := r.auth.PresentationDefinitions().ByScope(scopes[0])
 	if presentationDefinition == nil {
 		return PresentationDefinition400JSONResponse{
-			Error: "invalid_scope",
+			Code: "invalid_scope",
 		}, nil
 	}
 	presentationDefinitions := []PresentationDefinition{*presentationDefinition}

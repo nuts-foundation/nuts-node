@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -124,4 +125,17 @@ func (p oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err 
 	}
 	redirectURI.RawQuery = query.Encode()
 	return echoContext.Redirect(http.StatusFound, redirectURI.String())
+}
+
+const InvalidScope = ErrorCode("invalid_scope")
+
+var ErrInvalidScope = errors.New("invalid scope")
+
+// TestOAuthErrorCode tests if the response is an OAuth2 error with the given code.
+func TestOAuthErrorCode(responseBody []byte, code ErrorCode) bool {
+	var oauthErr OAuth2Error
+	if err := json.Unmarshal(responseBody, &oauthErr); err != nil {
+		return false
+	}
+	return oauthErr.Code == code
 }

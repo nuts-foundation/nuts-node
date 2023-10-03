@@ -74,7 +74,7 @@ func (h HTTPClient) CreateAccessToken(ctx context.Context, endpointURL url.URL, 
 		return nil, err
 	}
 
-	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
 		rse := err.(core.HttpError)
 		// Cut off the response body to 100 characters max to prevent logging of large responses
 		responseBodyString := string(rse.ResponseBody)
