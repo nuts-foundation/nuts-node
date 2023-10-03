@@ -21,9 +21,7 @@ package issuer
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"sync"
-	"time"
+	"github.com/nuts-foundation/nuts-node/storage"
 )
 
 // OpenIDStore defines the storage API for OpenID Credential Issuance flows.
@@ -35,164 +33,71 @@ type OpenIDStore interface {
 	// like a database index. The reference must be unique for all flows.
 	// The expiry is the time-to-live for the reference. After this time, the reference is automatically deleted.
 	// If the flow does not exist, or the reference does already exist, it returns an error.
-	StoreReference(ctx context.Context, flowID string, refType string, reference string, expiry time.Time) error
+	StoreReference(ctx context.Context, flowID string, refType string, reference string) error
 	// FindByReference finds a Flow by its reference.
 	// If the flow does not exist, it returns nil.
 	FindByReference(ctx context.Context, refType string, reference string) (*Flow, error)
 	// DeleteReference deletes the reference from the store.
 	// It does not return an error if it doesn't exist anymore.
 	DeleteReference(ctx context.Context, refType string, reference string) error
-	// Close signals the store to close any owned resources.
-	Close()
 }
 
 var _ OpenIDStore = (*openidMemoryStore)(nil)
 
-var openidStorePruneInterval = 10 * time.Minute
-
 type openidMemoryStore struct {
-	mux      *sync.RWMutex
-	flows    map[string]Flow
-	refs     map[string]map[string]referenceValue
-	routines *sync.WaitGroup
-	ctx      context.Context
-	cancel   context.CancelFunc
+	sessionDatabase storage.SessionDatabase
 }
 
 // NewOpenIDMemoryStore creates a new in-memory OpenIDStore.
-func NewOpenIDMemoryStore() OpenIDStore {
-	result := &openidMemoryStore{
-		mux:      &sync.RWMutex{},
-		flows:    map[string]Flow{},
-		refs:     map[string]map[string]referenceValue{},
-		routines: &sync.WaitGroup{},
+func NewOpenIDMemoryStore(sessionDatabase storage.SessionDatabase) OpenIDStore {
+	return &openidMemoryStore{
+		sessionDatabase: sessionDatabase,
 	}
-	result.ctx, result.cancel = context.WithCancel(context.Background())
-	result.startPruning(openidStorePruneInterval)
-	return result
-}
-
-type referenceValue struct {
-	FlowID string    `json:"flow_id"`
-	Expiry time.Time `json:"exp"`
 }
 
 func (o *openidMemoryStore) Store(_ context.Context, flow Flow) error {
 	if len(flow.ID) == 0 {
 		return errors.New("invalid flow ID")
 	}
-	o.mux.Lock()
-	defer o.mux.Unlock()
-	if o.flows[flow.ID].ID != "" {
+	store := o.sessionDatabase.GetStore(TokenTTL, "openid4vci", "flow")
+	if store.Exists(flow.ID) {
 		return errors.New("OAuth2 flow with this ID already exists")
 	}
-	o.flows[flow.ID] = flow
-	return nil
+	return store.Put(flow.ID, flow)
 }
 
-func (o *openidMemoryStore) StoreReference(_ context.Context, flowID string, refType string, reference string, expiry time.Time) error {
+func (o *openidMemoryStore) StoreReference(_ context.Context, flowID string, refType string, reference string) error {
 	if len(reference) == 0 {
 		return errors.New("invalid reference")
 	}
-	o.mux.Lock()
-	defer o.mux.Unlock()
-	if o.flows[flowID].ID == "" {
+	refStore := o.sessionDatabase.GetStore(TokenTTL, "openid4vci", refType)
+	flowStore := o.sessionDatabase.GetStore(TokenTTL, "openid4vci", "flow")
+	if !flowStore.Exists(flowID) {
 		return errors.New("OAuth2 flow with this ID does not exist")
 	}
-	if o.refs[refType] == nil {
-		o.refs[refType] = map[string]referenceValue{}
-	}
-	if _, ok := o.refs[refType][reference]; ok {
+	if refStore.Exists(reference) {
 		return errors.New("reference already exists")
 	}
-	o.refs[refType][reference] = referenceValue{FlowID: flowID, Expiry: expiry}
-	return nil
+	return refStore.Put(reference, flowID)
 }
 
 func (o *openidMemoryStore) FindByReference(_ context.Context, refType string, reference string) (*Flow, error) {
-	o.mux.RLock()
-	defer o.mux.RUnlock()
-
-	refMap := o.refs[refType]
-	if refMap == nil {
+	refStore := o.sessionDatabase.GetStore(TokenTTL, "openid4vci", refType)
+	flowStore := o.sessionDatabase.GetStore(TokenTTL, "openid4vci", "flow")
+	if !refStore.Exists(reference) {
 		return nil, nil
 	}
-	value, ok := refMap[reference]
-	if !ok {
-		return nil, nil
+	var flowID string
+	err := refStore.Get(reference, &flowID)
+	if err != nil {
+		return nil, err
 	}
-	if value.Expiry.Before(time.Now()) {
-		return nil, nil
-	}
-
-	flow := o.flows[value.FlowID]
-	if flow.Expiry.Before(time.Now()) {
-		return nil, nil
-	}
-	return &flow, nil
+	var flow Flow
+	err = flowStore.Get(flowID, &flow)
+	return &flow, err
 }
 
 func (o *openidMemoryStore) DeleteReference(_ context.Context, refType string, reference string) error {
-	o.mux.Lock()
-	defer o.mux.Unlock()
-
-	if o.refs[refType] == nil {
-		return nil
-	}
-	delete(o.refs[refType], reference)
-	return nil
-}
-
-func (o *openidMemoryStore) Close() {
-	// Signal pruner to stop and wait for it to finish
-	o.cancel()
-	o.routines.Wait()
-}
-
-func (o *openidMemoryStore) startPruning(interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	o.routines.Add(1)
-	go func(ctx context.Context) {
-		defer o.routines.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				flowsPruned, refsPruned := o.prune()
-				if flowsPruned > 0 || refsPruned > 0 {
-					log.Logger().Debugf("Pruned %d expired OpenID4VCI flows and %d expired refs", flowsPruned, refsPruned)
-				}
-			}
-		}
-	}(o.ctx)
-}
-
-func (o *openidMemoryStore) prune() (int, int) {
-	o.mux.Lock()
-	defer o.mux.Unlock()
-
-	moment := time.Now()
-
-	// Find expired flows and delete them
-	var flowCount int
-	for id, flow := range o.flows {
-		if flow.Expiry.Before(moment) {
-			flowCount++
-			delete(o.flows, id)
-		}
-	}
-	// Find expired refs and delete them
-	var refCount int
-	for _, refMap := range o.refs {
-		for reference, value := range refMap {
-			if value.Expiry.Before(moment) {
-				refCount++
-				delete(refMap, reference)
-			}
-		}
-	}
-
-	return flowCount, refCount
+	refStore := o.sessionDatabase.GetStore(TokenTTL, "openid4vci", refType)
+	return refStore.Delete(reference)
 }

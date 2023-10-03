@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -57,14 +58,6 @@ type Flow struct {
 	// Credentials is the list of Verifiable Credentials that be issued to the wallet through this flow.
 	// It might be pre-determined (in the issuer-initiated flow) or determined during the flow execution (in the wallet-initiated flow).
 	Credentials []vc.VerifiableCredential `json:"credentials"`
-	Expiry      time.Time                 `json:"exp"`
-}
-
-// Nonce is a nonce that has been issued for an OpenID4VCI flow, to be used by the wallet when requesting credentials.
-// A nonce can only be used once (doh), and is only valid for a certain period of time.
-type Nonce struct {
-	Nonce  string    `json:"nonce"`
-	Expiry time.Time `json:"exp"`
 }
 
 // Grant is a grant that has been issued for an OAuth2 state.
@@ -75,8 +68,6 @@ type Grant struct {
 	Params map[string]interface{} `json:"params"`
 }
 
-// ErrUnknownIssuer is returned when the given issuer is unknown.
-var ErrUnknownIssuer = errors.New("unknown OpenID4VCI issuer")
 var _ OpenIDHandler = (*openidHandler)(nil)
 
 // TokenTTL is the time-to-live for issuance flows, access tokens and nonces.
@@ -105,7 +96,7 @@ type OpenIDHandler interface {
 }
 
 // NewOpenIDHandler creates a new OpenIDHandler instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, httpClient core.HTTPRequestDoer, keyResolver resolver.KeyResolver, store OpenIDStore) (OpenIDHandler, error) {
+func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitionsDIR string, httpClient core.HTTPRequestDoer, keyResolver resolver.KeyResolver, sessionDatabase storage.SessionDatabase) (OpenIDHandler, error) {
 	i := &openidHandler{
 		issuerIdentifierURL: issuerIdentifierURL,
 		issuerDID:           issuerDID,
@@ -113,7 +104,7 @@ func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitions
 		httpClient:          httpClient,
 		keyResolver:         keyResolver,
 		walletClientCreator: openid4vci.NewWalletAPIClient,
-		store:               store,
+		store:               NewOpenIDMemoryStore(sessionDatabase),
 	}
 
 	// load the credential definitions. This is done to halt startup procedure if needed.
@@ -174,12 +165,12 @@ func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthori
 		}
 	}
 	accessToken := generateCode()
-	err = i.store.StoreReference(ctx, flow.ID, accessTokenRefType, accessToken, time.Now().Add(TokenTTL))
+	err = i.store.StoreReference(ctx, flow.ID, accessTokenRefType, accessToken)
 	if err != nil {
 		return "", "", err
 	}
 	cNonce := generateCode()
-	err = i.store.StoreReference(ctx, flow.ID, cNonceRefType, cNonce, time.Now().Add(TokenTTL))
+	err = i.store.StoreReference(ctx, flow.ID, cNonceRefType, cNonce)
 	if err != nil {
 		return "", "", err
 	}
@@ -294,7 +285,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	// augment invalid_proof errors according to §7.3.2 of openid4vci spec
 	generateProofError := func(err openid4vci.Error) error {
 		cnonce := generateCode()
-		if err := i.store.StoreReference(ctx, flow.ID, cNonceRefType, cnonce, time.Now().Add(TokenTTL)); err != nil {
+		if err := i.store.StoreReference(ctx, flow.ID, cNonceRefType, cnonce); err != nil {
 			return err
 		}
 		expiry := int(TokenTTL.Seconds())
@@ -438,7 +429,6 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 		ID:          uuid.NewString(),
 		IssuerID:    credential.Issuer.String(),
 		WalletID:    subjectDID.String(),
-		Expiry:      time.Now().Add(TokenTTL),
 		Credentials: []vc.VerifiableCredential{credential},
 		Grants: []Grant{
 			{
@@ -449,7 +439,7 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 	}
 	err := i.store.Store(ctx, flow)
 	if err == nil {
-		err = i.store.StoreReference(ctx, flow.ID, preAuthCodeRefType, preAuthorizedCode, time.Now().Add(TokenTTL))
+		err = i.store.StoreReference(ctx, flow.ID, preAuthCodeRefType, preAuthorizedCode)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("unable to store credential offer: %w", err)

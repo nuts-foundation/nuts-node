@@ -10,6 +10,7 @@ package storage
 
 import (
 	reflect "reflect"
+	time "time"
 
 	stoabs "github.com/nuts-foundation/go-stoabs"
 	core "github.com/nuts-foundation/nuts-node/core"
@@ -65,6 +66,20 @@ func (m *MockEngine) GetProvider(moduleName string) Provider {
 func (mr *MockEngineMockRecorder) GetProvider(moduleName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProvider", reflect.TypeOf((*MockEngine)(nil).GetProvider), moduleName)
+}
+
+// GetSessionDatabase mocks base method.
+func (m *MockEngine) GetSessionDatabase() SessionDatabase {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSessionDatabase")
+	ret0, _ := ret[0].(SessionDatabase)
+	return ret0
+}
+
+// GetSessionDatabase indicates an expected call of GetSessionDatabase.
+func (mr *MockEngineMockRecorder) GetSessionDatabase() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionDatabase", reflect.TypeOf((*MockEngine)(nil).GetSessionDatabase))
 }
 
 // Shutdown mocks base method.
@@ -195,4 +210,137 @@ func (m *Mockdatabase) getClass() Class {
 func (mr *MockdatabaseMockRecorder) getClass() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getClass", reflect.TypeOf((*Mockdatabase)(nil).getClass))
+}
+
+// MockSessionDatabase is a mock of SessionDatabase interface.
+type MockSessionDatabase struct {
+	ctrl     *gomock.Controller
+	recorder *MockSessionDatabaseMockRecorder
+}
+
+// MockSessionDatabaseMockRecorder is the mock recorder for MockSessionDatabase.
+type MockSessionDatabaseMockRecorder struct {
+	mock *MockSessionDatabase
+}
+
+// NewMockSessionDatabase creates a new mock instance.
+func NewMockSessionDatabase(ctrl *gomock.Controller) *MockSessionDatabase {
+	mock := &MockSessionDatabase{ctrl: ctrl}
+	mock.recorder = &MockSessionDatabaseMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSessionDatabase) EXPECT() *MockSessionDatabaseMockRecorder {
+	return m.recorder
+}
+
+// GetStore mocks base method.
+func (m *MockSessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ttl}
+	for _, a := range keys {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetStore", varargs...)
+	ret0, _ := ret[0].(SessionStore)
+	return ret0
+}
+
+// GetStore indicates an expected call of GetStore.
+func (mr *MockSessionDatabaseMockRecorder) GetStore(ttl interface{}, keys ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ttl}, keys...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStore", reflect.TypeOf((*MockSessionDatabase)(nil).GetStore), varargs...)
+}
+
+// close mocks base method.
+func (m *MockSessionDatabase) close() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "close")
+}
+
+// close indicates an expected call of close.
+func (mr *MockSessionDatabaseMockRecorder) close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "close", reflect.TypeOf((*MockSessionDatabase)(nil).close))
+}
+
+// MockSessionStore is a mock of SessionStore interface.
+type MockSessionStore struct {
+	ctrl     *gomock.Controller
+	recorder *MockSessionStoreMockRecorder
+}
+
+// MockSessionStoreMockRecorder is the mock recorder for MockSessionStore.
+type MockSessionStoreMockRecorder struct {
+	mock *MockSessionStore
+}
+
+// NewMockSessionStore creates a new mock instance.
+func NewMockSessionStore(ctrl *gomock.Controller) *MockSessionStore {
+	mock := &MockSessionStore{ctrl: ctrl}
+	mock.recorder = &MockSessionStoreMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSessionStore) EXPECT() *MockSessionStoreMockRecorder {
+	return m.recorder
+}
+
+// Delete mocks base method.
+func (m *MockSessionStore) Delete(key string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", key)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockSessionStoreMockRecorder) Delete(key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockSessionStore)(nil).Delete), key)
+}
+
+// Exists mocks base method.
+func (m *MockSessionStore) Exists(key string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Exists", key)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Exists indicates an expected call of Exists.
+func (mr *MockSessionStoreMockRecorder) Exists(key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockSessionStore)(nil).Exists), key)
+}
+
+// Get mocks base method.
+func (m *MockSessionStore) Get(key string, target interface{}) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", key, target)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockSessionStoreMockRecorder) Get(key, target interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSessionStore)(nil).Get), key, target)
+}
+
+// Put mocks base method.
+func (m *MockSessionStore) Put(key string, value interface{}) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Put", key, value)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Put indicates an expected call of Put.
+func (mr *MockSessionStoreMockRecorder) Put(key, value interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockSessionStore)(nil).Put), key, value)
 }

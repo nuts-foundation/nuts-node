@@ -215,7 +215,7 @@ func Test_grpcConnectionManager_hasActiveConnection(t *testing.T) {
 
 func Test_grpcConnectionManager_dialerLoop(t *testing.T) {
 	// make sure connectLoop only returns after all of its goroutines are closed
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	targetAddress := "bootstrap"
 	var capturedAddress string

@@ -99,7 +99,7 @@ type vcr struct {
 	jsonldManager       jsonld.JSONLD
 	eventManager        events.Event
 	storageClient       storage.Engine
-	openidIsssuerStore  issuer.OpenIDStore
+	openidSessionStore  storage.SessionDatabase
 	localWalletResolver openid4vci.IdentifierResolver
 	issuerHttpClient    core.HTTPRequestDoer
 	walletHttpClient    core.HTTPRequestDoer
@@ -112,7 +112,7 @@ func (c *vcr) GetOpenIDIssuer(ctx context.Context, id did.DID) (issuer.OpenIDHan
 	if err != nil {
 		return nil, err
 	}
-	return issuer.NewOpenIDHandler(id, identifier, c.config.OpenID4VCI.DefinitionsDIR, c.issuerHttpClient, c.keyResolver, c.openidIsssuerStore)
+	return issuer.NewOpenIDHandler(id, identifier, c.config.OpenID4VCI.DefinitionsDIR, c.issuerHttpClient, c.keyResolver, c.openidSessionStore)
 }
 
 func (c *vcr) GetOpenIDHolder(ctx context.Context, id did.DID) (holder.OpenIDHandler, error) {
@@ -269,7 +269,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			Timeout:   c.config.OpenID4VCI.Timeout,
 			Transport: walletTransport,
 		})
-		c.openidIsssuerStore = issuer.NewOpenIDMemoryStore()
+		c.openidSessionStore = c.storageClient.GetSessionDatabase()
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
@@ -329,9 +329,6 @@ func (c *vcr) Start() error {
 }
 
 func (c *vcr) Shutdown() error {
-	if c.openidIsssuerStore != nil {
-		c.openidIsssuerStore.Close()
-	}
 	err := c.issuerStore.Close()
 	if err != nil {
 		log.Logger().
