@@ -147,8 +147,10 @@ paths:
           required: true
           schema:
             type: string
-            description: The scope for which a presentation definition is requested. Multiple scopes can be specified by separating them with a space.
-            example: patient:x:read
+            description: | 
+              The scope for which a presentation definition is requested. Multiple scopes can be specified by separating them with a space.
+              The first scope is the main scope that determines the backend, additional scopes can be used to format the presentation definition.
+            example: usecase patient:x:read
       responses:
         "200":
           description: PresentationDefinition that matches scope is found.
