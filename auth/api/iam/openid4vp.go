@@ -177,7 +177,7 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	}
 
 	var session Session
-	sessionStore := r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, session.OwnDID.String(), "session")
+	sessionStore := r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, "openid", session.OwnDID.String(), "session")
 	err := sessionStore.Get(sessionID, &session)
 	if err != nil {
 		return fmt.Errorf("invalid session: %w", err)
