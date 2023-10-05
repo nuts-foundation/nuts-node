@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -33,7 +34,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
+
+const sessionExpiry = 5 * time.Minute
 
 // createPresentationRequest creates a new Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is sent by a verifier to a wallet, to request one or more verifiable credentials as verifiable presentation from the wallet.
@@ -145,7 +149,12 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 	}
 	session.ServerState["openid4vp_credentials"] = credentialIDs
 
-	templateParams.SessionID = r.sessions.Create(*session)
+	sessionID := uuid.NewString()
+	err = r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, session.OwnDID.String(), "session").Put(sessionID, *session)
+	if err != nil {
+		return nil, err
+	}
+	templateParams.SessionID = sessionID
 
 	// TODO: Support multiple languages
 	buf := new(bytes.Buffer)
@@ -162,12 +171,16 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 // handleAuthConsent handles the authorization consent form submission.
 func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	// TODO: Needs authentication?
-	var session *Session
-	if sessionID := c.FormValue("sessionID"); sessionID != "" {
-		session = r.sessions.Get(sessionID)
+	sessionID := c.FormValue("sessionID")
+	if sessionID == "" {
+		return errors.New("missing sessionID parameter")
 	}
-	if session == nil {
-		return errors.New("invalid session")
+
+	var session Session
+	sessionStore := r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, "openid", session.OwnDID.String(), "session")
+	err := sessionStore.Get(sessionID, &session)
+	if err != nil {
+		return fmt.Errorf("invalid session: %w", err)
 	}
 
 	// TODO: Change to loading from wallet
