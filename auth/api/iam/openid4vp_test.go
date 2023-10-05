@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -42,7 +43,7 @@ var holderDID = did.MustParseDID("did:web:example.com:holder")
 var issuerDID = did.MustParseDID("did:web:example.com:issuer")
 
 func TestWrapper_sendPresentationRequest(t *testing.T) {
-	instance := New(nil, nil, nil)
+	instance := New(nil, nil, nil, nil)
 
 	redirectURI, _ := url.Parse("https://example.com/redirect")
 	verifierID, _ := url.Parse("https://example.com/verifier")
@@ -101,7 +102,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		mockAuth.EXPECT().PresentationDefinitions().Return(peStore)
 		mockWallet.EXPECT().List(gomock.Any(), holderDID).Return(walletCredentials, nil)
 		mockVDR.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
-		instance := New(mockAuth, mockVCR, mockVDR)
+		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t))
 
 		params := map[string]string{
 			"scope":               "eOverdracht-overdrachtsbericht",
@@ -124,7 +125,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		_ = peStore.LoadFromFile("test/presentation_definition_mapping.json")
 		mockAuth := auth.NewMockAuthenticationServices(ctrl)
 		mockAuth.EXPECT().PresentationDefinitions().Return(peStore)
-		instance := New(mockAuth, nil, nil)
+		instance := New(mockAuth, nil, nil, nil)
 
 		params := map[string]string{
 			"scope":               "unsupported",
@@ -139,7 +140,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		assert.Nil(t, response)
 	})
 	t.Run("invalid response_mode", func(t *testing.T) {
-		instance := New(nil, nil, nil)
+		instance := New(nil, nil, nil, nil)
 		params := map[string]string{
 			"scope":               "eOverdracht-overdrachtsbericht",
 			"response_type":       "code",
