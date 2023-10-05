@@ -155,6 +155,10 @@ const presentationSubmissionParam = "presentation_submission"
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-response-type-vp_token
 const vpTokenParam = "vp_token"
 
+// vpParam is the name of the VC data model vp claim.
+// Specified by https://www.w3.org/TR/vc-data-model/#json-web-token-extensions
+const vpClaim = "vp"
+
 // OAuthAuthorizationServerMetadata defines the OAuth Authorization Server metadata.
 // Specified by https://www.rfc-editor.org/rfc/rfc8414.txt
 type OAuthAuthorizationServerMetadata struct {

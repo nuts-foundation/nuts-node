@@ -25,15 +25,15 @@ import (
 )
 
 type Session struct {
-	ClientID      string                     `json:"client_id"`
-	Scope         string                     `json:"scope"`
-	OwnDID        did.DID                    `json:"own_did"`
-	ClientState   string                     `json:"-"`
-	RedirectURI   string                     `json:"-"`
-	ServerState   map[string]interface{}     `json:"-"`
-	Presentation  *vc.VerifiablePresentation `json:"presentation,omitempty"`
-	ResponseType  string                     `json:"-"`
-	RequestObject string                     `json:"-"`
+	ClientID      string                     `json:"client_id,omitempty"`
+	Scope         []string                   `json:"scope"`
+	OwnDID        did.DID                    `json:"own_did,omitempty"`
+	RedirectURI   string                     `json:"redirect_uri,omitempty"`
+	ServerState   map[string]interface{}     `json:"server_state,omitempty"`
+	IDToken       *vc.VerifiablePresentation `json:"id_token,omitempty"`
+	VPToken       *vc.VerifiablePresentation `json:"vp_token,omitempty"`
+	ResponseType  []string                   `json:"response_type,omitempty"`
+	RequestObject string                     `json:"request_object,omitempty"`
 }
 
 func AddQueryParams(u url.URL, params map[string]string) url.URL {

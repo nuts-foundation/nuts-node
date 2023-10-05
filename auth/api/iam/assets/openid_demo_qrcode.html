@@ -21,11 +21,11 @@
         correctLevel : QRCode.CorrectLevel.M
     });
     window.setInterval(function () {
-        fetch("/iam/openid/session/{{ .SessionID }}")
+        fetch("/iam/{{ .ID }}/openid/session/{{ .SessionID }}")
             .then(response => response.json())
             .then(data => {
-                if (data.presentation) {
-                    window.location.href = "/iam/did:example:todo/openid4vp_completed?sessionID={{ .SessionID }}";
+                if (data.id_token || data.vp_token) {
+                    window.location.href = "/iam/{{ .ID }}/openid_demo_completed?state={{ .SessionID }}";
                 }
             });
     }, 2000)

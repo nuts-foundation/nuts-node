@@ -20,6 +20,7 @@ package iam
 
 import (
 	"errors"
+	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
@@ -124,4 +125,27 @@ func (p oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err 
 	}
 	redirectURI.RawQuery = query.Encode()
 	return echoContext.Redirect(http.StatusFound, redirectURI.String())
+}
+
+func missingParameterError(name string, session *Session) OAuth2Error {
+	err := OAuth2Error{
+		Code:        InvalidRequest,
+		Description: fmt.Sprintf("missing %s parameter", name),
+	}
+	if session != nil {
+		err.RedirectURI = session.RedirectURI
+	}
+	return err
+}
+
+func invalidParameterError(name string, session *Session, cause error) OAuth2Error {
+	err := OAuth2Error{
+		Code:          InvalidRequest,
+		Description:   fmt.Sprintf("invalid %s parameter", name),
+		InternalError: cause,
+	}
+	if session != nil {
+		err.RedirectURI = session.RedirectURI
+	}
+	return err
 }

@@ -13,15 +13,19 @@
         <input class="form-control" type="text" name="scope" value="openid">
     </div>
     <div>
-        Wallet Identifier:
-        <input class="form-control" type="text" name="wallet_id" value="{{.WalletID}}">
+        Verifier DID (will be mapped to did:web):
+        <select name="verifier_did" class="form-control">
+            {{ range $i, $ownedDID := .OwnedDIDs }}
+            {{ if eq $i 0 }}
+            <option selected>{{ $ownedDID }}</option>
+            {{ else }}
+            <option>{{ $ownedDID }}</option>
+            {{ end }}
+            {{ end }}
+        </select>
     </div>
     <div>
-        Verifier Identifier:
-        <input type="text" class="form-control" name="verifier_id" value="{{.VerifierID}}">
-    </div>
-    <div>
-        <input type="submit" name="serverWallet" value="Request Presentation from server wallet">
+        <input type="submit" name="serverWallet" value="Request Presentation from server wallet" disabled>
         <input type="submit" name="mobileWallet" value="Scan QR">
     </div>
 </form>

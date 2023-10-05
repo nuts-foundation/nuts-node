@@ -36,6 +36,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 )
@@ -44,7 +45,7 @@ const sessionExpiry = 5 * time.Minute
 
 // createOpenIDAuthzRequest creates a new Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is sent by a verifier to a wallet, to request one or more verifiable credentials as verifiable presentation from the wallet.
-func (r *Wrapper) createOpenIDAuthzRequest(ctx context.Context, scope string, state string, presentationDefinition pe.PresentationDefinition, responseTypes []string, redirectURL url.URL, verifierDID did.DID, identifierPath string) (string, error) {
+func (r Wrapper) createOpenIDAuthzRequest(ctx context.Context, scope string, state string, presentationDefinition pe.PresentationDefinition, responseTypes []string, redirectURL url.URL, verifierDID did.DID) (string, error) {
 	params := make(map[string]interface{})
 	params[scopeParam] = scope
 	params[redirectURIParam] = redirectURL.String()
@@ -121,12 +122,12 @@ func (r *Wrapper) createOpenIDAuthzRequest(ctx context.Context, scope string, st
 
 // sendPresentationRequest creates a new OpenID4VP Presentation Requests and "sends" it to the wallet, by redirecting the user-agent to the wallet's authorization endpoint.
 // It is sent by a verifier to a wallet, to request one or more verifiable credentials as verifiable presentation from the wallet.
-func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.ResponseWriter, scope string,
+func (r Wrapper) sendPresentationRequest(ctx context.Context, response http.ResponseWriter, scope []string,
 	redirectURL url.URL, verifierIdentifier url.URL, walletIdentifier url.URL) error {
 	// TODO: Lookup wallet metadata for correct authorization endpoint. But for Nuts nodes, we derive it from the walletIdentifier
 	authzEndpoint := walletIdentifier.JoinPath("/authorize")
 	params := make(map[string]string)
-	params[scopeParam] = scope
+	params[scopeParam] = strings.Join(scope, " ")
 	params[redirectURIParam] = redirectURL.String()
 	// TODO: Check this
 	params[clientMetadataURIParam] = verifierIdentifier.JoinPath("/.well-known/openid-wallet-metadata/metadata.xml").String()
@@ -142,7 +143,7 @@ func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.Res
 
 // handlePresentationRequest handles an Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is handled by a wallet, called by a verifier who wants the wallet to present one or more verifiable credentials.
-func (r *Wrapper) handlePresentationRequest(params map[string]string, session *Session) (HandleAuthorizeRequestResponseObject, error) {
+func (r Wrapper) handlePresentationRequest(params map[string]string, session *Session) (HandleAuthorizeRequestResponseObject, error) {
 	ctx := context.TODO()
 	// Presentation definition is always derived from the scope.
 	// Later on, we might support presentation_definition and/or presentation_definition_uri parameters instead of scope as well.
@@ -192,7 +193,7 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 	}{
 		// TODO: Maybe this should the verifier name be read from registered client metadata?
 		VerifierName:         ssi.MustParseURI(session.RedirectURI).Host,
-		RequiresUserIdentity: strings.Contains(session.ResponseType, "id_token"),
+		RequiresUserIdentity: slices.Contains(session.ResponseType, "id_token"),
 	}
 
 	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2357
@@ -249,18 +250,12 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 }
 
 // handleAuthConsent handles the authorization consent form submission.
-func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
+func (r Wrapper) handlePresentationRequestAccept(c echo.Context) error {
+	ownDID := idToDID(c.Param("id"))
 	// TODO: Needs authentication?
-	sessionID := c.FormValue("sessionID")
-	if sessionID == "" {
-		return errors.New("missing sessionID parameter")
-	}
-
-	var session Session
-	sessionStore := r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, "openid", session.OwnDID.String(), "session")
-	err := sessionStore.Get(sessionID, &session)
+	session, err := r.getSessionByID(ownDID, c.FormValue("sessionID"))
 	if err != nil {
-		return fmt.Errorf("invalid session: %w", err)
+		return err
 	}
 
 	// TODO: Change to loading from wallet
@@ -280,7 +275,7 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 		}
 		credentials = append(credentials, *cred)
 	}
-	presentationDefinition := r.auth.PresentationDefinitions().ByScope(session.Scope)
+	presentationDefinition := r.auth.PresentationDefinitions().ByScope(session.Scope[0]) // what about the others? Is this right?
 	if presentationDefinition == nil {
 		return fmt.Errorf("unsupported scope for presentation exchange: %s", session.Scope)
 	}
@@ -304,108 +299,78 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	return c.Redirect(http.StatusFound, session.CreateRedirectURI(resultParams))
 }
 
-func (r *Wrapper) handlePresentationRequestCompleted(ctx echo.Context) error {
-	switch ctx.Request().Method {
-	case http.MethodPost:
-		type authzResponse struct {
-			VPToken string `form:"vp_token"`
-			State   string `form:"state"`
+func (r Wrapper) handleOpenIDAuthzResponse(session *Session, params url.Values) error {
+	for _, responseType := range session.ResponseType {
+		switch responseType {
+		case responseTypeIDToken:
+			// SIOPv2
+			return r.handleSIOPv2AuthzResponse(session, params)
+		case responseType:
+			// OpenID4VP
+			return r.handleOpenID4VPAuthzResponse(session, params)
+		default:
+			return errors.New("TODO: implement handling of " + responseType)
 		}
-		var resp authzResponse
-		if err := ctx.Bind(&resp); err != nil {
-			return err
-		}
-		if resp.State == "" {
-			return errors.New("missing state parameter")
-		}
-		sessionID := resp.State
-		session := r.sessions.Get(sessionID)
-		if session == nil {
-			return errors.New("invalid/expired session")
-		}
-		if resp.VPToken == "" {
-			return errors.New("missing vp_token parameter")
-		}
-		// TODO: Verify presentation and VCs. But signer is did:key, which we don't support...
-		vpToken, err := jwt.Parse([]byte(resp.VPToken))
-		if err != nil {
-			return fmt.Errorf("invalid vp_token: %w", err)
-		}
-		var vp vc.VerifiablePresentation
-		if verifiablePresentationMap, ok := vpToken.Get("vp"); !ok {
-			return errors.New("missing vp claim in vp_token")
-		} else {
-			vpJSON, _ := json.Marshal(verifiablePresentationMap)
-			if err := json.Unmarshal(vpJSON, &vp); err != nil {
-				return fmt.Errorf("vp unmarshal failed: %w", err)
-			}
-		}
-		session.Presentation = &vp
-		r.sessions.Update(sessionID, *session)
-		return ctx.NoContent(http.StatusOK)
-	case http.MethodGet:
-		fallthrough
-	default:
-		// TODO: response direct_post mode
-		sessionID := ctx.QueryParams().Get("sessionID")
-		vp := vc.VerifiablePresentation{}
-		if sessionID == "" {
-			// Redirect from wallet to RP/Verifier
-			// TODO: authenticate AS/OP (access to this endpoint)?
-			vpToken := ctx.QueryParams()[vpTokenParam]
-			if len(vpToken) == 0 {
-				// TODO: User-agent is a browser, need to render an HTML page
-				return errors.New("missing parameter " + vpTokenParam)
-			}
-			if err := vp.UnmarshalJSON([]byte(vpToken[0])); err != nil {
-				// TODO: User-agent is a browser, need to render an HTML page
-				return err
-			}
-			// TODO: verify signature and credentials of VP
-		} else {
-			// Have session ID, so result VP should be in session
-			session := r.sessions.Get(sessionID)
-			if session == nil {
-				return errors.New("invalid/expired session")
-			}
-			if session.Presentation == nil {
-				return errors.New("missing presentation in session")
-			}
-			vp = *session.Presentation
-		}
-		var credentials []CredentialInfo
-		for _, cred := range vp.VerifiableCredential {
-			credentials = append(credentials, makeCredentialInfo(cred))
-		}
-		buf := new(bytes.Buffer)
-		if err := r.templates.ExecuteTemplate(buf, "openid4vp_demo_completed.html", struct {
-			Credentials []CredentialInfo
-		}{
-			Credentials: credentials,
-		}); err != nil {
-			return err
-		}
-		return ctx.HTML(http.StatusOK, buf.String())
 	}
+	return errors.New("invalid session: no response types") // can't happen
 }
 
-func (r Wrapper) getOpenID4VPAuthzRequest(echoCtx echo.Context) error {
-	sessionID := echoCtx.Param("sessionID")
-	if sessionID == "" {
-		return echoCtx.String(http.StatusBadRequest, "missing sessionID")
+func (r Wrapper) handleSIOPv2AuthzResponse(session *Session, params url.Values) error {
+	if !params.Has(vpTokenParam) {
+		return missingParameterError(vpTokenParam, session)
 	}
-	session := r.sessions.Get(sessionID)
+	vpToken, err := jwt.Parse([]byte(params.Get(vpTokenParam)))
+	if err != nil {
+		return invalidParameterError(vpTokenParam, session, err)
+	}
+	// TODO: Verify signature
+	if verifiablePresentationMap, ok := vpToken.Get("vp"); !ok {
+		return OAuth2Error{
+			Code:        InvalidRequest, // TODO: right?
+			Description: fmt.Sprintf("missing %s claim in %s", vpClaim, vpTokenParam),
+		}
+	} else {
+		vpJSON, _ := json.Marshal(verifiablePresentationMap)
+		vp, err := vc.ParseVerifiablePresentation(string(vpJSON))
+		if err != nil {
+			return OAuth2Error{
+				Code:          InvalidRequest, // TODO: right?
+				Description:   fmt.Sprintf("invalid %s claim in %s", vpClaim, vpTokenParam),
+				InternalError: err,
+			}
+		}
+		session.IDToken = vp
+	}
+	return nil
+}
+
+func (r Wrapper) handleOpenID4VPAuthzResponse(session *Session, params url.Values) error {
+	if !params.Has(vpTokenParam) {
+		return missingParameterError(vpTokenParam, session)
+	}
+	vp, err := vc.ParseVerifiablePresentation(params.Get(vpTokenParam))
+	if err != nil {
+		return invalidParameterError(vpTokenParam, session, err)
+	}
+	// TODO: verify signature, VCs, VPs, etc
+	session.VPToken = vp
+	return nil
+}
+
+func (r Wrapper) handleGetOpenIDRequestObject(echoCtx echo.Context) error {
+	ownID := idToDID(echoCtx.Param("id"))
+	session, err := r.getSessionByID(ownID, echoCtx.Param("sessionID"))
+	if err != nil {
+		return err
+	}
 	return echoCtx.String(http.StatusOK, session.RequestObject)
 }
 
-func (r Wrapper) getOpenIDSession(echoCtx echo.Context) error {
-	sessionID := echoCtx.Param("sessionID")
-	if sessionID == "" {
-		return echoCtx.String(http.StatusBadRequest, "missing sessionID")
-	}
-	session := r.sessions.Get(sessionID)
-	if session == nil {
-		return echoCtx.String(http.StatusNotFound, "unknown/expired session")
+func (r Wrapper) handleGetOpenIDSession(echoCtx echo.Context) error {
+	ownID := idToDID(echoCtx.Param("id"))
+	session, err := r.getSessionByID(ownID, echoCtx.Param("sessionID"))
+	if err != nil {
+		return err
 	}
 	return echoCtx.JSON(http.StatusOK, session)
 }
