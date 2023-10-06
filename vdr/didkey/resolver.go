@@ -3,7 +3,9 @@ package didkey
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/x509"
 	"encoding/binary"
 	"errors"
@@ -66,7 +68,12 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		if keyLength != 33 {
 			return nil, nil, errInvalidPublicKeyLength
 		}
-		return nil, nil, errors.New("TODO: find out P256 pub key encoding")
+		x, y := elliptic.UnmarshalCompressed(elliptic.P256(), mcBytes[1:])
+		key = ecdsa.PublicKey{
+			Curve: elliptic.P256(),
+			X:     x,
+			Y:     y,
+		}
 	case multicodec.P384Pub:
 		if keyLength != 49 {
 			return nil, nil, errInvalidPublicKeyLength
