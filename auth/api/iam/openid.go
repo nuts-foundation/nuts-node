@@ -60,13 +60,36 @@ func (r Wrapper) createOpenIDAuthzRequest(ctx context.Context, scope string, sta
 	params[clientIDParam] = verifierDID.String()
 	params["iss"] = verifierDID.String()
 	params["sub"] = verifierDID.String()
-	params["nbf"] = time.Now()
 	params["jti"] = uuid.NewString()
-	params["iat"] = time.Now()
-	params["exp"] = time.Now().Add(time.Minute)
+	now := time.Now()
+	params["nbf"] = now
+	params["iat"] = now
+	params["exp"] = now.Add(time.Minute)
 	params["nonce"] = generateCode()
 	params["state"] = state
 	// TODO: This should be the RPs metadata
+	params["registration"] = map[string]interface{}{
+		"client_name":                                 "Nuts Node",
+		"client_purpose":                              "Please share this information to perform medical data exchanges.",
+		"id_token_signing_alg_values_supported":       []string{"EdDSA", "ES256", "ES256K"},
+		"request_object_signing_alg_values_supported": []string{"EdDSA", "ES256", "ES256K"},
+		//"response_types_supported":                    []string{"id_token", "vp_token"},
+		"response_types_supported":       []string{"id_token"}, // TODO
+		"scopes_supported":               []string{scope},
+		"subject_types_supported":        []string{"pairwise"},                                             // what is this?
+		"subject_syntax_types_supported": []string{"did:jwk", "did:web", "did:ion", "did:key", "did:ethr"}, // TODO: did:ion, did:ethr is not actually supported
+		"vp_formats": map[string]interface{}{
+			// TODO: JWT VC presentation profile implementation, does not specify JSON-LD
+			"jwt_vc": map[string]interface{}{
+				"alg": []string{"EdDSA", "ES256", "ES256K"},
+			},
+			"jwt_vp": map[string]interface{}{
+				"alg": []string{"EdDSA", "ES256", "ES256K"},
+			},
+		},
+	}
+
+	//params["registration"] = clientMetadata(url.URL{})
 	params["registration"] = map[string]interface{}{
 		"client_name":                                 "Nuts Node",
 		"client_purpose":                              "Please share this information to perform medical data exchanges.",

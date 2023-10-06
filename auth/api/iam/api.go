@@ -284,7 +284,7 @@ func (r Wrapper) handleAuthorizeResponse(ownDID did.DID, params url.Values) (*Se
 	}
 	err = r.handleOpenIDAuthzResponse(session, params)
 	if err == nil {
-		err := r.updateSession(ownDID, sessionID, *session)
+		err := r.setSession(ownDID, sessionID, *session)
 		if err != nil {
 			return nil, err
 		}
@@ -390,7 +390,7 @@ func (r Wrapper) getSessionFromParams(ownDID did.DID, params url.Values) (string
 	return sessionID, session, nil
 }
 
-func (r Wrapper) updateSession(ownDID did.DID, sessionID string, session Session) error {
+func (r Wrapper) setSession(ownDID did.DID, sessionID string, session Session) error {
 	sessionStore := r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, "openid", ownDID.String(), "session")
 	return sessionStore.Put(sessionID, session)
 }

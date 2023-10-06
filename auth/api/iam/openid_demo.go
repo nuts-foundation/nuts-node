@@ -92,78 +92,75 @@ func (r Wrapper) handleOpenID4VPDemoSendRequest(echoCtx echo.Context) error {
 	}
 	scopes := strings.Split(scope, " ")
 
-	ctx := echoCtx.Request().Context()
-	if echoCtx.Param("serverWallet") != "" {
-		return errors.New("not implemented")
-	} else {
-		// Render QR code
-		session := Session{
-			Scope:        scopes,
-			OwnDID:       *verifierWebDID,
-			ResponseType: []string{responseTypeIDToken},
-		}
-		pePurpose := "For this demo you can provide any credential"
-		pattern := "Sphereon Guest"
-		presentationDefinition := pe.PresentationDefinition{
-			Id:      "sphereon",
-			Purpose: &pePurpose,
-			InputDescriptors: []*pe.InputDescriptor{
-				{
-					Id:      uuid.NewString(),
-					Name:    "Sphereon Guest",
-					Purpose: "Any credential suffices",
-					Schema: []map[string]interface{}{
-						{
-							"uri": "GuestCredential",
-						},
+	// scope = openid && response_type == id_token -> SIOPv2
+
+	// Render QR code
+	session := Session{
+		Scope:        scopes,
+		OwnDID:       *verifierWebDID,
+		ResponseType: []string{responseTypeIDToken},
+	}
+	pePurpose := "For this demo you can provide any credential"
+	pattern := "Sphereon Guest"
+	presentationDefinition := pe.PresentationDefinition{
+		Id:      "sphereon",
+		Purpose: &pePurpose,
+		InputDescriptors: []*pe.InputDescriptor{
+			{
+				Id:      uuid.NewString(),
+				Name:    "Sphereon Guest",
+				Purpose: "Any credential suffices",
+				Schema: []map[string]interface{}{
+					{
+						"uri": "GuestCredential",
 					},
-					Constraints: &pe.Constraints{
-						Fields: []pe.Field{
-							{
-								Path: []string{
-									"$.credentialSubject.type",
-									"$.vc.credentialSubject.type",
-								},
-								Filter: &pe.Filter{
-									Type:    "string",
-									Pattern: &pattern,
-								},
+				},
+				Constraints: &pe.Constraints{
+					Fields: []pe.Field{
+						{
+							Path: []string{
+								"$.credentialSubject.type",
+								"$.vc.credentialSubject.type",
+							},
+							Filter: &pe.Filter{
+								Type:    "string",
+								Pattern: &pattern,
 							},
 						},
 					},
 				},
 			},
-		}
-		sessionID := uuid.NewString()
-		requestObject, err := r.createOpenIDAuthzRequest(ctx, scope, sessionID, presentationDefinition,
-			session.ResponseType, *verifierURL.JoinPath("authresponse"), *verifierWebDID)
-		if err != nil {
-			return fmt.Errorf("failed to create request object: %w", err)
-		}
-		session.RequestObject = requestObject
-		if err := r.updateSession(*verifierNutsDID, sessionID, session); err != nil {
-			return fmt.Errorf("failed to update session: %w", err)
-		}
-
-		requestURI := r.auth.PublicURL().JoinPath("iam", verifierNutsDID.ID, "openid", "request", sessionID)
-		// openid-vc is JWT VC Presentation Profile scheme?
-		qrCode := "openid-vc://?" + url.Values{"request_uri": []string{requestURI.String()}}.Encode()
-
-		// Show QR code to scan using (mobile) wallet
-		buf := new(bytes.Buffer)
-		if err := r.templates.ExecuteTemplate(buf, "openid_demo_qrcode.html", struct {
-			ID        string
-			SessionID string
-			QRCode    string
-		}{
-			ID:        verifierNutsDID.ID,
-			SessionID: sessionID,
-			QRCode:    qrCode,
-		}); err != nil {
-			return err
-		}
-		return echoCtx.HTML(http.StatusOK, buf.String())
+		},
 	}
+	sessionID := uuid.NewString()
+	requestObject, err := r.createOpenIDAuthzRequest(echoCtx.Request().Context(), scope, sessionID, presentationDefinition,
+		session.ResponseType, *verifierURL.JoinPath("authresponse"), *verifierWebDID)
+	if err != nil {
+		return fmt.Errorf("failed to create request object: %w", err)
+	}
+	session.RequestObject = requestObject
+	if err := r.setSession(*verifierNutsDID, sessionID, session); err != nil {
+		return fmt.Errorf("failed to update session: %w", err)
+	}
+
+	requestURI := r.auth.PublicURL().JoinPath("iam", verifierNutsDID.ID, "openid", "request", sessionID)
+	// openid-vc is JWT VC Presentation Profile scheme?
+	qrCode := "openid-vc://?" + url.Values{"request_uri": []string{requestURI.String()}}.Encode()
+
+	// Show QR code to scan using (mobile) wallet
+	buf := new(bytes.Buffer)
+	if err := r.templates.ExecuteTemplate(buf, "openid_demo_qrcode.html", struct {
+		ID        string
+		SessionID string
+		QRCode    string
+	}{
+		ID:        verifierNutsDID.ID,
+		SessionID: sessionID,
+		QRCode:    qrCode,
+	}); err != nil {
+		return err
+	}
+	return echoCtx.HTML(http.StatusOK, buf.String())
 }
 
 func (r Wrapper) handleOpenID4VPDemoRequestWalletStatus(echoCtx echo.Context) error {
