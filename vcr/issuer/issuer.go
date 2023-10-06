@@ -93,6 +93,11 @@ type issuer struct {
 // If publish is true, it publishes the credential to the network using the configured Publisher
 // Use the public flag to pass the visibility settings to the Publisher.
 func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
+	// Until further notice we don't support publishing JWT VCs, since they're not officially supported by Nuts yet.
+	if options.Publish && options.Format == JWTCredentialFormat {
+		return nil, errors.New("publishing VC JWTs is not supported")
+	}
+
 	createdVC, err := i.buildVC(ctx, template, options)
 	if err != nil {
 		return nil, err

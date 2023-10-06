@@ -284,6 +284,18 @@ func Test_issuer_Issue(t *testing.T) {
 		assert.True(t, trustConfig.IsTrusted(credentialType, result.Issuer))
 	})
 
+	t.Run("publishing JWT VCs is disallowed", func(t *testing.T) {
+		sut := issuer{}
+
+		result, err := sut.Issue(ctx, template, CredentialOptions{
+			Publish: true,
+			Public:  true,
+			Format:  JWTCredentialFormat,
+		})
+		require.EqualError(t, err, "publishing VC JWTs is not supported")
+		assert.Nil(t, result)
+	})
+
 	t.Run("OpenID4VCI", func(t *testing.T) {
 		const walletIdentifier = "http://example.com/wallet"
 		t.Run("ok - publish over OpenID4VCI fails - fallback to network", func(t *testing.T) {

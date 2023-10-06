@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -159,7 +160,12 @@ func (v *verifier) validateJWTCredential(credential vc.VerifiableCredential, at 
 	_, err := crypto.ParseJWT(credential.Raw(), func(kid string) (crypt.PublicKey, error) {
 		keyID = kid
 		return v.resolveSigningKey(kid, credential.Issuer.String(), at)
-	})
+	}, jwt.WithClock(jwt.ClockFunc(func() time.Time {
+		if at == nil {
+			return time.Now()
+		}
+		return *at
+	})))
 	if err != nil {
 		return fmt.Errorf("unable to validate JWT credential: %w", err)
 	}
@@ -391,7 +397,12 @@ func (v *verifier) validateJWTPresentation(presentation vc.VerifiablePresentatio
 	_, err = crypto.ParseJWT(presentation.Raw(), func(kid string) (crypt.PublicKey, error) {
 		keyID = kid
 		return v.resolveSigningKey(kid, subjectDID.String(), at)
-	})
+	}, jwt.WithClock(jwt.ClockFunc(func() time.Time {
+		if at == nil {
+			return time.Now()
+		}
+		return *at
+	})))
 	if err != nil {
 		return fmt.Errorf("unable to validate JWT credential: %w", err)
 	}
