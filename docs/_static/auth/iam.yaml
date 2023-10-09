@@ -127,8 +127,7 @@ paths:
     get:
       summary: Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
       description: |
-        Specified by https://identity.foundation/presentation-exchange/spec/v2.0.0/
-        The presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
+        The presentation definition (specified by https://identity.foundation/presentation-exchange/spec/v2.0.0/) is a JSON object that describes the desired verifiable credentials and presentation formats.
         A presentation definition is matched against a wallet. If verifiable credentials matching the definition are found, 
         a presentation can created together with a presentation submission.
         The API returns an array of definitions, one per scope/backend combination if applicable.
@@ -149,7 +148,6 @@ paths:
             type: string
             description: | 
               The scope for which a presentation definition is requested. Multiple scopes can be specified by separating them with a space.
-              The first scope is the main scope that determines the backend, additional scopes can be used to format the presentation definition.
             example: usecase patient:x:read
       responses:
         "200":

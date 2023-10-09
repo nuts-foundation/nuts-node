@@ -208,6 +208,7 @@ type OAuthAuthorizationServerMetadata struct {
 	PreAuthorizedGrantAnonymousAccessSupported bool `json:"pre-authorized_grant_anonymous_access_supported,omitempty"`
 
 	// PresentationDefinitionEndpoint defines the URL of the authorization server's presentation definition endpoint.
+	// See https://nuts-foundation.gitbook.io/drafts/rfc/rfc021-vp_token-grant-type
 	PresentationDefinitionEndpoint string `json:"presentation_definition_endpoint,omitempty"`
 
 	// PresentationDefinitionUriSupported specifies whether the Wallet supports the transfer of presentation_definition by reference, with true indicating support.
