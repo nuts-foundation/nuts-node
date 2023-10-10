@@ -3,7 +3,6 @@ package didkey
 import (
 	"crypto/ed25519"
 	"encoding/json"
-	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +24,7 @@ func TestResolver_Resolve(t *testing.T) {
 			did:  "did:key:z6MknCCLeeHBUaHu4aHSVLDCYQW9gjVJ7a63FpMvtuVMy53T",
 			jwk: map[string]interface{}{
 				"kty": "OKP",
-				"crv": jwa.Ed25519,
+				"crv": "Ed25519",
 				"x":   "cwGXz9hryEvuEo-cBcLTBWnnr9kBjx2_1xTMndtgth4",
 			},
 		},
@@ -34,26 +33,26 @@ func TestResolver_Resolve(t *testing.T) {
 			did:  "did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH",
 			jwk: map[string]interface{}{
 				"kty": "OKP",
-				"crv": jwa.Ed25519,
+				"crv": "Ed25519",
 				"x":   "lJZrfAjkBXdfjebMHEUI9usidAPhAlssitLXR3OYxbI",
-			},
-		},
-		{
-			name: "x25519",
-			did:  "did:key:z6LSbysY2xFMRpGMhb7tFTLMpeuPRaqaWM1yECx2AtzE3KCc",
-			jwk: map[string]interface{}{
-				"kty": jwa.OKP,
-				"crv": jwa.X25519,
 			},
 		},
 		{
 			name: "secp256",
 			did:  "did:key:zDnaeucDGfhXHoJVqot3p21RuupNJ2fZrs8Lb1GV83VnSo2jR",
 			jwk: map[string]interface{}{
-				"kty": jwa.EC,
-				"crv": jwa.P256,
+				"kty": "EC",
+				"crv": "P-256",
 				"x":   "sYLQHOy9TNAWwFcAlpxkqRA5OutpWCrVPEWsgeli_KA",
 				"y":   "l5Jr9_48oPJWHwuVmH_VZVquGe-U8RtnR-McN4tdYhs",
+			},
+		},
+		{
+			name: "secp256k1",
+			did:  "did:key:zQ3shbgnTGcgBpXPdBjDur3ATMDWhS7aPs6FRFkWR19Lb9Zwz",
+			jwk: map[string]interface{}{
+				"kty": "EC",
+				"crv": "secp256k1",
 			},
 		},
 	}
@@ -70,6 +69,7 @@ func TestResolver_Resolve(t *testing.T) {
 			require.NotNil(t, publicKey, "public key is nil")
 			// Assert JWK type
 			jwk, err := vm.JWK()
+
 			require.NoError(t, err, "failed to get JWK")
 			jwkJSON, _ := json.Marshal(jwk)
 			var jwkAsMap map[string]interface{}
@@ -108,7 +108,7 @@ func TestResolver_Resolve(t *testing.T) {
       "publicKeyJwk": {
         "crv": "Ed25519",
         "kty": "OKP",
-        "x": "AS5vzONnAdx5FIjg0LF0XMHjOkwcn8xBxjvTQ9u-CXDm"
+        "x": "Lm_M42cB3HkUiODQsXRcweM6TByfzEHGO9ND274JcOY"
       },
       "type": "JsonWebKey2020"
     }

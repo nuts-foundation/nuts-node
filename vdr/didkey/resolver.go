@@ -10,12 +10,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/x25519"
 	"github.com/multiformats/go-multicodec"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/shengdoushi/base58"
+	"io"
 )
 
 // MethodName is the name of this DID method.
@@ -47,42 +47,32 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	}
 	// See https://w3c-ccg.github.io/did-method-key/#signature-method-creation-algorithm
 	var key crypto.PublicKey
-	keyLength := reader.Len()
+	mcBytes, _ = io.ReadAll(reader)
+	keyLength := len(mcBytes)
+
 	switch multicodec.Code(keyType) {
 	case multicodec.Secp256k1Pub:
-		if keyLength != 33 {
-			return nil, nil, errInvalidPublicKeyLength
-		}
-		return nil, nil, errors.New("TODO: support secp256k1 public key")
-	case multicodec.X25519Pub:
-		if keyLength != 32 {
-			return nil, nil, errInvalidPublicKeyLength
-		}
-		key = x25519.PublicKey(mcBytes[1:])
+		// lestrrat/jwk.New() is missing support for secp256k1
+		return nil, nil, errors.New("did:key: secp256k1 public keys are not supported")
 	case multicodec.Ed25519Pub:
 		if keyLength != 32 {
 			return nil, nil, errInvalidPublicKeyLength
 		}
-		key = ed25519.PublicKey(mcBytes[1:])
+		key = ed25519.PublicKey(mcBytes)
 	case multicodec.P256Pub:
-		if keyLength != 33 {
-			return nil, nil, errInvalidPublicKeyLength
-		}
-		x, y := elliptic.UnmarshalCompressed(elliptic.P256(), mcBytes[1:])
-		key = ecdsa.PublicKey{
-			Curve: elliptic.P256(),
-			X:     x,
-			Y:     y,
+		if key, err = unmarshalEC(elliptic.P256(), 33, mcBytes); err != nil {
+			return nil, nil, err
 		}
 	case multicodec.P384Pub:
-		if keyLength != 49 {
-			return nil, nil, errInvalidPublicKeyLength
+		if key, err = unmarshalEC(elliptic.P384(), 33, mcBytes); err != nil {
+			return nil, nil, err
 		}
-		return nil, nil, errors.New("TODO: find out P384 pub key encoding")
 	case multicodec.P521Pub:
-		return nil, nil, errors.New("TODO: find out P521 pub key encoding")
+		if key, err = unmarshalEC(elliptic.P521(), 33, mcBytes); err != nil {
+			return nil, nil, err
+		}
 	case multicodec.RsaPub:
-		key, err = x509.ParsePKCS1PublicKey(mcBytes[1:])
+		key, err = x509.ParsePKCS1PublicKey(mcBytes)
 		if err != nil {
 			return nil, nil, fmt.Errorf("did:key: invalid PKCS#1 encoded RSA public key: %w", err)
 		}
@@ -109,4 +99,12 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	document.AddCapabilityDelegation(vm)
 	document.AddCapabilityInvocation(vm)
 	return &document, &resolver.DocumentMetadata{}, nil
+}
+
+func unmarshalEC(curve elliptic.Curve, expectedLen int, pubKeyBytes []byte) (ecdsa.PublicKey, error) {
+	if len(pubKeyBytes) != expectedLen {
+		return ecdsa.PublicKey{}, errInvalidPublicKeyLength
+	}
+	x, y := elliptic.UnmarshalCompressed(curve, pubKeyBytes)
+	return ecdsa.PublicKey{Curve: curve, X: x, Y: y}, nil
 }
