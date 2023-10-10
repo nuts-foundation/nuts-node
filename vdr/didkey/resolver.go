@@ -25,10 +25,15 @@ var _ resolver.DIDResolver = &Resolver{}
 
 var errInvalidPublicKeyLength = errors.New("invalid did:key: invalid public key length")
 
+// NewResolver creates a new Resolver.
+func NewResolver() *Resolver {
+	return &Resolver{}
+}
+
 type Resolver struct {
 }
 
-func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
+func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
 	if id.Method != MethodName {
 		return nil, nil, fmt.Errorf("unsupported DID method: %s", id.Method)
 	}

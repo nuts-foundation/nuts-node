@@ -127,3 +127,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.IsType(t, ed25519.PublicKey{}, publicKey)
 	})
 }
+
+func TestNewResolver(t *testing.T) {
+	assert.NotNil(t, NewResolver())
+}
