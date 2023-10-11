@@ -154,7 +154,10 @@ func NewTestJSONLDManager(t *testing.T) JSONLD {
 	t.Helper()
 
 	contextConfig := DefaultContextConfig()
+	contextConfig.RemoteAllowList = nil
 	contextConfig.LocalFileMapping["http://example.org/credentials/V1"] = "test_assets/contexts/test.ldjson"
+	contextConfig.LocalFileMapping["https://www.w3.org/2018/credentials/examples/v1"] = "test_assets/contexts/examples.ldjson"
+	contextConfig.LocalFileMapping["https://www.w3.org/ns/odrl.jsonld"] = "test_assets/contexts/odrl.ldjson"
 
 	loader := NewMappedDocumentLoader(contextConfig.LocalFileMapping,
 		NewEmbeddedFSDocumentLoader(assets.Assets,
@@ -162,7 +165,7 @@ func NewTestJSONLDManager(t *testing.T) JSONLD {
 			NewEmbeddedFSDocumentLoader(assets.TestAssets,
 				// Last in the chain is the defaultLoader which can resolve
 				// local files and remote (via http) context documents
-				ld.NewDefaultDocumentLoader(nil))))
+				nil)))
 
 	manager := testContextManager{loader: loader}
 
