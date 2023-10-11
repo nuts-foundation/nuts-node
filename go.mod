@@ -7,7 +7,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/avast/retry-go/v4 v4.5.0
 	github.com/cbroglie/mustache v1.4.0
-	github.com/chromedp/chromedp v0.9.2
+	github.com/chromedp/chromedp v0.9.3
 	github.com/dlclark/regexp2 v1.10.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/goodsign/monday v1.0.1
@@ -65,7 +65,7 @@ require (
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/chromedp/cdproto v0.0.0-20230802225258-3cf4e6d46a89 // indirect
+	github.com/chromedp/cdproto v0.0.0-20231011050154-1d073bb38998 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
@@ -85,7 +85,7 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/gobwas/ws v1.2.1 // indirect
+	github.com/gobwas/ws v1.3.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.1 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
