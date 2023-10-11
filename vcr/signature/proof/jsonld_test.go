@@ -168,7 +168,7 @@ func TestLDProof_Sign(t *testing.T) {
 
 	kid := "did:nuts:123#abc"
 	testKey := crypto.NewTestKey(kid)
-	contextLoader, _ := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
+	contextLoader := jsonld.NewTestJSONLDManager(t).DocumentLoader()
 
 	t.Run("sign and verify a document", func(t *testing.T) {
 		now := time.Now()
