@@ -99,32 +99,30 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 
 func TestHTTPClient_PresentationDefinition(t *testing.T) {
 	ctx := context.Background()
-	definitions := []PresentationDefinition{
-		{
-			Id: "123",
-		},
+	definition := PresentationDefinition{
+		Id: "123",
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: definitions}
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: definition}
 		tlsServer, client := testServerAndClient(t, &handler)
 
 		response, err := client.PresentationDefinition(ctx, tlsServer.URL, []string{"test"})
 
 		require.NoError(t, err)
-		require.NotNil(t, definitions)
-		assert.Equal(t, definitions, response)
+		require.NotNil(t, definition)
+		assert.Equal(t, definition, *response)
 		require.NotNil(t, handler.Request)
 	})
 	t.Run("ok - multiple scopes", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: definitions}
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: definition}
 		tlsServer, client := testServerAndClient(t, &handler)
 
 		response, err := client.PresentationDefinition(ctx, tlsServer.URL, []string{"first", "second"})
 
 		require.NoError(t, err)
-		require.NotNil(t, definitions)
-		assert.Equal(t, definitions, response)
+		require.NotNil(t, definition)
+		assert.Equal(t, definition, *response)
 		require.NotNil(t, handler.Request)
 		assert.Equal(t, url.Values{"scope": []string{"first second"}}, handler.Request.URL.Query())
 	})

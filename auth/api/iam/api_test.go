@@ -174,8 +174,8 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
-		definitions := []PresentationDefinition(response.(PresentationDefinition200JSONResponse))
-		assert.Len(t, definitions, 1)
+		_, ok := response.(PresentationDefinition200JSONResponse)
+		assert.True(t, ok)
 	})
 
 	t.Run("ok - missing scope", func(t *testing.T) {
@@ -185,8 +185,8 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
-		definitions := []PresentationDefinition(response.(PresentationDefinition200JSONResponse))
-		assert.Len(t, definitions, 0)
+		_, ok := response.(PresentationDefinition200JSONResponse)
+		assert.True(t, ok)
 	})
 
 	t.Run("error - unknown scope", func(t *testing.T) {

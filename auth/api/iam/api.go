@@ -246,7 +246,7 @@ func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMet
 }
 func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error) {
 	if len(request.Params.Scope) == 0 {
-		return PresentationDefinition200JSONResponse([]PresentationDefinition{}), nil
+		return PresentationDefinition200JSONResponse(PresentationDefinition{}), nil
 	}
 
 	// todo: only const scopes supported, scopes with variable arguments not supported yet
@@ -258,9 +258,8 @@ func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationD
 			Code: "invalid_scope",
 		}, nil
 	}
-	presentationDefinitions := []PresentationDefinition{*presentationDefinition}
 
-	return PresentationDefinition200JSONResponse(presentationDefinitions), nil
+	return PresentationDefinition200JSONResponse(*presentationDefinition), nil
 }
 
 func createSession(params map[string]string, ownDID did.DID) *Session {

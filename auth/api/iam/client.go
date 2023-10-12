@@ -84,7 +84,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 }
 
 // PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
-func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes []string) ([]PresentationDefinition, error) {
+func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes []string) (*PresentationDefinition, error) {
 	presentationDefinitionURL, err := url.Parse(definitionEndpoint)
 	if err != nil {
 		return nil, err
@@ -108,15 +108,15 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpo
 		return nil, httpErr
 	}
 
-	definitions := make([]PresentationDefinition, 0)
+	var presentationDefinition PresentationDefinition
 	var data []byte
 
 	if data, err = io.ReadAll(response.Body); err != nil {
 		return nil, fmt.Errorf("unable to read response: %w", err)
 	}
-	if err = json.Unmarshal(data, &definitions); err != nil {
+	if err = json.Unmarshal(data, &presentationDefinition); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
 	}
 
-	return definitions, nil
+	return &presentationDefinition, nil
 }

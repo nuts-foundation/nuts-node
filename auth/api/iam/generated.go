@@ -382,7 +382,7 @@ type PresentationDefinitionResponseObject interface {
 	VisitPresentationDefinitionResponse(w http.ResponseWriter) error
 }
 
-type PresentationDefinition200JSONResponse []PresentationDefinition
+type PresentationDefinition200JSONResponse PresentationDefinition
 
 func (response PresentationDefinition200JSONResponse) VisitPresentationDefinitionResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")

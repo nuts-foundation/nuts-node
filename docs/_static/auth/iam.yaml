@@ -155,9 +155,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  "$ref": "#/components/schemas/PresentationDefinition"
+                "$ref": "#/components/schemas/PresentationDefinition"
         "400":
           description: invalid scope
           content:
