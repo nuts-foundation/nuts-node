@@ -99,16 +99,18 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 			return nil, nil, err
 		}
 	case multicodec.P521Pub:
-		if key, err = unmarshalEC(elliptic.P521(), -1, mcBytes); err != nil {
-			return nil, nil, err
-		}
+		key, _ = unmarshalEC(elliptic.P521(), -1, mcBytes)
 	case multicodec.RsaPub:
-		key, err = x509.ParsePKCS1PublicKey(mcBytes)
+		rsaKey, err := x509.ParsePKCS1PublicKey(mcBytes)
 		if err != nil {
 			return nil, nil, fmt.Errorf("did:key: invalid PKCS#1 encoded RSA public key: %w", err)
 		}
+		// Safe RSA keys must be at least 2048 bits
+		if rsaKey.Size() < 256 {
+			return nil, nil, errors.New("did:key: RSA public key is too small (must be at least 2048 bits)")
+		}
 	default:
-		return nil, nil, fmt.Errorf("did:key: unsupported public key type: %d", keyType)
+		return nil, nil, fmt.Errorf("did:key: unsupported public key type: 0x%x", keyType)
 	}
 
 	document := did.Document{

@@ -23,6 +23,8 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/binary"
 	"encoding/json"
 	"github.com/multiformats/go-multicodec"
@@ -33,7 +35,7 @@ import (
 	"testing"
 )
 
-func TestSpecificationTestVectors(t *testing.T) {
+func TestTestVectors(t *testing.T) {
 	resolver := Resolver{}
 	type testCase struct {
 		name  string
@@ -41,6 +43,9 @@ func TestSpecificationTestVectors(t *testing.T) {
 		jwk   map[string]interface{}
 		error string
 	}
+
+	unsafeRSAKey, _ := rsa.GenerateKey(rand.Reader, 1024)
+	unsafeRSAKeyBytes := x509.MarshalPKCS1PublicKey(&unsafeRSAKey.PublicKey)
 
 	testCases := []testCase{
 		// Taken from https://w3c-ccg.github.io/did-method-key/#ed25519-x25519
@@ -53,6 +58,11 @@ func TestSpecificationTestVectors(t *testing.T) {
 				"x":   "O2onvM62pC1io6jQKm8Nc2UyFXcd4kOmOsBIoYtZ2ik",
 			},
 		},
+		{
+			name:  "ed25519 (invalid length)",
+			did:   createDIDKey(multicodec.Ed25519Pub, []byte{1, 2, 3}),
+			error: "invalid did:key: invalid public key length",
+		},
 		// Taken from https://w3c-ccg.github.io/did-method-key/#x25519
 		{
 			name: "x25519",
@@ -62,6 +72,11 @@ func TestSpecificationTestVectors(t *testing.T) {
 				"kty": "OKP",
 				"x":   "L-V9o0fNYkMVKNqsX7spBzD_9oSvxM_C7ZCZX1jLO3Q",
 			},
+		},
+		{
+			name:  "x25519 (invalid length)",
+			did:   createDIDKey(multicodec.X25519Pub, []byte{1, 2, 3}),
+			error: "invalid did:key: invalid public key length",
 		},
 		// Taken from https://w3c-ccg.github.io/did-method-key/#secp256k1
 		{
@@ -86,6 +101,11 @@ func TestSpecificationTestVectors(t *testing.T) {
 				"y":   "l5Jr9_48oPJWHwuVmH_VZVquGe-U8RtnR-McN4tdYhs",
 			},
 		},
+		{
+			name:  "secp256 (invalid length)",
+			did:   createDIDKey(multicodec.P256Pub, []byte{1, 2, 3}),
+			error: "invalid did:key: invalid public key length",
+		},
 		// Taken from https://w3c-ccg.github.io/did-method-key/#p-384
 		{
 			name: "secp384",
@@ -96,6 +116,11 @@ func TestSpecificationTestVectors(t *testing.T) {
 				"x":   "lInTxl8fjLKp_UCrxI0WDklahi-7-_6JbtiHjiRvMvhedhKVdHBfi2HCY8t_QJyc",
 				"y":   "y6N1IC-2mXxHreETBW7K3mBcw0qGr3CWHCs-yl09yCQRLcyfGv7XhqAngHOu51Zv",
 			},
+		},
+		{
+			name:  "secp384 (invalid length)",
+			did:   createDIDKey(multicodec.P384Pub, []byte{1, 2, 3}),
+			error: "invalid did:key: invalid public key length",
 		},
 		// Taken from https://w3c-ccg.github.io/did-method-key/#p-521
 		{
@@ -128,6 +153,16 @@ func TestSpecificationTestVectors(t *testing.T) {
 				"n":   "qMCkFFRFWtzUyZeK8mgJdyM6SEQcXC5E6JwCRVDld-jlJs8sXNOE_vliexq34wZRQ4hk53-JPFlvZ_QjRgIxdUxSMiZ3S5hlNVvvRaue6SMakA9ugQhnfXaWORro0UbPuHLms-bg5StDP8-8tIezu9c1H1FjwPcdbV6rAvKhyhnsM10qP3v2CPbdE0q3FOsihoKuTelImtO110E7N6fLn4U3EYbC4OyViqlrP1o_1M-R-tiM1cb4pD7XKJnIs6ryZdfOQSPBJwjNqSdN6Py_tdrFgPDTyacSSdpTVADOM2IMAoYbhV1N5APhnjOHBRFyKkF1HffQKpmXQLBqvUNNjuhmpVKWBtrTdcCKrglFXiw0cKGHKxIirjmiOlB_HYHg5UdosyE3_1Txct2U7-WBB6QXak1UgxCzgKYBDI8UPA0RlkUuHHP_Zg0fVXrXIInHO04MYxUeSps5qqyP6dJBu_v_BDn3zUq6LYFwJ_-xsU7zbrKYB4jaRlHPoCj_eDC-rSA2uQ4KXHBB8_aAqNFC9ukWxc26Ifz9dF968DLuL30bi-ZAa2oUh492Pw1bg89J7i4qTsOOfpQvGyDV7TGhKuUG3Hbumfr2w16S-_3EI2RIyd1nYsflE6ZmCkZQMG_lwDAFXaqfyGKEDouJuja4XH8r4fGWeGTrozIoniXT1HU",
 			},
 		},
+		{
+			name:  "rsa (invalid key)",
+			did:   createDIDKey(multicodec.RsaPub, []byte{1, 2, 3}),
+			error: "did:key: invalid PKCS#1 encoded RSA public key: asn1: structure error: tags don't match (16 vs {class:0 tag:1 length:2 isCompound:false}) {optional:false explicit:false application:false private:false defaultValue:<nil> tag:<nil> stringType:0 timeType:0 set:false omitEmpty:false} pkcs1PublicKey @2",
+		},
+		{
+			name:  "rsa (key too small)",
+			did:   createDIDKey(multicodec.RsaPub, unsafeRSAKeyBytes),
+			error: "did:key: RSA public key is too small (must be at least 2048 bits)",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -157,17 +192,22 @@ func TestSpecificationTestVectors(t *testing.T) {
 }
 
 func TestResolver_Resolve(t *testing.T) {
-	t.Run("did:key does not start with 'z' (invalid multibase encoding)", func(t *testing.T) {
+	t.Run("did:key ID does not start with 'z' (invalid multibase encoding)", func(t *testing.T) {
 		_, _, err := Resolver{}.Resolve(did.MustParseDID("did:key:foo"), nil)
 		require.EqualError(t, err, "did:key does not start with 'z'")
 	})
-	t.Run("did:key is not valid base58btc encoded 'z'", func(t *testing.T) {
+	t.Run("did:key ID is not valid base58btc encoded 'z'", func(t *testing.T) {
 		_, _, err := Resolver{}.Resolve(did.MustParseDID("did:key:z291830129"), nil)
 		require.EqualError(t, err, "did:key: invalid base58btc: invalid base58 string")
 	})
-	t.Run("did:key invalid multicodec key type", func(t *testing.T) {
+	t.Run("invalid multicodec key type", func(t *testing.T) {
 		_, _, err := Resolver{}.Resolve(did.MustParseDID("did:key:z"), nil)
 		require.EqualError(t, err, "did:key: invalid multicodec value: EOF")
+	})
+	t.Run("unsupported key type", func(t *testing.T) {
+		didKey := createDIDKey(multicodec.Aes256, []byte{1, 2, 3})
+		_, _, err := Resolver{}.Resolve(did.MustParseDID(didKey), nil)
+		require.EqualError(t, err, "did:key: unsupported public key type: 162")
 	})
 	t.Run("verify created DID document", func(t *testing.T) {
 		const expected = `
