@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package didkey
 
 import (
@@ -10,6 +28,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/x25519"
 	"github.com/multiformats/go-multicodec"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -48,7 +67,7 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	reader := bytes.NewReader(mcBytes)
 	keyType, err := binary.ReadUvarint(reader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("did:key: invalid base58btc: %w", err)
+		return nil, nil, fmt.Errorf("did:key: invalid multicodec value: %w", err)
 	}
 	// See https://w3c-ccg.github.io/did-method-key/#signature-method-creation-algorithm
 	var key crypto.PublicKey
@@ -56,24 +75,31 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	keyLength := len(mcBytes)
 
 	switch multicodec.Code(keyType) {
-	case multicodec.Secp256k1Pub:
-		// lestrrat/jwk.New() is missing support for secp256k1
-		return nil, nil, errors.New("did:key: secp256k1 public keys are not supported")
+	case multicodec.Bls12_381G2Pub:
+		return nil, nil, errors.New("did:key: bls12381 public keys are not supported")
+	case multicodec.X25519Pub:
+		if keyLength != 32 {
+			return nil, nil, errInvalidPublicKeyLength
+		}
+		key = x25519.PublicKey(mcBytes)
 	case multicodec.Ed25519Pub:
 		if keyLength != 32 {
 			return nil, nil, errInvalidPublicKeyLength
 		}
 		key = ed25519.PublicKey(mcBytes)
+	case multicodec.Secp256k1Pub:
+		// lestrrat/jwk.New() is missing support for secp256k1
+		return nil, nil, errors.New("did:key: secp256k1 public keys are not supported")
 	case multicodec.P256Pub:
 		if key, err = unmarshalEC(elliptic.P256(), 33, mcBytes); err != nil {
 			return nil, nil, err
 		}
 	case multicodec.P384Pub:
-		if key, err = unmarshalEC(elliptic.P384(), 33, mcBytes); err != nil {
+		if key, err = unmarshalEC(elliptic.P384(), 49, mcBytes); err != nil {
 			return nil, nil, err
 		}
 	case multicodec.P521Pub:
-		if key, err = unmarshalEC(elliptic.P521(), 33, mcBytes); err != nil {
+		if key, err = unmarshalEC(elliptic.P521(), -1, mcBytes); err != nil {
 			return nil, nil, err
 		}
 	case multicodec.RsaPub:
@@ -107,7 +133,7 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 }
 
 func unmarshalEC(curve elliptic.Curve, expectedLen int, pubKeyBytes []byte) (ecdsa.PublicKey, error) {
-	if len(pubKeyBytes) != expectedLen {
+	if expectedLen != -1 && len(pubKeyBytes) != expectedLen {
 		return ecdsa.PublicKey{}, errInvalidPublicKeyLength
 	}
 	x, y := elliptic.UnmarshalCompressed(curve, pubKeyBytes)
