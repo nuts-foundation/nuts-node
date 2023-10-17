@@ -207,7 +207,7 @@ func TestResolver_Resolve(t *testing.T) {
 	t.Run("unsupported key type", func(t *testing.T) {
 		didKey := createDIDKey(multicodec.Aes256, []byte{1, 2, 3})
 		_, _, err := Resolver{}.Resolve(did.MustParseDID(didKey), nil)
-		require.EqualError(t, err, "did:key: unsupported public key type: 162")
+		require.EqualError(t, err, "did:key: unsupported public key type: 0xa2")
 	})
 	t.Run("verify created DID document", func(t *testing.T) {
 		const expected = `

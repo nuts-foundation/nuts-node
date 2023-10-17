@@ -109,6 +109,7 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 		if rsaKey.Size() < 256 {
 			return nil, nil, errors.New("did:key: RSA public key is too small (must be at least 2048 bits)")
 		}
+		key = rsaKey
 	default:
 		return nil, nil, fmt.Errorf("did:key: unsupported public key type: 0x%x", keyType)
 	}
