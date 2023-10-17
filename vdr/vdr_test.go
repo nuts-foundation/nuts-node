@@ -555,6 +555,17 @@ func TestVDR_Configure(t *testing.T) {
 		require.Len(t, doc.VerificationMethod, 1)
 		assert.Equal(t, "P-256", doc.VerificationMethod[0].PublicKeyJwk["crv"])
 	})
+	t.Run("it can resolve using did:key", func(t *testing.T) {
+		instance := NewVDR(nil, nil, nil, nil)
+		err := instance.Configure(core.ServerConfig{})
+		require.NoError(t, err)
+
+		doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK"), nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, doc)
+		assert.NotNil(t, md)
+	})
 }
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)
