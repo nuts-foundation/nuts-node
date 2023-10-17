@@ -183,7 +183,11 @@ const All = `
   ],
   "input_descriptors": [
 	{
+<<<<<<< HEAD
 	  "name": "Match ID=1",
+=======
+	  "name": "Pick",
+>>>>>>> 78a08ad4 (some basic all and pick rules working for selecting VCs)
       "group": ["A"],
 	  "constraints": {
 		"fields": [
@@ -200,7 +204,11 @@ const All = `
 	  }
     },
     {
+<<<<<<< HEAD
 	  "name": "Match ID=2",
+=======
+	  "name": "Pick",
+>>>>>>> 78a08ad4 (some basic all and pick rules working for selecting VCs)
       "group": ["A"],
 	  "constraints": {
 		"fields": [
