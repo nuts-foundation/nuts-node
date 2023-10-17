@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/pe/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -91,27 +92,87 @@ var testCredentialString = `
 }`
 
 func TestMatch(t *testing.T) {
-	presentationDefinition := PresentationDefinition{}
-	_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
-	verifiableCredential := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("../test/vc.json")
-	_ = json.Unmarshal(vcJSON, &verifiableCredential)
+	t.Run("Basic", func(t *testing.T) {
+		presentationDefinition := PresentationDefinition{}
+		_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
+		verifiableCredential := vc.VerifiableCredential{}
+		vcJSON, _ := os.ReadFile("../test/vc.json")
+		_ = json.Unmarshal(vcJSON, &verifiableCredential)
 
-	t.Run("Happy flow", func(t *testing.T) {
-		presentationSubmission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
+		t.Run("Happy flow", func(t *testing.T) {
+			presentationSubmission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
 
-		require.NoError(t, err)
-		assert.Len(t, vcs, 1)
-		require.Len(t, presentationSubmission.DescriptorMap, 1)
-		assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+			require.NoError(t, err)
+			assert.Len(t, vcs, 1)
+			require.Len(t, presentationSubmission.DescriptorMap, 1)
+			assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+		})
+		t.Run("Only second VC matches", func(t *testing.T) {
+			presentationSubmission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, verifiableCredential})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 1)
+			require.Len(t, presentationSubmission.DescriptorMap, 1)
+			assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+		})
 	})
-	t.Run("Only second VC matches", func(t *testing.T) {
-		presentationSubmission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, verifiableCredential})
+	t.Run("Submission requirement feature", func(t *testing.T) {
+		t.Run("Pick 1", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.Pick_1), &presentationDefinition)
+			idOne := ssi.MustParseURI("1")
+			idTwo := ssi.MustParseURI("2")
+			vcOne := vc.VerifiableCredential{ID: &idOne}
+			vcTwo := vc.VerifiableCredential{ID: &idTwo}
 
-		require.NoError(t, err)
-		assert.Len(t, vcs, 1)
-		require.Len(t, presentationSubmission.DescriptorMap, 1)
-		assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vcOne, vcTwo})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 1)
+			assert.NotNil(t, submission)
+		})
+		t.Run("Pick min max", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.Pick_min_max), &presentationDefinition)
+			idOne := ssi.MustParseURI("1")
+			idTwo := ssi.MustParseURI("2")
+			vcOne := vc.VerifiableCredential{ID: &idOne}
+			vcTwo := vc.VerifiableCredential{ID: &idTwo}
+
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vcOne, vcTwo})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 1)
+			assert.NotNil(t, submission)
+		})
+		t.Run("Pick 1 per group", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.Pick_1_per_group), &presentationDefinition)
+			idOne := ssi.MustParseURI("1")
+			idTwo := ssi.MustParseURI("2")
+			vcOne := vc.VerifiableCredential{ID: &idOne}
+			vcTwo := vc.VerifiableCredential{ID: &idTwo}
+
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vcOne, vcTwo})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 2)
+			assert.NotNil(t, submission)
+		})
+		t.Run("Pick all", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
+			idOne := ssi.MustParseURI("1")
+			idTwo := ssi.MustParseURI("2")
+			vcOne := vc.VerifiableCredential{ID: &idOne}
+			vcTwo := vc.VerifiableCredential{ID: &idTwo}
+
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vcOne, vcTwo})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 2)
+			assert.NotNil(t, submission)
+		})
 	})
 }
 

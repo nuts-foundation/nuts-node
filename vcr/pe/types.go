@@ -19,6 +19,10 @@
 // Package pe stands for Presentation Exchange which includes Presentation Definition and Presentation Submission
 package pe
 
+import (
+	"slices"
+)
+
 // PresentationDefinitionClaimFormatDesignations (replaces generated one)
 type PresentationDefinitionClaimFormatDesignations map[string]map[string][]string
 
@@ -34,9 +38,10 @@ type PresentationSubmission struct {
 
 // InputDescriptorMappingObject
 type InputDescriptorMappingObject struct {
-	Id     string `json:"id"`
-	Path   string `json:"path"`
-	Format string `json:"format"`
+	Id              string          `json:"id"`
+	Path            string          `json:"path"`
+	Format          string          `json:"format"`
+	inputDescriptor InputDescriptor `json:"-"`
 }
 
 // Constraints
@@ -105,4 +110,53 @@ type Statuses struct {
 
 // SubmissionRequirement
 type SubmissionRequirement struct {
+	Count      *int                     `json:"count,omitempty"`
+	From       string                   `json:"from,omitempty"`
+	FromNested []*SubmissionRequirement `json:"from_nested,omitempty"`
+	Max        *int                     `json:"max,omitempty"`
+	Min        *int                     `json:"min,omitempty"`
+	Name       string                   `json:"name,omitempty"`
+	Rule       string                   `json:"rule,omitempty"`
 }
+
+// Groups returns all the groups form the 'from' field. It traverses the 'from_nested' field recursively.
+func (submissionRequirement SubmissionRequirement) Groups() []string {
+	result := []string{}
+	if submissionRequirement.From != "" {
+		result = append(result, submissionRequirement.From)
+	}
+	for _, nested := range submissionRequirement.FromNested {
+		result = append(result, nested.Groups()...)
+	}
+	//deduplicate by using sort and compact
+	slices.Sort(result)
+	return slices.Compact(result)
+}
+
+//func (submissionRequirement SubmissionRequirement) Match(submission PresentationSubmission) (PresentationSubmission, error) {
+//	if submissionRequirement.From != "" && len(submissionRequirement.FromNested) > 0 {
+//		return nil, fmt.Errorf("submission requirement (%s) has both 'from' and 'from_nested' fields", submissionRequirement.Name)
+//	}
+//	if submissionRequirement.From != "" {
+//		return submissionRequirement.matchFrom(submission)
+//	}
+//	return submissionRequirement.matchFromNested(submission)
+//}
+//
+//func (submissionRequirement SubmissionRequirement) matchFrom(submission PresentationSubmission) (PresentationSubmission, error) {
+//	group := submissionRequirement.From
+//	result := []InputDescriptor{}
+//	for _, descriptor := range descriptors {
+//		if slices.Contains(descriptor.Group, group) {
+//			result = append(result, descriptor)
+//		}
+//	}
+//	// apply the rules
+//	// for the 'all' rule, we need the original input descriptors for the group
+//
+//	return result, nil
+//}
+//
+//func (submissionRequirement SubmissionRequirement) matchFromNested(submission PresentationSubmission) (PresentationSubmission, error) {
+//
+//}

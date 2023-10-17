@@ -32,12 +32,20 @@ import (
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 var ErrUnsupportedFilter = errors.New("unsupported filter")
 
+// Match is a struct that holds the result of a match between an input descriptor and a VC
+// A non-matching VC also leads to a Match, but without a VC.
+type Match struct {
+	InputDescriptor InputDescriptor
+	VC              *vc.VerifiableCredential
+}
+
 // Match matches the VCs against the presentation definition.
 // It implements §5 of the Presentation Exchange specification (v2.x.x pre-Draft, 2023-07-29) (https://identity.foundation/presentation-exchange/#presentation-definition)
-// It only supports the following:
+// It supports the following:
 // - ldp_vc format
 // - pattern, const and enum only on string fields
 // - number, boolean, array and string JSON schema types
+// - Submission Requirements Feature
 // It doesn't do the credential search, this should be done before calling this function.
 // The PresentationDefinition.Format should be altered/set if an envelope defines the supported format before calling.
 // The resulting PresentationSubmission has paths that are relative to the matching VCs.
@@ -45,6 +53,32 @@ var ErrUnsupportedFilter = errors.New("unsupported filter")
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 // Other errors can be returned for faulty JSON paths or regex patterns.
 func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
+	if len(presentationDefinition.SubmissionRequirements) > 0 {
+		return presentationDefinition.matchSubmissionRequirements(vcs)
+	}
+	return presentationDefinition.matchBasic(vcs)
+}
+
+func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential) ([]Match, error) {
+	var matches []Match
+	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
+		for _, credential := range vcs {
+			match, err := matchCredential(*inputDescriptor, credential)
+			if err != nil {
+				return nil, err
+			}
+			if match && matchFormat(presentationDefinition.Format, credential) {
+				matches = append(matches, Match{
+					InputDescriptor: *inputDescriptor,
+					VC:              &credential,
+				})
+			}
+		}
+	}
+	return matches, nil
+}
+
+func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
 	// for each VC in vcs:
 	// for each descriptor in presentation_definition.descriptors:
 	// for each constraint in descriptor.constraints:
@@ -54,30 +88,166 @@ func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCr
 		Id:           uuid.New().String(),
 		DefinitionId: presentationDefinition.Id,
 	}
-	var matchingCredentials []vc.VerifiableCredential
+	matches, err := presentationDefinition.matchConstraints(vcs)
+	if err != nil {
+		return PresentationSubmission{}, nil, err
+	}
 	var index int
-	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
-		var mapping *InputDescriptorMappingObject
-		var err error
-		for _, credential := range vcs {
-			mapping, err = matchDescriptor(*inputDescriptor, credential)
-			if err != nil {
-				return PresentationSubmission{}, nil, err
-			}
-			if mapping != nil && matchFormat(presentationDefinition.Format, credential) {
-				mapping.Path = fmt.Sprintf("$.verifiableCredential[%d]", index)
-				presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, *mapping)
-				matchingCredentials = append(matchingCredentials, credential)
-				index++
-				break
-			}
-		}
-		if mapping == nil {
+	matchingCredentials := make([]vc.VerifiableCredential, len(matches))
+	for _, match := range matches {
+		if match.VC == nil {
 			return PresentationSubmission{}, []vc.VerifiableCredential{}, nil
 		}
+		mapping := InputDescriptorMappingObject{
+			Path: fmt.Sprintf("$.verifiableCredential[%d]", index),
+		}
+		presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, mapping)
+		matchingCredentials[index] = *match.VC
+		index++
 	}
 
 	return presentationSubmission, matchingCredentials, nil
+}
+
+func (presentationDefinition PresentationDefinition) matchSubmissionRequirements(vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
+	// first we use the constraint matching algorithm to get the matching credentials
+	matches, err := presentationDefinition.matchConstraints(vcs)
+	if err != nil {
+		return PresentationSubmission{}, nil, err
+	}
+
+	// then we check the group constraints
+	// for each 'group' in input_descriptor there must be a matching 'from' field in a submission requirement
+	availableGroups := make(map[string]Group)
+	for _, submissionRequirement := range presentationDefinition.SubmissionRequirements {
+		for _, group := range submissionRequirement.Groups() {
+			availableGroups[group] = Group{
+				Name: group,
+			}
+		}
+	}
+	for _, group := range presentationDefinition.groups() {
+		if _, ok := availableGroups[group.Name]; !ok {
+			return PresentationSubmission{}, nil, fmt.Errorf("group %s is required but not available", group.Name)
+		}
+	}
+
+	// now we know there are no missing groups, we can start matching the submission requirements
+	// now we add each specific match to the correct group(s)
+	for _, match := range matches {
+		for _, group := range match.InputDescriptor.Group {
+			current := availableGroups[group]
+			current.Matches = append(current.Matches, match)
+			availableGroups[group] = current
+		}
+	}
+
+	presentationSubmission := PresentationSubmission{
+		Id:           uuid.New().String(),
+		DefinitionId: presentationDefinition.Id,
+	}
+	selectedVCs := make([]vc.VerifiableCredential, 0)
+
+	// for each submission requirement:
+	// we select the credentials that match the requirement
+	// then we apply the rules and save the resulting credentials
+outer:
+	for _, submissionRequirement := range presentationDefinition.SubmissionRequirements {
+		// todo "from_nested"
+		// do a 'from' group first
+		group := availableGroups[submissionRequirement.From]
+		// different rules for 'all' and 'pick'
+		if submissionRequirement.Rule == "all" {
+			// all means all matches in the group must be in the submission
+			// if any of the Match has an empty VC, we return an empty submission
+			for _, match := range group.Matches {
+				if match.VC == nil {
+					return PresentationSubmission{}, nil, nil
+				}
+			}
+			for i, match := range group.Matches {
+				selectedVCs = append(selectedVCs, *match.VC)
+				presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, InputDescriptorMappingObject{
+					Id:     match.InputDescriptor.Id,
+					Format: "ldp_vc", // todo: hardcoded for now, must be derived from the VC, but we don't support other VC types yet
+					Path:   fmt.Sprintf("$.verifiableCredential[%d]", i),
+				})
+			}
+		} else if submissionRequirement.Rule == "pick" {
+			// pick means we need to pick one or more of the matches
+			// count number of matches with VC
+			var count int
+			for _, match := range group.Matches {
+				if match.VC != nil {
+					count++
+				}
+			}
+			// check count
+			if submissionRequirement.Count != nil {
+				if count < *submissionRequirement.Count {
+					return PresentationSubmission{}, nil, fmt.Errorf("submission requirement (%s) has less credentials (%d) than requried (%d)", submissionRequirement.Name, count, *submissionRequirement.Count)
+				}
+				i := 0
+			inner:
+				for _, match := range group.Matches {
+					if match.VC != nil {
+						selectedVCs = append(selectedVCs, *match.VC)
+						i++
+					}
+					if i == *submissionRequirement.Count {
+						break inner
+					}
+				}
+				continue outer
+			}
+			// check min and max
+			if submissionRequirement.Min != nil && count < *submissionRequirement.Min {
+				return PresentationSubmission{}, nil, fmt.Errorf("submission requirement (%s) has less matches (%d) than min (%d)", submissionRequirement.Name, count, *submissionRequirement.Min)
+			}
+			if submissionRequirement.Max != nil && count > *submissionRequirement.Max {
+				return PresentationSubmission{}, nil, fmt.Errorf("submission requirement (%s) has more matches (%d) than max (%d)", submissionRequirement.Name, count, *submissionRequirement.Max)
+			}
+			// take min if both min and max are set
+			index := 0
+			for _, match := range group.Matches {
+				if match.VC != nil {
+					selectedVCs = append(selectedVCs, *match.VC)
+					index++
+				}
+				if index == *submissionRequirement.Min {
+					break
+				}
+			}
+		}
+	}
+
+	// todo: we deduplicate the credentials
+
+	return presentationSubmission, selectedVCs, nil
+}
+
+// groups returns all the Matches with input descriptors and matching VCs.
+// If no VC matches the input descriptor, the match is still returned.
+// todo: how to add VC to the match? Use the VC list from basicMatch?
+func (presentationDefinition PresentationDefinition) groups() []Group {
+	groups := make(map[string]Group)
+	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
+		for _, group := range inputDescriptor.Group {
+			existing, ok := groups[group]
+			if !ok {
+				existing = Group{
+					Name: group,
+				}
+			}
+			existing.Matches = append(existing.Matches, Match{InputDescriptor: *inputDescriptor})
+			groups[group] = existing
+		}
+	}
+	var result []Group
+	for _, group := range groups {
+		result = append(result, group)
+	}
+	return result
 }
 
 // matchFormat checks if the credential matches the Format from the presentationDefinition.
