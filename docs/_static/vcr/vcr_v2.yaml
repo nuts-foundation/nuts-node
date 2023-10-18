@@ -456,7 +456,7 @@ components:
           type: string
           example: "2012-01-02T12:00:00Z"
         format:
-          description: Proof format for the credential (JSON-LD or JWT). If not set, it defaults to JSON-LD.
+          description: Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
           default: ldp_vc
           type: string
           enum:

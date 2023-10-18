@@ -111,7 +111,7 @@ type IssueVCRequest struct {
 	// ExpirationDate RFC3339 time string until when the credential is valid.
 	ExpirationDate *string `json:"expirationDate,omitempty"`
 
-	// Format Proof format for the credential (JSON-LD or JWT). If not set, it defaults to JSON-LD.
+	// Format Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
 	Format *IssueVCRequestFormat `json:"format,omitempty"`
 
 	// Issuer DID according to Nuts specification.
@@ -131,7 +131,7 @@ type IssueVCRequest struct {
 	Visibility *IssueVCRequestVisibility `json:"visibility,omitempty"`
 }
 
-// IssueVCRequestFormat Proof format for the credential (JSON-LD or JWT). If not set, it defaults to JSON-LD.
+// IssueVCRequestFormat Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
 type IssueVCRequestFormat string
 
 // IssueVCRequestVisibility When publishToNetwork is true, the credential can be published publicly or privately to the holder.

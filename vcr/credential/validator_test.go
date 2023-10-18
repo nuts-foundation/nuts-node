@@ -434,7 +434,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 
 		err := validator.Validate(*v)
 
-		assert.EqualError(t, err, "validation failed: 'proof' is required")
+		assert.EqualError(t, err, "validation failed: 'proof' is required for JSON-LD credentials")
 	})
 
 	t.Run("failed - missing default context", func(t *testing.T) {

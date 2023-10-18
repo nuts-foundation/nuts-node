@@ -70,6 +70,9 @@ Will be expanded by the node to:
 
 The `visibility` property indicates the contents of the VC are published on the network, so it can be read by everyone.
 
+By default, the node will create credentials in JSON-LD format.
+You can specify the format by passing the `format` parameter (``jwt_vc`` or ``ldp_vc``).
+
 .. _searching-vcs:
 
 Searching VCs

@@ -87,7 +87,7 @@ type CredentialSearcher interface {
 
 const (
 	JSONLDCredentialFormat   = vc.JSONLDCredentialProofFormat
-	JWTCredentialFormat      = vc.JWTCredentialsProofFormat
+	JWTCredentialFormat      = vc.JWTCredentialProofFormat
 	JSONLDPresentationFormat = vc.JSONLDPresentationProofFormat
 	JWTPresentationFormat    = vc.JWTPresentationProofFormat
 )

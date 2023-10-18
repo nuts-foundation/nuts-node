@@ -19,6 +19,7 @@ Nuts documentation
     pages/integrating/api.rst
     pages/integrating/api-authentication.rst
     pages/integrating/vc.rst
+    pages/integrating/supported-protocols-formats.rst
     pages/integrating/faq-errors.rst
     pages/release_notes.rst
     pages/roadmap.rst
