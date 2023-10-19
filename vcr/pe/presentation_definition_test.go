@@ -92,6 +92,15 @@ var testCredentialString = `
 }`
 
 func TestMatch(t *testing.T) {
+	id1 := ssi.MustParseURI("1")
+	id2 := ssi.MustParseURI("2")
+	id3 := ssi.MustParseURI("3")
+	id4 := ssi.MustParseURI("4")
+	vc1 := vc.VerifiableCredential{ID: &id1}
+	vc2 := vc.VerifiableCredential{ID: &id2}
+	vc3 := vc.VerifiableCredential{ID: &id3}
+	vc4 := vc.VerifiableCredential{ID: &id4}
+
 	t.Run("Basic", func(t *testing.T) {
 		presentationDefinition := PresentationDefinition{}
 		_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
@@ -120,12 +129,8 @@ func TestMatch(t *testing.T) {
 		t.Run("Pick 1", func(t *testing.T) {
 			presentationDefinition := PresentationDefinition{}
 			_ = json.Unmarshal([]byte(test.Pick_1), &presentationDefinition)
-			idOne := ssi.MustParseURI("1")
-			idTwo := ssi.MustParseURI("2")
-			vcOne := vc.VerifiableCredential{ID: &idOne}
-			vcTwo := vc.VerifiableCredential{ID: &idTwo}
 
-			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vcOne, vcTwo})
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 1)
@@ -134,26 +139,18 @@ func TestMatch(t *testing.T) {
 		t.Run("Pick min max", func(t *testing.T) {
 			presentationDefinition := PresentationDefinition{}
 			_ = json.Unmarshal([]byte(test.Pick_min_max), &presentationDefinition)
-			idOne := ssi.MustParseURI("1")
-			idTwo := ssi.MustParseURI("2")
-			vcOne := vc.VerifiableCredential{ID: &idOne}
-			vcTwo := vc.VerifiableCredential{ID: &idTwo}
 
-			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vcOne, vcTwo})
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
 			require.NoError(t, err)
-			assert.Len(t, vcs, 1)
+			assert.Len(t, vcs, 2)
 			assert.NotNil(t, submission)
 		})
 		t.Run("Pick 1 per group", func(t *testing.T) {
 			presentationDefinition := PresentationDefinition{}
 			_ = json.Unmarshal([]byte(test.Pick_1_per_group), &presentationDefinition)
-			idOne := ssi.MustParseURI("1")
-			idTwo := ssi.MustParseURI("2")
-			vcOne := vc.VerifiableCredential{ID: &idOne}
-			vcTwo := vc.VerifiableCredential{ID: &idTwo}
 
-			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vcOne, vcTwo})
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 2)
@@ -162,16 +159,41 @@ func TestMatch(t *testing.T) {
 		t.Run("Pick all", func(t *testing.T) {
 			presentationDefinition := PresentationDefinition{}
 			_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
-			idOne := ssi.MustParseURI("1")
-			idTwo := ssi.MustParseURI("2")
-			vcOne := vc.VerifiableCredential{ID: &idOne}
-			vcTwo := vc.VerifiableCredential{ID: &idTwo}
 
-			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vcOne, vcTwo})
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 2)
 			assert.NotNil(t, submission)
+		})
+		t.Run("Pick 1 from nested", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.Pick_1_from_nested), &presentationDefinition)
+
+			t.Run("all from group A or all from group B", func(t *testing.T) {
+				t.Run("all A", func(t *testing.T) {
+					submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
+
+					require.NoError(t, err)
+					assert.Len(t, vcs, 2)
+					assert.NotNil(t, submission)
+				})
+				t.Run("all B", func(t *testing.T) {
+					submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc3, vc4})
+
+					require.NoError(t, err)
+					assert.Len(t, vcs, 2)
+					assert.Equal(t, "3", vcs[0].ID.String())
+					assert.NotNil(t, submission)
+				})
+				t.Run("no match", func(t *testing.T) {
+					submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc3})
+
+					require.Error(t, err)
+					assert.Len(t, vcs, 0)
+					assert.NotNil(t, submission)
+				})
+			})
 		})
 	})
 }

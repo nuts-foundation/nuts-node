@@ -219,3 +219,97 @@ const All = `
   ]
 }
 `
+
+const Pick_1_from_nested = `
+{
+  "submission_requirements": [
+    {
+      "name": "Pick 1 matcher",
+      "rule": "pick",
+      "count": 1,
+      "from_nested": [
+        {
+          "name": "All A matcher",
+          "rule": "all",
+          "from": "A"
+        },
+        {
+          "name": "All B matcher",
+          "rule": "all",
+          "from": "B"
+        }
+      ]
+    }
+  ],
+  "input_descriptors": [
+	{
+	  "name": "Pick 1",
+      "group": ["A"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "1"
+			}
+		  }
+		]
+	  }
+    },
+    {
+	  "name": "Pick 2",
+      "group": ["A"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "2"
+			}
+		  }
+		]
+	  }
+    },
+    {
+	  "name": "Pick 3",
+      "group": ["B"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "3"
+			}
+		  }
+		]
+	  }
+    },
+    {
+	  "name": "Pick 4",
+      "group": ["B"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "4"
+			}
+		  }
+		]
+	  }
+    }
+  ]
+}
+`
