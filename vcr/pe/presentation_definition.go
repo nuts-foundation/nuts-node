@@ -22,11 +22,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/dlclark/regexp2"
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/vc"
-	"strings"
 )
 
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
