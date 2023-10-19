@@ -23,8 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"time"
@@ -231,7 +229,9 @@ func (i issuer) buildVC(ctx context.Context, template vc.VerifiableCredential, o
 
 	switch options.Format {
 	case JWTCredentialFormat:
-		return BuildJWTCredential(ctx, i.keyStore, unsignedCredential, key)
+		return vc.CreateJWTVerifiableCredential(ctx, unsignedCredential, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
+			return i.keyStore.SignJWT(ctx, claims, headers, key)
+		})
 	case "":
 		fallthrough
 	case JSONLDCredentialFormat:
@@ -355,36 +355,4 @@ func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
 
 func (i issuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	return i.store.SearchCredential(credentialType, issuer, subject)
-}
-
-// BuildJWTCredential builds a JWT credential from the given template credential.
-func BuildJWTCredential(ctx context.Context, signer crypto.JWTSigner, template vc.VerifiableCredential, key crypto.Key) (*vc.VerifiableCredential, error) {
-	subjectDID, err := template.SubjectDID()
-	if err != nil {
-		return nil, err
-	}
-	headers := map[string]interface{}{
-		jws.TypeKey: "JWT",
-	}
-	claims := map[string]interface{}{
-		jwt.NotBeforeKey: template.IssuanceDate,
-		jwt.IssuerKey:    template.Issuer.String(),
-		jwt.SubjectKey:   subjectDID.String(),
-		"vc": vc.VerifiableCredential{
-			Context:           template.Context,
-			Type:              template.Type,
-			CredentialSubject: template.CredentialSubject,
-		},
-	}
-	if template.ID != nil {
-		claims[jwt.JwtIDKey] = template.ID.String()
-	}
-	if template.ExpirationDate != nil {
-		claims[jwt.ExpirationKey] = *template.ExpirationDate
-	}
-	token, err := signer.SignJWT(ctx, claims, headers, key)
-	if err != nil {
-		return nil, fmt.Errorf("unable to sign JWT credential: %w", err)
-	}
-	return vc.ParseVerifiableCredential(token)
 }

@@ -19,6 +19,7 @@
 package verifier
 
 import (
+	"context"
 	crypt "crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -29,7 +30,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
@@ -61,7 +61,6 @@ func testCredential(t *testing.T) vc.VerifiableCredential {
 }
 
 func Test_verifier_Validate(t *testing.T) {
-
 	const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
 
 	// load pub key
@@ -102,7 +101,9 @@ func Test_verifier_Validate(t *testing.T) {
 		template := testCredential(t)
 		template.Issuer = did.MustParseDIDURL(key.KID()).WithoutURL().URI()
 
-		cred, err := issuer.BuildJWTCredential(audit.TestContext(), keyStore, template, key)
+		cred, err := vc.CreateJWTVerifiableCredential(audit.TestContext(), template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
+			return keyStore.SignJWT(ctx, claims, headers, key)
+		})
 		require.NoError(t, err)
 
 		t.Run("with kid header", func(t *testing.T) {
@@ -118,7 +119,9 @@ func Test_verifier_Validate(t *testing.T) {
 			ctx := newMockContext(t)
 			instance := ctx.verifier
 
-			cred, err := issuer.BuildJWTCredential(audit.TestContext(), keyStore, template, key)
+			cred, err := vc.CreateJWTVerifiableCredential(audit.TestContext(), template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
+				return keyStore.SignJWT(ctx, claims, headers, key)
+			})
 			require.NoError(t, err)
 			cred.Issuer = ssi.MustParseURI("did:example:test")
 

@@ -144,6 +144,7 @@ func (v *verifier) validateJSONLDCredential(credentialToVerify vc.VerifiableCred
 		return errVerificationMethodNotOfIssuer
 	}
 
+	// find key
 	pk, err := v.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), at, resolver.NutsSigningKeyType)
 	if err != nil {
 		if at == nil {
@@ -152,6 +153,7 @@ func (v *verifier) validateJSONLDCredential(credentialToVerify vc.VerifiableCred
 		return fmt.Errorf("unable to resolve valid signing key at given time: %w", err)
 	}
 
+	// Try first with the correct LDProof implementation
 	return ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, pk)
 }
 
@@ -337,20 +339,6 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, presentation vc.VerifiablePres
 	return presentation.VerifiableCredential, nil
 }
 
-func (v *verifier) validateType(credential vc.VerifiableCredential) error {
-	// VCs must contain 2 types: "VerifiableCredential" and specific type
-	if len(credential.Type) > 2 {
-		return errors.New("verifiable credential must list at most 2 types")
-	}
-	// "VerifiableCredential" should be one of the types
-	for _, curr := range credential.Type {
-		if curr == vc.VerifiableCredentialTypeV1URI() {
-			return nil
-		}
-	}
-	return fmt.Errorf("verifiable credential does not list '%s' as type", vc.VerifiableCredentialTypeV1URI())
-}
-
 func (v *verifier) validateJSONLDPresentation(presentation vc.VerifiablePresentation, validAt *time.Time) error {
 	// Multiple proofs might be supported in the future, when there's an actual use case.
 	if len(presentation.Proof) != 1 {
@@ -410,4 +398,18 @@ func (v *verifier) validateJWTPresentation(presentation vc.VerifiablePresentatio
 		return errVerificationMethodNotOfIssuer
 	}
 	return nil
+}
+
+func (v *verifier) validateType(credential vc.VerifiableCredential) error {
+	// VCs must contain 2 types: "VerifiableCredential" and specific type
+	if len(credential.Type) > 2 {
+		return errors.New("verifiable credential must list at most 2 types")
+	}
+	// "VerifiableCredential" should be one of the types
+	for _, curr := range credential.Type {
+		if curr == vc.VerifiableCredentialTypeV1URI() {
+			return nil
+		}
+	}
+	return fmt.Errorf("verifiable credential does not list '%s' as type", vc.VerifiableCredentialTypeV1URI())
 }
