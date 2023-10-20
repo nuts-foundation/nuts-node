@@ -40,6 +40,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"testing"
@@ -165,8 +166,12 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 
 		response, err := ctx.wrapper.GetSignSessionStatus(ctx.audit, sessionObj)
 
-		assert.Equal(t, expectedResponse, response)
-		assert.NoError(t, err)
+		require.NoError(t, err)
+		actualResponseJSON := httptest.NewRecorder()
+		require.NoError(t, response.VisitGetSignSessionStatusResponse(actualResponseJSON))
+		expectedResponseJSON := httptest.NewRecorder()
+		require.NoError(t, expectedResponse.VisitGetSignSessionStatusResponse(expectedResponseJSON))
+		assert.JSONEq(t, string(expectedResponseJSON.Body.Bytes()), string(actualResponseJSON.Body.Bytes()))
 	})
 
 	t.Run("nok - SigningSessionStatus returns error", func(t *testing.T) {

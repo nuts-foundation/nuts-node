@@ -105,8 +105,8 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 		return failure("'issuanceDate' is required")
 	}
 
-	if credential.Proof == nil {
-		return failure("'proof' is required")
+	if credential.Format() == vc.JSONLDCredentialProofFormat && credential.Proof == nil {
+		return failure("'proof' is required for JSON-LD credentials")
 	}
 
 	return nil

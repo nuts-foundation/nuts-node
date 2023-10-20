@@ -134,18 +134,18 @@ func (m *MockIssuer) EXPECT() *MockIssuerMockRecorder {
 }
 
 // Issue mocks base method.
-func (m *MockIssuer) Issue(ctx context.Context, unsignedCredential vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error) {
+func (m *MockIssuer) Issue(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Issue", ctx, unsignedCredential, publish, public)
+	ret := m.ctrl.Call(m, "Issue", ctx, template, options)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Issue indicates an expected call of Issue.
-func (mr *MockIssuerMockRecorder) Issue(ctx, unsignedCredential, publish, public any) *gomock.Call {
+func (mr *MockIssuerMockRecorder) Issue(ctx, template, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockIssuer)(nil).Issue), ctx, unsignedCredential, publish, public)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockIssuer)(nil).Issue), ctx, template, options)
 }
 
 // Revoke mocks base method.

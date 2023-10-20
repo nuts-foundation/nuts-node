@@ -525,7 +525,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential: json: cannot unmarshal string into Go value of type map[string]interface {}")
+		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential: failed to parse token: invalid character '}' looking for beginning of value")
 	})
 
 	t.Run("error - jwt.iss <> credentialSubject.ID mismatch", func(t *testing.T) {
