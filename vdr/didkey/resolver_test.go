@@ -27,9 +27,9 @@ import (
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/json"
+	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multicodec"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/shengdoushi/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -265,7 +265,7 @@ func TestNewResolver(t *testing.T) {
 
 func createDIDKey(keyType multicodec.Code, data []byte) string {
 	mcBytes := append(binary.AppendUvarint([]byte{}, uint64(keyType)), data...)
-	return "did:key:z" + string(base58.Encode(mcBytes, base58.BitcoinAlphabet))
+	return "did:key:z" + string(base58.EncodeAlphabet(mcBytes, base58.BTCAlphabet))
 }
 
 func TestRoundTrip(t *testing.T) {

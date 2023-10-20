@@ -29,11 +29,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/x25519"
+	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multicodec"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"github.com/shengdoushi/base58"
 	"io"
 )
 
@@ -60,7 +60,7 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	if len(encodedKey) == 0 || encodedKey[0] != 'z' {
 		return nil, nil, errors.New("did:key does not start with 'z'")
 	}
-	mcBytes, err := base58.Decode(encodedKey[1:], base58.BitcoinAlphabet)
+	mcBytes, err := base58.DecodeAlphabet(encodedKey[1:], base58.BTCAlphabet)
 	if err != nil {
 		return nil, nil, fmt.Errorf("did:key: invalid base58btc: %w", err)
 	}
