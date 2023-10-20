@@ -20,6 +20,8 @@ package pe
 
 import (
 	"encoding/json"
+	"fmt"
+	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"io"
 	"os"
 )
@@ -28,7 +30,7 @@ import (
 // It loads a file with the mapping from oauth scope to presentation definition
 type DefinitionResolver struct {
 	// mapping holds the oauth scope to presentation definition mapping
-	mapping map[string]PresentationDefinition
+	mapping map[string]validatingPresentationDefinition
 }
 
 // LoadFromFile loads the mapping from the given file
@@ -45,8 +47,13 @@ func (s *DefinitionResolver) LoadFromFile(filename string) error {
 	}
 
 	// unmarshal the bytes into the mapping
-	s.mapping = make(map[string]PresentationDefinition)
-	return json.Unmarshal(bytes, &s.mapping)
+	result := make(map[string]validatingPresentationDefinition)
+	err = json.Unmarshal(bytes, &result)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal Presentation Exchange mapping file %s: %w", filename, err)
+	}
+	s.mapping = result
+	return nil
 }
 
 // ByScope returns the presentation definition for the given scope.
@@ -56,5 +63,16 @@ func (s *DefinitionResolver) ByScope(scope string) *PresentationDefinition {
 	if !ok {
 		return nil
 	}
-	return &mapping
+	result := PresentationDefinition(mapping)
+	return &result
+}
+
+// validatingPresentationDefinition is an alias for PresentationDefinition that validates the JSON on unmarshal.
+type validatingPresentationDefinition PresentationDefinition
+
+func (v *validatingPresentationDefinition) UnmarshalJSON(data []byte) error {
+	if err := v2.Validate(data, v2.PresentationDefinition); err != nil {
+		return err
+	}
+	return json.Unmarshal(data, (*PresentationDefinition)(v))
 }

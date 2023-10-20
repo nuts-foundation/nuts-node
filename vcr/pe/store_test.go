@@ -43,6 +43,14 @@ func TestStore_LoadFromFile(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+
+	t.Run("returns an error if a presentation definition is invalid", func(t *testing.T) {
+		store := DefinitionResolver{}
+
+		err := store.LoadFromFile("test/invalid_definition_mapping.json")
+
+		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
+	})
 }
 
 func TestStore_ByScope(t *testing.T) {

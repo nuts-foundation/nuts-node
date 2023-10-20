@@ -51,6 +51,8 @@ require (
 	schneider.vip/problem v1.8.1
 )
 
+require github.com/santhosh-tekuri/jsonschema v1.2.4
+
 require (
 	github.com/PaesslerAG/gval v1.2.2 // indirect
 	github.com/alexandrevicenzi/go-sse v1.6.0 // indirect
