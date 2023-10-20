@@ -198,11 +198,11 @@ func TestResolver_Resolve(t *testing.T) {
 	})
 	t.Run("did:key ID is not valid base58btc encoded 'z'", func(t *testing.T) {
 		_, _, err := Resolver{}.Resolve(did.MustParseDID("did:key:z291830129"), nil)
-		require.EqualError(t, err, "did:key: invalid base58btc: invalid base58 string")
+		require.EqualError(t, err, "did:key: invalid base58btc: invalid base58 digit ('0')")
 	})
 	t.Run("invalid multicodec key type", func(t *testing.T) {
 		_, _, err := Resolver{}.Resolve(did.MustParseDID("did:key:z"), nil)
-		require.EqualError(t, err, "did:key: invalid multicodec value: EOF")
+		require.EqualError(t, err, "did:key: invalid base58btc: zero length string")
 	})
 	t.Run("unsupported key type", func(t *testing.T) {
 		didKey := createDIDKey(multicodec.Aes256, []byte{1, 2, 3})
