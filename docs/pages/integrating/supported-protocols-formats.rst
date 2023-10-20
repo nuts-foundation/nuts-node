@@ -28,7 +28,6 @@ The following DID methods are supported:
 - ``did:web`` (creating and resolving)
 - ``did:key`` (resolving)
 - ``did:jwk`` (resolving)
-- ``did:jwk`` (resolving)
 
 Credentials
 ***********
