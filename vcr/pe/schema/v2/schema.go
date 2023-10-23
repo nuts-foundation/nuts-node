@@ -16,6 +16,7 @@
  *
  */
 
+// This package implements v2.0.0 of the Presentation Exchange specification
 package v2
 
 import (
