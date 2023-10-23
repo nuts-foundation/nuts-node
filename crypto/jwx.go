@@ -32,10 +32,10 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/mr-tron/base58"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/shengdoushi/base58"
 )
 
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
@@ -449,5 +449,5 @@ func Thumbprint(key jwk.Key) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return base58.Encode(pkHash[:], base58.BitcoinAlphabet), nil
+	return base58.EncodeAlphabet(pkHash[:], base58.BTCAlphabet), nil
 }
