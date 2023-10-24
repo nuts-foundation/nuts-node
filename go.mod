@@ -18,7 +18,7 @@ require (
 	github.com/lestrrat-go/jwx v1.2.26
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.1.1
-	github.com/mr-tron/base58 v1.1.3
+	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multicodec v0.9.0
 	github.com/nats-io/nats-server/v2 v2.10.3
 	github.com/nats-io/nats.go v1.31.0
