@@ -19,12 +19,14 @@
 package iam
 
 import (
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"testing"
-
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"testing"
+	"time"
 )
 
 func TestWrapper_RequestAccessToken(t *testing.T) {
@@ -84,5 +86,34 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "verifier not found: unable to find the DID document")
+	})
+}
+
+func TestWrapper_createAccessToken(t *testing.T) {
+	credential, err := vc.ParseVerifiableCredential(jsonld.TestOrganizationCredential)
+	require.NoError(t, err)
+	presentation := vc.VerifiablePresentation{
+		VerifiableCredential: []vc.VerifiableCredential{*credential},
+	}
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), presentation, "everything")
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, accessToken.AccessToken)
+		assert.Equal(t, "bearer", accessToken.TokenType)
+		assert.Equal(t, 900, *accessToken.ExpiresIn)
+		assert.Equal(t, "everything", *accessToken.Scope)
+
+		var storedToken AccessToken
+		err = ctx.client.accessTokenStore(issuerDID).Get(accessToken.AccessToken, &storedToken)
+		require.NoError(t, err)
+		assert.Equal(t, accessToken.AccessToken, storedToken.Token)
+		expectedVPJSON, _ := presentation.MarshalJSON()
+		actualVPJSON, _ := storedToken.Presentation.MarshalJSON()
+		assert.JSONEq(t, string(expectedVPJSON), string(actualVPJSON))
+		assert.Equal(t, issuerDID.String(), storedToken.Issuer)
+		assert.NotEmpty(t, storedToken.Expiration)
 	})
 }
