@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"net/http"
 	"net/url"
 	"strings"
@@ -137,8 +138,14 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 	}
 
 	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2359
-	// TODO: What if multiple credentials of the same type match?
-	_, matchingCredentials, err := presentationDefinition.Match(credentials)
+	presentationContext := pe.PresentationContext{
+		Index: 0,
+		PresentationSubmission: &pe.PresentationSubmission{
+			Id:           uuid.NewString(),
+			DefinitionId: presentationDefinition.Id,
+		},
+	}
+	matchingCredentials, err := presentationDefinition.Match(presentationContext, credentials)
 	if err != nil {
 		return nil, fmt.Errorf("unable to match presentation definition: %w", err)
 	}
@@ -206,12 +213,19 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	}
 	// TODO: Options
 	resultParams := map[string]string{}
-	presentationSubmission, credentials, err := presentationDefinition.Match(credentials)
+	presentationContext := pe.PresentationContext{
+		Index: 0,
+		PresentationSubmission: &pe.PresentationSubmission{
+			Id:           uuid.NewString(),
+			DefinitionId: presentationDefinition.Id,
+		},
+	}
+	credentials, err = presentationDefinition.Match(presentationContext, credentials)
 	if err != nil {
 		// Matched earlier, shouldn't happen
 		return err
 	}
-	presentationSubmissionJSON, _ := json.Marshal(presentationSubmission)
+	presentationSubmissionJSON, _ := json.Marshal(presentationContext.PresentationSubmission)
 	resultParams[presentationSubmissionParam] = string(presentationSubmissionJSON)
 	verifiablePresentation, err := r.vcr.Wallet().BuildPresentation(c.Request().Context(), credentials, holder.PresentationOptions{}, &session.OwnDID, false)
 	if err != nil {
