@@ -32,8 +32,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
@@ -171,7 +171,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		test := newTestClient(t)
 		test.authnServices.EXPECT().PresentationDefinitions().Return(&definitionResolver)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: "test"}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.ID, Params: PresentationDefinitionParams{Scope: "eOverdracht-overdrachtsbericht"}})
 
 		require.NoError(t, err)
 		require.NotNil(t, response)

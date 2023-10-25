@@ -105,7 +105,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t))
 
 		params := map[string]string{
-			"scope":               "test",
+			"scope":               "eOverdracht-overdrachtsbericht",
 			"response_type":       "code",
 			"response_mode":       "direct_post",
 			"client_metadata_uri": "https://example.com/client_metadata.xml",
