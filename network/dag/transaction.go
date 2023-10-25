@@ -45,7 +45,7 @@ const (
 	lamportClockHeader = "lc"
 )
 
-var allowedAlgos = []jwa.SignatureAlgorithm{jwa.ES256, jwa.ES384, jwa.ES512, jwa.PS256, jwa.PS384, jwa.PS512}
+var allowedAlgos = []jwa.SignatureAlgorithm{jwa.ES256, jwa.ES384, jwa.ES512, jwa.PS256, jwa.PS384, jwa.PS512, jwa.EdDSA}
 
 var errInvalidPayloadType = errors.New("payload type must be formatted as MIME type")
 var errInvalidPrevs = errors.New("prevs contains an empty hash")

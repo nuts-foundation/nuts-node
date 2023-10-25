@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
@@ -154,7 +155,13 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 // Stores the private key, returns the public basicKey.
 // It returns an error when a key with the resulting ID already exists.
 func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
-	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
+	//keyPair, kid, err := generateKeyPairAndKID(namingFunc)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	kid, err := namingFunc(publicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -163,11 +170,11 @@ func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, e
 	if client.storage.PrivateKeyExists(ctx, kid) {
 		return nil, errors.New("key with the given ID already exists")
 	}
-	if err = client.storage.SavePrivateKey(ctx, kid, keyPair); err != nil {
+	if err = client.storage.SavePrivateKey(ctx, kid, privateKey); err != nil {
 		return nil, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
 	return basicKey{
-		publicKey: keyPair.Public(),
+		publicKey: publicKey,
 		kid:       kid,
 	}, nil
 }

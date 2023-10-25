@@ -138,8 +138,10 @@ func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
 		var alg jwa.SignatureAlgorithm
 		alg, err = ecAlg(k)
 		key.Set(jwk.AlgorithmKey, alg)
+	case ed25519.PrivateKey:
+		key.Set(jwk.AlgorithmKey, jwa.EdDSA)
 	default:
-		err = errors.New("unsupported signing private key")
+		err = fmt.Errorf("unsupported signing private key: %T", k)
 	}
 	return
 }
