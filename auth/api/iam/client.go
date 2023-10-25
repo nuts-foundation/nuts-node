@@ -85,7 +85,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 
 // PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
 func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes []string) (*PresentationDefinition, error) {
-	presentationDefinitionURL, err := core.ParsePublicURL(definitionEndpoint, !hb.config.Strictmode)
+	presentationDefinitionURL, err := core.ParsePublicURL(definitionEndpoint, hb.config.Strictmode)
 	if err != nil {
 		return nil, err
 	}
