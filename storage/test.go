@@ -34,7 +34,7 @@ func NewTestStorageEngineInDir(dir string) Engine {
 	return result
 }
 
-func NewTestStorageEngine(t *testing.T) Engine {
+func NewTestStorageEngine(t testing.TB) Engine {
 	oldOpts := append(DefaultBBoltOptions[:])
 	t.Cleanup(func() {
 		DefaultBBoltOptions = oldOpts
@@ -66,4 +66,12 @@ func (p *StaticKVStoreProvider) GetKVStore(_ string, _ Class) (stoabs.KVStore, e
 		return nil, errors.New("no store available")
 	}
 	return p.Store, nil
+}
+
+func NewTestInMemorySessionDatabase(t *testing.T) *InMemorySessionDatabase {
+	db := NewInMemorySessionDatabase()
+	t.Cleanup(func() {
+		db.close()
+	})
+	return db
 }

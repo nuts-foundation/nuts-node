@@ -20,6 +20,7 @@ package issuer
 
 import (
 	"context"
+	crypt "crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -54,57 +55,110 @@ func Test_issuer_buildVC(t *testing.T) {
 	issuerDID, _ := did.ParseDID(issuerID.String())
 	ctx := audit.TestContext()
 
-	t.Run("it builds and signs a VC", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		kid := "did:nuts:123#abc"
+	const kid = "did:nuts:123#abc"
+	const subjectDID = "did:nuts:456"
+	schemaOrgContext := ssi.MustParseURI("https://schema.org")
+	issuance, err := time.Parse(time.RFC3339, "2022-01-02T12:00:00Z")
+	require.NoError(t, err)
 
-		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
-		jsonldManager := jsonld.NewTestJSONLDManager(t)
-		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
-		schemaOrgContext := ssi.MustParseURI("https://schema.org")
+	expirationDate := issuance.Add(time.Hour)
+	template := vc.VerifiableCredential{
+		Context:        []ssi.URI{schemaOrgContext},
+		Type:           []ssi.URI{credentialType},
+		Issuer:         issuerID,
+		IssuanceDate:   issuance,
+		ExpirationDate: &expirationDate,
+		CredentialSubject: []interface{}{map[string]interface{}{
+			"id": subjectDID,
+		}},
+	}
+	keyStore := crypto.NewMemoryCryptoInstance()
+	signingKey, err := keyStore.New(ctx, func(key crypt.PublicKey) (string, error) {
+		return kid, nil
+	})
+	require.NoError(t, err)
 
-		issuance, err := time.Parse(time.RFC3339, "2022-01-02T12:00:00Z")
-		assert.NoError(t, err)
+	t.Run("JSON-LD", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
+			jsonldManager := jsonld.NewTestJSONLDManager(t)
+			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
 
-		credentialOptions := vc.VerifiableCredential{
-			Context:      []ssi.URI{schemaOrgContext},
-			Type:         []ssi.URI{credentialType},
-			Issuer:       issuerID,
-			IssuanceDate: issuance,
-			CredentialSubject: []interface{}{map[string]interface{}{
-				"id": "did:nuts:456",
-			}},
-		}
-		result, err := sut.buildVC(ctx, credentialOptions)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-		assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
-		proofs, _ := result.Proofs()
-		assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")
-		assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
-		assert.Contains(t, result.Context, schemaOrgContext)
-		assert.Contains(t, result.Context, vc.VCContextV1URI())
-		assert.Equal(t, issuance, proofs[0].Created)
+			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: JSONLDCredentialFormat})
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
+			assert.Equal(t, JSONLDCredentialFormat, result.Format())
+			assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
+			assert.Contains(t, result.Context, schemaOrgContext)
+			assert.Contains(t, result.Context, vc.VCContextV1URI())
+			// Assert proof
+			proofs, _ := result.Proofs()
+			assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")
+			assert.Equal(t, issuance, proofs[0].Created)
+		})
+		t.Run("is default", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
+			jsonldManager := jsonld.NewTestJSONLDManager(t)
+			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
+
+			result, err := sut.buildVC(ctx, template, CredentialOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, JSONLDCredentialFormat, result.Format())
+		})
+	})
+	t.Run("JWT", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
+			jsonldManager := jsonld.NewTestJSONLDManager(t)
+			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
+
+			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: JWTCredentialFormat})
+
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, JWTCredentialFormat, result.Format())
+			assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
+			assert.Contains(t, result.Context, schemaOrgContext)
+			assert.Contains(t, result.Context, vc.VCContextV1URI())
+			assert.Equal(t, template.IssuanceDate.Local(), result.IssuanceDate.Local())
+			assert.Equal(t, template.ExpirationDate.Local(), result.ExpirationDate.Local())
+			assert.Equal(t, template.Issuer, result.Issuer)
+			assert.Equal(t, template.CredentialSubject, result.CredentialSubject)
+			assert.Empty(t, result.Proof)
+			// Assert JWT
+			require.NotNil(t, result.JWT())
+			assert.Equal(t, subjectDID, result.JWT().Subject())
+			assert.Equal(t, result.IssuanceDate, result.JWT().NotBefore())
+			assert.Equal(t, *result.ExpirationDate, result.JWT().Expiration())
+			assert.Equal(t, result.ID.String(), result.JWT().JwtID())
+		})
 	})
 
 	t.Run("it does not add the default context twice", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		kid := "did:nuts:123#abc"
 
 		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
 		jsonldManager := jsonld.NewTestJSONLDManager(t)
-		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
+		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
 
-		credentialOptions := vc.VerifiableCredential{
+		template := vc.VerifiableCredential{
 			Context:      []ssi.URI{vc.VCContextV1URI()},
 			Type:         []ssi.URI{credentialType},
 			Issuer:       issuerID,
 			IssuanceDate: time.Now(),
 		}
 
-		result, err := sut.buildVC(ctx, credentialOptions)
+		result, err := sut.buildVC(ctx, template, CredentialOptions{})
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
@@ -116,10 +170,10 @@ func Test_issuer_buildVC(t *testing.T) {
 		t.Run("wrong amount of credential types", func(t *testing.T) {
 			sut := issuer{}
 
-			credentialOptions := vc.VerifiableCredential{
+			template := vc.VerifiableCredential{
 				Type: []ssi.URI{},
 			}
-			result, err := sut.buildVC(ctx, credentialOptions)
+			result, err := sut.buildVC(ctx, template, CredentialOptions{})
 
 			assert.ErrorIs(t, err, core.InvalidInputError("can only issue credential with 1 type"))
 			assert.Nil(t, result)
@@ -128,12 +182,25 @@ func Test_issuer_buildVC(t *testing.T) {
 		t.Run("missing issuer", func(t *testing.T) {
 			sut := issuer{}
 
-			credentialOptions := vc.VerifiableCredential{
+			template := vc.VerifiableCredential{
 				Type: []ssi.URI{credentialType},
 			}
-			result, err := sut.buildVC(ctx, credentialOptions)
+			result, err := sut.buildVC(ctx, template, CredentialOptions{})
 
 			assert.ErrorIs(t, err, did.ErrInvalidDID)
+			assert.Nil(t, result)
+		})
+		t.Run("unsupported proof format", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
+			jsonldManager := jsonld.NewTestJSONLDManager(t)
+			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
+
+			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: "paper"})
+
+			assert.EqualError(t, err, "unsupported credential proof format")
 			assert.Nil(t, result)
 		})
 	})
@@ -146,11 +213,11 @@ func Test_issuer_buildVC(t *testing.T) {
 			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(nil, errors.New("b00m!"))
 			sut := issuer{keyResolver: keyResolverMock}
 
-			credentialOptions := vc.VerifiableCredential{
+			template := vc.VerifiableCredential{
 				Type:   []ssi.URI{credentialType},
 				Issuer: issuerID,
 			}
-			_, err := sut.buildVC(ctx, credentialOptions)
+			_, err := sut.buildVC(ctx, template, CredentialOptions{})
 			assert.EqualError(t, err, "failed to sign credential: could not resolve an assertionKey for issuer: b00m!")
 		})
 
@@ -161,11 +228,11 @@ func Test_issuer_buildVC(t *testing.T) {
 			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(nil, resolver.ErrNotFound)
 			sut := issuer{keyResolver: keyResolverMock}
 
-			credentialOptions := vc.VerifiableCredential{
+			template := vc.VerifiableCredential{
 				Type:   []ssi.URI{credentialType},
 				Issuer: issuerID,
 			}
-			_, err := sut.buildVC(ctx, credentialOptions)
+			_, err := sut.buildVC(ctx, template, CredentialOptions{})
 			assert.ErrorIs(t, err, core.InvalidInputError("failed to sign credential: could not resolve an assertionKey for issuer: unable to find the DID document"))
 		})
 	})
@@ -177,7 +244,7 @@ func Test_issuer_Issue(t *testing.T) {
 	issuerKeyID := issuerDID.String() + "#abc"
 	holderDID := did.MustParseDID("did:nuts:456")
 
-	credentialOptions := vc.VerifiableCredential{
+	template := vc.VerifiableCredential{
 		Context: []ssi.URI{credential.NutsV1ContextURI},
 		Type:    []ssi.URI{credentialType},
 		Issuer:  issuerDID.URI(),
@@ -202,7 +269,10 @@ func Test_issuer_Issue(t *testing.T) {
 			keyStore: crypto.NewMemoryCryptoInstance(),
 		}
 
-		result, err := sut.Issue(ctx, credentialOptions, false, true)
+		result, err := sut.Issue(ctx, template, CredentialOptions{
+			Publish: false,
+			Public:  true,
+		})
 		require.NoError(t, err)
 		assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 		proofs, _ := result.Proofs()
@@ -212,6 +282,18 @@ func Test_issuer_Issue(t *testing.T) {
 		assert.Contains(t, result.Context, vc.VCContextV1URI())
 		// Assert issuing a credential makes it trusted
 		assert.True(t, trustConfig.IsTrusted(credentialType, result.Issuer))
+	})
+
+	t.Run("publishing JWT VCs is disallowed", func(t *testing.T) {
+		sut := issuer{}
+
+		result, err := sut.Issue(ctx, template, CredentialOptions{
+			Publish: true,
+			Public:  true,
+			Format:  JWTCredentialFormat,
+		})
+		require.EqualError(t, err, "publishing VC JWTs is not supported")
+		assert.Nil(t, result)
 	})
 
 	t.Run("OpenID4VCI", func(t *testing.T) {
@@ -244,7 +326,10 @@ func Test_issuer_Issue(t *testing.T) {
 				networkPublisher: publisher,
 			}
 
-			result, err := sut.Issue(ctx, credentialOptions, true, false)
+			result, err := sut.Issue(ctx, template, CredentialOptions{
+				Publish: true,
+				Public:  false,
+			})
 
 			require.NoError(t, err)
 			assert.NotNil(t, result)
@@ -266,7 +351,10 @@ func Test_issuer_Issue(t *testing.T) {
 				networkPublisher: publisher,
 			}
 
-			result, err := sut.Issue(ctx, credentialOptions, true, false)
+			result, err := sut.Issue(ctx, template, CredentialOptions{
+				Publish: true,
+				Public:  false,
+			})
 
 			require.NoError(t, err)
 			assert.NotNil(t, result)
@@ -291,7 +379,10 @@ func Test_issuer_Issue(t *testing.T) {
 				networkPublisher: publisher,
 			}
 
-			result, err := sut.Issue(ctx, credentialOptions, true, false)
+			result, err := sut.Issue(ctx, template, CredentialOptions{
+				Publish: true,
+				Public:  false,
+			})
 
 			require.NoError(t, err)
 			assert.NotNil(t, result)
@@ -324,7 +415,10 @@ func Test_issuer_Issue(t *testing.T) {
 				vcrStore: vcrStore,
 			}
 
-			result, err := sut.Issue(ctx, credentialOptions, true, false)
+			result, err := sut.Issue(ctx, template, CredentialOptions{
+				Publish: true,
+				Public:  false,
+			})
 
 			require.NoError(t, err)
 			assert.NotNil(t, result)
@@ -346,7 +440,10 @@ func Test_issuer_Issue(t *testing.T) {
 				keyStore: crypto.NewMemoryCryptoInstance(),
 			}
 
-			result, err := sut.Issue(ctx, credentialOptions, false, true)
+			result, err := sut.Issue(ctx, template, CredentialOptions{
+				Publish: false,
+				Public:  true,
+			})
 			assert.EqualError(t, err, "unable to store the issued credential: b00m!")
 			assert.Nil(t, result)
 		})
@@ -366,7 +463,10 @@ func Test_issuer_Issue(t *testing.T) {
 				keyStore: crypto.NewMemoryCryptoInstance(),
 			}
 
-			result, err := sut.Issue(ctx, credentialOptions, true, true)
+			result, err := sut.Issue(ctx, template, CredentialOptions{
+				Publish: true,
+				Public:  true,
+			})
 			assert.EqualError(t, err, "unable to publish the issued credential: b00m!")
 			assert.Nil(t, result)
 		})
@@ -379,7 +479,10 @@ func Test_issuer_Issue(t *testing.T) {
 				Issuer: issuerDID.URI(),
 			}
 
-			result, err := sut.Issue(ctx, credentialOptions, true, true)
+			result, err := sut.Issue(ctx, credentialOptions, CredentialOptions{
+				Publish: true,
+				Public:  true,
+			})
 			assert.EqualError(t, err, "can only issue credential with 1 type")
 			assert.Nil(t, result)
 
@@ -393,12 +496,15 @@ func Test_issuer_Issue(t *testing.T) {
 			mockStore := NewMockStore(ctrl)
 			sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
 
-			invalidCred := credentialOptions
+			invalidCred := template
 			invalidCred.CredentialSubject = []interface{}{
 				map[string]interface{}{"foo": "bar"},
 			}
 
-			result, err := sut.Issue(ctx, invalidCred, true, true)
+			result, err := sut.Issue(ctx, invalidCred, CredentialOptions{
+				Publish: true,
+				Public:  true,
+			})
 			assert.EqualError(t, err, "validation failed: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 			assert.Nil(t, result)
 		})

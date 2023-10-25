@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
@@ -283,18 +284,21 @@ func newTestClient(t testing.TB) *testCtx {
 	publicURL, err := url.Parse("https://example.com")
 	require.NoError(t, err)
 	ctrl := gomock.NewController(t)
+	storageEngine := storage.NewTestStorageEngine(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	resolver := resolver.NewMockDIDResolver(ctrl)
 	vdr := vdr.NewMockVDR(ctrl)
 	vdr.EXPECT().Resolver().Return(resolver).AnyTimes()
+
 	return &testCtx{
 		authnServices: authnServices,
 		resolver:      resolver,
 		vdr:           vdr,
 		client: &Wrapper{
-			auth: authnServices,
-			vdr:  vdr,
+			auth:          authnServices,
+			vdr:           vdr,
+			storageEngine: storageEngine,
 		},
 	}
 }

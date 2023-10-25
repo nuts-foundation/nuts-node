@@ -58,60 +58,137 @@ func TestWallet_BuildPresentation(t *testing.T) {
 	_ = keyStorage.SavePrivateKey(ctx, key.KID(), key.PrivateKey)
 	keyStore := crypto.NewTestCryptoInstance(keyStorage)
 
-	options := PresentationOptions{ProofOptions: proof.ProofOptions{}}
+	t.Run("JSON-LD", func(t *testing.T) {
+		t.Run("is default", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
 
-	t.Run("ok - one VC", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-		keyResolver := resolver.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
-		w := New(keyResolver, keyStore, nil, jsonldManager, nil)
+			result, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, PresentationOptions{}, &testDID, false)
 
-		resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.Equal(t, JSONLDPresentationFormat, result.Format())
+		})
+		t.Run("ok - one VC", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
 
-		require.NoError(t, err)
-		assert.NotNil(t, resultingPresentation)
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+
+			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
+
+			result, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, PresentationOptions{Format: JSONLDPresentationFormat}, &testDID, false)
+
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+			assert.Equal(t, JSONLDPresentationFormat, result.Format())
+		})
+		t.Run("ok - custom options", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			specialType := ssi.MustParseURI("SpecialPresentation")
+			options := PresentationOptions{
+				AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
+				AdditionalTypes:    []ssi.URI{specialType},
+				ProofOptions: proof.ProofOptions{
+					ProofPurpose: "authentication",
+				},
+				Format: JSONLDPresentationFormat,
+			}
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
+
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+
+			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
+
+			result, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
+
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.True(t, result.IsType(specialType))
+			assert.True(t, result.ContainsContext(credential.NutsV1ContextURI))
+			proofs, _ := result.Proofs()
+			require.Len(t, proofs, 1)
+			assert.Equal(t, proofs[0].ProofPurpose, "authentication")
+			assert.Equal(t, JSONLDPresentationFormat, result.Format())
+		})
+		t.Run("ok - multiple VCs", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
+
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
+
+			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
+
+			resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, testCredential}, PresentationOptions{Format: JSONLDPresentationFormat}, &testDID, false)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, resultingPresentation)
+		})
 	})
-	t.Run("ok - custom options", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		specialType := ssi.MustParseURI("SpecialPresentation")
-		options := PresentationOptions{
-			AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
-			AdditionalTypes:    []ssi.URI{specialType},
-			ProofOptions: proof.ProofOptions{
-				ProofPurpose: "authentication",
-			},
-		}
-		keyResolver := resolver.NewMockKeyResolver(ctrl)
+	t.Run("JWT", func(t *testing.T) {
+		options := PresentationOptions{Format: JWTPresentationFormat}
+		t.Run("ok - one VC", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
 
-		keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-		w := New(keyResolver, keyStore, nil, jsonldManager, nil)
+			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
-		resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
+			result, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
 
-		require.NoError(t, err)
-		require.NotNil(t, resultingPresentation)
-		assert.True(t, resultingPresentation.IsType(specialType))
-		assert.True(t, resultingPresentation.ContainsContext(credential.NutsV1ContextURI))
-		proofs, _ := resultingPresentation.Proofs()
-		require.Len(t, proofs, 1)
-		assert.Equal(t, proofs[0].ProofPurpose, "authentication")
-	})
-	t.Run("ok - multiple VCs", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, JWTPresentationFormat, result.Format())
+			assert.NotNil(t, result.JWT())
+		})
+		t.Run("ok - multiple VCs", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
 
-		keyResolver := resolver.NewMockKeyResolver(ctrl)
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
 
-		keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
 
-		w := New(keyResolver, keyStore, nil, jsonldManager, nil)
+			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
 
-		resultingPresentation, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, testCredential}, options, &testDID, false)
+			result, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential, testCredential}, options, &testDID, false)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, resultingPresentation)
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, JWTPresentationFormat, result.Format())
+			assert.NotNil(t, result.JWT())
+		})
+		t.Run("optional proof options", func(t *testing.T) {
+			exp := time.Now().Local().Truncate(time.Second)
+			options := PresentationOptions{
+				Format: JWTPresentationFormat,
+				ProofOptions: proof.ProofOptions{
+					Expires: &exp,
+					Created: exp.Add(-1 * time.Hour),
+				},
+			}
+
+			ctrl := gomock.NewController(t)
+
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+
+			w := New(keyResolver, keyStore, nil, jsonldManager, nil)
+
+			result, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
+
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, JWTPresentationFormat, result.Format())
+			assert.NotNil(t, result.JWT())
+			assert.Equal(t, *options.ProofOptions.Expires, result.JWT().Expiration().Local())
+			assert.Equal(t, options.ProofOptions.Created, result.JWT().NotBefore().Local())
+		})
 	})
 	t.Run("validation", func(t *testing.T) {
 		created := time.Now()
@@ -148,6 +225,22 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			assert.EqualError(t, err, "invalid credential (id="+testCredential.ID.String()+"): failed")
 			assert.Nil(t, resultingPresentation)
+		})
+		t.Run("unsupported format", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
+			mockVerifier := verifier.NewMockVerifier(ctrl)
+			mockVerifier.EXPECT().Validate(gomock.Any(), gomock.Any())
+
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+
+			w := New(keyResolver, keyStore, mockVerifier, jsonldManager, nil)
+
+			result, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, PresentationOptions{Format: "paper"}, &testDID, true)
+
+			assert.EqualError(t, err, "unsupported presentation proof format")
+			assert.Nil(t, result)
 		})
 	})
 	t.Run("deriving signer from VCs", func(t *testing.T) {

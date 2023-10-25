@@ -57,8 +57,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 	})
 
 	t.Run("simple document with resolvable context", func(t *testing.T) {
-		contextLoader, err := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
-		assert.NoError(t, err)
+		contextLoader := jsonld.NewTestJSONLDManager(t).DocumentLoader()
 
 		sig := JSONWebSignature2020{ContextLoader: contextLoader}
 		doc := map[string]interface{}{

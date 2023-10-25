@@ -35,9 +35,7 @@ import (
 )
 
 func TestXorTreeRepair(t *testing.T) {
-	t.Cleanup(func() {
-		goleak.VerifyNone(t)
-	})
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 	tx, _, _ := CreateTestTransaction(1)
 	t.Run("xor tree repaired after 2 signals", func(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/nuts-foundation/nuts-node/vcr/pe/schema
+module github.com/nuts-foundation/nuts-node/vcr/pe/gen/schema
 
 go 1.21
 

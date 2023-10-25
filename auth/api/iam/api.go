@@ -28,13 +28,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"html/template"
 	"net/http"
 	"strings"
-	"sync"
 )
 
 var _ core.Routable = &Wrapper{}
@@ -49,25 +49,25 @@ var assets embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	vcr       vcr.VCR
-	vdr       vdr.VDR
-	auth      auth.AuthenticationServices
-	sessions  *SessionManager
-	templates *template.Template
+	vcr           vcr.VCR
+	vdr           vdr.VDR
+	auth          auth.AuthenticationServices
+	templates     *template.Template
+	storageEngine storage.Engine
 }
 
-func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR) *Wrapper {
+func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assets, "assets/*.html")
 	if err != nil {
 		panic(err)
 	}
 	return &Wrapper{
-		sessions:  &SessionManager{sessions: new(sync.Map)},
-		auth:      authInstance,
-		vcr:       vcrInstance,
-		vdr:       vdrInstance,
-		templates: templates,
+		storageEngine: storageEngine,
+		auth:          authInstance,
+		vcr:           vcrInstance,
+		vdr:           vdrInstance,
+		templates:     templates,
 	}
 }
 

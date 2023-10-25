@@ -88,51 +88,52 @@ func TestLeiaIssuerStore_StoreCredential(t *testing.T) {
 }
 
 func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
-	vcToStore := vc.VerifiableCredential{}
-	_ = json.Unmarshal([]byte(jsonld.TestCredential), &vcToStore)
+	expected := vc.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(jsonld.TestCredential), &expected)
+	expectedJSON, _ := expected.MarshalJSON()
 
 	t.Run("store", func(t *testing.T) {
 		sut := newStore(t)
 
-		err := sut.StoreCredential(vcToStore)
+		err := sut.StoreCredential(expected)
 		assert.NoError(t, err)
 
 		t.Run("and search", func(t *testing.T) {
-			issuerDID, _ := did.ParseDID(vcToStore.Issuer.String())
+			issuerDID, _ := did.ParseDID(expected.Issuer.String())
 			subjectID := ssi.MustParseURI("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
 
 			t.Run("for all issued credentials for a issuer", func(t *testing.T) {
-				res, err := sut.SearchCredential(vcToStore.Type[0], *issuerDID, nil)
+				res, err := sut.SearchCredential(expected.Type[0], *issuerDID, nil)
 				assert.NoError(t, err)
 				require.Len(t, res, 1)
 
 				foundVC := res[0]
-				assert.Equal(t, vcToStore, foundVC)
+				require.NoError(t, err)
+				foundJSON, _ := foundVC.MarshalJSON()
+				assert.JSONEq(t, string(expectedJSON), string(foundJSON))
 			})
 
 			t.Run("for all issued credentials for a issuer and subject", func(t *testing.T) {
-				res, err := sut.SearchCredential(vcToStore.Type[0], *issuerDID, &subjectID)
+				res, err := sut.SearchCredential(expected.Type[0], *issuerDID, &subjectID)
 				assert.NoError(t, err)
 				require.Len(t, res, 1)
-
-				foundVC := res[0]
-				assert.Equal(t, vcToStore, foundVC)
+				foundJSON, _ := res[0].MarshalJSON()
+				assert.JSONEq(t, string(expectedJSON), string(foundJSON))
 			})
 
 			t.Run("without context", func(t *testing.T) {
-				res, err := sut.SearchCredential(vcToStore.Type[0], *issuerDID, nil)
+				res, err := sut.SearchCredential(expected.Type[0], *issuerDID, nil)
 				assert.NoError(t, err)
 				require.Len(t, res, 1)
-
-				foundVC := res[0]
-				assert.Equal(t, vcToStore, foundVC)
+				foundJSON, _ := res[0].MarshalJSON()
+				assert.JSONEq(t, string(expectedJSON), string(foundJSON))
 			})
 
 			t.Run("no results", func(t *testing.T) {
 
 				t.Run("unknown issuer", func(t *testing.T) {
 					unknownIssuerDID, _ := did.ParseDID("did:nuts:123")
-					res, err := sut.SearchCredential(vcToStore.Type[0], *unknownIssuerDID, nil)
+					res, err := sut.SearchCredential(expected.Type[0], *unknownIssuerDID, nil)
 					assert.NoError(t, err)
 					require.Len(t, res, 0)
 				})
@@ -146,7 +147,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 
 				t.Run("unknown subject", func(t *testing.T) {
 					unknownSubject := ssi.MustParseURI("did:nuts:unknown")
-					res, err := sut.SearchCredential(vcToStore.Type[0], *issuerDID, &unknownSubject)
+					res, err := sut.SearchCredential(expected.Type[0], *issuerDID, &unknownSubject)
 					assert.NoError(t, err)
 					require.Len(t, res, 0)
 				})
@@ -158,22 +159,24 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 }
 
 func Test_leiaStore_GetCredential(t *testing.T) {
-	vcToGet := vc.VerifiableCredential{}
-	_ = json.Unmarshal([]byte(jsonld.TestCredential), &vcToGet)
+	expected := vc.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(jsonld.TestCredential), &expected)
+	expectedJSON, _ := expected.MarshalJSON()
 
 	t.Run("with a known credential", func(t *testing.T) {
 		store := newStore(t)
-		assert.NoError(t, store.StoreCredential(vcToGet))
+		assert.NoError(t, store.StoreCredential(expected))
 		t.Run("it finds the credential by id", func(t *testing.T) {
-			foundCredential, err := store.GetCredential(*vcToGet.ID)
-			assert.NoError(t, err)
-			assert.Equal(t, *foundCredential, vcToGet)
+			foundCredential, err := store.GetCredential(*expected.ID)
+			require.NoError(t, err)
+			foundJSON, _ := foundCredential.MarshalJSON()
+			assert.JSONEq(t, string(expectedJSON), string(foundJSON))
 		})
 	})
 
 	t.Run("no results", func(t *testing.T) {
 		store := newStore(t)
-		foundCredential, err := store.GetCredential(*vcToGet.ID)
+		foundCredential, err := store.GetCredential(*expected.ID)
 		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Nil(t, foundCredential)
 	})
@@ -181,17 +184,17 @@ func Test_leiaStore_GetCredential(t *testing.T) {
 	t.Run("multiple results", func(t *testing.T) {
 		store := newStore(t)
 		// store once
-		assert.NoError(t, store.StoreCredential(vcToGet))
+		assert.NoError(t, store.StoreCredential(expected))
 		// store twice
 		lstore := store.(*leiaIssuerStore)
 		rawStructWithSameID := struct {
 			ID *ssi.URI `json:"id,omitempty"`
-		}{ID: vcToGet.ID}
+		}{ID: expected.ID}
 		asBytes, _ := json.Marshal(rawStructWithSameID)
 		lstore.issuedCollection().Add([]leia.Document{asBytes})
 
 		t.Run("it fails", func(t *testing.T) {
-			foundCredential, err := store.GetCredential(*vcToGet.ID)
+			foundCredential, err := store.GetCredential(*expected.ID)
 			assert.ErrorIs(t, err, types.ErrMultipleFound)
 			assert.Nil(t, foundCredential)
 		})

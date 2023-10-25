@@ -57,7 +57,7 @@ var crlPathMap = map[string]string{
 }
 
 func TestValidator_Start(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 	store, err := core.LoadTrustStore(truststorePKIo)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())

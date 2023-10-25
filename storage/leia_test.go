@@ -182,7 +182,7 @@ func newStoreInDir(t *testing.T, testDir string, backupConfig LeiaBackupConfigur
 	backupStorePath := path.Join(testDir, "vcr", "backup-private-credentials.db")
 	backupStore, err := bbolt.CreateBBoltStore(backupStorePath)
 	require.NoError(t, err)
-	leiaStore, err := leia.NewStore(issuerStorePath)
+	leiaStore, err := leia.NewStore(issuerStorePath, leia.WithDocumentLoader(jsonld.NewTestJSONLDManager(t).DocumentLoader()))
 	require.NoError(t, err)
 	store, err := NewKVBackedLeiaStore(leiaStore, backupStore)
 	require.NoError(t, err)

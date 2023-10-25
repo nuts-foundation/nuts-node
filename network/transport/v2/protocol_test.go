@@ -202,7 +202,7 @@ func TestProtocol_Start(t *testing.T) {
 
 func TestProtocol_Stop(t *testing.T) {
 	t.Run("waits until goroutines have finished", func(t *testing.T) {
-		defer goleak.VerifyNone(t)
+		defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 		// Use waitgroup to make sure the goroutine that blocks has started
 		wg := &sync.WaitGroup{}

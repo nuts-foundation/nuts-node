@@ -81,8 +81,7 @@ func TestLDProof_Verify(t *testing.T) {
 	signedDocument := SignedDocument{}
 	require.NoError(t, json.Unmarshal([]byte(vc_0), &signedDocument))
 
-	contextLoader, err := jsonld.NewContextLoader(true, jsonld.ContextsConfig{})
-	require.NoError(t, err)
+	contextLoader := jsonld.NewTestJSONLDManager(t).DocumentLoader()
 
 	t.Run("ok - JSONWebSignature2020 test vector", func(t *testing.T) {
 		ldProof := LDProof{}
@@ -169,7 +168,7 @@ func TestLDProof_Sign(t *testing.T) {
 
 	kid := "did:nuts:123#abc"
 	testKey := crypto.NewTestKey(kid)
-	contextLoader, _ := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
+	contextLoader := jsonld.NewTestJSONLDManager(t).DocumentLoader()
 
 	t.Run("sign and verify a document", func(t *testing.T) {
 		now := time.Now()

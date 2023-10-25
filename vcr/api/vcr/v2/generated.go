@@ -22,6 +22,12 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// Defines values for CreateVPRequestFormat.
+const (
+	JwtVp CreateVPRequestFormat = "jwt_vp"
+	LdpVp CreateVPRequestFormat = "ldp_vp"
+)
+
 // Defines values for CreateVPRequestProofPurpose.
 const (
 	AssertionMethod      CreateVPRequestProofPurpose = "assertionMethod"
@@ -29,6 +35,12 @@ const (
 	CapabilityDelegation CreateVPRequestProofPurpose = "capabilityDelegation"
 	CapabilityInvocation CreateVPRequestProofPurpose = "capabilityInvocation"
 	KeyAgreement         CreateVPRequestProofPurpose = "keyAgreement"
+)
+
+// Defines values for IssueVCRequestFormat.
+const (
+	JwtVc IssueVCRequestFormat = "jwt_vc"
+	LdpVc IssueVCRequestFormat = "ldp_vc"
 )
 
 // Defines values for IssueVCRequestVisibility.
@@ -54,6 +66,9 @@ type CreateVPRequest struct {
 	// Expires Date and time at which proof will expire. If omitted, the proof does not have an end date.
 	Expires *string `json:"expires,omitempty"`
 
+	// Format Proof format for the presentation (JSON-LD or JWT). If not set, it defaults to JSON-LD.
+	Format *CreateVPRequestFormat `json:"format,omitempty"`
+
 	// ProofPurpose The specific intent for the proof, the reason why an entity created it. Acts as a safeguard to prevent the
 	// proof from being misused for a purpose other than the one it was intended for.
 	ProofPurpose *CreateVPRequestProofPurpose `json:"proofPurpose,omitempty"`
@@ -67,6 +82,9 @@ type CreateVPRequest struct {
 	Type                  *[]string              `json:"type,omitempty"`
 	VerifiableCredentials []VerifiableCredential `json:"verifiableCredentials"`
 }
+
+// CreateVPRequestFormat Proof format for the presentation (JSON-LD or JWT). If not set, it defaults to JSON-LD.
+type CreateVPRequestFormat string
 
 // CreateVPRequestProofPurpose The specific intent for the proof, the reason why an entity created it. Acts as a safeguard to prevent the
 // proof from being misused for a purpose other than the one it was intended for.
@@ -93,6 +111,9 @@ type IssueVCRequest struct {
 	// ExpirationDate RFC3339 time string until when the credential is valid.
 	ExpirationDate *string `json:"expirationDate,omitempty"`
 
+	// Format Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
+	Format *IssueVCRequestFormat `json:"format,omitempty"`
+
 	// Issuer DID according to Nuts specification.
 	Issuer string `json:"issuer"`
 
@@ -109,6 +130,9 @@ type IssueVCRequest struct {
 	// This field is mandatory if publishToNetwork is true to prevent accidents. It defaults to "private".
 	Visibility *IssueVCRequestVisibility `json:"visibility,omitempty"`
 }
+
+// IssueVCRequestFormat Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
+type IssueVCRequestFormat string
 
 // IssueVCRequestVisibility When publishToNetwork is true, the credential can be published publicly or privately to the holder.
 // This field is mandatory if publishToNetwork is true to prevent accidents. It defaults to "private".

@@ -30,6 +30,7 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/mr-tron/base58"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -38,7 +39,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/shengdoushi/base58"
 )
 
 // ModuleName contains the name of this module: Didman
@@ -601,7 +601,7 @@ func generateIDForService(id did.DID, service did.Service) ssi.URI {
 	bytes, _ := json.Marshal(service)
 	shaBytes := sha256.Sum256(bytes)
 	d := id.URI()
-	d.Fragment = base58.Encode(shaBytes[:], base58.BitcoinAlphabet)
+	d.Fragment = base58.EncodeAlphabet(shaBytes[:], base58.BTCAlphabet)
 	return d
 }
 

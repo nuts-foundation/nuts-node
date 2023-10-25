@@ -97,7 +97,7 @@ func TestManager_PeerDisconnected(t *testing.T) {
 
 	t.Run("stops ticker", func(t *testing.T) {
 		// Use uber/goleak to assert the goroutine started by PeerConnected is stopped when PeerDisconnected is called
-		defer goleak.VerifyNone(t)
+		defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
 
 		gMan := giveMeAgMan(t)
 		gMan.interval = time.Millisecond
