@@ -135,7 +135,9 @@ func TestMatch(t *testing.T) {
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
-				assert.NotNil(t, submission)
+				require.NotNil(t, submission)
+				require.Len(t, submission.DescriptorMap, 1)
+				assert.Equal(t, "$.verifiableCredential[0]", submission.DescriptorMap[0].Path)
 			})
 			t.Run("error", func(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}

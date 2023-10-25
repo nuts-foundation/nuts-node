@@ -101,7 +101,9 @@ func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.Verifia
 			return PresentationSubmission{}, []vc.VerifiableCredential{}, nil
 		}
 		mapping := InputDescriptorMappingObject{
-			Path: fmt.Sprintf("$.verifiableCredential[%d]", index),
+			Id:     match.InputDescriptor.Id,
+			Format: "ldp_vc", // todo: hardcoded for now, must be derived from the VC, but we don't support other VC types yet
+			Path:   fmt.Sprintf("$.verifiableCredential[%d]", index),
 		}
 		presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, mapping)
 		matchingCredentials[index] = *match.VC
@@ -113,7 +115,7 @@ func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.Verifia
 
 func (presentationDefinition PresentationDefinition) matchSubmissionRequirements(vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
 	// first we use the constraint matching algorithm to get the matching credentials
-	matches, err := presentationDefinition.matchConstraints(vcs)
+	candidates, err := presentationDefinition.matchConstraints(vcs)
 	if err != nil {
 		return PresentationSubmission{}, nil, err
 	}
@@ -136,7 +138,7 @@ func (presentationDefinition PresentationDefinition) matchSubmissionRequirements
 
 	// now we know there are no missing groups, we can start matching the submission requirements
 	// now we add each specific match to the correct group(s)
-	for _, match := range matches {
+	for _, match := range candidates {
 		for _, group := range match.InputDescriptor.Group {
 			current := availableGroups[group]
 			current.Candidates = append(current.Candidates, match)
@@ -162,6 +164,24 @@ func (presentationDefinition PresentationDefinition) matchSubmissionRequirements
 	}
 
 	uniqueVCs := deduplicate(selectedVCs)
+
+	// now we have the selected VCs, we can create the presentation submission
+	var index int
+outer:
+	for _, uniqueVC := range uniqueVCs {
+		for _, candidate := range candidates {
+			if candidate.VC != nil && vcEqual(uniqueVC, *candidate.VC) {
+				mapping := InputDescriptorMappingObject{
+					Id:     candidate.InputDescriptor.Id,
+					Format: "ldp_vc", // todo: hardcoded for now, must be derived from the VC, but we don't support other VC types yet
+					Path:   fmt.Sprintf("$.verifiableCredential[%d]", index),
+				}
+				presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, mapping)
+				index++
+				continue outer
+			}
+		}
+	}
 
 	return presentationSubmission, uniqueVCs, nil
 }
