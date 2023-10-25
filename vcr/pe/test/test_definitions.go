@@ -18,7 +18,7 @@
 
 package test
 
-const Pick_1 = `
+const PickOne = `
 {
   "submission_requirements": [
     {
@@ -67,7 +67,7 @@ const Pick_1 = `
 }
 `
 
-const Pick_min_max = `
+const PickMinMax = `
 {
   "submission_requirements": [
     {
@@ -117,7 +117,7 @@ const Pick_min_max = `
 }
 `
 
-const Pick_1_per_group = `
+const PickOnePerGroup = `
 {
   "submission_requirements": [
     {
@@ -183,7 +183,7 @@ const All = `
   ],
   "input_descriptors": [
 	{
-	  "name": "Pick",
+	  "name": "Match ID=1",
       "group": ["A"],
 	  "constraints": {
 		"fields": [
@@ -200,7 +200,7 @@ const All = `
 	  }
     },
     {
-	  "name": "Pick",
+	  "name": "Match ID=2",
       "group": ["A"],
 	  "constraints": {
 		"fields": [
@@ -220,7 +220,7 @@ const All = `
 }
 `
 
-const Pick_1_from_nested = `
+const PickOneFromNested = `
 {
   "submission_requirements": [
     {
@@ -243,7 +243,7 @@ const Pick_1_from_nested = `
   ],
   "input_descriptors": [
 	{
-	  "name": "Pick 1",
+	  "name": "Match ID=1",
       "group": ["A"],
 	  "constraints": {
 		"fields": [
@@ -260,7 +260,7 @@ const Pick_1_from_nested = `
 	  }
     },
     {
-	  "name": "Pick 2",
+	  "name": "Match ID=2",
       "group": ["A"],
 	  "constraints": {
 		"fields": [
@@ -277,7 +277,7 @@ const Pick_1_from_nested = `
 	  }
     },
     {
-	  "name": "Pick 3",
+	  "name": "Match ID=3",
       "group": ["B"],
 	  "constraints": {
 		"fields": [
@@ -294,7 +294,7 @@ const Pick_1_from_nested = `
 	  }
     },
     {
-	  "name": "Pick 4",
+	  "name": "Match ID=4",
       "group": ["B"],
 	  "constraints": {
 		"fields": [
@@ -305,6 +305,190 @@ const Pick_1_from_nested = `
 			"filter": {
 			  "type": "string",
 			  "const": "4"
+			}
+		  }
+		]
+	  }
+    }
+  ]
+}
+`
+
+const AllFromNested = `
+{
+  "submission_requirements": [
+    {
+      "name": "All from nested",
+      "rule": "all",
+      "from_nested": [
+        {
+          "name": "All A matcher",
+          "rule": "all",
+          "from": "A"
+        },
+        {
+          "name": "All B matcher",
+          "rule": "all",
+          "from": "B"
+        }
+      ]
+    }
+  ],
+  "input_descriptors": [
+	{
+	  "name": "Match ID=1",
+      "group": ["A"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "1"
+			}
+		  }
+		]
+	  }
+    },
+    {
+	  "name": "Match ID=2",
+      "group": ["B"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "2"
+			}
+		  }
+		]
+	  }
+    }
+  ]
+}
+`
+
+const PickMinMaxFromNested = `
+{
+  "submission_requirements": [
+    {
+      "name": "Pick 1 matcher",
+      "rule": "pick",
+      "min": 1,
+	  "max": 2,
+      "from_nested": [
+        {
+          "name": "All A matcher",
+          "rule": "all",
+          "from": "A"
+        },
+        {
+          "name": "All B matcher",
+          "rule": "all",
+          "from": "B"
+        },
+        {
+          "name": "All C matcher",
+          "rule": "all",
+          "from": "C"
+        }
+      ]
+    }
+  ],
+  "input_descriptors": [
+	{
+	  "name": "Match ID=1",
+      "group": ["A"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "1"
+			}
+		  }
+		]
+	  }
+    },
+    {
+	  "name": "Match ID=2",
+      "group": ["B"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "2"
+			}
+		  }
+		]
+	  }
+    },
+    {
+	  "name": "Match ID=3",
+      "group": ["C"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "3"
+			}
+		  }
+		]
+	  }
+    }
+  ]
+}
+`
+
+const DeduplicationRequired = `
+{
+  "submission_requirements": [
+    {
+      "name": "Both groups result in the same credential",
+      "rule": "all",
+      "from_nested": [
+        {
+          "name": "All A matcher",
+          "rule": "all",
+          "from": "A"
+        },
+        {
+          "name": "All B matcher",
+          "rule": "all",
+          "from": "B"
+        }
+      ]
+    }
+  ],
+  "input_descriptors": [
+	{
+	  "name": "Match ID=1",
+      "group": ["A", "B"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "1"
 			}
 		  }
 		]

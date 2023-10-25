@@ -126,29 +126,51 @@ func TestMatch(t *testing.T) {
 		})
 	})
 	t.Run("Submission requirement feature", func(t *testing.T) {
-		t.Run("Pick 1", func(t *testing.T) {
-			presentationDefinition := PresentationDefinition{}
-			_ = json.Unmarshal([]byte(test.Pick_1), &presentationDefinition)
+		t.Run("Pick", func(t *testing.T) {
+			t.Run("Pick 1", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickOne), &presentationDefinition)
 
-			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
+				submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
-			require.NoError(t, err)
-			assert.Len(t, vcs, 1)
-			assert.NotNil(t, submission)
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				assert.NotNil(t, submission)
+			})
+			t.Run("error", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickOne), &presentationDefinition)
+
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
+
+				require.Error(t, err)
+				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less credentials (0) than required (1)")
+			})
 		})
 		t.Run("Pick min max", func(t *testing.T) {
-			presentationDefinition := PresentationDefinition{}
-			_ = json.Unmarshal([]byte(test.Pick_min_max), &presentationDefinition)
+			t.Run("Ok", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickMinMax), &presentationDefinition)
 
-			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
+				submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
-			require.NoError(t, err)
-			assert.Len(t, vcs, 2)
-			assert.NotNil(t, submission)
+				require.NoError(t, err)
+				assert.Len(t, vcs, 2)
+				assert.NotNil(t, submission)
+			})
+			t.Run("error", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickMinMax), &presentationDefinition)
+
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
+
+				require.Error(t, err)
+				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less matches (0) than minimal required (1)")
+			})
 		})
 		t.Run("Pick 1 per group", func(t *testing.T) {
 			presentationDefinition := PresentationDefinition{}
-			_ = json.Unmarshal([]byte(test.Pick_1_per_group), &presentationDefinition)
+			_ = json.Unmarshal([]byte(test.PickOnePerGroup), &presentationDefinition)
 
 			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
@@ -166,9 +188,19 @@ func TestMatch(t *testing.T) {
 			assert.Len(t, vcs, 2)
 			assert.NotNil(t, submission)
 		})
+		t.Run("Deduplicate", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.DeduplicationRequired), &presentationDefinition)
+
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 1)
+			assert.NotNil(t, submission)
+		})
 		t.Run("Pick 1 from nested", func(t *testing.T) {
 			presentationDefinition := PresentationDefinition{}
-			_ = json.Unmarshal([]byte(test.Pick_1_from_nested), &presentationDefinition)
+			_ = json.Unmarshal([]byte(test.PickOneFromNested), &presentationDefinition)
 
 			t.Run("all from group A or all from group B", func(t *testing.T) {
 				t.Run("all A", func(t *testing.T) {
@@ -193,6 +225,48 @@ func TestMatch(t *testing.T) {
 					assert.Len(t, vcs, 0)
 					assert.NotNil(t, submission)
 				})
+			})
+		})
+		t.Run("All from nested", func(t *testing.T) {
+			t.Run("Ok", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.AllFromNested), &presentationDefinition)
+
+				submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 2)
+				assert.NotNil(t, submission)
+			})
+			t.Run("error", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.AllFromNested), &presentationDefinition)
+
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
+
+				require.Error(t, err)
+				assert.EqualError(t, err, "submission requirement (All from nested) does not have all credentials from nested requirements")
+			})
+		})
+		t.Run("Pick min max from nested", func(t *testing.T) {
+			t.Run("Ok", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickMinMaxFromNested), &presentationDefinition)
+
+				submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2, vc3})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 2)
+				assert.NotNil(t, submission)
+			})
+			t.Run("error", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickMinMaxFromNested), &presentationDefinition)
+
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
+
+				require.Error(t, err)
+				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less matches (0) than minimal required (1)")
 			})
 		})
 	})

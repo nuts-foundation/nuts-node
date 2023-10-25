@@ -32,9 +32,9 @@ import (
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 var ErrUnsupportedFilter = errors.New("unsupported filter")
 
-// Match is a struct that holds the result of a match between an input descriptor and a VC
-// A non-matching VC also leads to a Match, but without a VC.
-type Match struct {
+// Candidate is a struct that holds the result of a match between an input descriptor and a VC
+// A non-matching VC also leads to a Candidate, but without a VC.
+type Candidate struct {
 	InputDescriptor InputDescriptor
 	VC              *vc.VerifiableCredential
 }
@@ -59,10 +59,10 @@ func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCr
 	return presentationDefinition.matchBasic(vcs)
 }
 
-func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential) ([]Match, error) {
-	var matches []Match
+func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential) ([]Candidate, error) {
+	var candidates []Candidate
 	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
-		match := Match{
+		match := Candidate{
 			InputDescriptor: *inputDescriptor,
 		}
 		for _, credential := range vcs {
@@ -75,9 +75,9 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 				break
 			}
 		}
-		matches = append(matches, match)
+		candidates = append(candidates, match)
 	}
-	return matches, nil
+	return candidates, nil
 }
 
 func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
@@ -120,10 +120,10 @@ func (presentationDefinition PresentationDefinition) matchSubmissionRequirements
 
 	// then we check the group constraints
 	// for each 'group' in input_descriptor there must be a matching 'from' field in a submission requirement
-	availableGroups := make(map[string]Group)
+	availableGroups := make(map[string]GroupCandidates)
 	for _, submissionRequirement := range presentationDefinition.SubmissionRequirements {
 		for _, group := range submissionRequirement.Groups() {
-			availableGroups[group] = Group{
+			availableGroups[group] = GroupCandidates{
 				Name: group,
 			}
 		}
@@ -139,7 +139,7 @@ func (presentationDefinition PresentationDefinition) matchSubmissionRequirements
 	for _, match := range matches {
 		for _, group := range match.InputDescriptor.Group {
 			current := availableGroups[group]
-			current.Matches = append(current.Matches, match)
+			current.Candidates = append(current.Candidates, match)
 			availableGroups[group] = current
 		}
 	}
@@ -161,176 +161,28 @@ func (presentationDefinition PresentationDefinition) matchSubmissionRequirements
 		selectedVCs = append(selectedVCs, submissionRequirementVCs...)
 	}
 
-	// todo: we deduplicate the credentials
+	uniqueVCs := deduplicate(selectedVCs)
 
-	return presentationSubmission, selectedVCs, nil
-}
-
-func (submissionRequirement SubmissionRequirement) match(availableGroups map[string]Group) ([]vc.VerifiableCredential, error) {
-	if submissionRequirement.From != "" && len(submissionRequirement.FromNested) > 0 {
-		return nil, fmt.Errorf("submission requirement (%s) contains both 'from' and 'from_nested'", submissionRequirement.Name)
-	}
-
-	if len(submissionRequirement.FromNested) > 0 {
-		return submissionRequirement.fromNested(availableGroups)
-	}
-	return submissionRequirement.from(availableGroups)
-}
-
-func (submissionRequirement SubmissionRequirement) from(availableGroups map[string]Group) ([]vc.VerifiableCredential, error) {
-	selectedVCs := make([]vc.VerifiableCredential, 0)
-	group := availableGroups[submissionRequirement.From]
-	// different rules for 'all' and 'pick'
-	switch submissionRequirement.Rule {
-	case "all":
-		// all means all matches in the group must be in the submission
-		// if any of the Match has an empty VC, we return an empty submission
-		for _, match := range group.Matches {
-			if match.VC == nil {
-				return nil, fmt.Errorf("submission requirement (%s) does not have all credentials from the group", submissionRequirement.Name)
-			}
-			selectedVCs = append(selectedVCs, *match.VC)
-		}
-		return selectedVCs, nil
-	case "pick":
-		// pick means we need to pick one or more of the matches
-		// count number of matches with VC
-		var count int
-		for _, match := range group.Matches {
-			if match.VC != nil {
-				count++
-			}
-		}
-		// check count
-		if submissionRequirement.Count != nil {
-			if count < *submissionRequirement.Count {
-				return nil, fmt.Errorf("submission requirement (%s) has less credentials (%d) than requried (%d)", submissionRequirement.Name, count, *submissionRequirement.Count)
-			}
-			i := 0
-
-			for _, match := range group.Matches {
-				if match.VC != nil {
-					selectedVCs = append(selectedVCs, *match.VC)
-					i++
-				}
-				if i == *submissionRequirement.Count {
-					break
-				}
-			}
-			return selectedVCs, nil
-		}
-		// check min and max
-		if submissionRequirement.Min != nil && count < *submissionRequirement.Min {
-			return nil, fmt.Errorf("submission requirement (%s) has less matches (%d) than min (%d)", submissionRequirement.Name, count, *submissionRequirement.Min)
-		}
-		if submissionRequirement.Max != nil && count > *submissionRequirement.Max {
-			return nil, fmt.Errorf("submission requirement (%s) has more matches (%d) than max (%d)", submissionRequirement.Name, count, *submissionRequirement.Max)
-		}
-		// take min if both min and max are set
-		index := 0
-		for _, match := range group.Matches {
-			if match.VC != nil {
-				selectedVCs = append(selectedVCs, *match.VC)
-				index++
-			}
-			if index == *submissionRequirement.Max {
-				break
-			}
-		}
-		return selectedVCs, nil
-	default:
-		return nil, fmt.Errorf("submission requirement (%s) contains unknown rule (%s)", submissionRequirement.Name, submissionRequirement.Rule)
-	}
-}
-
-func (submissionRequirement SubmissionRequirement) fromNested(availableGroups map[string]Group) ([]vc.VerifiableCredential, error) {
-	selectedVCs := make([][]vc.VerifiableCredential, len(submissionRequirement.FromNested))
-	for i, nested := range submissionRequirement.FromNested {
-		vcs, err := nested.match(availableGroups)
-		if err != nil {
-			if submissionRequirement.Rule == "all" {
-				// exit early
-				return nil, fmt.Errorf("submission requirement (%s) does not have all credentials from nested requirements", submissionRequirement.Name)
-			}
-			continue
-		}
-		selectedVCs[i] = vcs
-	}
-	switch submissionRequirement.Rule {
-	case "all":
-		var returnVCs []vc.VerifiableCredential
-		for _, vcs := range selectedVCs {
-			returnVCs = append(returnVCs, vcs...)
-		}
-		return returnVCs, nil
-	case "pick":
-		var returnVCs []vc.VerifiableCredential
-		// pick means we need to pick one or more of the nested sets
-		var count int
-		for _, set := range selectedVCs {
-			if len(set) > 0 {
-				count++
-			}
-		}
-		// check count
-		if submissionRequirement.Count != nil {
-			if count < *submissionRequirement.Count {
-				return nil, fmt.Errorf("submission requirement (%s) has less credentials (%d) than requried (%d)", submissionRequirement.Name, count, *submissionRequirement.Count)
-			}
-			i := 0
-			for _, set := range selectedVCs {
-				if len(set) > 0 {
-					returnVCs = append(returnVCs, set...)
-					i++
-				}
-				if i == *submissionRequirement.Count {
-					break
-				}
-			}
-			return returnVCs, nil
-		}
-		// check min and max
-		if submissionRequirement.Min != nil && count < *submissionRequirement.Min {
-			return nil, fmt.Errorf("submission requirement (%s) has less matches (%d) than min (%d)", submissionRequirement.Name, count, *submissionRequirement.Min)
-		}
-		if submissionRequirement.Max != nil && count > *submissionRequirement.Max {
-			return nil, fmt.Errorf("submission requirement (%s) has more matches (%d) than max (%d)", submissionRequirement.Name, count, *submissionRequirement.Max)
-		}
-		// take max if both min and max are set
-		index := 0
-		for _, set := range selectedVCs {
-			if len(set) > 0 {
-				returnVCs = append(returnVCs, set...)
-				index++
-			}
-			if index == *submissionRequirement.Max {
-				break
-			}
-		}
-		return returnVCs, nil
-	default:
-		return nil, fmt.Errorf("submission requirement (%s) contains unknown rule (%s)", submissionRequirement.Name, submissionRequirement.Rule)
-	}
+	return presentationSubmission, uniqueVCs, nil
 }
 
 // groups returns all the Matches with input descriptors and matching VCs.
 // If no VC matches the input descriptor, the match is still returned.
-// todo: how to add VC to the match? Use the VC list from basicMatch?
-func (presentationDefinition PresentationDefinition) groups() []Group {
-	groups := make(map[string]Group)
+func (presentationDefinition PresentationDefinition) groups() []GroupCandidates {
+	groups := make(map[string]GroupCandidates)
 	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
 		for _, group := range inputDescriptor.Group {
 			existing, ok := groups[group]
 			if !ok {
-				existing = Group{
+				existing = GroupCandidates{
 					Name: group,
 				}
 			}
-			existing.Matches = append(existing.Matches, Match{InputDescriptor: *inputDescriptor})
+			existing.Candidates = append(existing.Candidates, Candidate{InputDescriptor: *inputDescriptor})
 			groups[group] = existing
 		}
 	}
-	var result []Group
+	var result []GroupCandidates
 	for _, group := range groups {
 		result = append(result, group)
 	}
@@ -546,4 +398,31 @@ func matchFilter(filter Filter, value interface{}) (bool, error) {
 
 	// if we get here, no pattern, enum or const is requested just the type.
 	return true, nil
+}
+
+// deduplicate removes duplicate VCs from the slice.
+// It uses JSON marshalling to determine if two VCs are equal.
+func deduplicate(vcs []vc.VerifiableCredential) []vc.VerifiableCredential {
+	var result []vc.VerifiableCredential
+	for _, vc := range vcs {
+		found := false
+		for _, existing := range result {
+			if vcEqual(existing, vc) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result = append(result, vc)
+		}
+	}
+	return result
+}
+
+// vcEqual checks if two VCs are equal.
+// It uses JSON marshalling to determine if two VCs are equal.
+func vcEqual(a, b vc.VerifiableCredential) bool {
+	aJSON, _ := json.Marshal(a)
+	bJSON, _ := json.Marshal(b)
+	return string(aJSON) == string(bJSON)
 }
