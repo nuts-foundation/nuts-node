@@ -16,36 +16,34 @@
  *
  */
 
-// This package implements v2.0.0 of the Presentation Exchange specification
+// Package v2 implements v2.0.0 of the Presentation Exchange specification
 package v2
 
 import (
 	"bytes"
+	"embed"
 	_ "embed"
 	"fmt"
 	"github.com/santhosh-tekuri/jsonschema"
 	"github.com/santhosh-tekuri/jsonschema/loader"
 	"io"
+	"io/fs"
+	"strings"
 )
 
-//go:embed json-schema-draft-07.json
-var jsonSchemaDraft07SchemaData []byte
+const (
+	inputDescriptor                               = "http://identity.foundation/presentation-exchange/schemas/input-descriptor.json"
+	presentationDefinitionEnvelope                = "http://identity.foundation/presentation-exchange/schemas/presentation-definition-envelope.json"
+	presentationDefinition                        = "http://identity.foundation/presentation-exchange/schemas/presentation-definition.json"
+	presentationSubmission                        = "http://identity.foundation/presentation-exchange/schemas/presentation-submission.json"
+	submissionRequirement                         = "http://identity.foundation/presentation-exchange/schemas/submission-requirement.json"
+	submissionRequirements                        = "http://identity.foundation/presentation-exchange/schemas/submission-requirements.json"
+	presentationSubmissionClaimFormatDesignations = "http://identity.foundation/claim-format-registry/schemas/presentation-submission-claim-format-designations.json"
+	presentationDefinitionClaimFormatDesignations = "http://identity.foundation/claim-format-registry/schemas/presentation-definition-claim-format-designations.json"
+)
 
-const presentationDefinitionSchemaURL = "http://identity.foundation/presentation-exchange/schemas/presentation-definition.json"
-
-//go:embed presentation_definition.json
-var presentationDefinitionSchemaData []byte
-
-//go:embed presentation-definition-claim-format-designations.json
-var presentationDefinitionClaimFormatDesignationsSchemaData []byte
-
-//go:embed presentation-submission-claim-format-designations.json
-var presentationSubmissionClaimFormatDesignationsSchemaData []byte
-
-const presentationSubmissionSchemaURL = "https://identity.foundation/presentation-exchange/schemas/presentation-submission.json"
-
-//go:embed presentation_submission.json
-var presentationSubmissionSchemaData []byte
+//go:embed *.json
+var schemaFiles embed.FS
 
 // PresentationDefinition is the JSON schema for a presentation definition.
 var PresentationDefinition *jsonschema.Schema
@@ -61,20 +59,43 @@ func init() {
 	}
 	compiler := jsonschema.NewCompiler()
 	compiler.Draft = jsonschema.Draft7
-	resources := map[string][]byte{
-		"http://json-schema.org/draft-07/schema": jsonSchemaDraft07SchemaData,
-		"http://identity.foundation/claim-format-registry/schemas/presentation-definition-claim-format-designations.json": presentationDefinitionClaimFormatDesignationsSchemaData,
-		presentationDefinitionSchemaURL: presentationDefinitionSchemaData,
-		"http://identity.foundation/claim-format-registry/schemas/presentation-submission-claim-format-designations.json": presentationSubmissionClaimFormatDesignationsSchemaData,
-		presentationSubmissionSchemaURL: presentationSubmissionSchemaData,
+	if err := loadSchemas(schemaFiles, compiler); err != nil {
+		panic(err)
 	}
-	for u, data := range resources {
-		if err := compiler.AddResource(u, bytes.NewReader(data)); err != nil {
-			panic(fmt.Errorf("error compiling schema %s: %w", u, err))
+	PresentationDefinition = compiler.MustCompile(presentationDefinition)
+	PresentationSubmission = compiler.MustCompile(presentationSubmission)
+}
+
+func loadSchemas(reader fs.ReadFileFS, compiler *jsonschema.Compiler) error {
+	var resources = map[string]string{
+		"http://json-schema.org/draft-07/schema": "json-schema-draft-07.json",
+	}
+	schemaURLs := []string{
+		inputDescriptor,
+		presentationDefinitionEnvelope,
+		presentationDefinition,
+		presentationSubmission,
+		submissionRequirement,
+		submissionRequirements,
+		presentationSubmissionClaimFormatDesignations,
+		presentationDefinitionClaimFormatDesignations,
+	}
+	for _, schemaURL := range schemaURLs {
+		// Last part of schema URL matches the embedded file's name
+		parts := strings.Split(schemaURL, "/")
+		fileName := parts[len(parts)-1]
+		resources[schemaURL] = fileName
+	}
+	for schemaURL, fileName := range resources {
+		data, err := reader.ReadFile(fileName)
+		if err != nil {
+			return fmt.Errorf("error reading schema file %s: %w", fileName, err)
+		}
+		if err := compiler.AddResource(schemaURL, bytes.NewReader(data)); err != nil {
+			return fmt.Errorf("error compiling schema %s: %w", schemaURL, err)
 		}
 	}
-	PresentationDefinition = compiler.MustCompile(presentationDefinitionSchemaURL)
-	PresentationSubmission = compiler.MustCompile(presentationSubmissionSchemaURL)
+	return nil
 }
 
 // Validate validates the given data against the given schema.
