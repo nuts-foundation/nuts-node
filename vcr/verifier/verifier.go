@@ -19,9 +19,13 @@
 package verifier
 
 import (
+	crypt "crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
 	"time"
@@ -42,6 +46,8 @@ var timeFunc = time.Now
 const (
 	maxSkew = 5 * time.Second
 )
+
+var errVerificationMethodNotOfIssuer = errors.New("verification method is not of issuer")
 
 // verifier implements the Verifier interface.
 // It implements the generic methods for verifying verifiable credentials and verifiable presentations.
@@ -111,6 +117,17 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 		return err
 	}
 
+	switch credentialToVerify.Format() {
+	case issuer.JSONLDCredentialFormat:
+		return v.validateJSONLDCredential(credentialToVerify, at)
+	case issuer.JWTCredentialFormat:
+		return v.validateJWTCredential(credentialToVerify, at)
+	default:
+		return errors.New("unsupported credential proof format")
+	}
+}
+
+func (v *verifier) validateJSONLDCredential(credentialToVerify vc.VerifiableCredential, at *time.Time) error {
 	signedDocument, err := proof.NewSignedDocument(credentialToVerify)
 	if err != nil {
 		return fmt.Errorf("unable to build signed document from verifiable credential: %w", err)
@@ -124,7 +141,7 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 	verificationMethod := ldProof.VerificationMethod.String()
 	verificationMethodIssuer := strings.Split(verificationMethod, "#")[0]
 	if verificationMethodIssuer == "" || verificationMethodIssuer != credentialToVerify.Issuer.String() {
-		return errors.New("verification method is not of issuer")
+		return errVerificationMethodNotOfIssuer
 	}
 
 	// find key
@@ -138,6 +155,38 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 
 	// Try first with the correct LDProof implementation
 	return ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, pk)
+}
+
+func (v *verifier) validateJWTCredential(credential vc.VerifiableCredential, at *time.Time) error {
+	var keyID string
+	_, err := crypto.ParseJWT(credential.Raw(), func(kid string) (crypt.PublicKey, error) {
+		keyID = kid
+		return v.resolveSigningKey(kid, credential.Issuer.String(), at)
+	}, jwt.WithClock(jwt.ClockFunc(func() time.Time {
+		if at == nil {
+			return time.Now()
+		}
+		return *at
+	})))
+	if err != nil {
+		return fmt.Errorf("unable to validate JWT credential: %w", err)
+	}
+	if keyID != "" && strings.Split(keyID, "#")[0] != credential.Issuer.String() {
+		return errVerificationMethodNotOfIssuer
+	}
+	return nil
+}
+
+func (v *verifier) resolveSigningKey(kid string, issuer string, at *time.Time) (crypt.PublicKey, error) {
+	// Compatibility: VC data model v1 puts key discovery out of scope and does not require the `kid` header.
+	// When `kid` isn't present use the JWT issuer as `kid`, then it is at least compatible with DID methods that contain a single verification method (did:jwk).
+	if kid == "" {
+		kid = issuer
+	}
+	if strings.HasPrefix(kid, "did:jwk:") && !strings.Contains(kid, "#") {
+		kid += "#0"
+	}
+	return v.keyResolver.ResolveKeyByID(kid, at, resolver.NutsSigningKeyType)
 }
 
 // Verify implements the verify interface.
@@ -236,7 +285,7 @@ func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
 	vm := revocation.Proof.VerificationMethod.String()
 	vmIssuer := strings.Split(vm, "#")[0]
 	if vmIssuer != revocation.Issuer.String() {
-		return errors.New("verificationMethod should owned by the issuer")
+		return errVerificationMethodNotOfIssuer
 	}
 
 	pk, err := v.keyResolver.ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, resolver.NutsSigningKeyType)
@@ -264,40 +313,22 @@ func (v verifier) VerifyVP(vp vc.VerifiablePresentation, verifyVCs bool, allowUn
 }
 
 // doVerifyVP delegates VC verification to the supplied Verifier, to aid unit testing.
-func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, verifyVCs bool, allowUntrustedVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
-	// Multiple proofs might be supported in the future, when there's an actual use case.
-	if len(vp.Proof) != 1 {
-		return nil, newVerificationError("exactly 1 proof is expected")
+func (v verifier) doVerifyVP(vcVerifier Verifier, presentation vc.VerifiablePresentation, verifyVCs bool, allowUntrustedVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
+	var err error
+	switch presentation.Format() {
+	case issuer.JSONLDPresentationFormat:
+		err = v.validateJSONLDPresentation(presentation, validAt)
+	case issuer.JWTPresentationFormat:
+		err = v.validateJWTPresentation(presentation, validAt)
+	default:
+		err = errors.New("unsupported presentation proof format")
 	}
-	// Make sure the proofs are LD-proofs
-	var ldProofs []proof.LDProof
-	err := vp.UnmarshalProofValue(&ldProofs)
 	if err != nil {
-		return nil, newVerificationError("unsupported proof type: %w", err)
-	}
-	ldProof := ldProofs[0]
-
-	// Validate signing time
-	if !v.validateAtTime(ldProof.Created, ldProof.Expires, validAt) {
-		return nil, toVerificationError(types.ErrPresentationNotValidAtTime)
-	}
-
-	// Validate signature
-	signingKey, err := v.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), validAt, resolver.NutsSigningKeyType)
-	if err != nil {
-		return nil, fmt.Errorf("unable to resolve valid signing key: %w", err)
-	}
-	signedDocument, err := proof.NewSignedDocument(vp)
-	if err != nil {
-		return nil, newVerificationError("invalid LD-JSON document: %w", err)
-	}
-	err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, signingKey)
-	if err != nil {
-		return nil, newVerificationError("invalid signature: %w", err)
+		return nil, err
 	}
 
 	if verifyVCs {
-		for _, current := range vp.VerifiableCredential {
+		for _, current := range presentation.VerifiableCredential {
 			err := vcVerifier.Verify(current, allowUntrustedVCs, true, validAt)
 			if err != nil {
 				return nil, newVerificationError("invalid VC (id=%s): %w", current.ID, err)
@@ -305,7 +336,68 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 		}
 	}
 
-	return vp.VerifiableCredential, nil
+	return presentation.VerifiableCredential, nil
+}
+
+func (v *verifier) validateJSONLDPresentation(presentation vc.VerifiablePresentation, validAt *time.Time) error {
+	// Multiple proofs might be supported in the future, when there's an actual use case.
+	if len(presentation.Proof) != 1 {
+		return newVerificationError("exactly 1 proof is expected")
+	}
+	// Make sure the proofs are LD-proofs
+	var ldProofs []proof.LDProof
+	err := presentation.UnmarshalProofValue(&ldProofs)
+	if err != nil {
+		return newVerificationError("unsupported proof type: %w", err)
+	}
+	ldProof := ldProofs[0]
+
+	// Validate signing time
+	if !v.validateAtTime(ldProof.Created, ldProof.Expires, validAt) {
+		return toVerificationError(types.ErrPresentationNotValidAtTime)
+	}
+
+	// Validate signature
+	signingKey, err := v.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), validAt, resolver.NutsSigningKeyType)
+	if err != nil {
+		return fmt.Errorf("unable to resolve valid signing key: %w", err)
+	}
+	signedDocument, err := proof.NewSignedDocument(presentation)
+	if err != nil {
+		return newVerificationError("invalid LD-JSON document: %w", err)
+	}
+	err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, signingKey)
+	if err != nil {
+		return newVerificationError("invalid signature: %w", err)
+	}
+	return nil
+}
+
+func (v *verifier) validateJWTPresentation(presentation vc.VerifiablePresentation, at *time.Time) error {
+	var keyID string
+	if len(presentation.VerifiableCredential) != 1 {
+		return errors.New("exactly 1 credential in JWT VP is expected")
+	}
+	subjectDID, err := presentation.VerifiableCredential[0].SubjectDID()
+	if err != nil {
+		return err
+	}
+	_, err = crypto.ParseJWT(presentation.Raw(), func(kid string) (crypt.PublicKey, error) {
+		keyID = kid
+		return v.resolveSigningKey(kid, subjectDID.String(), at)
+	}, jwt.WithClock(jwt.ClockFunc(func() time.Time {
+		if at == nil {
+			return time.Now()
+		}
+		return *at
+	})))
+	if err != nil {
+		return fmt.Errorf("unable to validate JWT credential: %w", err)
+	}
+	if keyID != "" && strings.Split(keyID, "#")[0] != subjectDID.String() {
+		return errVerificationMethodNotOfIssuer
+	}
+	return nil
 }
 
 func (v *verifier) validateType(credential vc.VerifiableCredential) error {

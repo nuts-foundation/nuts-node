@@ -1,1 +1,6 @@
-{"eOverdracht-overdrachtsbericht":{}}
+{
+  "eOverdracht-overdrachtsbericht": {
+    "id": "eOverdracht",
+    "input_descriptors": []
+  }
+}

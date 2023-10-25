@@ -91,7 +91,10 @@ func TestSigner_Validator_Roundtrip(t *testing.T) {
 
 	// #2428: NutsEmployeeCredential does not need to be trusted, but the issuer needs to have a trusted NutsOrganizationCredential (chain of trust).
 	//        Issue() automatically trusts the issuer, so untrust it for asserting trust chain behavior
-	nutsOrgCred, err := vcrContext.VCR.Issuer().Issue(audit.TestContext(), createOrganizationCredential(issuerDID), false, false)
+	nutsOrgCred, err := vcrContext.VCR.Issuer().Issue(audit.TestContext(), createOrganizationCredential(issuerDID), issuer.CredentialOptions{
+		Publish: false,
+		Public:  false,
+	})
 	require.NoError(t, err)
 	err = vcrContext.VCR.StoreCredential(*nutsOrgCred, nil) // Need to explicitly store, since we didn't publish it.
 	require.NoError(t, err)
@@ -203,7 +206,10 @@ func TestValidator_VerifyVP(t *testing.T) {
 			// Otherwise, the NutsOrganizationCredential is not yet valid or might be expired.
 			return vpValidTime.Add(-1 * time.Hour)
 		}
-		nutsOrgCred, err := vcrContext.VCR.Issuer().Issue(audit.TestContext(), createOrganizationCredential(didDocument.ID.String()), false, false)
+		nutsOrgCred, err := vcrContext.VCR.Issuer().Issue(audit.TestContext(), createOrganizationCredential(didDocument.ID.String()), issuer.CredentialOptions{
+			Publish: false,
+			Public:  false,
+		})
 		require.NoError(t, err)
 		err = vcrContext.VCR.StoreCredential(*nutsOrgCred, &vpValidTime) // Need to explicitly store, since we didn't publish it.
 		require.NoError(t, err)

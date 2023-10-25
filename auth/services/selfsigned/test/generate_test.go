@@ -36,7 +36,7 @@ import (
 func Test_GenerateTestData(t *testing.T) {
 	store := false
 
-	contextLoader, _ := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
+	contextLoader := jsonld.NewTestJSONLDManager(t).DocumentLoader()
 
 	createdTime := time.Date(2023, 4, 20, 9, 53, 3, 0, time.UTC)
 	expirationTime := createdTime.Add(4 * 24 * time.Hour)

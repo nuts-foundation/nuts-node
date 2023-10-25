@@ -41,7 +41,7 @@ var _ json.Marshaler = (*IssueVC200JSONResponse)(nil)
 var _ json.Marshaler = (*ResolveVC200JSONResponse)(nil)
 var _ json.Marshaler = (*CreateVP200JSONResponse)(nil)
 
-// MarshalJSON forwards the call to the underlying VerifiableCredential to make sure the expected JSON-LD is returned.
+// MarshalJSON forwards the call to the underlying VerifiableCredential to make sure the credential is returned in the expected format (JSON-LD or JWT).
 func (r IssueVC200JSONResponse) MarshalJSON() ([]byte, error) {
 	return vc.VerifiableCredential(r).MarshalJSON()
 }

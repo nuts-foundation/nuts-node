@@ -93,7 +93,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 	t.Run("with scope", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		peStore := &pe.DefinitionResolver{}
-		_ = peStore.LoadFromFile("test/presentation_definition_mapping.json")
+		require.NoError(t, peStore.LoadFromFile("test/presentation_definition_mapping.json"))
 		mockVDR := vdr.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockWallet := holder.NewMockWallet(ctrl)

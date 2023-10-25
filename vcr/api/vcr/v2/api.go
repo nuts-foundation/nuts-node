@@ -24,6 +24,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 
@@ -86,27 +87,25 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 
 // IssueVC handles the API request for credential issuing.
 func (w Wrapper) IssueVC(ctx context.Context, request IssueVCRequestObject) (IssueVCResponseObject, error) {
-	var (
-		publish bool
-		public  bool
-	)
-
-	// publish is true by default
+	options := issuer.CredentialOptions{
+		Publish: true,
+	}
 	if request.Body.PublishToNetwork != nil {
-		publish = *request.Body.PublishToNetwork
-	} else {
-		publish = true
+		options.Publish = *request.Body.PublishToNetwork
+	}
+	if request.Body.Format != nil {
+		options.Format = string(*request.Body.Format)
 	}
 
 	// Check param constraints:
 	if request.Body.Visibility == nil || *request.Body.Visibility == "" {
-		if publish {
+		if options.Publish {
 			return nil, core.InvalidInputError("visibility must be set when publishing credential")
 		}
 	} else {
 		// visibility is set
 		// Visibility can only be used when publishing
-		if !publish {
+		if !options.Publish {
 			return nil, core.InvalidInputError("visibility setting is only allowed when publishing to the network")
 		}
 		// Check if the values are in range
@@ -114,7 +113,7 @@ func (w Wrapper) IssueVC(ctx context.Context, request IssueVCRequestObject) (Iss
 			return nil, core.InvalidInputError("invalid value for visibility")
 		}
 		// Set the actual value
-		public = *request.Body.Visibility == Public
+		options.Public = *request.Body.Visibility == Public
 	}
 
 	// Set default context, if not set
@@ -136,8 +135,17 @@ func (w Wrapper) IssueVC(ctx context.Context, request IssueVCRequestObject) (Iss
 	if err := json.Unmarshal(rawRequest, &requestedVC); err != nil {
 		return nil, err
 	}
+	// Copy parsed credential to keep control over what we pass to the issuer,
+	// (and also makes unit testing easier since vc.VerifiableCredential has unexported fields that can't be set).
+	template := vc.VerifiableCredential{
+		Context:           requestedVC.Context,
+		Type:              requestedVC.Type,
+		Issuer:            requestedVC.Issuer,
+		ExpirationDate:    requestedVC.ExpirationDate,
+		CredentialSubject: requestedVC.CredentialSubject,
+	}
 
-	vcCreated, err := w.VCR.Issuer().Issue(ctx, requestedVC, publish, public)
+	vcCreated, err := w.VCR.Issuer().Issue(ctx, template, options)
 	if err != nil {
 		return nil, err
 	}
@@ -251,6 +259,10 @@ func (w *Wrapper) CreateVP(ctx context.Context, request CreateVPRequestObject) (
 	if request.Body.ProofPurpose != nil {
 		purpose := *request.Body.ProofPurpose
 		presentationOptions.ProofOptions.ProofPurpose = string(purpose)
+	}
+
+	if request.Body.Format != nil {
+		presentationOptions.Format = string(*request.Body.Format)
 	}
 
 	// pass context and type as ssi.URI

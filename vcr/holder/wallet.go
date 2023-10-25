@@ -24,6 +24,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -36,6 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"time"
 )
 
 const statsShelf = "stats"
@@ -90,6 +93,48 @@ func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.Verifiab
 		}
 	}
 
+	switch options.Format {
+	case JWTPresentationFormat:
+		return h.buildJWTPresentation(ctx, *signerDID, credentials, options, key)
+	case "":
+		fallthrough
+	case JSONLDPresentationFormat:
+		return h.buildJSONLDPresentation(ctx, credentials, options, key)
+	default:
+		return nil, errors.New("unsupported presentation proof format")
+	}
+}
+
+// buildJWTPresentation builds a JWT presentation according to https://www.w3.org/TR/vc-data-model/#json-web-token
+func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, key crypto.Key) (*vc.VerifiablePresentation, error) {
+	headers := map[string]interface{}{
+		jws.TypeKey: "JWT",
+	}
+	claims := map[string]interface{}{
+		jwt.IssuerKey:  subjectDID.String(),
+		jwt.SubjectKey: subjectDID.String(),
+		"vp": vc.VerifiablePresentation{
+			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
+			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
+			VerifiableCredential: credentials,
+		},
+	}
+	if options.ProofOptions.Created.IsZero() {
+		claims[jwt.NotBeforeKey] = time.Now().Unix()
+	} else {
+		claims[jwt.NotBeforeKey] = int(options.ProofOptions.Created.Unix())
+	}
+	if options.ProofOptions.Expires != nil {
+		claims[jwt.ExpirationKey] = int(options.ProofOptions.Expires.Unix())
+	}
+	token, err := h.keyStore.SignJWT(ctx, claims, headers, key)
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign JWT presentation: %w", err)
+	}
+	return vc.ParseVerifiablePresentation(token)
+}
+
+func (h wallet) buildJSONLDPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, key crypto.Key) (*vc.VerifiablePresentation, error) {
 	ldContext := []ssi.URI{VerifiableCredentialLDContextV1, signature.JSONWebSignature2020Context}
 	ldContext = append(ldContext, options.AdditionalContexts...)
 	types := []ssi.URI{VerifiablePresentationLDType}
@@ -119,15 +164,8 @@ func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.Verifiab
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign VP with LD proof: %w", err)
 	}
-
-	var signedVP vc.VerifiablePresentation
-	signedVPData, _ := json.Marshal(signingResult)
-	err = json.Unmarshal(signedVPData, &signedVP)
-	if err != nil {
-		return nil, err
-	}
-
-	return &signedVP, nil
+	resultJSON, _ := json.Marshal(signingResult)
+	return vc.ParseVerifiablePresentation(string(resultJSON))
 }
 
 func (h wallet) Put(ctx context.Context, credentials ...vc.VerifiableCredential) error {

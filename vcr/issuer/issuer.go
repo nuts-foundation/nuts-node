@@ -21,6 +21,7 @@ package issuer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -89,8 +90,13 @@ type issuer struct {
 // Issue creates a new credential, signs, stores it.
 // If publish is true, it publishes the credential to the network using the configured Publisher
 // Use the public flag to pass the visibility settings to the Publisher.
-func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error) {
-	createdVC, err := i.buildVC(ctx, credentialOptions)
+func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
+	// Until further notice we don't support publishing JWT VCs, since they're not officially supported by Nuts yet.
+	if options.Publish && options.Format == JWTCredentialFormat {
+		return nil, errors.New("publishing VC JWTs is not supported")
+	}
+
+	createdVC, err := i.buildVC(ctx, template, options)
 	if err != nil {
 		return nil, err
 	}
@@ -123,10 +129,10 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 		return nil, fmt.Errorf("unable to store the issued credential: %w", err)
 	}
 
-	if publish {
+	if options.Publish {
 		// Try to issue over OpenID4VCI if it's enabled and if the credential is not public
 		// (public credentials are always published on the network).
-		if i.openidHandlerFn != nil && !public {
+		if i.openidHandlerFn != nil && !options.Public {
 			success, err := i.issueUsingOpenID4VCI(ctx, *createdVC)
 			if err != nil {
 				// An error occurred, but it's not because the wallet/issuer doesn't support OpenID4VCI.
@@ -145,7 +151,7 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 					Info("Wallet or issuer does not support OpenID4VCI, fallback to publish over Nuts network")
 			}
 		}
-		if err := i.networkPublisher.PublishCredential(ctx, *createdVC, public); err != nil {
+		if err := i.networkPublisher.PublishCredential(ctx, *createdVC, options.Public); err != nil {
 			return nil, fmt.Errorf("unable to publish the issued credential: %w", err)
 		}
 	}
@@ -179,12 +185,12 @@ func (i issuer) issueUsingOpenID4VCI(ctx context.Context, credential vc.Verifiab
 	return true, i.vcrStore.StoreCredential(credential, nil)
 }
 
-func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-	if len(credentialOptions.Type) != 1 {
+func (i issuer) buildVC(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
+	if len(template.Type) != 1 {
 		return nil, core.InvalidInputError("can only issue credential with 1 type")
 	}
 
-	issuerDID, err := did.ParseDID(credentialOptions.Issuer.String())
+	issuerDID, err := did.ParseDID(template.Issuer.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
@@ -201,13 +207,16 @@ func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCred
 
 	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
 	unsignedCredential := vc.VerifiableCredential{
-		Context:           credentialOptions.Context,
+		Context:           template.Context,
 		ID:                &credentialID,
-		Type:              credentialOptions.Type,
-		CredentialSubject: credentialOptions.CredentialSubject,
-		Issuer:            credentialOptions.Issuer,
-		ExpirationDate:    credentialOptions.ExpirationDate,
-		IssuanceDate:      TimeFunc(),
+		Type:              template.Type,
+		CredentialSubject: template.CredentialSubject,
+		Issuer:            template.Issuer,
+		ExpirationDate:    template.ExpirationDate,
+		IssuanceDate:      template.IssuanceDate,
+	}
+	if unsignedCredential.IssuanceDate.IsZero() {
+		unsignedCredential.IssuanceDate = TimeFunc()
 	}
 	if !unsignedCredential.ContainsContext(vc.VCContextV1URI()) {
 		unsignedCredential.Context = append(unsignedCredential.Context, vc.VCContextV1URI())
@@ -218,28 +227,34 @@ func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCred
 		unsignedCredential.Type = append(unsignedCredential.Type, defaultType)
 	}
 
+	switch options.Format {
+	case JWTCredentialFormat:
+		return vc.CreateJWTVerifiableCredential(ctx, unsignedCredential, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
+			return i.keyStore.SignJWT(ctx, claims, headers, key)
+		})
+	case "":
+		fallthrough
+	case JSONLDCredentialFormat:
+		return i.buildJSONLDCredential(ctx, unsignedCredential, key)
+	default:
+		return nil, errors.New("unsupported credential proof format")
+	}
+}
+
+func (i issuer) buildJSONLDCredential(ctx context.Context, unsignedCredential vc.VerifiableCredential, key crypto.Key) (*vc.VerifiableCredential, error) {
 	credentialAsMap := map[string]interface{}{}
 	b, _ := json.Marshal(unsignedCredential)
 	_ = json.Unmarshal(b, &credentialAsMap)
 
-	// Set created date to the issuanceDate if set
-	created := TimeFunc()
-	if !credentialOptions.IssuanceDate.IsZero() {
-		created = credentialOptions.IssuanceDate
-	}
-	proofOptions := proof.ProofOptions{Created: created}
+	proofOptions := proof.ProofOptions{Created: unsignedCredential.IssuanceDate}
 
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
 	signingResult, err := proof.NewLDProof(proofOptions).Sign(ctx, credentialAsMap, webSig, key)
 	if err != nil {
 		return nil, err
 	}
-
-	b, _ = json.Marshal(signingResult)
-	signedCredential := &vc.VerifiableCredential{}
-	_ = json.Unmarshal(b, signedCredential)
-
-	return signedCredential, nil
+	credentialJSON, _ := json.Marshal(signingResult)
+	return vc.ParseVerifiableCredential(string(credentialJSON))
 }
 
 func (i issuer) Revoke(ctx context.Context, credentialID ssi.URI) (*credential.Revocation, error) {

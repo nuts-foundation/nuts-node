@@ -47,9 +47,7 @@ type keyResolver interface {
 // Issuer is a role in the network for a party who issues credentials about a subject to a holder.
 type Issuer interface {
 	// Issue issues a credential by signing an unsigned credential.
-	// The publish param indicates if the credendential should be published to the network.
-	// The public param instructs the Publisher to publish the param with a certain visibility.
-	Issue(ctx context.Context, unsignedCredential vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error)
+	Issue(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error)
 	// Revoke revokes a credential by the provided type.
 	// It requires access to the private key of the issuer which will be used to sign the revocation.
 	// It returns an error when the credential is not issued by this node or is already revoked.
@@ -85,4 +83,22 @@ type CredentialSearcher interface {
 	// SearchCredential searches for issued credentials
 	// If the passed context is empty, it'll not be part of the search query on the DB.
 	SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error)
+}
+
+const (
+	JSONLDCredentialFormat   = vc.JSONLDCredentialProofFormat
+	JWTCredentialFormat      = vc.JWTCredentialProofFormat
+	JSONLDPresentationFormat = vc.JSONLDPresentationProofFormat
+	JWTPresentationFormat    = vc.JWTPresentationProofFormat
+)
+
+// CredentialOptions specifies options for issuing a credential.
+type CredentialOptions struct {
+	// Format specifies the proof format for the issued credential. If not set, it defaults to JSON-LD.
+	// Valid options are: ldp_vc or jwt_vc
+	Format string
+	// Publish param indicates if the credential should be published to the network.
+	Publish bool
+	// Public param instructs the Publisher to publish the param with a certain visibility.
+	Public bool
 }

@@ -32,16 +32,16 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/mr-tron/base58"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/shengdoushi/base58"
 )
 
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
 var ErrUnsupportedSigningKey = errors.New("signing key algorithm not supported")
 
-var supportedAlgorithms = []jwa.SignatureAlgorithm{jwa.PS256, jwa.PS384, jwa.PS512, jwa.ES256, jwa.ES384, jwa.ES512}
+var supportedAlgorithms = []jwa.SignatureAlgorithm{jwa.PS256, jwa.PS384, jwa.PS512, jwa.ES256, jwa.EdDSA, jwa.ES384, jwa.ES512}
 
 const defaultRsaEncryptionAlgorithm = jwa.RSA_OAEP_256
 const defaultEcEncryptionAlgorithm = jwa.ECDH_ES_A256KW
@@ -449,5 +449,5 @@ func Thumbprint(key jwk.Key) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return base58.Encode(pkHash[:], base58.BitcoinAlphabet), nil
+	return base58.EncodeAlphabet(pkHash[:], base58.BTCAlphabet), nil
 }

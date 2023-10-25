@@ -132,7 +132,10 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 	t.Run("status completed returns VP on SigningSessionResult", func(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewSigner(mockContext.vcr, "").(*signer)
-		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
+		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), issuer.CredentialOptions{
+			Publish: false,
+			Public:  false,
+		}).Return(&testVC, nil)
 		mockContext.wallet.EXPECT().BuildPresentation(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
 
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
@@ -191,16 +194,10 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 	t.Run("correct VC options are passed to issuer", func(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewSigner(mockContext.vcr, "").(*signer)
-		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).DoAndReturn(
-			func(arg0 interface{}, unsignedCredential interface{}, public interface{}, publish interface{}) (*vc.VerifiableCredential, error) {
-				isPublic, ok := public.(bool)
-				isPublished, ok2 := publish.(bool)
-				credential, ok3 := unsignedCredential.(vc.VerifiableCredential)
-				require.True(t, ok)
-				require.True(t, ok2)
-				require.True(t, ok3)
-				assert.False(t, isPublic)
-				assert.False(t, isPublished)
+		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), issuer.CredentialOptions{}).DoAndReturn(
+			func(arg0 interface{}, credential vc.VerifiableCredential, options issuer.CredentialOptions) (*vc.VerifiableCredential, error) {
+				assert.False(t, options.Public)
+				assert.False(t, options.Publish)
 				assert.Equal(t, employer.URI(), credential.Issuer)
 				assert.Equal(t, []ssi.URI{ssi.MustParseURI("NutsEmployeeCredential")}, credential.Type)
 
@@ -241,7 +238,10 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 	t.Run("error on VC issuance", func(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewSigner(mockContext.vcr, "").(*signer)
-		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(nil, errors.New("error"))
+		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), issuer.CredentialOptions{
+			Publish: false,
+			Public:  false,
+		}).Return(nil, errors.New("error"))
 
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
@@ -256,7 +256,10 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 	t.Run("error on building VP", func(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewSigner(mockContext.vcr, "").(*signer)
-		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
+		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), issuer.CredentialOptions{
+			Publish: false,
+			Public:  false,
+		}).Return(&testVC, nil)
 		mockContext.wallet.EXPECT().BuildPresentation(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(nil, errors.New("error"))
 
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)

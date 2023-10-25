@@ -44,7 +44,7 @@ func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.
 	if credential.ID != nil {
 		existingCredential, err := c.find(*credential.ID)
 		if err == nil {
-			if reflect.DeepEqual(existingCredential, credential) {
+			if credentialsEqual(existingCredential, credential) {
 				log.Logger().
 					WithField(core.LogFieldCredentialID, *credential.ID).
 					Info("Credential already exists")
@@ -62,6 +62,18 @@ func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.
 	}
 
 	return c.writeCredential(credential)
+}
+
+func credentialsEqual(a vc.VerifiableCredential, b vc.VerifiableCredential) bool {
+	// go-leia returns pretty-printed JSON documents, so the verifiable credentials have different `raw` properties.
+	// thus we need to unmarshal the verifiable credentials into maps and compare those.
+	aJSON, _ := json.Marshal(a)
+	bJSON, _ := json.Marshal(b)
+	aMap := map[string]interface{}{}
+	bMap := map[string]interface{}{}
+	_ = json.Unmarshal(aJSON, &aMap)
+	_ = json.Unmarshal(bJSON, &bMap)
+	return reflect.DeepEqual(aMap, bMap)
 }
 
 func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
