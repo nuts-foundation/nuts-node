@@ -36,13 +36,7 @@ const (
 // IssuerIdToWellKnown converts the OAuth2 Issuer identity to the specified well-known endpoint by inserting the well-known at the root of the path.
 // It returns no url and an error when issuer is not a valid URL.
 func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url.URL, error) {
-	var issuerURL *url.URL
-	var err error
-	if strictmode {
-		issuerURL, err = core.ParsePublicURL(issuer, false, "https")
-	} else {
-		issuerURL, err = core.ParsePublicURL(issuer, true, "https", "http")
-	}
+	issuerURL, err := core.ParsePublicURL(issuer, strictmode)
 	if err != nil {
 		return nil, err
 	}

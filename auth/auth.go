@@ -128,11 +128,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return errors.New("invalid auth.publicurl: must provide url")
 	}
 	var err error
-	if config.Strictmode {
-		auth.publicURL, err = core.ParsePublicURL(auth.config.PublicURL, false, "https")
-	} else {
-		auth.publicURL, err = core.ParsePublicURL(auth.config.PublicURL, true, "http", "https")
-	}
+	auth.publicURL, err = core.ParsePublicURL(auth.config.PublicURL, config.Strictmode)
 	if err != nil {
 		return fmt.Errorf("invalid auth.publicurl: %w", err)
 	}

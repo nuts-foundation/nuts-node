@@ -43,11 +43,20 @@ func JoinURLPaths(parts ...string) string {
 	return result
 }
 
-// ParsePublicURL parses the given input string as URL and asserts that
+// ParsePublicURL parses the input URL using ParsePublicURLWithScheme.
+// If strictmode is true, no reserved addresses are allowed and the scheme MUST be 'https'
+func ParsePublicURL(input string, strictmode bool) (*url.URL, error) {
+	if !strictmode {
+		return ParsePublicURLWithScheme(input, true, "http", "https")
+	}
+	return ParsePublicURLWithScheme(input, false, "https")
+}
+
+// ParsePublicURLWithScheme parses the given input string as URL and asserts that
 // it has a scheme and that it is in the allowedSchemes if provided,
 // it is not an IP address, and
 // it is not (depending on allowReserved) a reserved address or TLD as described in RFC2606 or https://www.ietf.org/archive/id/draft-chapin-rfc2606bis-00.html.
-func ParsePublicURL(input string, allowReserved bool, allowedSchemes ...string) (*url.URL, error) {
+func ParsePublicURLWithScheme(input string, allowReserved bool, allowedSchemes ...string) (*url.URL, error) {
 	parsed, err := url.Parse(input)
 	if err != nil {
 		return nil, err
