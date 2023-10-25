@@ -40,10 +40,20 @@ func Test_ParsePublicURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "https://non.reserved", u.String())
 	})
-	t.Run("error - strict", func(t *testing.T) {
+	t.Run("error - strict - scheme must be https", func(t *testing.T) {
 		u, err := ParsePublicURL("http://localhost", true)
 		assert.Nil(t, u)
 		assert.EqualError(t, err, "scheme must be https")
+	})
+	t.Run("error - strict - reserved address", func(t *testing.T) {
+		u, err := ParsePublicURL("https://localhost", true)
+		assert.Nil(t, u)
+		assert.EqualError(t, err, "hostname is RFC2606 reserved")
+	})
+	t.Run("error - strict - IP address", func(t *testing.T) {
+		u, err := ParsePublicURL("https://127.0.0.1", true)
+		assert.Nil(t, u)
+		assert.EqualError(t, err, "hostname is IP")
 	})
 	t.Run("ok - non-strict", func(t *testing.T) {
 		u, err := ParsePublicURL("http://localhost", false)
