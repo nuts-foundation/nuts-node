@@ -22,23 +22,6 @@ package pe
 // PresentationDefinitionClaimFormatDesignations (replaces generated one)
 type PresentationDefinitionClaimFormatDesignations map[string]map[string][]string
 
-// PresentationSubmission describes how the VCs in the VP match the input descriptors in the PD
-type PresentationSubmission struct {
-	// Id is the id of the presentation submission, which is a UUID
-	Id string `json:"id"`
-	// DefinitionId is the id of the presentation definition that this submission is for
-	DefinitionId string `json:"definition_id"`
-	// DescriptorMap is a list of mappings from input descriptors to VCs
-	DescriptorMap []InputDescriptorMappingObject `json:"descriptor_map"`
-}
-
-// InputDescriptorMappingObject
-type InputDescriptorMappingObject struct {
-	Id     string `json:"id"`
-	Path   string `json:"path"`
-	Format string `json:"format"`
-}
-
 // Constraints
 type Constraints struct {
 	Fields          []Field             `json:"fields,omitempty"`
