@@ -35,6 +35,24 @@ func TestJoinURLPaths(t *testing.T) {
 }
 
 func Test_ParsePublicURL(t *testing.T) {
+	t.Run("ok - strict", func(t *testing.T) {
+		u, err := ParsePublicURL("https://non.reserved", true)
+		require.NoError(t, err)
+		assert.Equal(t, "https://non.reserved", u.String())
+	})
+	t.Run("error - strict", func(t *testing.T) {
+		u, err := ParsePublicURL("http://localhost", true)
+		assert.Nil(t, u)
+		assert.EqualError(t, err, "scheme must be https")
+	})
+	t.Run("ok - non-strict", func(t *testing.T) {
+		u, err := ParsePublicURL("http://localhost", false)
+		require.NoError(t, err)
+		assert.Equal(t, "http://localhost", u.String())
+	})
+}
+
+func Test_ParsePublicURLWithScheme(t *testing.T) {
 	errIncompleteURL := errors.New("url must contain scheme and host")
 	errIsIpAddress := errors.New("hostname is IP")
 	errIsReserved := errors.New("hostname is RFC2606 reserved")
@@ -64,7 +82,7 @@ func Test_ParsePublicURL(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		addr, err := ParsePublicURL(tc.input, tc.allowReserved, "http", "https", "grpc")
+		addr, err := ParsePublicURLWithScheme(tc.input, tc.allowReserved, "http", "https", "grpc")
 		if tc.err == nil {
 			// valid test cases
 			require.NoError(t, err, "test case: %v", tc)
