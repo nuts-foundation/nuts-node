@@ -73,7 +73,15 @@ func (r Wrapper) createOpenIDAuthzRequest(ctx context.Context, scope string, sta
 			// Instead, we specify the registration claim containing the metadata:
 			params["registration"] = map[string]interface{}{
 				// We can specify loads of metadata fields, but Sphereon Wallet works if we only specify the one(s) below
-				"subject_syntax_types_supported": []string{"did:jwk", "did:web"},
+				"subject_syntax_types_supported": []string{"did:ion", "did:web"},
+				"vp_formats": map[string]interface{}{
+					"jwt_vc": map[string]interface{}{
+						"alg": []string{"ES256K", "EdDSA"},
+					},
+					"jwt_vp": map[string]interface{}{
+						"alg": []string{"ES256K", "EdDSA"},
+					},
+				},
 			}
 			params["claims"] = map[string]interface{}{
 				"vp_token": map[string]interface{}{
@@ -90,7 +98,8 @@ func (r Wrapper) createOpenIDAuthzRequest(ctx context.Context, scope string, sta
 		DIDResolver:     r.vdr.Resolver(),
 		PrivKeyResolver: r.keyStore,
 	}
-	signingKey, err := keyResolver.ResolvePrivateKey(ctx, verifierDID, nil, resolver.NutsSigningKeyType)
+	//signingKey, err := keyResolver.ResolvePrivateKey(ctx, verifierDID, nil, resolver.NutsSigningKeyType)
+	signingKey, err := keyResolver.ResolvePrivateKey(ctx, verifierDID, nil, resolver.Authentication)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve signing key (did=%s): %w", verifierDID, err)
 	}

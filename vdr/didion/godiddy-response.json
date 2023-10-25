@@ -1,0 +1,78 @@
+Create a DID
+{
+  "jobId": "8db054a7-cff1-4349-a85b-cdb234893681",
+  "didState": {
+    "didDocument": {
+      "id": "did:ion:EiCN5kEBzpgnw_hbn4QNA1GE-PQbqLqv40Ewoq7wEvaj0w",
+      "@context": [
+        "https://www.w3.org/ns/did/v1",
+        {
+          "@base": "did:ion:EiCN5kEBzpgnw_hbn4QNA1GE-PQbqLqv40Ewoq7wEvaj0w"
+        }
+      ],
+      "service": [],
+      "verificationMethod": [
+        {
+          "id": "#key-1",
+          "controller": "did:ion:EiCN5kEBzpgnw_hbn4QNA1GE-PQbqLqv40Ewoq7wEvaj0w",
+          "type": "EcdsaSecp256k1VerificationKey2019",
+          "publicKeyJwk": {
+            "crv": "secp256k1",
+            "kty": "EC",
+            "x": "gLxluqM0ov_d8ujWWrNtMAdeLtj3VeaOAE8rZlRBnnk",
+            "y": "fN3egGXtBfy6FpSaL6AqWB8rPyCFN2445t53J9hkR4g"
+          }
+        }
+      ],
+      "authentication": [
+        "#key-1"
+      ]
+    },
+    "secret": {
+      "verificationMethod": [
+        [
+          {
+            "purpose": [
+              "update"
+            ]
+          },
+          {
+            "controller": "did:ion:EiCN5kEBzpgnw_hbn4QNA1GE-PQbqLqv40Ewoq7wEvaj0w",
+            "purpose": [
+              "update"
+            ]
+          }
+        ],
+        [
+          {
+            "purpose": [
+              "recovery"
+            ]
+          },
+          {
+            "controller": "did:ion:EiCN5kEBzpgnw_hbn4QNA1GE-PQbqLqv40Ewoq7wEvaj0w",
+            "purpose": [
+              "recovery"
+            ]
+          }
+        ]
+      ]
+    },
+    "state": "wait",
+    "wait": "publish",
+    "waittime": "unknown"
+  },
+  "didRegistrationMetadata": {
+    "duration": 186,
+    "method": "ion"
+  },
+  "didDocumentMetadata": {
+    "method": {
+      "published": false,
+      "recoveryCommitment": "EiCItHLs3TQ1uv12FSgxiG77HT2LYMbGkvlGwvZbRtALMg",
+      "updateCommitment": "EiCItHLs3TQ1uv12FSgxiG77HT2LYMbGkvlGwvZbRtALMg"
+    },
+    "canonicalId": "did:ion:EiCN5kEBzpgnw_hbn4QNA1GE-PQbqLqv40Ewoq7wEvaj0w",
+    "longFormDid": "did:ion:EiCN5kEBzpgnw_hbn4QNA1GE-PQbqLqv40Ewoq7wEvaj0w:eyJkZWx0YSI6eyJwYXRjaGVzIjpbeyJhY3Rpb24iOiJyZXBsYWNlIiwiZG9jdW1lbnQiOnsicHVibGljS2V5cyI6W3siaWQiOiJrZXktMSIsInB1YmxpY0tleUp3ayI6eyJjcnYiOiJzZWNwMjU2azEiLCJrdHkiOiJFQyIsIngiOiJnTHhsdXFNMG92X2Q4dWpXV3JOdE1BZGVMdGozVmVhT0FFOHJabFJCbm5rIiwieSI6ImZOM2VnR1h0QmZ5NkZwU2FMNkFxV0I4clB5Q0ZOMjQ0NXQ1M0o5aGtSNGcifSwicHVycG9zZXMiOlsiYXV0aGVudGljYXRpb24iXSwidHlwZSI6IkVjZHNhU2VjcDI1NmsxVmVyaWZpY2F0aW9uS2V5MjAxOSJ9XSwic2VydmljZXMiOltdfX1dLCJ1cGRhdGVDb21taXRtZW50IjoiRWlDSXRITHMzVFExdXYxMkZTZ3hpRzc3SFQyTFlNYkdrdmxHd3ZaYlJ0QUxNZyJ9LCJzdWZmaXhEYXRhIjp7ImRlbHRhSGFzaCI6IkVpQ3pqbHdCQzJRV1l5Z3BxaFFHakhMLUR0T0ZYVEQ3cERrdjhKa1NKZEhOMFEiLCJyZWNvdmVyeUNvbW1pdG1lbnQiOiJFaUNJdEhMczNUUTF1djEyRlNneGlHNzdIVDJMWU1iR2t2bEd3dlpiUnRBTE1nIn0sInR5cGUiOiJjcmVhdGUifQ"
+  }
+}

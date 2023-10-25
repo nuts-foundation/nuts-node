@@ -37,6 +37,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/didion"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didkey"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
@@ -145,6 +146,7 @@ func (r *Module) Configure(_ core.ServerConfig) error {
 	r.didResolver.Register(didweb.MethodName, didweb.NewResolver())
 	r.didResolver.Register(didjwk.MethodName, didjwk.NewResolver())
 	r.didResolver.Register(didkey.MethodName, didkey.NewResolver())
+	r.didResolver.Register("ion", didion.UniversalResolver{})
 
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()

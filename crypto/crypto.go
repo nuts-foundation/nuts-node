@@ -22,10 +22,10 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"path"
 	"regexp"
 	"time"
@@ -196,7 +196,7 @@ func generateKeyPairAndKID(namingFunc KIDNamingFunc) (*ecdsa.PrivateKey, string,
 }
 
 func generateECKeyPair() (*ecdsa.PrivateKey, error) {
-	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	return ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
 }
 
 // Exists checks storage for an entry for the given legal entity and returns true if it exists

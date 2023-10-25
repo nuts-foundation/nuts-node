@@ -81,8 +81,15 @@ func (r Wrapper) handleOpenID4VPDemoSendRequest(echoCtx echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("invalid verifier_did: %w", err)
 	}
-	verifierURL := r.auth.PublicURL().JoinPath("iam", verifierNutsDID.ID)
-	verifierWebDID, err := didweb.URLToDID(*verifierURL)
+	var verifierWebDID *did.DID
+	var verifierURL *url.URL
+	if verifierNutsDID.Method == "nuts" {
+		verifierURL = r.auth.PublicURL().JoinPath("iam", verifierNutsDID.ID)
+		verifierWebDID, err = didweb.URLToDID(*verifierURL)
+	} else {
+		verifierURL = r.auth.PublicURL().JoinPath("iam", verifierNutsDID.String())
+		verifierWebDID = verifierNutsDID
+	}
 	if err != nil {
 		return fmt.Errorf("unable to convert did:nuts to web:did: %w", err)
 	}

@@ -28,6 +28,7 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -130,7 +131,16 @@ func (r PrivateKeyResolver) ResolvePrivateKey(ctx context.Context, id did.DID, v
 		return false
 	})
 	for _, key := range keys {
-		privateKey, err := r.PrivKeyResolver.Resolve(ctx, key.ID.String())
+
+		var keyID did.DID
+		if strings.HasPrefix(key.ID.String(), "#") {
+			// fragment-only key, refers controller DID
+			keyID = key.Controller
+			keyID.Fragment = keyID.Fragment
+		} else {
+			keyID = key.ID
+		}
+		privateKey, err := r.PrivKeyResolver.Resolve(ctx, keyID.String())
 		if err != nil {
 			if errors.Is(err, nutsCrypto.ErrPrivateKeyNotFound) {
 				continue
