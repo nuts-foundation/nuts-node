@@ -20,13 +20,26 @@ package iam
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
+	"time"
 )
+
+// secretSizeBits is the size of the generated random secrets (access tokens, pre-authorized codes) in bits.
+const secretSizeBits = 128
+
+// accessTokenValidity defines how long access tokens are valid.
+// TODO: Might want to make this configurable at some point
+const accessTokenValidity = 15 * time.Minute
 
 // serviceToService adds support for service-to-service OAuth2 flows,
 // which uses a custom vp_token grant to authenticate calls to the token endpoint.
@@ -98,4 +111,44 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	// todo fetch metadata using didDocument service data or .well-known path
 
 	return RequestAccessToken200JSONResponse{}, nil
+}
+
+func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentation vc.VerifiablePresentation, scope string) (*TokenResponse, error) {
+	accessToken := AccessToken{
+		Token:        generateCode(),
+		Issuer:       issuer.String(),
+		Expiration:   issueTime.Add(accessTokenValidity),
+		Presentation: presentation,
+	}
+	err := r.accessTokenStore(issuer).Put(accessToken.Token, accessToken)
+	if err != nil {
+		return nil, fmt.Errorf("unable to store access token: %w", err)
+	}
+	expiresIn := int(accessTokenValidity.Seconds())
+	return &TokenResponse{
+		AccessToken: accessToken.Token,
+		ExpiresIn:   &expiresIn,
+		Scope:       &scope,
+		TokenType:   "bearer",
+	}, nil
+}
+
+func (r Wrapper) accessTokenStore(issuer did.DID) storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "s2s", issuer.String(), "accesstoken")
+}
+
+func generateCode() string {
+	buf := make([]byte, secretSizeBits/8)
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+	return base64.URLEncoding.EncodeToString(buf)
+}
+
+type AccessToken struct {
+	Token        string
+	Issuer       string
+	Expiration   time.Time
+	Presentation vc.VerifiablePresentation
 }
