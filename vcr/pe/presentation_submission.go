@@ -20,11 +20,13 @@ package pe
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"strings"
 )
@@ -175,17 +177,16 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 // Resolve returns a map where each of the input descriptors is mapped to the corresponding VerifiableCredential.
 // If an input descriptor can't be mapped to a VC, an error is returned.
 // This function is specified by https://identity.foundation/presentation-exchange/#processing-of-submission-entries
-func (s PresentationSubmission) Resolve(presentations []vc.VerifiablePresentation) (map[string]vc.VerifiableCredential, error) {
-	var envelopeJSON []byte
-	if len(presentations) == 1 {
-		// TODO: This might not be right, caller might even use a JSON array as envelope with a single VP?
-		envelopeJSON, _ = json.Marshal(presentations[0])
-	} else {
-		envelopeJSON, _ = json.Marshal(presentations)
-	}
-	var envelope interface{}
-	if err := json.Unmarshal(envelopeJSON, &envelope); err != nil {
-		return nil, fmt.Errorf("unable to convert presentations to an interface: %w", err)
+func (s PresentationSubmission) Resolve(envelope interface{}) (map[string]vc.VerifiableCredential, error) {
+	switch envelope.(type) {
+	case []interface{}:
+		// list of VPs
+	case map[string]interface{}:
+		// single VP (JSON)
+	case string:
+		// single VP (JWT)
+	default:
+		return nil, errors.New("invalid Presentation Exchange envelope")
 	}
 
 	result := make(map[string]vc.VerifiableCredential)
@@ -253,4 +254,62 @@ func resolveCredential(path []string, mapping InputDescriptorMappingObject, valu
 	var decodedValueMap map[string]interface{}
 	_ = json.Unmarshal(decodedValueJSON, &decodedValueMap)
 	return resolveCredential(fullPath, *mapping.PathNested, decodedValueMap)
+}
+
+// Validate validates the Presentation Submission to the Verifiable Presentations and Presentation Definitions and returns the mapped credentials.
+// The credentials will be returned as map with the InputDescriptor.Id as key.
+// The Presentation Definitions are passed in the envelope, as specified by the PEX specification.
+// It assumes credentials of the presentations only map in 1 way to the input descriptors.
+func (s PresentationSubmission) Validate(envelope interface{}, definition PresentationDefinition) (map[string]vc.VerifiableCredential, error) {
+	actualCredentials, err := s.Resolve(envelope)
+	if err != nil {
+		return nil, fmt.Errorf("resolve credentials from presentation submission: %w", err)
+	}
+
+	// Create a new presentation submission the being validated should map the Input Descriptors to the same credentials.
+	// First, create a new submission
+	var presentations []vc.VerifiablePresentation
+	envelopeJSON, _ := json.Marshal(envelope)
+	if _, ok := envelope.([]interface{}); ok {
+		if err := json.Unmarshal(envelopeJSON, &presentations); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal envelope: %w", err)
+		}
+	} else {
+		var presentation vc.VerifiablePresentation
+		if err := json.Unmarshal(envelopeJSON, &presentation); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal envelope: %w", err)
+		}
+		presentations = []vc.VerifiablePresentation{presentation}
+	}
+	submissionBuilder := definition.PresentationSubmissionBuilder()
+	for _, presentation := range presentations {
+		signer, err := credential.PresentationSigner(presentation)
+		if err != nil {
+			return nil, fmt.Errorf("unable to derive presentation signer: %w", err)
+		}
+		submissionBuilder.AddWallet(*signer, presentation.VerifiableCredential)
+	}
+	_, signInstructions, err := submissionBuilder.Build("")
+	if err != nil {
+		return nil, err
+	}
+	if len(signInstructions) == 0 {
+		return nil, errors.New("presentation submission doesn't match presentation definition")
+	}
+	// Build a input descriptor -> credential map for comparison
+	expectedCredentials := make(map[string]vc.VerifiableCredential)
+	for _, signInstruction := range signInstructions {
+		for i, mapping := range signInstruction.Mappings {
+			expectedCredentials[mapping.Id] = signInstruction.VerifiableCredentials[i]
+		}
+	}
+	if len(actualCredentials) != len(expectedCredentials) {
+		return nil, fmt.Errorf("expected %d credentials, got %d", len(expectedCredentials), len(actualCredentials))
+	}
+	for inputDescriptorID, expectedCredential := range expectedCredentials {
+		if actualCredentials[inputDescriptorID].Raw() != expectedCredential.Raw() {
+			return nil, fmt.Errorf("incorrect mapping for input descriptor: %s", inputDescriptorID)
+		}
+	}
+	return expectedCredentials, nil
 }
