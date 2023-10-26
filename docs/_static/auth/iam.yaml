@@ -123,6 +123,82 @@ paths:
               schema:
                 type: string
                 format: uri
+  "/iam/{id}/authresponse":
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: the id part of the web DID
+        schema:
+          type: string
+          example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+      # Way to specify dynamic query parameters
+      # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
+      - in: query
+        name: params
+        schema:
+          type: object
+          additionalProperties:
+            type: string
+        style: form
+        explode: true
+    get:
+      summary: > 
+        Used by authorization servers to:
+          - send the authorization response through a HTTP GET (e.g. query parameters)
+          - redirect the browser after successful authorization (response was POSTed via backchannel)
+          - redirect the browser after failed authorization
+      operationId: handleAuthorizeRedirectResponse
+      tags:
+        - oauth2
+      responses:
+        default:
+          description: >
+            Response for the browser (HTML page or redirect).
+          content:
+            text/html:
+              schema:
+                type: string
+    post:
+      summary: Used by authorization servers to send the authorization response.
+      operationId: handleAuthorizeResponse
+      tags:
+        - oauth2
+      parameters:
+        - in: header
+          name: Content-Type
+          schema:
+            type: string
+            example: application/x-www-form-urlencoded
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        "200":
+          description: Authorization response accepted.
+          content:
+            text/html:
+              schema:
+                type: string
+            text/plain:
+              schema:
+                type: string
+        default:
+          description: >
+            If an error occurs, the server return an error. If the user-agent is a browser, it send a response usable by the browser (HTML page or redirect).
+            If the user-agent is an OAuth2/OpenID client (the authorization server sends the response over a backchannel),
+            it will return a JSON response.
+          content:
+            text/html:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: object
   # TODO: What format to use? (codegenerator breaks on aliases)
   # See issue https://github.com/nuts-foundation/nuts-node/issues/2365
   # create aliases for the specced path

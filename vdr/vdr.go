@@ -100,6 +100,10 @@ func (r *Module) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nuts
 		return nil, fmt.Errorf("did:web unmarshal error (%s): %w", nutsDID, err)
 	}
 	result.AlsoKnownAs = append(result.AlsoKnownAs, nutsDID.URI())
+	result.Context = []ssi.URI{
+		did.DIDContextV1URI(),
+		didnuts.JWS2020ContextV1URI(),
+	}
 	// did:web support is currently just for supporting third party systems resolving key material,
 	// so no need to retain services (which often refer to services in other did:nuts documents, complicating things).
 	result.Service = nil

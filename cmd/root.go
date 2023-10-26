@@ -214,7 +214,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPIv1.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
-	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance))
+	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, cryptoInstance, storageInstance))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 

@@ -45,6 +45,7 @@ type InputDescriptor struct {
 	Id          string                                         `json:"id"`
 	Name        string                                         `json:"name,omitempty"`
 	Purpose     string                                         `json:"purpose,omitempty"`
+	Schema      []map[string]interface{}                       `json:"schema,omitempty"`
 }
 
 // IsHolderItems

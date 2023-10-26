@@ -43,7 +43,7 @@ var holderDID = did.MustParseDID("did:web:example.com:holder")
 var issuerDID = did.MustParseDID("did:web:example.com:issuer")
 
 func TestWrapper_sendPresentationRequest(t *testing.T) {
-	instance := New(nil, nil, nil, nil)
+	instance := New(nil, nil, nil, nil, nil)
 
 	redirectURI, _ := url.Parse("https://example.com/redirect")
 	verifierID, _ := url.Parse("https://example.com/verifier")
@@ -51,7 +51,7 @@ func TestWrapper_sendPresentationRequest(t *testing.T) {
 
 	httpResponse := &stubResponseWriter{}
 
-	err := instance.sendPresentationRequest(context.Background(), httpResponse, "test-scope", *redirectURI, *verifierID, *walletID)
+	err := instance.sendPresentationRequest(context.Background(), httpResponse, []string{"test-scope"}, *redirectURI, *verifierID, *walletID)
 
 	require.NoError(t, err)
 	require.Equal(t, http.StatusFound, httpResponse.statusCode)
@@ -102,7 +102,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		mockAuth.EXPECT().PresentationDefinitions().Return(peStore)
 		mockWallet.EXPECT().List(gomock.Any(), holderDID).Return(walletCredentials, nil)
 		mockVDR.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
-		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t))
+		instance := New(mockAuth, mockVCR, mockVDR, nil, storage.NewTestStorageEngine(t))
 
 		params := map[string]string{
 			"scope":               "eOverdracht-overdrachtsbericht",
@@ -125,7 +125,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		_ = peStore.LoadFromFile("test/presentation_definition_mapping.json")
 		mockAuth := auth.NewMockAuthenticationServices(ctrl)
 		mockAuth.EXPECT().PresentationDefinitions().Return(peStore)
-		instance := New(mockAuth, nil, nil, nil)
+		instance := New(mockAuth, nil, nil, nil, nil)
 
 		params := map[string]string{
 			"scope":               "unsupported",
@@ -140,7 +140,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		assert.Nil(t, response)
 	})
 	t.Run("invalid response_mode", func(t *testing.T) {
-		instance := New(nil, nil, nil, nil)
+		instance := New(nil, nil, nil, nil, nil)
 		params := map[string]string{
 			"scope":               "eOverdracht-overdrachtsbericht",
 			"response_type":       "code",

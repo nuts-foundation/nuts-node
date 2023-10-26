@@ -19,12 +19,9 @@
 package verifier
 
 import (
-	crypt "crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
@@ -144,7 +141,6 @@ func (v *verifier) validateJSONLDCredential(credentialToVerify vc.VerifiableCred
 		return errVerificationMethodNotOfIssuer
 	}
 
-	// find key
 	pk, err := v.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), at, resolver.NutsSigningKeyType)
 	if err != nil {
 		if at == nil {
@@ -153,7 +149,6 @@ func (v *verifier) validateJSONLDCredential(credentialToVerify vc.VerifiableCred
 		return fmt.Errorf("unable to resolve valid signing key at given time: %w", err)
 	}
 
-	// Try first with the correct LDProof implementation
 	return ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, pk)
 }
 
@@ -405,11 +400,5 @@ func (v *verifier) validateType(credential vc.VerifiableCredential) error {
 	if len(credential.Type) > 2 {
 		return errors.New("verifiable credential must list at most 2 types")
 	}
-	// "VerifiableCredential" should be one of the types
-	for _, curr := range credential.Type {
-		if curr == vc.VerifiableCredentialTypeV1URI() {
-			return nil
-		}
-	}
-	return fmt.Errorf("verifiable credential does not list '%s' as type", vc.VerifiableCredentialTypeV1URI())
+	return nil
 }

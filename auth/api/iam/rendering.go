@@ -37,8 +37,9 @@ type CredentialInfo struct {
 }
 
 func makeCredentialInfo(cred vc.VerifiableCredential) CredentialInfo {
-	result := CredentialInfo{
-		ID: cred.ID.String(),
+	result := CredentialInfo{}
+	if cred.ID != nil {
+		result.ID = cred.ID.String()
 	}
 
 	for _, curr := range cred.Type {
