@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestParsePresentationSubmission(t *testing.T) {
@@ -167,6 +168,222 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
 		println(string(actualJSON))
 		assert.JSONEq(t, expectedJSON, string(actualJSON))
+	})
+}
+
+func TestPresentationSubmission_Resolve(t *testing.T) {
+	//holder1 := did.MustParseDID("did:example:1")
+	//holder2 := did.MustParseDID("did:example:2")
+	id1 := ssi.MustParseURI("1")
+	id2 := ssi.MustParseURI("2")
+	//id3 := ssi.MustParseURI("3")
+	now := time.Now()
+	vc1 := credentialToJSONLD(vc.VerifiableCredential{
+		ID:             &id1,
+		ExpirationDate: &now,
+		CredentialSubject: []interface{}{
+			map[string]interface{}{
+				// weird field for testing error case: parsing credentialSubject as JSON-LD Verifiable Credential
+				// (expirationDate must be a JSON string containing a valid XML date-time)
+				"expirationDate": "yesterday",
+				// weird field for testing error case: parsing credentialSubject as JSON-LD Verifiable Presentation
+				// (holder must be a JSON string containing a URI)
+				"holder": []string{"1", "2"},
+				"name":   "John Doe",
+			},
+		},
+	})
+	vc2 := credentialToJSONLD(vc.VerifiableCredential{ID: &id2})
+	//vc3 := credentialToJSONLD(vc.VerifiableCredential{ID: &id3})
+
+	t.Run("1 presentation, JSON-LD", func(t *testing.T) {
+		vp := vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{vc1},
+		}
+		const submissionJSON = `
+{
+  "descriptor_map": [
+    {
+      "format": "ldp_vc",
+      "id": "1",
+      "path": "$.verifiableCredential"
+    }
+  ]
+}
+`
+		var submission PresentationSubmission
+		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
+
+		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+
+		require.NoError(t, err)
+		assert.Len(t, credentials, 1)
+		assert.Equal(t, vc1.ID, credentials["1"].ID)
+	})
+	t.Run("2 credentials, JSON-LD", func(t *testing.T) {
+		vp := vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{vc1, vc2},
+		}
+		const submissionJSON = `
+{
+  "descriptor_map": [
+    {
+      "format": "ldp_vc",
+      "id": "1",
+      "path": "$.verifiableCredential[0]"
+    },
+    {
+      "format": "ldp_vc",
+      "id": "2",
+      "path": "$.verifiableCredential[1]"
+    }
+  ]
+}
+`
+		var submission PresentationSubmission
+		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
+
+		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+
+		require.NoError(t, err)
+		assert.Len(t, credentials, 2)
+		assert.Equal(t, vc1.ID, credentials["1"].ID)
+		assert.Equal(t, vc2.ID, credentials["2"].ID)
+	})
+	t.Run("2 presentations, JSON-LD", func(t *testing.T) {
+		vp1 := vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{vc1},
+		}
+		vp2 := vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{vc2},
+		}
+		const submissionJSON = `
+{
+  "descriptor_map": [
+    {
+      "format": "ldp_vp",
+      "id": "1",
+      "path": "$[0]",
+      "path_nested": {
+        "id": "1",
+        "format": "ldp_vc",
+        "path": "$.verifiableCredential"
+      }
+    },
+    {
+      "format": "ldp_vp",
+      "id": "2",
+      "path": "$[1]",
+      "path_nested": {
+        "id": "2",
+        "format": "ldp_vc",
+        "path": "$.verifiableCredential"
+      }
+    }
+  ]
+}
+`
+		var submission PresentationSubmission
+		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
+
+		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp1, vp2})
+
+		require.NoError(t, err)
+		assert.Len(t, credentials, 2)
+		assert.Equal(t, vc1.ID, credentials["1"].ID)
+		assert.Equal(t, vc2.ID, credentials["2"].ID)
+	})
+	t.Run("expected credential, got presentation", func(t *testing.T) {
+		vp := vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{vc1},
+		}
+		const submissionJSON = `
+{
+  "descriptor_map": [
+    {
+      "format": "ldp_vp",
+      "id": "1",
+      "path": "$.verifiableCredential"
+    }
+  ]
+}
+`
+		var submission PresentationSubmission
+		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
+
+		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+
+		require.EqualError(t, err, "unable to resolve credential for input descriptor '1': path '$.verifiableCredential' (level 0) does not reference a credential")
+		assert.Nil(t, credentials)
+	})
+	t.Run("invalid JSON-LD credential", func(t *testing.T) {
+		vp := vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{vc1},
+		}
+		const submissionJSON = `
+{
+  "descriptor_map": [
+    {
+      "format": "ldp_vc",
+      "id": "1",
+      "path": "$.verifiableCredential.credentialSubject"
+    }
+  ]
+}
+`
+		var submission PresentationSubmission
+		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
+
+		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+
+		require.ErrorContains(t, err, "unable to resolve credential for input descriptor '1': invalid JSON-LD credential at path")
+		assert.Nil(t, credentials)
+	})
+	t.Run("invalid JSON-LD presentation", func(t *testing.T) {
+		vp := vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{vc1},
+		}
+		const submissionJSON = `
+{
+  "descriptor_map": [
+    {
+      "format": "ldp_vp",
+      "id": "1",
+      "path": "$.verifiableCredential.credentialSubject"
+    }
+  ]
+}
+`
+		var submission PresentationSubmission
+		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
+
+		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+
+		require.ErrorContains(t, err, "unable to resolve credential for input descriptor '1': invalid JSON-LD presentation at path")
+		assert.Nil(t, credentials)
+	})
+	t.Run("path does not resolve to a VP or VC", func(t *testing.T) {
+		vp := vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{vc1},
+		}
+		const submissionJSON = `
+{
+  "descriptor_map": [
+    {
+      "format": "ldp_vc",
+      "id": "1",
+      "path": "$.verifiableCredential.expirationDate"
+    }
+  ]
+}
+`
+		var submission PresentationSubmission
+		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
+
+		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+
+		assert.EqualError(t, err, "unable to resolve credential for input descriptor '1': value of Go type 'string' at path '$.verifiableCredential.expirationDate' (level 0) can't be decoded using format 'ldp_vc'")
+		assert.Nil(t, credentials)
 	})
 }
 
