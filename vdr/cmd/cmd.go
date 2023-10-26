@@ -71,6 +71,7 @@ func createCmd() *cobra.Command {
 			CapabilityDelegation: new(bool),
 			CapabilityInvocation: new(bool),
 			KeyAgreement:         new(bool),
+			Type:                 new(string),
 		},
 		Controllers: new([]string),
 		SelfControl: new(bool),
@@ -107,6 +108,7 @@ func createCmd() *cobra.Command {
 	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.KeyFlags.Is(management.KeyAgreementUsage), setUsage(defs.KeyFlags.Is(management.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
 	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", defs.SelfControl, setUsage(defs.SelfControl, "Pass '%t' to %s DID Document control."))
 	result.Flags().StringSliceVar(createRequest.Controllers, "controllers", []string{}, "Comma-separated list of DIDs that can control the generated DID Document.")
+	result.Flags().StringVar(createRequest.Type, "verificationMethodType", string(defs.VerificationMethodType), "The type of key to generate. Valid values are: JsonWebKey2020, EcdsaSecp256k1VerificationKey2019, Ed25519VerificationKey2018, RsaVerificationKey2018")
 
 	return result
 }

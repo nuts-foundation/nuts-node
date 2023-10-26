@@ -17,8 +17,9 @@ var oidNamedCurveP256k1 = asn1.ObjectIdentifier{1, 3, 132, 0, 10}
 var oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
 
 type asn1PKCS8Container struct {
-	Algo pkix.AlgorithmIdentifier
-	Data []byte
+	Version int
+	Algo    pkix.AlgorithmIdentifier
+	Data    []byte
 }
 
 type asn1ECPrivateKey struct {

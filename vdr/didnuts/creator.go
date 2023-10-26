@@ -68,9 +68,10 @@ type Creator struct {
 // DefaultCreationOptions returns the default DIDCreationOptions when creating DID Documents.
 func DefaultCreationOptions() management.DIDCreationOptions {
 	return management.DIDCreationOptions{
-		Controllers: []did.DID{},
-		KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage,
-		SelfControl: true,
+		Controllers:            []did.DID{},
+		KeyFlags:               management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage,
+		SelfControl:            true,
+		VerificationMethodType: ssi.JsonWebKey2020,
 	}
 }
 

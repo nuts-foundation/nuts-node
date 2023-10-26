@@ -95,7 +95,7 @@ func (a *Wrapper) AddNewVerificationMethod(ctx context.Context, request AddNewVe
 	if request.Body.Type == nil {
 		verificationMethodType = ssi.JsonWebKey2020
 	} else {
-		verificationMethodType = *request.Body.Type
+		verificationMethodType = ssi.KeyType(*request.Body.Type)
 	}
 	vm, err := a.DocManipulator.AddVerificationMethod(ctx, *d, opts.ToFlags(didnuts.DefaultCreationOptions().KeyFlags), verificationMethodType)
 	if err != nil {
@@ -135,6 +135,9 @@ func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject)
 	options.KeyFlags = request.Body.VerificationMethodRelationship.ToFlags(options.KeyFlags)
 	if request.Body.SelfControl != nil {
 		options.SelfControl = *request.Body.SelfControl
+	}
+	if request.Body.Type != nil {
+		options.VerificationMethodType = ssi.KeyType(*request.Body.Type)
 	}
 
 	doc, _, err := a.VDR.Create(ctx, options)
