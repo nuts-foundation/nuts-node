@@ -67,7 +67,7 @@ func ParsePublicURLWithScheme(input string, allowReserved bool, allowedSchemes .
 	if len(allowedSchemes) > 0 && !slices.Contains(allowedSchemes, parsed.Scheme) {
 		return nil, fmt.Errorf("scheme must be %s", strings.Join(allowedSchemes, " or "))
 	}
-	if net.ParseIP(parsed.Hostname()) != nil {
+	if net.ParseIP(parsed.Hostname()) != nil && !allowReserved {
 		return nil, errors.New("hostname is IP")
 	}
 	if !allowReserved && isReserved(parsed) {

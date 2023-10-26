@@ -196,7 +196,6 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
 	ownDID := idToDID(request.Id)
-
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -244,6 +243,23 @@ func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMet
 	identity := r.auth.PublicURL().JoinPath("iam", request.Id)
 
 	return OAuthClientMetadata200JSONResponse(clientMetadata(*identity)), nil
+}
+func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error) {
+	if len(request.Params.Scope) == 0 {
+		return PresentationDefinition200JSONResponse(PresentationDefinition{}), nil
+	}
+
+	// todo: only const scopes supported, scopes with variable arguments not supported yet
+	// todo: we only take the first scope as main scope, when backends are introduced we need to use all scopes and send them as one to the backend.
+	scopes := strings.Split(request.Params.Scope, " ")
+	presentationDefinition := r.auth.PresentationDefinitions().ByScope(scopes[0])
+	if presentationDefinition == nil {
+		return PresentationDefinition400JSONResponse{
+			Code: "invalid_scope",
+		}, nil
+	}
+
+	return PresentationDefinition200JSONResponse(*presentationDefinition), nil
 }
 
 func createSession(params map[string]string, ownDID did.DID) *Session {

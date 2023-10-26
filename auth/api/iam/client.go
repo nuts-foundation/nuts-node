@@ -27,6 +27,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -55,9 +57,9 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 		return nil, err
 	}
 
-	request := &http.Request{
-		Method: "GET",
-		URL:    metadataURL,
+	request, err := http.NewRequest(http.MethodGet, metadataURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 	response, err := hb.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
@@ -79,4 +81,42 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 	}
 
 	return &metadata, nil
+}
+
+// PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
+func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes []string) (*PresentationDefinition, error) {
+	presentationDefinitionURL, err := core.ParsePublicURL(definitionEndpoint, hb.config.Strictmode)
+	if err != nil {
+		return nil, err
+	}
+	presentationDefinitionURL.RawQuery = url.Values{"scope": []string{strings.Join(scopes, " ")}}.Encode()
+
+	// create a GET request with scope query param
+	request, err := http.NewRequest(http.MethodGet, presentationDefinitionURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
+		rse := httpErr.(core.HttpError)
+		if ok, oauthErr := TestOAuthErrorCode(rse.ResponseBody, InvalidScope); ok {
+			return nil, oauthErr
+		}
+		return nil, httpErr
+	}
+
+	var presentationDefinition PresentationDefinition
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return nil, fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &presentationDefinition); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
+	}
+
+	return &presentationDefinition, nil
 }

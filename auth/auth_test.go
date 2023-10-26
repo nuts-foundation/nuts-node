@@ -134,7 +134,6 @@ func TestAuth_Configure(t *testing.T) {
 
 			{false, "", "invalid auth.publicurl: must provide url"},
 			{false, ":invalid", "invalid auth.publicurl: parse \":invalid\": missing protocol scheme"},
-			{false, "https://127.0.0.1", "invalid auth.publicurl: hostname is IP"},
 			{false, "something://nuts.nl", "invalid auth.publicurl: scheme must be http or https"},
 		}
 		authCfg := TestConfig()

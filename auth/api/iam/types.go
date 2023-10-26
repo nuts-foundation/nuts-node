@@ -20,6 +20,7 @@ package iam
 
 import (
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -31,6 +32,9 @@ type DIDDocumentMetadata = resolver.DocumentMetadata
 
 // ErrorResponse is an alias
 type ErrorResponse = OAuth2Error
+
+// PresentationDefinition is an alias
+type PresentationDefinition = pe.PresentationDefinition
 
 const (
 	// responseTypeParam is the name of the response_type parameter.
@@ -202,6 +206,10 @@ type OAuthAuthorizationServerMetadata struct {
 	// PreAuthorizedGrantAnonymousAccessSupported indicates whether anonymous access (requests without client_id) for pre-authorized code grant flows.
 	// See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-oauth-20-authorization-serv
 	PreAuthorizedGrantAnonymousAccessSupported bool `json:"pre-authorized_grant_anonymous_access_supported,omitempty"`
+
+	// PresentationDefinitionEndpoint defines the URL of the authorization server's presentation definition endpoint.
+	// See https://nuts-foundation.gitbook.io/drafts/rfc/rfc021-vp_token-grant-type
+	PresentationDefinitionEndpoint string `json:"presentation_definition_endpoint,omitempty"`
 
 	// PresentationDefinitionUriSupported specifies whether the Wallet supports the transfer of presentation_definition by reference, with true indicating support.
 	// If omitted, the default value is true. (hence pointer, or add custom unmarshalling)

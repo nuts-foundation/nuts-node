@@ -52,9 +52,10 @@ func authorizationServerMetadata(identity url.URL) OAuthAuthorizationServerMetad
 		TokenEndpoint:          identity.JoinPath("token").String(),
 		GrantTypesSupported:    grantTypesSupported,
 		PreAuthorizedGrantAnonymousAccessSupported: true,
-		VPFormats:                vpFormatsSupported,
-		VPFormatsSupported:       vpFormatsSupported,
-		ClientIdSchemesSupported: clientIdSchemesSupported,
+		PresentationDefinitionEndpoint:             identity.JoinPath("presentation_definition").String(),
+		VPFormats:                                  vpFormatsSupported,
+		VPFormatsSupported:                         vpFormatsSupported,
+		ClientIdSchemesSupported:                   clientIdSchemesSupported,
 	}
 }
 

@@ -52,8 +52,8 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 		assert.Nil(t, u)
 	})
 	t.Run("no IP allowed", func(t *testing.T) {
-		issuer := "http://127.0.0.1/iam/id"
-		u, err := IssuerIdToWellKnown(issuer, authzServerWellKnown, false)
+		issuer := "https://127.0.0.1/iam/id"
+		u, err := IssuerIdToWellKnown(issuer, authzServerWellKnown, true)
 		assert.ErrorContains(t, err, "hostname is IP")
 		assert.Nil(t, u)
 	})
@@ -83,9 +83,10 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		TokenEndpoint:          identity + "/token",
 		GrantTypesSupported:    []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
 		PreAuthorizedGrantAnonymousAccessSupported: true,
-		VPFormats:                vpFormatsSupported,
-		VPFormatsSupported:       vpFormatsSupported,
-		ClientIdSchemesSupported: []string{"did"},
+		PresentationDefinitionEndpoint:             identity + "/presentation_definition",
+		VPFormats:                                  vpFormatsSupported,
+		VPFormatsSupported:                         vpFormatsSupported,
+		ClientIdSchemesSupported:                   []string{"did"},
 	}
 	assert.Equal(t, expected, authorizationServerMetadata(*identityURL))
 }
