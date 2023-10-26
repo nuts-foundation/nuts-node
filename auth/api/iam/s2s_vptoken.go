@@ -116,12 +116,16 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 
 func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentation vc.VerifiablePresentation, scope string) (*oauth.TokenResponse, error) {
 	accessToken := AccessToken{
-		Token:        crypto.GenerateNonce(),
-		Issuer:       issuer.String(),
+		Token:  crypto.GenerateNonce(),
+		Issuer: issuer.String(),
+		// TODO: set ClientId
+		ClientId:     "",
+		IssuedAt:     issueTime,
 		Expiration:   issueTime.Add(accessTokenValidity),
+		Scope:        scope,
 		Presentation: presentation,
 	}
-	err := r.accessTokenStore(issuer).Put(accessToken.Token, accessToken)
+	err := r.s2sAccessTokenStore().Put(accessToken.Token, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
@@ -134,13 +138,18 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 	}, nil
 }
 
-func (r Wrapper) accessTokenStore(issuer did.DID) storage.SessionStore {
-	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "s2s", issuer.String(), "accesstoken")
+func (r Wrapper) s2sAccessTokenStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "s2s", "accesstoken")
 }
 
 type AccessToken struct {
-	Token        string
-	Issuer       string
+	Token string
+	// Issuer and Subject of a token are always the same.
+	Issuer string
+	// ClientId is the DID of the entity requesting the access token. The Client needs to proof its id through proof-of-possession of the key for the DID.
+	ClientId     string
+	IssuedAt     time.Time
 	Expiration   time.Time
+	Scope        string
 	Presentation vc.VerifiablePresentation
 }

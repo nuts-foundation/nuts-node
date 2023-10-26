@@ -36,6 +36,7 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
+	"time"
 )
 
 var _ core.Routable = &Wrapper{}
@@ -142,6 +143,60 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 			Code: oauth.UnsupportedGrantType,
 		}
 	}
+}
+
+// IntrospectAccessToken allows the resource server (XIS/EHR) to introspect details of an access token issued by this node
+func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
+	// Client authentication if required, return 401 if fails.
+	// TODO: Is this relevant? Should be handled by API authentication middleware
+	clientAuthorized := true
+	if !clientAuthorized {
+		return IntrospectAccessToken401Response{}, nil
+	}
+
+	// Validate token
+	if request.Body.Token == "" {
+		// Return 200 + 'Active = false' when token is invalid or malformed
+		return IntrospectAccessToken200JSONResponse{}, nil
+	}
+
+	token := AccessToken{}
+	if err := r.s2sAccessTokenStore().Get(request.Body.Token, &token); err != nil {
+		// Return 200 + 'Active = false' when token is invalid or malformed
+		return IntrospectAccessToken200JSONResponse{}, err
+	}
+
+	if token.Expiration.Before(time.Now()) {
+		// Return 200 + 'Active = false' when token is invalid or malformed
+		// can happen between token expiration and pruning of database
+		return IntrospectAccessToken200JSONResponse{}, nil
+	}
+
+	// Create and return introspection response
+	iat := int(token.IssuedAt.Unix())
+	exp := int(token.Expiration.Unix())
+	response := IntrospectAccessToken200JSONResponse{
+		Active:   true,
+		Iat:      &iat,
+		Exp:      &exp,
+		Iss:      &token.Issuer,
+		Sub:      &token.Issuer,
+		ClientId: &token.ClientId,
+		// TODO: include what resources the token is valid for
+		Aud:   nil,
+		Scope: &token.Scope,
+		Vcs:   &token.Presentation.VerifiableCredential,
+
+		// TODO: user authentication, used in OpenID4VP flow
+		FamilyName:     nil,
+		Prefix:         nil,
+		Initials:       nil,
+		AssuranceLevel: nil,
+		Email:          nil,
+		UserRole:       nil,
+		Username:       nil,
+	}
+	return response, nil
 }
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.

@@ -20,6 +20,7 @@ package iam
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -29,11 +30,13 @@ import (
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	oauthServices "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -41,6 +44,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"time"
 )
 
 var nutsDID = did.MustParseDID("did:nuts:123")
@@ -243,6 +247,86 @@ func TestWrapper_HandleTokenRequest(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.UnsupportedGrantType, "")
 		assert.Nil(t, res)
+	})
+}
+
+func TestWrapper_IntrospectAccessToken(t *testing.T) {
+	// mvp to store access token
+	ctx := newTestClient(t)
+
+	// validate all fields are there after introspection
+	t.Run("error - no token provided", func(t *testing.T) {
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: ""}})
+		require.NoError(t, err)
+		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
+	})
+	t.Run("error - does not exist", func(t *testing.T) {
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "does not exist"}})
+		require.ErrorIs(t, err, storage.ErrNotFound)
+		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
+	})
+	t.Run("error - expired token", func(t *testing.T) {
+		token := AccessToken{Expiration: time.Now().Add(-time.Second)}
+		require.NoError(t, ctx.client.s2sAccessTokenStore().Put("token", token))
+
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+
+		require.NoError(t, err)
+		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
+	})
+	t.Run("ok", func(t *testing.T) {
+		token := AccessToken{Expiration: time.Now().Add(time.Second)}
+		require.NoError(t, ctx.client.s2sAccessTokenStore().Put("token", token))
+
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+
+		require.NoError(t, err)
+		tokenResponse, ok := res.(IntrospectAccessToken200JSONResponse)
+		require.True(t, ok)
+		assert.True(t, tokenResponse.Active)
+	})
+
+	t.Run(" ok - s2s flow", func(t *testing.T) {
+		// TODO: this should be an integration test to make sure all fields are set
+		credential, err := vc.ParseVerifiableCredential(jsonld.TestOrganizationCredential)
+		require.NoError(t, err)
+		presentation := vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{*credential},
+		}
+		tNow := time.Now()
+		token := AccessToken{
+			Token:        "token",
+			Issuer:       "resource-owner",
+			ClientId:     "client",
+			IssuedAt:     tNow,
+			Expiration:   tNow.Add(time.Minute),
+			Scope:        "test",
+			Presentation: presentation,
+		}
+		pStr := func(s string) *string { return &s }
+		pTime := func(t time.Time) *int {
+			tInt := int(t.Unix())
+			return &tInt
+		}
+		require.NoError(t, ctx.client.s2sAccessTokenStore().Put(token.Token, token))
+		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
+			Active:   true,
+			ClientId: pStr("client"),
+			Exp:      pTime(tNow.Add(time.Minute)),
+			Iat:      pTime(tNow),
+			Iss:      pStr("resource-owner"),
+			Scope:    pStr("test"),
+			Sub:      pStr("resource-owner"),
+			Vcs:      &[]vc.VerifiableCredential{*credential},
+		})
+		require.NoError(t, err)
+
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+
+		require.NoError(t, err)
+		tokenResponse, err := json.Marshal(res)
+		assert.NoError(t, err)
+		assert.JSONEq(t, string(expectedResponse), string(tokenResponse))
 	})
 }
 
