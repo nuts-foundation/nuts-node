@@ -112,7 +112,7 @@ func TestCreator_Create(t *testing.T) {
 			keyCreator := nutsCrypto.NewMockKeyCreator(ctrl)
 			creator := Creator{KeyStore: keyCreator}
 
-			keyCreator.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
+			keyCreator.EXPECT().New(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
 				key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				keyName, _ := fn(key.Public())
 				return nutsCrypto.TestKey{
@@ -161,7 +161,7 @@ func TestCreator_Create(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
 		creator := Creator{KeyStore: mockKeyStore}
-		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		_, _, err := creator.Create(nil, DefaultCreationOptions())
 
@@ -176,7 +176,7 @@ func TestCreator_Create(t *testing.T) {
 			KeyFlags:    management.AssertionMethodUsage,
 			SelfControl: false,
 		}
-		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		_, _, err := creator.Create(nil, ops)
 

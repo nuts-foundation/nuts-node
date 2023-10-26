@@ -153,7 +153,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	key, _ := client.New(audit.TestContext(), ECP256Key, StringNamingFunc(kid))
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, key)
@@ -197,7 +197,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	key, _ := client.New(audit.TestContext(), ECP256Key, StringNamingFunc(kid))
 
 	t.Run("creates valid JWS", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
@@ -244,7 +244,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 func TestCrypto_EncryptJWE(t *testing.T) {
 	client := createCrypto(t)
 
-	key, _ := client.New(audit.TestContext(), StringNamingFunc("did:nuts:1234#key-1"))
+	key, _ := client.New(audit.TestContext(), ECP256Key, StringNamingFunc("did:nuts:1234#key-1"))
 	public := key.Public()
 
 	headers := map[string]interface{}{"typ": "JWT", "kid": key.KID()}
@@ -327,7 +327,7 @@ func TestCrypto_DecryptJWE(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "did:nuts:1234#key-1"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	key, _ := client.New(audit.TestContext(), ECP256Key, StringNamingFunc(kid))
 
 	t.Run("decrypts valid JWE", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})

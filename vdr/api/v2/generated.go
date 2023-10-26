@@ -22,11 +22,27 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// Defines values for CreateDIDOptionsVerificationMethodType.
+const (
+	EcdsaSecp256k1VerificationKey2019 CreateDIDOptionsVerificationMethodType = "EcdsaSecp256k1VerificationKey2019"
+	Ed25519VerificationKey2018        CreateDIDOptionsVerificationMethodType = "Ed25519VerificationKey2018"
+	JsonWebKey2020                    CreateDIDOptionsVerificationMethodType = "JsonWebKey2020"
+	RsaVerificationKey2018            CreateDIDOptionsVerificationMethodType = "RsaVerificationKey2018"
+)
+
 // CreateDIDOptions defines model for CreateDIDOptions.
 type CreateDIDOptions struct {
 	// Id The ID of the DID document. If not given, a random UUID is generated.
 	Id *string `json:"id,omitempty"`
+
+	// VerificationMethodType The type of the verification method to be generated. Defaults to JsonWebKey2020 with a P-256 EC key.
+	// See [the did core spec](https://www.w3.org/TR/did-core/#verification-method-types) for more information.
+	VerificationMethodType *CreateDIDOptionsVerificationMethodType `json:"verificationMethodType,omitempty"`
 }
+
+// CreateDIDOptionsVerificationMethodType The type of the verification method to be generated. Defaults to JsonWebKey2020 with a P-256 EC key.
+// See [the did core spec](https://www.w3.org/TR/did-core/#verification-method-types) for more information.
+type CreateDIDOptionsVerificationMethodType string
 
 // DIDResolutionResult defines model for DIDResolutionResult.
 type DIDResolutionResult struct {

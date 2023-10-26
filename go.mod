@@ -9,6 +9,7 @@ require (
 	github.com/avast/retry-go/v4 v4.5.1
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.9.3
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
 	github.com/dlclark/regexp2 v1.10.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/goodsign/monday v1.0.1
@@ -72,7 +73,6 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20231011050154-1d073bb38998 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect

@@ -89,7 +89,7 @@ func Test_verifier_Validate(t *testing.T) {
 	t.Run("JWT", func(t *testing.T) {
 		// Create did:jwk for issuer, and sign credential
 		keyStore := crypto.NewMemoryCryptoInstance()
-		key, err := keyStore.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
+		key, err := keyStore.New(audit.TestContext(), crypto.ECP256Key, func(key crypt.PublicKey) (string, error) {
 			keyAsJWK, _ := jwk.FromRaw(key)
 			keyJSON, _ := json.Marshal(keyAsJWK)
 			return "did:jwk:" + base64.RawStdEncoding.EncodeToString(keyJSON) + "#0", nil

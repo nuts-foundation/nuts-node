@@ -22,6 +22,7 @@ import (
 	"crypto"
 	"encoding/json"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -55,12 +56,12 @@ func TestManager_Create(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
-		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
+		keyStore.EXPECT().New(gomock.Any(), nutsCrypto.ECP256Key, gomock.Any()).Return(nutsCrypto.TestPublicKey{
 			PublicKey: publicKey,
 		}, nil)
 		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
 
-		document, key, err := m.create(audit.TestContext(), "e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4")
+		document, key, err := m.create(audit.TestContext(), "e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4", ssi.JsonWebKey2020)
 		require.NoError(t, err)
 		require.NotNil(t, document)
 		require.NotNil(t, key)

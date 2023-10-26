@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
 	"github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network"
@@ -81,7 +82,7 @@ func createTokenCommand() *cobra.Command {
 
 			if !instance.Exists(cmd.Context(), http.AdminTokenSigningKID) {
 				cmd.Println("Token signing key not found, generating new key...")
-				_, err := instance.New(ctx, func(key crypto.PublicKey) (string, error) {
+				_, err := instance.New(ctx, nutsCrypto.ECP256Key, func(key crypto.PublicKey) (string, error) {
 					return http.AdminTokenSigningKID, nil
 				})
 				if err != nil {

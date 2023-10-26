@@ -123,7 +123,6 @@ type RequestAccessTokenJSONBody struct {
 	Scope string `json:"scope"`
 
 	// UserID The ID of the user for which this access token is requested.
-	// It's handled as opaque ID and is scoped to the requester DID.
 	UserID   *string `json:"userID,omitempty"`
 	Verifier string  `json:"verifier"`
 }
@@ -160,7 +159,7 @@ type ServerInterface interface {
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
-	// Requests an access token using the vp_token-bearer grant.
+	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{did}/request-access-token)
 	RequestAccessToken(ctx echo.Context, did string) error
 }
@@ -686,7 +685,7 @@ type StrictServerInterface interface {
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
-	// Requests an access token using the vp_token-bearer grant.
+	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{did}/request-access-token)
 	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
 }

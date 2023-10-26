@@ -24,6 +24,7 @@ import (
 	"encoding/pem"
 	"github.com/stretchr/testify/require"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto/test"
@@ -75,36 +76,70 @@ func TestCrypto_pemToPublicKey(t *testing.T) {
 	})
 }
 
-func TestPemToSigner(t *testing.T) {
-	t.Run("Convert ED25519 key", func(t *testing.T) {
-		pem, _ := os.ReadFile("../test/ed25519.sk")
-		signer, err := PemToPrivateKey(pem)
-		assert.NoError(t, err)
-		assert.NotNil(t, signer)
-	})
+func TestPrivateKeyMarshalling(t *testing.T) {
+	type testCase struct {
+		file string
+		err  string
+	}
 
-	t.Run("Convert EC key", func(t *testing.T) {
-		pem, _ := os.ReadFile("../test/ec.sk")
-		signer, err := PemToPrivateKey(pem)
-		assert.NoError(t, err)
-		assert.NotNil(t, signer)
-	})
+	testCases := []testCase{
+		{
+			file: "../test/private_rsa2048_pkcs1.pem",
+		},
+		{
+			file: "../test/private_rsa1024_pkcs8.pem",
+		},
+		{
+			file: "../test/private_ed25519_pkcs8.pem",
+		},
+		{
+			file: "../test/private_secp256k1_asn1_echeader.pem",
+		},
+		{
+			file: "../test/private_secp256k1_asn1.pem",
+		},
+		{
+			file: "../test/private_secp256r1_asn1_echeader.pem",
+		},
+		{
+			file: "../test/private_secp256r1_asn1.pem",
+		},
+		{
+			file: "../test/private_secp256r1_pkcs8.pem",
+		},
+		{
+			file: "../test/private_invalid_key.pem",
+			err:  "failed to decode PEM block containing private key\nasn1: structure error: length too large",
+		},
+	}
 
-	t.Run("Convert RSA key", func(t *testing.T) {
-		pem, _ := os.ReadFile("../test/rsa.sk")
-		signer, err := PemToPrivateKey(pem)
-		assert.NoError(t, err)
-		assert.NotNil(t, signer)
-	})
+	for _, testCase := range testCases {
+		t.Run(path.Base(testCase.file), func(t *testing.T) {
+			pemData, err := os.ReadFile(testCase.file)
+			require.NoError(t, err)
+			expectedKey, err := PemToPrivateKey(pemData)
 
-	t.Run("Convert PKIX key", func(t *testing.T) {
-		pem, _ := os.ReadFile("../test/sk.pem")
-		signer, err := PemToPrivateKey(pem)
-		assert.NoError(t, err)
-		assert.NotNil(t, signer)
-	})
+			if testCase.err != "" {
+				assert.EqualError(t, err, testCase.err)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, expectedKey)
 
-	t.Run("Convert garbage", func(t *testing.T) {
+				marshalledPEM, err := PrivateKeyToPem(expectedKey)
+				require.NoError(t, err)
+				require.NotNil(t, marshalledPEM)
+
+				actualKey, err := PemToPrivateKey(pemData)
+				require.NoError(t, err)
+				require.NotNil(t, actualKey)
+				require.Equal(t, expectedKey, actualKey)
+			}
+		})
+	}
+}
+
+func TestPemToPrivateKey(t *testing.T) {
+	t.Run("garbage", func(t *testing.T) {
 		_, err := PemToPrivateKey([]byte{})
 		require.ErrorIs(t, err, ErrWrongPrivateKey)
 	})

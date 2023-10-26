@@ -21,7 +21,7 @@ package crypto
 
 // NewEphemeralKey returns a Key for single use.
 func NewEphemeralKey(namingFunc KIDNamingFunc) (Key, error) {
-	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
+	keyPair, kid, err := generateKeyPairAndKID(ECP256Key, namingFunc)
 	if err != nil {
 		return nil, err
 	}

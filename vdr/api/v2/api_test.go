@@ -21,7 +21,9 @@ package v2
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -44,6 +46,26 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ctx.vdr.EXPECT().Create(gomock.Any(), didweb.MethodName, gomock.Any()).Return(didDoc, nil, nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{})
+
+		require.NoError(t, err)
+		assert.Equal(t, id, response.(CreateDID200JSONResponse).ID)
+	})
+
+	t.Run("custom VerificationMethodType", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Create(gomock.Any(), didweb.MethodName, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+				assert.Equal(t, "Ed25519VerificationKey2018", string(options.VerificationMethodType))
+				return didDoc, nil, nil
+			},
+		)
+
+		methodType := CreateDIDOptionsVerificationMethodType("Ed25519VerificationKey2018")
+		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
+			Body: &CreateDIDJSONRequestBody{
+				VerificationMethodType: &methodType,
+			},
+		})
 
 		require.NoError(t, err)
 		assert.Equal(t, id, response.(CreateDID200JSONResponse).ID)

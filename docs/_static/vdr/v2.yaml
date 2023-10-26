@@ -255,6 +255,17 @@ components:
             type: string
             description: The ID of the DID document. If not given, a random UUID is generated.
             example: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b"
+          verificationMethodType:
+            type: string
+            description: |
+              The type of the verification method to be generated. Defaults to JsonWebKey2020 with a P-256 EC key.
+              See [the did core spec](https://www.w3.org/TR/did-core/#verification-method-types) for more information.
+            default: JsonWebKey2020
+            enum:
+              - JsonWebKey2020
+              - EcdsaSecp256k1VerificationKey2019
+              - RsaVerificationKey2018
+              - Ed25519VerificationKey2018
     DIDDocument:
       $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
     DIDDocumentMetadata:

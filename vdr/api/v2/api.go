@@ -22,6 +22,7 @@ package v2
 import (
 	"context"
 	"github.com/labstack/echo/v4"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -66,10 +67,13 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 	}))
 }
 
-func (w Wrapper) CreateDID(ctx context.Context, _ CreateDIDRequestObject) (CreateDIDResponseObject, error) {
+func (w Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
 	options := management.DIDCreationOptions{
 		KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
 		SelfControl: true,
+	}
+	if request.Body != nil && request.Body.VerificationMethodType != nil {
+		options.VerificationMethodType = ssi.KeyType(*request.Body.VerificationMethodType)
 	}
 
 	doc, _, err := w.VDR.Create(ctx, didweb.MethodName, options)

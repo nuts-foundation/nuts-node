@@ -119,7 +119,7 @@ func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
 func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	keyStore := crypto.NewMemoryCryptoInstance()
 	ctx := audit.TestContext()
-	signerKey, _ := keyStore.New(ctx, func(key crypt.PublicKey) (string, error) {
+	signerKey, _ := keyStore.New(ctx, crypto.ECP256Key, func(key crypt.PublicKey) (string, error) {
 		return keyID, nil
 	})
 	ctrl := gomock.NewController(t)

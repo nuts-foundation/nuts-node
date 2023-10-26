@@ -73,7 +73,7 @@ func Test_issuer_buildVC(t *testing.T) {
 		}},
 	}
 	keyStore := crypto.NewMemoryCryptoInstance()
-	signingKey, err := keyStore.New(ctx, func(key crypt.PublicKey) (string, error) {
+	signingKey, err := keyStore.New(ctx, crypto.ECP256Key, func(key crypt.PublicKey) (string, error) {
 		return kid, nil
 	})
 	require.NoError(t, err)

@@ -138,7 +138,8 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
 	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err = n.KeyStore.New(ctx, didKIDNamingFunc)
+	const keyType = nutsCrypto.ECP256Key
+	key, err = n.KeyStore.New(ctx, keyType, didKIDNamingFunc)
 	// } else {
 	// 	key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
 	// }
@@ -170,7 +171,7 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 		}
 	} else {
 		// Generate new key for other key capabilities, store the private key
-		capKey, err := n.KeyStore.New(ctx, didSubKIDNamingFunc(didID))
+		capKey, err := n.KeyStore.New(ctx, keyType, didSubKIDNamingFunc(didID))
 		if err != nil {
 			return nil, nil, err
 		}

@@ -19,6 +19,9 @@
 package crypto
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -48,4 +51,8 @@ func TestEciesDecrypt(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, []byte("hello world"), plainText)
+}
+
+func generateECKeyPair() (*ecdsa.PrivateKey, error) {
+	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 }

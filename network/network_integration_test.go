@@ -1008,7 +1008,7 @@ func resetIntegrationTest(t *testing.T) {
 		document := did.Document{ID: nodeDID}
 		kid := did.DIDURL{DID: nodeDID}
 		kid.Fragment = "key-1"
-		key, _ := keyStore.New(audit.TestContext(), func(_ crypto.PublicKey) (string, error) {
+		key, _ := keyStore.New(audit.TestContext(), nutsCrypto.ECP256Key, func(_ crypto.PublicKey) (string, error) {
 			return kid.String(), nil
 		})
 		verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, nodeDID, key.Public())

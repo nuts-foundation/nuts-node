@@ -22,10 +22,13 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"errors"
 	"fmt"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"path"
 	"regexp"
 	"time"
@@ -153,13 +156,13 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 // New generates a new key pair.
 // Stores the private key, returns the public basicKey.
 // It returns an error when a key with the resulting ID already exists.
-func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
-	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
+func (client *Crypto) New(ctx context.Context, keyType KeyType, namingFunc KIDNamingFunc) (Key, error) {
+	keyPair, kid, err := generateKeyPairAndKID(keyType, namingFunc)
 	if err != nil {
 		return nil, err
 	}
 
-	audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generating new key pair: %s", kid)
+	audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generating new key pair (type: %s): %s", keyType, kid)
 	if client.storage.PrivateKeyExists(ctx, kid) {
 		return nil, errors.New("key with the given ID already exists")
 	}
@@ -172,24 +175,38 @@ func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, e
 	}, nil
 }
 
-func generateKeyPairAndKID(namingFunc KIDNamingFunc) (*ecdsa.PrivateKey, string, error) {
-	keyPair, err := generateECKeyPair()
-	if err != nil {
-		return nil, "", err
+func generateKeyPairAndKID(keyType KeyType, namingFunc KIDNamingFunc) (crypto.Signer, string, error) {
+	var privateKey crypto.Signer
+	var err error
+	switch keyType {
+	case ECP256Key:
+		privateKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	case ECP256k1Key:
+		var pk *secp256k1.PrivateKey
+		pk, err = secp256k1.GeneratePrivateKey()
+		if err == nil {
+			privateKey = pk.ToECDSA()
+		}
+	case Ed25519Key:
+		_, privateKey, err = ed25519.GenerateKey(rand.Reader)
+	case RSA2048Key:
+		privateKey, err = rsa.GenerateKey(rand.Reader, 2048)
+	case RSA3072Key:
+		privateKey, err = rsa.GenerateKey(rand.Reader, 3072)
+	case RSA4096Key:
+		privateKey, err = rsa.GenerateKey(rand.Reader, 4096)
+	default:
+		return nil, "", fmt.Errorf("invalid key type: %s", keyType)
 	}
 
-	kid, err := namingFunc(keyPair.Public())
+	kid, err := namingFunc(privateKey.Public())
 	if err != nil {
 		return nil, "", err
 	}
 	log.Logger().
 		WithField(core.LogFieldKeyID, kid).
 		Debug("Generated new key pair")
-	return keyPair, kid, nil
-}
-
-func generateECKeyPair() (*ecdsa.PrivateKey, error) {
-	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	return privateKey, kid, nil
 }
 
 // Exists checks storage for an entry for the given legal entity and returns true if it exists

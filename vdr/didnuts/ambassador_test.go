@@ -53,7 +53,7 @@ type mockKeyCreator struct {
 }
 
 // New creates a new valid key with the correct KID
-func (m *mockKeyCreator) New(_ context.Context, fn crypto.KIDNamingFunc) (crypto.Key, error) {
+func (m *mockKeyCreator) New(_ context.Context, _ crypto.KeyType, fn crypto.KIDNamingFunc) (crypto.Key, error) {
 	if m.key == nil {
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		kid, _ := fn(privateKey.Public())

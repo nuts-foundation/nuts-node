@@ -94,7 +94,7 @@ func (u Manipulator) RemoveVerificationMethod(ctx context.Context, id did.DID, k
 // CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
 // with a freshly generated key for a given DID.
 func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, error) {
-	key, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
+	key, err := keyCreator.New(ctx, nutsCrypto.ECP256Key, didSubKIDNamingFunc(id))
 	if err != nil {
 		return nil, err
 	}

@@ -206,7 +206,7 @@ func TestVDR_Create(t *testing.T) {
 		test := newVDRTestCtx(t)
 		expectedPayload, _ := json.Marshal(DIDDocument)
 
-		test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(key, nil)
+		test.mockKeyStore.EXPECT().New(test.ctx, crypto.ECP256Key, gomock.Any()).Return(key, nil)
 		test.mockNetwork.EXPECT().CreateTransaction(test.ctx, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey().WithAdditionalPrevs([]hash.SHA256Hash{}))
 
 		didDoc, key, err := test.vdr.Create(test.ctx, didnuts.MethodName, didnuts.DefaultCreationOptions())
@@ -228,7 +228,7 @@ func TestVDR_Create(t *testing.T) {
 			KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage,
 			SelfControl: true,
 		}
-		test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(key, nil)
+		test.mockKeyStore.EXPECT().New(test.ctx, crypto.ECP256Key, gomock.Any()).Return(key, nil)
 		test.mockStore.EXPECT().Resolve(controllerID, gomock.Any()).Return(&controllerDocument, &resolver.DocumentMetadata{SourceTransactions: refs}, nil)
 		test.mockNetwork.EXPECT().CreateTransaction(test.ctx, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey().WithAdditionalPrevs(refs))
 
@@ -255,7 +255,7 @@ func TestVDR_Create(t *testing.T) {
 
 	t.Run("error - doc creation", func(t *testing.T) {
 		test := newVDRTestCtx(t)
-		test.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+		test.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		_, _, err := test.vdr.Create(test.ctx, didnuts.MethodName, didnuts.DefaultCreationOptions())
 
@@ -265,7 +265,7 @@ func TestVDR_Create(t *testing.T) {
 	t.Run("error - transaction failed", func(t *testing.T) {
 		test := newVDRTestCtx(t)
 		key := crypto.NewTestKey("did:nuts:123#key-1")
-		test.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(key, nil)
+		test.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any(), gomock.Any()).Return(key, nil)
 		test.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		_, _, err := test.vdr.Create(test.ctx, didnuts.MethodName, didnuts.DefaultCreationOptions())
@@ -343,7 +343,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			client := crypto.NewMemoryCryptoInstance()
 			keyID := did.DIDURL{DID: TestDIDA}
 			keyID.Fragment = "1"
-			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
+			_, _ = client.New(audit.TestContext(), crypto.ECP256Key, crypto.StringNamingFunc(keyID.String()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
 			_ = vdr.Configure(*core.NewServerConfig())
 			//vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})
@@ -363,14 +363,14 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			// vendor
 			test := newVDRTestCtx(t)
 			keyVendor := crypto.NewTestKey("did:nuts:vendor#keyVendor-1")
-			test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(keyVendor, nil)
+			test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any(), gomock.Any()).Return(keyVendor, nil)
 			test.mockNetwork.EXPECT().CreateTransaction(test.ctx, gomock.Any()).AnyTimes()
 			didDocVendor, keyVendor, err := test.vdr.Create(test.ctx, didnuts.MethodName, didnuts.DefaultCreationOptions())
 			require.NoError(t, err)
 
 			// organization
 			keyOrg := crypto.NewTestKey("did:nuts:org#keyOrg-1")
-			test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(keyOrg, nil).Times(2)
+			test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any(), gomock.Any()).Return(keyOrg, nil).Times(2)
 			test.mockStore.EXPECT().Resolve(didDocVendor.ID, nil).Return(didDocVendor, &resolver.DocumentMetadata{}, nil)
 			didDocOrg, keyOrg, err := test.vdr.Create(test.ctx, didnuts.MethodName, management.DIDCreationOptions{
 				Controllers: []did.DID{didDocVendor.ID},
@@ -380,8 +380,8 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			require.NoError(t, err)
 
 			client := crypto.NewMemoryCryptoInstance()
-			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyVendor.KID()))
-			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyOrg.KID()))
+			_, _ = client.New(audit.TestContext(), crypto.ECP256Key, crypto.StringNamingFunc(keyVendor.KID()))
+			_, _ = client.New(audit.TestContext(), crypto.ECP256Key, crypto.StringNamingFunc(keyOrg.KID()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
 			_ = vdr.Configure(*core.NewServerConfig())
 			vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})

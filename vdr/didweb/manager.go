@@ -54,16 +54,19 @@ type Manager struct {
 }
 
 // Create creates a new did:web document.
-func (m Manager) Create(ctx context.Context, _ management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
-	return m.create(ctx, uuid.NewString())
+func (m Manager) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+	if options.VerificationMethodType == "" {
+		options.VerificationMethodType = ssi.JsonWebKey2020
+	}
+	return m.create(ctx, uuid.NewString(), options.VerificationMethodType)
 }
 
-func (m Manager) create(ctx context.Context, mostSignificantBits string) (*did.Document, crypto.Key, error) {
+func (m Manager) create(ctx context.Context, mostSignificantBits string, methodType ssi.KeyType) (*did.Document, crypto.Key, error) {
 	newDID, err := URLToDID(*m.baseURL.JoinPath(mostSignificantBits))
 	if err != nil {
 		return nil, nil, err
 	}
-	verificationMethodKey, verificationMethod, err := m.createVerificationMethod(ctx, *newDID)
+	verificationMethodKey, verificationMethod, err := m.createVerificationMethod(ctx, *newDID, methodType)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -75,18 +78,22 @@ func (m Manager) create(ctx context.Context, mostSignificantBits string) (*did.D
 	return &document, verificationMethodKey, nil
 }
 
-func (m Manager) createVerificationMethod(ctx context.Context, ownerDID did.DID) (crypto.Key, *did.VerificationMethod, error) {
+func (m Manager) createVerificationMethod(ctx context.Context, ownerDID did.DID, methodType ssi.KeyType) (crypto.Key, *did.VerificationMethod, error) {
 	verificationMethodID := did.DIDURL{
 		DID:      ownerDID,
 		Fragment: "0", // TODO: Which fragment should we use? Thumbprint, UUID, index, etc...
 	}
-	verificationMethodKey, err := m.keyStore.New(ctx, func(key crypt.PublicKey) (string, error) {
+	keyType, err := cryptoKeyType(methodType)
+	if err != nil {
+		return nil, nil, err
+	}
+	verificationMethodKey, err := m.keyStore.New(ctx, keyType, func(key crypt.PublicKey) (string, error) {
 		return verificationMethodID.String(), nil
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	verificationMethod, err := did.NewVerificationMethod(verificationMethodID, ssi.JsonWebKey2020, ownerDID, verificationMethodKey.Public())
+	verificationMethod, err := did.NewVerificationMethod(verificationMethodID, methodType, ownerDID, verificationMethodKey.Public())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -136,4 +143,21 @@ func buildDocument(subject did.DID, verificationMethods []did.VerificationMethod
 		document.AddCapabilityInvocation(&verificationMethod)
 	}
 	return document
+}
+
+func cryptoKeyType(verificationMethodType ssi.KeyType) (crypto.KeyType, error) {
+	var keyType crypto.KeyType
+	switch verificationMethodType {
+	case ssi.JsonWebKey2020:
+		keyType = crypto.ECP256Key
+	case ssi.ECDSASECP256K1VerificationKey2019:
+		keyType = crypto.ECP256k1Key
+	case ssi.ED25519VerificationKey2018:
+		keyType = crypto.Ed25519Key
+	case ssi.RSAVerificationKey2018:
+		keyType = crypto.RSA2048Key
+	default:
+		return "", fmt.Errorf("unsupported verification method type: %s", verificationMethodType)
+	}
+	return keyType, nil
 }
