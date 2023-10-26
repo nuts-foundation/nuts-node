@@ -12,6 +12,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	gomock "go.uber.org/mock/gomock"
@@ -117,18 +118,18 @@ func (m *MockDocManipulator) EXPECT() *MockDocManipulatorMockRecorder {
 }
 
 // AddVerificationMethod mocks base method.
-func (m *MockDocManipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error) {
+func (m *MockDocManipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags, keyType ssi.KeyType) (*did.VerificationMethod, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddVerificationMethod", ctx, id, keyUsage)
+	ret := m.ctrl.Call(m, "AddVerificationMethod", ctx, id, keyUsage, keyType)
 	ret0, _ := ret[0].(*did.VerificationMethod)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddVerificationMethod indicates an expected call of AddVerificationMethod.
-func (mr *MockDocManipulatorMockRecorder) AddVerificationMethod(ctx, id, keyUsage any) *gomock.Call {
+func (mr *MockDocManipulatorMockRecorder) AddVerificationMethod(ctx, id, keyUsage, keyType any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).AddVerificationMethod), ctx, id, keyUsage)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).AddVerificationMethod), ctx, id, keyUsage, keyType)
 }
 
 // Deactivate mocks base method.

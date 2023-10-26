@@ -30,11 +30,28 @@ var ErrPrivateKeyNotFound = errors.New("private key not found")
 // KIDNamingFunc is a function passed to New() which generates the kid for the pub/priv key
 type KIDNamingFunc func(key crypto.PublicKey) (string, error)
 
+type KeyType string
+
+const (
+	// ECP256Key is the key type for EC P-256
+	ECP256Key KeyType = "secp256r1"
+	// ECP256k1Key is the key type for EC P-256K (Koblitz curve)
+	ECP256k1Key = "secp256k1"
+	// Ed25519Key is the key type for ed25519
+	Ed25519Key = "ed25519"
+	// RSA2048Key is the key type for rsa2048
+	RSA2048Key = "rsa2048"
+	// RSA3072Key is the key type for rsa3072
+	RSA3072Key = "rsa3072"
+	// RSA4096Key is the key type for rsa4096
+	RSA4096Key = "rsa4096"
+)
+
 // KeyCreator is the interface for creating key pairs.
 type KeyCreator interface {
 	// New generates a keypair and returns a Key. The context is used to pass audit information.
 	// The KIDNamingFunc will provide the kid.
-	New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error)
+	New(ctx context.Context, keyType KeyType, namingFunc KIDNamingFunc) (Key, error)
 }
 
 // KeyResolver is the interface for resolving keys.

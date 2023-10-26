@@ -301,6 +301,17 @@ components:
           type: boolean
           description: whether the generated DID Document can be altered with its own capabilityInvocation key.
           default: true
+        verificationMethodType:
+          type: string
+          description: |
+            The type of the verification method to be generated. Defaults to JsonWebKey2020 with a P-256 EC key.
+            See [the did core spec](https://www.w3.org/TR/did-core/#verification-method-types) for more information.
+          default: JsonWebKey2020
+          enum:
+            - JsonWebKey2020
+            - EcdsaSecp256k1VerificationKey2019
+            - RsaVerificationKey2018
+            - Ed25519VerificationKey2018
     VerificationMethodRelationship:
       properties:
         assertionMethod:
@@ -330,6 +341,17 @@ components:
           type: boolean
           description: whether the generated DID Document can be altered with its own capabilityInvocation key.
           default: true
+        verificationMethodType:
+          type: string
+          description: |
+            The type of the verification method to be generated. Defaults to JsonWebKey2020 with a P-256 EC key.
+            See [the did core spec](https://www.w3.org/TR/did-core/#verification-method-types) for more information.
+          default: JsonWebKey2020
+          enum:
+            - JsonWebKey2020
+            - EcdsaSecp256k1VerificationKey2019
+            - RsaVerificationKey2018
+            - Ed25519VerificationKey2018
   securitySchemes:
     jwtBearerAuth:
       type: http

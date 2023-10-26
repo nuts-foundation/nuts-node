@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwe"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -41,7 +42,7 @@ import (
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
 var ErrUnsupportedSigningKey = errors.New("signing key algorithm not supported")
 
-var supportedAlgorithms = []jwa.SignatureAlgorithm{jwa.PS256, jwa.PS384, jwa.PS512, jwa.ES256, jwa.EdDSA, jwa.ES384, jwa.ES512}
+var supportedAlgorithms = []jwa.SignatureAlgorithm{jwa.PS256, jwa.PS384, jwa.PS512, jwa.ES256, jwa.ES256K, jwa.ES384, jwa.ES512}
 
 const defaultRsaEncryptionAlgorithm = jwa.RSA_OAEP_256
 const defaultEcEncryptionAlgorithm = jwa.ECDH_ES_A256KW
@@ -135,8 +136,10 @@ func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
 	case *rsa.PrivateKey:
 		key.Set(jwk.AlgorithmKey, jwa.PS256)
 	case *ecdsa.PrivateKey:
-		var alg jwa.SignatureAlgorithm
-		alg, err = ecAlg(k)
+		alg, err := ecAlgUsingPublicKey(k.PublicKey)
+		if err != nil {
+			return nil, err
+		}
 		key.Set(jwk.AlgorithmKey, alg)
 	default:
 		err = errors.New("unsupported signing private key")
@@ -159,7 +162,15 @@ func signJWT(key jwk.Key, claims map[string]interface{}, headers map[string]inte
 		return "", fmt.Errorf("invalid JWT headers: %w", err)
 	}
 
-	sig, err = jwt.Sign(t, jwa.SignatureAlgorithm(key.Algorithm()), key, jwt.WithHeaders(hdr))
+	var publicKey crypto.PublicKey
+	if err = key.Raw(&publicKey); err != nil {
+		return "", err
+	}
+	alg, err := SignatureAlgorithm(publicKey)
+	if err != nil {
+		return "", err
+	}
+	sig, err = jwt.Sign(t, alg, key, jwt.WithHeaders(hdr))
 	token = string(sig)
 
 	return
@@ -361,12 +372,11 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 	return hdr, nil
 }
 
-func ecAlg(key *ecdsa.PrivateKey) (alg jwa.SignatureAlgorithm, err error) {
-	alg, err = ecAlgUsingPublicKey(key.PublicKey)
-	return
-}
-
 func ecAlgUsingPublicKey(key ecdsa.PublicKey) (alg jwa.SignatureAlgorithm, err error) {
+	if key.Curve == secp256k1.S256() {
+		return jwa.ES256K, nil
+	}
+	// Otherwise, assume it's a NIST curve
 	switch key.Params().BitSize {
 	case 256:
 		alg = jwa.ES256

@@ -30,7 +30,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
 
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 )
 
 // MethodName is the DID method name used by Nuts
@@ -62,7 +62,7 @@ func CreateDocument() did.Document {
 // Creator implements the DocCreator interface and can create Nuts DID Documents.
 type Creator struct {
 	// KeyStore is used for getting a fresh key and use it to generate the Nuts DID
-	KeyStore nutsCrypto.KeyCreator
+	KeyStore crypto2.KeyCreator
 }
 
 // DefaultCreationOptions returns the default DIDCreationOptions when creating DID Documents.
@@ -76,14 +76,14 @@ func DefaultCreationOptions() management.DIDCreationOptions {
 
 // didKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
 func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
-	return getKIDName(pKey, nutsCrypto.Thumbprint)
+	return getKIDName(pKey, crypto2.Thumbprint)
 }
 
 // didSubKIDNamingFunc returns a KIDNamingFunc that can be used as param in the KeyStore.New function.
 // It wraps the KIDNamingFunc with the context of the DID of the document.
 // It returns a keyID in the form of the documents DID with the new keys thumbprint as fragment.
 // E.g. for a assertionMethod key that differs from the key the DID document was created with.
-func didSubKIDNamingFunc(owningDID did.DID) nutsCrypto.KIDNamingFunc {
+func didSubKIDNamingFunc(owningDID did.DID) crypto2.KIDNamingFunc {
 	return func(pKey crypto.PublicKey) (string, error) {
 		return getKIDName(pKey, func(_ jwk.Key) (string, error) {
 			return owningDID.ID, nil
@@ -126,9 +126,14 @@ var ErrInvalidOptions = errors.New("create request has invalid combination of op
 
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
-func (n Creator) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
-	var key nutsCrypto.Key
-	var err error
+func (n Creator) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto2.Key, error) {
+	// Validate verification method type and derive key type
+	keyType, err := cryptoKeyType(options.VerificationMethodType)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var key crypto2.Key
 
 	if options.SelfControl && !options.KeyFlags.Is(management.CapabilityInvocationUsage) {
 		return nil, nil, ErrInvalidOptions
@@ -138,9 +143,9 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
 	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err = n.KeyStore.New(ctx, didKIDNamingFunc)
+	key, err = n.KeyStore.New(ctx, keyType, didKIDNamingFunc)
 	// } else {
-	// 	key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
+	// 	key, err = crypto2.NewEphemeralKey(didKIDNamingFunc)
 	// }
 	if err != nil {
 		return nil, nil, err
@@ -160,7 +165,7 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 	var verificationMethod *did.VerificationMethod
 	if options.SelfControl {
 		// Add VerificationMethod using generated key
-		verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
+		verificationMethod, err = did.NewVerificationMethod(*keyID, options.VerificationMethodType, did.DID{}, key.Public())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -170,7 +175,7 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 		}
 	} else {
 		// Generate new key for other key capabilities, store the private key
-		capKey, err := n.KeyStore.New(ctx, didSubKIDNamingFunc(didID))
+		capKey, err := n.KeyStore.New(ctx, keyType, didSubKIDNamingFunc(didID))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -178,7 +183,7 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 		if err != nil {
 			return nil, nil, err
 		}
-		verificationMethod, err = did.NewVerificationMethod(*capKeyID, ssi.JsonWebKey2020, did.DID{}, capKey.Public())
+		verificationMethod, err = did.NewVerificationMethod(*capKeyID, options.VerificationMethodType, did.DID{}, capKey.Public())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -207,4 +212,21 @@ func applyKeyUsage(document *did.Document, keyToAdd *did.VerificationMethod, int
 	if intendedKeyUsage.Is(management.KeyAgreementUsage) {
 		document.AddKeyAgreement(keyToAdd)
 	}
+}
+
+func cryptoKeyType(verificationMethodType ssi.KeyType) (crypto2.KeyType, error) {
+	var keyType crypto2.KeyType
+	switch verificationMethodType {
+	case ssi.JsonWebKey2020:
+		keyType = crypto2.ECP256Key
+	case ssi.ECDSASECP256K1VerificationKey2019:
+		keyType = crypto2.ECP256k1Key
+	case ssi.ED25519VerificationKey2018:
+		keyType = crypto2.Ed25519Key
+	case ssi.RSAVerificationKey2018:
+		keyType = crypto2.RSA2048Key
+	default:
+		return "", fmt.Errorf("unsupported verification method type: %s", verificationMethodType)
+	}
+	return keyType, nil
 }

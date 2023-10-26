@@ -16,6 +16,7 @@
 package v1
 
 import (
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -61,6 +62,9 @@ type VerificationMethodRelationship struct {
 
 	// indicates if the generated key pair can be used for Key agreements.
 	KeyAgreement *bool `json:"keyAgreement,omitempty"`
+
+	// KeyType is the type of key to generate.
+	Type *ssi.KeyType `json:"verificationMethodType,omitempty"`
 }
 
 // ToFlags takes default key flags, and enabled/disables the flags which are set on the VerificationMethodRelationship,

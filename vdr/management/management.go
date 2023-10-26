@@ -20,6 +20,7 @@ package management
 
 import (
 	"context"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 )
@@ -65,7 +66,7 @@ type DocManipulator interface {
 	// It returns an ErrNotFound when the DID document could not be found.
 	// It returns an ErrDeactivated when the DID document has the deactivated state.
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
-	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
+	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags, keyType ssi.KeyType) (*did.VerificationMethod, error)
 }
 
 // DIDCreationOptions defines options for creating a DID Document.
@@ -80,6 +81,9 @@ type DIDCreationOptions struct {
 	// SelfControl indicates whether the generated DID Document can be altered with its own capabilityInvocation key.
 	// Defaults to true when not given.
 	SelfControl bool
+
+	// VerificationMethodType specifies the type of verification method to generate.
+	VerificationMethodType ssi.KeyType
 }
 
 // DIDKeyFlags is a bitmask used for specifying for what purposes a key in a DID document can be used (a.k.a. Verification Method relationships).

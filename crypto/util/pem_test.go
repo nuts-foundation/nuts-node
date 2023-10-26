@@ -21,7 +21,9 @@ package util
 import (
 	"crypto/ecdsa"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/pem"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -83,11 +85,15 @@ func TestPemToSigner(t *testing.T) {
 		assert.NotNil(t, signer)
 	})
 
-	t.Run("Convert EC key", func(t *testing.T) {
+	t.Run("Convert EC key (stdlib)", func(t *testing.T) {
 		pem, _ := os.ReadFile("../test/ec.sk")
 		signer, err := PemToPrivateKey(pem)
 		assert.NoError(t, err)
 		assert.NotNil(t, signer)
+	})
+
+	t.Run("Convert secp256k1 key", func(t *testing.T) {
+
 	})
 
 	t.Run("Convert RSA key", func(t *testing.T) {
@@ -107,5 +113,19 @@ func TestPemToSigner(t *testing.T) {
 	t.Run("Convert garbage", func(t *testing.T) {
 		_, err := PemToPrivateKey([]byte{})
 		require.ErrorIs(t, err, ErrWrongPrivateKey)
+	})
+}
+
+func TestPrivateKeyToPem(t *testing.T) {
+	t.Run("secp256k1", func(t *testing.T) {
+		const expectedPEM = ``
+		privKeyBytes, err := base64.StdEncoding.DecodeString("Kuy/wuUXMU2IiI2V71Ycr/slu+HKz86FF5vwXl/bqtg=")
+		require.NoError(t, err)
+		expectedPrivKey := secp256k1.PrivKeyFromBytes(privKeyBytes)
+
+		actual, err := PrivateKeyToPem(expectedPrivKey)
+		t.Log(actual)
+		require.NoError(t, err)
+		assert.Equal(t, expectedPEM, actual)
 	})
 }

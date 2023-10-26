@@ -22,6 +22,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
@@ -90,7 +91,13 @@ func (a *Wrapper) AddNewVerificationMethod(ctx context.Context, request AddNewVe
 		opts = &VerificationMethodRelationship{}
 	}
 
-	vm, err := a.DocManipulator.AddVerificationMethod(ctx, *d, opts.ToFlags(didnuts.DefaultCreationOptions().KeyFlags))
+	var verificationMethodType ssi.KeyType
+	if request.Body.Type == nil {
+		verificationMethodType = ssi.JsonWebKey2020
+	} else {
+		verificationMethodType = *request.Body.Type
+	}
+	vm, err := a.DocManipulator.AddVerificationMethod(ctx, *d, opts.ToFlags(didnuts.DefaultCreationOptions().KeyFlags), verificationMethodType)
 	if err != nil {
 		return nil, err
 	}

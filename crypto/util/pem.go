@@ -21,7 +21,9 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/pem"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 // PemToPublicKey converts a PEM encoded public key to a crypto.PublicKey
@@ -60,7 +62,14 @@ func PublicKeyToPem(pub crypto.PublicKey) (string, error) {
 
 // PrivateKeyToPem converts an public key to PEM encoding
 func PrivateKeyToPem(pub crypto.PrivateKey) (string, error) {
-	pubASN1, err := x509.MarshalPKCS8PrivateKey(pub)
+	var pubASN1 []byte
+	var err error
+
+	if ecKey, ok := pub.(*ecdsa.PrivateKey); ok && ecKey.Curve == secp256k1.S256() {
+		pubASN1, err = marshalSecp256k1PKCS8(ecKey)
+	} else {
+		pubASN1, err = x509.MarshalPKCS8PrivateKey(pub)
+	}
 
 	if err != nil {
 		return "", err
@@ -86,10 +95,13 @@ func PemToPrivateKey(bytes []byte) (signer crypto.Signer, err error) {
 	case "RSA PRIVATE KEY":
 		signer, err = x509.ParsePKCS1PrivateKey(block.Bytes)
 	case "EC PRIVATE KEY":
-		signer, err = x509.ParseECPrivateKey(block.Bytes)
+		fallthrough
 	case "PRIVATE KEY":
 		var key interface{}
-		key, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+		key, err := unmarshalPKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
 		switch k := key.(type) {
 		case *rsa.PrivateKey:
 			signer = k
@@ -100,4 +112,21 @@ func PemToPrivateKey(bytes []byte) (signer crypto.Signer, err error) {
 		}
 	}
 	return
+}
+
+func unmarshalPKCS8PrivateKey(data []byte) (crypto.PrivateKey, error) {
+	var container asn1PKCS8Container
+	if _, err := asn1.Unmarshal(data, &container); err != nil {
+		return nil, err
+	}
+	var privateKeyDER asn1ECPrivateKey
+	_, err := asn1.Unmarshal(container.Data, &privateKeyDER)
+	if err != nil {
+		return nil, err
+	}
+
+	if privateKeyDER.Curve.Equal(oidNamedCurveP256k1) {
+		return secp256k1.PrivKeyFromBytes(privateKeyDER.Data).ToECDSA(), nil
+	}
+	return x509.ParsePKCS8PrivateKey(data)
 }

@@ -51,7 +51,10 @@ require (
 	schneider.vip/problem v1.8.1
 )
 
-require github.com/santhosh-tekuri/jsonschema v1.2.4
+require (
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
+	github.com/santhosh-tekuri/jsonschema v1.2.4
+)
 
 require (
 	github.com/PaesslerAG/gval v1.2.2 // indirect
@@ -71,7 +74,6 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20231011050154-1d073bb38998 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/eknkc/basex v1.0.1 // indirect

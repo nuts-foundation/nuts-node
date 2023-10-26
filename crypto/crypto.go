@@ -153,7 +153,14 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 // New generates a new key pair.
 // Stores the private key, returns the public basicKey.
 // It returns an error when a key with the resulting ID already exists.
-func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
+func (client *Crypto) New(ctx context.Context, keyType KeyType, namingFunc KIDNamingFunc) (Key, error) {
+	switch keyType {
+	case ECP256Key, ECP256k1Key, Ed25519Key, RSA2048Key, RSA3072Key, RSA4096Key:
+		// ok
+	default:
+		return nil, fmt.Errorf("invalid key type: %s", keyType)
+	}
+
 	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
 	if err != nil {
 		return nil, err

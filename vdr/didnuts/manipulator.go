@@ -51,7 +51,7 @@ func (u Manipulator) Deactivate(ctx context.Context, id did.DID) error {
 
 // AddVerificationMethod adds a new key as a VerificationMethod to the document.
 // The key is added to the VerficationMethod relationships specified by keyUsage.
-func (u Manipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage management.DIDKeyFlags) (*did.VerificationMethod, error) {
+func (u Manipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage management.DIDKeyFlags, verificationMethodType ssi.KeyType) (*did.VerificationMethod, error) {
 	doc, meta, err := u.Resolver.Resolve(id, &resolver.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func (u Manipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyU
 	if meta.Deactivated {
 		return nil, resolver.ErrDeactivated
 	}
-	method, err := CreateNewVerificationMethodForDID(ctx, doc.ID, u.KeyCreator)
+	method, err := CreateNewVerificationMethodForDID(ctx, doc.ID, verificationMethodType, u.KeyCreator)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +93,12 @@ func (u Manipulator) RemoveVerificationMethod(ctx context.Context, id, keyID did
 
 // CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
 // with a freshly generated key for a given DID.
-func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, error) {
-	key, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
+func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, verificationMethodType ssi.KeyType, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, error) {
+	keyType, err := cryptoKeyType(verificationMethodType)
+	if err != nil {
+		return nil, err
+	}
+	key, err := keyCreator.New(ctx, keyType, didSubKIDNamingFunc(id))
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +106,7 @@ func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreat
 	if err != nil {
 		return nil, err
 	}
-	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, id, key.Public())
+	method, err := did.NewVerificationMethod(*keyID, verificationMethodType, id, key.Public())
 	if err != nil {
 		return nil, err
 	}
