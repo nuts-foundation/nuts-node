@@ -133,7 +133,7 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		response, err := client.PresentationDefinition(ctx, tlsServer.URL, []string{"test"})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "invalid scope")
+		assert.EqualError(t, err, "invalid_scope")
 		assert.Nil(t, response)
 	})
 	t.Run("error - not found", func(t *testing.T) {

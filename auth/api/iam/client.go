@@ -102,8 +102,8 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpo
 	}
 	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
 		rse := httpErr.(core.HttpError)
-		if TestOAuthErrorCode(rse.ResponseBody, InvalidScope) {
-			return nil, ErrInvalidScope
+		if ok, oauthErr := TestOAuthErrorCode(rse.ResponseBody, InvalidScope); ok {
+			return nil, oauthErr
 		}
 		return nil, httpErr
 	}

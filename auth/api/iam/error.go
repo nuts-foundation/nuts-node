@@ -42,6 +42,8 @@ const (
 	UnsupportedResponseType ErrorCode = "unsupported_response_type"
 	// ServerError is returned when the Authorization Server encounters an unexpected condition that prevents it from fulfilling the request.
 	ServerError ErrorCode = "server_error"
+	// InvalidScope is returned when the requested scope is invalid, unknown or malformed.
+	InvalidScope = ErrorCode("invalid_scope")
 )
 
 // Make sure the error implements core.HTTPStatusCodeError, so the HTTP request logger can log the correct status code.
@@ -127,15 +129,12 @@ func (p oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err 
 	return echoContext.Redirect(http.StatusFound, redirectURI.String())
 }
 
-const InvalidScope = ErrorCode("invalid_scope")
-
-var ErrInvalidScope = errors.New("invalid scope")
-
 // TestOAuthErrorCode tests if the response is an OAuth2 error with the given code.
-func TestOAuthErrorCode(responseBody []byte, code ErrorCode) bool {
+// Also returns the unmarshalled OAuth2Error
+func TestOAuthErrorCode(responseBody []byte, code ErrorCode) (bool, OAuth2Error) {
 	var oauthErr OAuth2Error
 	if err := json.Unmarshal(responseBody, &oauthErr); err != nil {
-		return false
+		return false, oauthErr
 	}
-	return oauthErr.Code == code
+	return oauthErr.Code == code, oauthErr
 }
