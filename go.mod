@@ -51,6 +51,8 @@ require (
 	schneider.vip/problem v1.8.1
 )
 
+replace github.com/nuts-foundation/go-did => ../nutsdid-method
+
 require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
 	github.com/santhosh-tekuri/jsonschema v1.2.4

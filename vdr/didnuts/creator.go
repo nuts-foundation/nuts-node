@@ -55,7 +55,7 @@ func JWS2020ContextV1URI() ssi.URI {
 // CreateDocument creates an empty DID document with baseline properties set.
 func CreateDocument() did.Document {
 	return did.Document{
-		Context: []ssi.URI{NutsDIDContextV1URI(), JWS2020ContextV1URI(), did.DIDContextV1URI()},
+		Context: []interface{}{NutsDIDContextV1URI(), JWS2020ContextV1URI(), did.DIDContextV1URI()},
 	}
 }
 
@@ -204,12 +204,12 @@ func applyKeyUsage(document *did.Document, keyToAdd *did.VerificationMethod, int
 	if intendedKeyUsage.Is(management.CapabilityInvocationUsage) {
 		document.AddCapabilityInvocation(keyToAdd)
 	}
-	if intendedKeyUsage.Is(management.AuthenticationUsage) {
-		document.AddAuthenticationMethod(keyToAdd)
-	}
-	if intendedKeyUsage.Is(management.AssertionMethodUsage) {
-		document.AddAssertionMethod(keyToAdd)
-	}
+	//if intendedKeyUsage.Is(management.AuthenticationUsage) {
+	document.AddAuthenticationMethod(keyToAdd)
+	//}
+	//if intendedKeyUsage.Is(management.AssertionMethodUsage) {
+	document.AddAssertionMethod(keyToAdd)
+	//}
 	if intendedKeyUsage.Is(management.KeyAgreementUsage) {
 		document.AddKeyAgreement(keyToAdd)
 	}

@@ -73,10 +73,10 @@ func (r Wrapper) createOpenIDAuthzRequest(ctx context.Context, scope string, sta
 			// Instead, we specify the registration claim containing the metadata:
 			params["registration"] = map[string]interface{}{
 				// We can specify loads of metadata fields, but Sphereon Wallet works if we only specify the one(s) below
-				"subject_syntax_types_supported": []string{"did:ion", "did:web"},
+				"subject_syntax_types_supported": []string{"did:web", "did:ion"},
 				"vp_formats": map[string]interface{}{
 					"jwt_vc": map[string]interface{}{
-						"alg": []string{"ES256K", "EdDSA"},
+						"alg": []string{"EdDSA", "ES256K"},
 					},
 					"jwt_vp": map[string]interface{}{
 						"alg": []string{"ES256K", "EdDSA"},

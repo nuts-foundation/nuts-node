@@ -115,7 +115,7 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	}
 
 	document := did.Document{
-		Context: []ssi.URI{
+		Context: []interface{}{
 			ssi.MustParseURI("https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"),
 			did.DIDContextV1URI(),
 		},

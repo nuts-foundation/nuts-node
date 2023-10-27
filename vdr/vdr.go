@@ -42,6 +42,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didkey"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
@@ -101,7 +102,7 @@ func (r *Module) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nuts
 		return nil, fmt.Errorf("did:web unmarshal error (%s): %w", nutsDID, err)
 	}
 	result.AlsoKnownAs = append(result.AlsoKnownAs, nutsDID.URI())
-	result.Context = []ssi.URI{
+	result.Context = []interface{}{
 		did.DIDContextV1URI(),
 		didnuts.JWS2020ContextV1URI(),
 	}
@@ -288,6 +289,7 @@ func (r *Module) Create(ctx context.Context, options management.DIDCreationOptio
 		}
 	}
 
+	options.VerificationMethodType = ssi.ECDSASECP256K1VerificationKey2019
 	doc, key, err := r.didDocCreator.Create(ctx, options)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create DID document: %w", err)
@@ -415,7 +417,7 @@ func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
 	contextPresent := false
 
 	for _, c := range document.Context {
-		if c.String() == ctx.String() {
+		if util.LDContextToString(c) == ctx.String() {
 			contextPresent = true
 		}
 	}

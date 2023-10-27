@@ -20,8 +20,6 @@ package iam
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
@@ -135,15 +133,6 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 
 func (r Wrapper) accessTokenStore(issuer did.DID) storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "s2s", issuer.String(), "accesstoken")
-}
-
-func generateCode() string {
-	buf := make([]byte, secretSizeBits/8)
-	_, err := rand.Read(buf)
-	if err != nil {
-		panic(err)
-	}
-	return base64.URLEncoding.EncodeToString(buf)
 }
 
 type AccessToken struct {

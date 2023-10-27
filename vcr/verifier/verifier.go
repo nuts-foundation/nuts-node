@@ -19,9 +19,12 @@
 package verifier
 
 import (
+	crypt "crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"

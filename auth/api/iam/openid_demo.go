@@ -107,28 +107,22 @@ func (r Wrapper) handleOpenID4VPDemoSendRequest(echoCtx echo.Context) error {
 		OwnDID:       *verifierWebDID,
 		ResponseType: []string{responseTypeIDToken},
 	}
-	pePurpose := "For this demo you can provide any credential"
-	pattern := "Sphereon Guest"
+
+	pattern := "did:web:vwz-zids-demo.headease.nl"
 	presentationDefinition := pe.PresentationDefinition{
-		Id:      "sphereon",
-		Purpose: &pePurpose,
+		Id: "851eb04ca3e2b2589d6f6a72875",
 		InputDescriptors: []*pe.InputDescriptor{
 			{
-				Id:      uuid.NewString(),
-				Name:    "Sphereon Guest",
-				Purpose: "Any credential suffices",
+				Id:      "CibgUziCredential",
+				Name:    "CibgUziCredential",
+				Purpose: "We willen uw UZI nummer weten",
 				Schema: []map[string]interface{}{
-					{
-						"uri": "GuestCredential",
-					},
+					{"uri": "CibgUziCredential"},
 				},
 				Constraints: &pe.Constraints{
 					Fields: []pe.Field{
 						{
-							Path: []string{
-								"$.credentialSubject.type",
-								"$.vc.credentialSubject.type",
-							},
+							Path: []string{"$.issuer", "$.vc.issuer", "$.iss"},
 							Filter: &pe.Filter{
 								Type:    "string",
 								Pattern: &pattern,
@@ -139,6 +133,38 @@ func (r Wrapper) handleOpenID4VPDemoSendRequest(echoCtx echo.Context) error {
 			},
 		},
 	}
+	//pePurpose := "For this demo you can provide any credential"
+	//pattern := "Sphereon Guest"
+	//presentationDefinition := pe.PresentationDefinition{
+	//	Id:      "sphereon",
+	//	Purpose: &pePurpose,
+	//	InputDescriptors: []*pe.InputDescriptor{
+	//		{
+	//			Id:      uuid.NewString(),
+	//			Name:    "Sphereon Guest",
+	//			Purpose: "Any credential suffices",
+	//			Schema: []map[string]interface{}{
+	//				{
+	//					"uri": "GuestCredential",
+	//				},
+	//			},
+	//			Constraints: &pe.Constraints{
+	//				Fields: []pe.Field{
+	//					{
+	//						Path: []string{
+	//							"$.credentialSubject.type",
+	//							"$.vc.credentialSubject.type",
+	//						},
+	//						Filter: &pe.Filter{
+	//							Type:    "string",
+	//							Pattern: &pattern,
+	//						},
+	//					},
+	//				},
+	//			},
+	//		},
+	//	},
+	//}
 	sessionID := uuid.NewString()
 	requestObject, err := r.createOpenIDAuthzRequest(echoCtx.Request().Context(), scope, sessionID, presentationDefinition,
 		session.ResponseType, *verifierURL.JoinPath("authresponse"), *verifierWebDID)
@@ -152,7 +178,8 @@ func (r Wrapper) handleOpenID4VPDemoSendRequest(echoCtx echo.Context) error {
 
 	requestURI := r.auth.PublicURL().JoinPath("iam", verifierNutsDID.ID, "openid", "request", sessionID)
 	// openid-vc is JWT VC Presentation Profile scheme?
-	qrCode := "openid-vc://?" + url.Values{"request_uri": []string{requestURI.String()}}.Encode()
+	//qrCode := "openid-vc://?" + url.Values{"request_uri": []string{requestURI.String()}}.Encode()
+	qrCode := "openid-vc://?request_uri=" + requestURI.String()
 
 	// Show QR code to scan using (mobile) wallet
 	buf := new(bytes.Buffer)
