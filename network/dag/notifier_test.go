@@ -25,6 +25,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -414,6 +415,25 @@ func TestNotifier_Run(t *testing.T) {
 			index := strings.Index(string(stack), "dag.(*notifier).retry.func1")
 			return index != -1, nil
 		}, time.Second, "timeout while waiting for go routine to start")
+	})
+
+	t.Run("OK - does not retry unknown context errors", func(t *testing.T) {
+		ctx := context.Background()
+		filePath := io.TestDirectory(t)
+		kvStore := storage.CreateTestBBoltStore(t, path.Join(filePath, "test.db"))
+		counter := callbackCounter{}
+		s := NewNotifier(t.Name(), counter.callbackFinished, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
+		defer s.Close()
+
+		event := Event{Error: "some error: " + jsonld.ContextURLNotAllowedErr.Error()}
+		_ = kvStore.WriteShelf(ctx, s.shelfName(), func(writer stoabs.Writer) error {
+			bytes, _ := json.Marshal(event)
+			return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
+		})
+
+		err := s.Run()
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), counter.N.Load())
 	})
 }
 
