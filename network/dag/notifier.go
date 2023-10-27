@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"strings"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -245,6 +247,11 @@ func (p *notifier) Run() error {
 		return reader.Iterate(func(k stoabs.Key, v []byte) error {
 			event := Event{}
 			_ = json.Unmarshal(v, &event)
+
+			// Do not retry events that previously failed on an unknown context. See https://github.com/nuts-foundation/nuts-node/issues/2569
+			if strings.HasSuffix(event.Error, jsonld.ContextURLNotAllowedErr.Error()) {
+				return nil
+			}
 
 			if err := p.notifyNow(event); err != nil {
 				if event.Retries < maxRetries {
