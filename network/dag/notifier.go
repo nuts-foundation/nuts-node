@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"strings"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -37,7 +39,7 @@ import (
 const (
 	defaultRetryDelay      = time.Second
 	retriesFailedThreshold = 10
-	maxRetries             = 100
+	maxRetries             = 20
 	// TransactionEventType is used as Type in an Event when a transaction is added to the DAG.
 	TransactionEventType = "transaction"
 	// PayloadEventType is used as Type in an Event when a payload is written to the DB.
@@ -239,16 +241,38 @@ func (p *notifier) Run() error {
 	if !p.isPersistent() {
 		return nil
 	}
-	return p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
+	// we're going to retry all events synchronously at startup. For the ones that fail we'll start the retry loop
+	failedAtStartup := make([]Event, 0)
+	err := p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
 		return reader.Iterate(func(k stoabs.Key, v []byte) error {
 			event := Event{}
 			_ = json.Unmarshal(v, &event)
 
-			p.retry(event)
+			// Do not retry events that previously failed on an unknown context. See https://github.com/nuts-foundation/nuts-node/issues/2569
+			if strings.HasSuffix(event.Error, jsonld.ContextURLNotAllowedErr.Error()) {
+				return nil
+			}
+
+			if err := p.notifyNow(event); err != nil {
+				if event.Retries < maxRetries {
+					failedAtStartup = append(failedAtStartup, event)
+				}
+			}
 
 			return nil
 		}, stoabs.BytesKey{})
 	})
+	if err != nil {
+		return err
+	}
+
+	// for all events from failedAtStartup, call retry
+	// this may still produce errors in the logs or even duplicate errors since notifyNow also failed
+	// but rather duplicate errors then errors produced from overloading the DB with transactions
+	for _, event := range failedAtStartup {
+		p.retry(event)
+	}
+	return nil
 }
 
 func (p *notifier) GetFailedEvents() (events []Event, err error) {
@@ -330,21 +354,24 @@ func (p *notifier) Notify(event Event) {
 func (p *notifier) retry(event Event) {
 	delay := p.retryDelay
 	initialCount := event.Retries + 1
+	attempts := maxRetries - uint(initialCount)
+	if attempts <= 0 || attempts >= maxRetries {
+		return
+	}
 
 	for i := 0; i < initialCount; i++ {
 		delay *= 2
 	}
 
 	go func(ctx context.Context) {
-		// also an initial delay
-		time.Sleep(delay)
 		err := retry.Do(func() error {
 			return p.notifyNow(event)
 		},
-			retry.Attempts(maxRetries-uint(initialCount)),
+			retry.Attempts(attempts),
 			retry.MaxDelay(24*time.Hour),
+			retry.MaxJitter(p.retryDelay),
 			retry.Delay(delay),
-			retry.DelayType(retry.BackOffDelay),
+			retry.DelayType(retry.CombineDelay(retry.BackOffDelay, retry.RandomDelay)),
 			retry.Context(ctx),
 			retry.LastErrorOnly(true),
 			retry.OnRetry(func(n uint, err error) {
