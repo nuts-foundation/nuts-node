@@ -23,6 +23,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/usecase"
+	usecaseAPI "github.com/nuts-foundation/nuts-node/usecase/api/v1"
+	usecaseCmd "github.com/nuts-foundation/nuts-node/usecase/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/nuts-foundation/nuts-node/golden_hammer"
@@ -196,6 +199,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	goldenHammer := golden_hammer.New(vdrInstance, didmanInstance)
+	usecaseInstance := usecase.New()
 
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})
@@ -217,6 +221,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
+	system.RegisterRoutes(&usecaseAPI.Wrapper{Module: usecaseInstance})
 
 	// Register engines
 	// without dependencies
@@ -235,6 +240,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterEngine(authInstance)
 	system.RegisterEngine(didmanInstance)
 	system.RegisterEngine(goldenHammer)
+	system.RegisterEngine(usecaseInstance)
 	// HTTP engine MUST be registered last, because when started it dispatches HTTP calls to the registered routes.
 	// Registering is last makes sure all engines are started and ready to accept requests.
 	system.RegisterEngine(httpServerInstance)
@@ -333,6 +339,7 @@ func serverConfigFlags() *pflag.FlagSet {
 	set.AddFlagSet(eventsCmd.FlagSet())
 	set.AddFlagSet(pki.FlagSet())
 	set.AddFlagSet(goldenHammerCmd.FlagSet())
+	set.AddFlagSet(usecaseCmd.FlagSet())
 
 	return set
 }

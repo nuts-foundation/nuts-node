@@ -1,0 +1,91 @@
+openapi: "3.0.0"
+info:
+  title: Nuts Use Case List Service API spec
+  description: API specification for use case list services available within nuts node
+  version: 1.0.0
+  license:
+    name: GPLv3
+servers:
+  - url: http://localhost:1323
+paths:
+  /usecase/{listName}:
+    parameters:
+      - name: listName
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Retrieves a use case list
+      description: |
+        Retrieves a use case list, starting at the given lamport timestamp.
+        The client should provide the timestamp it was returned in the last response.
+        If no timestamp is given or it is 0, it will return the full list.
+
+        error returns:
+        * 400 - incorrect input
+      operationId: getList
+      tags:
+        - usecase
+      parameters:
+        - name: timestamp
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: Requested list is returned, alongside the timestamp which should be provided at the next query.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - timestamp
+                  - entries
+                properties:
+                  timestamp:
+                    type: integer
+                    minimum: 0
+                  entries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VerifiablePresentation"
+        default:
+          $ref: "../common/error_response.yaml"
+    post:
+      summary: Adds a presentation to the list
+      description: |
+        Adds a presentation to the list. The presentation must be signed by subject of the credentials it contains.
+        
+        error returns:
+        * 400 - incorrect input; e.g. unsupported presentation or credential type, invalid signature, unresolvable credential subject, etc.
+      operationId: addPresentation
+      tags:
+        - usecase
+      requestBody:
+        description: The presentation to add to the list
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifiablePresentation"
+      responses:
+        "201":
+          description: Presentation was added to the list
+        "400":
+          $ref: "../common/error_response.yaml"
+        default:
+          $ref: "../common/error_response.yaml"
+components:
+  schemas:
+    VerifiablePresentation:
+      $ref: "../common/ssi_types.yaml#/components/schemas/VerifiablePresentation"
+  securitySchemes:
+    jwtBearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - { }
+  - jwtBearerAuth: [ ]

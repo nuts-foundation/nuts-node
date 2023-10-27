@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Use Case Definition",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "endpoint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "presentation_max_validity": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "presentation_definition": {
+      "$ref": "http://identity.foundation/presentation-exchange/schemas/presentation-definition.json"
+    }
+  },
+  "required": [
+    "id",
+    "endpoint",
+    "presentation_max_validity",
+    "presentation_definition"
+  ]
+}
