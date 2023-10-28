@@ -30,6 +30,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jwe"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -155,7 +156,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	key, _ := client.New(audit.TestContext(), ECP256Key, StringNamingFunc(kid))
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, key)
@@ -195,11 +196,35 @@ func TestCrypto_SignJWT(t *testing.T) {
 	})
 }
 
+func TestTesT(t *testing.T) {
+	const tokenString = `eyJhbGciOiJFUzI1NksiLCJraWQiOiJkaWQ6d2ViOm11dHQtY2xhc3NpYy1hY3R1YWxseS5uZ3Jvay1mcmVlLmFwcDppYW06NXNLOHZnY0R0akJ3a1pDamVueXV0Q1VGRGZDUWhaQ3Z3cXZUSEM4ZllmYWUjU0ZKTG11SnpmUlRQT1RpblRHZC1DSDkzcHpxM3NrWHZuVy1idWdMRXRrOCIsInR5cCI6IkpXVCJ9.eyJjbGFpbXMiOnsidnBfdG9rZW4iOnsicHJlc2VudGF0aW9uX2RlZmluaXRpb24iOnsiaWQiOiI4NTFlYjA0Y2EzZTJiMjU4OWQ2ZjZhNzI4NzUiLCJpbnB1dF9kZXNjcmlwdG9ycyI6W3siY29uc3RyYWludHMiOnsiZmllbGRzIjpbeyJwYXRoIjpbIiQuaXNzdWVyIiwiJC52Yy5pc3N1ZXIiLCIkLmlzcyJdLCJmaWx0ZXIiOnsidHlwZSI6InN0cmluZyIsInBhdHRlcm4iOiJkaWQ6d2ViOnZ3ei16aWRzLWRlbW8uaGVhZGVhc2UubmwifX1dfSwiaWQiOiJDaWJnVXppQ3JlZGVudGlhbCIsIm5hbWUiOiJDaWJnVXppQ3JlZGVudGlhbCIsInB1cnBvc2UiOiJXZSB3aWxsZW4gdXcgVVpJIG51bW1lciB3ZXRlbiIsInNjaGVtYSI6W3sidXJpIjoiQ2liZ1V6aUNyZWRlbnRpYWwifV19XX19fSwiY2xpZW50X2lkIjoiZGlkOndlYjptdXR0LWNsYXNzaWMtYWN0dWFsbHkubmdyb2stZnJlZS5hcHA6aWFtOjVzSzh2Z2NEdGpCd2taQ2plbnl1dENVRkRmQ1FoWkN2d3F2VEhDOGZZZmFlIiwiZXhwIjoxNjk4NDA5OTQ2LCJpYXQiOjE2OTg0MDk4ODYsImlzcyI6ImRpZDp3ZWI6bXV0dC1jbGFzc2ljLWFjdHVhbGx5Lm5ncm9rLWZyZWUuYXBwOmlhbTo1c0s4dmdjRHRqQndrWkNqZW55dXRDVUZEZkNRaFpDdndxdlRIQzhmWWZhZSIsImp0aSI6IjBlZDQxMmNiLTJhNjgtNDg0Ny1hMjVjLTkyNWNmNDczNDQ3ZSIsIm5iZiI6MTY5ODQwOTg4Niwibm9uY2UiOiI3ZTA0YWRhNi04ZWQ3LTRmNzQtOTc5NC0wOWRmNDNjODUxNWUiLCJyZWRpcmVjdF91cmkiOiJodHRwczovL211dHQtY2xhc3NpYy1hY3R1YWxseS5uZ3Jvay1mcmVlLmFwcC9pYW0vNXNLOHZnY0R0akJ3a1pDamVueXV0Q1VGRGZDUWhaQ3Z3cXZUSEM4ZllmYWUvYXV0aHJlc3BvbnNlIiwicmVnaXN0cmF0aW9uIjp7InN1YmplY3Rfc3ludGF4X3R5cGVzX3N1cHBvcnRlZCI6WyJkaWQ6d2ViIiwiZGlkOmlvbiJdLCJ2cF9mb3JtYXRzIjp7Imp3dF92YyI6eyJhbGciOlsiRWREU0EiLCJFUzI1NksiXX0sImp3dF92cCI6eyJhbGciOlsiRVMyNTZLIiwiRWREU0EiXX19fSwicmVzcG9uc2VfbW9kZSI6InBvc3QiLCJyZXNwb25zZV90eXBlIjoiaWRfdG9rZW4iLCJzY29wZSI6Im9wZW5pZCIsInN0YXRlIjoiNjMzN2UxZGItZWJhNS00NTc1LWI4OWEtM2MyNGQzMWU2MTI0Iiwic3ViIjoiZGlkOndlYjptdXR0LWNsYXNzaWMtYWN0dWFsbHkubmdyb2stZnJlZS5hcHA6aWFtOjVzSzh2Z2NEdGpCd2taQ2plbnl1dENVRkRmQ1FoWkN2d3F2VEhDOGZZZmFlIn0.pp0uDrEk280Cu7EZJ13ABO3hg_sltN-8BpRBU_FgjteSvSckLbMQDJ1nvngazxxXRUoZORJF5GP54ztNaFR3aA`
+	parsedJWT, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
+		vm := did.VerificationMethod{}
+		err := vm.UnmarshalJSON([]byte(`{
+      "id": "did:web:mutt-classic-actually.ngrok-free.app:iam:5sK8vgcDtjBwkZCjenyutCUFDfCQhZCvwqvTHC8fYfae#SFJLmuJzfRTPOTinTGd-CH93pzq3skXvnW-bugLEtk8",
+      "type": "JsonWebKey2020",
+      "controller": "did:web:mutt-classic-actually.ngrok-free.app:iam:5sK8vgcDtjBwkZCjenyutCUFDfCQhZCvwqvTHC8fYfae",
+      "publicKeyJwk": {
+        "crv": "secp256k1",
+        "kty": "EC",
+        "x": "syuqLUo0QEWJOhR3sxQ2ILcsN_LuObSuqyIJEqISEBk",
+        "y": "YpcNfo-aWrZ4T2r1DUnjLDKL6Ih2bKoR1X1epPJ6ptM"
+      }
+    }`))
+		if err != nil {
+			return nil, err
+		}
+		return vm.PublicKey()
+	}, jwt.WithAcceptableSkew(time.Hour*10000))
+	require.NoError(t, err)
+	require.NotNil(t, parsedJWT)
+}
+
 func TestCrypto_SignJWS(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	key, _ := client.New(audit.TestContext(), ECP256Key, StringNamingFunc(kid))
 
 	t.Run("creates valid JWS", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
@@ -246,7 +271,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 func TestCrypto_EncryptJWE(t *testing.T) {
 	client := createCrypto(t)
 
-	key, _ := client.New(audit.TestContext(), StringNamingFunc("did:nuts:1234#key-1"))
+	key, _ := client.New(audit.TestContext(), ECP256Key, StringNamingFunc("did:nuts:1234#key-1"))
 	public := key.Public()
 
 	headers := map[string]interface{}{"typ": "JWT", "kid": key.KID()}
@@ -329,7 +354,7 @@ func TestCrypto_DecryptJWE(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "did:nuts:1234#key-1"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	key, _ := client.New(audit.TestContext(), ECP256Key, StringNamingFunc(kid))
 
 	t.Run("decrypts valid JWE", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})

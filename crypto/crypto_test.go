@@ -45,7 +45,7 @@ func TestCrypto_Exists(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	client.New(audit.TestContext(), StringNamingFunc(kid))
+	client.New(audit.TestContext(), ECP256Key, StringNamingFunc(kid))
 
 	t.Run("returns true for existing key", func(t *testing.T) {
 		assert.True(t, client.Exists(ctx, kid))
@@ -69,7 +69,7 @@ func TestCrypto_New(t *testing.T) {
 		kid := "kid"
 		auditLogs := audit.CaptureLogs(t)
 
-		key, err := client.New(ctx, StringNamingFunc(kid))
+		key, err := client.New(ctx, ECP256Key, StringNamingFunc(kid))
 
 		assert.NoError(t, err)
 		assert.NotNil(t, key.Public())
@@ -80,7 +80,7 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("error - invalid KID", func(t *testing.T) {
 		kid := "../certificate"
 
-		key, err := client.New(ctx, StringNamingFunc(kid))
+		key, err := client.New(ctx, ECP256Key, StringNamingFunc(kid))
 
 		assert.ErrorContains(t, err, "invalid key ID")
 		assert.Nil(t, key)
@@ -90,7 +90,7 @@ func TestCrypto_New(t *testing.T) {
 		errorNamingFunc := func(key crypto.PublicKey) (string, error) {
 			return "", errors.New("b00m!")
 		}
-		_, err := client.New(ctx, errorNamingFunc)
+		_, err := client.New(ctx, ECP256Key, errorNamingFunc)
 		assert.Error(t, err)
 	})
 
@@ -101,7 +101,7 @@ func TestCrypto_New(t *testing.T) {
 		storageMock.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
 		client := &Crypto{storage: storageMock}
-		key, err := client.New(ctx, StringNamingFunc("123"))
+		key, err := client.New(ctx, ECP256Key, StringNamingFunc("123"))
 		assert.Nil(t, key)
 		assert.Error(t, err)
 		assert.Equal(t, "could not create new keypair: could not save private key: foo", err.Error())
@@ -113,7 +113,7 @@ func TestCrypto_New(t *testing.T) {
 		storageMock.EXPECT().PrivateKeyExists(ctx, "123").Return(true)
 
 		client := &Crypto{storage: storageMock}
-		key, err := client.New(ctx, StringNamingFunc("123"))
+		key, err := client.New(ctx, ECP256Key, StringNamingFunc("123"))
 		assert.Nil(t, key)
 		assert.EqualError(t, err, "key with the given ID already exists", err)
 	})
@@ -123,7 +123,7 @@ func TestCrypto_Resolve(t *testing.T) {
 	ctx := context.Background()
 	client := createCrypto(t)
 	kid := "kid"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	key, _ := client.New(audit.TestContext(), ECP256Key, StringNamingFunc(kid))
 
 	t.Run("ok", func(t *testing.T) {
 		resolvedKey, err := client.Resolve(ctx, "kid")

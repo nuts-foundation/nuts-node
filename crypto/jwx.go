@@ -71,6 +71,7 @@ func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}
 		return "", err
 	}
 
+	//kid = "did:web:mutt-classic-actually.ngrok-free.app#CPeUKv-0t4TPSlRnk61AqIK-DtH-riOvyx_Udk65XA"
 	if err = keyAsJWK.Set(jwk.KeyIDKey, kid); err != nil {
 		return "", err
 	}
