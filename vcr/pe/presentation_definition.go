@@ -102,7 +102,7 @@ func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.Verifia
 		}
 		mapping := InputDescriptorMappingObject{
 			Id:     match.InputDescriptor.Id,
-			Format: "ldp_vc", // todo: hardcoded for now, must be derived from the VC, but we don't support other VC types yet
+			Format: match.VC.Format(),
 			Path:   fmt.Sprintf("$.verifiableCredential[%d]", index),
 		}
 		presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, mapping)
