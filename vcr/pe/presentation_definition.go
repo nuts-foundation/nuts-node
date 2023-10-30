@@ -173,7 +173,7 @@ outer:
 			if candidate.VC != nil && vcEqual(uniqueVC, *candidate.VC) {
 				mapping := InputDescriptorMappingObject{
 					Id:     candidate.InputDescriptor.Id,
-					Format: "ldp_vc", // todo: hardcoded for now, must be derived from the VC, but we don't support other VC types yet
+					Format: candidate.VC.Format(),
 					Path:   fmt.Sprintf("$.verifiableCredential[%d]", index),
 				}
 				presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, mapping)

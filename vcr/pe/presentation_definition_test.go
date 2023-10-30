@@ -247,7 +247,7 @@ func TestMatch(t *testing.T) {
 				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
 
 				require.Error(t, err)
-				assert.EqualError(t, err, "submission requirement (All from nested) does not have all credentials from nested requirements")
+				assert.EqualError(t, err, "submission requirement (All from nested) does not have all credentials from the group")
 			})
 		})
 		t.Run("Pick min max from nested", func(t *testing.T) {
