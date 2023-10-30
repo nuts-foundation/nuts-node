@@ -285,7 +285,7 @@ func Test_matchFormat(t *testing.T) {
 		assert.True(t, match)
 	})
 
-	t.Run("empty format", func(t *testing.T) {
+	t.Run("countable format", func(t *testing.T) {
 		match := matchFormat(&PresentationDefinitionClaimFormatDesignations{}, vc.VerifiableCredential{})
 
 		assert.True(t, match)

@@ -60,13 +60,13 @@ func (submissionRequirement SubmissionRequirement) match(availableGroups map[str
 }
 
 func (submissionRequirement SubmissionRequirement) from(availableGroups map[string]GroupCandidates) ([]vc.VerifiableCredential, error) {
-	selectedVCs := make([]pickableVC, 0)
+	selectedVCs := make([]selectableVC, 0)
 	group := availableGroups[submissionRequirement.From]
 	for _, match := range group.Candidates {
 		if match.VC != nil {
-			selectedVCs = append(selectedVCs, pickableVC(*match.VC))
+			selectedVCs = append(selectedVCs, selectableVC(*match.VC))
 		} else {
-			selectedVCs = append(selectedVCs, pickableVC(vc.VerifiableCredential{}))
+			selectedVCs = append(selectedVCs, selectableVC(vc.VerifiableCredential{}))
 		}
 	}
 
@@ -74,7 +74,7 @@ func (submissionRequirement SubmissionRequirement) from(availableGroups map[stri
 }
 
 func (submissionRequirement SubmissionRequirement) fromNested(availableGroups map[string]GroupCandidates) ([]vc.VerifiableCredential, error) {
-	selectedVCs := make([]pickableVCList, len(submissionRequirement.FromNested))
+	selectedVCs := make([]selectableVCList, len(submissionRequirement.FromNested))
 	for i, nested := range submissionRequirement.FromNested {
 		vcs, err := nested.match(availableGroups)
 		if err != nil {
@@ -85,28 +85,31 @@ func (submissionRequirement SubmissionRequirement) fromNested(availableGroups ma
 	return apply(selectedVCs, submissionRequirement)
 }
 
-type pickable interface {
+// selectable is a helper interface to determine if an entry can be selected for a SubmissionRequirement.
+// If it's non-empty then it can be used for counting.
+// This interface is used as arrays, empty places in these lists have a meaning.
+type selectable interface {
 	empty() bool
 	flatten() []vc.VerifiableCredential
 }
 
-type pickableVC vc.VerifiableCredential
+type selectableVC vc.VerifiableCredential
 
-type pickableVCList []vc.VerifiableCredential
+type selectableVCList []vc.VerifiableCredential
 
-func (v pickableVC) empty() bool {
-	return len(v.CredentialSubject) == 0 && v.ID == nil
+func (v selectableVC) empty() bool {
+	return len(v.CredentialSubject) == 0 && v.ID == nil && len(v.Type) == 0
 }
 
-func (v pickableVC) flatten() []vc.VerifiableCredential {
+func (v selectableVC) flatten() []vc.VerifiableCredential {
 	return []vc.VerifiableCredential{vc.VerifiableCredential(v)}
 }
 
-func (v pickableVCList) empty() bool {
+func (v selectableVCList) empty() bool {
 	return len(v) == 0
 }
 
-func (v pickableVCList) flatten() []vc.VerifiableCredential {
+func (v selectableVCList) flatten() []vc.VerifiableCredential {
 	var returnVCs []vc.VerifiableCredential
 	for _, selection := range v {
 		returnVCs = append(returnVCs, selection)
@@ -114,9 +117,9 @@ func (v pickableVCList) flatten() []vc.VerifiableCredential {
 	return returnVCs
 }
 
-func apply[S ~[]E, E pickable](list S, submissionRequirement SubmissionRequirement) ([]vc.VerifiableCredential, error) {
+func apply[S ~[]E, E selectable](list S, submissionRequirement SubmissionRequirement) ([]vc.VerifiableCredential, error) {
 	var returnVCs []vc.VerifiableCredential
-	// check for non-empty members
+	// check for non-countable members
 	var size int
 	for _, member := range list {
 		if !member.empty() {
