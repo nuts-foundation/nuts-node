@@ -147,13 +147,6 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 
 // IntrospectAccessToken allows the resource server (XIS/EHR) to introspect details of an access token issued by this node
 func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
-	// Client authentication if required, return 401 if fails.
-	// TODO: Is this relevant? Should be handled by API authentication middleware
-	clientAuthorized := true
-	if !clientAuthorized {
-		return IntrospectAccessToken401Response{}, nil
-	}
-
 	// Validate token
 	if request.Body.Token == "" {
 		// Return 200 + 'Active = false' when token is invalid or malformed
