@@ -22,6 +22,24 @@ package pe
 // PresentationDefinitionClaimFormatDesignations (replaces generated one)
 type PresentationDefinitionClaimFormatDesignations map[string]map[string][]string
 
+// PresentationSubmission describes how the VCs in the VP match the input descriptors in the PD
+type PresentationSubmission struct {
+	// Id is the id of the presentation submission, which is a UUID
+	Id string `json:"id"`
+	// DefinitionId is the id of the presentation definition that this submission is for
+	DefinitionId string `json:"definition_id"`
+	// DescriptorMap is a list of mappings from input descriptors to VCs
+	DescriptorMap []InputDescriptorMappingObject `json:"descriptor_map"`
+}
+
+// InputDescriptorMappingObject
+type InputDescriptorMappingObject struct {
+	Id              string          `json:"id"`
+	Path            string          `json:"path"`
+	Format          string          `json:"format"`
+	inputDescriptor InputDescriptor `json:"-"`
+}
+
 // Constraints
 type Constraints struct {
 	Fields          []Field             `json:"fields,omitempty"`
@@ -86,6 +104,36 @@ type Statuses struct {
 	Suspended *StatusDirective `json:"suspended,omitempty"`
 }
 
+// Field describes a constraints field in a presentation definition's input descriptor.  The predicate feature is not implemented
+type Field struct {
+	Id             *string  `json:"id,omitempty"`
+	Optional       *bool    `json:"optional,omitempty"`
+	Path           []string `json:"path"`
+	Purpose        *string  `json:"purpose,omitempty"`
+	Name           *string  `json:"name,omitempty"`
+	IntentToRetain *bool    `json:"intent_to_retain,omitempty"`
+	Filter         *Filter  `json:"filter,omitempty"`
+}
+
+// Filter is a JSON Schema (without nesting)
+type Filter struct {
+	// Type is the type of field: string, number, boolean, array, object
+	Type string `json:"type"`
+	// Const is a constant value to match, currently only strings are supported
+	Const *string `json:"const,omitempty"`
+	// Enum is a list of values to match
+	Enum []string `json:"enum,omitempty"`
+	// Pattern is a pattern to match according to ECMA-262, section 21.2.1
+	Pattern *string `json:"pattern,omitempty"`
+}
+
 // SubmissionRequirement
 type SubmissionRequirement struct {
+	Count      *int                     `json:"count,omitempty"`
+	From       string                   `json:"from,omitempty"`
+	FromNested []*SubmissionRequirement `json:"from_nested,omitempty"`
+	Max        *int                     `json:"max,omitempty"`
+	Min        *int                     `json:"min,omitempty"`
+	Name       string                   `json:"name,omitempty"`
+	Rule       string                   `json:"rule"`
 }

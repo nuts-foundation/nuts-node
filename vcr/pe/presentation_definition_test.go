@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/pe/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -91,27 +92,185 @@ var testCredentialString = `
 }`
 
 func TestMatch(t *testing.T) {
-	presentationDefinition := PresentationDefinition{}
-	_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
-	verifiableCredential := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("../test/vc.json")
-	_ = json.Unmarshal(vcJSON, &verifiableCredential)
+	id1 := ssi.MustParseURI("1")
+	id2 := ssi.MustParseURI("2")
+	id3 := ssi.MustParseURI("3")
+	id4 := ssi.MustParseURI("4")
+	vc1 := vc.VerifiableCredential{ID: &id1}
+	vc2 := vc.VerifiableCredential{ID: &id2}
+	vc3 := vc.VerifiableCredential{ID: &id3}
+	vc4 := vc.VerifiableCredential{ID: &id4}
 
-	t.Run("Happy flow", func(t *testing.T) {
-		presentationSubmission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
+	t.Run("Basic", func(t *testing.T) {
+		presentationDefinition := PresentationDefinition{}
+		_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
+		verifiableCredential := vc.VerifiableCredential{}
+		vcJSON, _ := os.ReadFile("../test/vc.json")
+		_ = json.Unmarshal(vcJSON, &verifiableCredential)
 
-		require.NoError(t, err)
-		assert.Len(t, vcs, 1)
-		require.Len(t, presentationSubmission.DescriptorMap, 1)
-		assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+		t.Run("Happy flow", func(t *testing.T) {
+			presentationSubmission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 1)
+			require.Len(t, presentationSubmission.DescriptorMap, 1)
+			assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+		})
+		t.Run("Only second VC matches", func(t *testing.T) {
+			presentationSubmission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, verifiableCredential})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 1)
+			require.Len(t, presentationSubmission.DescriptorMap, 1)
+			assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+		})
 	})
-	t.Run("Only second VC matches", func(t *testing.T) {
-		presentationSubmission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, verifiableCredential})
+	t.Run("Submission requirement feature", func(t *testing.T) {
+		t.Run("Pick", func(t *testing.T) {
+			t.Run("Pick 1", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickOne), &presentationDefinition)
 
-		require.NoError(t, err)
-		assert.Len(t, vcs, 1)
-		require.Len(t, presentationSubmission.DescriptorMap, 1)
-		assert.Equal(t, "$.verifiableCredential[0]", presentationSubmission.DescriptorMap[0].Path)
+				submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				require.NotNil(t, submission)
+				require.Len(t, submission.DescriptorMap, 1)
+				assert.Equal(t, "$.verifiableCredential[0]", submission.DescriptorMap[0].Path)
+			})
+			t.Run("error", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickOne), &presentationDefinition)
+
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
+
+				require.Error(t, err)
+				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less credentials (0) than required (1)")
+			})
+		})
+		t.Run("Pick min max", func(t *testing.T) {
+			t.Run("Ok", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickMinMax), &presentationDefinition)
+
+				submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 2)
+				assert.NotNil(t, submission)
+			})
+			t.Run("error", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickMinMax), &presentationDefinition)
+
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
+
+				require.Error(t, err)
+				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less matches (0) than minimal required (1)")
+			})
+		})
+		t.Run("Pick 1 per group", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.PickOnePerGroup), &presentationDefinition)
+
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 2)
+			assert.NotNil(t, submission)
+		})
+		t.Run("Pick all", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
+
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 2)
+			assert.NotNil(t, submission)
+		})
+		t.Run("Deduplicate", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.DeduplicationRequired), &presentationDefinition)
+
+			submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 1)
+			assert.NotNil(t, submission)
+		})
+		t.Run("Pick 1 from nested", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.PickOneFromNested), &presentationDefinition)
+
+			t.Run("all from group A or all from group B", func(t *testing.T) {
+				t.Run("all A", func(t *testing.T) {
+					submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
+
+					require.NoError(t, err)
+					assert.Len(t, vcs, 2)
+					assert.NotNil(t, submission)
+				})
+				t.Run("all B", func(t *testing.T) {
+					submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc3, vc4})
+
+					require.NoError(t, err)
+					assert.Len(t, vcs, 2)
+					assert.Equal(t, "3", vcs[0].ID.String())
+					assert.NotNil(t, submission)
+				})
+				t.Run("no match", func(t *testing.T) {
+					submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc3})
+
+					require.Error(t, err)
+					assert.Len(t, vcs, 0)
+					assert.NotNil(t, submission)
+				})
+			})
+		})
+		t.Run("All from nested", func(t *testing.T) {
+			t.Run("Ok", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.AllFromNested), &presentationDefinition)
+
+				submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 2)
+				assert.NotNil(t, submission)
+			})
+			t.Run("error", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.AllFromNested), &presentationDefinition)
+
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
+
+				require.Error(t, err)
+				assert.EqualError(t, err, "submission requirement (All from nested) does not have all credentials from the group")
+			})
+		})
+		t.Run("Pick min max from nested", func(t *testing.T) {
+			t.Run("Ok", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickMinMaxFromNested), &presentationDefinition)
+
+				submission, vcs, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2, vc3})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 2)
+				assert.NotNil(t, submission)
+			})
+			t.Run("error", func(t *testing.T) {
+				presentationDefinition := PresentationDefinition{}
+				_ = json.Unmarshal([]byte(test.PickMinMaxFromNested), &presentationDefinition)
+
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
+
+				require.Error(t, err)
+				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less matches (0) than minimal required (1)")
+			})
+		})
 	})
 }
 
@@ -126,7 +285,7 @@ func Test_matchFormat(t *testing.T) {
 		assert.True(t, match)
 	})
 
-	t.Run("empty format", func(t *testing.T) {
+	t.Run("countable format", func(t *testing.T) {
 		match := matchFormat(&PresentationDefinitionClaimFormatDesignations{}, vc.VerifiableCredential{})
 
 		assert.True(t, match)
