@@ -37,3 +37,40 @@ func Test_match(t *testing.T) {
 		assert.EqualError(t, err, "submission requirement (test) contains both 'from' and 'from_nested'")
 	})
 }
+
+func TestSubmissionRequirement_Groups(t *testing.T) {
+	t.Run("group from a single requirement", func(t *testing.T) {
+		requirement := SubmissionRequirement{
+			From: "A",
+		}
+
+		groups := requirement.Groups()
+
+		assert.Equal(t, []string{"A"}, groups)
+	})
+	t.Run("groups from nested requirements", func(t *testing.T) {
+		requirement := SubmissionRequirement{
+			From: "A",
+			FromNested: []*SubmissionRequirement{
+				{From: "B"},
+			},
+		}
+
+		groups := requirement.Groups()
+
+		assert.Equal(t, []string{"A", "B"}, groups)
+	})
+	t.Run("deduplicate groups", func(t *testing.T) {
+		requirement := SubmissionRequirement{
+			From: "A",
+			FromNested: []*SubmissionRequirement{
+				{From: "B"},
+				{From: "A"},
+			},
+		}
+
+		groups := requirement.Groups()
+
+		assert.Equal(t, []string{"A", "B"}, groups)
+	})
+}

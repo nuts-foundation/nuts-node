@@ -104,7 +104,7 @@ type Statuses struct {
 	Suspended *StatusDirective `json:"suspended,omitempty"`
 }
 
-// Field describes a field in a presentation submission, predicate feature is not implemented
+// Field describes a constraints field in a presentation definition's input descriptor.  The predicate feature is not implemented
 type Field struct {
 	Id             *string  `json:"id,omitempty"`
 	Optional       *bool    `json:"optional,omitempty"`
@@ -135,5 +135,5 @@ type SubmissionRequirement struct {
 	Max        *int                     `json:"max,omitempty"`
 	Min        *int                     `json:"min,omitempty"`
 	Name       string                   `json:"name,omitempty"`
-	Rule       string                   `json:"rule,omitempty"`
+	Rule       string                   `json:"rule"`
 }

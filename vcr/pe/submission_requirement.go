@@ -48,6 +48,9 @@ func (submissionRequirement SubmissionRequirement) match(availableGroups map[str
 	if submissionRequirement.From != "" && len(submissionRequirement.FromNested) > 0 {
 		return nil, fmt.Errorf("submission requirement (%s) contains both 'from' and 'from_nested'", submissionRequirement.Name)
 	}
+	if submissionRequirement.From == "" && len(submissionRequirement.FromNested) == 0 {
+		return nil, fmt.Errorf("submission requirement (%s) is missing 'from' or 'from_nested'", submissionRequirement.Name)
+	}
 
 	if !(submissionRequirement.Rule == "all" || submissionRequirement.Rule == "pick") {
 		return nil, fmt.Errorf("submission requirement (%s) contains unknown rule (%s)", submissionRequirement.Name, submissionRequirement.Rule)
