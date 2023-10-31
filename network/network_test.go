@@ -1247,7 +1247,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			result := n.CheckHealth()
 
 			assert.Equal(t, core.HealthStatusDown, result[healthTLS].Status)
-			assert.Equal(t, "x509: certificate signed by unknown authority", result[healthTLS].Details)
+			assert.Contains(t, result[healthTLS].Details, "x509: certificate has expired or is not yet valid")
 		})
 	})
 
