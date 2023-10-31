@@ -41,6 +41,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didkey"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
@@ -409,7 +410,7 @@ func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
 	contextPresent := false
 
 	for _, c := range document.Context {
-		if c.String() == ctx.String() {
+		if util.LDContextToString(c) == ctx.String() {
 			contextPresent = true
 		}
 	}

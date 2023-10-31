@@ -31,9 +31,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
 )
 
 // Do not use this public key for anything other than unit tests in denylist_test.go
@@ -179,7 +179,7 @@ func encodeDenylist(t *testing.T, entries []denylistEntry) string {
 	require.NoError(t, err)
 
 	// Sign the denylist as a JWS Message
-	compactJWS, err := jws.Sign(payload, jwa.EdDSA, key)
+	compactJWS, err := jws.Sign(payload, jws.WithKey(jwa.EdDSA, key))
 	require.NoError(t, err)
 
 	// Return the compact encoded JWS message
@@ -255,7 +255,7 @@ func TestDenylistMissing(t *testing.T) {
 
 	// Sign an invalid denylist as a JWS Message
 	payload := []byte("invalid payload")
-	compactJWS, err := jws.Sign(payload, jwa.EdDSA, key)
+	compactJWS, err := jws.Sign(payload, jws.WithKey(jwa.EdDSA, key))
 	require.NoError(t, err)
 
 	// Setup a denylist server

@@ -20,7 +20,7 @@ package cmd
 
 import (
 	"bytes"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/require"
@@ -58,7 +58,7 @@ func TestGenToken(t *testing.T) {
 	matches := regexp.MustCompile("Token:\n\n(.*)\n").FindStringSubmatch(output)
 	assert.Len(t, matches, 2)
 	token := matches[1]
-	parsedToken, err := jwt.Parse([]byte(token))
+	parsedToken, err := jwt.Parse([]byte(token), jwt.WithVerify(false))
 	require.NoError(t, err)
 	assert.Less(t, parsedToken.Expiration(), time.Now().AddDate(0, 0, daysValid+1))
 	assert.Greater(t, parsedToken.Expiration(), time.Now().AddDate(0, 0, daysValid-1))

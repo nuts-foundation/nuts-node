@@ -20,7 +20,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -41,7 +41,7 @@ func TestPublicKeyEntry_UnmarshalJSON(t *testing.T) {
 
 func TestPublicKeyEntry_FromJWK(t *testing.T) {
 	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	pk, _ := jwk.New(privateKey)
+	pk, _ := jwk.FromRaw(privateKey)
 
 	entry := PublicKeyEntry{}
 	err := entry.FromJWK(pk)

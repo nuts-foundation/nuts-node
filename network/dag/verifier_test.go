@@ -30,7 +30,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-stoabs"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -105,21 +105,14 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		transaction, _, _ := CreateTestTransaction(1)
 		expected, _ := ParseTransaction(transaction.Data())
 		err := NewTransactionSignatureVerifier(&staticKeyResolver{Key: attackerKey.Public()})(nil, expected)
-		assert.EqualError(t, err, "failed to verify message: failed to verify signature using ecdsa")
+		assert.EqualError(t, err, "could not verify message using any of the signatures or keys")
 	})
 	t.Run("key type is incorrect", func(t *testing.T) {
 		d, _, _ := CreateTestTransaction(1)
 		tx := d.(*transaction)
-		tx.signingKey = jwk.NewSymmetricKey()
+		tx.signingKey, _ = jwk.FromRaw([]byte("01234567890123456789012345678901234567890123456789ABCDEF"))
 		err := NewTransactionSignatureVerifier(nil)(nil, tx)
-		assert.EqualError(t, err, "failed to verify message: failed to retrieve ecdsa.PublicKey out of []uint8: expected ecdsa.PublicKey or *ecdsa.PublicKey, got []uint8")
-	})
-	t.Run("unable to derive key from JWK", func(t *testing.T) {
-		d, _, _ := CreateTestTransaction(1)
-		transaction := d.(*transaction)
-		transaction.signingKey = jwk.NewOKPPublicKey()
-		err := NewTransactionSignatureVerifier(nil)(nil, transaction)
-		assert.EqualError(t, err, "failed to build public key: invalid curve algorithm P-invalid")
+		assert.EqualError(t, err, "could not verify message using any of the signatures or keys")
 	})
 	t.Run("unable to resolve key by hash", func(t *testing.T) {
 		d := CreateSignedTestTransaction(1, time.Now(), nil, "foo/bar", false)

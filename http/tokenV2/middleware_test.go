@@ -40,9 +40,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 
 	"github.com/google/uuid"
 
@@ -70,7 +70,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	sshAuthKey := fmt.Sprintf("%v %v %v", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()), validUser)
 
 	// Convert the base key type to a jwk type
-	jwkKey, err := jwk.New(priv)
+	jwkKey, err := jwk.FromRaw(priv)
 	require.NoError(t, err)
 
 	// Set the key ID for the jwk to be the public key fingerprint
@@ -78,7 +78,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	require.NoError(t, err)
 
 	// Create a serializer configured to use the generated key
-	serializer := jwt.NewSerializer().Sign(jwa.EdDSA, jwkKey)
+	serializer := jwt.NewSerializer().Sign(jwt.WithKey(jwa.EdDSA, jwkKey))
 
 	t.Logf("authorized_key = %v", sshAuthKey)
 
@@ -98,7 +98,7 @@ func generateECDSATestKey(t *testing.T, curve elliptic.Curve, signingAlgorithm j
 	sshAuthKey := fmt.Sprintf("%v %v %v", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()), validUser)
 
 	// Convert the base key type to a jwk type
-	jwkKey, err := jwk.New(priv)
+	jwkKey, err := jwk.FromRaw(priv)
 	require.NoError(t, err)
 
 	// Set the key ID for the jwk to be the public key fingerprint
@@ -106,7 +106,7 @@ func generateECDSATestKey(t *testing.T, curve elliptic.Curve, signingAlgorithm j
 	require.NoError(t, err)
 
 	// Create a serializer configured to use the generated key
-	serializer := jwt.NewSerializer().Sign(signingAlgorithm, jwkKey)
+	serializer := jwt.NewSerializer().Sign(jwt.WithKey(signingAlgorithm, jwkKey))
 
 	t.Logf("authorized_key = %v", sshAuthKey)
 
@@ -126,7 +126,7 @@ func generateRSATestKey(t *testing.T, bits int, signingAlgorithm jwa.SignatureAl
 	sshAuthKey := fmt.Sprintf("%v %v %s", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()), validUser)
 
 	// Convert the base key type to a jwk type
-	jwkKey, err := jwk.New(priv)
+	jwkKey, err := jwk.FromRaw(priv)
 	require.NoError(t, err)
 
 	// Set the key ID for the jwk to be the public key fingerprint
@@ -134,7 +134,7 @@ func generateRSATestKey(t *testing.T, bits int, signingAlgorithm jwa.SignatureAl
 	require.NoError(t, err)
 
 	// Create a serializer configured to use the generated key
-	serializer := jwt.NewSerializer().Sign(signingAlgorithm, jwkKey)
+	serializer := jwt.NewSerializer().Sign(jwt.WithKey(signingAlgorithm, jwkKey))
 
 	t.Logf("authorized_key = %v", sshAuthKey)
 
@@ -424,7 +424,7 @@ func TestInvalidSingleAudience(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, authorizedKey)
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -445,7 +445,7 @@ func TestInvalidSingleAudience(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	require.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: aud not satisfied")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: \"aud\" not satisfied")
 }
 
 // TestValidIssProxiedSub ensures a valid JWT containing a subject mentioning a proxied username results in a 200 OK
@@ -754,7 +754,7 @@ func TestWrongAudienceJWT(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	require.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: aud not satisfied")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: \"aud\" not satisfied")
 }
 
 // TestWrongKeyID ensures a JWT with the wrong kid from an authorized key causes 401 Unauthorized
@@ -860,7 +860,7 @@ func TestExpiredJWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, authorizedKey)
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -881,7 +881,7 @@ func TestExpiredJWT(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	assert.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: exp not satisfied")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: \"exp\" not satisfied")
 }
 
 // TestFutureIATJWT ensures a not yet valid (iat = future) JWT from an authorized key causes 401 Unauthorized
@@ -924,7 +924,7 @@ func TestFutureIATJWT(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	require.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: iat not satisfied")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: \"iat\" not satisfied")
 }
 
 // TestFutureNBFJWT ensures a not yet valid (nbf = future) JWT from an authorized key causes 401 Unauthorized
@@ -967,7 +967,7 @@ func TestFutureNBFJWT(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	require.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: nbf not satisfied")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: \"nbf\" not satisfied")
 }
 
 // TestUnauthorizedKey ensures a valid JWT signed by an unauthorized key is rejected with 401 Unauthorized

@@ -24,7 +24,7 @@ import (
 	"io/fs"
 	"strings"
 
-	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwa"
 
 	"github.com/nuts-foundation/nuts-node/auth/assets"
 	"github.com/nuts-foundation/nuts-node/auth/contract"

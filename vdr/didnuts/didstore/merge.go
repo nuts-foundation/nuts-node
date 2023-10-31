@@ -18,6 +18,7 @@
 package didstore
 
 import (
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
 	"sort"
 	"strings"
 
@@ -56,7 +57,9 @@ func mergeBasics(docs []did.Document, result *did.Document) {
 	contexts := map[string]ssi.URI{}
 	for _, doc := range docs {
 		for _, context := range doc.Context {
-			contexts[context.String()] = context
+			if uriContext, ok := context.(ssi.URI); ok {
+				contexts[uriContext.String()] = uriContext
+			}
 		}
 	}
 	for _, context := range contexts {
@@ -208,8 +211,8 @@ func serviceSort(result *did.Document) less {
 
 func contextSort(result *did.Document) less {
 	return func(i, j int) bool {
-		is := result.Context[i].String()
-		js := result.Context[j].String()
+		is := util.LDContextToString(result.Context[i])
+		js := util.LDContextToString(result.Context[j])
 		return strings.Compare(is, js) == -1
 	}
 }

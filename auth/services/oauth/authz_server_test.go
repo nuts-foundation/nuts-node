@@ -32,9 +32,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -525,7 +525,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential: failed to parse token: invalid character '}' looking for beginning of value")
+		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential: invalid JWT")
 	})
 
 	t.Run("error - jwt.iss <> credentialSubject.ID mismatch", func(t *testing.T) {
@@ -592,7 +592,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		token := jwt.New()
 		hdrs := jws.NewHeaders()
 		hdrs.Set(jws.KeyIDKey, keyID)
-		signedToken, err := jwt.Sign(token, jwa.RS256, privateKey, jwt.WithHeaders(hdrs))
+		signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, privateKey, jws.WithProtectedHeaders(hdrs)))
 		require.NoError(t, err)
 
 		tokenCtx := &validationContext{
@@ -642,7 +642,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), nil, resolver.NutsSigningKeyType).Return(requesterSigningKey.PublicKey, nil)
 
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
-		assert.EqualError(t, err, "exp not satisfied")
+		assert.EqualError(t, err, "\"exp\" not satisfied")
 	})
 }
 
@@ -724,7 +724,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		// Then validate it
 		claims, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
 
-		require.EqualError(t, err, "failed to verify jws signature: failed to verify message: failed to verify signature using ecdsa")
+		require.EqualError(t, err, "could not verify message using any of the signatures or keys")
 		require.Nil(t, claims)
 	})
 
@@ -842,7 +842,7 @@ func signTokenWithKey(context *validationContext, key *ecdsa.PrivateKey) {
 	if err != nil {
 		panic(err)
 	}
-	signedToken, err := jwt.Sign(context.jwtBearerToken, jwa.ES256, key, jwt.WithHeaders(hdrs))
+	signedToken, err := jwt.Sign(context.jwtBearerToken, jwt.WithKey(jwa.ES256, key, jws.WithProtectedHeaders(hdrs)))
 	if err != nil {
 		panic(err)
 	}
