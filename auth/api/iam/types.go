@@ -35,6 +35,9 @@ type DIDDocumentMetadata = resolver.DocumentMetadata
 // VerifiableCredential is an alias
 type VerifiableCredential = vc.VerifiableCredential
 
+// VerifiableCredential is an alias
+type VerifiablePresentation = vc.VerifiablePresentation
+
 // ErrorResponse is an alias
 type ErrorResponse = oauth.OAuth2Error
 

@@ -295,39 +295,46 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		}
 		tNow := time.Now()
 		token := AccessToken{
-			Token:        "token",
-			Issuer:       "resource-owner",
-			ClientId:     "client",
-			IssuedAt:     tNow,
-			Expiration:   tNow.Add(time.Minute),
-			Scope:        "test",
-			Presentation: presentation,
+			Token:                  "token",
+			Issuer:                 "resource-owner",
+			ClientId:               "client",
+			IssuedAt:               tNow,
+			Expiration:             tNow.Add(time.Minute),
+			Scope:                  "test",
+			PDPMap:                 map[string]any{"key": "value"},
+			VPToken:                []VerifiablePresentation{presentation},
+			PresentationSubmission: &pe.PresentationSubmission{},
+			PresentationDefinition: &pe.PresentationDefinition{},
 		}
-		pStr := func(s string) *string { return &s }
-		pTime := func(t time.Time) *int {
-			tInt := int(t.Unix())
-			return &tInt
-		}
+
 		require.NoError(t, ctx.client.s2sAccessTokenStore().Put(token.Token, token))
 		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
-			Active:   true,
-			ClientId: pStr("client"),
-			Exp:      pTime(tNow.Add(time.Minute)),
-			Iat:      pTime(tNow),
-			Iss:      pStr("resource-owner"),
-			Scope:    pStr("test"),
-			Sub:      pStr("resource-owner"),
-			Vcs:      &[]vc.VerifiableCredential{*credential},
+			Active:                 true,
+			ClientId:               ptrTo("client"),
+			Exp:                    ptrTo(int(tNow.Add(time.Minute).Unix())),
+			Iat:                    ptrTo(int(tNow.Unix())),
+			Iss:                    ptrTo("resource-owner"),
+			Scope:                  ptrTo("test"),
+			Sub:                    ptrTo("resource-owner"),
+			Vps:                    &[]VerifiablePresentation{presentation},
+			PdpMap:                 ptrTo(map[string]any{"key": "value"}),
+			PresentationSubmission: ptrTo(map[string]interface{}{"definition_id": "", "descriptor_map": nil, "id": ""}),
+			PresentationDefinition: ptrTo(map[string]interface{}{"id": "", "input_descriptors": nil}),
 		})
 		require.NoError(t, err)
 
-		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: token.Token}})
 
 		require.NoError(t, err)
 		tokenResponse, err := json.Marshal(res)
 		assert.NoError(t, err)
 		assert.JSONEq(t, string(expectedResponse), string(tokenResponse))
 	})
+}
+
+// OG pointer function. Returns a pointer to any input.
+func ptrTo[T any](v T) *T {
+	return &v
 }
 
 func requireOAuthError(t *testing.T, err error, errorCode oauth.ErrorCode, errorDescription string) {

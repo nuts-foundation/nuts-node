@@ -127,7 +127,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, accessToken.AccessToken, storedToken.Token)
 		expectedVPJSON, _ := presentation.MarshalJSON()
-		actualVPJSON, _ := storedToken.Presentation.MarshalJSON()
+		actualVPJSON, _ := storedToken.VPToken[0].MarshalJSON()
 		assert.JSONEq(t, string(expectedVPJSON), string(actualVPJSON))
 		assert.Equal(t, issuerDID.String(), storedToken.Issuer)
 		assert.NotEmpty(t, storedToken.Expiration)

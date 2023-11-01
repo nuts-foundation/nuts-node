@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
@@ -169,16 +170,17 @@ func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAc
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := IntrospectAccessToken200JSONResponse{
-		Active:   true,
-		Iat:      &iat,
-		Exp:      &exp,
-		Iss:      &token.Issuer,
-		Sub:      &token.Issuer,
-		ClientId: &token.ClientId,
-		// TODO: include what resources the token is valid for
-		Aud:   nil,
-		Scope: &token.Scope,
-		Vcs:   &token.Presentation.VerifiableCredential,
+		Active:                 true,
+		Iat:                    &iat,
+		Exp:                    &exp,
+		Iss:                    &token.Issuer,
+		Sub:                    &token.Issuer,
+		ClientId:               &token.ClientId,
+		Scope:                  &token.Scope,
+		PdpMap:                 &token.PDPMap,
+		PresentationDefinition: nil,
+		PresentationSubmission: nil,
+		Vps:                    &token.VPToken,
 
 		// TODO: user authentication, used in OpenID4VP flow
 		FamilyName:     nil,
@@ -189,7 +191,37 @@ func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAc
 		UserRole:       nil,
 		Username:       nil,
 	}
+
+	// set presentation definition if in token
+	var err error
+	response.PresentationDefinition, err = toAnyMap(token.PresentationDefinition)
+	if err != nil {
+		return IntrospectAccessToken200JSONResponse{}, err
+	}
+
+	// set presentation submission if in token
+	response.PresentationSubmission, err = toAnyMap(token.PresentationSubmission)
+	if err != nil {
+		return IntrospectAccessToken200JSONResponse{}, err
+	}
 	return response, nil
+}
+
+// toAnyMap marshals and unmarshals input into *map[string]any. Useful to generate OAPI response objects.
+func toAnyMap(input any) (*map[string]any, error) {
+	if input == nil {
+		return nil, nil
+	}
+	bs, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]any)
+	err = json.Unmarshal(bs, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.

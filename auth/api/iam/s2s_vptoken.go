@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -119,11 +120,15 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 		Token:  crypto.GenerateNonce(),
 		Issuer: issuer.String(),
 		// TODO: set ClientId
-		ClientId:     "",
-		IssuedAt:     issueTime,
-		Expiration:   issueTime.Add(accessTokenValidity),
-		Scope:        scope,
-		Presentation: presentation,
+		ClientId:   "",
+		IssuedAt:   issueTime,
+		Expiration: issueTime.Add(accessTokenValidity),
+		Scope:      scope,
+		// TODO: set values
+		PDPMap:                 nil,
+		VPToken:                []VerifiablePresentation{presentation},
+		PresentationDefinition: nil,
+		PresentationSubmission: nil,
 	}
 	err := r.s2sAccessTokenStore().Put(accessToken.Token, accessToken)
 	if err != nil {
@@ -146,10 +151,25 @@ type AccessToken struct {
 	Token string
 	// Issuer and Subject of a token are always the same.
 	Issuer string
+	// TODO: should client_id be extracted to the PDPMap using the presentation definition?
 	// ClientId is the DID of the entity requesting the access token. The Client needs to proof its id through proof-of-possession of the key for the DID.
-	ClientId     string
-	IssuedAt     time.Time
-	Expiration   time.Time
-	Scope        string
-	Presentation vc.VerifiablePresentation
+	ClientId string
+	// IssuedAt is the time the token is issued
+	IssuedAt time.Time
+	// Expiration is the time the token expires
+	Expiration time.Time
+	// Scope the token grants access to. Not necessarily the same as the requested scope
+	Scope string
+	// PDPMap maps the ID field of a PresentationDefinition input descriptor constraint to the value provided in the VPToken for the constraint.
+	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
+	PDPMap map[string]any
+
+	// additional fields to support unforeseen policy decision requirements
+
+	// VPToken contains the VPs provided in the 'assertion' field of the s2s AT request.
+	VPToken []VerifiablePresentation
+	// PresentationSubmission as provided in the 'presentation_submission' field of the s2s AT request.
+	PresentationSubmission *pe.PresentationSubmission
+	// PresentationDefinition fulfilled to obtain the AT in the s2s flow.
+	PresentationDefinition *pe.PresentationDefinition
 }

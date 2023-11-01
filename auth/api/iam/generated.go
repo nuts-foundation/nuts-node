@@ -65,8 +65,18 @@ type TokenIntrospectionResponse struct {
 	// Iss Contains the DID of the authorizer. Should be equal to 'sub'
 	Iss *string `json:"iss,omitempty"`
 
+	// PdpMap Mapping from the ID field of a 'presentation_definition' input descriptor constraint to the value provided in the 'vps' for the constraint.
+	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
+	PdpMap *map[string]interface{} `json:"pdp_map,omitempty"`
+
 	// Prefix Surname prefix
 	Prefix *string `json:"prefix,omitempty"`
+
+	// PresentationDefinition presentation definition, as described in presentation exchange specification, fulfilled to obtain the access token
+	PresentationDefinition *map[string]interface{} `json:"presentation_definition,omitempty"`
+
+	// PresentationSubmission mapping of 'vps' contents to the 'presentation_definition'
+	PresentationSubmission *map[string]interface{} `json:"presentation_submission,omitempty"`
 
 	// Scope granted scopes
 	Scope *string `json:"scope,omitempty"`
@@ -80,8 +90,8 @@ type TokenIntrospectionResponse struct {
 	// Username Identifier uniquely identifying the End-User's account in the issuing system.
 	Username *string `json:"username,omitempty"`
 
-	// Vcs The Verifiable Credentials that were used to request the access token using the same encoding as used in the access token request.
-	Vcs *[]VerifiableCredential `json:"vcs,omitempty"`
+	// Vps The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
+	Vps *[]VerifiablePresentation `json:"vps,omitempty"`
 }
 
 // TokenIntrospectionResponseAssuranceLevel Assurance level of the identity of the End-User.
@@ -274,6 +284,8 @@ func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error 
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params PresentationDefinitionParams
