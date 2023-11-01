@@ -322,8 +322,14 @@ func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicK
 	if len(headers.ContentEncryption().String()) > 0 {
 		enc = headers.ContentEncryption()
 	}
+	options := []jwe.EncryptOption{
+		jwe.WithProtectedHeaders(headers),
+		jwe.WithContentEncryption(enc),
+		jwe.WithKey(alg, publicKey),
+		jwe.WithCompress(headers.Compression()), // "" means no compression
+	}
 
-	encoded, err := jwe.Encrypt(payload, jwe.WithKey(alg, publicKey), jwe.WithContentEncryption(enc), jwe.WithCompress(jwa.Deflate), jwe.WithProtectedHeaders(headers))
+	encoded, err := jwe.Encrypt(payload, options...)
 	return string(encoded), err
 }
 

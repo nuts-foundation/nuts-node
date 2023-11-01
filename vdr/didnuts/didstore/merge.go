@@ -22,7 +22,6 @@ import (
 	"sort"
 	"strings"
 
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 )
 
@@ -54,11 +53,11 @@ func mergeBasics(docs []did.Document, result *did.Document) {
 	result.ID = docs[0].ID
 
 	// context
-	contexts := map[string]ssi.URI{}
+	contexts := map[string]interface{}{}
 	for _, doc := range docs {
 		for _, context := range doc.Context {
-			if uriContext, ok := context.(ssi.URI); ok {
-				contexts[uriContext.String()] = uriContext
+			if contextStr := util.LDContextToString(context); contextStr != "" {
+				contexts[contextStr] = context
 			}
 		}
 	}
