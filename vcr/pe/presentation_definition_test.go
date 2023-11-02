@@ -109,63 +109,38 @@ func TestMatch(t *testing.T) {
 		_ = json.Unmarshal(vcJSON, &verifiableCredential)
 
 		t.Run("Happy flow", func(t *testing.T) {
-			context := PresentationContext{
-				Index:                  0,
-				PresentationSubmission: &PresentationSubmission{},
-			}
-			vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{verifiableCredential})
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 1)
-			require.Len(t, context.PresentationSubmission.DescriptorMap, 1)
-			assert.Equal(t, "$[0]", context.PresentationSubmission.DescriptorMap[0].Path)
-			require.Len(t, context.PresentationSubmission.DescriptorMap[0].PathNested, 1)
-			assert.Equal(t, "$.verifiableCredential[0]", context.PresentationSubmission.DescriptorMap[0].PathNested[0].Path)
+			require.Len(t, mappingObjects, 1)
+			assert.Equal(t, "$.verifiableCredential[0]", mappingObjects[0].Path)
 		})
 		t.Run("Only second VC matches", func(t *testing.T) {
-			context := PresentationContext{
-				Index:                  0,
-				PresentationSubmission: &PresentationSubmission{},
-			}
-			vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, verifiableCredential})
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, verifiableCredential})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 1)
-		})
-		t.Run("Correct index on envelope", func(t *testing.T) {
-			context := PresentationContext{
-				Index:                  1,
-				PresentationSubmission: &PresentationSubmission{},
-			}
-			vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{verifiableCredential})
-
-			require.NoError(t, err)
-			assert.Len(t, vcs, 1)
-			require.Len(t, context.PresentationSubmission.DescriptorMap, 1)
-			assert.Equal(t, "$[1]", context.PresentationSubmission.DescriptorMap[0].Path)
+			assert.Len(t, mappingObjects, 1)
 		})
 	})
 	t.Run("Submission requirement feature", func(t *testing.T) {
-		context := PresentationContext{
-			Index:                  0,
-			PresentationSubmission: &PresentationSubmission{},
-		}
-
 		t.Run("Pick", func(t *testing.T) {
 			t.Run("Pick 1", func(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}
 				_ = json.Unmarshal([]byte(test.PickOne), &presentationDefinition)
 
-				vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{vc1, vc2})
+				vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
+				assert.Len(t, mappingObjects, 1)
 			})
 			t.Run("error", func(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}
 				_ = json.Unmarshal([]byte(test.PickOne), &presentationDefinition)
 
-				_, err := presentationDefinition.Match(context, []vc.VerifiableCredential{})
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
 
 				require.Error(t, err)
 				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less credentials (0) than required (1)")
@@ -176,16 +151,17 @@ func TestMatch(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}
 				_ = json.Unmarshal([]byte(test.PickMinMax), &presentationDefinition)
 
-				vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{vc1, vc2})
+				vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 2)
+				assert.Len(t, mappingObjects, 2)
 			})
 			t.Run("error", func(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}
 				_ = json.Unmarshal([]byte(test.PickMinMax), &presentationDefinition)
 
-				_, err := presentationDefinition.Match(context, []vc.VerifiableCredential{})
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
 
 				require.Error(t, err)
 				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less matches (0) than minimal required (1)")
@@ -195,28 +171,31 @@ func TestMatch(t *testing.T) {
 			presentationDefinition := PresentationDefinition{}
 			_ = json.Unmarshal([]byte(test.PickOnePerGroup), &presentationDefinition)
 
-			vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{vc1, vc2})
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 2)
+			assert.Len(t, mappingObjects, 2)
 		})
 		t.Run("Pick all", func(t *testing.T) {
 			presentationDefinition := PresentationDefinition{}
 			_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
 
-			vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{vc1, vc2})
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 2)
+			assert.Len(t, mappingObjects, 2)
 		})
 		t.Run("Deduplicate", func(t *testing.T) {
 			presentationDefinition := PresentationDefinition{}
 			_ = json.Unmarshal([]byte(test.DeduplicationRequired), &presentationDefinition)
 
-			vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{vc1})
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 1)
+			assert.Len(t, mappingObjects, 1)
 		})
 		t.Run("Pick 1 from nested", func(t *testing.T) {
 			presentationDefinition := PresentationDefinition{}
@@ -224,20 +203,22 @@ func TestMatch(t *testing.T) {
 
 			t.Run("all from group A or all from group B", func(t *testing.T) {
 				t.Run("all A", func(t *testing.T) {
-					vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{vc1, vc2})
+					vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
 					require.NoError(t, err)
 					assert.Len(t, vcs, 2)
+					assert.Len(t, mappingObjects, 2)
 				})
 				t.Run("all B", func(t *testing.T) {
-					vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{vc1, vc3, vc4})
+					vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc3, vc4})
 
 					require.NoError(t, err)
 					assert.Len(t, vcs, 2)
+					assert.Len(t, mappingObjects, 2)
 					assert.Equal(t, "3", vcs[0].ID.String())
 				})
 				t.Run("no match", func(t *testing.T) {
-					vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{vc1, vc3})
+					vcs, _, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc3})
 
 					require.Error(t, err)
 					assert.Len(t, vcs, 0)
@@ -249,16 +230,17 @@ func TestMatch(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}
 				_ = json.Unmarshal([]byte(test.AllFromNested), &presentationDefinition)
 
-				vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{vc1, vc2})
+				vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 2)
+				assert.Len(t, mappingObjects, 2)
 			})
 			t.Run("error", func(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}
 				_ = json.Unmarshal([]byte(test.AllFromNested), &presentationDefinition)
 
-				_, err := presentationDefinition.Match(context, []vc.VerifiableCredential{})
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
 
 				require.Error(t, err)
 				assert.EqualError(t, err, "submission requirement (All from nested) does not have all credentials from the group")
@@ -269,16 +251,17 @@ func TestMatch(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}
 				_ = json.Unmarshal([]byte(test.PickMinMaxFromNested), &presentationDefinition)
 
-				vcs, err := presentationDefinition.Match(context, []vc.VerifiableCredential{vc1, vc2, vc3})
+				vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc2, vc3})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 2)
+				assert.Len(t, mappingObjects, 2)
 			})
 			t.Run("error", func(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}
 				_ = json.Unmarshal([]byte(test.PickMinMaxFromNested), &presentationDefinition)
 
-				_, err := presentationDefinition.Match(context, []vc.VerifiableCredential{})
+				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
 
 				require.Error(t, err)
 				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less matches (0) than minimal required (1)")

@@ -37,9 +37,7 @@ type InputDescriptorMappingObject struct {
 	Format     string                         `json:"format"`
 	Id         string                         `json:"id"`
 	Path       string                         `json:"path"`
-	PathNested []InputDescriptorMappingObject `json:"path_nested"`
-
-	inputDescriptor InputDescriptor `json:"-"`
+	PathNested []InputDescriptorMappingObject `json:"path_nested,omitempty"`
 }
 
 // Constraints

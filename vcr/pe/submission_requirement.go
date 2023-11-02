@@ -32,7 +32,7 @@ type GroupCandidates struct {
 
 // Groups returns all the group names from the 'from' field. It traverses the 'from_nested' field recursively.
 func (submissionRequirement SubmissionRequirement) Groups() []string {
-	result := []string{}
+	var result []string
 	if submissionRequirement.From != "" {
 		result = append(result, submissionRequirement.From)
 	}

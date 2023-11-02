@@ -57,39 +57,24 @@ type PresentationContext struct {
 // It assumes this method is used for OpenID4VP since other envelopes require different nesting.
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 // Other errors can be returned for faulty JSON paths or regex patterns.
-func (presentationDefinition PresentationDefinition) Match(context PresentationContext, vcs []vc.VerifiableCredential) ([]vc.VerifiableCredential, error) {
-	if context.PresentationSubmission == nil {
-		return nil, errors.New("presentationContext.PresentationSubmission must be set")
-	}
+func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCredential) ([]vc.VerifiableCredential, []InputDescriptorMappingObject, error) {
 	var selectedVCs []vc.VerifiableCredential
 	var descriptorMaps []InputDescriptorMappingObject
 	var err error
 	if len(presentationDefinition.SubmissionRequirements) > 0 {
 		if descriptorMaps, selectedVCs, err = presentationDefinition.matchSubmissionRequirements(vcs); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	} else if descriptorMaps, selectedVCs, err = presentationDefinition.matchBasic(vcs); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// wrap each InputDescriptorMappingObject for the outer VP
-	for _, descriptorMap := range descriptorMaps {
-		nestedDescriptorMap := InputDescriptorMappingObject{
-			Id:     descriptorMap.Id,
-			Format: "ldp_vp",                            // todo support jwt_vp
-			Path:   fmt.Sprintf("$[%d]", context.Index), // todo is this path correct for the outer envelope?
-			PathNested: []InputDescriptorMappingObject{
-				descriptorMap,
-			},
-		}
-		context.PresentationSubmission.DescriptorMap = append(context.PresentationSubmission.DescriptorMap, nestedDescriptorMap)
-	}
-
-	return selectedVCs, nil
+	return selectedVCs, descriptorMaps, nil
 }
 
 func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential) ([]Candidate, error) {
 	var candidates []Candidate
+
 	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
 		match := Candidate{
 			InputDescriptor: *inputDescriptor,
@@ -106,6 +91,7 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 		}
 		candidates = append(candidates, match)
 	}
+
 	return candidates, nil
 }
 
@@ -115,24 +101,24 @@ func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.Verifia
 	// for each constraint in descriptor.constraints:
 	// for each field in constraint.fields:
 	//   a vc must match the field
-	matches, err := presentationDefinition.matchConstraints(vcs)
+	candidates, err := presentationDefinition.matchConstraints(vcs)
 	if err != nil {
 		return nil, nil, err
 	}
-	var index int
-	matchingCredentials := make([]vc.VerifiableCredential, len(matches))
+	matchingCredentials := make([]vc.VerifiableCredential, len(candidates))
 	var descriptors []InputDescriptorMappingObject
-	for _, match := range matches {
-		if match.VC == nil {
+	var index int
+	for i, candidate := range candidates {
+		if candidate.VC == nil {
 			return nil, []vc.VerifiableCredential{}, nil
 		}
 		mapping := InputDescriptorMappingObject{
-			Id:     match.InputDescriptor.Id,
-			Format: match.VC.Format(),
+			Id:     candidate.InputDescriptor.Id,
+			Format: candidate.VC.Format(),
 			Path:   fmt.Sprintf("$.verifiableCredential[%d]", index),
 		}
 		descriptors = append(descriptors, mapping)
-		matchingCredentials[index] = *match.VC
+		matchingCredentials[i] = *candidate.VC
 		index++
 	}
 

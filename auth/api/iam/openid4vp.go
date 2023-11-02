@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"net/http"
 	"net/url"
 	"strings"
@@ -137,22 +136,18 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 		}
 	}
 
-	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2359
-	presentationContext := pe.PresentationContext{
-		Index: 0,
-		PresentationSubmission: &pe.PresentationSubmission{
-			Id:           uuid.NewString(),
-			DefinitionId: presentationDefinition.Id,
-		},
-	}
-	matchingCredentials, err := presentationDefinition.Match(presentationContext, credentials)
+	submissionBuilder := presentationDefinition.Builder()
+	submissionBuilder.AddWallet(session.OwnDID, ownCredentials)
+	_, signInstructions, err := submissionBuilder.Build("ldp_vp")
 	if err != nil {
 		return nil, fmt.Errorf("unable to match presentation definition: %w", err)
 	}
 	var credentialIDs []string
-	for _, matchingCredential := range matchingCredentials {
-		templateParams.Credentials = append(templateParams.Credentials, makeCredentialInfo(matchingCredential))
-		credentialIDs = append(credentialIDs, matchingCredential.ID.String())
+	for _, signInstruction := range signInstructions {
+		for _, matchingCredential := range signInstruction.VerifiableCredentials {
+			templateParams.Credentials = append(templateParams.Credentials, makeCredentialInfo(matchingCredential))
+			credentialIDs = append(credentialIDs, matchingCredential.ID.String())
+		}
 	}
 	session.ServerState["openid4vp_credentials"] = credentialIDs
 
@@ -211,23 +206,21 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	if presentationDefinition == nil {
 		return fmt.Errorf("unsupported scope for presentation exchange: %s", session.Scope)
 	}
-	// TODO: Options
+	// TODO: Options (including format)
 	resultParams := map[string]string{}
-	presentationContext := pe.PresentationContext{
-		Index: 0,
-		PresentationSubmission: &pe.PresentationSubmission{
-			Id:           uuid.NewString(),
-			DefinitionId: presentationDefinition.Id,
-		},
-	}
-	credentials, err = presentationDefinition.Match(presentationContext, credentials)
+	submissionBuilder := presentationDefinition.Builder()
+	submissionBuilder.AddWallet(session.OwnDID, credentials)
+	submission, signInstructions, err := submissionBuilder.Build("ldp_vp")
 	if err != nil {
-		// Matched earlier, shouldn't happen
 		return err
 	}
-	presentationSubmissionJSON, _ := json.Marshal(presentationContext.PresentationSubmission)
+	presentationSubmissionJSON, _ := json.Marshal(submission)
 	resultParams[presentationSubmissionParam] = string(presentationSubmissionJSON)
-	verifiablePresentation, err := r.vcr.Wallet().BuildPresentation(c.Request().Context(), credentials, holder.PresentationOptions{}, &session.OwnDID, false)
+	if len(signInstructions) != 1 {
+		// todo support multiple wallets (org + user)
+		return errors.New("expected to create exactly one presentation")
+	}
+	verifiablePresentation, err := r.vcr.Wallet().BuildPresentation(c.Request().Context(), signInstructions[0].VerifiableCredentials, holder.PresentationOptions{}, &signInstructions[0].Holder, false)
 	if err != nil {
 		return err
 	}
