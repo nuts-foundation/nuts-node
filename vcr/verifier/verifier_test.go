@@ -99,7 +99,7 @@ func Test_verifier_Validate(t *testing.T) {
 		require.NoError(t, err)
 
 		template := testCredential(t)
-		template.Issuer = did.MustParseDIDURL(key.KID()).WithoutURL().URI()
+		template.Issuer = did.MustParseDIDURL(key.KID()).DID.URI()
 
 		cred, err := vc.CreateJWTVerifiableCredential(audit.TestContext(), template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
 			return keyStore.SignJWT(ctx, claims, headers, key)

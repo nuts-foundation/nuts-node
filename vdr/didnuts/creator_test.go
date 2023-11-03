@@ -62,7 +62,7 @@ func TestCreator_Create(t *testing.T) {
 			assert.NoError(t, err, "create should not return an error")
 			assert.NotNil(t, doc, "create should return a document")
 			assert.NotNil(t, key, "create should return a Key")
-			assert.Equal(t, did.MustParseDIDURL(kc.key.KID()).WithoutURL(), doc.ID, "the DID Doc should have the expected id")
+			assert.Equal(t, did.MustParseDIDURL(kc.key.KID()).DID, doc.ID, "the DID Doc should have the expected id")
 			assert.Len(t, doc.VerificationMethod, 1, "it should have one verificationMethod")
 			assert.Equal(t, kc.key.KID(), doc.VerificationMethod[0].ID.String(),
 				"verificationMethod should have the correct id")

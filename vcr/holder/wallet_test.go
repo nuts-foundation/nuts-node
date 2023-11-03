@@ -460,7 +460,7 @@ func createCredential(keyID string) vc.VerifiableCredential {
             "city": "Hengelo",
             "name": "De beste zorg"
         },
-        "id": "` + did.MustParseDIDURL(keyID).WithoutURL().String() + `"
+        "id": "` + did.MustParseDIDURL(keyID).DID.String() + `"
     },
     "issuanceDate": "2021-12-24T13:21:29.087205+01:00",
     "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",

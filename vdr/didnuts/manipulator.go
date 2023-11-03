@@ -73,7 +73,7 @@ func (u Manipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyU
 }
 
 // RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
-func (u Manipulator) RemoveVerificationMethod(ctx context.Context, id, keyID did.DID) error {
+func (u Manipulator) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID did.DIDURL) error {
 	doc, meta, err := u.Resolver.Resolve(id, &resolver.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err

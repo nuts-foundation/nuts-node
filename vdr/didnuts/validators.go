@@ -243,7 +243,7 @@ func validateNodeContactInfo(service did.Service) error {
 
 func verifyDocumentEntryID(owner did.DID, entryID ssi.URI, knownIDs map[string]bool) error {
 	// Check the ID has a fragment
-	if entryID.Fragment == "" {
+	if entryID.EscapedFragment() == "" {
 		return errors.New("ID must have a fragment")
 	}
 	// Check if this ID was part of a previous entry
@@ -252,6 +252,7 @@ func verifyDocumentEntryID(owner did.DID, entryID ssi.URI, knownIDs map[string]b
 		return errors.New("ID must be unique")
 	}
 	entryID.Fragment = ""
+	entryID.RawFragment = ""
 	if owner.String() != entryID.String() {
 		return errors.New("ID must have document prefix")
 	}

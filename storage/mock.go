@@ -238,7 +238,7 @@ func (m *MockSessionDatabase) EXPECT() *MockSessionDatabaseMockRecorder {
 // GetStore mocks base method.
 func (m *MockSessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{ttl}
+	varargs := []any{ttl}
 	for _, a := range keys {
 		varargs = append(varargs, a)
 	}
@@ -248,9 +248,9 @@ func (m *MockSessionDatabase) GetStore(ttl time.Duration, keys ...string) Sessio
 }
 
 // GetStore indicates an expected call of GetStore.
-func (mr *MockSessionDatabaseMockRecorder) GetStore(ttl interface{}, keys ...interface{}) *gomock.Call {
+func (mr *MockSessionDatabaseMockRecorder) GetStore(ttl any, keys ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ttl}, keys...)
+	varargs := append([]any{ttl}, keys...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStore", reflect.TypeOf((*MockSessionDatabase)(nil).GetStore), varargs...)
 }
 
@@ -298,7 +298,7 @@ func (m *MockSessionStore) Delete(key string) error {
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockSessionStoreMockRecorder) Delete(key interface{}) *gomock.Call {
+func (mr *MockSessionStoreMockRecorder) Delete(key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockSessionStore)(nil).Delete), key)
 }
@@ -312,13 +312,13 @@ func (m *MockSessionStore) Exists(key string) bool {
 }
 
 // Exists indicates an expected call of Exists.
-func (mr *MockSessionStoreMockRecorder) Exists(key interface{}) *gomock.Call {
+func (mr *MockSessionStoreMockRecorder) Exists(key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockSessionStore)(nil).Exists), key)
 }
 
 // Get mocks base method.
-func (m *MockSessionStore) Get(key string, target interface{}) error {
+func (m *MockSessionStore) Get(key string, target any) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", key, target)
 	ret0, _ := ret[0].(error)
@@ -326,13 +326,13 @@ func (m *MockSessionStore) Get(key string, target interface{}) error {
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockSessionStoreMockRecorder) Get(key, target interface{}) *gomock.Call {
+func (mr *MockSessionStoreMockRecorder) Get(key, target any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSessionStore)(nil).Get), key, target)
 }
 
 // Put mocks base method.
-func (m *MockSessionStore) Put(key string, value interface{}) error {
+func (m *MockSessionStore) Put(key string, value any) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Put", key, value)
 	ret0, _ := ret[0].(error)
@@ -340,7 +340,7 @@ func (m *MockSessionStore) Put(key string, value interface{}) error {
 }
 
 // Put indicates an expected call of Put.
-func (mr *MockSessionStoreMockRecorder) Put(key, value interface{}) *gomock.Call {
+func (mr *MockSessionStoreMockRecorder) Put(key, value any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockSessionStore)(nil).Put), key, value)
 }

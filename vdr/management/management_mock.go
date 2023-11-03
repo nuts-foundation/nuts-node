@@ -146,7 +146,7 @@ func (mr *MockDocManipulatorMockRecorder) Deactivate(ctx, id any) *gomock.Call {
 }
 
 // RemoveVerificationMethod mocks base method.
-func (m *MockDocManipulator) RemoveVerificationMethod(ctx context.Context, id, keyID did.DID) error {
+func (m *MockDocManipulator) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID did.DIDURL) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RemoveVerificationMethod", ctx, id, keyID)
 	ret0, _ := ret[0].(error)

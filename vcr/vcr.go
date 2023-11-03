@@ -544,7 +544,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 			if err != nil {
 				return err
 			}
-			_, _, err = didResolver.Resolve(*issuerDid, nil)
+			_, _, err = didResolver.Resolve(issuerDid.DID, nil)
 			if err != nil {
 				if !(errors.Is(err, did.DeactivatedErr) || errors.Is(err, resolver.ErrNoActiveController)) {
 					return err

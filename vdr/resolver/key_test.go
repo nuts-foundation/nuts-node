@@ -51,7 +51,7 @@ func TestKeyResolver_ResolveKey(t *testing.T) {
 	})
 
 	t.Run("error - key not found", func(t *testing.T) {
-		keyId, key, err := keyResolver.ResolveKey(did.MustParseDIDURL(doc.ID.String()), nil, CapabilityDelegation)
+		keyId, key, err := keyResolver.ResolveKey(did.MustParseDID(doc.ID.String()), nil, CapabilityDelegation)
 		assert.EqualError(t, err, "key not found in DID document")
 		assert.Empty(t, keyId)
 		assert.Nil(t, key)
@@ -86,7 +86,7 @@ func TestKeyResolver_ResolveKeyByID(t *testing.T) {
 	})
 
 	t.Run("error - document not found", func(t *testing.T) {
-		unknownDID := did.MustParseDIDURL("did:example:123")
+		unknownDID := did.MustParseDID("did:example:123")
 		resolver.EXPECT().Resolve(unknownDID, gomock.Any()).Return(nil, nil, ErrNotFound)
 		key, err := keyResolver.ResolveKeyByID(unknownDID.String()+"#456", nil, AssertionMethod)
 		assert.EqualError(t, err, "unable to find the DID document")

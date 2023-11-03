@@ -73,13 +73,13 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 		}
 	}
 
-	key, err := p.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
+	key, err := p.keyResolver.ResolveAssertionKey(ctx, issuerDID.DID)
 	if err != nil {
 		return fmt.Errorf("could not resolve an assertion key for issuer: %w", err)
 	}
 
 	// find did document/metadata for originating TXs
-	_, meta, err := p.didResolver.Resolve(*issuerDID, nil)
+	_, meta, err := p.didResolver.Resolve(issuerDID.DID, nil)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 }
 
 func (p networkPublisher) generateParticipants(verifiableCredential vc.VerifiableCredential) ([]did.DID, error) {
-	issuer, _ := did.ParseDID(verifiableCredential.Issuer.String())
+	issuer, _ := did.ParseDIDURL(verifiableCredential.Issuer.String())
 	participants := make([]did.DID, 0)
 	var (
 		base                []credential.BaseCredentialSubject
@@ -118,7 +118,7 @@ func (p networkPublisher) generateParticipants(verifiableCredential vc.Verifiabl
 	}
 
 	// participants are not the issuer and the credentialSubject.id but the DID that holds the concrete endpoint for the NutsComm service
-	for _, vcp := range []did.DID{*issuer, *credentialSubjectID} {
+	for _, vcp := range []did.DID{issuer.DID, *credentialSubjectID} {
 		serviceOwner, err := p.resolveNutsCommServiceOwner(vcp)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve participating node (did=%s): %w", vcp.String(), err)
@@ -149,7 +149,7 @@ func (p networkPublisher) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, er
 }
 
 func (p networkPublisher) PublishRevocation(ctx context.Context, revocation credential.Revocation) error {
-	issuerDID, err := did.ParseDIDURL(revocation.Issuer.String())
+	issuerDID, err := did.ParseDID(revocation.Issuer.String())
 	if err != nil {
 		return fmt.Errorf("invalid revocation issuer: %w", err)
 	}

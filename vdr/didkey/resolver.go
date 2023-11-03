@@ -121,7 +121,7 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 		},
 		ID: id,
 	}
-	keyID := id
+	keyID := did.DIDURL{DID: id}
 	keyID.Fragment = id.ID
 	vm, err := did.NewVerificationMethod(keyID, ssi.JsonWebKey2020, id, key)
 	if err != nil {

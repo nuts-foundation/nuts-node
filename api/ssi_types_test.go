@@ -172,7 +172,7 @@ func createDidDocument() did.Document {
 		KeyAgreement:         did.VerificationRelationships{verificationRelationship},
 		VerificationMethod:   did.VerificationMethods{verificationMethod},
 		Controller:           []did.DID{did.MustParseDID("did:example:controller")},
-		ID:                   verificationMethod.ID,
+		ID:                   verificationMethod.ID.DID,
 		Service: []did.Service{
 			{
 				ID:              ssi.MustParseURI("example"),
