@@ -22,11 +22,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/dlclark/regexp2"
-	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/vc"
-	"strings"
 )
 
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
@@ -39,6 +39,12 @@ type Candidate struct {
 	VC              *vc.VerifiableCredential
 }
 
+// PresentationContext is a helper struct to keep track of the index of the VP in the nested paths of a PresentationSubmission.
+type PresentationContext struct {
+	Index                  int
+	PresentationSubmission *PresentationSubmission
+}
+
 // Match matches the VCs against the presentation definition.
 // It implements §5 of the Presentation Exchange specification (v2.x.x pre-Draft, 2023-07-29) (https://identity.foundation/presentation-exchange/#presentation-definition)
 // It supports the following:
@@ -47,21 +53,31 @@ type Candidate struct {
 // - number, boolean, array and string JSON schema types
 // - Submission Requirements Feature
 // It doesn't do the credential search, this should be done before calling this function.
-// The PresentationDefinition.Format should be altered/set if an envelope defines the supported format before calling.
-// The resulting PresentationSubmission has paths that are relative to the matching VCs.
-// The PresentationSubmission needs to be altered so the paths use "path_nested"s that are relative to the created VP.
+// The given PresentationContext is used to set the correct vp index in the nested paths and to alter the given PresentationSubmission.
+// It assumes this method is used for OpenID4VP since other envelopes require different nesting.
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 // Other errors can be returned for faulty JSON paths or regex patterns.
-func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
+func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCredential) ([]vc.VerifiableCredential, []InputDescriptorMappingObject, error) {
+	var selectedVCs []vc.VerifiableCredential
+	var descriptorMaps []InputDescriptorMappingObject
+	var err error
 	if len(presentationDefinition.SubmissionRequirements) > 0 {
-		return presentationDefinition.matchSubmissionRequirements(vcs)
+		if descriptorMaps, selectedVCs, err = presentationDefinition.matchSubmissionRequirements(vcs); err != nil {
+			return nil, nil, err
+		}
+	} else if descriptorMaps, selectedVCs, err = presentationDefinition.matchBasic(vcs); err != nil {
+		return nil, nil, err
 	}
-	return presentationDefinition.matchBasic(vcs)
+
+	return selectedVCs, descriptorMaps, nil
 }
 
 func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential) ([]Candidate, error) {
 	var candidates []Candidate
+
 	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
+		// we create an empty Candidate. If a VC matches, it'll be attached to the Candidate.
+		// if no VC matches, the Candidate will have an nil VC which is detected later on for SubmissionRequirement rules.
 		match := Candidate{
 			InputDescriptor: *inputDescriptor,
 		}
@@ -77,66 +93,64 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 		}
 		candidates = append(candidates, match)
 	}
+
 	return candidates, nil
 }
 
-func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
-	// for each VC in vcs:
-	// for each descriptor in presentation_definition.descriptors:
-	// for each constraint in descriptor.constraints:
-	// for each field in constraint.fields:
-	//   a vc must match the field
-	presentationSubmission := PresentationSubmission{
-		Id:           uuid.New().String(),
-		DefinitionId: presentationDefinition.Id,
-	}
-	matches, err := presentationDefinition.matchConstraints(vcs)
+func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
+	// do the constraints check
+	candidates, err := presentationDefinition.matchConstraints(vcs)
 	if err != nil {
-		return PresentationSubmission{}, nil, err
+		return nil, nil, err
 	}
+	matchingCredentials := make([]vc.VerifiableCredential, len(candidates))
+	var descriptors []InputDescriptorMappingObject
 	var index int
-	matchingCredentials := make([]vc.VerifiableCredential, len(matches))
-	for _, match := range matches {
-		if match.VC == nil {
-			return PresentationSubmission{}, []vc.VerifiableCredential{}, nil
+	for i, candidate := range candidates {
+		// a constraint is not matched, return early
+		// we do not raise an error here since SubmissionRequirements might specify a "pick" rule
+		if candidate.VC == nil {
+			return nil, []vc.VerifiableCredential{}, nil
 		}
+		// create the InputDescriptorMappingObject with the relative path
 		mapping := InputDescriptorMappingObject{
-			Id:     match.InputDescriptor.Id,
-			Format: match.VC.Format(),
+			Id:     candidate.InputDescriptor.Id,
+			Format: candidate.VC.Format(),
 			Path:   fmt.Sprintf("$.verifiableCredential[%d]", index),
 		}
-		presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, mapping)
-		matchingCredentials[index] = *match.VC
+		descriptors = append(descriptors, mapping)
+		matchingCredentials[i] = *candidate.VC
 		index++
 	}
 
-	return presentationSubmission, matchingCredentials, nil
+	return descriptors, matchingCredentials, nil
 }
 
-func (presentationDefinition PresentationDefinition) matchSubmissionRequirements(vcs []vc.VerifiableCredential) (PresentationSubmission, []vc.VerifiableCredential, error) {
+func (presentationDefinition PresentationDefinition) matchSubmissionRequirements(vcs []vc.VerifiableCredential) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
 	// first we use the constraint matching algorithm to get the matching credentials
 	candidates, err := presentationDefinition.matchConstraints(vcs)
 	if err != nil {
-		return PresentationSubmission{}, nil, err
+		return nil, nil, err
 	}
 
 	// then we check the group constraints
 	// for each 'group' in input_descriptor there must be a matching 'from' field in a submission requirement
-	availableGroups := make(map[string]GroupCandidates)
+	// This is the "all groups must be present" check
+	availableGroups := make(map[string]groupCandidates)
 	for _, submissionRequirement := range presentationDefinition.SubmissionRequirements {
-		for _, group := range submissionRequirement.Groups() {
-			availableGroups[group] = GroupCandidates{
+		for _, group := range submissionRequirement.groups() {
+			availableGroups[group] = groupCandidates{
 				Name: group,
 			}
 		}
 	}
 	for _, group := range presentationDefinition.groups() {
 		if _, ok := availableGroups[group.Name]; !ok {
-			return PresentationSubmission{}, nil, fmt.Errorf("group %s is required but not available", group.Name)
+			return nil, nil, fmt.Errorf("group %s is required but not available", group.Name)
 		}
 	}
 
-	// now we know there are no missing groups, we can start matching the submission requirements
+	// now we know there are no missing groups, we can start matching the SubmissionRequirements
 	// now we add each specific match to the correct group(s)
 	for _, match := range candidates {
 		for _, group := range match.InputDescriptor.Group {
@@ -146,29 +160,27 @@ func (presentationDefinition PresentationDefinition) matchSubmissionRequirements
 		}
 	}
 
-	presentationSubmission := PresentationSubmission{
-		Id:           uuid.New().String(),
-		DefinitionId: presentationDefinition.Id,
-	}
-	var selectedVCs []vc.VerifiableCredential
-
-	// for each submission requirement:
+	// for each SubmissionRequirement:
 	// we select the credentials that match the requirement
 	// then we apply the rules and save the resulting credentials
+	var selectedVCs []vc.VerifiableCredential
 	for _, submissionRequirement := range presentationDefinition.SubmissionRequirements {
 		submissionRequirementVCs, err := submissionRequirement.match(availableGroups)
 		if err != nil {
-			return PresentationSubmission{}, nil, err
+			return nil, nil, err
 		}
 		selectedVCs = append(selectedVCs, submissionRequirementVCs...)
 	}
 
 	uniqueVCs := deduplicate(selectedVCs)
 
-	// now we have the selected VCs, we can create the presentation submission
+	// now we have the selected VCs, we can create the PresentationSubmission
 	var index int
+	var descriptors []InputDescriptorMappingObject
 outer:
 	for _, uniqueVC := range uniqueVCs {
+		// we loop over the candidate VCs and find the one that matches the unique VC
+		// for each match we create a InputDescriptorMappingObject which links the VC to the InputDescriptor from the PresentationDefinition
 		for _, candidate := range candidates {
 			if candidate.VC != nil && vcEqual(uniqueVC, *candidate.VC) {
 				mapping := InputDescriptorMappingObject{
@@ -176,25 +188,24 @@ outer:
 					Format: candidate.VC.Format(),
 					Path:   fmt.Sprintf("$.verifiableCredential[%d]", index),
 				}
-				presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, mapping)
+				descriptors = append(descriptors, mapping)
 				index++
 				continue outer
 			}
 		}
 	}
 
-	return presentationSubmission, uniqueVCs, nil
+	return descriptors, uniqueVCs, nil
 }
 
-// groups returns all the Matches with input descriptors and matching VCs.
-// If no VC matches the input descriptor, the match is still returned.
-func (presentationDefinition PresentationDefinition) groups() []GroupCandidates {
-	groups := make(map[string]GroupCandidates)
+// groups returns all the groupCandidates with input descriptors and matching VCs.
+func (presentationDefinition PresentationDefinition) groups() []groupCandidates {
+	groups := make(map[string]groupCandidates)
 	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
 		for _, group := range inputDescriptor.Group {
 			existing, ok := groups[group]
 			if !ok {
-				existing = GroupCandidates{
+				existing = groupCandidates{
 					Name: group,
 				}
 			}
@@ -202,7 +213,7 @@ func (presentationDefinition PresentationDefinition) groups() []GroupCandidates 
 			groups[group] = existing
 		}
 	}
-	var result []GroupCandidates
+	var result []groupCandidates
 	for _, group := range groups {
 		result = append(result, group)
 	}
@@ -260,7 +271,7 @@ func matchDescriptor(descriptor InputDescriptor, credential vc.VerifiableCredent
 
 	return &InputDescriptorMappingObject{
 		Id:     descriptor.Id,
-		Format: "ldp_vc", // todo: hardcoded for now, must be derived from the VC, but we don't support other VC types yet
+		Format: credential.Format(),
 	}, nil
 }
 
@@ -351,7 +362,7 @@ func getValueAtPath(path string, vcAsInterface interface{}) (interface{}, error)
 // Supported schema types: string, number, boolean, array, enum.
 // Supported schema properties: const, enum, pattern. These only work for strings.
 // Supported go value types: string, float64, int, bool and array.
-// 'null' values are also not supported.
+// 'null' values are not supported.
 // It returns an error on unsupported features or when the regex pattern fails.
 func matchFilter(filter Filter, value interface{}) (bool, error) {
 	// first we check if it's an enum, so we can recursively call matchFilter for each value
