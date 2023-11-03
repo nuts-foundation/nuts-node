@@ -136,7 +136,7 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 		}
 	}
 
-	submissionBuilder := presentationDefinition.Builder()
+	submissionBuilder := presentationDefinition.PresentationSubmissionBuilder()
 	submissionBuilder.AddWallet(session.OwnDID, ownCredentials)
 	_, signInstructions, err := submissionBuilder.Build("ldp_vp")
 	if err != nil {
@@ -208,7 +208,7 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	}
 	// TODO: Options (including format)
 	resultParams := map[string]string{}
-	submissionBuilder := presentationDefinition.Builder()
+	submissionBuilder := presentationDefinition.PresentationSubmissionBuilder()
 	submissionBuilder.AddWallet(session.OwnDID, credentials)
 	submission, signInstructions, err := submissionBuilder.Build("ldp_vp")
 	if err != nil {

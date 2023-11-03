@@ -52,7 +52,7 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 	t.Run("ok - single wallet", func(t *testing.T) {
 		presentationDefinition := PresentationDefinition{}
 		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
-		builder := presentationDefinition.Builder()
+		builder := presentationDefinition.PresentationSubmissionBuilder()
 		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
 
 		submission, signInstructions, err := builder.Build("ldp_vp")
@@ -68,7 +68,7 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 	t.Run("ok - two wallets", func(t *testing.T) {
 		presentationDefinition := PresentationDefinition{}
 		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
-		builder := presentationDefinition.Builder()
+		builder := presentationDefinition.PresentationSubmissionBuilder()
 		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1})
 		builder.AddWallet(holder2, []vc.VerifiableCredential{vc2})
 

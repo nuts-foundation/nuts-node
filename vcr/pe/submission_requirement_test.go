@@ -31,7 +31,7 @@ func Test_match(t *testing.T) {
 			From:       "A",
 			FromNested: []*SubmissionRequirement{{Name: "test"}},
 		}
-		availableGroups := map[string]GroupCandidates{}
+		availableGroups := map[string]groupCandidates{}
 		_, err := submissionRequirement.match(availableGroups)
 		require.Error(t, err)
 		assert.EqualError(t, err, "submission requirement (test) contains both 'from' and 'from_nested'")
@@ -44,7 +44,7 @@ func TestSubmissionRequirement_Groups(t *testing.T) {
 			From: "A",
 		}
 
-		groups := requirement.Groups()
+		groups := requirement.groups()
 
 		assert.Equal(t, []string{"A"}, groups)
 	})
@@ -56,7 +56,7 @@ func TestSubmissionRequirement_Groups(t *testing.T) {
 			},
 		}
 
-		groups := requirement.Groups()
+		groups := requirement.groups()
 
 		assert.Equal(t, []string{"A", "B"}, groups)
 	})
@@ -69,7 +69,7 @@ func TestSubmissionRequirement_Groups(t *testing.T) {
 			},
 		}
 
-		groups := requirement.Groups()
+		groups := requirement.groups()
 
 		assert.Equal(t, []string{"A", "B"}, groups)
 	})

@@ -50,22 +50,27 @@ type PresentationSubmissionBuilder struct {
 	wallets                [][]vc.VerifiableCredential
 }
 
-// Builder returns a new PresentationSubmissionBuilder.
+// PresentationSubmissionBuilder returns a new PresentationSubmissionBuilder.
 // A PresentationSubmissionBuilder can be used to create a PresentationSubmission with multiple wallets as input.
-func (presentationDefinition PresentationDefinition) Builder() PresentationSubmissionBuilder {
+func (presentationDefinition PresentationDefinition) PresentationSubmissionBuilder() PresentationSubmissionBuilder {
 	return PresentationSubmissionBuilder{
 		presentationDefinition: presentationDefinition,
 	}
 }
 
 // AddWallet adds credentials from a wallet that may be used to create the PresentationSubmission.
-func (b *PresentationSubmissionBuilder) AddWallet(holder did.DID, vcs []vc.VerifiableCredential) {
+func (b *PresentationSubmissionBuilder) AddWallet(holder did.DID, vcs []vc.VerifiableCredential) *PresentationSubmissionBuilder {
 	b.holders = append(b.holders, holder)
 	b.wallets = append(b.wallets, vcs)
+	return b
 }
 
+// SignInstruction is a list of Holder/VCs combinations that can be used to create a VerifiablePresentation.
+// When using multiple wallets, the outcome of a PresentationSubmission might require multiple VPs.
 type SignInstruction struct {
-	Holder                        did.DID
+	// Holder contains the DID of the holder that should sign the VP.
+	Holder did.DID
+	// VerifiableCredentials contains the VCs that should be included in the VP.
 	VerifiableCredentials         []vc.VerifiableCredential
 	inputDescriptorMappingObjects []InputDescriptorMappingObject
 }
@@ -96,6 +101,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 		for i, walletVCs := range b.wallets {
 			var index int
 			for _, walletVC := range walletVCs {
+				// do a JSON equality check
 				if vcEqual(selectedVCs[j], walletVC) {
 					signInstructions[i].Holder = b.holders[i]
 					signInstructions[i].VerifiableCredentials = append(signInstructions[i].VerifiableCredentials, selectedVCs[j])
@@ -111,6 +117,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 
 	index := 0
 	// last we create the descriptor map for the presentation submission
+	// If there's only one sign instruction the Path will be $. If there are multiple sign instructions the Path will be $[0], $[1], etc.
 	for _, signInstruction := range signInstructions {
 		if len(signInstruction.VerifiableCredentials) > 0 {
 			// wrap each InputDescriptorMappingObject for the outer VP

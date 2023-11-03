@@ -24,27 +24,27 @@ import (
 	"slices"
 )
 
-// GroupCandidates is a struct that holds all InputDescriptor/VC candidates for a group
-type GroupCandidates struct {
+// groupCandidates is a struct that holds all InputDescriptor/VC candidates for a group
+type groupCandidates struct {
 	Name       string
 	Candidates []Candidate
 }
 
-// Groups returns all the group names from the 'from' field. It traverses the 'from_nested' field recursively.
-func (submissionRequirement SubmissionRequirement) Groups() []string {
+// groups returns all the group names from the 'from' field. It traverses the 'from_nested' field recursively.
+func (submissionRequirement SubmissionRequirement) groups() []string {
 	var result []string
 	if submissionRequirement.From != "" {
 		result = append(result, submissionRequirement.From)
 	}
 	for _, nested := range submissionRequirement.FromNested {
-		result = append(result, nested.Groups()...)
+		result = append(result, nested.groups()...)
 	}
 	//deduplicate by using sort and compact
 	slices.Sort(result)
 	return slices.Compact(result)
 }
 
-func (submissionRequirement SubmissionRequirement) match(availableGroups map[string]GroupCandidates) ([]vc.VerifiableCredential, error) {
+func (submissionRequirement SubmissionRequirement) match(availableGroups map[string]groupCandidates) ([]vc.VerifiableCredential, error) {
 	if submissionRequirement.From != "" && len(submissionRequirement.FromNested) > 0 {
 		return nil, fmt.Errorf("submission requirement (%s) contains both 'from' and 'from_nested'", submissionRequirement.Name)
 	}
@@ -62,7 +62,7 @@ func (submissionRequirement SubmissionRequirement) match(availableGroups map[str
 	return submissionRequirement.from(availableGroups)
 }
 
-func (submissionRequirement SubmissionRequirement) from(availableGroups map[string]GroupCandidates) ([]vc.VerifiableCredential, error) {
+func (submissionRequirement SubmissionRequirement) from(availableGroups map[string]groupCandidates) ([]vc.VerifiableCredential, error) {
 	selectedVCs := make([]selectableVC, 0)
 	group := availableGroups[submissionRequirement.From]
 	for _, match := range group.Candidates {
@@ -76,7 +76,7 @@ func (submissionRequirement SubmissionRequirement) from(availableGroups map[stri
 	return apply(selectedVCs, submissionRequirement)
 }
 
-func (submissionRequirement SubmissionRequirement) fromNested(availableGroups map[string]GroupCandidates) ([]vc.VerifiableCredential, error) {
+func (submissionRequirement SubmissionRequirement) fromNested(availableGroups map[string]groupCandidates) ([]vc.VerifiableCredential, error) {
 	selectedVCs := make([]selectableVCList, len(submissionRequirement.FromNested))
 	for i, nested := range submissionRequirement.FromNested {
 		vcs, err := nested.match(availableGroups)
@@ -90,7 +90,7 @@ func (submissionRequirement SubmissionRequirement) fromNested(availableGroups ma
 
 // selectable is a helper interface to determine if an entry can be selected for a SubmissionRequirement.
 // If it's non-empty then it can be used for counting.
-// This interface is used as arrays, empty places in these lists have a meaning.
+// This interface is used as slices, empty places in these slices have a meaning.
 type selectable interface {
 	empty() bool
 	flatten() []vc.VerifiableCredential
@@ -122,19 +122,22 @@ func (v selectableVCList) flatten() []vc.VerifiableCredential {
 
 func apply[S ~[]E, E selectable](list S, submissionRequirement SubmissionRequirement) ([]vc.VerifiableCredential, error) {
 	var returnVCs []vc.VerifiableCredential
-	// check for non-countable members
-	var size int
+	// count the non-nil/non-empty members
+	// an empty member means that the constraints did not match for that group member
+	var selectableCount int
 	for _, member := range list {
 		if !member.empty() {
-			size++
+			selectableCount++
 		}
 	}
-	// check all
+	// check "all" rule
 	if submissionRequirement.Rule == "all" {
-		if size != len(list) {
+		// no empty members allowed
+		if selectableCount != len(list) {
 			return nil, fmt.Errorf("submission requirement (%s) does not have all credentials from the group", submissionRequirement.Name)
 		}
 		for _, member := range list {
+			// shouldn't happen, but prevents a panic
 			if !member.empty() {
 				returnVCs = append(returnVCs, member.flatten()...)
 			}
@@ -142,10 +145,11 @@ func apply[S ~[]E, E selectable](list S, submissionRequirement SubmissionRequire
 		return returnVCs, nil
 	}
 
-	// check count
+	// check "count" rule
 	if submissionRequirement.Count != nil {
-		if size < *submissionRequirement.Count {
-			return nil, fmt.Errorf("submission requirement (%s) has less credentials (%d) than required (%d)", submissionRequirement.Name, size, *submissionRequirement.Count)
+		// not enough matching constraints
+		if selectableCount < *submissionRequirement.Count {
+			return nil, fmt.Errorf("submission requirement (%s) has less credentials (%d) than required (%d)", submissionRequirement.Name, selectableCount, *submissionRequirement.Count)
 		}
 		i := 0
 		for _, member := range list {
@@ -154,14 +158,16 @@ func apply[S ~[]E, E selectable](list S, submissionRequirement SubmissionRequire
 				i++
 			}
 			if i == *submissionRequirement.Count {
+				// we have enough to fulfill the count requirement, stop
 				break
 			}
 		}
 		return returnVCs, nil
 	}
-	// check min and max
-	if submissionRequirement.Min != nil && size < *submissionRequirement.Min {
-		return nil, fmt.Errorf("submission requirement (%s) has less matches (%d) than minimal required (%d)", submissionRequirement.Name, size, *submissionRequirement.Min)
+	// check min and max rules
+	// only check if min requirement is met, max just determines the upper bound for the return
+	if submissionRequirement.Min != nil && selectableCount < *submissionRequirement.Min {
+		return nil, fmt.Errorf("submission requirement (%s) has less matches (%d) than minimal required (%d)", submissionRequirement.Name, selectableCount, *submissionRequirement.Min)
 	}
 	// take max if both min and max are set
 	index := 0
@@ -171,6 +177,7 @@ func apply[S ~[]E, E selectable](list S, submissionRequirement SubmissionRequire
 			index++
 		}
 		if index == *submissionRequirement.Max {
+			// we have enough to fulfill the max requirement, stop
 			break
 		}
 	}
