@@ -27,7 +27,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
@@ -92,7 +92,7 @@ func Test_verifier_Validate(t *testing.T) {
 		// Create did:jwk for issuer, and sign credential
 		keyStore := crypto.NewMemoryCryptoInstance()
 		key, err := keyStore.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
-			keyAsJWK, _ := jwk.New(key)
+			keyAsJWK, _ := jwk.FromRaw(key)
 			keyJSON, _ := json.Marshal(keyAsJWK)
 			return "did:jwk:" + base64.RawStdEncoding.EncodeToString(keyJSON) + "#0", nil
 		})
@@ -139,7 +139,7 @@ func Test_verifier_Validate(t *testing.T) {
 			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), gomock.Any(), resolver.NutsSigningKeyType).Return(realKey.Public(), nil)
 			err = instance.Validate(*cred, nil)
 
-			assert.EqualError(t, err, "unable to validate JWT credential: failed to verify jws signature: failed to verify message: failed to verify signature using ecdsa")
+			assert.EqualError(t, err, "unable to validate JWT credential: could not verify message using any of the signatures or keys")
 		})
 		t.Run("expired token", func(t *testing.T) {
 			// Credential taken from Sphereon Wallet, expires on Tue Oct 03 2023
@@ -151,7 +151,7 @@ func Test_verifier_Validate(t *testing.T) {
 			}
 			err := (&verifier{keyResolver: keyResolver}).Validate(*cred, nil)
 
-			assert.EqualError(t, err, "unable to validate JWT credential: exp not satisfied")
+			assert.EqualError(t, err, "unable to validate JWT credential: \"exp\" not satisfied")
 		})
 		t.Run("without kid header, derived from issuer", func(t *testing.T) {
 			// Credential taken from Sphereon Wallet
@@ -606,7 +606,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			validAt := time.Date(2023, 10, 21, 12, 0, 0, 0, time.UTC)
 			vcs, err := ctx.verifier.VerifyVP(*presentation, false, false, &validAt)
 
-			assert.EqualError(t, err, "unable to validate JWT credential: exp not satisfied")
+			assert.EqualError(t, err, "unable to validate JWT credential: \"exp\" not satisfied")
 			assert.Empty(t, vcs)
 		})
 		t.Run("VP signer != VC credentialSubject.id", func(t *testing.T) {

@@ -34,9 +34,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nats-io/nats.go"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -313,7 +312,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 	t.Run("create nok - fails when DID does not matches signing key", func(t *testing.T) {
 		ctx := newMockContext(t)
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		signingKey, _ := jwk.New(pair.PublicKey)
+		signingKey, _ := jwk.FromRaw(pair.PublicKey)
 		_ = signingKey.Set(jwk.KeyIDKey, "kid123")
 		tx := newTX()
 		tx.signingKeyID = ""
@@ -425,7 +424,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx := newMockContext(t)
 
 		currentDoc, signingKey, _ := newDidDoc()
-		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
+		newDoc := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: currentDoc.ID}
 		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
@@ -460,7 +459,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx := newMockContext(t)
 
 		currentDoc, signingKey, _ := newDidDoc()
-		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
+		newDoc := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: currentDoc.ID}
 		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
@@ -649,7 +648,7 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 func Test_checkTransactionIntegrity(t *testing.T) {
 	signingTime := time.Now()
 	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	signingKey, _ := jwk.New(pair.PublicKey)
+	signingKey, _ := jwk.FromRaw(pair.PublicKey)
 	_ = signingKey.Set(jwk.KeyIDKey, "kid123")
 	payloadHash := hash.SHA256Sum([]byte("payload"))
 	ref := hash.SHA256Sum([]byte("ref"))
@@ -800,7 +799,7 @@ func newDidDocWithOptions(opts management.DIDCreationOptions) (did.Document, jwk
 	kc := &mockKeyCreator{}
 	docCreator := Creator{KeyStore: kc}
 	didDocument, key, err := docCreator.Create(audit.TestContext(), opts)
-	signingKey, _ := jwk.New(key.Public())
+	signingKey, _ := jwk.FromRaw(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)
 	didStr := fmt.Sprintf("did:nuts:%s", thumbStr)
 	id, _ := did.ParseDID(didStr)

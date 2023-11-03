@@ -33,7 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"sort"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -286,7 +286,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}
 
-	signingKey, err := jwk.New(pKey)
+	signingKey, err := jwk.FromRaw(pKey)
 	if err != nil {
 		return fmt.Errorf("could not parse public key into jwk: %w", err)
 	}

@@ -29,21 +29,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/jwe"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwe"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/mr-tron/base58"
-
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/stretchr/testify/assert"
-
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSignJWT(t *testing.T) {
@@ -106,7 +104,7 @@ func TestSignJWT(t *testing.T) {
 	t.Run("invalid claim", func(t *testing.T) {
 		tokenString, err := signJWT(nil, map[string]interface{}{jwt.IssuedAtKey: "foobar"}, nil)
 		assert.Empty(t, tokenString)
-		assert.EqualError(t, err, "invalid value for iat key: invalid epoch value \"foobar\"")
+		assert.EqualError(t, err, "invalid value for iat key: failed to accept string \"foobar\": value is not number of seconds since the epoch, and attempt to parse it as RFC3339 timestamp failed: parsing time \"foobar\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"foobar\" as \"2006\"")
 	})
 }
 
@@ -114,7 +112,7 @@ func TestParseJWT(t *testing.T) {
 	t.Run("unsupported algorithm", func(t *testing.T) {
 		rsaKey := test.GenerateRSAKey()
 		token := jwt.New()
-		signature, _ := jwt.Sign(token, jwa.RS256, rsaKey)
+		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.RS256, rsaKey))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return rsaKey.Public(), nil
 		})
@@ -127,7 +125,7 @@ func TestParseJWT(t *testing.T) {
 		token := jwt.New()
 		err := token.Set(jwt.IssuedAtKey, time.Now().Add(4*time.Second).Unix())
 		assert.NoError(t, err)
-		signature, _ := jwt.Sign(token, jwa.ES256, ecKey)
+		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256, ecKey))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return ecKey.Public(), nil
 		}, jwt.WithAcceptableSkew(5000*time.Millisecond))
@@ -140,14 +138,14 @@ func TestParseJWT(t *testing.T) {
 		authenticKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		token := jwt.New()
-		validToken, _ := jwt.Sign(token, jwa.ES256, authenticKey)
+		validToken, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256, authenticKey))
 
 		parsedToken, err := ParseJWT(string(validToken), func(_ string) (crypto.PublicKey, error) {
 			return attackerKey.Public(), nil
 		})
 
 		assert.Nil(t, parsedToken)
-		assert.EqualError(t, err, "failed to verify jws signature: failed to verify message: failed to verify signature using ecdsa")
+		assert.EqualError(t, err, "could not verify message using any of the signatures or keys")
 	})
 }
 
@@ -259,7 +257,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(context.Background(), key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), defaultEcEncryptionAlgorithm, privateKey)
+		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(defaultEcEncryptionAlgorithm, privateKey))
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -279,7 +277,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(context.Background(), key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), jwa.ECDH_ES, privateKey)
+		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwa.ECDH_ES, privateKey))
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -299,7 +297,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(context.Background(), key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), defaultEcEncryptionAlgorithm, privateKey)
+		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(defaultEcEncryptionAlgorithm, privateKey))
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -394,14 +392,14 @@ func TestSignJWS(t *testing.T) {
 				"the protected headers must contain the 'foo' key with 'bar' value")
 
 			// Sanity check: verify signature
-			actualPayload, err := jws.Verify([]byte(signature), sig[0].ProtectedHeaders().Algorithm(), key.Public())
+			actualPayload, err := jws.Verify([]byte(signature), jws.WithKey(sig[0].ProtectedHeaders().Algorithm(), key.Public()))
 			require.NoError(t, err, "the signature could not be validated")
 			assert.Equal(t, payload, actualPayload)
 		})
 		t.Run("public key in JWK header is allowed", func(t *testing.T) {
 			payload := []byte{1, 2, 3}
 
-			publicKeyAsJWK, _ := jwk.New(key.Public())
+			publicKeyAsJWK, _ := jwk.FromRaw(key.Public())
 			hdrs := map[string]interface{}{"jwk": publicKeyAsJWK}
 			signature, err := signJWS(payload, hdrs, key, false)
 			assert.NoError(t, err)
@@ -414,13 +412,13 @@ func TestSignJWS(t *testing.T) {
 			payload := []byte{'.'}
 
 			signature, err := signJWS(payload, hdrs, key, false)
-			assert.EqualError(t, err, "unable to sign JWS failed sign payload: payload must not contain a \".\"")
+			assert.EqualError(t, err, "unable to sign JWS failed to generate signature for signer #0 (alg=ES256): payload must not contain a \".\"")
 			assert.Empty(t, signature)
 		})
 		t.Run("private key in JWK header is not allowed", func(t *testing.T) {
 			payload := []byte{1, 2, 3}
 
-			privateKeyAsJWK, _ := jwk.New(key)
+			privateKeyAsJWK, _ := jwk.FromRaw(key)
 			hdrs := map[string]interface{}{"jwk": privateKeyAsJWK}
 			signature, err := signJWS(payload, hdrs, key, false)
 			assert.EqualError(t, err, "refusing to sign JWS with private key in JWK header")
@@ -438,10 +436,10 @@ func TestSignJWS(t *testing.T) {
 		t.Run("it fails with an invalid key", func(t *testing.T) {
 			payload := []byte{1, 2, 3}
 
-			publicKeyAsJWK, _ := jwk.New(key.Public())
+			publicKeyAsJWK, _ := jwk.FromRaw(key.Public())
 			hdrs := map[string]interface{}{"jwk": publicKeyAsJWK}
 			signature, err := signJWS(payload, hdrs, nil, false)
-			assert.EqualError(t, err, "jwk.New requires a non-nil key")
+			assert.EqualError(t, err, "jwk.FromRaw requires a non-nil key")
 			assert.Empty(t, signature)
 		})
 	})
@@ -547,7 +545,7 @@ func TestThumbprint(t *testing.T) {
 		set, err := jwk.ParseString(testRsa)
 		require.NoError(t, err)
 
-		key, _ := set.Get(0)
+		key, _ := set.Key(0)
 		thumbPrint, err := Thumbprint(key)
 		require.NoError(t, err)
 
@@ -560,7 +558,7 @@ func TestThumbprint(t *testing.T) {
 		set, err := jwk.ParseString(testEC)
 		require.NoError(t, err)
 
-		key, _ := set.Get(0)
+		key, _ := set.Key(0)
 		thumbPrint, err := Thumbprint(key)
 		require.NoError(t, err)
 

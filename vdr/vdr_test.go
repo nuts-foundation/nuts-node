@@ -26,7 +26,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
@@ -481,7 +481,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 
 func TestWithJSONLDContext(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
-	expected := did.Document{ID: *id, Context: []ssi.URI{didnuts.NutsDIDContextV1URI()}}
+	expected := did.Document{ID: *id, Context: []interface{}{didnuts.NutsDIDContextV1URI()}}
 
 	t.Run("added if not present", func(t *testing.T) {
 		document := did.Document{ID: *id}
@@ -534,7 +534,7 @@ func TestVDR_Configure(t *testing.T) {
 	})
 	t.Run("it can resolve using did:jwk", func(t *testing.T) {
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		expectedJWK, err := jwk.New(privateKey.Public())
+		expectedJWK, err := jwk.FromRaw(privateKey.Public())
 		require.NoError(t, err)
 
 		jwkBytes, _ := json.Marshal(expectedJWK)

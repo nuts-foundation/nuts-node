@@ -26,9 +26,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +41,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("v1", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7})})
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 		require.NoError(t, err)
@@ -68,7 +68,7 @@ func TestParseTransaction(t *testing.T) {
 		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7})})
 		_ = headers.Set(versionHeader, 2)
 		_ = headers.Set(jws.CriticalKey, []string{signingTimeHeader, versionHeader, previousHeader, lamportClockHeader})
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 		require.NoError(t, err)
@@ -104,7 +104,7 @@ func TestParseTransaction(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)
 		_ = headers.Set("pal", 100)
 
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -114,7 +114,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - sigt header is missing", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)
 		delete(headers.PrivateParams(), signingTimeHeader)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -124,7 +124,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - invalid sigt header", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)
 		headers.Set(signingTimeHeader, "not a date")
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -134,7 +134,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - vers header is missing", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)
 		delete(headers.PrivateParams(), versionHeader)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -144,7 +144,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - both jwk and kid set", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "1234", true)
 		headers.Set(jwk.KeyIDKey, "123")
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -153,7 +153,7 @@ func TestParseTransaction(t *testing.T) {
 	})
 	t.Run("error - jwk/kid both not set", func(t *testing.T) {
 		headers := makeJWSHeaders(nil, "", false)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -163,7 +163,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - prevs header is missing", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		delete(headers.PrivateParams(), previousHeader)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -173,7 +173,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - invalid prevs (not an array)", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		headers.Set(previousHeader, 2)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -183,7 +183,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - invalid prevs (invalid entry)", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		headers.Set(previousHeader, []string{"not a hash"})
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -193,7 +193,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - invalid prevs (invalid entry, not a string)", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		headers.Set(previousHeader, []int{5})
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -203,7 +203,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - cty header is invalid", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "", false)
 		headers.Set(jws.ContentTypeKey, "")
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -213,7 +213,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - invalid version", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		headers.Set(versionHeader, "foobar")
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -223,7 +223,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - unsupported version", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		headers.Set(versionHeader, 3)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -234,7 +234,7 @@ func TestParseTransaction(t *testing.T) {
 		key := generateRSAKey()
 		headers := makeJWSHeaders(key, "", false)
 		headers.Set(jws.AlgorithmKey, jwa.RS256)
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -244,7 +244,7 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - invalid lamport clock", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		headers.Set(lamportClockHeader, "a")
-		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -253,7 +253,7 @@ func TestParseTransaction(t *testing.T) {
 	})
 	t.Run("error - invalid payload", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
-		signature, _ := jws.Sign([]byte("not a valid hash"), headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign([]byte("not a valid hash"), jws.WithKey(headers.Algorithm(), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
 
@@ -274,7 +274,7 @@ func makeJWSHeaders(key crypto.Signer, kid string, embedKey bool) jws.Headers {
 		previousHeader:     []string{prev.String()},
 	}
 	if embedKey {
-		keyAsJWS, _ := jwk.New(key.Public())
+		keyAsJWS, _ := jwk.FromRaw(key.Public())
 		keyAsJWS.Set(jwk.KeyIDKey, kid)
 		headerMap[jws.JWKKey] = keyAsJWS
 	} else {

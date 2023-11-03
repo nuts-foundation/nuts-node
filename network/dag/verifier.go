@@ -25,8 +25,8 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
 )
 
 // ErrPreviousTransactionMissing indicates one or more of the previous transactions (which the transaction refers to)
@@ -57,7 +57,7 @@ func NewTransactionSignatureVerifier(resolver resolver.NutsKeyResolver) Verifier
 		}
 		// TODO: jws.Verify parses the JWS again, which we already did when parsing the transaction. If we want to optimize
 		// this we need to implement a custom verifier.
-		_, err := jws.Verify(transaction.Data(), jwa.SignatureAlgorithm(transaction.SigningAlgorithm()), signingKey)
+		_, err := jws.Verify(transaction.Data(), jws.WithKey(jwa.SignatureAlgorithm(transaction.SigningAlgorithm()), signingKey))
 		return err
 	}
 }

@@ -28,7 +28,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/x25519"
+	"github.com/lestrrat-go/jwx/v2/x25519"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multicodec"
 	ssi "github.com/nuts-foundation/go-did"
@@ -88,7 +88,7 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 		}
 		key = ed25519.PublicKey(mcBytes)
 	case multicodec.Secp256k1Pub:
-		// lestrrat/jwk.New() is missing support for secp256k1
+		// lestrrat/jwk.FromRaw() is missing support for secp256k1
 		return nil, nil, errors.New("did:key: secp256k1 public keys are not supported")
 	case multicodec.P256Pub:
 		if key, err = unmarshalEC(elliptic.P256(), 33, mcBytes); err != nil {
@@ -115,7 +115,7 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	}
 
 	document := did.Document{
-		Context: []ssi.URI{
+		Context: []interface{}{
 			ssi.MustParseURI("https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"),
 			did.DIDContextV1URI(),
 		},

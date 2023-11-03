@@ -31,7 +31,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/http/log"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
 // minimumRSAKeySize defines the minimum length in bits of RSA keys
@@ -80,7 +80,7 @@ func jwkFromSSHKey(key ssh.PublicKey) (jwk.Key, error) {
 	}
 
 	// Use the crypto/* key type to create the jwk key type
-	converted, err := jwk.New(cryptoPublicKey)
+	converted, err := jwk.FromRaw(cryptoPublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func buildKeySet(key ssh.PublicKey) (jwk.Set, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert SSH key to jwk: %w", err)
 	}
-	keySet.Add(keyPrimary)
+	_ = keySet.AddKey(keyPrimary)
 
 	// Create an alternate representaiton of the jwk, which will have a different kid
 	keyAlt, err := jwkFromSSHKey(key)
@@ -228,7 +228,7 @@ func buildKeySet(key ssh.PublicKey) (jwk.Set, error) {
 	}
 
 	// Add the alternate jwk to the key set
-	keySet.Add(keyAlt)
+	_ = keySet.AddKey(keyAlt)
 
 	// Return the key set which contains the key twice: once with SSH fingerprint and once with JWK fingerprint
 	return keySet, nil

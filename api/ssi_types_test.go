@@ -161,7 +161,7 @@ func createDidDocument() did.Document {
 	}
 	verificationRelationship := did.VerificationRelationship{VerificationMethod: verificationMethod}
 	return did.Document{
-		Context: []ssi.URI{
+		Context: []interface{}{
 			ssi.MustParseURI("https://www.w3.org/ns/did/v1"),
 			ssi.MustParseURI("https://www.w3.org/ns/did/v2"),
 		},

@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -232,7 +232,7 @@ func jwkToPublicKey(t *testing.T, jwkStr string) (crypto.PublicKey, error) {
 	t.Helper()
 	keySet, err := jwk.ParseString(jwkStr)
 	require.NoError(t, err)
-	key, _ := keySet.Get(0)
+	key, _ := keySet.Key(0)
 	var rawKey crypto.PublicKey
 	if err = key.Raw(&rawKey); err != nil {
 		return nil, err

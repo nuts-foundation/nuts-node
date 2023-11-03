@@ -27,11 +27,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwe"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwe"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/mr-tron/base58"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
@@ -114,7 +114,7 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 
 	audit.Log(ctx, log.Logger(), audit.CryptoDecryptJWEEvent).Infof("Decrypting a JWE with kid: %s", kid)
 
-	body, err = jwe.Decrypt([]byte(message), protectedHeaders.Algorithm(), privateKey)
+	body, err = jwe.Decrypt([]byte(message), jwe.WithKey(protectedHeaders.Algorithm(), privateKey))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -126,7 +126,7 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
-	key, err = jwk.New(signer)
+	key, err = jwk.FromRaw(signer)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func signJWT(key jwk.Key, claims map[string]interface{}, headers map[string]inte
 		return "", fmt.Errorf("invalid JWT headers: %w", err)
 	}
 
-	sig, err = jwt.Sign(t, jwa.SignatureAlgorithm(key.Algorithm()), key, jwt.WithHeaders(hdr))
+	sig, err = jwt.Sign(t, jwt.WithKey(jwa.SignatureAlgorithm(key.Algorithm().String()), key, jws.WithProtectedHeaders(hdr)))
 	token = string(sig)
 
 	return
@@ -200,8 +200,8 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 		return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
 	}
 
-	options = append(options, jwt.WithVerify(alg, key))
-	options = append(options, jwt.WithValidate(true))
+	options = append(options, jwt.WithKey(alg, key))
+	options = append(options, jwt.WithVerify(true))
 
 	return jwt.ParseString(tokenString, options...)
 }
@@ -275,17 +275,17 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 			return "", errors.New("refusing to sign JWS with private key in JWK header")
 		}
 	}
-	algo := jwa.SignatureAlgorithm(privateKeyAsJWK.Algorithm())
+	algo := jwa.SignatureAlgorithm(privateKeyAsJWK.Algorithm().String())
 
 	var (
 		data []byte
 	)
 	if detachedPayload {
 		// Sign JWS with detached payload
-		data, err = jws.Sign(nil, algo, privateKey, jws.WithHeaders(headers), jws.WithDetachedPayload(payload))
+		data, err = jws.Sign(nil, jws.WithKey(algo, privateKey, jws.WithProtectedHeaders(headers)), jws.WithDetachedPayload(payload))
 	} else {
 		// Sign normal JWS
-		data, err = jws.Sign(payload, algo, privateKey, jws.WithHeaders(headers))
+		data, err = jws.Sign(payload, jws.WithKey(algo, privateKey, jws.WithProtectedHeaders(headers)))
 	}
 	if err != nil {
 		return "", fmt.Errorf("unable to sign JWS %w", err)
@@ -322,8 +322,14 @@ func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicK
 	if len(headers.ContentEncryption().String()) > 0 {
 		enc = headers.ContentEncryption()
 	}
+	options := []jwe.EncryptOption{
+		jwe.WithProtectedHeaders(headers),
+		jwe.WithContentEncryption(enc),
+		jwe.WithKey(alg, publicKey),
+		jwe.WithCompress(headers.Compression()), // "" means no compression
+	}
 
-	encoded, err := jwe.Encrypt(payload, alg, publicKey, enc, headers.Compression(), jwe.WithProtectedHeaders(headers))
+	encoded, err := jwe.Encrypt(payload, options...)
 	return string(encoded), err
 }
 

@@ -29,9 +29,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
 )
 
 // denylistImpl implements arbitrary certificate rejection using issuer and serial number tuples
@@ -182,7 +182,7 @@ func (b *denylistImpl) Update() error {
 	}
 
 	// Check the signature of the denylist
-	payload, err := jws.Verify(bytes, jwa.EdDSA, b.trustedKey)
+	payload, err := jws.Verify(bytes, jws.WithKey(jwa.EdDSA, b.trustedKey))
 	if err != nil {
 		return fmt.Errorf("failed to verify denylist signature: %w", err)
 	}
@@ -245,7 +245,8 @@ func (b *denylistImpl) download() ([]byte, error) {
 // certKeyJWKThumbprint returns the JWK key fingerprint for the public key of an X509 certificate
 func certKeyJWKThumbprint(cert *x509.Certificate) string {
 	// Convert the key (any) to JWK. If that succeeds then return its fingerprint
-	if key, _ := jwk.New(cert.PublicKey); key != nil {
+
+	if key, _ := jwk.PublicKeyOf(cert.PublicKey); key != nil {
 		// Compute the fingerprint of the key
 		jwk.AssignKeyID(key)
 

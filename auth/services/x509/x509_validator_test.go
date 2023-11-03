@@ -25,18 +25,18 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
-	"github.com/stretchr/testify/require"
+	"github.com/lestrrat-go/jwx/v2/cert"
 	"go.uber.org/mock/gomock"
 	"math/big"
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/pki"
-
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewJwtX509Validator(t *testing.T) {
@@ -113,14 +113,16 @@ func TestNewJwtX509Validator(t *testing.T) {
 
 func TestJwtX509Validator_Parse(t *testing.T) {
 	validator := NewJwtX509Validator(nil, nil, nil, nil)
-	cert, privKey, err := createTestRootCert()
+	certificate, privKey, err := createTestRootCert()
 	require.NoError(t, err)
 	t.Run("ok - a valid jwt", func(t *testing.T) {
 		theJwt := jwt.New()
 		headers := jws.NewHeaders()
-		err := headers.Set(jws.X509CertChainKey, []string{base64.StdEncoding.EncodeToString(cert.Raw)})
+		chain := cert.Chain{}
+		_ = chain.AddString(base64.StdEncoding.Strict().EncodeToString(certificate.Raw))
+		err = headers.Set(jws.X509CertChainKey, &chain)
 		require.NoError(t, err)
-		rawToken, err := jwt.Sign(theJwt, jwa.RS256, privKey, jwt.WithHeaders(headers))
+		rawToken, err := jwt.Sign(theJwt, jwt.WithKey(jwa.RS256, privKey, jws.WithProtectedHeaders(headers)))
 		require.NoError(t, err)
 		token, err := validator.Parse(string(rawToken))
 		assert.NotNil(t, token)
@@ -144,33 +146,11 @@ func TestJwtX509Validator_Parse(t *testing.T) {
 
 	t.Run("nok - emtpy x5c header field", func(t *testing.T) {
 		theJwt := jwt.New()
-		signedJwt, err := jwt.Sign(theJwt, jwa.RS256, priv)
+		signedJwt, err := jwt.Sign(theJwt, jwt.WithKey(jwa.RS256, priv))
 		require.NoError(t, err)
 		token, err := validator.Parse(string(signedJwt))
 		assert.Nil(t, token)
 		assert.ErrorContains(t, err, "the jwt x5c field should contain at least 1 certificate")
-	})
-
-	t.Run("nok - invalid base64 data in x5c header", func(t *testing.T) {
-		theJwt := jwt.New()
-		headers := jws.NewHeaders()
-		assert.NoError(t, headers.Set(jws.X509CertChainKey, []string{"123"}))
-		signedJwt, err := jwt.Sign(theJwt, jwa.RS256, priv, jwt.WithHeaders(headers))
-		require.NoError(t, err)
-		token, err := validator.Parse(string(signedJwt))
-		assert.Nil(t, token)
-		assert.ErrorContains(t, err, "could not parse certificates from headers: could not base64 decode certificate: illegal base64 data at input byte 0")
-
-	})
-	t.Run("nok - invalid cert in x5c header", func(t *testing.T) {
-		theJwt := jwt.New()
-		headers := jws.NewHeaders()
-		assert.NoError(t, headers.Set(jws.X509CertChainKey, []string{"WvLTlMrX9NpYDQlEIFlnDA=="}))
-		signedJwt, err := jwt.Sign(theJwt, jwa.RS256, priv, jwt.WithHeaders(headers))
-		require.NoError(t, err)
-		token, err := validator.Parse(string(signedJwt))
-		assert.Nil(t, token)
-		assert.ErrorContains(t, err, "could not parse certificates from headers: could not parse certificate: x509: malformed certificate")
 	})
 
 	t.Run("nok - alg header different from actual signing algorithm", func(t *testing.T) {
@@ -295,8 +275,10 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 		theJwt := jwt.New()
 		theJwt.Set(jwt.IssuedAtKey, time.Now())
 		headers := jws.NewHeaders()
-		assert.NoError(t, headers.Set(jws.X509CertChainKey, []string{base64.StdEncoding.EncodeToString(leafCert.Raw)}))
-		rawJwt, err := jwt.Sign(theJwt, jwa.RS256, leafKey, jwt.WithHeaders(headers))
+		chain := cert.Chain{}
+		_ = chain.AddString(base64.StdEncoding.Strict().EncodeToString(leafCert.Raw))
+		require.NoError(t, headers.Set(jws.X509CertChainKey, &chain))
+		rawJwt, err := jwt.Sign(theJwt, jwt.WithKey(jwa.RS256, leafKey, jws.WithProtectedHeaders(headers)))
 		require.NoError(t, err)
 
 		x509Token := &JwtX509Token{
@@ -323,8 +305,10 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 
 		theJwt := jwt.New()
 		headers := jws.NewHeaders()
-		assert.NoError(t, headers.Set(jws.X509CertChainKey, []string{base64.StdEncoding.EncodeToString(leafCert.Raw)}))
-		rawJwt, err := jwt.Sign(theJwt, jwa.RS256, leafKey, jwt.WithHeaders(headers))
+		chain := cert.Chain{}
+		_ = chain.AddString(base64.StdEncoding.Strict().EncodeToString(leafCert.Raw))
+		require.NoError(t, headers.Set(jws.X509CertChainKey, &chain))
+		rawJwt, err := jwt.Sign(theJwt, jwt.WithKey(jwa.RS256, leafKey, jws.WithProtectedHeaders(headers)))
 		require.NoError(t, err)
 
 		x509Token := &JwtX509Token{

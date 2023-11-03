@@ -27,7 +27,7 @@ import (
 	godid "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
 // MethodName is the name of this DID method.

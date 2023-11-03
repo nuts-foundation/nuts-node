@@ -52,15 +52,15 @@ func TestMerge(t *testing.T) {
 		},
 		{
 			"matching context",
-			did.Document{ID: *didA, Context: []ssi.URI{did.DIDContextV1URI()}},
-			did.Document{ID: *didA, Context: []ssi.URI{did.DIDContextV1URI()}},
-			did.Document{ID: *didA, Context: []ssi.URI{did.DIDContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{did.DIDContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{did.DIDContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{did.DIDContextV1URI()}},
 		},
 		{
 			"non-matching context",
-			did.Document{ID: *didA, Context: []ssi.URI{did.DIDContextV1URI()}},
-			did.Document{ID: *didA, Context: []ssi.URI{did.DIDContextV1URI(), vc.VCContextV1URI()}},
-			did.Document{ID: *didA, Context: []ssi.URI{vc.VCContextV1URI(), did.DIDContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{did.DIDContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{did.DIDContextV1URI(), vc.VCContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{vc.VCContextV1URI(), did.DIDContextV1URI()}},
 		},
 		{
 			"matching service",
