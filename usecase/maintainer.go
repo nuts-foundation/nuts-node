@@ -19,39 +19,41 @@
 package usecase
 
 import (
+	"crypto/md5"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/usecase/log"
 	"strings"
 	"sync"
+	"time"
 )
 
 var _ ListWriter = &maintainer{}
 var ErrListNotFound = errors.New("list not found")
 var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 
-// listEntry is a singly-linked list entry, used to store the Verifiable Presentations in order they were added to the list.
-type listEntry struct {
+// listValue is a doubly-linked list entry value, used to store the Verifiable Presentations in order they were added to the list.
+type listValue struct {
 	// presentation is the Verifiable Presentation
 	presentation vc.VerifiablePresentation
-	// next is the next entry in the list
-	next      *listEntry
-	timestamp Timestamp
+	timestamp    Timestamp
 }
 
 type list struct {
 	definition Definition
 	name       string
-	// head is the first entry in the list
-	head *listEntry
-	// tail is the last entry in the list
-	tail *listEntry
-	lock sync.RWMutex
+	items      doublyLinkedList[*listValue]
+	// index maps a presentation hash to the entry in the list
+	index map[[16]byte]*item[*listValue]
+	lock  sync.RWMutex
 }
 
 func (l *list) exists(presentation vc.VerifiablePresentation) bool {
-	return false // TODO
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+	_, exists := l.index[presentationHash(presentation)]
+	return exists
 }
 
 func (l *list) add(presentation vc.VerifiablePresentation) error {
@@ -61,18 +63,17 @@ func (l *list) add(presentation vc.VerifiablePresentation) error {
 	}
 	l.lock.Lock()
 	defer l.lock.Unlock()
-	newEntry := &listEntry{
+	isEmpty := l.items.empty()
+	newEntry := &listValue{
 		presentation: presentation,
 		timestamp:    1,
 	}
-	if l.tail != nil {
-		newEntry.timestamp = l.tail.timestamp + 1
-		l.tail.next = newEntry
+	addedItem := l.items.append(newEntry)
+	if !isEmpty {
+		// list wasn't empty, so we need to increment the timestamp
+		newEntry.timestamp = addedItem.prev.value.timestamp + 1
 	}
-	l.tail = newEntry
-	if l.head == nil {
-		l.head = newEntry
-	}
+	l.index[presentationHash(presentation)] = addedItem
 	return nil
 }
 
@@ -82,25 +83,48 @@ func (l *list) get(startAfter Timestamp) ([]vc.VerifiablePresentation, Timestamp
 
 	result := make([]vc.VerifiablePresentation, 0)
 	timestamp := startAfter
-	if l.head == nil {
-		// empty list
+	if l.items.empty() {
 		return result, timestamp
 	}
 
-	current := l.head
+	current := l.items.head
 	for {
 		if current == nil {
 			// End of list
 			break
 		}
-		if current.timestamp > startAfter {
+		if current.value.timestamp > startAfter {
 			// Client wants presentations after the given lamport clock
-			result = append(result, current.presentation)
-			timestamp = current.timestamp
+			result = append(result, current.value.presentation)
+			timestamp = current.value.timestamp
 		}
 		current = current.next
 	}
 	return result, timestamp
+}
+
+func (l *list) prune(currentTime time.Time) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+	current := l.items.head
+	for {
+		if current == nil {
+			// End of list
+			break
+		}
+		token := current.value.presentation.JWT()
+		// TODO: check revocation status
+		if !token.Expiration().Before(currentTime) {
+			// expired, remove
+			l.items.remove(current)
+			delete(l.index, presentationHash(current.value.presentation))
+		}
+		current = current.next
+	}
+}
+
+func presentationHash(presentation vc.VerifiablePresentation) [16]byte {
+	return md5.Sum([]byte(presentation.Raw()))
 }
 
 func createList(definition Definition) (*list, error) {
@@ -114,6 +138,7 @@ func createList(definition Definition) (*list, error) {
 	return &list{
 		definition: definition,
 		name:       name,
+		index:      map[[16]byte]*item[*listValue]{},
 		lock:       sync.RWMutex{},
 	}, nil
 }
@@ -166,4 +191,12 @@ func (m *maintainer) Get(listName string, startAt Timestamp) ([]vc.VerifiablePre
 	}
 	result, timestamp := l.(*list).get(startAt)
 	return result, &timestamp, nil
+}
+
+func (m *maintainer) pruneLists(currentTime time.Time) {
+	m.lists.Range(func(_, value any) bool {
+		currentList := value.(*list)
+		currentList.prune(currentTime)
+		return true
+	})
 }

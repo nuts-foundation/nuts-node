@@ -41,21 +41,19 @@ func init() {
 }
 
 func Test_list_exists(t *testing.T) {
-	t.Skip("TODO")
-
 	t.Run("empty list", func(t *testing.T) {
-		l, err := createList(Definition{})
+		l, err := createList(testDefinition)
 		require.NoError(t, err)
 		assert.False(t, l.exists(jwtVP))
 	})
 	t.Run("non-empty list, no match", func(t *testing.T) {
-		l, err := createList(Definition{})
+		l, err := createList(testDefinition)
 		require.NoError(t, err)
 		require.NoError(t, l.add(jwtVP))
 		assert.False(t, l.exists(vc.VerifiablePresentation{}))
 	})
 	t.Run("non-empty list, match", func(t *testing.T) {
-		l, err := createList(Definition{})
+		l, err := createList(testDefinition)
 		require.NoError(t, err)
 		require.NoError(t, l.add(jwtVP))
 		assert.True(t, l.exists(jwtVP))
@@ -112,6 +110,20 @@ func Test_list_get(t *testing.T) {
 	})
 }
 
+func Test_list_add(t *testing.T) {
+	vp1, err := vc.ParseVerifiablePresentation(`{"id": "did:example:issuer#1"}`)
+	require.NoError(t, err)
+
+	t.Run("already exists", func(t *testing.T) {
+		l, err := createList(testDefinition)
+		require.NoError(t, err)
+		err = l.add(*vp1)
+		require.NoError(t, err)
+		err = l.add(*vp1)
+		assert.Equal(t, ErrPresentationAlreadyExists, err)
+	})
+}
+
 func Test_maintainer_Add(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		m, err := newMaintainer("", []Definition{testDefinition})
@@ -123,6 +135,15 @@ func Test_maintainer_Add(t *testing.T) {
 		_, timestamp, err := m.Get("usecase", 0)
 		assert.NoError(t, err)
 		assert.Equal(t, Timestamp(1), *timestamp)
+	})
+	t.Run("already exists", func(t *testing.T) {
+		m, err := newMaintainer("", []Definition{testDefinition})
+		require.NoError(t, err)
+
+		err = m.Add("usecase", jwtVP)
+		assert.NoError(t, err)
+		err = m.Add("usecase", jwtVP)
+		assert.EqualError(t, err, "presentation already exists")
 	})
 	t.Run("list unknown", func(t *testing.T) {
 		m, err := newMaintainer("", []Definition{testDefinition})
@@ -139,7 +160,7 @@ func Test_maintainer_Get(t *testing.T) {
 		err = m.Add("usecase", jwtVP)
 		assert.NoError(t, err)
 
-		vps, timestamp, err := m.Get("foo", 0)
+		vps, timestamp, err := m.Get("usecase", 0)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{jwtVP}, vps)
 		assert.Equal(t, Timestamp(1), *timestamp)
