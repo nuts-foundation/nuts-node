@@ -27,6 +27,11 @@ type GetListParams struct {
 	Timestamp *int `form:"timestamp,omitempty" json:"timestamp,omitempty"`
 }
 
+// SearchListParams defines parameters for SearchList.
+type SearchListParams struct {
+	Query *map[string]string `form:"query,omitempty" json:"query,omitempty"`
+}
+
 // AddPresentationJSONRequestBody defines body for AddPresentation for application/json ContentType.
 type AddPresentationJSONRequestBody = VerifiablePresentation
 
@@ -110,6 +115,9 @@ type ClientInterface interface {
 	AddPresentationWithBody(ctx context.Context, listName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	AddPresentation(ctx context.Context, listName string, body AddPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchList request
+	SearchList(ctx context.Context, listName string, params *SearchListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) GetList(ctx context.Context, listName string, params *GetListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -138,6 +146,18 @@ func (c *Client) AddPresentationWithBody(ctx context.Context, listName string, c
 
 func (c *Client) AddPresentation(ctx context.Context, listName string, body AddPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAddPresentationRequest(c.Server, listName, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SearchList(ctx context.Context, listName string, params *SearchListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchListRequest(c.Server, listName, params)
 	if err != nil {
 		return nil, err
 	}
@@ -251,6 +271,62 @@ func NewAddPresentationRequestWithBody(server string, listName string, contentTy
 	return req, nil
 }
 
+// NewSearchListRequest generates requests for SearchList
+func NewSearchListRequest(server string, listName string, params *SearchListParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "listName", runtime.ParamLocationPath, listName)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/usecase/%s/search", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Query != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "query", runtime.ParamLocationQuery, *params.Query); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -301,6 +377,9 @@ type ClientWithResponsesInterface interface {
 	AddPresentationWithBodyWithResponse(ctx context.Context, listName string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddPresentationResponse, error)
 
 	AddPresentationWithResponse(ctx context.Context, listName string, body AddPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPresentationResponse, error)
+
+	// SearchListWithResponse request
+	SearchListWithResponse(ctx context.Context, listName string, params *SearchListParams, reqEditors ...RequestEditorFn) (*SearchListResponse, error)
 }
 
 type GetListResponse struct {
@@ -379,6 +458,44 @@ func (r AddPresentationResponse) StatusCode() int {
 	return 0
 }
 
+type SearchListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]struct {
+		// Credential The Verifiable Credential that matched the query.
+		Credential map[string]interface{} `json:"credential"`
+
+		// Id The ID of the Verifiable Presentation.
+		Id string `json:"id"`
+	}
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // GetListWithResponse request returning *GetListResponse
 func (c *ClientWithResponses) GetListWithResponse(ctx context.Context, listName string, params *GetListParams, reqEditors ...RequestEditorFn) (*GetListResponse, error) {
 	rsp, err := c.GetList(ctx, listName, params, reqEditors...)
@@ -403,6 +520,15 @@ func (c *ClientWithResponses) AddPresentationWithResponse(ctx context.Context, l
 		return nil, err
 	}
 	return ParseAddPresentationResponse(rsp)
+}
+
+// SearchListWithResponse request returning *SearchListResponse
+func (c *ClientWithResponses) SearchListWithResponse(ctx context.Context, listName string, params *SearchListParams, reqEditors ...RequestEditorFn) (*SearchListResponse, error) {
+	rsp, err := c.SearchList(ctx, listName, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchListResponse(rsp)
 }
 
 // ParseGetListResponse parses an HTTP response from a GetListWithResponse call
@@ -501,6 +627,54 @@ func ParseAddPresentationResponse(rsp *http.Response) (*AddPresentationResponse,
 	return response, nil
 }
 
+// ParseSearchListResponse parses an HTTP response from a SearchListWithResponse call
+func ParseSearchListResponse(rsp *http.Response) (*SearchListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []struct {
+			// Credential The Verifiable Credential that matched the query.
+			Credential map[string]interface{} `json:"credential"`
+
+			// Id The ID of the Verifiable Presentation.
+			Id string `json:"id"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Retrieves a use case list
@@ -509,6 +683,9 @@ type ServerInterface interface {
 	// Adds a presentation to the list
 	// (POST /usecase/{listName})
 	AddPresentation(ctx echo.Context, listName string) error
+	// Searches a for presentations on the usecase list.
+	// (GET /usecase/{listName}/search)
+	SearchList(ctx echo.Context, listName string, params SearchListParams) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -561,6 +738,33 @@ func (w *ServerInterfaceWrapper) AddPresentation(ctx echo.Context) error {
 	return err
 }
 
+// SearchList converts echo context to params.
+func (w *ServerInterfaceWrapper) SearchList(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "listName" -------------
+	var listName string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "listName", runtime.ParamLocationPath, ctx.Param("listName"), &listName)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter listName: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchListParams
+	// ------------- Optional query parameter "query" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "query", ctx.QueryParams(), &params.Query)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter query: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.SearchList(ctx, listName, params)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -591,6 +795,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/usecase/:listName", wrapper.GetList)
 	router.POST(baseURL+"/usecase/:listName", wrapper.AddPresentation)
+	router.GET(baseURL+"/usecase/:listName/search", wrapper.SearchList)
 
 }
 
@@ -692,6 +897,51 @@ func (response AddPresentationdefaultApplicationProblemPlusJSONResponse) VisitAd
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type SearchListRequestObject struct {
+	ListName string `json:"listName"`
+	Params   SearchListParams
+}
+
+type SearchListResponseObject interface {
+	VisitSearchListResponse(w http.ResponseWriter) error
+}
+
+type SearchList200JSONResponse []struct {
+	// Credential The Verifiable Credential that matched the query.
+	Credential map[string]interface{} `json:"credential"`
+
+	// Id The ID of the Verifiable Presentation.
+	Id string `json:"id"`
+}
+
+func (response SearchList200JSONResponse) VisitSearchListResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchListdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response SearchListdefaultApplicationProblemPlusJSONResponse) VisitSearchListResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Retrieves a use case list
@@ -700,6 +950,9 @@ type StrictServerInterface interface {
 	// Adds a presentation to the list
 	// (POST /usecase/{listName})
 	AddPresentation(ctx context.Context, request AddPresentationRequestObject) (AddPresentationResponseObject, error)
+	// Searches a for presentations on the usecase list.
+	// (GET /usecase/{listName}/search)
+	SearchList(ctx context.Context, request SearchListRequestObject) (SearchListResponseObject, error)
 }
 
 type StrictHandlerFunc = strictecho.StrictEchoHandlerFunc
@@ -765,6 +1018,32 @@ func (sh *strictHandler) AddPresentation(ctx echo.Context, listName string) erro
 		return err
 	} else if validResponse, ok := response.(AddPresentationResponseObject); ok {
 		return validResponse.VisitAddPresentationResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SearchList operation middleware
+func (sh *strictHandler) SearchList(ctx echo.Context, listName string, params SearchListParams) error {
+	var request SearchListRequestObject
+
+	request.ListName = listName
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchList(ctx.Request().Context(), request.(SearchListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchList")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SearchListResponseObject); ok {
+		return validResponse.VisitSearchListResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

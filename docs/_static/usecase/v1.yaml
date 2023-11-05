@@ -18,7 +18,7 @@ paths:
     get:
       summary: Retrieves a use case list
       description: |
-        Retrieves a use case list, starting at the given lamport timestamp.
+        An API provided by the use case maintainer to retrieve a use case list, starting at the given lamport timestamp.
         The client should provide the timestamp it was returned in the last response.
         If no timestamp is given or it is 0, it will return the full list.
 
@@ -56,7 +56,8 @@ paths:
     post:
       summary: Adds a presentation to the list
       description: |
-        Adds a presentation to the list. The presentation must be signed by subject of the credentials it contains.
+        An API provided by the use case maintainer that adds a presentation to the list.
+        The presentation must be signed by subject of the credentials it contains.
         
         error returns:
         * 400 - incorrect input; e.g. unsupported presentation or credential type, invalid signature, unresolvable credential subject, etc.
@@ -75,6 +76,71 @@ paths:
           description: Presentation was added to the list
         "400":
           $ref: "../common/error_response.yaml"
+        default:
+          $ref: "../common/error_response.yaml"
+  /usecase/{listName}/search:
+    parameters:
+      - name: listName
+        in: path
+        required: true
+        schema:
+          type: string
+      # Way to specify dynamic query parameters
+      # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
+      - in: query
+        name: query
+        schema:
+          type: object
+          additionalProperties:
+            type: string
+        style: form
+        explode: true
+    get:
+      summary: Searches a for presentations on the usecase list.
+      description: |
+        An API of the use case client that searches a for presentations on the usecase list,
+        whose credentials match the given query parameter.
+        The query parameters are interpreted as JSON path expressions, evaluated on the verifiable credentials.
+        The following features and limitations apply:
+        - only simple child-selectors are supported (so no arrays selectors, script expressions etc).
+        - only JSON string values can be matched, no numbers, booleans, etc.
+        - wildcard (*) are supported at the start and end of the value
+        - a single wildcard (*) means: match any (non-nil) value
+        - matching is case-insensitive
+        - expressions must not include the '$.' prefix, which is added by the API.
+        - all expressions must match a single credential, for the credential to be included in the result.
+        - if there are multiple credentials in the presentation, the presentation is included in the result if any of the credentials match.
+        
+        Valid examples:
+        * `credentialSubject.givenName=John`
+        * `credentialSubject.organization.city=Arnhem`
+        * `credentialSubject.organization.name=Hospital*`
+        * `credentialSubject.organization.name=*clinic`
+        * `issuer=did:web:example.com`
+        
+        Search results are
+      operationId: searchList
+      tags:
+        - usecase
+      responses:
+        "200":
+          description: Search results are returned, if any.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - id
+                    - credential
+                  properties:
+                    id:
+                      type: string
+                      description: The ID of the Verifiable Presentation.
+                    credential:
+                      type: object
+                      description: The Verifiable Credential that matched the query.
         default:
           $ref: "../common/error_response.yaml"
 components:
