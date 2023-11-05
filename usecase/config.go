@@ -18,14 +18,23 @@
 
 package usecase
 
+import "time"
+
 // Config holds the config for use case listDefinition
 type Config struct {
 	Maintainer  MaintainerConfig  `koanf:"maintainer"`
+	Client      ClientConfig      `koanf:"client"`
 	Definitions DefinitionsConfig `koanf:"definitions"`
 }
 
 type DefinitionsConfig struct {
 	Directory string `koanf:"directory"`
+}
+
+// ClientConfig holds the config for the client
+type ClientConfig struct {
+	// RefreshInterval specifies how often the client should refresh the lists.
+	RefreshInterval time.Duration `koanf:"refresh_interval"`
 }
 
 // MaintainerConfig holds the config for the maintainer
@@ -38,7 +47,10 @@ type MaintainerConfig struct {
 
 // DefaultConfig returns the default configuration.
 func DefaultConfig() Config {
-	return Config{}
+	return Config{
+		Maintainer: MaintainerConfig{},
+		Client:     ClientConfig{RefreshInterval: 5 * time.Minute},
+	}
 }
 
 func (c Config) IsMaintainer() bool {

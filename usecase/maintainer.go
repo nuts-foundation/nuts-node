@@ -29,7 +29,6 @@ import (
 	"time"
 )
 
-var _ ListWriter = &maintainer{}
 var ErrListNotFound = errors.New("list not found")
 var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 
@@ -144,11 +143,12 @@ func createList(definition Definition) (*list, error) {
 }
 
 type maintainer struct {
-	fileName string
-	lists    sync.Map
+	lists        sync.Map
+	ticker       *time.Ticker
+	ticketWaiter sync.WaitGroup
 }
 
-func newMaintainer(fileName string, definitions []Definition) (*maintainer, error) {
+func newMaintainer(definitions []Definition, pruneInterval time.Duration) (*maintainer, error) {
 	result := &maintainer{
 		lists: sync.Map{},
 	}
@@ -164,11 +164,11 @@ func newMaintainer(fileName string, definitions []Definition) (*maintainer, erro
 		result.lists.Store(currentList.name, currentList)
 		log.Logger().Infof("Node is use case maintainer for list: %s", currentList.definition.ID)
 	}
-	result.fileName = fileName
+	result.startPrune(pruneInterval)
 	return result, nil
 }
 
-func (m *maintainer) Add(listName string, presentation vc.VerifiablePresentation) error {
+func (m *maintainer) add(listName string, presentation vc.VerifiablePresentation) error {
 	if presentation.Format() != vc.JWTPresentationProofFormat {
 		return errors.New("only JWT presentations are supported")
 	}
@@ -184,7 +184,7 @@ func (m *maintainer) Add(listName string, presentation vc.VerifiablePresentation
 	return targetList.add(presentation)
 }
 
-func (m *maintainer) Get(listName string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {
+func (m *maintainer) get(listName string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {
 	l, exists := m.lists.Load(listName)
 	if !exists {
 		return nil, nil, ErrListNotFound
@@ -193,10 +193,28 @@ func (m *maintainer) Get(listName string, startAt Timestamp) ([]vc.VerifiablePre
 	return result, &timestamp, nil
 }
 
+func (m *maintainer) startPrune(interval time.Duration) {
+	m.ticker = time.NewTicker(interval)
+	m.ticketWaiter = sync.WaitGroup{}
+	m.ticketWaiter.Add(1)
+	go func(ticker *time.Ticker, waiter *sync.WaitGroup) {
+		defer waiter.Done()
+		for range ticker.C {
+			m.pruneLists(time.Now())
+		}
+	}(m.ticker, &m.ticketWaiter)
+}
+
 func (m *maintainer) pruneLists(currentTime time.Time) {
 	m.lists.Range(func(_, value any) bool {
 		currentList := value.(*list)
 		currentList.prune(currentTime)
 		return true
 	})
+}
+
+func (m *maintainer) stop() {
+	m.ticker.Stop()
+	log.Logger().Debug("Waiting for maintainer ticker to stop")
+	m.ticketWaiter.Wait()
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 var jwtVP vc.VerifiablePresentation
@@ -124,51 +125,51 @@ func Test_list_add(t *testing.T) {
 	})
 }
 
-func Test_maintainer_Add(t *testing.T) {
+func Test_maintainer_add(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		m, err := newMaintainer("", []Definition{testDefinition})
+		m, err := newMaintainer([]Definition{testDefinition}, time.Hour)
 		require.NoError(t, err)
 
-		err = m.Add("usecase", jwtVP)
+		err = m.add("usecase", jwtVP)
 		assert.NoError(t, err)
 
-		_, timestamp, err := m.Get("usecase", 0)
+		_, timestamp, err := m.get("usecase", 0)
 		assert.NoError(t, err)
 		assert.Equal(t, Timestamp(1), *timestamp)
 	})
 	t.Run("already exists", func(t *testing.T) {
-		m, err := newMaintainer("", []Definition{testDefinition})
+		m, err := newMaintainer([]Definition{testDefinition}, time.Hour)
 		require.NoError(t, err)
 
-		err = m.Add("usecase", jwtVP)
+		err = m.add("usecase", jwtVP)
 		assert.NoError(t, err)
-		err = m.Add("usecase", jwtVP)
+		err = m.add("usecase", jwtVP)
 		assert.EqualError(t, err, "presentation already exists")
 	})
 	t.Run("list unknown", func(t *testing.T) {
-		m, err := newMaintainer("", []Definition{testDefinition})
+		m, err := newMaintainer([]Definition{testDefinition}, time.Hour)
 		require.NoError(t, err)
-		err = m.Add("unknown", jwtVP)
+		err = m.add("unknown", jwtVP)
 		assert.EqualError(t, err, "list not found")
 	})
 }
 
-func Test_maintainer_Get(t *testing.T) {
+func Test_maintainer_get(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		m, err := newMaintainer("", []Definition{testDefinition})
+		m, err := newMaintainer([]Definition{testDefinition}, time.Hour)
 		require.NoError(t, err)
-		err = m.Add("usecase", jwtVP)
+		err = m.add("usecase", jwtVP)
 		assert.NoError(t, err)
 
-		vps, timestamp, err := m.Get("usecase", 0)
+		vps, timestamp, err := m.get("usecase", 0)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{jwtVP}, vps)
 		assert.Equal(t, Timestamp(1), *timestamp)
 	})
 	t.Run("list unknown", func(t *testing.T) {
-		m, err := newMaintainer("", []Definition{testDefinition})
+		m, err := newMaintainer([]Definition{testDefinition}, time.Hour)
 		require.NoError(t, err)
-		_, _, err = m.Get("unknown", 0)
+		_, _, err = m.get("unknown", 0)
 		assert.EqualError(t, err, "list not found")
 	})
 }

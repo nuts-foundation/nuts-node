@@ -18,31 +18,9 @@
 
 package usecase
 
-import (
-	"github.com/nuts-foundation/go-did/vc"
-)
-
 // Timestamp is value that references a point in the list.
 // It is used by clients to request new entries since their last query.
 // It's implemented as lamport timestamp (https://en.wikipedia.org/wiki/Lamport_timestamp);
 // it is incremented when a new entry is added to the list.
 // Pass 0 to start at the beginning of the list.
 type Timestamp uint64
-
-type List struct {
-	State   string                      `json:"state"`
-	Entries []vc.VerifiablePresentation `json:"entries"`
-}
-
-// ListWriter is responsible for handling new list entries.
-type ListWriter interface {
-	Add(listName string, presentation vc.VerifiablePresentation) error
-}
-
-type ListReader interface {
-	Get(listName string, startAt *Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error)
-}
-
-type Reader interface {
-	Find(listName string, query map[string]interface{}) ([]vc.VerifiablePresentation, error)
-}

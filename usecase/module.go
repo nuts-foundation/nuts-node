@@ -43,6 +43,7 @@ func New() *Module {
 type Module struct {
 	config      Config
 	maintainer  *maintainer
+	client      *client
 	definitions map[string]Definition
 }
 
@@ -75,10 +76,12 @@ func (m *Module) Start() error {
 			return fmt.Errorf("unable to start maintainer: %w", err)
 		}
 	}
+	m.client = newClient(m.definitions, m.config.Client.RefreshInterval)
 	return nil
 }
 
 func (m *Module) Shutdown() error {
+	m.client.stop()
 	return nil
 }
 
