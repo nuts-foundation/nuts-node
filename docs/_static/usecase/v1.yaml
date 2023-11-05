@@ -43,6 +43,7 @@ paths:
                 required:
                   - timestamp
                   - entries
+                  - tombstones
                 properties:
                   timestamp:
                     type: integer
@@ -51,6 +52,14 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/VerifiablePresentation"
+                  tombstones:
+                    description: |
+                      List of timestamps of entries that were removed from the list.
+                      The client should remove these entries from its local copy of the list.
+                    type: array
+                    items:
+                      type: integer
+                      description: Timestamp of the entry that was removed from the list.
         default:
           $ref: "../common/error_response.yaml"
     post:
