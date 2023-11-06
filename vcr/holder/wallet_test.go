@@ -84,7 +84,10 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			result, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, PresentationOptions{Format: JSONLDPresentationFormat}, &testDID, false)
 
 			require.NoError(t, err)
-			assert.NotNil(t, result)
+			require.NotNil(t, result)
+			require.NotNil(t, result.ID, "id must be set")
+			assert.Equal(t, testDID, did.MustParseDIDURL(result.ID.String()).WithoutURL(), "id must be the DID of the holder")
+			assert.NotEmpty(t, result.ID.Fragment, "id must have a fragment")
 			assert.Equal(t, JSONLDPresentationFormat, result.Format())
 		})
 		t.Run("ok - custom options", func(t *testing.T) {
@@ -144,6 +147,9 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			require.NoError(t, err)
 			require.NotNil(t, result)
+			require.NotNil(t, result.ID, "id must be set")
+			assert.Equal(t, testDID, did.MustParseDIDURL(result.ID.String()).WithoutURL(), "id must be the DID of the holder")
+			assert.NotEmpty(t, result.ID.Fragment, "id must have a fragment")
 			assert.Equal(t, JWTPresentationFormat, result.Format())
 			assert.NotNil(t, result.JWT())
 		})

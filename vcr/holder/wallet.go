@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
@@ -38,6 +39,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"strings"
 	"time"
 )
 
@@ -99,7 +101,7 @@ func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.Verifiab
 	case "":
 		fallthrough
 	case JSONLDPresentationFormat:
-		return h.buildJSONLDPresentation(ctx, credentials, options, key)
+		return h.buildJSONLDPresentation(ctx, *signerDID, credentials, options, key)
 	default:
 		return nil, errors.New("unsupported presentation proof format")
 	}
@@ -110,9 +112,12 @@ func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, cr
 	headers := map[string]interface{}{
 		jws.TypeKey: "JWT",
 	}
+	id := subjectDID
+	id.Fragment = strings.ToLower(uuid.NewString())
 	claims := map[string]interface{}{
 		jwt.IssuerKey:  subjectDID.String(),
 		jwt.SubjectKey: subjectDID.String(),
+		jwt.JwtIDKey:   id.String(),
 		"vp": vc.VerifiablePresentation{
 			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
 			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
@@ -134,13 +139,17 @@ func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, cr
 	return vc.ParseVerifiablePresentation(token)
 }
 
-func (h wallet) buildJSONLDPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, key crypto.Key) (*vc.VerifiablePresentation, error) {
+func (h wallet) buildJSONLDPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, key crypto.Key) (*vc.VerifiablePresentation, error) {
 	ldContext := []ssi.URI{VerifiableCredentialLDContextV1, signature.JSONWebSignature2020Context}
 	ldContext = append(ldContext, options.AdditionalContexts...)
 	types := []ssi.URI{VerifiablePresentationLDType}
 	types = append(types, options.AdditionalTypes...)
 
+	id := subjectDID
+	id.Fragment = strings.ToLower(uuid.NewString())
+	idURI := id.URI()
 	unsignedVP := &vc.VerifiablePresentation{
+		ID:                   &idURI,
 		Context:              ldContext,
 		Type:                 types,
 		VerifiableCredential: credentials,
