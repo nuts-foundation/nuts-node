@@ -121,13 +121,11 @@ paths:
         - if there are multiple credentials in the presentation, the presentation is included in the result if any of the credentials match.
         
         Valid examples:
-        * `credentialSubject.givenName=John`
-        * `credentialSubject.organization.city=Arnhem`
-        * `credentialSubject.organization.name=Hospital*`
-        * `credentialSubject.organization.name=*clinic`
-        * `issuer=did:web:example.com`
-        
-        Search results are
+        - `credentialSubject.givenName=John`
+        - `credentialSubject.organization.city=Arnhem`
+        - `credentialSubject.organization.name=Hospital*`
+        - `credentialSubject.organization.name=*clinic`
+        - `issuer=did:web:example.com`
       operationId: searchList
       tags:
         - usecase
