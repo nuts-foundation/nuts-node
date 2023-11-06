@@ -54,12 +54,12 @@ paths:
                       $ref: "#/components/schemas/VerifiablePresentation"
                   tombstones:
                     description: |
-                      List of timestamps of entries that were removed from the list.
+                      List of presentation IDs that were removed from the list.
                       The client should remove these entries from its local copy of the list.
                     type: array
                     items:
-                      type: integer
-                      description: Timestamp of the entry that was removed from the list.
+                      type: string
+                      description: ID of the presentation that was removed from the list.
         default:
           $ref: "../common/error_response.yaml"
     post:
