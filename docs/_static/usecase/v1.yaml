@@ -87,6 +87,32 @@ paths:
           $ref: "../common/error_response.yaml"
         default:
           $ref: "../common/error_response.yaml"
+    delete:
+      summary: Delete a credential subject from list.
+      description: |
+        An API provided by the use case maintainer that removes all presentations of a specific credential subject from the list.
+        The presentation must be signed by credential subject which' presentations should be removed.
+        The presentation should not contain any credentials but if there are, they are ignored.
+
+        error returns:
+        * 400 - incorrect input; e.g. unsupported presentation, invalid signature, etc.
+      operationId: removePresentations
+      tags:
+        - usecase
+      requestBody:
+        description: Presentation identifying the credential subject to remove from the list.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifiablePresentation"
+      responses:
+        "201":
+          description: Presentation was added to the list
+        "400":
+          $ref: "../common/error_response.yaml"
+        default:
+          $ref: "../common/error_response.yaml"
   /usecase/{listName}/search:
     parameters:
       - name: listName
