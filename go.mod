@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/hashicorp/vault/api v1.10.0
 	github.com/knadh/koanf v1.5.0
-	github.com/labstack/echo/v4 v4.11.2
+	github.com/labstack/echo/v4 v4.11.3
 	github.com/lestrrat-go/jwx/v2 v2.0.16
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.1.1
