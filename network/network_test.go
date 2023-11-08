@@ -615,7 +615,7 @@ func TestNetwork_selfTestNutsCommAddress(t *testing.T) {
 
 func TestNetwork_validateNodeDID(t *testing.T) {
 	ctx := context.Background()
-	keyID := *nodeDID
+	keyID := did.DIDURL{DID: *nodeDID}
 	keyID.Fragment = "some-key"
 	key := crypto.NewTestKey(keyID.String()).(*crypto.TestKey).PrivateKey
 	documentWithoutNutsCommService := &did.Document{
@@ -1252,7 +1252,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 	})
 
 	t.Run("authentication", func(t *testing.T) {
-		keyID := *nodeDID
+		keyID := did.DIDURL{DID: *nodeDID}
 		keyID.Fragment = "some-key"
 		completeDocument := &did.Document{
 			KeyAgreement: []did.VerificationRelationship{

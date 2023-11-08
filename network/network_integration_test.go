@@ -1006,7 +1006,7 @@ func resetIntegrationTest(t *testing.T) {
 	writeDIDDocument := func(subject string) {
 		nodeDID := did.MustParseDID(subject)
 		document := did.Document{ID: nodeDID}
-		kid := nodeDID
+		kid := did.DIDURL{DID: nodeDID}
 		kid.Fragment = "key-1"
 		key, _ := keyStore.New(audit.TestContext(), func(_ crypto.PublicKey) (string, error) {
 			return kid.String(), nil

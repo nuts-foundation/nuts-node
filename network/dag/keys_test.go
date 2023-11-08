@@ -39,7 +39,7 @@ func TestNutsKeyResolver_ResolvePublicKey(t *testing.T) {
 	doc := &did.Document{
 		ID: did.MustParseDID("did:nuts:123"),
 	}
-	mockKID := doc.ID
+	mockKID := did.DIDURL{DID: doc.ID}
 	mockKID.Fragment = "key-1"
 	vm, err := did.NewVerificationMethod(mockKID, ssi.JsonWebKey2020, doc.ID, pk.Public())
 	require.NoError(t, err)

@@ -801,13 +801,11 @@ func newDidDocWithOptions(opts management.DIDCreationOptions) (did.Document, jwk
 	didDocument, key, err := docCreator.Create(audit.TestContext(), opts)
 	signingKey, _ := jwk.FromRaw(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)
-	didStr := fmt.Sprintf("did:nuts:%s", thumbStr)
-	id, _ := did.ParseDID(didStr)
-	didDocument.ID = *id
+	didDocument.ID = did.MustParseDID(fmt.Sprintf("did:nuts:%s", thumbStr))
 	if err != nil {
 		return did.Document{}, nil, err
 	}
-	serviceID := didDocument.ID
+	serviceID := did.DIDURL{DID: didDocument.ID}
 	serviceID.Fragment = "1234"
 	didDocument.Service = []did.Service{
 		{

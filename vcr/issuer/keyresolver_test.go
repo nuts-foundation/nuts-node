@@ -34,7 +34,7 @@ import (
 func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 	ctx := context.Background()
 	issuerDID, _ := did.ParseDID("did:nuts:123")
-	methodID := *issuerDID
+	methodID := did.DIDURL{DID: *issuerDID}
 	methodID.Fragment = "abc"
 	publicKey := crypto.NewTestKey(issuerDID.String() + "abc").Public()
 	newMethod, err := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, *issuerDID, publicKey)

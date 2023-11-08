@@ -244,7 +244,7 @@ func TestResolveControllers(t *testing.T) {
 
 		// Doc C is active
 		docCID, _ := did.ParseDID("did:nuts:C")
-		docCIDCapInv := *docCID
+		docCIDCapInv := did.DIDURL{DID: *docCID}
 		docCIDCapInv.Fragment = "cap-inv"
 		docC := did.Document{ID: *docCID}
 		docC.AddCapabilityInvocation(&did.VerificationMethod{ID: docCIDCapInv})
@@ -252,7 +252,7 @@ func TestResolveControllers(t *testing.T) {
 
 		// Doc A is active
 		docAID, _ := did.ParseDID("did:nuts:A")
-		docAIDCapInv := *docAID
+		docAIDCapInv := did.DIDURL{DID: *docAID}
 		docAIDCapInv.Fragment = "cap-inv"
 		docA := did.Document{ID: *docAID}
 		docA.Controller = []did.DID{docA.ID, docB.ID, docC.ID}

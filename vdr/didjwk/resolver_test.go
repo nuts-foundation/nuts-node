@@ -69,7 +69,7 @@ func TestResolver_Resolve(t *testing.T) {
 			// Generate a test function using the specified JWK JSON string
 			return func(t *testing.T) {
 				// Parse the DID
-				id := did.MustParseDIDURL("did:jwk:" + id)
+				id := did.MustParseDID("did:jwk:" + id)
 
 				// Resolve the DID, which returns a document/error
 				doc, md, err := resolver.Resolve(id, nil)

@@ -21,6 +21,7 @@ package irma
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -109,7 +110,7 @@ func TestService_StartSigningSession(t *testing.T) {
 func TestService_SigningSessionStatus(t *testing.T) {
 	correctContractText := "EN:PractitionerLogin:v3 I hereby declare to act on behalf of verpleeghuis De nootjes located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00."
 	holder := vdr.TestDIDA
-	keyID := holder
+	keyID := did.DIDURL{DID: holder}
 	keyID.Fragment = keyID.ID
 	ctx := context.Background()
 

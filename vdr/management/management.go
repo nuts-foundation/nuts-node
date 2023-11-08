@@ -58,7 +58,7 @@ type DocManipulator interface {
 	// It returns an ErrNotFound when there is no VerificationMethod with the provided kid in the document.
 	// It returns an ErrDeactivated when the DID document has the deactivated state.
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
-	RemoveVerificationMethod(ctx context.Context, id, keyID did.DID) error
+	RemoveVerificationMethod(ctx context.Context, id did.DID, keyID did.DIDURL) error
 
 	// AddVerificationMethod generates a new key and adds it, wrapped as a VerificationMethod, to a DID document.
 	// It accepts a DID as identifier for the DID document.

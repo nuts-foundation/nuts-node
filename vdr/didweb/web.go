@@ -117,8 +117,8 @@ func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 		return nil, nil, fmt.Errorf("did:web JSON unmarshal error: %w", err)
 	}
 
-	if !document.ID.Equals(id.WithoutURL()) {
-		return nil, nil, fmt.Errorf("did:web document ID mismatch: %s != %s", document.ID, id.WithoutURL())
+	if !document.ID.Equals(id) {
+		return nil, nil, fmt.Errorf("did:web document ID mismatch: %s != %s", document.ID, id)
 	}
 
 	return &document, &resolver.DocumentMetadata{}, nil

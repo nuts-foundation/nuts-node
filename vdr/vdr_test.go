@@ -339,7 +339,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 
 		t.Run("ok - 1 owned conflict", func(t *testing.T) {
 			client := crypto.NewMemoryCryptoInstance()
-			keyID := TestDIDA
+			keyID := did.DIDURL{DID: TestDIDA}
 			keyID.Fragment = "1"
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil)

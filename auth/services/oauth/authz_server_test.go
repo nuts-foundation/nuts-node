@@ -80,7 +80,7 @@ func getAuthorizerDIDDocument() *did.Document {
 	doc := did.Document{
 		ID: id,
 	}
-	signingKeyID := id
+	signingKeyID := did.DIDURL{DID: id}
 	signingKeyID.Fragment = "signing-key"
 	key, err := did.NewVerificationMethod(signingKeyID, ssi.JsonWebKey2020, id, authorizerSigningKey.Public())
 	if err != nil {
