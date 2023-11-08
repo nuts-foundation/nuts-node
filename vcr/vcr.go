@@ -256,7 +256,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		// This is because the credential is requested by the wallet synchronously during the offer handling,
 		// meaning while the issuer allocated an HTTP connection the wallet will try to allocate one as well.
 		// This moved back to 1 http.Client when the credential is requested asynchronously.
-		// Should be fixed as part of https://github.com/nuts-foundation/nuts-node/issues/2039
+		// Should be fixed as part of https://github.com/nuts-foundation/nuts-node/issues/2039 (also fix core.NewStrictHTTPClient)
 		c.issuerHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
 		c.walletHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
 		c.openidSessionStore = c.storageClient.GetSessionDatabase()

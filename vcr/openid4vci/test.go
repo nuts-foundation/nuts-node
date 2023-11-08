@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"testing"
@@ -35,7 +36,7 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	providerMetadata := new(ProviderMetadata)
 	walletMetadata := new(OAuth2ClientMetadata)
 	credentialResponse := CredentialResponse{
-		Format: VerifiableCredentialJSONLDFormat,
+		Format: openid4vc.VerifiableCredentialJSONLDFormat,
 		Credential: &map[string]interface{}{
 			"@context":          []string{"https://www.w3.org/2018/credentials/v1"},
 			"type":              []string{"VerifiableCredential"},

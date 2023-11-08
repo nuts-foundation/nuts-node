@@ -150,8 +150,9 @@ func NewStrictHTTPClient(strictmode bool, timeout time.Duration, tlsConfig *tls.
 	}
 
 	transport := http.DefaultTransport
+	// Might not be http.Transport in testing
 	if httpTransport, ok := transport.(*http.Transport); ok {
-		// Might not be http.Transport in testing
+		// cloning the transport might reduce performance.
 		httpTransport = httpTransport.Clone()
 		httpTransport.TLSClientConfig = tlsConfig
 		transport = httpTransport

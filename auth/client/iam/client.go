@@ -140,10 +140,10 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp v
 	assertion, _ := json.Marshal(vp)
 	presentationSubmission, _ := json.Marshal(submission)
 	data := url.Values{}
-	data.Set("grant_type", "vp_token-bearer")
-	data.Set("assertion", string(assertion))
-	data.Set("presentation_submission", string(presentationSubmission))
-	data.Set("scope", scopes)
+	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
+	data.Set(oauth.AssertionParam, string(assertion))
+	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
+	data.Set(oauth.ScopeParam, scopes)
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, presentationDefinitionURL.String(), strings.NewReader(data.Encode()))
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	if err != nil {
@@ -168,6 +168,11 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp v
 		return token, fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(responseData, &token); err != nil {
+		// Cut off the response body to 100 characters max to prevent logging of large responses
+		responseBodyString := string(responseData)
+		if len(responseBodyString) > 100 {
+			responseBodyString = responseBodyString[:100] + "...(clipped)"
+		}
 		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
 	}
 	return token, nil

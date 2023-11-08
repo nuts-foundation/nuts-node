@@ -20,6 +20,7 @@ package openid4vci
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -89,7 +90,7 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 	httpClient := &http.Client{}
 	credentialRequest := CredentialRequest{
 		CredentialDefinition: &CredentialDefinition{},
-		Format:               VerifiableCredentialJSONLDFormat,
+		Format:               openid4vc.VerifiableCredentialJSONLDFormat,
 	}
 	t.Run("ok", func(t *testing.T) {
 		setup := setupClientTest(t)

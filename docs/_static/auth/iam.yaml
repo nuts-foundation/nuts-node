@@ -333,6 +333,8 @@ components:
           description: |
             The type of the token issued as described in [RFC6749].
           example: "bearer"
+        scope:
+          type: string
         expires_in:
           type: integer
           description: |

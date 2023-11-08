@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -274,7 +275,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 // offeredCredential returns a structure that can be used as CredentialOffer.Credentials,
 func offeredCredential() []openid4vci.OfferedCredential {
 	return []openid4vci.OfferedCredential{{
-		Format: openid4vci.VerifiableCredentialJSONLDFormat,
+		Format: openid4vc.VerifiableCredentialJSONLDFormat,
 		CredentialDefinition: &openid4vci.CredentialDefinition{
 			Context: []ssi.URI{
 				ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),

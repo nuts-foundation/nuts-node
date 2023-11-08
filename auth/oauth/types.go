@@ -42,6 +42,16 @@ const (
 	openidCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
 	// openidCredWalletWellKnown is the well-known path element we created for openid4vci to retrieve the oauth client metadata
 	openidCredWalletWellKnown = "/.well-known/openid-credential-wallet"
+	// GrantTypeParam is the parameter name for the grant_type parameter
+	GrantTypeParam = "grant_type"
+	// AssertionParam is the parameter name for the assertion parameter
+	AssertionParam = "assertion"
+	// ScopeParam is the parameter name for the scope parameter
+	ScopeParam = "scope"
+	// PresentationSubmissionParam is the parameter name for the presentation_submission parameter
+	PresentationSubmissionParam = "presentation_submission"
+	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type
+	VpTokenGrantType = "vp_token-bearer"
 )
 
 // IssuerIdToWellKnown converts the OAuth2 Issuer identity to the specified well-known endpoint by inserting the well-known at the root of the path.

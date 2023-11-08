@@ -20,11 +20,10 @@ package iam
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"net/http"
 	"time"
 
@@ -35,9 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
-
-// secretSizeBits is the size of the generated random secrets (access tokens, pre-authorized codes) in bits.
-const secretSizeBits = 128
 
 // accessTokenValidity defines how long access tokens are valid.
 // TODO: Might want to make this configurable at some point
@@ -120,7 +116,7 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 
 func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentation vc.VerifiablePresentation, scope string) (*oauth.TokenResponse, error) {
 	accessToken := AccessToken{
-		Token:        generateCode(),
+		Token:        crypto.GenerateNonce(),
 		Issuer:       issuer.String(),
 		Expiration:   issueTime.Add(accessTokenValidity),
 		Presentation: presentation,
@@ -140,15 +136,6 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 
 func (r Wrapper) accessTokenStore(issuer did.DID) storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "s2s", issuer.String(), "accesstoken")
-}
-
-func generateCode() string {
-	buf := make([]byte, secretSizeBits/8)
-	_, err := rand.Read(buf)
-	if err != nil {
-		panic(err)
-	}
-	return base64.URLEncoding.EncodeToString(buf)
 }
 
 type AccessToken struct {

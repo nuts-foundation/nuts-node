@@ -29,21 +29,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/jwe"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/mr-tron/base58"
-
 	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jwe"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/stretchr/testify/assert"
-
+	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/mr-tron/base58"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSignJWT(t *testing.T) {

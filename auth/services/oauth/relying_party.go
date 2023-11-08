@@ -20,13 +20,13 @@ package oauth
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/tls"
-	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -132,7 +132,7 @@ func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantTok
 	return accessTokenResponse, nil
 }
 
-func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
+func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
 	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
 	if err != nil {
@@ -145,7 +145,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requestHold
 		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
 	}
 
-	walletCredentials, err := s.wallet.List(ctx, requestHolder)
+	walletCredentials, err := s.wallet.List(ctx, requester)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
 	}
@@ -162,7 +162,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requestHold
 		return nil, core.Error(http.StatusPreconditionFailed, "no matching credentials")
 	}
 	expires := time.Now().Add(time.Minute * 15) //todo
-	nonce := generateNonce()
+	nonce := nutsCrypto.GenerateNonce()
 	// determine the format to use
 	format, err := determineFormat(metadata.VPFormats)
 	if err != nil {
@@ -175,7 +175,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requestHold
 			Challenge: &nonce,
 			Expires:   &expires,
 		},
-	}, &requestHolder, false)
+	}, &requester, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create verifiable presentation: %w", err)
 	}
@@ -192,21 +192,23 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requestHold
 	}, nil
 }
 
-func determineFormat(formats map[string]map[string][]string) (format string, err error) {
-	for format = range formats {
-		switch format {
-		case "jwt_vp_json":
-			fallthrough
-		case "jwt_vp":
-			fallthrough
-		case "ldp_vp":
-			return
-		default:
-			err = errors.New("unsupported format")
-		}
+func determineFormat(formats map[string]map[string][]string) (string, error) {
+	listOfFormats := make([]string, 0, len(formats))
+	for format := range formats {
+		listOfFormats = append(listOfFormats, format)
 	}
-	err = errors.New("authorization server metadata does not contain any supported formats")
-	return
+	if slices.Contains(listOfFormats, openid4vc.VerifiablePresentationJWTFormat) {
+		return openid4vc.VerifiablePresentationJWTFormat, nil
+	}
+	// OpenID4VP still uses the jwt_vp_json constant, so we need to support that as well
+	// If the spec is updated, we can remove this
+	if slices.Contains(listOfFormats, "jwt_vp_json") {
+		return openid4vc.VerifiablePresentationJWTFormat, nil
+	}
+	if slices.Contains(listOfFormats, openid4vc.VerifiablePresentationJSONLDFormat) {
+		return openid4vc.VerifiablePresentationJSONLDFormat, nil
+	}
+	return "", errors.New("authorization server metadata does not contain any supported VP formats")
 }
 
 var timeFunc = time.Now
@@ -228,13 +230,4 @@ func claimsFromRequest(request services.CreateJwtGrantRequest, audience string) 
 	result[vcClaim] = request.Credentials
 
 	return result
-}
-
-func generateNonce() string {
-	buf := make([]byte, 128/8)
-	_, err := rand.Read(buf)
-	if err != nil {
-		panic(err)
-	}
-	return base64.URLEncoding.EncodeToString(buf)
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -229,7 +230,7 @@ func TestOpenID4VCIErrorResponses(t *testing.T) {
 	require.NoError(t, err)
 
 	requestBody, _ := json.Marshal(openid4vci.CredentialRequest{
-		Format: openid4vci.VerifiableCredentialJSONLDFormat,
+		Format: openid4vc.VerifiableCredentialJSONLDFormat,
 	})
 
 	t.Run("error from API layer (missing access token)", func(t *testing.T) {
