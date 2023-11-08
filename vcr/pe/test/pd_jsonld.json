@@ -1,0 +1,46 @@
+{
+  "id": "Definition requesting NutsOrganizationCredential",
+  "input_descriptors": [
+    {
+      "id": "as_jsonld",
+      "constraints": {
+        "fields": [
+          {
+            "path": [
+              "$.credentialSubject.organization.city"
+            ],
+            "filter": {
+              "type": "string",
+              "const": "IJbergen"
+            }
+          },
+          {
+            "path": [
+              "$.credentialSubject.organization.name"
+            ],
+            "filter": {
+              "type": "string",
+              "pattern": "care"
+            }
+          },
+          {
+            "path": [
+              "$.type"
+            ],
+            "filter": {
+              "type": "string",
+              "const": "NutsOrganizationCredential"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "format": {
+    "ldp_vc": {
+      "proof_type": [
+        "JsonWebSignature2020"
+      ]
+    }
+  }
+}
