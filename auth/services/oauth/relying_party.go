@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 	"time"
 
@@ -193,21 +192,19 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 }
 
 func determineFormat(formats map[string]map[string][]string) (string, error) {
-	listOfFormats := make([]string, 0, len(formats))
 	for format := range formats {
-		listOfFormats = append(listOfFormats, format)
+		switch format {
+		case openid4vc.VerifiablePresentationJWTFormat:
+			fallthrough
+		case openid4vc.VerifiablePresentationJSONLDFormat:
+			fallthrough
+		case "jwt_vp_json":
+			return format, nil
+		default:
+			continue
+		}
 	}
-	if slices.Contains(listOfFormats, openid4vc.VerifiablePresentationJWTFormat) {
-		return openid4vc.VerifiablePresentationJWTFormat, nil
-	}
-	// OpenID4VP still uses the jwt_vp_json constant, so we need to support that as well
-	// If the spec is updated, we can remove this
-	if slices.Contains(listOfFormats, "jwt_vp_json") {
-		return openid4vc.VerifiablePresentationJWTFormat, nil
-	}
-	if slices.Contains(listOfFormats, openid4vc.VerifiablePresentationJSONLDFormat) {
-		return openid4vc.VerifiablePresentationJSONLDFormat, nil
-	}
+
 	return "", errors.New("authorization server metadata does not contain any supported VP formats")
 }
 
