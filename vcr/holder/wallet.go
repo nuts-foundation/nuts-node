@@ -112,7 +112,7 @@ func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, cr
 	headers := map[string]interface{}{
 		jws.TypeKey: "JWT",
 	}
-	id := subjectDID
+	id := did.DIDURL{DID: subjectDID}
 	id.Fragment = strings.ToLower(uuid.NewString())
 	claims := map[string]interface{}{
 		jwt.IssuerKey:  subjectDID.String(),
@@ -145,7 +145,7 @@ func (h wallet) buildJSONLDPresentation(ctx context.Context, subjectDID did.DID,
 	types := []ssi.URI{VerifiablePresentationLDType}
 	types = append(types, options.AdditionalTypes...)
 
-	id := subjectDID
+	id := did.DIDURL{DID: subjectDID}
 	id.Fragment = strings.ToLower(uuid.NewString())
 	idURI := id.URI()
 	unsignedVP := &vc.VerifiablePresentation{
