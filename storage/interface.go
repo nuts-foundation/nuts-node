@@ -22,6 +22,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
+	"gorm.io/gorm"
 	"time"
 )
 
@@ -37,6 +38,8 @@ type Engine interface {
 	GetProvider(moduleName string) Provider
 	// GetSessionDatabase returns the SessionDatabase
 	GetSessionDatabase() SessionDatabase
+
+	SQLDatabase() *gorm.DB
 }
 
 // Provider lets callers get access to stores.
