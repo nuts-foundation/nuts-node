@@ -139,7 +139,7 @@ func Test_engine_sqlDatabase(t *testing.T) {
 			_ = e.Shutdown()
 		})
 
-		underlyingDB, err := e.SQLDatabase().DB()
+		underlyingDB, err := e.GetSQLDatabase().DB()
 		require.NoError(t, err)
 		row := underlyingDB.QueryRow("SELECT count(*) FROM schema_migrations")
 		require.NoError(t, row.Err())

@@ -152,7 +152,7 @@ func (e *engine) GetSessionDatabase() SessionDatabase {
 	return e.sessionDatabase
 }
 
-func (e *engine) SQLDatabase() *gorm.DB {
+func (e *engine) GetSQLDatabase() *gorm.DB {
 	return e.sqlDB
 }
 

@@ -84,9 +84,9 @@ func (mr *MockEngineMockRecorder) GetSessionDatabase() *gomock.Call {
 }
 
 // SQLDatabase mocks base method.
-func (m *MockEngine) SQLDatabase() *gorm.DB {
+func (m *MockEngine) GetSQLDatabase() *gorm.DB {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SQLDatabase")
+	ret := m.ctrl.Call(m, "GetSQLDatabase")
 	ret0, _ := ret[0].(*gorm.DB)
 	return ret0
 }
@@ -94,7 +94,7 @@ func (m *MockEngine) SQLDatabase() *gorm.DB {
 // SQLDatabase indicates an expected call of SQLDatabase.
 func (mr *MockEngineMockRecorder) SQLDatabase() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SQLDatabase", reflect.TypeOf((*MockEngine)(nil).SQLDatabase))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSQLDatabase", reflect.TypeOf((*MockEngine)(nil).GetSQLDatabase))
 }
 
 // Shutdown mocks base method.

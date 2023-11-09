@@ -39,7 +39,8 @@ type Engine interface {
 	// GetSessionDatabase returns the SessionDatabase
 	GetSessionDatabase() SessionDatabase
 
-	SQLDatabase() *gorm.DB
+	// GetSQLDatabase returns the SQL database.
+	GetSQLDatabase() *gorm.DB
 }
 
 // Provider lets callers get access to stores.
