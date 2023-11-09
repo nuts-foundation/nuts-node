@@ -183,11 +183,16 @@ func (e *engine) initSQLDatabase() error {
 		return err
 	}
 	migrations, err := migrate.NewWithInstance("iofs", sourceDriver, e.sqlDB.Name(), databaseDriver)
-	migrations.Log = sqlMigrationLogger{}
 	if err != nil {
 		return err
 	}
-	return migrations.Up()
+	migrations.Log = sqlMigrationLogger{}
+	err = migrations.Up()
+	if errors.Is(err, migrate.ErrNoChange) {
+		// There was nothing to migrate
+		return nil
+	}
+	return err
 }
 
 type provider struct {

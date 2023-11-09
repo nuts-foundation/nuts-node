@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"os"
 	"path"
 	"testing"
 )
@@ -103,13 +104,31 @@ func Test_engine_sqlDatabase(t *testing.T) {
 	t.Run("defaults to SQLite in data directory", func(t *testing.T) {
 		e := New()
 		dataDir := io.TestDirectory(t)
-		err := e.Configure(core.ServerConfig{Datadir: dataDir})
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
 		require.NoError(t, e.Start())
 		t.Cleanup(func() {
 			_ = e.Shutdown()
 		})
-		require.NoError(t, err)
 		assert.FileExists(t, path.Join(dataDir, "sqlite.db"))
+	})
+	t.Run("unable to open SQLite database", func(t *testing.T) {
+		dataDir := io.TestDirectory(t)
+		require.NoError(t, os.Remove(dataDir))
+		e := New()
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		err := e.Start()
+		assert.EqualError(t, err, "failed to initialize SQL database: unable to open database file")
+	})
+	t.Run("nothing to migrate (already migrated)", func(t *testing.T) {
+		dataDir := io.TestDirectory(t)
+		e := New()
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		require.NoError(t, e.Start())
+		require.NoError(t, e.Shutdown())
+		e = New()
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		require.NoError(t, e.Start())
+		require.NoError(t, e.Shutdown())
 	})
 	t.Run("runs migrations", func(t *testing.T) {
 		e := New().(*engine)
@@ -128,4 +147,5 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		assert.NoError(t, row.Scan(&count))
 		assert.Equal(t, 1, count)
 	})
+
 }
