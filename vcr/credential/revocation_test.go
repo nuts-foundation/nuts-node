@@ -26,14 +26,11 @@ import (
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBuildRevocation(t *testing.T) {
-	target := vc.VerifiableCredential{}
-	vcData, _ := os.ReadFile("../test/vc.json")
-	json.Unmarshal(vcData, &target)
+	target := ValidNutsOrganizationCredential(t)
 
 	at := time.Now()
 	nowFunc = func() time.Time {

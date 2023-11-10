@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"net/http"
@@ -107,7 +108,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 	}
 	return RequestCredential200JSONResponse(CredentialResponse{
 		Credential: &credentialMap,
-		Format:     openid4vci.VerifiableCredentialJSONLDFormat,
+		Format:     openid4vc.VerifiableCredentialJSONLDFormat,
 	}), nil
 }
 
@@ -129,10 +130,11 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	if err != nil {
 		return nil, err
 	}
+	expiresIn := int(issuer.TokenTTL.Seconds())
 	return RequestAccessToken200JSONResponse(TokenResponse{
 		AccessToken: accessToken,
-		CNonce:      cNonce,
-		ExpiresIn:   int(issuer.TokenTTL.Seconds()),
+		CNonce:      &cNonce,
+		ExpiresIn:   &expiresIn,
 		TokenType:   "bearer",
 	}), nil
 }

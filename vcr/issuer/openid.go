@@ -21,8 +21,6 @@ package issuer
 import (
 	"context"
 	crypt "crypto"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
@@ -76,9 +75,6 @@ const TokenTTL = 15 * time.Minute
 const preAuthCodeRefType = "preauthcode"
 const accessTokenRefType = "accesstoken"
 const cNonceRefType = "c_nonce"
-
-// openidSecretSizeBits is the size of the generated random secrets (access tokens, pre-authorized codes) in bits.
-const openidSecretSizeBits = 128
 
 // OpenIDHandler defines the interface for handling OpenID4VCI issuer operations.
 type OpenIDHandler interface {
@@ -164,12 +160,12 @@ func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthori
 			StatusCode: http.StatusBadRequest,
 		}
 	}
-	accessToken := generateCode()
+	accessToken := crypto.GenerateNonce()
 	err = i.store.StoreReference(ctx, flow.ID, accessTokenRefType, accessToken)
 	if err != nil {
 		return "", "", err
 	}
-	cNonce := generateCode()
+	cNonce := crypto.GenerateNonce()
 	err = i.store.StoreReference(ctx, flow.ID, cNonceRefType, cNonce)
 	if err != nil {
 		return "", "", err
@@ -188,7 +184,7 @@ func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthori
 }
 
 func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.VerifiableCredential, walletIdentifier string) error {
-	preAuthorizedCode := generateCode()
+	preAuthorizedCode := crypto.GenerateNonce()
 	walletMetadataURL := core.JoinURLPaths(walletIdentifier, openid4vci.WalletMetadataWellKnownPath)
 	log.Logger().
 		WithField(core.LogFieldCredentialID, credential.ID).
@@ -212,7 +208,7 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 }
 
 func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request openid4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
-	if request.Format != openid4vci.VerifiableCredentialJSONLDFormat {
+	if request.Format != openid4vc.VerifiableCredentialJSONLDFormat {
 		return nil, openid4vci.Error{
 			Err:        fmt.Errorf("credential request: unsupported format '%s'", request.Format),
 			Code:       openid4vci.UnsupportedCredentialType,
@@ -284,7 +280,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 
 	// augment invalid_proof errors according to §7.3.2 of openid4vci spec
 	generateProofError := func(err openid4vci.Error) error {
-		cnonce := generateCode()
+		cnonce := crypto.GenerateNonce()
 		if err := i.store.StoreReference(ctx, flow.ID, cNonceRefType, cnonce); err != nil {
 			return err
 		}
@@ -413,7 +409,7 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 	offer := openid4vci.CredentialOffer{
 		CredentialIssuer: i.issuerIdentifierURL,
 		Credentials: []openid4vci.OfferedCredential{{
-			Format: openid4vci.VerifiableCredentialJSONLDFormat,
+			Format: openid4vc.VerifiableCredentialJSONLDFormat,
 			CredentialDefinition: &openid4vci.CredentialDefinition{
 				Context: credential.Context,
 				Type:    credential.Type,
@@ -490,15 +486,6 @@ func (i *openidHandler) loadCredentialDefinitions() error {
 	}
 
 	return err
-}
-
-func generateCode() string {
-	buf := make([]byte, openidSecretSizeBits/8)
-	_, err := rand.Read(buf)
-	if err != nil {
-		panic(err)
-	}
-	return base64.URLEncoding.EncodeToString(buf)
 }
 
 func deepcopy(src []map[string]interface{}) []map[string]interface{} {

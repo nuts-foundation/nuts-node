@@ -9,5 +9,5 @@ output-options:
     - DIDDocument
     - OAuthAuthorizationServerMetadata
     - OAuthClientMetadata
-    - ErrorResponse
     - PresentationDefinition
+    - TokenResponse

@@ -20,22 +20,20 @@ package iam
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"net/http"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/http"
-	"time"
 )
-
-// secretSizeBits is the size of the generated random secrets (access tokens, pre-authorized codes) in bits.
-const secretSizeBits = 128
 
 // accessTokenValidity defines how long access tokens are valid.
 // TODO: Might want to make this configurable at some point
@@ -108,14 +106,17 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		return nil, err
 	}
 
-	// todo fetch metadata using didDocument service data or .well-known path
-
-	return RequestAccessToken200JSONResponse{}, nil
+	tokenResult, err := r.auth.RelyingParty().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope)
+	if err != nil {
+		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
+		return nil, err
+	}
+	return RequestAccessToken200JSONResponse(*tokenResult), nil
 }
 
-func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentation vc.VerifiablePresentation, scope string) (*TokenResponse, error) {
+func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentation vc.VerifiablePresentation, scope string) (*oauth.TokenResponse, error) {
 	accessToken := AccessToken{
-		Token:        generateCode(),
+		Token:        crypto.GenerateNonce(),
 		Issuer:       issuer.String(),
 		Expiration:   issueTime.Add(accessTokenValidity),
 		Presentation: presentation,
@@ -125,7 +126,7 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
 	expiresIn := int(accessTokenValidity.Seconds())
-	return &TokenResponse{
+	return &oauth.TokenResponse{
 		AccessToken: accessToken.Token,
 		ExpiresIn:   &expiresIn,
 		Scope:       &scope,
@@ -135,15 +136,6 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 
 func (r Wrapper) accessTokenStore(issuer did.DID) storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "s2s", issuer.String(), "accesstoken")
-}
-
-func generateCode() string {
-	buf := make([]byte, secretSizeBits/8)
-	_, err := rand.Read(buf)
-	if err != nil {
-		panic(err)
-	}
-	return base64.URLEncoding.EncodeToString(buf)
 }
 
 type AccessToken struct {

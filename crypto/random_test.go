@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Nuts node
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,23 +14,20 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package v1
+package crypto
 
 import (
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"encoding/base64"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// VerifiableCredential is an alias to use from within the API
-type VerifiableCredential = vc.VerifiableCredential
+func TestRandom(t *testing.T) {
+	nonce := GenerateNonce()
+	decoded, _ := base64.RawURLEncoding.DecodeString(nonce)
 
-// VerifiablePresentation is an alias to use from within the API
-type VerifiablePresentation = vc.VerifiablePresentation
-
-// AccessTokenResponse is an alias to use from within the API
-type AccessTokenResponse = oauth.TokenResponse
-
-type AccessTokenRequestFailedResponse = oauth.ErrorResponse
+	assert.Len(t, decoded, 16)
+}

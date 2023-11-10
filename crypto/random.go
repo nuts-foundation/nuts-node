@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Nuts node
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,10 +14,21 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package auth
+package crypto
 
-// ModuleName contains the name of this module
-const ModuleName = "Auth"
+import (
+	"crypto/rand"
+	"encoding/base64"
+)
+
+// GenerateNonce creates a 128 bit secure random
+func GenerateNonce() string {
+	buf := make([]byte, 128/8)
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+	return base64.RawURLEncoding.EncodeToString(buf)
+}

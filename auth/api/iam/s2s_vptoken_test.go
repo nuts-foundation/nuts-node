@@ -19,25 +19,30 @@
 package iam
 
 import (
+	"net/http"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestWrapper_RequestAccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:test:123")
 	verifierDID := did.MustParseDID("did:test:456")
-	body := &RequestAccessTokenJSONRequestBody{Verifier: verifierDID.String()}
+	body := &RequestAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second"}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
+		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
@@ -59,7 +64,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		require.EqualError(t, err, "did not found: invalid DID")
 	})
-	t.Run("missing request body", func(t *testing.T) {
+	t.Run("error - missing request body", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String()})
@@ -67,7 +72,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t, err, "missing request body")
 	})
-	t.Run("invalid verifier did", func(t *testing.T) {
+	t.Run("error - invalid verifier did", func(t *testing.T) {
 		ctx := newTestClient(t)
 		body := &RequestAccessTokenJSONRequestBody{Verifier: "invalid"}
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
@@ -77,7 +82,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t, err, "invalid verifier: invalid DID")
 	})
-	t.Run("verifier not found", func(t *testing.T) {
+	t.Run("error - verifier not found", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(nil, nil, resolver.ErrNotFound)
@@ -86,6 +91,17 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "verifier not found: unable to find the DID document")
+	})
+	t.Run("error - verifier error", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
+		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
+
+		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "no matching credentials")
 	})
 }
 

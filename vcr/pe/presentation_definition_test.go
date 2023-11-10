@@ -20,13 +20,14 @@ package pe
 
 import (
 	"encoding/json"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"testing"
 )
 
 const testPresentationDefinition = `
@@ -100,13 +101,11 @@ func TestMatch(t *testing.T) {
 	vc2 := vc.VerifiableCredential{ID: &id2}
 	vc3 := vc.VerifiableCredential{ID: &id3}
 	vc4 := vc.VerifiableCredential{ID: &id4}
+	verifiableCredential := credential.ValidNutsOrganizationCredential(t)
 
 	t.Run("Basic", func(t *testing.T) {
 		presentationDefinition := PresentationDefinition{}
 		_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
-		verifiableCredential := vc.VerifiableCredential{}
-		vcJSON, _ := os.ReadFile("../test/vc.json")
-		_ = json.Unmarshal(vcJSON, &verifiableCredential)
 
 		t.Run("Happy flow", func(t *testing.T) {
 			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
@@ -271,9 +270,7 @@ func TestMatch(t *testing.T) {
 }
 
 func Test_matchFormat(t *testing.T) {
-	verifiableCredential := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("../test/vc.json")
-	_ = json.Unmarshal(vcJSON, &verifiableCredential)
+	verifiableCredential := credential.ValidNutsOrganizationCredential(t)
 
 	t.Run("no format", func(t *testing.T) {
 		match := matchFormat(nil, vc.VerifiableCredential{})

@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -136,7 +137,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 
 		response, err := instance.handlePresentationRequest(params, createSession(params, holderDID))
 
-		requireOAuthError(t, err, InvalidRequest, "unsupported scope for presentation exchange: unsupported")
+		requireOAuthError(t, err, oauth.InvalidRequest, "unsupported scope for presentation exchange: unsupported")
 		assert.Nil(t, response)
 	})
 	t.Run("invalid response_mode", func(t *testing.T) {
@@ -150,7 +151,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 
 		response, err := instance.handlePresentationRequest(params, createSession(params, holderDID))
 
-		requireOAuthError(t, err, InvalidRequest, "response_mode must be direct_post")
+		requireOAuthError(t, err, oauth.InvalidRequest, "response_mode must be direct_post")
 		assert.Nil(t, response)
 	})
 }

@@ -25,6 +25,9 @@ import (
 	"net/url"
 )
 
+// ModuleName contains the name of this module
+const ModuleName = "Auth"
+
 // AuthenticationServices is the interface which should be implemented for clients or mocks
 type AuthenticationServices interface {
 	// AuthzServer returns the oauth.AuthorizationServer

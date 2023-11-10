@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	vc "github.com/nuts-foundation/go-did/vc"
+	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -54,10 +55,10 @@ func (mr *MockIssuerAPIClientMockRecorder) Metadata() *gomock.Call {
 }
 
 // RequestAccessToken mocks base method.
-func (m *MockIssuerAPIClient) RequestAccessToken(grantType string, params map[string]string) (*TokenResponse, error) {
+func (m *MockIssuerAPIClient) RequestAccessToken(grantType string, params map[string]string) (*oauth.TokenResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RequestAccessToken", grantType, params)
-	ret0, _ := ret[0].(*TokenResponse)
+	ret0, _ := ret[0].(*oauth.TokenResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -107,10 +108,10 @@ func (m *MockOAuth2Client) EXPECT() *MockOAuth2ClientMockRecorder {
 }
 
 // RequestAccessToken mocks base method.
-func (m *MockOAuth2Client) RequestAccessToken(grantType string, params map[string]string) (*TokenResponse, error) {
+func (m *MockOAuth2Client) RequestAccessToken(grantType string, params map[string]string) (*oauth.TokenResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RequestAccessToken", grantType, params)
-	ret0, _ := ret[0].(*TokenResponse)
+	ret0, _ := ret[0].(*oauth.TokenResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

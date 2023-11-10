@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"io"
@@ -192,7 +193,7 @@ func httpDo(httpClient core.HTTPRequestDoer, httpRequest *http.Request, result i
 // OAuth2Client defines a generic OAuth2 client.
 type OAuth2Client interface {
 	// RequestAccessToken requests an access token from the Authorization Server.
-	RequestAccessToken(grantType string, params map[string]string) (*TokenResponse, error)
+	RequestAccessToken(grantType string, params map[string]string) (*oauth.TokenResponse, error)
 }
 
 var _ OAuth2Client = &httpOAuth2Client{}
@@ -202,7 +203,7 @@ type httpOAuth2Client struct {
 	httpClient core.HTTPRequestDoer
 }
 
-func (c httpOAuth2Client) RequestAccessToken(grantType string, params map[string]string) (*TokenResponse, error) {
+func (c httpOAuth2Client) RequestAccessToken(grantType string, params map[string]string) (*oauth.TokenResponse, error) {
 	values := url.Values{}
 	values.Add("grant_type", grantType)
 	for key, value := range params {
@@ -210,7 +211,7 @@ func (c httpOAuth2Client) RequestAccessToken(grantType string, params map[string
 	}
 	httpRequest, _ := http.NewRequestWithContext(context.Background(), "POST", c.metadata.TokenEndpoint, strings.NewReader(values.Encode()))
 	httpRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	var accessTokenResponse TokenResponse
+	var accessTokenResponse oauth.TokenResponse
 	err := httpDo(c.httpClient, httpRequest, &accessTokenResponse)
 	if err != nil {
 		return nil, fmt.Errorf("request access token error: %w", err)

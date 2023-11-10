@@ -24,6 +24,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
@@ -39,7 +40,7 @@ type ProviderMetadata = openid4vci.ProviderMetadata
 type CredentialIssuerMetadata = openid4vci.CredentialIssuerMetadata
 
 // TokenResponse is the response of the OpenID Connect token endpoint
-type TokenResponse = openid4vci.TokenResponse
+type TokenResponse = oauth.TokenResponse
 
 // CredentialOfferResponse is the response to the OpenID4VCI credential offer
 type CredentialOfferResponse = openid4vci.CredentialOfferResponse

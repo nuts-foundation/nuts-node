@@ -22,7 +22,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"net/http"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // OpenIDHandler is the interface for handling issuer operations using OpenID4VCI.
@@ -94,7 +96,7 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 		}
 	}
 	offeredCredential := offer.Credentials[0]
-	if offeredCredential.Format != openid4vci.VerifiableCredentialJSONLDFormat {
+	if offeredCredential.Format != openid4vc.VerifiableCredentialJSONLDFormat {
 		return openid4vci.Error{
 			Err:        fmt.Errorf("credential offer: unsupported format '%s'", offeredCredential.Format),
 			Code:       openid4vci.UnsupportedCredentialType,
@@ -146,7 +148,7 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 		}
 	}
 
-	if accessTokenResponse.CNonce == "" {
+	if accessTokenResponse.CNonce == nil {
 		return openid4vci.Error{
 			Err:        errors.New("c_nonce is missing"),
 			Code:       openid4vci.InvalidToken,
@@ -192,7 +194,7 @@ func getPreAuthorizedCodeFromOffer(offer openid4vci.CredentialOffer) string {
 	return preAuthorizedCode
 }
 
-func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, offer *openid4vci.CredentialDefinition, tokenResponse *openid4vci.TokenResponse) (*vc.VerifiableCredential, error) {
+func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, offer *openid4vci.CredentialDefinition, tokenResponse *oauth.TokenResponse) (*vc.VerifiableCredential, error) {
 	keyID, _, err := h.resolver.ResolveKey(h.did, nil, resolver.NutsSigningKeyType)
 	headers := map[string]interface{}{
 		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
@@ -211,7 +213,7 @@ func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient ope
 
 	credentialRequest := openid4vci.CredentialRequest{
 		CredentialDefinition: offer,
-		Format:               openid4vci.VerifiableCredentialJSONLDFormat,
+		Format:               openid4vc.VerifiableCredentialJSONLDFormat,
 		Proof: &openid4vci.CredentialRequestProof{
 			Jwt:       proof,
 			ProofType: "jwt",

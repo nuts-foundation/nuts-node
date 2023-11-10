@@ -16,7 +16,7 @@
  *
  */
 
-package iam
+package oauth
 
 import (
 	"errors"
@@ -45,7 +45,7 @@ func Test_oauth2ErrorWriter_Write(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ctx := server.NewContext(httpRequest, rec)
 
-		err := oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
+		err := Oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
 			Code:        InvalidRequest,
 			Description: "failure",
 			RedirectURI: "https://example.com",
@@ -61,7 +61,7 @@ func Test_oauth2ErrorWriter_Write(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ctx := server.NewContext(httpRequest, rec)
 
-		err := oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
+		err := Oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
 			Code:        InvalidRequest,
 			Description: "failure",
 		})
@@ -80,7 +80,7 @@ func Test_oauth2ErrorWriter_Write(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ctx := server.NewContext(httpRequest, rec)
 
-		err := oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
+		err := Oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
 			Code:        InvalidRequest,
 			Description: "failure",
 		})
@@ -98,7 +98,7 @@ func Test_oauth2ErrorWriter_Write(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ctx := server.NewContext(httpRequest, rec)
 
-		err := oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
+		err := Oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
 			Description: "failure",
 		})
 
@@ -113,7 +113,7 @@ func Test_oauth2ErrorWriter_Write(t *testing.T) {
 		rec := httptest.NewRecorder()
 		ctx := server.NewContext(httpRequest, rec)
 
-		err := oauth2ErrorWriter{}.Write(ctx, 0, "", errors.New("catastrophic"))
+		err := Oauth2ErrorWriter{}.Write(ctx, 0, "", errors.New("catastrophic"))
 
 		assert.NoError(t, err)
 		body, _ := io.ReadAll(rec.Body)

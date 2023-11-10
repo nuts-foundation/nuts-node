@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/log"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -105,7 +106,7 @@ func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID s
 	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
 	if strings.HasPrefix(ctx.Request().URL.Path, "/iam/") {
-		ctx.Set(core.ErrorWriterContextKey, &oauth2ErrorWriter{})
+		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{})
 	}
 	audit.StrictMiddleware(f, apiModuleName, operationID)
 	return f(ctx, request)
@@ -118,27 +119,27 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		// Options:
 		// - OpenID4VCI
 		// - OpenID4VP, vp_token is sent in Token Response
-		return nil, OAuth2Error{
-			Code:        UnsupportedGrantType,
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
 		}
 	case "vp_token":
 		// Options:
 		// - service-to-service vp_token flow
-		return nil, OAuth2Error{
-			Code:        UnsupportedGrantType,
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
 		}
 	case "urn:ietf:params:oauth:grant-type:pre-authorized_code":
 		// Options:
 		// - OpenID4VCI
-		return nil, OAuth2Error{
-			Code:        UnsupportedGrantType,
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
 		}
 	default:
-		return nil, OAuth2Error{
-			Code: UnsupportedGrantType,
+		return nil, oauth.OAuth2Error{
+			Code: oauth.UnsupportedGrantType,
 		}
 	}
 }
@@ -160,8 +161,8 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		// TODO: Spec says that the redirect URI is optional, but it's not clear what to do if it's not provided.
 		//       Threat models say it's unsafe to omit redirect_uri.
 		//       See https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1
-		return nil, OAuth2Error{
-			Code:        InvalidRequest,
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
 			Description: "redirect_uri is required",
 		}
 	}
@@ -186,8 +187,8 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		return r.handlePresentationRequest(params, session)
 	default:
 		// TODO: This should be a redirect?
-		return nil, OAuth2Error{
-			Code:        UnsupportedResponseType,
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.UnsupportedResponseType,
 			RedirectURI: session.RedirectURI,
 		}
 	}
@@ -254,9 +255,9 @@ func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationD
 	scopes := strings.Split(request.Params.Scope, " ")
 	presentationDefinition := r.auth.PresentationDefinitions().ByScope(scopes[0])
 	if presentationDefinition == nil {
-		return PresentationDefinition400JSONResponse{
-			Code: "invalid_scope",
-		}, nil
+		return nil, oauth.OAuth2Error{
+			Code: oauth.InvalidScope,
+		}
 	}
 
 	return PresentationDefinition200JSONResponse(*presentationDefinition), nil

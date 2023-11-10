@@ -15,19 +15,6 @@ import (
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
 
-// TokenResponse Token Responses are made as defined in (RFC6749)[https://datatracker.ietf.org/doc/html/rfc6749#section-5.1]
-type TokenResponse struct {
-	// AccessToken The access token issued by the authorization server.
-	AccessToken string `json:"access_token"`
-
-	// ExpiresIn The lifetime in seconds of the access token.
-	ExpiresIn *int    `json:"expires_in,omitempty"`
-	Scope     *string `json:"scope,omitempty"`
-
-	// TokenType The type of the token issued as described in [RFC6749].
-	TokenType string `json:"token_type"`
-}
-
 // PresentationDefinitionParams defines parameters for PresentationDefinition.
 type PresentationDefinitionParams struct {
 	Scope string `form:"scope" json:"scope"`
@@ -391,21 +378,25 @@ func (response PresentationDefinition200JSONResponse) VisitPresentationDefinitio
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PresentationDefinition400JSONResponse ErrorResponse
+type PresentationDefinitiondefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
 
-func (response PresentationDefinition400JSONResponse) VisitPresentationDefinitionResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
 
-	return json.NewEncoder(w).Encode(response)
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
 }
 
-type PresentationDefinition404Response struct {
-}
+func (response PresentationDefinitiondefaultApplicationProblemPlusJSONResponse) VisitPresentationDefinitionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
 
-func (response PresentationDefinition404Response) VisitPresentationDefinitionResponse(w http.ResponseWriter) error {
-	w.WriteHeader(404)
-	return nil
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type HandleAuthorizeRequestRequestObject struct {
@@ -531,22 +522,25 @@ func (response HandleTokenRequest200JSONResponse) VisitHandleTokenRequestRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type HandleTokenRequest400JSONResponse ErrorResponse
+type HandleTokenRequestdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
 
-func (response HandleTokenRequest400JSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
 
-	return json.NewEncoder(w).Encode(response)
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
 }
 
-type HandleTokenRequest404JSONResponse ErrorResponse
+func (response HandleTokenRequestdefaultApplicationProblemPlusJSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
 
-func (response HandleTokenRequest404JSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type RequestAccessTokenRequestObject struct {

@@ -1,4 +1,5 @@
 /*
+ * Nuts node
  * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -13,23 +14,16 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package v1
+// openid4vc contains common constants and logic for OpenID4VCI, SiopV2 and OpenID4VP
+package openid4vc
 
-import (
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-)
+// VerifiableCredentialJSONLDFormat defines the JSON-LD format identifier for Verifiable Credentials.
+const VerifiableCredentialJSONLDFormat = "ldp_vc"
 
-// VerifiableCredential is an alias to use from within the API
-type VerifiableCredential = vc.VerifiableCredential
+// VerifiablePresentationJSONLDFormat defines the JSON-LD format identifier for Verifiable Presentations.
+const VerifiablePresentationJSONLDFormat = "ldp_vp"
 
-// VerifiablePresentation is an alias to use from within the API
-type VerifiablePresentation = vc.VerifiablePresentation
-
-// AccessTokenResponse is an alias to use from within the API
-type AccessTokenResponse = oauth.TokenResponse
-
-type AccessTokenRequestFailedResponse = oauth.ErrorResponse
+// VerifiablePresentationJWTFormat defines the JWT format identifier for Verifiable Presentations.
+const VerifiablePresentationJWTFormat = "jwt_vp"

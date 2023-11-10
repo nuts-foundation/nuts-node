@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"net/url"
 	"strings"
@@ -43,8 +44,8 @@ func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url
 	return issuerURL.Parse(wellKnown + issuerURL.EscapedPath())
 }
 
-func authorizationServerMetadata(identity url.URL) OAuthAuthorizationServerMetadata {
-	return OAuthAuthorizationServerMetadata{
+func authorizationServerMetadata(identity url.URL) oauth.AuthorizationServerMetadata {
+	return oauth.AuthorizationServerMetadata{
 		Issuer:                 identity.String(),
 		AuthorizationEndpoint:  identity.JoinPath("authorize").String(),
 		ResponseTypesSupported: responseTypesSupported,
