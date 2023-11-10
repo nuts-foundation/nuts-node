@@ -39,9 +39,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/log"
@@ -279,7 +279,7 @@ func TestEngine_Configure(t *testing.T) {
 				claims := jwt.New()
 				_ = claims.Set(jwt.SubjectKey, "admin")
 				_ = claims.Set(jwt.ExpirationKey, time.Now().Add(time.Hour))
-				tokenBytes, _ := jwt.Sign(claims, jwa.ES256, signingKey)
+				tokenBytes, _ := jwt.Sign(claims, jwt.WithKey(jwa.ES256, signingKey))
 				token := string(tokenBytes)
 
 				request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address, nil)
@@ -295,12 +295,12 @@ func TestEngine_Configure(t *testing.T) {
 				claims := jwt.New()
 				_ = claims.Set(jwt.SubjectKey, "admin")
 				_ = claims.Set(jwt.ExpirationKey, time.Now().Add(time.Hour))
-				tokenBytes, _ := jwt.Sign(claims, jwa.ES256, signingKey)
+				tokenBytes, _ := jwt.Sign(claims, jwt.WithKey(jwa.ES256, signingKey))
 				token := string(tokenBytes)
 
 				// Create new, invalid token an attacker could use
 				attackerSigningKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-				tokenBytes, _ = jwt.Sign(claims, jwa.ES256, attackerSigningKey)
+				tokenBytes, _ = jwt.Sign(claims, jwt.WithKey(jwa.ES256, attackerSigningKey))
 				attackerToken := string(tokenBytes)
 
 				ctrl := gomock.NewController(t)
@@ -790,7 +790,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	sshAuthKey := fmt.Sprintf("%v %v random@test.local", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()))
 
 	// Convert the base key type to a jwk type
-	jwkKey, err := jwk.New(priv)
+	jwkKey, err := jwk.FromRaw(priv)
 	require.NoError(t, err)
 
 	// Set the key ID for the jwk to be the public key fingerprint
@@ -798,7 +798,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	require.NoError(t, err)
 
 	// Create a serializer configured to use the generated key
-	serializer := jwt.NewSerializer().Sign(jwa.EdDSA, jwkKey)
+	serializer := jwt.NewSerializer().Sign(jwt.WithKey(jwa.EdDSA, jwkKey))
 
 	t.Logf("authorized_key = %v", sshAuthKey)
 

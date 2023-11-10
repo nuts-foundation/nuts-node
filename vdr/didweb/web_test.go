@@ -131,15 +131,6 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.NotNil(t, md)
 		assert.NotNil(t, doc)
 	})
-	t.Run("resolve DID with path", func(t *testing.T) {
-		id := did.MustParseDIDURL(baseDID.String() + "/some/path")
-		doc, md, err := resolver.Resolve(id, nil)
-
-		require.NoError(t, err)
-		assert.NotNil(t, md)
-		require.NotNil(t, doc)
-		assert.Equal(t, baseDID, doc.ID)
-	})
 
 	t.Run("resolve without port number", func(t *testing.T) {
 		// The other tests all use a port number, since the test HTTPS server is running on a random port.
@@ -163,7 +154,7 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.Equal(t, "https://example.com/.well-known/did.json", requestURL)
 	})
 	t.Run("not found", func(t *testing.T) {
-		id := did.MustParseDIDURL(baseDID.String() + ":not-found")
+		id := did.MustParseDID(baseDID.String() + ":not-found")
 		doc, md, err := resolver.Resolve(id, nil)
 
 		assert.EqualError(t, err, "did:web non-ok HTTP status: 404 Not Found")
@@ -171,7 +162,7 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.Nil(t, doc)
 	})
 	t.Run("unsupported content-type", func(t *testing.T) {
-		id := did.MustParseDIDURL(baseDID.String() + ":unsupported-content-type")
+		id := did.MustParseDID(baseDID.String() + ":unsupported-content-type")
 		doc, md, err := resolver.Resolve(id, nil)
 
 		assert.EqualError(t, err, "did:web unsupported content-type: text/plain")
@@ -179,7 +170,7 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.Nil(t, doc)
 	})
 	t.Run("server returns invalid JSON", func(t *testing.T) {
-		id := did.MustParseDIDURL(baseDID.String() + ":invalid-json")
+		id := did.MustParseDID(baseDID.String() + ":invalid-json")
 		doc, md, err := resolver.Resolve(id, nil)
 
 		assert.EqualError(t, err, "did:web JSON unmarshal error: invalid character '\\x01' looking for beginning of value")
@@ -187,7 +178,7 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.Nil(t, doc)
 	})
 	t.Run("server returns no content-type", func(t *testing.T) {
-		id := did.MustParseDIDURL(baseDID.String() + ":no-content-type")
+		id := did.MustParseDID(baseDID.String() + ":no-content-type")
 		doc, md, err := resolver.Resolve(id, nil)
 
 		assert.EqualError(t, err, "did:web invalid content-type: mime: no media type")
@@ -195,7 +186,7 @@ func TestResolver_Resolve(t *testing.T) {
 		assert.Nil(t, doc)
 	})
 	t.Run("ID in document does not match DID being resolved", func(t *testing.T) {
-		id := did.MustParseDIDURL(baseDID.String() + ":invalid-id-in-document")
+		id := did.MustParseDID(baseDID.String() + ":invalid-id-in-document")
 		doc, md, err := resolver.Resolve(id, nil)
 
 		assert.ErrorContains(t, err, "did:web document ID mismatch")

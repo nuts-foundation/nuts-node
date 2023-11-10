@@ -690,7 +690,7 @@ func Test_issuer_Revoke(t *testing.T) {
 				store: store,
 			}
 			revocation, err := sut.Revoke(ctx, ssi.MustParseURI("a#38E90E8C-F7E5-4333-B63A-F9DD155A0272"))
-			assert.EqualError(t, err, "failed to extract issuer: invalid DID")
+			assert.EqualError(t, err, "failed to extract issuer: invalid DID: DID must start with 'did:'")
 			assert.Nil(t, revocation)
 		})
 

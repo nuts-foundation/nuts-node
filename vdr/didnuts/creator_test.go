@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,7 +62,7 @@ func TestCreator_Create(t *testing.T) {
 			assert.NoError(t, err, "create should not return an error")
 			assert.NotNil(t, doc, "create should return a document")
 			assert.NotNil(t, key, "create should return a Key")
-			assert.Equal(t, did.MustParseDIDURL(kc.key.KID()).WithoutURL(), doc.ID, "the DID Doc should have the expected id")
+			assert.Equal(t, did.MustParseDIDURL(kc.key.KID()).DID, doc.ID, "the DID Doc should have the expected id")
 			assert.Len(t, doc.VerificationMethod, 1, "it should have one verificationMethod")
 			assert.Equal(t, kc.key.KID(), doc.VerificationMethod[0].ID.String(),
 				"verificationMethod should have the correct id")
@@ -232,7 +232,7 @@ func jwkToPublicKey(t *testing.T, jwkStr string) (crypto.PublicKey, error) {
 	t.Helper()
 	keySet, err := jwk.ParseString(jwkStr)
 	require.NoError(t, err)
-	key, _ := keySet.Get(0)
+	key, _ := keySet.Key(0)
 	var rawKey crypto.PublicKey
 	if err = key.Raw(&rawKey); err != nil {
 		return nil, err

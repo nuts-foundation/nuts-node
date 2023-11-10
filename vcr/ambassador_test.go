@@ -373,7 +373,7 @@ func (s stubRoundTripper) RoundTrip(request *http.Request) (*http.Response, erro
 
 func documentWithPublicKey(t *testing.T, publicKey crypt.PublicKey) *did.Document {
 	id := did.MustParseDID("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
-	keyID := id
+	keyID := did.DIDURL{DID: id}
 	keyID.Fragment = "sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
 	vm, err := did.NewVerificationMethod(keyID, ssi.JsonWebKey2020, id, publicKey)
 	require.NoError(t, err)

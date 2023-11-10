@@ -215,7 +215,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 
 	serviceID := ssi.MustParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 	docA := did.Document{
-		Context: []ssi.URI{did.DIDContextV1URI()},
+		Context: []interface{}{did.DIDContextV1URI()},
 		ID:      testDIDA,
 		Service: []did.Service{{
 			ID:              serviceID,
@@ -224,7 +224,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		}},
 	}
 	docB := did.Document{
-		Context: []ssi.URI{did.DIDContextV1URI()},
+		Context: []interface{}{did.DIDContextV1URI()},
 		ID:      testDIDB,
 		Service: []did.Service{
 			{
@@ -302,7 +302,7 @@ func TestDidman_UpdateCompoundService(t *testing.T) {
 	}
 
 	document := did.Document{
-		Context: []ssi.URI{did.DIDContextV1URI()},
+		Context: []interface{}{did.DIDContextV1URI()},
 		ID:      testDIDA,
 		Service: []did.Service{
 			{
@@ -539,7 +539,7 @@ func TestDidman_GetContactInformation(t *testing.T) {
 
 func TestDidman_DeleteEndpointsByType(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
-	serviceID := *id
+	serviceID := did.DIDURL{DID: *id}
 	serviceID.Fragment = "abc"
 	endpointType := "eOverdracht"
 	endpoints := []did.Service{{

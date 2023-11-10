@@ -158,7 +158,7 @@ func GetDIDFromURL(didURL string) (did.DID, error) {
 	if err != nil {
 		return did.DID{}, err
 	}
-	return parsed.WithoutURL(), nil
+	return parsed.DID, nil
 }
 
 // IsDeactivated returns true if the DID.Document has already been deactivated

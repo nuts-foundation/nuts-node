@@ -25,8 +25,8 @@ import (
 
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
@@ -67,7 +67,7 @@ func (d transactionSigner) Sign(ctx context.Context, input UnsignedTransaction, 
 	var key jwk.Key
 	var err error
 	if d.attach {
-		key, err = jwk.New(d.key.Public())
+		key, err = jwk.FromRaw(d.key.Public())
 		if err != nil {
 			return nil, fmt.Errorf(errSigningTransactionFmt, err)
 		}

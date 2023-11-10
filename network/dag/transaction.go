@@ -25,8 +25,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 

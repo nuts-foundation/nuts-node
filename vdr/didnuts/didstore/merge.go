@@ -18,10 +18,10 @@
 package didstore
 
 import (
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
 	"sort"
 	"strings"
 
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 )
 
@@ -53,10 +53,12 @@ func mergeBasics(docs []did.Document, result *did.Document) {
 	result.ID = docs[0].ID
 
 	// context
-	contexts := map[string]ssi.URI{}
+	contexts := map[string]interface{}{}
 	for _, doc := range docs {
 		for _, context := range doc.Context {
-			contexts[context.String()] = context
+			if contextStr := util.LDContextToString(context); contextStr != "" {
+				contexts[contextStr] = context
+			}
 		}
 	}
 	for _, context := range contexts {
@@ -208,8 +210,8 @@ func serviceSort(result *did.Document) less {
 
 func contextSort(result *did.Document) less {
 	return func(i, j int) bool {
-		is := result.Context[i].String()
-		js := result.Context[j].String()
+		is := util.LDContextToString(result.Context[i])
+		js := util.LDContextToString(result.Context[j])
 		return strings.Compare(is, js) == -1
 	}
 }

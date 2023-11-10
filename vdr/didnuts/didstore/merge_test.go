@@ -27,15 +27,14 @@ import (
 
 func TestMerge(t *testing.T) {
 	didA, _ := did.ParseDID("did:nuts:A")
-	didB, _ := did.ParseDID("did:nuts:B")
-	uriA := ssi.MustParseURI("did:nuts:A#A")
-	uriB := ssi.MustParseURI("did:nuts:A#B")
-	vmA := &did.VerificationMethod{ID: *didA, Type: ssi.JsonWebKey2020}
-	vmB := &did.VerificationMethod{ID: *didB, Type: ssi.JsonWebKey2020}
+	uriA := did.MustParseDIDURL("did:nuts:A#A")
+	uriB := did.MustParseDIDURL("did:nuts:A#B")
+	vmA := &did.VerificationMethod{ID: uriA, Type: ssi.JsonWebKey2020}
+	vmB := &did.VerificationMethod{ID: uriB, Type: ssi.JsonWebKey2020}
 	vrA := &did.VerificationRelationship{VerificationMethod: vmA}
 	vrB := &did.VerificationRelationship{VerificationMethod: vmB}
-	serviceA := did.Service{ID: uriA, Type: "type A"}
-	serviceB := did.Service{ID: uriB, Type: "type B"}
+	serviceA := did.Service{ID: uriA.URI(), Type: "type A"}
+	serviceB := did.Service{ID: uriB.URI(), Type: "type B"}
 
 	type test struct {
 		title string
@@ -52,15 +51,15 @@ func TestMerge(t *testing.T) {
 		},
 		{
 			"matching context",
-			did.Document{ID: *didA, Context: []ssi.URI{did.DIDContextV1URI()}},
-			did.Document{ID: *didA, Context: []ssi.URI{did.DIDContextV1URI()}},
-			did.Document{ID: *didA, Context: []ssi.URI{did.DIDContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{did.DIDContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{did.DIDContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{did.DIDContextV1URI()}},
 		},
 		{
 			"non-matching context",
-			did.Document{ID: *didA, Context: []ssi.URI{did.DIDContextV1URI()}},
-			did.Document{ID: *didA, Context: []ssi.URI{did.DIDContextV1URI(), vc.VCContextV1URI()}},
-			did.Document{ID: *didA, Context: []ssi.URI{vc.VCContextV1URI(), did.DIDContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{did.DIDContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{did.DIDContextV1URI(), vc.VCContextV1URI()}},
+			did.Document{ID: *didA, Context: []interface{}{vc.VCContextV1URI(), did.DIDContextV1URI()}},
 		},
 		{
 			"matching service",

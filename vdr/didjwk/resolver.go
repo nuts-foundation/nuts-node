@@ -27,7 +27,7 @@ import (
 	godid "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
 // MethodName is the name of this DID method.
@@ -82,9 +82,9 @@ func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 
 	// Create a new DID verification method.
 	// See https://www.w3.org/TR/did-core/#verification-methods
-	keyID := id.WithoutURL()
+	keyID := did.DIDURL{DID: id}
 	keyID.Fragment = "0"
-	verificationMethod, err := did.NewVerificationMethod(keyID, godid.JsonWebKey2020, id.WithoutURL(), publicRawKey)
+	verificationMethod, err := did.NewVerificationMethod(keyID, godid.JsonWebKey2020, id, publicRawKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create verification method: %w", err)
 	}
@@ -93,7 +93,7 @@ func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	var document did.Document
 
 	// Set the document ID
-	document.ID = id.WithoutURL()
+	document.ID = id
 
 	// Add the verification method
 	document.AddAssertionMethod(verificationMethod)

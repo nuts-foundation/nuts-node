@@ -335,7 +335,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 			publisher := NewNetworkPublisher(nil, nil, nil)
 			revocationToPublish := credential.Revocation{}
 			err := publisher.PublishRevocation(ctx, revocationToPublish)
-			assert.EqualError(t, err, "invalid revocation issuer: invalid DID")
+			assert.EqualError(t, err, "invalid revocation issuer: invalid DID: DID must start with 'did:'")
 		})
 	})
 

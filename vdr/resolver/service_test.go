@@ -82,7 +82,7 @@ func TestServiceResolver_Resolve(t *testing.T) {
 
 	serviceID := ssi.MustParseURI(fmt.Sprintf("%s#1", didA.String()))
 	docA := did.Document{
-		Context: []ssi.URI{did.DIDContextV1URI()},
+		Context: []interface{}{did.DIDContextV1URI()},
 		ID:      *didA,
 		Service: []did.Service{{
 			ID:              serviceID,
@@ -91,7 +91,7 @@ func TestServiceResolver_Resolve(t *testing.T) {
 		}},
 	}
 	docB := did.Document{
-		Context: []ssi.URI{did.DIDContextV1URI()},
+		Context: []interface{}{did.DIDContextV1URI()},
 		ID:      *didA,
 		Service: []did.Service{
 			{

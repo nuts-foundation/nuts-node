@@ -16,22 +16,16 @@
  *
  */
 
-package pe
+package util
 
 import (
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-func TestParsePresentationSubmission(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		submission, err := ParsePresentationSubmission([]byte(`{"id": "1", "definition_id":"1", "descriptor_map": []}`))
-		require.NoError(t, err)
-		assert.Equal(t, "1", submission.Id)
-	})
-	t.Run("missing id", func(t *testing.T) {
-		_, err := ParsePresentationSubmission([]byte(`{"definition_id":"1", "descriptor_map": []}`))
-		assert.ErrorContains(t, err, `missing properties: "id"`)
-	})
+func TestLDContextToString(t *testing.T) {
+	assert.Equal(t, "https://www.w3.org/ns/did/v1", LDContextToString("https://www.w3.org/ns/did/v1"))
+	assert.Equal(t, "https://www.w3.org/ns/did/v1", LDContextToString(ssi.MustParseURI("https://www.w3.org/ns/did/v1")))
+	assert.Empty(t, LDContextToString(map[string]interface{}{"@base": "123"}))
 }

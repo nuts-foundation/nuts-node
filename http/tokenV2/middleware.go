@@ -27,18 +27,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/http/log"
-
-	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/lestrrat-go/jwx/jwt"
-
 	"github.com/sirupsen/logrus"
-
-	"github.com/google/uuid"
 )
 
 type SkipperFunc func(context echo.Context) bool
@@ -144,7 +141,7 @@ func (m middlewareImpl) checkConnectionAuthorization(context echo.Context, next 
 		// WARNING: A nil error return from this function is not enough to authenticate a request
 		// as the token may be expired etc. A further check with .Validate() is required in order
 		// to authenticate the request.
-		token, err := jwt.ParseString(credential, jwt.WithKeySet(authorizedKey.jwkSet), jwt.InferAlgorithmFromKey(true))
+		token, err := jwt.ParseString(credential, jwt.WithKeySet(authorizedKey.jwkSet, jws.WithInferAlgorithmFromKey(true)), jwt.WithValidate(false))
 		if err != nil {
 			log.Logger().WithError(err).Error("Failed to parse JWT")
 			continue

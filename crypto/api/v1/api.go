@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 
@@ -191,8 +191,8 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 	return EncryptJwe200TextResponse(jwe), err
 }
 
-func (w *Wrapper) resolvePublicKey(id *did.DID) (key crypt.PublicKey, keyID ssi.URI, err error) {
-	if id.IsURL() {
+func (w *Wrapper) resolvePublicKey(id *did.DIDURL) (key crypt.PublicKey, keyID ssi.URI, err error) {
+	if id.Fragment != "" {
 		// Assume it is a keyId
 		now := time.Now()
 		key, err = w.K.ResolveKeyByID(id.String(), &now, resolver.KeyAgreement)
@@ -202,7 +202,7 @@ func (w *Wrapper) resolvePublicKey(id *did.DID) (key crypt.PublicKey, keyID ssi.
 		keyID = id.URI()
 	} else {
 		// Assume it is a DID
-		keyID, key, err = w.K.ResolveKey(*id, nil, resolver.KeyAgreement)
+		keyID, key, err = w.K.ResolveKey(id.DID, nil, resolver.KeyAgreement)
 		if err != nil {
 			return nil, ssi.URI{}, err
 		}

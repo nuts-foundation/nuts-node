@@ -25,13 +25,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/cert"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/pki"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
 // JwtX509Token contains a parsed JWT signed with a x509 certificate.
@@ -118,7 +119,7 @@ func (validator JwtX509Validator) Parse(rawAuthToken string) (*JwtX509Token, err
 	}
 
 	certsFromHeader := headers.X509CertChain()
-	if len(certsFromHeader) == 0 {
+	if certsFromHeader == nil || certsFromHeader.Len() == 0 {
 		return nil, fmt.Errorf("the jwt x5c field should contain at least 1 certificate")
 	}
 
@@ -129,7 +130,7 @@ func (validator JwtX509Validator) Parse(rawAuthToken string) (*JwtX509Token, err
 
 	certUsedForSigning := chain[0]
 
-	payload, err := jws.Verify([]byte(rawAuthToken), headers.Algorithm(), certUsedForSigning.PublicKey)
+	payload, err := jws.Verify([]byte(rawAuthToken), jws.WithKey(headers.Algorithm(), certUsedForSigning.PublicKey))
 	if err != nil {
 		return nil, fmt.Errorf("could not verify jwt signature: %w", err)
 	}
@@ -148,12 +149,13 @@ func (validator JwtX509Validator) Parse(rawAuthToken string) (*JwtX509Token, err
 }
 
 // parseBase64EncodedCertList makes it convenient to parse an array of base64 certificates into x509.Certificates
-func (validator JwtX509Validator) parseBase64EncodedCertList(certsFromHeader []string) ([]*x509.Certificate, error) {
+func (validator JwtX509Validator) parseBase64EncodedCertList(certsFromHeader *cert.Chain) ([]*x509.Certificate, error) {
 	// Parse all the certificates from the header into a chain
-	chain := []*x509.Certificate{}
+	var chain []*x509.Certificate
 
-	for _, certStr := range certsFromHeader {
-		rawCert, err := base64.StdEncoding.Strict().DecodeString(certStr)
+	for i := 0; i < certsFromHeader.Len(); i++ {
+		certStr, _ := certsFromHeader.Get(i)
+		rawCert, err := base64.StdEncoding.Strict().DecodeString(string(certStr))
 		if err != nil {
 			return nil, fmt.Errorf("could not base64 decode certificate: %w", err)
 		}
@@ -202,7 +204,7 @@ func (validator JwtX509Validator) Verify(x509Token *JwtX509Token) error {
 	}
 
 	// parse the jwt and verify the jwt signature
-	token, err := jwt.ParseString(x509Token.raw, jwt.WithVerify(x509Token.sigAlg, leafCert.PublicKey))
+	token, err := jwt.ParseString(x509Token.raw, jwt.WithKey(x509Token.sigAlg, leafCert.PublicKey))
 	if err != nil {
 		return err
 	}

@@ -16,24 +16,19 @@
  *
  */
 
-package pe
+package util
 
-import (
-	"encoding/json"
-	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
-)
+import ssi "github.com/nuts-foundation/go-did"
 
-// ParsePresentationSubmission validates the given JSON and parses it into a PresentationSubmission.
-// It returns an error if the JSON is invalid or doesn't match the JSON schema for a PresentationSubmission.
-func ParsePresentationSubmission(raw []byte) (*PresentationSubmission, error) {
-	enveloped := `{"presentation_submission":` + string(raw) + `}`
-	if err := v2.Validate([]byte(enveloped), v2.PresentationSubmission); err != nil {
-		return nil, err
+// LDContextToString converts a JSON-LD context to a string, if it's a string or a ssi.URI
+// If it's not a string or ssi.URI, it will return an empty string.
+func LDContextToString(context interface{}) string {
+	var result string
+	switch ctx := context.(type) {
+	case ssi.URI:
+		result = ctx.String()
+	case string:
+		result = ctx
 	}
-	var result PresentationSubmission
-	err := json.Unmarshal(raw, &result)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return result
 }

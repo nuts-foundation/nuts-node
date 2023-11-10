@@ -381,19 +381,19 @@ func TestVcr_Untrusted(t *testing.T) {
 	t.Run("Untrusted", func(t *testing.T) {
 		confirmTrustedStatus(t, instance, testCredential.Issuer, instance.Untrusted, 0)
 		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
-			mockDidResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, nil)
+			mockDidResolver.EXPECT().Resolve(did.MustParseDID(testCredential.Issuer.String()), nil).Return(nil, nil, nil)
 			return instance.Untrusted(issuer)
 		}, 1)
 	})
 	t.Run("Untrusted - did deactivated", func(t *testing.T) {
 		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
-			mockDidResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, did.DeactivatedErr)
+			mockDidResolver.EXPECT().Resolve(did.MustParseDID(testCredential.Issuer.String()), nil).Return(nil, nil, did.DeactivatedErr)
 			return instance.Untrusted(issuer)
 		}, 0)
 	})
 	t.Run("Untrusted - no active controller", func(t *testing.T) {
 		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
-			mockDidResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, resolver.ErrNoActiveController)
+			mockDidResolver.EXPECT().Resolve(did.MustParseDID(testCredential.Issuer.String()), nil).Return(nil, nil, resolver.ErrNoActiveController)
 			return instance.Untrusted(issuer)
 		}, 0)
 	})

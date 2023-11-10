@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jws"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"

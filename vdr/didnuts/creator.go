@@ -27,7 +27,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -55,7 +55,7 @@ func JWS2020ContextV1URI() ssi.URI {
 // CreateDocument creates an empty DID document with baseline properties set.
 func CreateDocument() did.Document {
 	return did.Document{
-		Context: []ssi.URI{NutsDIDContextV1URI(), JWS2020ContextV1URI(), did.DIDContextV1URI()},
+		Context: []interface{}{NutsDIDContextV1URI(), JWS2020ContextV1URI(), did.DIDContextV1URI()},
 	}
 }
 
@@ -96,7 +96,7 @@ func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error))
 	// --------------------
 
 	// generate idString
-	jwKey, err := jwk.New(pKey)
+	jwKey, err := jwk.FromRaw(pKey)
 	if err != nil {
 		return "", fmt.Errorf("could not generate kid: %w", err)
 	}
@@ -113,7 +113,7 @@ func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error))
 	}
 
 	// assemble
-	kid := &did.DID{}
+	kid := &did.DIDURL{}
 	kid.Method = MethodName
 	kid.ID = idString
 	kid.Fragment = jwKey.KeyID()

@@ -97,7 +97,7 @@ func Test_deactivatedError_Is(t *testing.T) {
 func newDidDoc() did.Document {
 	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	id := did.MustParseDID("did:example:sakjsakldjsakld")
-	keyID := id
+	keyID := did.DIDURL{DID: id}
 	keyID.Fragment = "key-1"
 	vm, _ := did.NewVerificationMethod(keyID, ssi.JsonWebKey2020, id, privateKey.Public())
 	doc := did.Document{
