@@ -75,9 +75,27 @@ type SignInstruction struct {
 	inputDescriptorMappingObjects []InputDescriptorMappingObject
 }
 
+// Empty returns true if there are no VCs in the SignInstruction.
+func (signInstruction SignInstruction) Empty() bool {
+	return len(signInstruction.VerifiableCredentials) == 0
+}
+
+// SignInstructions is a list of SignInstruction.
+type SignInstructions []SignInstruction
+
+// Empty returns true if all SignInstructions are empty.
+func (signInstructions SignInstructions) Empty() bool {
+	for _, signInstruction := range []SignInstruction(signInstructions) {
+		if !signInstruction.Empty() {
+			return false
+		}
+	}
+	return true
+}
+
 // Build creates a PresentationSubmission from the added wallets.
 // The VP format is determined by the given format.
-func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmission, []SignInstruction, error) {
+func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmission, SignInstructions, error) {
 	presentationSubmission := PresentationSubmission{
 		Id:           uuid.New().String(),
 		DefinitionId: b.presentationDefinition.Id,

@@ -153,21 +153,23 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	// if there's a match, create a VP and call the token endpoint
 	// If the token endpoint succeeds, return the access token
 	// If no presentation definition matches, return a 412 "no matching credentials" error
-	submission, credentials, err := presentationDefinition.Match(walletCredentials)
-	if err != nil {
-		return nil, fmt.Errorf("failed to match presentation definition: %w", err)
-	}
-	if len(credentials) == 0 {
-		return nil, core.Error(http.StatusPreconditionFailed, "no matching credentials")
-	}
-	expires := time.Now().Add(time.Minute * 15) //todo
-	nonce := nutsCrypto.GenerateNonce()
-	// determine the format to use
+	builder := presentationDefinition.PresentationSubmissionBuilder()
+	builder.AddWallet(requester, walletCredentials)
 	format, err := determineFormat(metadata.VPFormats)
 	if err != nil {
 		return nil, err
 	}
-	vp, err := s.wallet.BuildPresentation(ctx, credentials, holder.PresentationOptions{
+	submission, signInstructions, err := builder.Build(format)
+	if err != nil {
+		return nil, fmt.Errorf("failed to match presentation definition: %w", err)
+	}
+	if signInstructions.Empty() {
+		return nil, core.Error(http.StatusPreconditionFailed, "no matching credentials")
+	}
+	expires := time.Now().Add(time.Minute * 15) //todo
+	nonce := nutsCrypto.GenerateNonce()
+	// todo: support multiple wallets
+	vp, err := s.wallet.BuildPresentation(ctx, signInstructions[0].VerifiableCredentials, holder.PresentationOptions{
 		Format: format,
 		ProofOptions: proof.ProofOptions{
 			Created:   time.Now(),
