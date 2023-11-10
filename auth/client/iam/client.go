@@ -155,9 +155,9 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp v
 	}
 	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
 		// check for oauth error
-		if innerErr := core.TestResponseCode(http.StatusBadRequest, response); innerErr == nil {
+		if innerErr := core.TestResponseCode(http.StatusBadRequest, response); innerErr != nil {
 			// a non oauth error, the response body could contain a lot of stuff. We'll log and return the entire error
-			log.Logger().Errorf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
+			log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
 		}
 
 		return token, err

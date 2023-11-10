@@ -56,7 +56,7 @@ type relyingParty struct {
 	wallet            holder.Wallet
 }
 
-// NewRelyingParty returns an implementation of OAuthRelyingParty
+// NewRelyingParty returns an implementation of RelyingParty
 func NewRelyingParty(
 	didResolver resolver.DIDResolver, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
 	wallet holder.Wallet, httpClientTimeout time.Duration, httpClientTLS *tls.Config, strictMode bool) RelyingParty {
