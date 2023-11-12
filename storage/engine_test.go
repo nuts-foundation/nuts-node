@@ -22,9 +22,12 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"os"
+	"path"
 	"testing"
 )
 
@@ -33,7 +36,7 @@ func Test_New(t *testing.T) {
 }
 
 func Test_engine_Name(t *testing.T) {
-	assert.Equal(t, "Storage", engine{}.Name())
+	assert.Equal(t, "Storage", (&engine{}).Name())
 }
 
 func Test_engine_lifecycle(t *testing.T) {
@@ -95,4 +98,54 @@ func Test_engine_Shutdown(t *testing.T) {
 
 		assert.EqualError(t, err, "one or more stores failed to close")
 	})
+}
+
+func Test_engine_sqlDatabase(t *testing.T) {
+	t.Run("defaults to SQLite in data directory", func(t *testing.T) {
+		e := New()
+		dataDir := io.TestDirectory(t)
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		require.NoError(t, e.Start())
+		t.Cleanup(func() {
+			_ = e.Shutdown()
+		})
+		assert.FileExists(t, path.Join(dataDir, "sqlite.db"))
+	})
+	t.Run("unable to open SQLite database", func(t *testing.T) {
+		dataDir := io.TestDirectory(t)
+		require.NoError(t, os.Remove(dataDir))
+		e := New()
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		err := e.Start()
+		assert.EqualError(t, err, "failed to initialize SQL database: unable to open database file")
+	})
+	t.Run("nothing to migrate (already migrated)", func(t *testing.T) {
+		dataDir := io.TestDirectory(t)
+		e := New()
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		require.NoError(t, e.Start())
+		require.NoError(t, e.Shutdown())
+		e = New()
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		require.NoError(t, e.Start())
+		require.NoError(t, e.Shutdown())
+	})
+	t.Run("runs migrations", func(t *testing.T) {
+		e := New().(*engine)
+		e.config.SQL.ConnectionString = SQLiteInMemoryConnectionString
+		require.NoError(t, e.Configure(*core.NewServerConfig()))
+		require.NoError(t, e.Start())
+		t.Cleanup(func() {
+			_ = e.Shutdown()
+		})
+
+		underlyingDB, err := e.GetSQLDatabase().DB()
+		require.NoError(t, err)
+		row := underlyingDB.QueryRow("SELECT count(*) FROM schema_migrations")
+		require.NoError(t, row.Err())
+		var count int
+		assert.NoError(t, row.Scan(&count))
+		assert.Equal(t, 1, count)
+	})
+
 }

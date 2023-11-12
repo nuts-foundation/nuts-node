@@ -15,6 +15,7 @@ import (
 	stoabs "github.com/nuts-foundation/go-stoabs"
 	core "github.com/nuts-foundation/nuts-node/core"
 	gomock "go.uber.org/mock/gomock"
+	gorm "gorm.io/gorm"
 )
 
 // MockEngine is a mock of Engine interface.
@@ -80,6 +81,20 @@ func (m *MockEngine) GetSessionDatabase() SessionDatabase {
 func (mr *MockEngineMockRecorder) GetSessionDatabase() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionDatabase", reflect.TypeOf((*MockEngine)(nil).GetSessionDatabase))
+}
+
+// SQLDatabase mocks base method.
+func (m *MockEngine) GetSQLDatabase() *gorm.DB {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSQLDatabase")
+	ret0, _ := ret[0].(*gorm.DB)
+	return ret0
+}
+
+// SQLDatabase indicates an expected call of SQLDatabase.
+func (mr *MockEngineMockRecorder) SQLDatabase() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSQLDatabase", reflect.TypeOf((*MockEngine)(nil).GetSQLDatabase))
 }
 
 // Shutdown mocks base method.

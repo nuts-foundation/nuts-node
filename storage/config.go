@@ -22,9 +22,16 @@ package storage
 type Config struct {
 	BBolt BBoltConfig `koanf:"bbolt"`
 	Redis RedisConfig `koanf:"redis"`
+	SQL   SQLConfig   `koanf:"sql"`
 }
 
 // DefaultConfig returns the default configuration for the module.
 func DefaultConfig() Config {
 	return Config{}
+}
+
+// SQLConfig specifies config for the SQL storage engine.
+type SQLConfig struct {
+	// ConnectionString is the connection string for the SQL database.
+	ConnectionString string `koanf:"connection"`
 }

@@ -51,6 +51,22 @@ The server's certificate will be verified against the OS' CA bundle.
 
     Make sure to `configure persistence for your Redis server <https://redis.io/docs/manual/persistence/>`_.
 
+SQL
+===
+
+.. note::
+
+    SQL storage is still in development, for now you'll still need the other storage options described by this document.
+
+As we're transitioning to protocols with less shared state, we foresee Nuts' data models to become more relational.
+To simplify things, we intent to move towards SQL based storage in the future.
+The first database to be supported in SQLite, to aid development and demo/workshop setups. Other, supported SQL databases might be:
+- MySQL family (MariaDB, Percona)
+- PostgreSQL
+
+By default, storage SQLite will be used in a file called ``sqlite.db`` in the configured data directory.
+This can be overridden by configuring a connection string in ``storage.sql.connection`` (only SQLite for now).
+
 Redis Sentinel
 ^^^^^^^^^^^^^^
 
