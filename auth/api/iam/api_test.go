@@ -295,31 +295,31 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		}
 		tNow := time.Now()
 		token := AccessToken{
-			Token:                  "token",
-			Issuer:                 "resource-owner",
-			ClientId:               "client",
-			IssuedAt:               tNow,
-			Expiration:             tNow.Add(time.Minute),
-			Scope:                  "test",
-			PDPMap:                 map[string]any{"key": "value"},
-			VPToken:                []VerifiablePresentation{presentation},
-			PresentationSubmission: &pe.PresentationSubmission{},
-			PresentationDefinition: &pe.PresentationDefinition{},
+			Token:                          "token",
+			Issuer:                         "resource-owner",
+			ClientId:                       "client",
+			IssuedAt:                       tNow,
+			Expiration:                     tNow.Add(time.Minute),
+			Scope:                          "test",
+			InputDescriptorConstraintIdMap: map[string]any{"key": "value"},
+			VPToken:                        []VerifiablePresentation{presentation},
+			PresentationSubmission:         &pe.PresentationSubmission{},
+			PresentationDefinition:         &pe.PresentationDefinition{},
 		}
 
 		require.NoError(t, ctx.client.s2sAccessTokenStore().Put(token.Token, token))
 		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
-			Active:                 true,
-			ClientId:               ptrTo("client"),
-			Exp:                    ptrTo(int(tNow.Add(time.Minute).Unix())),
-			Iat:                    ptrTo(int(tNow.Unix())),
-			Iss:                    ptrTo("resource-owner"),
-			Scope:                  ptrTo("test"),
-			Sub:                    ptrTo("resource-owner"),
-			Vps:                    &[]VerifiablePresentation{presentation},
-			PdpMap:                 ptrTo(map[string]any{"key": "value"}),
-			PresentationSubmission: ptrTo(map[string]interface{}{"definition_id": "", "descriptor_map": nil, "id": ""}),
-			PresentationDefinition: ptrTo(map[string]interface{}{"id": "", "input_descriptors": nil}),
+			Active:                         true,
+			ClientId:                       ptrTo("client"),
+			Exp:                            ptrTo(int(tNow.Add(time.Minute).Unix())),
+			Iat:                            ptrTo(int(tNow.Unix())),
+			Iss:                            ptrTo("resource-owner"),
+			Scope:                          ptrTo("test"),
+			Sub:                            ptrTo("resource-owner"),
+			Vps:                            &[]VerifiablePresentation{presentation},
+			InputDescriptorConstraintIdMap: ptrTo(map[string]any{"key": "value"}),
+			PresentationSubmission:         ptrTo(map[string]interface{}{"definition_id": "", "descriptor_map": nil, "id": ""}),
+			PresentationDefinition:         ptrTo(map[string]interface{}{"id": "", "input_descriptors": nil}),
 		})
 		require.NoError(t, err)
 

@@ -125,10 +125,10 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 		Expiration: issueTime.Add(accessTokenValidity),
 		Scope:      scope,
 		// TODO: set values
-		PDPMap:                 nil,
-		VPToken:                []VerifiablePresentation{presentation},
-		PresentationDefinition: nil,
-		PresentationSubmission: nil,
+		InputDescriptorConstraintIdMap: nil,
+		VPToken:                        []VerifiablePresentation{presentation},
+		PresentationDefinition:         nil,
+		PresentationSubmission:         nil,
 	}
 	err := r.s2sAccessTokenStore().Put(accessToken.Token, accessToken)
 	if err != nil {
@@ -160,9 +160,9 @@ type AccessToken struct {
 	Expiration time.Time
 	// Scope the token grants access to. Not necessarily the same as the requested scope
 	Scope string
-	// PDPMap maps the ID field of a PresentationDefinition input descriptor constraint to the value provided in the VPToken for the constraint.
+	// InputDescriptorConstraintIdMap maps the ID field of a PresentationDefinition input descriptor constraint to the value provided in the VPToken for the constraint.
 	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
-	PDPMap map[string]any
+	InputDescriptorConstraintIdMap map[string]any
 
 	// additional fields to support unforeseen policy decision requirements
 

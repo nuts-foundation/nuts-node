@@ -439,10 +439,10 @@ components:
         scope:
           type: string
           description: granted scopes
-        pdp_map:
+        input_descriptor_constraint_id_map:
           type: object
           description: |
-            Mapping from the ID field of a 'presentation_definition' input descriptor constraint to the value provided in the 'vps' for the constraint.
+            Mapping from the ID field of a 'presentation_definition' input descriptor constraints to the value provided in the 'vps' for the constraints.
             The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
         presentation_definition:
           type: object

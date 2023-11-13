@@ -170,17 +170,17 @@ func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAc
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := IntrospectAccessToken200JSONResponse{
-		Active:                 true,
-		Iat:                    &iat,
-		Exp:                    &exp,
-		Iss:                    &token.Issuer,
-		Sub:                    &token.Issuer,
-		ClientId:               &token.ClientId,
-		Scope:                  &token.Scope,
-		PdpMap:                 &token.PDPMap,
-		PresentationDefinition: nil,
-		PresentationSubmission: nil,
-		Vps:                    &token.VPToken,
+		Active:                         true,
+		Iat:                            &iat,
+		Exp:                            &exp,
+		Iss:                            &token.Issuer,
+		Sub:                            &token.Issuer,
+		ClientId:                       &token.ClientId,
+		Scope:                          &token.Scope,
+		InputDescriptorConstraintIdMap: &token.InputDescriptorConstraintIdMap,
+		PresentationDefinition:         nil,
+		PresentationSubmission:         nil,
+		Vps:                            &token.VPToken,
 
 		// TODO: user authentication, used in OpenID4VP flow
 		FamilyName:     nil,

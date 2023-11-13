@@ -32,10 +32,7 @@ type DIDDocument = did.Document
 // DIDDocumentMetadata is an alias
 type DIDDocumentMetadata = resolver.DocumentMetadata
 
-// VerifiableCredential is an alias
-type VerifiableCredential = vc.VerifiableCredential
-
-// VerifiableCredential is an alias
+// VerifiablePresentation is an alias
 type VerifiablePresentation = vc.VerifiablePresentation
 
 // ErrorResponse is an alias

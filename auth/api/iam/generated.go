@@ -62,12 +62,12 @@ type TokenIntrospectionResponse struct {
 	// Initials Initials of the End-User.
 	Initials *string `json:"initials,omitempty"`
 
+	// InputDescriptorConstraintIdMap Mapping from the ID field of a 'presentation_definition' input descriptor constraints to the value provided in the 'vps' for the constraints.
+	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
+	InputDescriptorConstraintIdMap *map[string]interface{} `json:"input_descriptor_constraint_id_map,omitempty"`
+
 	// Iss Contains the DID of the authorizer. Should be equal to 'sub'
 	Iss *string `json:"iss,omitempty"`
-
-	// PdpMap Mapping from the ID field of a 'presentation_definition' input descriptor constraint to the value provided in the 'vps' for the constraint.
-	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
-	PdpMap *map[string]interface{} `json:"pdp_map,omitempty"`
 
 	// Prefix Surname prefix
 	Prefix *string `json:"prefix,omitempty"`
