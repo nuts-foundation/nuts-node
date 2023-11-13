@@ -24,7 +24,7 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/json"
-	"os"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -77,9 +77,7 @@ func init() {
 
 func TestMatch(t *testing.T) {
 	// Create a JSON-LD VC
-	jsonldVC := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("../test/vc.json")
-	_ = json.Unmarshal(vcJSON, &jsonldVC)
+	jsonldVC := credential.ValidNutsOrganizationCredential(t)
 
 	// Create a JWT VC
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -393,9 +391,7 @@ txJy6M1-lD7a5HTzanYTWBPAUHDZGyGKXdJw-W_x0IWChBzI8t3kpG253fg6V3tPgHeKXE94fz_QpYfg
 	})
 
 	t.Run("JSON-LD", func(t *testing.T) {
-		verifiableCredential := vc.VerifiableCredential{}
-		vcJSON, _ := os.ReadFile("../test/vc.json")
-		_ = json.Unmarshal(vcJSON, &verifiableCredential)
+		verifiableCredential := credential.ValidNutsOrganizationCredential(t)
 
 		t.Run("format with matching ldp_vc", func(t *testing.T) {
 			asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}, "ldp_vc": {"proof_type": {"JsonWebSignature2020"}}}
