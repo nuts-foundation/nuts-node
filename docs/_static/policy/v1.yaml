@@ -1,0 +1,133 @@
+openapi: 3.1.0
+info:
+  title: Policy backend API specification
+  version: 0.1.0
+servers:
+  - url: "http://localhost:1323"
+paths:
+  /{did}/presentation_definition:
+    parameters:
+      - name: did
+        in: path
+        description: URLEncoded DID.
+        required: true
+        example: did:web:example.com:1
+        schema:
+          type: string
+      - name: scope
+        in: query
+        description: |
+          This is the scope used in the OpenID4VP authorization request.
+          It is a space separated list of scopes.
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Returns a presentation definition for the given DID and scope.
+      description: |
+        The DID is used for tenant selection. Not all tenants will probably support the same scopes.
+        The scope is used as selection criteria for the presentation definition.
+        It could be the case that the presentation definition is not found.
+        In that case the response will be 201 with an empty body.
+      operationId: "presentationDefinition"
+      tags:
+        - policy
+      responses:
+        "200":
+          description: |
+            DID has been found and the scope is supported.
+            If the scope is supported but no presentation definition is required, the response will be 200 with a presentation definition without any input descriptors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresentationDefinition'
+        "201":
+          description: The DID is known but the presented scope is not supported.
+        "404":
+          description: DID is not known to the policy backend.
+  /{did}/authorize:
+    parameters:
+      - name: did
+        in: path
+        description: URLEncoded DID. The DID is used for tenant selection.
+        required: true
+        example: did:web:example.com:1
+        schema:
+          type: string
+    post:
+      summary: Authorize a resource request.
+      description: |
+        When an access token is used to request a resource, the resource server needs to know if the access token grants access to the requested resource.
+        The resource server will send a request to the policy backend to check if the access token grants access to the requested resource.
+
+      operationId: "authorize"
+      tags:
+        - policy
+      requestBody:
+        description: Required params for policy backend to make an informed decision.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizeRequest'
+      responses:
+        "200":
+          description: A response that indicates if the access token grants access to the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizeResponse'
+        "404":
+          description: DID is not known to the policy backend.
+components:
+  schemas:
+    AuthorizeRequest:
+      description: |
+        The request contains all params involved with the request.
+        It might be the case that the caller mapped credential fields to additional params.
+      type: object
+      required:
+        - client_id
+        - scope
+        - request_url
+        - request_method
+        - presentation_submission
+        - vps
+      properties:
+        client_id:
+          description: The client ID of the client that requested the resource (DID).
+          type: string
+        scope:
+          description: The scope used in the authorization request.
+          type: string
+        request_url:
+          description: The URL of the resource request.
+          type: string
+        request_method:
+          description: The method of the resource request.
+          type: string
+        presentation_submission:
+          description: The presentation submission that was used to request the access token.
+          type: object
+        vps:
+          description: | 
+            The verifiable presentations that were used to request the access token.
+            The verifiable presentations could be in JWT format or in JSON format.
+          type: array
+    AuthorizeResponse:
+      description: |
+        The response indicates if the access token grants access to the requested resource.
+        If the access token grants access, the response will be 200 with a boolean value set to true.
+        If the access token does not grant access, the response will be 200 with a boolean value set to false.
+      type: object
+      required:
+        - authorized
+      properties:
+        authorized:
+          description: Indicates if the access token grants access to the requested resource.
+          type: boolean
+    PresentationDefinition:
+      description: |
+        A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
+        Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
+        A JSON schema is available at https://identity.foundation/presentation-exchange/#json-schema
