@@ -86,7 +86,8 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 			if err != nil {
 				return nil, err
 			}
-			if isMatch && matchFormat(presentationDefinition.Format, credential) {
+			// InputDescriptor formats must be a subset of the PresentationDefinition formats, so it must satisfy both.
+			if isMatch && matchFormat(presentationDefinition.Format, credential) && matchFormat(inputDescriptor.Format, credential) {
 				match.VC = &credential
 				break
 			}
@@ -258,21 +259,6 @@ func matchProofType(proofType string, credential vc.VerifiableCredential) bool {
 		}
 	}
 	return false
-}
-
-func matchDescriptor(descriptor InputDescriptor, credential vc.VerifiableCredential) (*InputDescriptorMappingObject, error) {
-	match, err := matchCredential(descriptor, credential)
-	if err != nil {
-		return nil, err
-	}
-	if !match {
-		return nil, nil
-	}
-
-	return &InputDescriptorMappingObject{
-		Id:     descriptor.Id,
-		Format: credential.Format(),
-	}, nil
 }
 
 func matchCredential(descriptor InputDescriptor, credential vc.VerifiableCredential) (bool, error) {

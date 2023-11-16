@@ -123,6 +123,36 @@ func TestMatch(t *testing.T) {
 			assert.Len(t, mappingObjects, 1)
 		})
 	})
+	t.Run("Input Descriptor Claim Format matching", func(t *testing.T) {
+		presentationDefinition := PresentationDefinition{}
+		_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
+		// making sure this test doesn't break when testPresentationDefinition changes
+		fullFormat := presentationDefinition.Format
+		require.NotNil(t, fullFormat)
+		require.NotNil(t, (*fullFormat)["jwt_vc"])
+		require.NotNil(t, (*fullFormat)["ldp_vc"])
+		t.Run("Input Descriptor format only", func(t *testing.T) {
+			presentationDefinition.Format = nil
+			presentationDefinition.InputDescriptors[0].Format = fullFormat
+
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 1)
+			require.Len(t, mappingObjects, 1)
+			assert.Equal(t, "$.verifiableCredential[0]", mappingObjects[0].Path)
+		})
+		t.Run("Matches format of PD but not Input Descriptor", func(t *testing.T) {
+			presentationDefinition.Format = fullFormat
+			presentationDefinition.InputDescriptors[0].Format = &PresentationDefinitionClaimFormatDesignations{"jwt_vc": (*fullFormat)["jwt_vc"]}
+
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
+
+			require.NoError(t, err)
+			assert.Len(t, vcs, 0)
+			assert.Len(t, mappingObjects, 0)
+		})
+	})
 	t.Run("Submission requirement feature", func(t *testing.T) {
 		t.Run("Pick", func(t *testing.T) {
 			t.Run("Pick 1", func(t *testing.T) {
@@ -314,27 +344,6 @@ func Test_matchFormat(t *testing.T) {
 		match := matchFormat(&asFormat, verifiableCredential)
 
 		assert.False(t, match)
-	})
-}
-
-func Test_matchDescriptor(t *testing.T) {
-	testCredential := vc.VerifiableCredential{}
-	_ = json.Unmarshal([]byte(testCredentialString), &testCredential)
-	t.Run("no match", func(t *testing.T) {
-		field := Field{Path: []string{"$.credentialSubject.foo"}}
-
-		idmo, err := matchDescriptor(InputDescriptor{Constraints: &Constraints{Fields: []Field{field}}}, testCredential)
-
-		require.NoError(t, err)
-		assert.Nil(t, idmo)
-	})
-	t.Run("match", func(t *testing.T) {
-		field := Field{Path: []string{"$.credentialSubject.field"}}
-
-		idmo, err := matchDescriptor(InputDescriptor{Constraints: &Constraints{Fields: []Field{field}}}, testCredential)
-
-		require.NoError(t, err)
-		require.NotNil(t, idmo)
 	})
 }
 
