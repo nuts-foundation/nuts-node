@@ -15,8 +15,6 @@ import (
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
 
-<<<<<<< HEAD
-=======
 const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
@@ -97,20 +95,6 @@ type TokenIntrospectionResponse struct {
 // TokenIntrospectionResponseAssuranceLevel Assurance level of the identity of the End-User.
 type TokenIntrospectionResponseAssuranceLevel string
 
-// TokenResponse Token Responses are made as defined in (RFC6749)[https://datatracker.ietf.org/doc/html/rfc6749#section-5.1]
-type TokenResponse struct {
-	// AccessToken The access token issued by the authorization server.
-	AccessToken string `json:"access_token"`
-
-	// ExpiresIn The lifetime in seconds of the access token.
-	ExpiresIn *int    `json:"expires_in,omitempty"`
-	Scope     *string `json:"scope,omitempty"`
-
-	// TokenType The type of the token issued as described in [RFC6749].
-	TokenType string `json:"token_type"`
-}
-
->>>>>>> 463be60f (add introspection endpoint)
 // PresentationDefinitionParams defines parameters for PresentationDefinition.
 type PresentationDefinitionParams struct {
 	Scope string `form:"scope" json:"scope"`
