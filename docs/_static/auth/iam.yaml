@@ -285,7 +285,7 @@ paths:
           description: The DID of the requester, a Wallet owner at this node.
           schema:
             type: string
-            example: did:nuts:123
+            example: did:web:example.com
       requestBody:
         required: true
         content:
@@ -297,7 +297,7 @@ paths:
               properties:
                 verifier:
                   type: string
-                  example: did:nuts:123
+                  example: did:web:example.com
                 scope:
                   type: string
                   description: The scope that will be The service for which this access token can be used.
@@ -311,10 +311,37 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
         default:
           $ref: '../common/error_response.yaml'
+  /internal/auth/v2/accesstoken/introspect:
+    post:
+      operationId: introspectAccessToken
+      summary: Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/TokenIntrospectionRequest"
+      responses:
+        '200':
+          description: |
+            An Introspection response as described in RFC7662 section 2.2. The Irma, Dummy and Employee identity means all return 'username', 'initials',  'prefix', 'family_name' and 'assurance_level'.
+            'username' should be used as unique identifier for the user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenIntrospectionResponse"
+        '401':
+          description: |
+            This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
+            Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
 components:
   schemas:
     DIDDocument:
       $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
+    VerifiablePresentation:
+      $ref: '../common/ssi_types.yaml#/components/schemas/VerifiablePresentation'
     TokenResponse:
       type: object
       description: |
@@ -360,3 +387,111 @@ components:
       description: |
         A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
         Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
+      type: object
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Code identifying the error that occurred.
+          example: "invalid_request"
+    TokenIntrospectionRequest:
+      description: Token introspection request as described in RFC7662 section 2.1
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          example:
+            eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhaWQiOiJ1cm46b2lkOjIuMTYuODQwLjEuMTEzODgzLjIuNC42LjE6MDAwMDAwMDAiLCJleHAiOjE1ODE0MTI2NjcsImlhdCI6MTU4MTQxMTc2NywiaXNzIjoidXJuOm9pZDoyLjE2Ljg0MC4xLjExMzg4My4yLjQuNi4xOjAwMDAwMDAxIiwic2lkIjoidXJuOm9pZDoyLjE2Ljg0MC4xLjExMzg4My4yLjQuNi4zOjk5OTk5OTk5MCIsInN1YiI6IiJ9.OhniTJcPS45nhJVqXfxsngG5eYS_0BvqFg-96zaWFO90I_5_N9Eg_k7NmIF5eNZ9Xutl1aqSxlSp80EX07Gmk8uzZO9PEReo0YZxnNQV-Zeq1njCMmfdwusmiczFlwcBi5Bl1xYGmLrxP7NcAoljmDgMgmLH0xaKfP4VVim6snPkPHqBdSzAgSrrc-cgVDLl-9V2obPB1HiVsFMYfbHEIb4MPsnPRnSGavYHTxt34mHbRsS8BvoBy3v6VNYaewLr6yz-_Zstrnr4I_wxtYbSiPJUeVQHcD-a9Ck53BdjspnhVHZ4IFVvuNrpflVaB1A7P3A2xZ7G_a8gF_SHMynYSA
+    TokenIntrospectionResponse:
+      description: Token introspection response as described in RFC7662 section 2.2
+      required:
+        - active
+      properties:
+        active:
+          type: boolean
+          description: True if the token is active, false if the token is expired, malformed etc. Required per RFC7662
+        iss:
+          type: string
+          description: Contains the DID of the authorizer. Should be equal to 'sub'
+          example: did:web:example.com:resource-owner
+        sub:
+          type: string
+          description: Contains the DID of the resource owner
+          example: did:web:example.com:resource-owner
+        aud:
+          type: string
+          description: RFC7662 - Service-specific string identifier or list of string identifiers representing the intended audience for this token, as defined in JWT [RFC7519].
+          example: "https://target_token_endpoint"
+        client_id:
+          type: string
+          description: The client (DID) the access token was issued to
+          example: did:web:example.com:client
+        exp:
+          type: integer
+          description: Expiration date in seconds since UNIX epoch
+        iat:
+          type: integer
+          description: Issuance time in seconds since UNIX epoch
+        scope:
+          type: string
+          description: granted scopes
+        input_descriptor_constraint_id_map:
+          type: object
+          description: |
+            Mapping from the ID field of a 'presentation_definition' input descriptor constraints to the value provided in the 'vps' for the constraints.
+            The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
+        presentation_definition:
+          type: object
+          description: presentation definition, as described in presentation exchange specification, fulfilled to obtain the access token
+          items:
+            $ref: '#/components/schemas/PresentationDefinition'
+        presentation_submission:
+          type: object
+          description: mapping of 'vps' contents to the 'presentation_definition'
+        vps:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifiablePresentation'
+          description: The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
+# TODO: below is copied from introspection/v1. Remove anything unused when flows are finalized.
+# TODO: existing contract validator responses
+        family_name:
+          type: string
+          description: Surname(s) or last name(s) of the End-User.
+          example: Bruijn
+        prefix:
+          type: string
+          description: Surname prefix
+          example: de
+        initials:
+          type: string
+          description: Initials of the End-User.
+          example: I.
+        username:
+          type: string
+          description: Identifier uniquely identifying the End-User's account in the issuing system.
+        assurance_level:
+          type: string
+          description: Assurance level of the identity of the End-User.
+          format: enum
+          enum: [low, substantial, high]
+# TODO: ???
+        email:
+          type: string
+          description: End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.
+          example: w.debruijn@example.org
+        user_role:
+          type: string
+          description: Role of the End-User.
+  securitySchemes:
+    jwtBearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - {}
+  - jwtBearerAuth: []

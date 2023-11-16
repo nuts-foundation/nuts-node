@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
@@ -36,6 +37,7 @@ import (
 	"html/template"
 	"net/http"
 	"strings"
+	"time"
 )
 
 var _ core.Routable = &Wrapper{}
@@ -142,6 +144,84 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 			Code: oauth.UnsupportedGrantType,
 		}
 	}
+}
+
+// IntrospectAccessToken allows the resource server (XIS/EHR) to introspect details of an access token issued by this node
+func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
+	// Validate token
+	if request.Body.Token == "" {
+		// Return 200 + 'Active = false' when token is invalid or malformed
+		return IntrospectAccessToken200JSONResponse{}, nil
+	}
+
+	token := AccessToken{}
+	if err := r.s2sAccessTokenStore().Get(request.Body.Token, &token); err != nil {
+		// Return 200 + 'Active = false' when token is invalid or malformed
+		return IntrospectAccessToken200JSONResponse{}, err
+	}
+
+	if token.Expiration.Before(time.Now()) {
+		// Return 200 + 'Active = false' when token is invalid or malformed
+		// can happen between token expiration and pruning of database
+		return IntrospectAccessToken200JSONResponse{}, nil
+	}
+
+	// Create and return introspection response
+	iat := int(token.IssuedAt.Unix())
+	exp := int(token.Expiration.Unix())
+	response := IntrospectAccessToken200JSONResponse{
+		Active:                         true,
+		Iat:                            &iat,
+		Exp:                            &exp,
+		Iss:                            &token.Issuer,
+		Sub:                            &token.Issuer,
+		ClientId:                       &token.ClientId,
+		Scope:                          &token.Scope,
+		InputDescriptorConstraintIdMap: &token.InputDescriptorConstraintIdMap,
+		PresentationDefinition:         nil,
+		PresentationSubmission:         nil,
+		Vps:                            &token.VPToken,
+
+		// TODO: user authentication, used in OpenID4VP flow
+		FamilyName:     nil,
+		Prefix:         nil,
+		Initials:       nil,
+		AssuranceLevel: nil,
+		Email:          nil,
+		UserRole:       nil,
+		Username:       nil,
+	}
+
+	// set presentation definition if in token
+	var err error
+	response.PresentationDefinition, err = toAnyMap(token.PresentationDefinition)
+	if err != nil {
+		return IntrospectAccessToken200JSONResponse{}, err
+	}
+
+	// set presentation submission if in token
+	response.PresentationSubmission, err = toAnyMap(token.PresentationSubmission)
+	if err != nil {
+		return IntrospectAccessToken200JSONResponse{}, err
+	}
+	return response, nil
+}
+
+// toAnyMap marshals and unmarshals input into *map[string]any. Useful to generate OAPI response objects.
+func toAnyMap(input any) (*map[string]any, error) {
+	if input == nil {
+		return nil, nil
+	}
+	bs, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]any)
+	err = json.Unmarshal(bs, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.

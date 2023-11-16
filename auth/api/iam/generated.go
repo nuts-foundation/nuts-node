@@ -15,6 +15,86 @@ import (
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
 
+const (
+	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
+)
+
+// Defines values for TokenIntrospectionResponseAssuranceLevel.
+const (
+	High        TokenIntrospectionResponseAssuranceLevel = "high"
+	Low         TokenIntrospectionResponseAssuranceLevel = "low"
+	Substantial TokenIntrospectionResponseAssuranceLevel = "substantial"
+)
+
+// TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
+type TokenIntrospectionRequest struct {
+	Token string `json:"token"`
+}
+
+// TokenIntrospectionResponse Token introspection response as described in RFC7662 section 2.2
+type TokenIntrospectionResponse struct {
+	// Active True if the token is active, false if the token is expired, malformed etc. Required per RFC7662
+	Active bool `json:"active"`
+
+	// AssuranceLevel Assurance level of the identity of the End-User.
+	AssuranceLevel *TokenIntrospectionResponseAssuranceLevel `json:"assurance_level,omitempty"`
+
+	// Aud RFC7662 - Service-specific string identifier or list of string identifiers representing the intended audience for this token, as defined in JWT [RFC7519].
+	Aud *string `json:"aud,omitempty"`
+
+	// ClientId The client (DID) the access token was issued to
+	ClientId *string `json:"client_id,omitempty"`
+
+	// Email End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.
+	Email *string `json:"email,omitempty"`
+
+	// Exp Expiration date in seconds since UNIX epoch
+	Exp *int `json:"exp,omitempty"`
+
+	// FamilyName Surname(s) or last name(s) of the End-User.
+	FamilyName *string `json:"family_name,omitempty"`
+
+	// Iat Issuance time in seconds since UNIX epoch
+	Iat *int `json:"iat,omitempty"`
+
+	// Initials Initials of the End-User.
+	Initials *string `json:"initials,omitempty"`
+
+	// InputDescriptorConstraintIdMap Mapping from the ID field of a 'presentation_definition' input descriptor constraints to the value provided in the 'vps' for the constraints.
+	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
+	InputDescriptorConstraintIdMap *map[string]interface{} `json:"input_descriptor_constraint_id_map,omitempty"`
+
+	// Iss Contains the DID of the authorizer. Should be equal to 'sub'
+	Iss *string `json:"iss,omitempty"`
+
+	// Prefix Surname prefix
+	Prefix *string `json:"prefix,omitempty"`
+
+	// PresentationDefinition presentation definition, as described in presentation exchange specification, fulfilled to obtain the access token
+	PresentationDefinition *map[string]interface{} `json:"presentation_definition,omitempty"`
+
+	// PresentationSubmission mapping of 'vps' contents to the 'presentation_definition'
+	PresentationSubmission *map[string]interface{} `json:"presentation_submission,omitempty"`
+
+	// Scope granted scopes
+	Scope *string `json:"scope,omitempty"`
+
+	// Sub Contains the DID of the resource owner
+	Sub *string `json:"sub,omitempty"`
+
+	// UserRole Role of the End-User.
+	UserRole *string `json:"user_role,omitempty"`
+
+	// Username Identifier uniquely identifying the End-User's account in the issuing system.
+	Username *string `json:"username,omitempty"`
+
+	// Vps The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
+	Vps *[]VerifiablePresentation `json:"vps,omitempty"`
+}
+
+// TokenIntrospectionResponseAssuranceLevel Assurance level of the identity of the End-User.
+type TokenIntrospectionResponseAssuranceLevel string
+
 // PresentationDefinitionParams defines parameters for PresentationDefinition.
 type PresentationDefinitionParams struct {
 	Scope string `form:"scope" json:"scope"`
@@ -41,6 +121,9 @@ type RequestAccessTokenJSONBody struct {
 
 // HandleTokenRequestFormdataRequestBody defines body for HandleTokenRequest for application/x-www-form-urlencoded ContentType.
 type HandleTokenRequestFormdataRequestBody HandleTokenRequestFormdataBody
+
+// IntrospectAccessTokenFormdataRequestBody defines body for IntrospectAccessToken for application/x-www-form-urlencoded ContentType.
+type IntrospectAccessTokenFormdataRequestBody = TokenIntrospectionRequest
 
 // RequestAccessTokenJSONRequestBody defines body for RequestAccessToken for application/json ContentType.
 type RequestAccessTokenJSONRequestBody RequestAccessTokenJSONBody
@@ -144,6 +227,9 @@ type ServerInterface interface {
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{id}/token)
 	HandleTokenRequest(ctx echo.Context, id string) error
+	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+	// (POST /internal/auth/v2/accesstoken/introspect)
+	IntrospectAccessToken(ctx echo.Context) error
 	// Requests an access token using the vp_token-bearer grant.
 	// (POST /internal/auth/v2/{did}/request-access-token)
 	RequestAccessToken(ctx echo.Context, did string) error
@@ -165,6 +251,8 @@ func (w *ServerInterfaceWrapper) OAuthAuthorizationServerMetadata(ctx echo.Conte
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.OAuthAuthorizationServerMetadata(ctx, id)
 	return err
@@ -180,6 +268,8 @@ func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error 
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params PresentationDefinitionParams
@@ -206,6 +296,8 @@ func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error 
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
 	// Parameter object where we will unmarshal all parameters from the context
 	var params HandleAuthorizeRequestParams
 	// ------------- Optional query parameter "params" -------------
@@ -231,6 +323,8 @@ func (w *ServerInterfaceWrapper) GetWebDID(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.GetWebDID(ctx, id)
 	return err
@@ -246,6 +340,8 @@ func (w *ServerInterfaceWrapper) OAuthClientMetadata(ctx echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.OAuthClientMetadata(ctx, id)
@@ -263,8 +359,21 @@ func (w *ServerInterfaceWrapper) HandleTokenRequest(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.HandleTokenRequest(ctx, id)
+	return err
+}
+
+// IntrospectAccessToken converts echo context to params.
+func (w *ServerInterfaceWrapper) IntrospectAccessToken(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.IntrospectAccessToken(ctx)
 	return err
 }
 
@@ -278,6 +387,8 @@ func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.RequestAccessToken(ctx, did)
@@ -318,6 +429,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetWebDID)
 	router.GET(baseURL+"/iam/:id/oauth-client", wrapper.OAuthClientMetadata)
 	router.POST(baseURL+"/iam/:id/token", wrapper.HandleTokenRequest)
+	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-access-token", wrapper.RequestAccessToken)
 
 }
@@ -543,6 +655,31 @@ func (response HandleTokenRequestdefaultApplicationProblemPlusJSONResponse) Visi
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type IntrospectAccessTokenRequestObject struct {
+	Body *IntrospectAccessTokenFormdataRequestBody
+}
+
+type IntrospectAccessTokenResponseObject interface {
+	VisitIntrospectAccessTokenResponse(w http.ResponseWriter) error
+}
+
+type IntrospectAccessToken200JSONResponse TokenIntrospectionResponse
+
+func (response IntrospectAccessToken200JSONResponse) VisitIntrospectAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type IntrospectAccessToken401Response struct {
+}
+
+func (response IntrospectAccessToken401Response) VisitIntrospectAccessTokenResponse(w http.ResponseWriter) error {
+	w.WriteHeader(401)
+	return nil
+}
+
 type RequestAccessTokenRequestObject struct {
 	Did  string `json:"did"`
 	Body *RequestAccessTokenJSONRequestBody
@@ -602,6 +739,9 @@ type StrictServerInterface interface {
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{id}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
+	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+	// (POST /internal/auth/v2/accesstoken/introspect)
+	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
 	// Requests an access token using the vp_token-bearer grant.
 	// (POST /internal/auth/v2/{did}/request-access-token)
 	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
@@ -775,6 +915,39 @@ func (sh *strictHandler) HandleTokenRequest(ctx echo.Context, id string) error {
 		return err
 	} else if validResponse, ok := response.(HandleTokenRequestResponseObject); ok {
 		return validResponse.VisitHandleTokenRequestResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// IntrospectAccessToken operation middleware
+func (sh *strictHandler) IntrospectAccessToken(ctx echo.Context) error {
+	var request IntrospectAccessTokenRequestObject
+
+	if form, err := ctx.FormParams(); err == nil {
+		var body IntrospectAccessTokenFormdataRequestBody
+		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
+			return err
+		}
+		request.Body = &body
+	} else {
+		return err
+	}
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.IntrospectAccessToken(ctx.Request().Context(), request.(IntrospectAccessTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "IntrospectAccessToken")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(IntrospectAccessTokenResponseObject); ok {
+		return validResponse.VisitIntrospectAccessTokenResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

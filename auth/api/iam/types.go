@@ -20,6 +20,7 @@ package iam
 
 import (
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -30,6 +31,12 @@ type DIDDocument = did.Document
 
 // DIDDocumentMetadata is an alias
 type DIDDocumentMetadata = resolver.DocumentMetadata
+
+// VerifiablePresentation is an alias
+type VerifiablePresentation = vc.VerifiablePresentation
+
+// ErrorResponse is an alias
+type ErrorResponse = oauth.OAuth2Error
 
 // PresentationDefinition is an alias
 type PresentationDefinition = pe.PresentationDefinition

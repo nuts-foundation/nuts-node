@@ -11,3 +11,4 @@ output-options:
     - OAuthClientMetadata
     - PresentationDefinition
     - TokenResponse
+    - VerifiablePresentation
