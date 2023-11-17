@@ -46,10 +46,29 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 	holder2 := did.MustParseDID("did:example:2")
 	id1 := ssi.MustParseURI("1")
 	id2 := ssi.MustParseURI("2")
-	vc1 := vc.VerifiableCredential{ID: &id1}
-	vc2 := vc.VerifiableCredential{ID: &id2}
+	id3 := ssi.MustParseURI("3")
+	vc1 := credentialToJSONLD(vc.VerifiableCredential{ID: &id1})
+	vc2 := credentialToJSONLD(vc.VerifiableCredential{ID: &id2})
+	vc3 := credentialToJSONLD(vc.VerifiableCredential{ID: &id3})
 
-	t.Run("ok - single wallet", func(t *testing.T) {
+	t.Run("1 presentation", func(t *testing.T) {
+		expectedJSON := `
+		{
+		 "id": "for-test",
+		 "definition_id": "",
+		 "descriptor_map": [
+		   {
+		     "format": "ldp_vc",
+		     "id": "Match ID=1",
+		     "path": "$.verifiableCredential[0]"
+		   },
+		   {
+		     "format": "ldp_vc",
+		     "id": "Match ID=2",
+		     "path": "$.verifiableCredential[1]"
+		   }
+		 ]
+		}`
 		presentationDefinition := PresentationDefinition{}
 		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
 		builder := presentationDefinition.PresentationSubmissionBuilder()
@@ -60,12 +79,41 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, signInstructions)
 		assert.Len(t, signInstructions, 1)
-		assert.Len(t, submission.DescriptorMap, 1)
-		assert.Equal(t, "$.", submission.DescriptorMap[0].Path)
-		require.Len(t, submission.DescriptorMap[0].PathNested, 2)
-		assert.Equal(t, "$.verifiableCredential[0]", submission.DescriptorMap[0].PathNested[0].Path)
+		require.Len(t, submission.DescriptorMap, 2)
+
+		submission.Id = "for-test" // easier assertion
+		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+		assert.JSONEq(t, expectedJSON, string(actualJSON))
 	})
-	t.Run("ok - two wallets", func(t *testing.T) {
+	t.Run("2 presentations", func(t *testing.T) {
+		expectedJSON := `
+{
+  "id": "for-test",
+  "definition_id": "",
+  "descriptor_map": [
+    {
+      "format": "ldp_vp",
+      "id": "Match ID=1",
+      "path": "$[0]",
+      "path_nested": {
+        "format": "ldp_vc",
+        "id": "Match ID=1",
+        "path": "$.verifiableCredential[0]"
+      }
+    },
+    {
+      "format": "ldp_vp",
+      "id": "Match ID=2",
+      "path": "$[1]",
+      "path_nested": {
+        "format": "ldp_vc",
+        "id": "Match ID=2",
+        "path": "$.verifiableCredential[0]"
+      }
+    }
+  ]
+}
+`
 		presentationDefinition := PresentationDefinition{}
 		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
 		builder := presentationDefinition.PresentationSubmissionBuilder()
@@ -78,11 +126,57 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 		require.NotNil(t, signInstructions)
 		assert.Len(t, signInstructions, 2)
 		assert.Len(t, submission.DescriptorMap, 2)
-		assert.Equal(t, "$[0]", submission.DescriptorMap[0].Path)
-		require.Len(t, submission.DescriptorMap[0].PathNested, 1)
-		assert.Equal(t, "$.verifiableCredential[0]", submission.DescriptorMap[0].PathNested[0].Path)
-		assert.Equal(t, "$[1]", submission.DescriptorMap[1].Path)
-		require.Len(t, submission.DescriptorMap[1].PathNested, 1)
-		assert.Equal(t, "$.verifiableCredential[0]", submission.DescriptorMap[1].PathNested[0].Path)
+
+		submission.Id = "for-test" // easier assertion
+		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+		assert.JSONEq(t, expectedJSON, string(actualJSON))
 	})
+	t.Run("2 wallets, but 1 VP", func(t *testing.T) {
+		expectedJSON := `
+		{
+		 "id": "for-test",
+		 "definition_id": "",
+		 "descriptor_map": [
+		   {
+		     "format": "ldp_vc",
+		     "id": "Match ID=1",
+		     "path": "$.verifiableCredential[0]"
+		   },
+		   {
+		     "format": "ldp_vc",
+		     "id": "Match ID=2",
+		     "path": "$.verifiableCredential[1]"
+		   }
+		 ]
+		}`
+		presentationDefinition := PresentationDefinition{}
+		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
+		builder := presentationDefinition.PresentationSubmissionBuilder()
+		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
+		builder.AddWallet(holder2, []vc.VerifiableCredential{vc3})
+
+		submission, signInstructions, err := builder.Build("ldp_vp")
+
+		require.NoError(t, err)
+		require.NotNil(t, signInstructions)
+		assert.Len(t, signInstructions, 1)
+		assert.Len(t, submission.DescriptorMap, 2)
+
+		submission.Id = "for-test" // easier assertion
+		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+		assert.JSONEq(t, expectedJSON, string(actualJSON))
+	})
+}
+
+func credentialToJSONLD(credential vc.VerifiableCredential) vc.VerifiableCredential {
+	bytes, err := credential.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	var result vc.VerifiableCredential
+	err = json.Unmarshal(bytes, &result)
+	if err != nil {
+		panic(err)
+	}
+	return result
 }
