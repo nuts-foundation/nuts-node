@@ -292,8 +292,9 @@ func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential
 // matchField matches the field against the VC.
 // All fields need to match unless optional is set to true and no values are found for all the paths.
 func matchField(field Field, credential vc.VerifiableCredential) (bool, error) {
+	type Alias vc.VerifiableCredential
 	// jsonpath works on interfaces, so convert the VC to an interface
-	asJSON, _ := json.Marshal(credential)
+	asJSON, _ := json.Marshal(Alias(credential))
 	var asInterface interface{}
 	_ = json.Unmarshal(asJSON, &asInterface)
 

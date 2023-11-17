@@ -20,7 +20,10 @@
 package credential
 
 import (
+	"errors"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"strings"
 )
 
 // FindValidator finds the Validator the provided credential based on its Type
@@ -51,4 +54,49 @@ func ExtractTypes(credential vc.VerifiableCredential) []string {
 	}
 
 	return vcTypes
+}
+
+func PresentationSigner(presentation vc.VerifiablePresentation) (*did.DID, error) {
+	switch presentation.Format() {
+	case vc.JWTPresentationProofFormat:
+		token := presentation.JWT()
+		issuer := token.Issuer()
+		if issuer == "" {
+			return nil, errors.New("JWT presentation does not have 'iss' claim")
+		}
+		return did.ParseDID(issuer)
+	default:
+		return nil, errors.New("unsupported presentation format")
+	}
+}
+
+func PresentationSigningKeyID(presentation vc.VerifiablePresentation) (*did.DIDURL, error) {
+	switch presentation.Format() {
+	case vc.JWTPresentationProofFormat:
+		token := presentation.JWT()
+		keyID, exists := token.Get("kid")
+		if !exists {
+			return nil, errors.New("JWT presentation does not have 'kid' claim")
+		}
+		keyIDString, isString := keyID.(string)
+		if !isString {
+			return nil, errors.New("JWT presentation 'kid' claim is not a string")
+		}
+		issuer, err := PresentationSigner(presentation)
+		if err != nil {
+			return nil, err
+		}
+		if strings.HasPrefix(keyIDString, "#") {
+			// Key ID is a fragment, so it's a relative URL to the JWT issuer
+			keyIDString = issuer.String() + keyIDString
+		} else {
+			// Key ID is fully qualified, must be prefixed with JWT issuer
+			if !strings.HasPrefix(keyIDString, issuer.String()+"#") {
+				return nil, errors.New("JWT presentation 'kid' claim must be scoped to 'iss' claim if absolute")
+			}
+		}
+		return did.ParseDIDURL(keyIDString)
+	default:
+		return nil, errors.New("unsupported presentation format")
+	}
 }

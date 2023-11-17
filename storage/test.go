@@ -34,6 +34,7 @@ const SQLiteInMemoryConnectionString = "file::memory:?cache=shared"
 func NewTestStorageEngineInDir(dir string) Engine {
 	result := New().(*engine)
 	result.config.SQL = SQLConfig{ConnectionString: SQLiteInMemoryConnectionString}
+	//result.config.SQL = SQLConfig{ConnectionString: "file:../../data/sqlite.db"}
 	_ = result.Configure(core.TestServerConfig(core.ServerConfig{Datadir: dir + "/data"}))
 	return result
 }

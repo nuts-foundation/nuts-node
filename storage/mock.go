@@ -69,6 +69,20 @@ func (mr *MockEngineMockRecorder) GetProvider(moduleName any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProvider", reflect.TypeOf((*MockEngine)(nil).GetProvider), moduleName)
 }
 
+// GetSQLDatabase mocks base method.
+func (m *MockEngine) GetSQLDatabase() *gorm.DB {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSQLDatabase")
+	ret0, _ := ret[0].(*gorm.DB)
+	return ret0
+}
+
+// GetSQLDatabase indicates an expected call of GetSQLDatabase.
+func (mr *MockEngineMockRecorder) GetSQLDatabase() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSQLDatabase", reflect.TypeOf((*MockEngine)(nil).GetSQLDatabase))
+}
+
 // GetSessionDatabase mocks base method.
 func (m *MockEngine) GetSessionDatabase() SessionDatabase {
 	m.ctrl.T.Helper()
@@ -81,20 +95,6 @@ func (m *MockEngine) GetSessionDatabase() SessionDatabase {
 func (mr *MockEngineMockRecorder) GetSessionDatabase() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionDatabase", reflect.TypeOf((*MockEngine)(nil).GetSessionDatabase))
-}
-
-// SQLDatabase mocks base method.
-func (m *MockEngine) GetSQLDatabase() *gorm.DB {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSQLDatabase")
-	ret0, _ := ret[0].(*gorm.DB)
-	return ret0
-}
-
-// SQLDatabase indicates an expected call of SQLDatabase.
-func (mr *MockEngineMockRecorder) SQLDatabase() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSQLDatabase", reflect.TypeOf((*MockEngine)(nil).GetSQLDatabase))
 }
 
 // Shutdown mocks base method.

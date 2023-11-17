@@ -1,0 +1,1 @@
+This directory (with an invalid definition) is there to assert subdirectories are not traversed.

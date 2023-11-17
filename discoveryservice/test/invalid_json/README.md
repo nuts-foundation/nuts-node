@@ -1,0 +1,1 @@
+This directory contains an invalid use case definition: it is not valid JSON.

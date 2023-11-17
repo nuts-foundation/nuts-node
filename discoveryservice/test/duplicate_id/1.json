@@ -1,0 +1,49 @@
+{
+  "id": "urn:nuts.nl:usecase:eOverdrachtDev2023",
+  "endpoint": "https://example.com/usecase/eoverdracht_dev",
+  "presentation_max_validity": 36000,
+  "presentation_definition": {
+    "id": "pd_eoverdracht_dev_care_organization",
+    "format": {
+      "ldp_vc": {
+        "proof_type": [
+          "JsonWebSignature2020"
+        ]
+      }
+    },
+    "input_descriptors": [
+      {
+        "id": "id_nuts_care_organization_cred",
+        "constraints": {
+          "fields": [
+            {
+              "path": [
+                "$.type"
+              ],
+              "filter": {
+                "type": "string",
+                "const": "NutsOrganizationCredential"
+              }
+            },
+            {
+              "path": [
+                "$.credentialSubject.organization.name"
+              ],
+              "filter": {
+                "type": "string"
+              }
+            },
+            {
+              "path": [
+                "$.credentialSubject.organization.city"
+              ],
+              "filter": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

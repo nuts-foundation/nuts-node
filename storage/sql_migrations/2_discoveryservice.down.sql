@@ -1,0 +1,4 @@
+drop table discoveryservices;
+drop table discoveryservice_presentations;
+drop table discoveryservice_credentials;
+drop table discoveryservice_credential_props;
