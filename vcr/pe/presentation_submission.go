@@ -143,7 +143,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 		}
 	}
 
-	presentationIndex := 0
+	index := 0
 	// last we create the descriptor map for the presentation submission
 	// If there's only one sign instruction the Path will be $.
 	// If there are multiple sign instructions (each yielding a VP) the Path will be $[0], $[1], etc.
@@ -155,7 +155,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 					presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, InputDescriptorMappingObject{
 						Id:         inputDescriptorMapping.Id,
 						Format:     format,
-						Path:       fmt.Sprintf("$[%d]", presentationIndex),
+						Path:       fmt.Sprintf("$[%d]", index),
 						PathNested: &inputDescriptorMapping,
 					})
 				} else {
@@ -163,7 +163,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 					presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, inputDescriptorMapping)
 				}
 			}
-			presentationIndex++
+			index++
 		}
 	}
 
