@@ -121,7 +121,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 		for i, walletVCs := range b.wallets {
 			for _, walletVC := range walletVCs {
 				// do a JSON equality check
-				if vcEqual(selectedVCs[j], walletVC) {
+				if selectedVCs[j].Raw() == walletVC.Raw() {
 					signInstructions[i].Holder = b.holders[i]
 					signInstructions[i].VerifiableCredentials = append(signInstructions[i].VerifiableCredentials, selectedVCs[j])
 					// remap the path to the correct wallet index
