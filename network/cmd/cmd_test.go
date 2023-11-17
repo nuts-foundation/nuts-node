@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/stretchr/testify/require"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -56,6 +57,13 @@ func TestConvertRange(t *testing.T) {
 		i := convertRange("5")
 		assert.NotNil(t, i)
 		assert.Equal(t, *i, 5)
+	})
+
+	t.Run("uint to int conversion does not change output", func(t *testing.T) {
+		// dismisses https://github.com/nuts-foundation/nuts-node/security/code-scanning/44
+		i := convertRange(fmt.Sprintf("%d", math.MaxUint32))
+		assert.NotNil(t, i)
+		assert.Equal(t, *i, math.MaxUint32)
 	})
 
 	t.Run("it ignores negative ints", func(t *testing.T) {
