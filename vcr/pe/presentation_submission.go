@@ -115,29 +115,31 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 
 	// next we need to map the selected VCs to the correct wallet
 	// loop over all selected VCs and find the wallet that contains the VC
-	// there will be at most len(b.wallets) sign instructions
-	var signInstructions []SignInstruction
-	for _, holderID := range b.holders {
-		var signInstruction *SignInstruction
-		// find VCs that need to be in this sign instruction/verifiable presentation
-		for i, selectedVC := range selectedVCs {
-			if b.isHolder(holderID, selectedVC) {
-				if signInstruction == nil {
-					signInstruction = &SignInstruction{
-						Holder: holderID,
-					}
+	signInstructions := make([]SignInstruction, len(b.wallets))
+	walletCredentialIndex := map[did.DID]int{}
+	for j := range selectedVCs {
+		for i, walletVCs := range b.wallets {
+			for _, walletVC := range walletVCs {
+				// do a JSON equality check
+				if vcEqual(selectedVCs[j], walletVC) {
+					signInstructions[i].Holder = b.holders[i]
+					signInstructions[i].VerifiableCredentials = append(signInstructions[i].VerifiableCredentials, selectedVCs[j])
+					// remap the path to the correct wallet index
+					mapping := inputDescriptorMappingObjects[j]
+					mapping.Format = selectedVCs[j].Format()
+					mapping.Path = fmt.Sprintf("$.verifiableCredential[%d]", walletCredentialIndex[b.holders[i]])
+					signInstructions[i].Mappings = append(signInstructions[i].Mappings, mapping)
+					walletCredentialIndex[b.holders[i]]++
 				}
-				// the path property would be incorrect if there's multiple presentations,
-				// so remap the path to the correct index of the VC within the presentation that will be created (through sign instruction).
-				mapping := inputDescriptorMappingObjects[i]
-				mapping.Path = fmt.Sprintf("$.verifiableCredential[%d]", len(signInstruction.VerifiableCredentials))
-				mapping.Format = selectedVC.Format()
-				signInstruction.VerifiableCredentials = append(signInstruction.VerifiableCredentials, selectedVC)
-				signInstruction.Mappings = append(signInstruction.Mappings, mapping)
 			}
 		}
-		if signInstruction != nil {
-			signInstructions = append(signInstructions, *signInstruction)
+	}
+
+	// filter out empty sign instructions
+	nonEmptySignInstructions := make([]SignInstruction, 0)
+	for _, signInstruction := range signInstructions {
+		if !signInstruction.Empty() {
+			nonEmptySignInstructions = append(nonEmptySignInstructions, signInstruction)
 		}
 	}
 
@@ -145,11 +147,11 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 	// last we create the descriptor map for the presentation submission
 	// If there's only one sign instruction the Path will be $.
 	// If there are multiple sign instructions (each yielding a VP) the Path will be $[0], $[1], etc.
-	for _, signInstruction := range signInstructions {
+	for _, signInstruction := range nonEmptySignInstructions {
 		if len(signInstruction.Mappings) > 0 {
 			for _, inputDescriptorMapping := range signInstruction.Mappings {
 				// If we have multiple VPs in the resulting submission, wrap each in a nested descriptor map (see path_nested in PEX specification).
-				if len(signInstructions) > 1 {
+				if len(nonEmptySignInstructions) > 1 {
 					presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, InputDescriptorMappingObject{
 						Id:         inputDescriptorMapping.Id,
 						Format:     format,
@@ -165,7 +167,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 		}
 	}
 
-	return presentationSubmission, signInstructions, nil
+	return presentationSubmission, nonEmptySignInstructions, nil
 }
 
 // isHolder returns true if the wallet of the specified subject contains the given VC.

@@ -83,6 +83,7 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 
 		submission.Id = "for-test" // easier assertion
 		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+		println(string(actualJSON))
 		assert.JSONEq(t, expectedJSON, string(actualJSON))
 	})
 	t.Run("2 presentations", func(t *testing.T) {
@@ -164,6 +165,7 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 
 		submission.Id = "for-test" // easier assertion
 		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+		println(string(actualJSON))
 		assert.JSONEq(t, expectedJSON, string(actualJSON))
 	})
 }
