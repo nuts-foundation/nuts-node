@@ -5,10 +5,10 @@ info:
 servers:
   - url: "http://localhost:1323"
 paths:
-  /{did}/presentation_definition:
+  /presentation_definition:
     parameters:
-      - name: did
-        in: path
+      - name: authorizer
+        in: query
         description: URLEncoded DID.
         required: true
         example: did:web:example.com:1
@@ -52,7 +52,7 @@ paths:
         When an access token is used to request a resource, the resource server needs to know if the access token grants access to the requested resource.
         The resource server will send a request to the policy backend to check if the access token grants access to the requested resource.
         All cryptographic and presentation exchange validations have already been done by the caller.
-      operationId: "authorized"
+      operationId: "checkAuthorized"
       tags:
         - policy
       requestBody:
@@ -104,7 +104,7 @@ components:
           type: string
         presentation_submission:
           description: The presentation submission that was used to request the access token.
-          type: object
+          $ref: '#/components/schemas/PresentationSubmission'
         vps:
           description: | 
             The verifiable presentations that were used to request the access token.
@@ -125,5 +125,10 @@ components:
     PresentationDefinition:
       description: |
         A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
+        Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
+        A JSON schema is available at https://identity.foundation/presentation-exchange/#json-schema
+    PresentationSubmission:
+      description: |
+        A presentation submission is a JSON object that maps requirements from the Presentation Definition to the verifiable presentations that were used to request an access token.
         Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
         A JSON schema is available at https://identity.foundation/presentation-exchange/#json-schema
