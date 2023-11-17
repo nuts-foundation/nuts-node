@@ -169,18 +169,3 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 
 	return presentationSubmission, nonEmptySignInstructions, nil
 }
-
-// isHolder returns true if the wallet of the specified subject contains the given VC.
-func (b *PresentationSubmissionBuilder) isHolder(subjectID did.DID, credential vc.VerifiableCredential) bool {
-	for i, holder := range b.holders {
-		if holder == subjectID {
-			// find VC in slice
-			for _, curr := range b.wallets[i] {
-				if curr.Raw() == credential.Raw() {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
