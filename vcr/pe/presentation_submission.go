@@ -127,7 +127,8 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 						Holder: holderID,
 					}
 				}
-				// remap the path to the correct wallet index
+				// the path property would be incorrect if there's multiple presentations,
+				// so remap the path to the correct index of the VC within the presentation that will be created (through sign instruction).
 				mapping := inputDescriptorMappingObjects[i]
 				mapping.Path = fmt.Sprintf("$.verifiableCredential[%d]", len(signInstruction.VerifiableCredentials))
 				mapping.Format = selectedVC.Format()
