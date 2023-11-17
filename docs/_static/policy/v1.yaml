@@ -45,22 +45,14 @@ paths:
           description: The DID is known but the presented scope is not supported.
         "404":
           description: DID is not known to the policy backend.
-  /{did}/authorize:
-    parameters:
-      - name: did
-        in: path
-        description: URLEncoded DID. The DID is used for tenant selection.
-        required: true
-        example: did:web:example.com:1
-        schema:
-          type: string
+  /authorized:
     post:
-      summary: Authorize a resource request.
+      summary: Check if a resource request is authorized.
       description: |
         When an access token is used to request a resource, the resource server needs to know if the access token grants access to the requested resource.
         The resource server will send a request to the policy backend to check if the access token grants access to the requested resource.
-
-      operationId: "authorize"
+        All cryptographic and presentation exchange validations have already been done by the caller.
+      operationId: "authorized"
       tags:
         - policy
       requestBody:
@@ -69,24 +61,25 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AuthorizeRequest'
+              $ref: '#/components/schemas/AuthorizedRequest'
       responses:
         "200":
           description: A response that indicates if the access token grants access to the requested resource.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthorizeResponse'
+                $ref: '#/components/schemas/AuthorizedResponse'
         "404":
           description: DID is not known to the policy backend.
 components:
   schemas:
-    AuthorizeRequest:
+    AuthorizedRequest:
       description: |
         The request contains all params involved with the request.
         It might be the case that the caller mapped credential fields to additional params.
       type: object
       required:
+        - audience
         - client_id
         - scope
         - request_url
@@ -94,6 +87,9 @@ components:
         - presentation_submission
         - vps
       properties:
+        audience:
+          description: The audience of the access token. This is the identifier (DID) of the authorizer and issuer of the access token.
+          type: string
         client_id:
           description: The client ID of the client that requested the resource (DID).
           type: string
@@ -114,7 +110,7 @@ components:
             The verifiable presentations that were used to request the access token.
             The verifiable presentations could be in JWT format or in JSON format.
           type: array
-    AuthorizeResponse:
+    AuthorizedResponse:
       description: |
         The response indicates if the access token grants access to the requested resource.
         If the access token grants access, the response will be 200 with a boolean value set to true.
