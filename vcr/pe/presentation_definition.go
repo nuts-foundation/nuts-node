@@ -234,7 +234,7 @@ func matchFormat(format *PresentationDefinitionClaimFormatDesignations, credenti
 	asMap := map[string]map[string][]string(*format)
 	switch credential.Format() {
 	case vc.JSONLDCredentialProofFormat:
-		if entry := asMap["ldp_vc"]; entry != nil {
+		if entry := asMap[vc.JSONLDCredentialProofFormat]; entry != nil {
 			if proofTypes := entry["proof_type"]; proofTypes != nil {
 				for _, proofType := range proofTypes {
 					if matchProofType(proofType, credential) {
@@ -246,10 +246,10 @@ func matchFormat(format *PresentationDefinitionClaimFormatDesignations, credenti
 	case vc.JWTCredentialProofFormat:
 		// Get signing algorithm used to sign the JWT
 		message, _ := jws.ParseString(credential.Raw()) // can't really fail, JWT has been parsed before.
-		signingAlgorithm, _ := message.Signatures()[0].ProtectedHeaders().Get("alg")
+		signingAlgorithm, _ := message.Signatures()[0].ProtectedHeaders().Get(jws.AlgorithmKey)
 		// Check that the signing algorithm is specified by the presentation definition
-		if entry := asMap["jwt_vc"]; entry != nil {
-			if supportedAlgorithms := entry["alg"]; supportedAlgorithms != nil {
+		if entry := asMap[vc.JWTCredentialProofFormat]; entry != nil {
+			if supportedAlgorithms := entry[jws.AlgorithmKey]; supportedAlgorithms != nil {
 				for _, supportedAlgorithm := range supportedAlgorithms {
 					if signingAlgorithm == jwa.SignatureAlgorithm(supportedAlgorithm) {
 						return true

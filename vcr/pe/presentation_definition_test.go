@@ -49,6 +49,7 @@ var testFiles embed.FS
 
 var pdJSONLD PresentationDefinition
 var pdJSONLDorJWT PresentationDefinition
+var pdJSONLDorJWTWithPick PresentationDefinition
 var pdJWT PresentationDefinition
 
 func init() {
@@ -66,6 +67,13 @@ func init() {
 			panic(err)
 		}
 	}
+	if data, err := testFiles.ReadFile("test/pd_jsonld_jwt_pick.json"); err != nil {
+		panic(err)
+	} else {
+		if err = json.Unmarshal(data, &pdJSONLDorJWTWithPick); err != nil {
+			panic(err)
+		}
+	}
 	if data, err := testFiles.ReadFile("test/pd_jwt.json"); err != nil {
 		panic(err)
 	} else {
@@ -76,26 +84,8 @@ func init() {
 }
 
 func TestMatch(t *testing.T) {
-	// Create a JSON-LD VC
 	jsonldVC := credential.ValidNutsOrganizationCredential(t)
-
-	// Create a JWT VC
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	token := jwt.New()
-	require.NoError(t, token.Set("vc", map[string]interface{}{
-		"credentialSubject": map[string]interface{}{
-			"organization": map[string]interface{}{
-				"city": "IJbergen",
-				"name": "care",
-			},
-		},
-		"type": "NutsOrganizationCredential",
-	}))
-	signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES384, privateKey))
-	require.NoError(t, err)
-	jwtVC, err := vc.ParseVerifiableCredential(string(signedToken))
-	require.NoError(t, err)
+	jwtVC := credential.JWTNutsOrganizationCredential(t)
 
 	t.Run("Basic", func(t *testing.T) {
 		t.Run("JSON-LD", func(t *testing.T) {
@@ -117,13 +107,15 @@ func TestMatch(t *testing.T) {
 		})
 		t.Run("JWT", func(t *testing.T) {
 			t.Run("Happy flow", func(t *testing.T) {
-				vcs, mappingObjects, err := pdJWT.Match([]vc.VerifiableCredential{*jwtVC})
+				vcs, mappingObjects, err := pdJWT.Match([]vc.VerifiableCredential{jwtVC})
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
 				require.Len(t, mappingObjects, 1)
 				assert.Equal(t, "$.verifiableCredential[0]", mappingObjects[0].Path)
 			})
 			t.Run("unsupported JOSE alg", func(t *testing.T) {
+				token := jwt.New()
+				privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
 				require.NoError(t, err)
 				jwtCredential, err := vc.ParseVerifiableCredential(string(signedToken))
@@ -188,15 +180,29 @@ func TestMatch(t *testing.T) {
 				assert.Len(t, vcs, 1)
 				assert.Len(t, mappingObjects, 1)
 			})
-			t.Run("pick JSON-LD", func(t *testing.T) {
+			t.Run("choose JSON-LD (with multiple 'path's)", func(t *testing.T) {
 				vcs, mappingObjects, err := pdJSONLDorJWT.Match([]vc.VerifiableCredential{jsonldVC})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
 				require.Len(t, mappingObjects, 1)
 			})
-			t.Run("pick JWT", func(t *testing.T) {
-				vcs, mappingObjects, err := pdJSONLDorJWT.Match([]vc.VerifiableCredential{*jwtVC})
+			t.Run("choose JWT(with multiple 'path's)", func(t *testing.T) {
+				vcs, mappingObjects, err := pdJSONLDorJWT.Match([]vc.VerifiableCredential{jwtVC})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				require.Len(t, mappingObjects, 1)
+			})
+			t.Run("choose JSON-LD (with 'pick')", func(t *testing.T) {
+				vcs, mappingObjects, err := pdJSONLDorJWTWithPick.Match([]vc.VerifiableCredential{jsonldVC})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				require.Len(t, mappingObjects, 1)
+			})
+			t.Run("choose JWT (with 'pick')", func(t *testing.T) {
+				vcs, mappingObjects, err := pdJSONLDorJWTWithPick.Match([]vc.VerifiableCredential{jwtVC})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
@@ -350,6 +356,7 @@ func Test_matchFormat(t *testing.T) {
 	})
 
 	t.Run("JWT", func(t *testing.T) {
+		// JWT example credential taken from VC data model (expired)
 		const jwtCredential = `eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRpZDpleGFtcGxlOmFiZmUxM2Y3MTIxMjA0
 MzFjMjc2ZTEyZWNhYiNrZXlzLTEifQ.eyJzdWIiOiJkaWQ6ZXhhbXBsZTplYmZlYjFmNzEyZWJjNmYxY
 zI3NmUxMmVjMjEiLCJqdGkiOiJodHRwOi8vZXhhbXBsZS5lZHUvY3JlZGVudGlhbHMvMzczMiIsImlzc
