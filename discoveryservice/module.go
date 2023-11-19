@@ -67,15 +67,6 @@ func (m *Module) Configure(_ core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (m *Module) Start() error {
-	var err error
-	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.services)
-	if err != nil {
-		return err
-	}
 	if len(m.config.Server.DefinitionIDs) > 0 {
 		// Get the definitions that are enabled for this server
 		serverDefinitions := make(map[string]Definition)
@@ -87,6 +78,15 @@ func (m *Module) Start() error {
 			}
 		}
 		m.serverDefinitions = serverDefinitions
+	}
+	return nil
+}
+
+func (m *Module) Start() error {
+	var err error
+	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.services)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -140,14 +140,14 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 func (m *Module) addPresentation(definition Definition, presentation vc.VerifiablePresentation) error {
 	// Must contain credentials
 	if len(presentation.VerifiableCredential) == 0 {
-		return errors.New("presentation must contain at least one credential")
+		return errors.New("presentation must contain at least one credentialRecord")
 	}
-	// VP can't be valid longer than the credential it contains
+	// VP can't be valid longer than the credentialRecord it contains
 	expiration := presentation.JWT().Expiration()
 	for _, cred := range presentation.VerifiableCredential {
 		exp := cred.JWT().Expiration()
 		if !exp.IsZero() && expiration.After(exp) {
-			return fmt.Errorf("presentation is valid longer than the credential(s) it contains")
+			return fmt.Errorf("presentation is valid longer than the credentialRecord(s) it contains")
 		}
 	}
 	// VP must fulfill the PEX Presentation Definition
@@ -159,7 +159,7 @@ func (m *Module) addPresentation(definition Definition, presentation vc.Verifiab
 }
 
 func (m *Module) addRetraction(serviceID string, presentation vc.VerifiablePresentation) error {
-	// Presentation might be a retraction (deletion of an earlier credential) must contain no credentials, and refer to the VP being retracted by ID.
+	// Presentation might be a retraction (deletion of an earlier credentialRecord) must contain no credentials, and refer to the VP being retracted by ID.
 	// If those conditions aren't met, we don't need to register the retraction.
 	if len(presentation.VerifiableCredential) > 0 {
 		return errors.New("retraction presentation must not contain credentials")

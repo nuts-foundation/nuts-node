@@ -51,7 +51,7 @@ func Test_Module_Add(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, Timestamp(1), *timestamp)
 	})
-	t.Run("replace presentation of same credential subject", func(t *testing.T) {
+	t.Run("replace presentation of same credentialRecord subject", func(t *testing.T) {
 		m := setupModule(t, storageEngine)
 
 		vpAlice2 := createPresentation(aliceDID, vcAlice)
@@ -84,12 +84,12 @@ func Test_Module_Add(t *testing.T) {
 	t.Run("valid longer than its credentials", func(t *testing.T) {
 		m := setupModule(t, storageEngine)
 
-		vcAlice := createCredentialWithClaims(authorityDID, aliceDID, func(claims map[string]interface{}) {
+		vcAlice := createCredential(authorityDID, aliceDID, nil, func(claims map[string]interface{}) {
 			claims["exp"] = time.Now().Add(time.Hour)
 		})
 		vpAlice := createPresentation(aliceDID, vcAlice)
 		err := m.Add(testServiceID, vpAlice)
-		assert.EqualError(t, err, "presentation is valid longer than the credential(s) it contains")
+		assert.EqualError(t, err, "presentation is valid longer than the credentialRecord(s) it contains")
 	})
 	t.Run("not valid long enough", func(t *testing.T) {
 		m := setupModule(t, storageEngine)
@@ -186,14 +186,6 @@ func Test_Module_Add(t *testing.T) {
 func Test_Module_Get(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
-
-	t.Run("empty list, empty timestamp", func(t *testing.T) {
-		m := setupModule(t, storageEngine)
-		presentations, timestamp, err := m.Get(testServiceID, 0)
-		assert.NoError(t, err)
-		assert.Empty(t, presentations)
-		assert.Empty(t, timestamp)
-	})
 	t.Run("1 entry, empty timestamp", func(t *testing.T) {
 		m := setupModule(t, storageEngine)
 		require.NoError(t, m.Add(testServiceID, vpAlice))
@@ -201,33 +193,6 @@ func Test_Module_Get(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{vpAlice}, presentations)
 		assert.Equal(t, Timestamp(1), *timestamp)
-	})
-	t.Run("2 entries, empty timestamp", func(t *testing.T) {
-		m := setupModule(t, storageEngine)
-		require.NoError(t, m.Add(testServiceID, vpAlice))
-		require.NoError(t, m.Add(testServiceID, vpBob))
-		presentations, timestamp, err := m.Get(testServiceID, 0)
-		assert.NoError(t, err)
-		assert.Equal(t, []vc.VerifiablePresentation{vpAlice, vpBob}, presentations)
-		assert.Equal(t, Timestamp(2), *timestamp)
-	})
-	t.Run("2 entries, start after first", func(t *testing.T) {
-		m := setupModule(t, storageEngine)
-		require.NoError(t, m.Add(testServiceID, vpAlice))
-		require.NoError(t, m.Add(testServiceID, vpBob))
-		presentations, timestamp, err := m.Get(testServiceID, 1)
-		assert.NoError(t, err)
-		assert.Equal(t, []vc.VerifiablePresentation{vpBob}, presentations)
-		assert.Equal(t, Timestamp(2), *timestamp)
-	})
-	t.Run("2 entries, start after end", func(t *testing.T) {
-		m := setupModule(t, storageEngine)
-		require.NoError(t, m.Add(testServiceID, vpAlice))
-		require.NoError(t, m.Add(testServiceID, vpBob))
-		presentations, timestamp, err := m.Get(testServiceID, 2)
-		assert.NoError(t, err)
-		assert.Equal(t, []vc.VerifiablePresentation{}, presentations)
-		assert.Equal(t, Timestamp(2), *timestamp)
 	})
 	t.Run("service unknown", func(t *testing.T) {
 		m := setupModule(t, storageEngine)
@@ -237,7 +202,7 @@ func Test_Module_Get(t *testing.T) {
 }
 
 func setupModule(t *testing.T, storageInstance storage.Engine) *Module {
-	resetStoreAfterTest(t, storageInstance.GetSQLDatabase())
+	resetStore(t, storageInstance.GetSQLDatabase())
 	m := New(storageInstance)
 	require.NoError(t, m.Configure(core.ServerConfig{}))
 	m.services = testDefinitions()
@@ -248,25 +213,42 @@ func setupModule(t *testing.T, storageInstance storage.Engine) *Module {
 	return m
 }
 
-func Test_loadDefinitions(t *testing.T) {
+func TestModule_Configure(t *testing.T) {
+	serverConfig := core.ServerConfig{}
 	t.Run("duplicate ID", func(t *testing.T) {
-		definitions, err := loadDefinitions("test/duplicate_id")
+		config := Config{
+			Definitions: DefinitionsConfig{
+				Directory: "test/duplicate_id",
+			},
+		}
+		err := (&Module{config: config}).Configure(serverConfig)
 		assert.EqualError(t, err, "duplicate definition ID 'urn:nuts.nl:usecase:eOverdrachtDev2023' in file 'test/duplicate_id/2.json'")
-		assert.Nil(t, definitions)
 	})
 	t.Run("invalid JSON", func(t *testing.T) {
-		definitions, err := loadDefinitions("test/invalid_json")
+		config := Config{
+			Definitions: DefinitionsConfig{
+				Directory: "test/invalid_json",
+			},
+		}
+		err := (&Module{config: config}).Configure(serverConfig)
 		assert.ErrorContains(t, err, "unable to parse definition file 'test/invalid_json/1.json'")
-		assert.Nil(t, definitions)
 	})
 	t.Run("invalid definition", func(t *testing.T) {
-		definitions, err := loadDefinitions("test/invalid_definition")
+		config := Config{
+			Definitions: DefinitionsConfig{
+				Directory: "test/invalid_definition",
+			},
+		}
+		err := (&Module{config: config}).Configure(serverConfig)
 		assert.ErrorContains(t, err, "unable to parse definition file 'test/invalid_definition/1.json'")
-		assert.Nil(t, definitions)
 	})
 	t.Run("non-existent directory", func(t *testing.T) {
-		definitions, err := loadDefinitions("test/non_existent")
+		config := Config{
+			Definitions: DefinitionsConfig{
+				Directory: "test/non_existent",
+			},
+		}
+		err := (&Module{config: config}).Configure(serverConfig)
 		assert.ErrorContains(t, err, "unable to read definitions directory 'test/non_existent'")
-		assert.Nil(t, definitions)
 	})
 }

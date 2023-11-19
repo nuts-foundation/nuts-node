@@ -162,7 +162,7 @@ func (e *engine) GetSQLDatabase() *gorm.DB {
 func (e *engine) initSQLDatabase() error {
 	connectionString := e.config.SQL.ConnectionString
 	if len(connectionString) == 0 {
-		connectionString = "file:" + path.Join(e.datadir, "sqlite.db")
+		connectionString = "file:" + path.Join(e.datadir, "sqlite.db?_foreign_keys=on")
 	}
 	var err error
 	e.sqlDB, err = gorm.Open(sqlite.Open(connectionString), &gorm.Config{})

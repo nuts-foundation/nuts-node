@@ -24,28 +24,30 @@ import (
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/discoveryservice/log"
-	credential2 "github.com/nuts-foundation/nuts-node/vcr/credential"
+	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
+	"strconv"
+	"strings"
 	"time"
 )
 
 var ErrServiceNotFound = errors.New("discovery service not found")
 var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 
-type discoveryService struct {
+type serviceRecord struct {
 	ID        string `gorm:"primaryKey"`
 	Timestamp uint64
 }
 
-func (s discoveryService) TableName() string {
+func (s serviceRecord) TableName() string {
 	return "discoveryservices"
 }
 
-var _ schema.Tabler = (*servicePresentation)(nil)
+var _ schema.Tabler = (*presentationRecord)(nil)
 
-type servicePresentation struct {
+type presentationRecord struct {
 	ID                     string `gorm:"primaryKey"`
 	ServiceID              string
 	Timestamp              uint64
@@ -53,18 +55,18 @@ type servicePresentation struct {
 	PresentationID         string
 	PresentationRaw        string
 	PresentationExpiration int64
-	Credentials            []credential `gorm:"foreignKey:PresentationID;references:ID"`
+	Credentials            []credentialRecord `gorm:"foreignKey:PresentationID;references:ID"`
 }
 
-func (s servicePresentation) TableName() string {
+func (s presentationRecord) TableName() string {
 	return "discoveryservice_presentations"
 }
 
-// credential is a Verifiable Credential, part of a presentation (entry) on a use case list.
-type credential struct {
+// credentialRecord is a Verifiable Credential, part of a presentation (entry) on a use case list.
+type credentialRecord struct {
 	// ID is the unique identifier of the entry.
 	ID string `gorm:"primaryKey"`
-	// PresentationID corresponds to the discoveryservice_presentations record ID (not VerifiablePresentation.ID) this credential belongs to.
+	// PresentationID corresponds to the discoveryservice_presentations record ID (not VerifiablePresentation.ID) this credentialRecord belongs to.
 	PresentationID string
 	// CredentialID contains the 'id' property of the Verifiable Credential.
 	CredentialID string
@@ -74,16 +76,16 @@ type credential struct {
 	CredentialSubjectID string
 	// CredentialType contains the 'type' property of the Verifiable Credential (not being 'VerifiableCredential').
 	CredentialType *string
-	Properties     []credentialProperty `gorm:"foreignKey:ID;references:ID"`
+	Properties     []credentialPropertyRecord `gorm:"foreignKey:ID;references:ID"`
 }
 
 // TableName returns the table name for this DTO.
-func (p credential) TableName() string {
+func (p credentialRecord) TableName() string {
 	return "discoveryservice_credentials"
 }
 
-// credentialProperty is a property of a Verifiable Credential in a Verifiable Presentation in a discovery service.
-type credentialProperty struct {
+// credentialPropertyRecord is a property of a Verifiable Credential in a Verifiable Presentation in a discovery service.
+type credentialPropertyRecord struct {
 	// ID refers to the entry record in discoveryservice_credentials
 	ID string `gorm:"primaryKey"`
 	// Key is JSON path of the property.
@@ -93,7 +95,7 @@ type credentialProperty struct {
 }
 
 // TableName returns the table name for this DTO.
-func (l credentialProperty) TableName() string {
+func (l credentialPropertyRecord) TableName() string {
 	return "discoveryservice_credential_props"
 }
 
@@ -104,7 +106,7 @@ type sqlStore struct {
 func newSQLStore(db *gorm.DB, definitions map[string]Definition) (*sqlStore, error) {
 	// Creates entries in the discovery service table with initial timestamp, if they don't exist yet
 	for _, definition := range definitions {
-		currentList := discoveryService{
+		currentList := serviceRecord{
 			ID: definition.ID,
 		}
 		if err := db.FirstOrCreate(&currentList, "id = ?", definition.ID).Error; err != nil {
@@ -121,7 +123,7 @@ func newSQLStore(db *gorm.DB, definitions map[string]Definition) (*sqlStore, err
 // If the local node is the Discovery Server and thus is responsible for the timestamping,
 // nil should be passed to let the store determine the right value.
 func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, timestamp *Timestamp) error {
-	credentialSubjectID, err := credential2.PresentationSigner(presentation)
+	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
 		return err
 	}
@@ -135,30 +137,87 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 	}
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		timestamp, err := s.updateTimestamp(tx, serviceID, timestamp)
+		newTimestamp, err := s.updateTimestamp(tx, serviceID, timestamp)
 		if err != nil {
 			return err
 		}
 		// Delete any previous presentations of the subject
-		if err := tx.Delete(&servicePresentation{}, "service_id = ? AND credential_subject_id = ?", serviceID, credentialSubjectID.String()).
+		if err := tx.Delete(&presentationRecord{}, "service_id = ? AND credential_subject_id = ?", serviceID, credentialSubjectID.String()).
 			Error; err != nil {
 			return err
 		}
-		// Now store the presentation itself
-		return tx.Create(&servicePresentation{
-			ID:                     uuid.NewString(),
-			ServiceID:              serviceID,
-			Timestamp:              uint64(timestamp),
-			CredentialSubjectID:    credentialSubjectID.String(),
-			PresentationID:         presentation.ID.String(),
-			PresentationRaw:        presentation.Raw(),
-			PresentationExpiration: presentation.JWT().Expiration().Unix(),
-		}).Error
+
+		newPresentation, err := createPresentationRecord(serviceID, newTimestamp, presentation)
+		if err != nil {
+			return err
+		}
+
+		return tx.Create(&newPresentation).Error
 	})
 }
 
+// createPresentationRecord creates a presentationRecord from a VerifiablePresentation.
+// It creates the following types:
+// - presentationRecord
+// - presentationRecord.Credentials with credentialRecords of the credentials in the presentation
+// - presentationRecord.Credentials.Properties of the credentialSubject properties of the credential (for s
+func createPresentationRecord(serviceID string, timestamp Timestamp, presentation vc.VerifiablePresentation) (*presentationRecord, error) {
+	credentialSubjectID, err := credential.PresentationSigner(presentation)
+	if err != nil {
+		return nil, err
+	}
+
+	newPresentation := presentationRecord{
+		ID:                     uuid.NewString(),
+		ServiceID:              serviceID,
+		Timestamp:              uint64(timestamp),
+		CredentialSubjectID:    credentialSubjectID.String(),
+		PresentationID:         presentation.ID.String(),
+		PresentationRaw:        presentation.Raw(),
+		PresentationExpiration: presentation.JWT().Expiration().Unix(),
+	}
+
+	for _, currCred := range presentation.VerifiableCredential {
+		var credentialType *string
+		for _, currType := range currCred.Type {
+			if currType.String() != "VerifiableCredential" {
+				credentialType = new(string)
+				*credentialType = currType.String()
+				break
+			}
+		}
+		if len(currCred.CredentialSubject) != 1 {
+			return nil, errors.New("credential must contain exactly one subject")
+		}
+
+		newCredential := credentialRecord{
+			ID:                  uuid.NewString(),
+			PresentationID:      newPresentation.ID,
+			CredentialID:        currCred.ID.String(),
+			CredentialIssuer:    currCred.Issuer.String(),
+			CredentialSubjectID: credentialSubjectID.String(),
+			CredentialType:      credentialType,
+		}
+		// Store credential's properties
+		keys, values := indexJSONObject(currCred.CredentialSubject[0].(map[string]interface{}), nil, nil, "credentialSubject")
+		for i, key := range keys {
+			if key == "credentialSubject.id" {
+				// present as column, don't index
+				continue
+			}
+			newCredential.Properties = append(newCredential.Properties, credentialPropertyRecord{
+				ID:    newCredential.ID,
+				Key:   key,
+				Value: values[i],
+			})
+		}
+		newPresentation.Credentials = append(newPresentation.Credentials, newCredential)
+	}
+	return &newPresentation, nil
+}
+
 func (s *sqlStore) get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {
-	var rows []servicePresentation
+	var rows []presentationRecord
 	err := s.db.Order("timestamp ASC").Find(&rows, "service_id = ? AND timestamp > ?", serviceID, int(startAt)).Error
 	if err != nil {
 		return nil, nil, fmt.Errorf("query service '%s': %w", serviceID, err)
@@ -176,11 +235,66 @@ func (s *sqlStore) get(serviceID string, startAt Timestamp) ([]vc.VerifiablePres
 	return presentations, &timestamp, nil
 }
 
+func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error) {
+	propertyColumns := map[string]string{
+		"id":                   "cred.credential_id",
+		"issuer":               "cred.credential_issuer",
+		"type":                 "cred.credential_type",
+		"credentialSubject.id": "cred.credential_subject_id",
+	}
+
+	stmt := s.db.Model(&presentationRecord{}).
+		Where("service_id = ?", serviceID).
+		Joins("inner join discoveryservice_credentials cred ON cred.presentation_id = discoveryservice_presentations.id")
+	numProps := 0
+	for jsonPath, value := range query {
+		if value == "*" {
+			continue
+		}
+		// sort out wildcard mode
+		var eq = "="
+		if strings.HasPrefix(value, "*") {
+			value = "%" + value[1:]
+			eq = "LIKE"
+		}
+		if strings.HasSuffix(value, "*") {
+			value = value[:len(value)-1] + "%"
+			eq = "LIKE"
+		}
+		if column := propertyColumns[jsonPath]; column != "" {
+			stmt = stmt.Where(column+" "+eq+" ?", value)
+		} else {
+			// This property is not present as column, but indexed as key-value property.
+			// Multiple (inner) joins to filter on a dynamic number of properties to filter on is not pretty, but it works
+			alias := "p" + strconv.Itoa(numProps)
+			numProps++
+			stmt = stmt.Joins("inner join discoveryservice_credential_props "+alias+" ON "+alias+".id = cred.id AND "+alias+".key = ? AND "+alias+".value "+eq+" ?", jsonPath, value)
+		}
+	}
+
+	var matches []presentationRecord
+	if err := stmt.Find(&matches).Error; err != nil {
+		return nil, err
+	}
+	var results []vc.VerifiablePresentation
+	for _, match := range matches {
+		if match.PresentationExpiration <= time.Now().Unix() {
+			continue
+		}
+		presentation, err := vc.ParseVerifiablePresentation(match.PresentationRaw)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse presentation '%s': %w", match.PresentationID, err)
+		}
+		results = append(results, *presentation)
+	}
+	return results, nil
+}
+
 func (s *sqlStore) updateTimestamp(tx *gorm.DB, serviceID string, newTimestamp *Timestamp) (Timestamp, error) {
-	var result discoveryService
+	var result serviceRecord
 	// Lock (SELECT FOR UPDATE) discoveryservices row to prevent concurrent updates to the same list, which could mess up the lamport timestamp.
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where(discoveryService{ID: serviceID}).
+		Where(serviceRecord{ID: serviceID}).
 		Find(&result).
 		Error; err != nil {
 		return 0, err
@@ -200,7 +314,7 @@ func (s *sqlStore) updateTimestamp(tx *gorm.DB, serviceID string, newTimestamp *
 
 func (s *sqlStore) exists(serviceID string, credentialSubjectID string, presentationID string) (bool, error) {
 	var count int64
-	if err := s.db.Model(servicePresentation{}).Where(servicePresentation{
+	if err := s.db.Model(presentationRecord{}).Where(presentationRecord{
 		ServiceID:           serviceID,
 		CredentialSubjectID: credentialSubjectID,
 		PresentationID:      presentationID,
@@ -222,9 +336,32 @@ func (s *sqlStore) prune() error {
 }
 
 func (s *sqlStore) removeExpired() (int, error) {
-	result := s.db.Where("presentation_expiration < ?", time.Now().Unix()).Delete(servicePresentation{})
+	result := s.db.Where("presentation_expiration < ?", time.Now().Unix()).Delete(presentationRecord{})
 	if result.Error != nil {
 		return 0, fmt.Errorf("prune presentations: %w", result.Error)
 	}
 	return int(result.RowsAffected), nil
+}
+
+// indexJSONObject indexes a JSON object, resulting in a slice of JSON paths and corresponding string values.
+// It only traverses JSON objects and only adds string values to the result.
+func indexJSONObject(target map[string]interface{}, jsonPaths []string, stringValues []string, currentPath string) ([]string, []string) {
+	for key, value := range target {
+		thisPath := currentPath
+		if len(thisPath) > 0 {
+			thisPath += "."
+		}
+		thisPath += key
+
+		switch typedValue := value.(type) {
+		case string:
+			jsonPaths = append(jsonPaths, thisPath)
+			stringValues = append(stringValues, typedValue)
+		case map[string]interface{}:
+			jsonPaths, stringValues = indexJSONObject(typedValue, jsonPaths, stringValues, thisPath)
+		default:
+			// other values (arrays, booleans, numbers, null) are not indexed
+		}
+	}
+	return jsonPaths, stringValues
 }

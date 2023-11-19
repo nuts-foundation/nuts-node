@@ -103,35 +103,42 @@ func init() {
 	bobDID = did.MustParseDID("did:example:bob")
 	keyPairs[bobDID.String()], _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
-	vcAlice = createCredential(authorityDID, aliceDID)
+	vcAlice = createCredential(authorityDID, aliceDID, map[string]interface{}{
+		"person": map[string]interface{}{
+			"givenName":  "Alice",
+			"familyName": "Jones",
+		},
+	}, nil)
 	vpAlice = createPresentation(aliceDID, vcAlice)
-	vcBob = createCredential(authorityDID, bobDID)
+	vcBob = createCredential(authorityDID, bobDID, map[string]interface{}{
+		"person": map[string]interface{}{
+			"givenName":  "Bob",
+			"familyName": "Jomper",
+		},
+	}, nil)
 	vpBob = createPresentation(bobDID, vcBob)
 }
 
-func createCredential(issuerDID did.DID, subjectDID did.DID) vc.VerifiableCredential {
-	return createCredentialWithClaims(issuerDID, subjectDID, func(claims map[string]interface{}) {
-		// do nothing
-	})
-}
-
-func createCredentialWithClaims(issuerDID did.DID, subjectDID did.DID, claimVisitor func(map[string]interface{})) vc.VerifiableCredential {
+func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject map[string]interface{}, claimVisitor func(map[string]interface{})) vc.VerifiableCredential {
 	vcID := did.DIDURL{DID: issuerDID}
 	vcID.Fragment = uuid.NewString()
 	vcIDURI := vcID.URI()
 	expirationDate := time.Now().Add(time.Hour * 24)
+	if credentialSubject == nil {
+		credentialSubject = make(map[string]interface{})
+	}
+	credentialSubject["id"] = subjectDID.String()
 	result, err := vc.CreateJWTVerifiableCredential(context.Background(), vc.VerifiableCredential{
-		ID:             &vcIDURI,
-		Issuer:         issuerDID.URI(),
-		IssuanceDate:   time.Now(),
-		ExpirationDate: &expirationDate,
-		CredentialSubject: []interface{}{
-			map[string]interface{}{
-				"id": subjectDID.String(),
-			},
-		},
+		ID:                &vcIDURI,
+		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("TestCredential")},
+		Issuer:            issuerDID.URI(),
+		IssuanceDate:      time.Now(),
+		ExpirationDate:    &expirationDate,
+		CredentialSubject: []interface{}{credentialSubject},
 	}, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
-		claimVisitor(claims)
+		if claimVisitor != nil {
+			claimVisitor(claims)
+		}
 		return signJWT(subjectDID, claims, headers)
 	})
 	if err != nil {

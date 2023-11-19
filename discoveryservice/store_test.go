@@ -19,6 +19,7 @@
 package discoveryservice
 
 import (
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,20 +60,282 @@ func Test_sqlStore_exists(t *testing.T) {
 	})
 }
 
+func Test_sqlStore_add(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+
+	t.Run("no credentials in presentation", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+		err := m.add(testServiceID, createPresentation(aliceDID), nil)
+		assert.NoError(t, err)
+	})
+	t.Run("with indexable properties in credential", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+		err := m.add(testServiceID, createPresentation(aliceDID, createCredential(authorityDID, aliceDID, map[string]interface{}{
+			"name":         "Alice",
+			"placeOfBirth": "Bristol",
+		}, nil)), nil)
+		assert.NoError(t, err)
+
+		var actual []credentialPropertyRecord
+		assert.NoError(t, m.db.Find(&actual).Error)
+		require.Len(t, actual, 2)
+		assert.Equal(t, "Alice", sliceToMap(actual)["credentialSubject.name"])
+		assert.Equal(t, "Bristol", sliceToMap(actual)["credentialSubject.placeOfBirth"])
+	})
+	t.Run("with non-indexable properties in credential", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+		err := m.add(testServiceID, createPresentation(aliceDID, createCredential(authorityDID, aliceDID, map[string]interface{}{
+			"name": "Alice",
+			"age":  35,
+		}, nil)), nil)
+		assert.NoError(t, err)
+
+		var actual []credentialPropertyRecord
+		assert.NoError(t, m.db.Find(&actual).Error)
+		require.Len(t, actual, 1)
+		assert.Equal(t, "Alice", sliceToMap(actual)["credentialSubject.name"])
+	})
+	t.Run("without indexable properties in credential", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+		presentation := createCredential(authorityDID, aliceDID, map[string]interface{}{}, nil)
+		err := m.add(testServiceID, createPresentation(aliceDID, presentation), nil)
+		assert.NoError(t, err)
+
+		var actual []credentialPropertyRecord
+		assert.NoError(t, m.db.Find(&actual).Error)
+		assert.Empty(t, actual)
+	})
+}
+
+func Test_sqlStore_get(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+
+	t.Run("empty list, empty timestamp", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+		presentations, timestamp, err := m.get(testServiceID, 0)
+		assert.NoError(t, err)
+		assert.Empty(t, presentations)
+		assert.Empty(t, timestamp)
+	})
+	t.Run("1 entry, empty timestamp", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, m.add(testServiceID, vpAlice, nil))
+		presentations, timestamp, err := m.get(testServiceID, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, []vc.VerifiablePresentation{vpAlice}, presentations)
+		assert.Equal(t, Timestamp(1), *timestamp)
+	})
+	t.Run("2 entries, empty timestamp", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, m.add(testServiceID, vpAlice, nil))
+		require.NoError(t, m.add(testServiceID, vpBob, nil))
+		presentations, timestamp, err := m.get(testServiceID, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, []vc.VerifiablePresentation{vpAlice, vpBob}, presentations)
+		assert.Equal(t, Timestamp(2), *timestamp)
+	})
+	t.Run("2 entries, start after first", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, m.add(testServiceID, vpAlice, nil))
+		require.NoError(t, m.add(testServiceID, vpBob, nil))
+		presentations, timestamp, err := m.get(testServiceID, 1)
+		assert.NoError(t, err)
+		assert.Equal(t, []vc.VerifiablePresentation{vpBob}, presentations)
+		assert.Equal(t, Timestamp(2), *timestamp)
+	})
+	t.Run("2 entries, start after end", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, m.add(testServiceID, vpAlice, nil))
+		require.NoError(t, m.add(testServiceID, vpBob, nil))
+		presentations, timestamp, err := m.get(testServiceID, 2)
+		assert.NoError(t, err)
+		assert.Equal(t, []vc.VerifiablePresentation{}, presentations)
+		assert.Equal(t, Timestamp(2), *timestamp)
+	})
+}
+
+func Test_sqlStore_search(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Cleanup(func() {
+		_ = storageEngine.Shutdown()
+	})
+
+	type testCase struct {
+		name        string
+		inputVPs    []vc.VerifiablePresentation
+		query       map[string]string
+		expectedVPs []string
+	}
+	testCases := []testCase{
+		{
+			name:     "issuer",
+			inputVPs: []vc.VerifiablePresentation{vpAlice},
+			query: map[string]string{
+				"issuer": authorityDID.String(),
+			},
+			expectedVPs: []string{vpAlice.ID.String()},
+		},
+		{
+			name:     "id",
+			inputVPs: []vc.VerifiablePresentation{vpAlice},
+			query: map[string]string{
+				"id": vcAlice.ID.String(),
+			},
+			expectedVPs: []string{vpAlice.ID.String()},
+		},
+		{
+			name:     "type",
+			inputVPs: []vc.VerifiablePresentation{vpAlice},
+			query: map[string]string{
+				"type": "TestCredential",
+			},
+			expectedVPs: []string{vpAlice.ID.String()},
+		},
+		{
+			name:     "credentialSubject.id",
+			inputVPs: []vc.VerifiablePresentation{vpAlice},
+			query: map[string]string{
+				"credentialSubject.id": aliceDID.String(),
+			},
+			expectedVPs: []string{vpAlice.ID.String()},
+		},
+		{
+			name:     "1 property",
+			inputVPs: []vc.VerifiablePresentation{vpAlice},
+			query: map[string]string{
+				"credentialSubject.person.givenName": "Alice",
+			},
+			expectedVPs: []string{vpAlice.ID.String()},
+		},
+		{
+			name:     "2 properties",
+			inputVPs: []vc.VerifiablePresentation{vpAlice},
+			query: map[string]string{
+				"credentialSubject.person.givenName":  "Alice",
+				"credentialSubject.person.familyName": "Jones",
+			},
+			expectedVPs: []string{vpAlice.ID.String()},
+		},
+		{
+			name:     "properties and base properties",
+			inputVPs: []vc.VerifiablePresentation{vpAlice},
+			query: map[string]string{
+				"issuer":                             authorityDID.String(),
+				"credentialSubject.person.givenName": "Alice",
+			},
+			expectedVPs: []string{vpAlice.ID.String()},
+		},
+		{
+			name:     "wildcard postfix",
+			inputVPs: []vc.VerifiablePresentation{vpAlice, vpBob},
+			query: map[string]string{
+				"credentialSubject.person.familyName": "Jo*",
+			},
+			expectedVPs: []string{vpAlice.ID.String(), vpBob.ID.String()},
+		},
+		{
+			name:     "wildcard prefix",
+			inputVPs: []vc.VerifiablePresentation{vpAlice, vpBob},
+			query: map[string]string{
+				"credentialSubject.person.givenName": "*ce",
+			},
+			expectedVPs: []string{vpAlice.ID.String()},
+		},
+		{
+			name:     "wildcard midway (no interpreted as wildcard)",
+			inputVPs: []vc.VerifiablePresentation{vpAlice, vpBob},
+			query: map[string]string{
+				"credentialSubject.person.givenName": "A*ce",
+			},
+			expectedVPs: []string{},
+		},
+		{
+			name:     "just wildcard",
+			inputVPs: []vc.VerifiablePresentation{vpAlice, vpBob},
+			query: map[string]string{
+				"id": "*",
+			},
+			expectedVPs: []string{vpAlice.ID.String(), vpBob.ID.String()},
+		},
+		{
+			name:     "2 VPs, 1 match",
+			inputVPs: []vc.VerifiablePresentation{vpAlice, vpBob},
+			query: map[string]string{
+				"credentialSubject.person.givenName": "Alice",
+			},
+			expectedVPs: []string{vpAlice.ID.String()},
+		},
+		{
+			name:     "multiple matches",
+			inputVPs: []vc.VerifiablePresentation{vpAlice, vpBob},
+			query: map[string]string{
+				"issuer": authorityDID.String(),
+			},
+			expectedVPs: []string{vpAlice.ID.String(), vpBob.ID.String()},
+		},
+		{
+			name:     "no match",
+			inputVPs: []vc.VerifiablePresentation{vpAlice},
+			query: map[string]string{
+				"credentialSubject.person.givenName": "Bob",
+			},
+			expectedVPs: []string{},
+		},
+		{
+			name: "empty database",
+			query: map[string]string{
+				"credentialSubject.person.givenName": "Bob",
+			},
+			expectedVPs: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := setupStore(t, storageEngine.GetSQLDatabase())
+			for _, vp := range tc.inputVPs {
+				err := c.add(testServiceID, vp, nil)
+				require.NoError(t, err)
+			}
+			actualVPs, err := c.search(testServiceID, tc.query)
+			require.NoError(t, err)
+			require.Len(t, actualVPs, len(tc.expectedVPs))
+			for _, expectedVP := range tc.expectedVPs {
+				found := false
+				for _, actualVP := range actualVPs {
+					if actualVP.ID.String() == expectedVP {
+						found = true
+						break
+					}
+				}
+				require.True(t, found, "expected to find VP with ID %s", expectedVP)
+			}
+		})
+	}
+}
+
 func setupStore(t *testing.T, db *gorm.DB) *sqlStore {
-	resetStoreAfterTest(t, db)
+	resetStore(t, db)
 	store, err := newSQLStore(db, testDefinitions())
 	require.NoError(t, err)
 	return store
 }
 
-func resetStoreAfterTest(t *testing.T, db *gorm.DB) {
-	t.Cleanup(func() {
-		underlyingDB, err := db.DB()
-		require.NoError(t, err)
-		_, err = underlyingDB.Exec("DELETE FROM discoveryservice_presentations")
-		require.NoError(t, err)
-		_, err = underlyingDB.Exec("DELETE FROM discoveryservices")
-		require.NoError(t, err)
-	})
+func resetStore(t *testing.T, db *gorm.DB) {
+	underlyingDB, err := db.DB()
+	require.NoError(t, err)
+	// related tables are emptied due to on-delete-cascade clause
+	_, err = underlyingDB.Exec("DELETE FROM discoveryservices")
+	require.NoError(t, err)
+}
+
+func sliceToMap(slice []credentialPropertyRecord) map[string]string {
+	var result = make(map[string]string)
+	for _, curr := range slice {
+		result[curr.Key] = curr.Value
+	}
+	return result
 }
