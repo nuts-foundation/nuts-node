@@ -18,10 +18,40 @@
 
 package client
 
-import "github.com/nuts-foundation/nuts-node/vcr/pe"
+import (
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
+)
 
 // PresentationDefinition is a type alias for the PresentationDefinition from the nuts-node/vcr/pe package.
 type PresentationDefinition = pe.PresentationDefinition
 
 // PresentationSubmission is a type alias for the PresentationSubmission from the nuts-node/vcr/pe package.
 type PresentationSubmission = pe.PresentationSubmission
+
+// AuthorizedRequest contains the information about the request
+type AuthorizedRequest struct {
+	// Audience contains the audience of the access token. This is the identifier (DID) of the authorizer and issuer of the access token.
+	Audience string `json:"audience"`
+
+	// ClientId contains the client ID of the client that requested the resource (DID).
+	ClientId string `json:"client_id"`
+
+	// PresentationSubmission contains a JSON object that maps requirements from the Presentation Definition to the verifiable presentations that were used to request an access token.
+	// Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
+	// A JSON schema is available at https://identity.foundation/presentation-exchange/#json-schema
+	PresentationSubmission pe.PresentationSubmission `json:"presentation_submission"`
+
+	// RequestMethod contains the HTTP method of the resource request.
+	RequestMethod string `json:"request_method"`
+
+	// RequestUrl contains URL of the resource request.
+	RequestUrl string `json:"request_url"`
+
+	// Scope contains the scope used in the authorization request.
+	Scope string `json:"scope"`
+
+	// Vps contains the verifiable presentations that were used to request the access token.
+	// The verifiable presentations could be in JWT format or in JSON format.
+	Vps []vc.VerifiablePresentation `json:"vps"`
+}

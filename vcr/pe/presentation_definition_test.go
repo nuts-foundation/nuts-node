@@ -88,6 +88,18 @@ func definitions() testDefinitions {
 	return result
 }
 
+func TestParsePresentationDefinition(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		definition, err := ParsePresentationDefinition([]byte(`{"id": "1", "input_descriptors":[]}`))
+		require.NoError(t, err)
+		assert.Equal(t, "1", definition.Id)
+	})
+	t.Run("missing id", func(t *testing.T) {
+		_, err := ParsePresentationDefinition([]byte(`{"input_descriptors":[]}`))
+		assert.ErrorContains(t, err, `missing properties: "id"`)
+	})
+}
+
 func TestMatch(t *testing.T) {
 	jsonldVC := credential.ValidNutsOrganizationCredential(t)
 	jwtVC := credential.JWTNutsOrganizationCredential(t, did.MustParseDID("did:web:example.com"))
