@@ -71,8 +71,9 @@ type SignInstruction struct {
 	// Holder contains the DID of the holder that should sign the VP.
 	Holder did.DID
 	// VerifiableCredentials contains the VCs that should be included in the VP.
-	VerifiableCredentials         []vc.VerifiableCredential
-	inputDescriptorMappingObjects []InputDescriptorMappingObject
+	VerifiableCredentials []vc.VerifiableCredential
+	// Mappings contains the Input Descriptor that are mapped by this SignInstruction.
+	Mappings []InputDescriptorMappingObject
 }
 
 // Empty returns true if there are no VCs in the SignInstruction.
@@ -100,7 +101,6 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 		Id:           uuid.New().String(),
 		DefinitionId: b.presentationDefinition.Id,
 	}
-	signInstructions := make([]SignInstruction, len(b.wallets))
 
 	// first we need to select the VCs from all wallets that match the presentation definition
 	allVCs := make([]vc.VerifiableCredential, 0)
@@ -115,43 +115,57 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 
 	// next we need to map the selected VCs to the correct wallet
 	// loop over all selected VCs and find the wallet that contains the VC
+	signInstructions := make([]SignInstruction, len(b.wallets))
+	walletCredentialIndex := map[did.DID]int{}
 	for j := range selectedVCs {
 		for i, walletVCs := range b.wallets {
-			var index int
 			for _, walletVC := range walletVCs {
 				// do a JSON equality check
-				if vcEqual(selectedVCs[j], walletVC) {
+				if selectedVCs[j].Raw() == walletVC.Raw() {
 					signInstructions[i].Holder = b.holders[i]
 					signInstructions[i].VerifiableCredentials = append(signInstructions[i].VerifiableCredentials, selectedVCs[j])
 					// remap the path to the correct wallet index
-					inputDescriptorMappingObjectForVC := inputDescriptorMappingObjects[j]
-					inputDescriptorMappingObjectForVC.Path = fmt.Sprintf("$.verifiableCredential[%d]", index)
-					signInstructions[i].inputDescriptorMappingObjects = append(signInstructions[i].inputDescriptorMappingObjects, inputDescriptorMappingObjectForVC)
-					index++
+					mapping := inputDescriptorMappingObjects[j]
+					mapping.Format = selectedVCs[j].Format()
+					mapping.Path = fmt.Sprintf("$.verifiableCredential[%d]", walletCredentialIndex[b.holders[i]])
+					signInstructions[i].Mappings = append(signInstructions[i].Mappings, mapping)
+					walletCredentialIndex[b.holders[i]]++
 				}
 			}
 		}
 	}
 
+	// filter out empty sign instructions
+	nonEmptySignInstructions := make([]SignInstruction, 0)
+	for _, signInstruction := range signInstructions {
+		if !signInstruction.Empty() {
+			nonEmptySignInstructions = append(nonEmptySignInstructions, signInstruction)
+		}
+	}
+
 	index := 0
 	// last we create the descriptor map for the presentation submission
-	// If there's only one sign instruction the Path will be $. If there are multiple sign instructions the Path will be $[0], $[1], etc.
-	for _, signInstruction := range signInstructions {
-		if len(signInstruction.VerifiableCredentials) > 0 {
-			// wrap each InputDescriptorMappingObject for the outer VP
-			nestedDescriptorMap := InputDescriptorMappingObject{
-				Id:         "", // todo what to add here?
-				Format:     format,
-				Path:       "$.",
-				PathNested: signInstruction.inputDescriptorMappingObjects,
+	// If there's only one sign instruction the Path will be $.
+	// If there are multiple sign instructions (each yielding a VP) the Path will be $[0], $[1], etc.
+	for _, signInstruction := range nonEmptySignInstructions {
+		if len(signInstruction.Mappings) > 0 {
+			for _, inputDescriptorMapping := range signInstruction.Mappings {
+				// If we have multiple VPs in the resulting submission, wrap each in a nested descriptor map (see path_nested in PEX specification).
+				if len(nonEmptySignInstructions) > 1 {
+					presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, InputDescriptorMappingObject{
+						Id:         inputDescriptorMapping.Id,
+						Format:     format,
+						Path:       fmt.Sprintf("$[%d]", index),
+						PathNested: &inputDescriptorMapping,
+					})
+				} else {
+					// Just 1 VP, no nesting needed
+					presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, inputDescriptorMapping)
+				}
 			}
-			if len(signInstructions) > 1 {
-				nestedDescriptorMap.Path = fmt.Sprintf("$[%d]", index)
-			}
-			presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, nestedDescriptorMap)
 			index++
 		}
 	}
 
-	return presentationSubmission, signInstructions, nil
+	return presentationSubmission, nonEmptySignInstructions, nil
 }
