@@ -183,7 +183,7 @@ const All = `
   ],
   "input_descriptors": [
 	{
-	  "name": "Match ID=1",
+	  "id": "Match ID=1",
       "group": ["A"],
 	  "constraints": {
 		"fields": [
@@ -200,7 +200,7 @@ const All = `
 	  }
     },
     {
-	  "name": "Match ID=2",
+	  "id": "Match ID=2",
       "group": ["A"],
 	  "constraints": {
 		"fields": [
