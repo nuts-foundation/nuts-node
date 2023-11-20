@@ -32,7 +32,7 @@ import (
 	"time"
 )
 
-const ModuleName = "DiscoveryService"
+const ModuleName = "Discovery"
 
 var ErrServerModeDisabled = errors.New("node is not a discovery server for this service")
 

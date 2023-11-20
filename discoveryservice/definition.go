@@ -37,10 +37,11 @@ func init() {
 		panic(err)
 	}
 	const schemaURL = "http://nuts.nl/schemas/discovery-service-v0.json"
-	if err := v2.Compiler.AddResource(schemaURL, bytes.NewReader(serviceDefinitionSchemaData)); err != nil {
+	compiler := v2.Compiler()
+	if err := compiler.AddResource(schemaURL, bytes.NewReader(serviceDefinitionSchemaData)); err != nil {
 		panic(err)
 	}
-	definitionJsonSchema = v2.Compiler.MustCompile(schemaURL)
+	definitionJsonSchema = compiler.MustCompile(schemaURL)
 }
 
 // Definition holds the definition of a service.

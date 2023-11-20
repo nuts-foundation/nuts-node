@@ -31,7 +31,7 @@ import (
 const serviceID = "urn:nuts.nl:usecase:eOverdrachtDev2023"
 
 func TestModule_Name(t *testing.T) {
-	assert.Equal(t, "DiscoveryService", (&Module{}).Name())
+	assert.Equal(t, "Discovery", (&Module{}).Name())
 }
 
 func TestModule_Shutdown(t *testing.T) {

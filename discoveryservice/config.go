@@ -33,8 +33,6 @@ type DefinitionsConfig struct {
 type ServerConfig struct {
 	// DefinitionIDs specifies which use case lists the server serves.
 	DefinitionIDs []string `koanf:"definition_ids"`
-	// Directory is the directory where the server stores the lists.
-	Directory string `koanf:"directory"`
 }
 
 // DefaultConfig returns the default configuration.

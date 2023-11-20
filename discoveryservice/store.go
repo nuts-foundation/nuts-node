@@ -39,12 +39,12 @@ var ErrServiceNotFound = errors.New("discovery service not found")
 var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 
 type serviceRecord struct {
-	ID        string `gorm:"primaryKey"`
-	Timestamp uint64
+	ID               string `gorm:"primaryKey"`
+	LamportTimestamp uint64
 }
 
 func (s serviceRecord) TableName() string {
-	return "discoveryservices"
+	return "discovery_service"
 }
 
 var _ schema.Tabler = (*presentationRecord)(nil)
@@ -52,7 +52,7 @@ var _ schema.Tabler = (*presentationRecord)(nil)
 type presentationRecord struct {
 	ID                     string `gorm:"primaryKey"`
 	ServiceID              string
-	Timestamp              uint64
+	LamportTimestamp       uint64
 	CredentialSubjectID    string
 	PresentationID         string
 	PresentationRaw        string
@@ -61,14 +61,14 @@ type presentationRecord struct {
 }
 
 func (s presentationRecord) TableName() string {
-	return "discoveryservice_presentations"
+	return "discovery_presentation"
 }
 
 // credentialRecord is a Verifiable Credential, part of a presentation (entry) on a use case list.
 type credentialRecord struct {
 	// ID is the unique identifier of the entry.
 	ID string `gorm:"primaryKey"`
-	// PresentationID corresponds to the discoveryservice_presentations record ID (not VerifiablePresentation.ID) this credentialRecord belongs to.
+	// PresentationID corresponds to the discovery_presentation record ID (not VerifiablePresentation.ID) this credentialRecord belongs to.
 	PresentationID string
 	// CredentialID contains the 'id' property of the Verifiable Credential.
 	CredentialID string
@@ -78,18 +78,18 @@ type credentialRecord struct {
 	CredentialSubjectID string
 	// CredentialType contains the 'type' property of the Verifiable Credential (not being 'VerifiableCredential').
 	CredentialType *string
-	Properties     []credentialPropertyRecord `gorm:"foreignKey:ID;references:ID"`
+	Properties     []credentialPropertyRecord `gorm:"foreignKey:CredentialID;references:ID"`
 }
 
 // TableName returns the table name for this DTO.
 func (p credentialRecord) TableName() string {
-	return "discoveryservice_credentials"
+	return "discovery_credential"
 }
 
 // credentialPropertyRecord is a property of a Verifiable Credential in a Verifiable Presentation in a discovery service.
 type credentialPropertyRecord struct {
-	// ID refers to the entry record in discoveryservice_credentials
-	ID string `gorm:"primaryKey"`
+	// CredentialID refers to the entry record in discovery_credential
+	CredentialID string `gorm:"primaryKey"`
 	// Key is JSON path of the property.
 	Key string `gorm:"primaryKey"`
 	// Value is the value of the property.
@@ -98,7 +98,7 @@ type credentialPropertyRecord struct {
 
 // TableName returns the table name for this DTO.
 func (l credentialPropertyRecord) TableName() string {
-	return "discoveryservice_credential_props"
+	return "discovery_credential_prop"
 }
 
 type sqlStore struct {
@@ -183,7 +183,7 @@ func createPresentationRecord(serviceID string, timestamp Timestamp, presentatio
 	newPresentation := presentationRecord{
 		ID:                     uuid.NewString(),
 		ServiceID:              serviceID,
-		Timestamp:              uint64(timestamp),
+		LamportTimestamp:       uint64(timestamp),
 		CredentialSubjectID:    credentialSubjectID.String(),
 		PresentationID:         presentation.ID.String(),
 		PresentationRaw:        presentation.Raw(),
@@ -219,9 +219,9 @@ func createPresentationRecord(serviceID string, timestamp Timestamp, presentatio
 				continue
 			}
 			newCredential.Properties = append(newCredential.Properties, credentialPropertyRecord{
-				ID:    newCredential.ID,
-				Key:   key,
-				Value: values[i],
+				CredentialID: newCredential.ID,
+				Key:          key,
+				Value:        values[i],
 			})
 		}
 		newPresentation.Credentials = append(newPresentation.Credentials, newCredential)
@@ -231,7 +231,7 @@ func createPresentationRecord(serviceID string, timestamp Timestamp, presentatio
 
 func (s *sqlStore) get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {
 	var rows []presentationRecord
-	err := s.db.Order("timestamp ASC").Find(&rows, "service_id = ? AND timestamp > ?", serviceID, int(startAt)).Error
+	err := s.db.Order("lamport_timestamp ASC").Find(&rows, "service_id = ? AND lamport_timestamp > ?", serviceID, int(startAt)).Error
 	if err != nil {
 		return nil, nil, fmt.Errorf("query service '%s': %w", serviceID, err)
 	}
@@ -243,7 +243,7 @@ func (s *sqlStore) get(serviceID string, startAt Timestamp) ([]vc.VerifiablePres
 			return nil, nil, fmt.Errorf("parse presentation '%s' of service '%s': %w", row.PresentationID, serviceID, err)
 		}
 		presentations = append(presentations, *presentation)
-		timestamp = Timestamp(row.Timestamp)
+		timestamp = Timestamp(row.LamportTimestamp)
 	}
 	return presentations, &timestamp, nil
 }
@@ -258,7 +258,7 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 
 	stmt := s.db.Model(&presentationRecord{}).
 		Where("service_id = ?", serviceID).
-		Joins("inner join discoveryservice_credentials cred ON cred.presentation_id = discoveryservice_presentations.id")
+		Joins("inner join discovery_credential cred ON cred.presentation_id = discovery_presentation.id")
 	numProps := 0
 	for jsonPath, value := range query {
 		if value == "*" {
@@ -281,7 +281,7 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 			// Multiple (inner) joins to filter on a dynamic number of properties to filter on is not pretty, but it works
 			alias := "p" + strconv.Itoa(numProps)
 			numProps++
-			stmt = stmt.Joins("inner join discoveryservice_credential_props "+alias+" ON "+alias+".id = cred.id AND "+alias+".key = ? AND "+alias+".value "+eq+" ?", jsonPath, value)
+			stmt = stmt.Joins("inner join discovery_credential_prop "+alias+" ON "+alias+".credential_id = cred.id AND "+alias+".key = ? AND "+alias+".value "+eq+" ?", jsonPath, value)
 		}
 	}
 
@@ -305,7 +305,7 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 
 func (s *sqlStore) updateTimestamp(tx *gorm.DB, serviceID string, newTimestamp *Timestamp) (Timestamp, error) {
 	var result serviceRecord
-	// Lock (SELECT FOR UPDATE) discoveryservices row to prevent concurrent updates to the same list, which could mess up the lamport timestamp.
+	// Lock (SELECT FOR UPDATE) discoveryservice row to prevent concurrent updates to the same list, which could mess up the lamport timestamp.
 	// But, it is not supported by SQLite. SQLite defaults to table-level write-locks upon the first write action in the transaction.
 	//
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -317,14 +317,14 @@ func (s *sqlStore) updateTimestamp(tx *gorm.DB, serviceID string, newTimestamp *
 	result.ID = serviceID
 	if newTimestamp == nil {
 		// Increment timestamp
-		result.Timestamp++
+		result.LamportTimestamp++
 	} else {
-		result.Timestamp = uint64(*newTimestamp)
+		result.LamportTimestamp = uint64(*newTimestamp)
 	}
 	if err := tx.Save(&result).Error; err != nil {
 		return 0, err
 	}
-	return Timestamp(result.Timestamp), nil
+	return Timestamp(result.LamportTimestamp), nil
 }
 
 func (s *sqlStore) exists(serviceID string, credentialSubjectID string, presentationID string) (bool, error) {

@@ -23,7 +23,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "DiscoveryService")
+var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "Discovery")
 
 // Logger returns a logger with the module field set
 func Logger() *logrus.Entry {
