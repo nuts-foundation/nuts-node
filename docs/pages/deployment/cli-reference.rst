@@ -70,7 +70,7 @@ The following options apply to the server commands below:
       --storage.redis.sentinel.username string        Username for authenticating to Redis Sentinels.
       --storage.redis.tls.truststorefile string       PEM file containing the trusted CA certificate(s) for authenticating remote Redis servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
       --storage.redis.username string                 Redis database username. If set, it overrides the username in the connection URL.
-      --storage.sql.connection string                 Connection string for the SQL database. If not set, it defaults to a SQLite database stored inside the configured data directory. If specifying a SQLite database, make sure to enable foreign keys with the '_foreign_keys=on' option.
+      --storage.sql.connection string                 Connection string for the SQL database. If not set, it defaults to a SQLite database stored inside the configured data directory. If specifying a SQLite database, make sure to enable foreign keys with the '_foreign_keys=on' query parameter.
       --strictmode                                    When set, insecure settings are forbidden. (default true)
       --tls.certfile string                           PEM file containing the certificate for the server (also used as client certificate).
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
