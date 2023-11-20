@@ -310,7 +310,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 
 		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
 
-		require.EqualError(t, err, "unable to resolve credential for input descriptor '1': path '$.verifiableCredential' (level 0) does not reference a credential")
+		require.EqualError(t, err, "unable to resolve credential for input descriptor '1': path '$.verifiableCredential' does not reference a credential")
 		assert.Nil(t, credentials)
 	})
 	t.Run("invalid JSON-LD credential", func(t *testing.T) {
@@ -379,7 +379,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 
 		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
 
-		assert.EqualError(t, err, "unable to resolve credential for input descriptor '1': value of Go type 'string' at path '$.verifiableCredential.expirationDate' (level 0) can't be decoded using format 'ldp_vc'")
+		assert.EqualError(t, err, "unable to resolve credential for input descriptor '1': value of Go type 'string' at path '$.verifiableCredential.expirationDate' can't be decoded using format 'ldp_vc'")
 		assert.Nil(t, credentials)
 	})
 }

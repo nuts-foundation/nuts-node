@@ -83,8 +83,7 @@ func PresentationSigner(presentation vc.VerifiablePresentation) (*did.DID, error
 		verificationMethod, err := did.ParseDIDURL(proofs[0].VerificationMethod.String())
 		if err != nil || verificationMethod.DID.Empty() {
 			return nil, fmt.Errorf("invalid verification method for JSON-LD presentation: %w", err)
-		} else {
-			return &verificationMethod.DID, nil
 		}
+		return &verificationMethod.DID, nil
 	}
 }
