@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"sync"
 	"testing"
 )
 
@@ -315,6 +316,20 @@ func Test_sqlStore_search(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("concurrency", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		wg := &sync.WaitGroup{}
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				err := c.add(testServiceID, createPresentation(aliceDID, vcAlice), nil)
+				require.NoError(t, err)
+			}()
+		}
+		wg.Wait()
+	})
 }
 
 func setupStore(t *testing.T, db *gorm.DB) *sqlStore {

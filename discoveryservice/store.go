@@ -25,11 +25,13 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/discoveryservice/log"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -100,7 +102,8 @@ func (l credentialPropertyRecord) TableName() string {
 }
 
 type sqlStore struct {
-	db *gorm.DB
+	db        *gorm.DB
+	writeLock sync.Mutex
 }
 
 func newSQLStore(db *gorm.DB, definitions map[string]Definition) (*sqlStore, error) {
@@ -114,7 +117,8 @@ func newSQLStore(db *gorm.DB, definitions map[string]Definition) (*sqlStore, err
 		}
 	}
 	return &sqlStore{
-		db: db,
+		db:        db,
+		writeLock: sync.Mutex{},
 	}, nil
 }
 
@@ -132,10 +136,19 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 	} else if exists {
 		return ErrPresentationAlreadyExists
 	}
+	if _, isSQLite := s.db.Config.Dialector.(*sqlite.Dialector); isSQLite {
+		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
+		// and any other attempt to acquire a write transaction will directly return an error.
+		// This is in contrast to most other SQL-databases, which let the 2nd thread wait for some time to acquire the lock.
+		// The general advice for SQLite is to retry the operation, which is just poor-man's scheduling.
+		// So to keep behavior consistent across databases, we'll just lock the entire store for the duration of the transaction.
+		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
+		s.writeLock.Lock()
+		defer s.writeLock.Unlock()
+	}
 	if err := s.prune(); err != nil {
 		return err
 	}
-
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		newTimestamp, err := s.updateTimestamp(tx, serviceID, timestamp)
 		if err != nil {
@@ -293,6 +306,8 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 func (s *sqlStore) updateTimestamp(tx *gorm.DB, serviceID string, newTimestamp *Timestamp) (Timestamp, error) {
 	var result serviceRecord
 	// Lock (SELECT FOR UPDATE) discoveryservices row to prevent concurrent updates to the same list, which could mess up the lamport timestamp.
+	// But, it is not supported by SQLite. SQLite defaults to table-level write-locks upon the first write action in the transaction.
+	//
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where(serviceRecord{ID: serviceID}).
 		Find(&result).
