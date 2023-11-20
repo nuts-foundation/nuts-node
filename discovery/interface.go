@@ -16,7 +16,7 @@
  *
  */
 
-package discoveryservice
+package discovery
 
 import (
 	"github.com/nuts-foundation/go-did/vc"
@@ -29,14 +29,16 @@ import (
 // Pass 0 to start at the beginning of the list.
 type Timestamp uint64
 
+// Server defines the API for Discovery Servers.
 type Server interface {
-	// Add registers a presentation of the given Discovery Service.
+	// Add registers a presentation on the given Discovery Service.
 	// If the presentation is not valid or it does not conform to the Service Definition, it returns an error.
 	Add(serviceID string, presentation vc.VerifiablePresentation) error
 	// Get retrieves the presentations for the given service, starting at the given timestamp.
 	Get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error)
 }
 
+// Client defines the API for Discovery Clients.
 type Client interface {
 	Search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error)
 }

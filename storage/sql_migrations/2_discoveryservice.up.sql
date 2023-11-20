@@ -33,7 +33,7 @@ create table discovery_credential
     -- The type stored in the type column will be the 'other' type, not being 'VerifiableCredential'.
     -- When credentials with 3 or more types appear, we could have to use a separate table for the types.
     credential_type       varchar,
-    constraint fk_discoveryservice_credential_presentation foreign key (presentation_id) references discovery_presentation (id) on delete cascade
+    constraint fk_discovery_credential_presentation foreign key (presentation_id) references discovery_presentation (id) on delete cascade
 );
 
 -- discovery_credential_prop contains the credentialSubject properties of a credential in a presentation of the discovery service.
@@ -45,5 +45,5 @@ create table discovery_credential_prop
     value         varchar,
     PRIMARY KEY (credential_id, key),
     -- cascading delete: if the presentation gets deleted, the properties get deleted as well
-    constraint fk_discoveryservice_credential_id foreign key (credential_id) references discovery_credential (id) on delete cascade
+    constraint fk_discovery_credential_id foreign key (credential_id) references discovery_credential (id) on delete cascade
 );

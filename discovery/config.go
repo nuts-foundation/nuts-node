@@ -16,7 +16,7 @@
  *
  */
 
-package discoveryservice
+package discovery
 
 // Config holds the config of the module
 type Config struct {

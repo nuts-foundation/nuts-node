@@ -1,4 +1,4 @@
-drop table discoveryservices;
-drop table discoveryservice_presentations;
-drop table discoveryservice_credentials;
-drop table discoveryservice_credential_props;
+drop table discovery_service;
+drop table discovery_presentation;
+drop table discovery_credential;
+drop table discovery_credential_prop;

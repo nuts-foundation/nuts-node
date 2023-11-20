@@ -16,14 +16,14 @@
  *
  */
 
-package discoveryservice
+package discovery
 
 import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/discoveryservice/log"
+	"github.com/nuts-foundation/nuts-node/discovery/log"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -305,7 +305,7 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 
 func (s *sqlStore) updateTimestamp(tx *gorm.DB, serviceID string, newTimestamp *Timestamp) (Timestamp, error) {
 	var result serviceRecord
-	// Lock (SELECT FOR UPDATE) discoveryservice row to prevent concurrent updates to the same list, which could mess up the lamport timestamp.
+	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the lamport timestamp.
 	// But, it is not supported by SQLite. SQLite defaults to table-level write-locks upon the first write action in the transaction.
 	//
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).

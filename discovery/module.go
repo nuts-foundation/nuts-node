@@ -16,7 +16,7 @@
  *
  */
 
-package discoveryservice
+package discovery
 
 import (
 	"errors"
@@ -41,15 +41,16 @@ var _ core.Runnable = &Module{}
 var _ core.Configurable = &Module{}
 var _ Server = &Module{}
 
-// var _ Client = &Module{}
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
+// New creates a new Module.
 func New(storageInstance storage.Engine) *Module {
 	return &Module{
 		storageInstance: storageInstance,
 	}
 }
 
+// Module is the main entry point for discovery services.
 type Module struct {
 	config            Config
 	storageInstance   storage.Engine

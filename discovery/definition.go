@@ -16,7 +16,7 @@
  *
  */
 
-package discoveryservice
+package discovery
 
 import (
 	"bytes"

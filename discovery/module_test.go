@@ -16,7 +16,7 @@
  *
  */
 
-package discoveryservice
+package discovery
 
 import (
 	"github.com/nuts-foundation/go-did/vc"

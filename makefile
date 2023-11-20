@@ -19,7 +19,7 @@ gen-mocks:
 	mockgen -destination=crypto/mock.go -package=crypto -source=crypto/interface.go
 	mockgen -destination=crypto/storage/spi/mock.go -package spi -source=crypto/storage/spi/interface.go
 	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
-	mockgen -destination=discoveryservice/mock.go -package=discoveryservice -source=discoveryservice/interface.go
+	mockgen -destination=discovery/mock.go -package=discovery -source=discovery/interface.go
 	mockgen -destination=events/events_mock.go -package=events -source=events/interface.go Event
 	mockgen -destination=events/mock.go -package=events -source=events/conn.go Conn ConnectionPool
 	mockgen -destination=http/echo_mock.go -package=http -source=http/echo.go -imports echo=github.com/labstack/echo/v4
