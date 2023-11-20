@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -95,6 +96,90 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value")
 		assert.Nil(t, response)
+	})
+}
+
+func TestHTTPClient_Authorized(t *testing.T) {
+	ctx := context.Background()
+	audience := did.MustParseDID("did:web:example.com:audience")
+	request := AuthorizedRequest{
+		Audience:               audience.String(),
+		ClientId:               "did:web:example.com:client",
+		PresentationSubmission: PresentationSubmission{},
+		RequestMethod:          "GET",
+		RequestUrl:             "/resource",
+		Scope:                  "test 1 2 3",
+		Vps:                    nil,
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		var capturedRequest *http.Request
+		var capturedRequestBody []byte
+		handler := func(writer http.ResponseWriter, request *http.Request) {
+			switch request.URL.Path {
+			case "/authorized":
+				capturedRequest = request
+				capturedRequestBody, _ = io.ReadAll(request.Body)
+				writer.WriteHeader(http.StatusOK)
+				writer.Write([]byte("true"))
+			}
+			writer.WriteHeader(http.StatusNotFound)
+		}
+		tlsServer, client := testServerAndClient(t, http.HandlerFunc(handler))
+
+		response, err := client.Authorized(ctx, tlsServer.URL, request)
+
+		require.NoError(t, err)
+		assert.True(t, response)
+		require.NotNil(t, capturedRequest)
+		assert.Equal(t, "POST", capturedRequest.Method)
+		assert.Equal(t, "/authorized", capturedRequest.URL.Path)
+		// check body
+		require.NotNil(t, capturedRequest.Body)
+		var capturedRequestData AuthorizedRequest
+		err = json.Unmarshal(capturedRequestBody, &capturedRequestData)
+		require.NoError(t, err)
+		assert.Equal(t, request, capturedRequestData)
+	})
+	t.Run("error - not found", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusNotFound}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.Authorized(ctx, tlsServer.URL, request)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "server returned HTTP 404 (expected: 200)")
+		assert.False(t, response)
+	})
+	t.Run("error - invalid URL", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusNotFound}
+		_, client := testServerAndClient(t, &handler)
+
+		response, err := client.Authorized(ctx, ":", request)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+		assert.False(t, response)
+	})
+	t.Run("error - invalid response", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.Authorized(ctx, tlsServer.URL, request)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value")
+		assert.False(t, response)
+	})
+	t.Run("error - invalid endpoint", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK}
+		_, client := testServerAndClient(t, &handler)
+
+		response, err := client.Authorized(ctx, "http://::1:1", request)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "failed to call endpoint: Post \"http://::1:1/authorized\": dial tcp [::1]:1: connect: connection refused")
+		assert.False(t, response)
 	})
 }
 

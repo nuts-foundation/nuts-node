@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"io"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -48,20 +47,21 @@ func NewHTTPClient(strictMode bool, timeout time.Duration, tlsConfig *tls.Config
 }
 
 // PresentationDefinition retrieves the presentation definition from the presentation definition endpoint for the given scope and .
-func (hb HTTPClient) PresentationDefinition(ctx context.Context, policyEndpoint string, authorizer did.DID, scopes string) (*pe.PresentationDefinition, error) {
-	presentationDefinitionURL, err := core.ParsePublicURL(policyEndpoint, hb.strictMode)
+func (hb HTTPClient) PresentationDefinition(ctx context.Context, serverAddress string, authorizer did.DID, scopes string) (*pe.PresentationDefinition, error) {
+	_, err := core.ParsePublicURL(serverAddress, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}
-	presentationDefinitionURL.Path = fmt.Sprintf("%s/presentation_definition", presentationDefinitionURL.Path)
-	presentationDefinitionURL.RawQuery = url.Values{"scope": []string{scopes}, "authorizer": []string{authorizer.String()}}.Encode()
 
-	// create a GET request with query params
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, presentationDefinitionURL.String(), nil)
+	client, err := NewClient(serverAddress, WithHTTPClient(hb.httpClient))
 	if err != nil {
 		return nil, err
 	}
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	params := &PresentationDefinitionParams{
+		Scope:      scopes,
+		Authorizer: authorizer.String(),
+	}
+	response, err := client.PresentationDefinition(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call endpoint: %w", err)
 	}
@@ -80,4 +80,36 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, policyEndpoint 
 	}
 
 	return &presentationDefinition, nil
+}
+
+func (hb HTTPClient) Authorized(ctx context.Context, serverAddress string, request AuthorizedRequest) (bool, error) {
+	_, err := core.ParsePublicURL(serverAddress, hb.strictMode)
+	if err != nil {
+		return false, err
+	}
+
+	client, err := NewClient(serverAddress, WithHTTPClient(hb.httpClient))
+	if err != nil {
+		return false, err
+	}
+
+	response, err := client.CheckAuthorized(ctx, request)
+	if err != nil {
+		return false, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
+		return false, httpErr
+	}
+
+	var authorized bool
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return false, fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &authorized); err != nil {
+		return false, fmt.Errorf("unable to unmarshal response: %w", err)
+	}
+
+	return authorized, nil
 }
