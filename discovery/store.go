@@ -35,9 +35,6 @@ import (
 	"time"
 )
 
-var ErrServiceNotFound = errors.New("discovery service not found")
-var ErrPresentationAlreadyExists = errors.New("presentation already exists")
-
 type serviceRecord struct {
 	ID               string `gorm:"primaryKey"`
 	LamportTimestamp uint64

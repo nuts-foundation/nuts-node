@@ -139,16 +139,12 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 }
 
 func (m *Module) addPresentation(definition Definition, presentation vc.VerifiablePresentation) error {
-	// Must contain credentials
-	if len(presentation.VerifiableCredential) == 0 {
-		return errors.New("presentation must contain at least one credentialRecord")
-	}
 	// VP can't be valid longer than the credentialRecord it contains
 	expiration := presentation.JWT().Expiration()
 	for _, cred := range presentation.VerifiableCredential {
 		exp := cred.JWT().Expiration()
 		if !exp.IsZero() && expiration.After(exp) {
-			return fmt.Errorf("presentation is valid longer than the credentialRecord(s) it contains")
+			return fmt.Errorf("presentation is valid longer than the credential(s) it contains")
 		}
 	}
 	// VP must fulfill the PEX Presentation Definition

@@ -19,6 +19,7 @@
 package discovery
 
 import (
+	"errors"
 	"github.com/nuts-foundation/go-did/vc"
 )
 
@@ -28,6 +29,13 @@ import (
 // it is incremented when a new entry is added to the list.
 // Pass 0 to start at the beginning of the list.
 type Timestamp uint64
+
+// ErrServiceNotFound is returned when a service (ID) is not found in the discovery service.
+var ErrServiceNotFound = errors.New("discovery service not found")
+
+// ErrPresentationAlreadyExists is returned when a presentation is added to the discovery service,
+// but a presentation with this ID already exists.
+var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 
 // Server defines the API for Discovery Servers.
 type Server interface {
