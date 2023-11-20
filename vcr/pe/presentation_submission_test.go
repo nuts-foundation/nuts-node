@@ -172,11 +172,8 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 }
 
 func TestPresentationSubmission_Resolve(t *testing.T) {
-	//holder1 := did.MustParseDID("did:example:1")
-	//holder2 := did.MustParseDID("did:example:2")
 	id1 := ssi.MustParseURI("1")
 	id2 := ssi.MustParseURI("2")
-	//id3 := ssi.MustParseURI("3")
 	now := time.Now()
 	vc1 := credentialToJSONLD(vc.VerifiableCredential{
 		ID:             &id1,
