@@ -383,16 +383,3 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		assert.Nil(t, credentials)
 	})
 }
-
-func credentialToJSONLD(credential vc.VerifiableCredential) vc.VerifiableCredential {
-	bytes, err := credential.MarshalJSON()
-	if err != nil {
-		panic(err)
-	}
-	var result vc.VerifiableCredential
-	err = json.Unmarshal(bytes, &result)
-	if err != nil {
-		panic(err)
-	}
-	return result
-}
