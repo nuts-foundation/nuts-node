@@ -132,7 +132,6 @@ func Test_engine_sqlDatabase(t *testing.T) {
 	})
 	t.Run("runs migrations", func(t *testing.T) {
 		e := New().(*engine)
-		e.config.SQL.ConnectionString = SQLiteInMemoryConnectionString
 		require.NoError(t, e.Configure(*core.NewServerConfig()))
 		require.NoError(t, e.Start())
 		t.Cleanup(func() {

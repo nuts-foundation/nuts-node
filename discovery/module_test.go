@@ -89,16 +89,14 @@ func Test_Module_Add(t *testing.T) {
 		})
 		vpAlice := createPresentation(aliceDID, vcAlice)
 		err := m.Add(testServiceID, vpAlice)
-		assert.EqualError(t, err, "presentation is valid longer than the credentialRecord(s) it contains")
+		assert.EqualError(t, err, "presentation is valid longer than the credential(s) it contains")
 	})
-	t.Run("not valid long enough", func(t *testing.T) {
+	t.Run("no expiration", func(t *testing.T) {
 		m := setupModule(t, storageEngine)
-		def := m.services[testServiceID]
-		def.PresentationMaxValidity = int((24 * time.Hour).Seconds() * 365)
-		m.services[testServiceID] = def
-
-		err := m.Add(testServiceID, vpAlice)
-		assert.EqualError(t, err, "presentation is not valid for long enough (min 2190h0m0s)")
+		err := m.Add(testServiceID, createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
+			delete(claims, "exp")
+		}))
+		assert.EqualError(t, err, "presentation does not have an expiration")
 	})
 	t.Run("presentation does not contain an ID", func(t *testing.T) {
 		m := setupModule(t, storageEngine)

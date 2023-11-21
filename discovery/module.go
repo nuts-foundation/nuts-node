@@ -120,11 +120,8 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 		return errors.New("presentation does not have an ID")
 	}
 	expiration := presentation.JWT().Expiration()
-	// VPs should not be valid for too short; unnecessary overhead at the server and clients.
-	// Also protects against expiration not being set at all. The factor is somewhat arbitrary.
-	minValidity := float64(definition.PresentationMaxValidity / 4)
-	if expiration.Sub(time.Now()).Seconds() < minValidity {
-		return fmt.Errorf("presentation is not valid for long enough (min %s)", time.Duration(minValidity)*time.Second)
+	if expiration.IsZero() {
+		return errors.New("presentation does not have an expiration")
 	}
 	// VPs should not be valid for too long, as that would prevent the server from pruning them.
 	if int(expiration.Sub(time.Now()).Seconds()) > definition.PresentationMaxValidity {
