@@ -47,40 +47,44 @@ var testCredentialString = `
 //go:embed test/*.json
 var testFiles embed.FS
 
-var pdJSONLD PresentationDefinition
-var pdJSONLDorJWT PresentationDefinition
-var pdJSONLDorJWTWithPick PresentationDefinition
-var pdJWT PresentationDefinition
+type testDefinitions struct {
+	JSONLD              PresentationDefinition
+	JSONLDorJWT         PresentationDefinition
+	JSONLDorJWTWithPick PresentationDefinition
+	JWT                 PresentationDefinition
+}
 
-func init() {
+func definitions() testDefinitions {
+	var result testDefinitions
 	if data, err := testFiles.ReadFile("test/pd_jsonld.json"); err != nil {
 		panic(err)
 	} else {
-		if err = json.Unmarshal(data, &pdJSONLD); err != nil {
+		if err = json.Unmarshal(data, &result.JSONLD); err != nil {
 			panic(err)
 		}
 	}
 	if data, err := testFiles.ReadFile("test/pd_jsonld_jwt.json"); err != nil {
 		panic(err)
 	} else {
-		if err = json.Unmarshal(data, &pdJSONLDorJWT); err != nil {
+		if err = json.Unmarshal(data, &result.JSONLDorJWT); err != nil {
 			panic(err)
 		}
 	}
 	if data, err := testFiles.ReadFile("test/pd_jsonld_jwt_pick.json"); err != nil {
 		panic(err)
 	} else {
-		if err = json.Unmarshal(data, &pdJSONLDorJWTWithPick); err != nil {
+		if err = json.Unmarshal(data, &result.JSONLDorJWTWithPick); err != nil {
 			panic(err)
 		}
 	}
 	if data, err := testFiles.ReadFile("test/pd_jwt.json"); err != nil {
 		panic(err)
 	} else {
-		if err = json.Unmarshal(data, &pdJWT); err != nil {
+		if err = json.Unmarshal(data, &result.JWT); err != nil {
 			panic(err)
 		}
 	}
+	return result
 }
 
 func TestMatch(t *testing.T) {
@@ -90,7 +94,7 @@ func TestMatch(t *testing.T) {
 	t.Run("Basic", func(t *testing.T) {
 		t.Run("JSON-LD", func(t *testing.T) {
 			t.Run("Happy flow", func(t *testing.T) {
-				vcs, mappingObjects, err := pdJSONLD.Match([]vc.VerifiableCredential{jsonldVC})
+				vcs, mappingObjects, err := definitions().JSONLD.Match([]vc.VerifiableCredential{jsonldVC})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
@@ -98,7 +102,7 @@ func TestMatch(t *testing.T) {
 				assert.Equal(t, "$.verifiableCredential[0]", mappingObjects[0].Path)
 			})
 			t.Run("Only second VC matches", func(t *testing.T) {
-				vcs, mappingObjects, err := pdJSONLD.Match([]vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, jsonldVC})
+				vcs, mappingObjects, err := definitions().JSONLD.Match([]vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, jsonldVC})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
@@ -107,7 +111,7 @@ func TestMatch(t *testing.T) {
 		})
 		t.Run("JWT", func(t *testing.T) {
 			t.Run("Happy flow", func(t *testing.T) {
-				vcs, mappingObjects, err := pdJWT.Match([]vc.VerifiableCredential{jwtVC})
+				vcs, mappingObjects, err := definitions().JWT.Match([]vc.VerifiableCredential{jwtVC})
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
 				require.Len(t, mappingObjects, 1)
@@ -121,7 +125,7 @@ func TestMatch(t *testing.T) {
 				jwtCredential, err := vc.ParseVerifiableCredential(string(signedToken))
 				require.NoError(t, err)
 
-				vcs, mappingObjects, err := pdJWT.Match([]vc.VerifiableCredential{*jwtCredential})
+				vcs, mappingObjects, err := definitions().JWT.Match([]vc.VerifiableCredential{*jwtCredential})
 
 				assert.NoError(t, err)
 				assert.Empty(t, vcs)
@@ -130,9 +134,8 @@ func TestMatch(t *testing.T) {
 		})
 	})
 	t.Run("Input Descriptor Claim Format matching", func(t *testing.T) {
-		presentationDefinition := PresentationDefinition{}
-		_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
 		// making sure this test doesn't break when testPresentationDefinition changes
+		presentationDefinition := definitions().JSONLDorJWT
 		fullFormat := presentationDefinition.Format
 		require.NotNil(t, fullFormat)
 		require.NotNil(t, (*fullFormat)["jwt_vc"])
@@ -141,7 +144,7 @@ func TestMatch(t *testing.T) {
 			presentationDefinition.Format = nil
 			presentationDefinition.InputDescriptors[0].Format = fullFormat
 
-			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{jsonldVC})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 1)
@@ -152,7 +155,7 @@ func TestMatch(t *testing.T) {
 			presentationDefinition.Format = fullFormat
 			presentationDefinition.InputDescriptors[0].Format = &PresentationDefinitionClaimFormatDesignations{"jwt_vc": (*fullFormat)["jwt_vc"]}
 
-			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{jsonldVC})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 0)
@@ -181,28 +184,28 @@ func TestMatch(t *testing.T) {
 				assert.Len(t, mappingObjects, 1)
 			})
 			t.Run("choose JSON-LD (with multiple 'path's)", func(t *testing.T) {
-				vcs, mappingObjects, err := pdJSONLDorJWT.Match([]vc.VerifiableCredential{jsonldVC})
+				vcs, mappingObjects, err := definitions().JSONLDorJWT.Match([]vc.VerifiableCredential{jsonldVC})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
 				require.Len(t, mappingObjects, 1)
 			})
 			t.Run("choose JWT(with multiple 'path's)", func(t *testing.T) {
-				vcs, mappingObjects, err := pdJSONLDorJWT.Match([]vc.VerifiableCredential{jwtVC})
+				vcs, mappingObjects, err := definitions().JSONLDorJWT.Match([]vc.VerifiableCredential{jwtVC})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
 				require.Len(t, mappingObjects, 1)
 			})
 			t.Run("choose JSON-LD (with 'pick')", func(t *testing.T) {
-				vcs, mappingObjects, err := pdJSONLDorJWTWithPick.Match([]vc.VerifiableCredential{jsonldVC})
+				vcs, mappingObjects, err := definitions().JSONLDorJWTWithPick.Match([]vc.VerifiableCredential{jsonldVC})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
 				require.Len(t, mappingObjects, 1)
 			})
 			t.Run("choose JWT (with 'pick')", func(t *testing.T) {
-				vcs, mappingObjects, err := pdJSONLDorJWTWithPick.Match([]vc.VerifiableCredential{jwtVC})
+				vcs, mappingObjects, err := definitions().JSONLDorJWTWithPick.Match([]vc.VerifiableCredential{jwtVC})
 
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
