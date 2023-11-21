@@ -175,10 +175,10 @@ func TestHTTPClient_Authorized(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK}
 		_, client := testServerAndClient(t, &handler)
 
-		response, err := client.Authorized(ctx, "http://::1:1", request)
+		response, err := client.Authorized(ctx, "http://test.test", request)
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "failed to call endpoint: Post \"http://::1:1/authorized\": dial tcp [::1]:1: connect: connection refused")
+		assert.EqualError(t, err, "failed to call endpoint: Post \"http://test.test/authorized\": dial tcp: lookup test.test: no such host")
 		assert.False(t, response)
 	})
 }
