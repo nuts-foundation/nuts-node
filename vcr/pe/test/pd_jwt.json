@@ -1,0 +1,47 @@
+{
+  "id": "Definition requesting NutsOrganizationCredential",
+  "input_descriptors": [
+    {
+      "id": "as_jwt",
+      "constraints": {
+        "fields": [
+          {
+            "path": [
+              "$.credentialSubject[0].organization.city"
+            ],
+            "filter": {
+              "type": "string",
+              "const": "IJbergen"
+            }
+          },
+          {
+            "path": [
+              "$.credentialSubject[0].organization.name"
+            ],
+            "filter": {
+              "type": "string",
+              "pattern": "care"
+            }
+          },
+          {
+            "path": [
+              "$.type"
+            ],
+            "filter": {
+              "type": "string",
+              "const": "NutsOrganizationCredential"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "format": {
+    "jwt_vc": {
+      "alg": [
+        "ES256K",
+        "ES384"
+      ]
+    }
+  }
+}

@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	"strings"
 
 	"github.com/PaesslerAG/jsonpath"
@@ -45,16 +47,15 @@ type PresentationContext struct {
 	PresentationSubmission *PresentationSubmission
 }
 
-// Match matches the VCs against the presentation definition.
+// Match matches the VCs against the presentation definition. It returns the matching Verifiable Credentials and their mapping to the Presentation Definition.
+// If the given credentials do not match the presentation definition, no credentials, mapping, or error is returned.
 // It implements §5 of the Presentation Exchange specification (v2.x.x pre-Draft, 2023-07-29) (https://identity.foundation/presentation-exchange/#presentation-definition)
 // It supports the following:
 // - ldp_vc format
+// - jwt_vc format
 // - pattern, const and enum only on string fields
 // - number, boolean, array and string JSON schema types
 // - Submission Requirements Feature
-// It doesn't do the credential search, this should be done before calling this function.
-// The given PresentationContext is used to set the correct vp index in the nested paths and to alter the given PresentationSubmission.
-// It assumes this method is used for OpenID4VP since other envelopes require different nesting.
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 // Other errors can be returned for faulty JSON paths or regex patterns.
 func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCredential) ([]vc.VerifiableCredential, []InputDescriptorMappingObject, error) {
@@ -222,32 +223,41 @@ func (presentationDefinition PresentationDefinition) groups() []groupCandidates 
 }
 
 // matchFormat checks if the credential matches the Format from the presentationDefinition.
-// if one of format['ldp_vc'] or format['jwt_vc'] is present, the VC must match that format.
 // If the VC is of the required format, the alg or proofType must also match.
 // vp formats are ignored.
 // This might not be fully interoperable, but the spec at https://identity.foundation/presentation-exchange/#presentation-definition is not clear on this.
 func matchFormat(format *PresentationDefinitionClaimFormatDesignations, credential vc.VerifiableCredential) bool {
-	if format == nil {
+	if format == nil || len(*format) == 0 {
 		return true
 	}
 
 	asMap := map[string]map[string][]string(*format)
-	// we're only interested in the jwt_vc and ldp_vc formats
-	if asMap["jwt_vc"] == nil && asMap["ldp_vc"] == nil {
-		return true
-	}
-
-	// only ldp_vc supported for now
-	if entry := asMap["ldp_vc"]; entry != nil {
-		if proofTypes := entry["proof_type"]; proofTypes != nil {
-			for _, proofType := range proofTypes {
-				if matchProofType(proofType, credential) {
-					return true
+	switch credential.Format() {
+	case vc.JSONLDCredentialProofFormat:
+		if entry := asMap[vc.JSONLDCredentialProofFormat]; entry != nil {
+			if proofTypes := entry["proof_type"]; proofTypes != nil {
+				for _, proofType := range proofTypes {
+					if matchProofType(proofType, credential) {
+						return true
+					}
+				}
+			}
+		}
+	case vc.JWTCredentialProofFormat:
+		// Get signing algorithm used to sign the JWT
+		message, _ := jws.ParseString(credential.Raw()) // can't really fail, JWT has been parsed before.
+		signingAlgorithm, _ := message.Signatures()[0].ProtectedHeaders().Get(jws.AlgorithmKey)
+		// Check that the signing algorithm is specified by the presentation definition
+		if entry := asMap[vc.JWTCredentialProofFormat]; entry != nil {
+			if supportedAlgorithms := entry[jws.AlgorithmKey]; supportedAlgorithms != nil {
+				for _, supportedAlgorithm := range supportedAlgorithms {
+					if signingAlgorithm == jwa.SignatureAlgorithm(supportedAlgorithm) {
+						return true
+					}
 				}
 			}
 		}
 	}
-
 	return false
 }
 
@@ -275,10 +285,26 @@ func matchCredential(descriptor InputDescriptor, credential vc.VerifiableCredent
 // IsHolder, SameSubject, SubjectIsIssuer, Statuses are not supported for now.
 // LimitDisclosure is not supported for now.
 func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential) (bool, error) {
+	// jsonpath works on interfaces, so convert the VC to an interface
+	var credentialAsMap map[string]interface{}
+	var err error
+	switch credential.Format() {
+	case vc.JWTCredentialProofFormat:
+		// JWT-VCs marshal to a JSON string, so marshal an alias to make sure we get a JSON object with the VC properties,
+		// instead of a JWT string.
+		type Alias vc.VerifiableCredential
+		credentialAsMap, err = remarshalToMap(Alias(credential))
+	case vc.JSONLDCredentialProofFormat:
+		credentialAsMap, err = remarshalToMap(credential)
+	}
+	if err != nil {
+		return false, err
+	}
+
 	// for each field in constraint.fields:
 	//   a vc must match the field
 	for _, field := range constraint.Fields {
-		match, err := matchField(field, credential)
+		match, err := matchField(field, credentialAsMap)
 		if err != nil {
 			return false, err
 		}
@@ -291,18 +317,13 @@ func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential
 
 // matchField matches the field against the VC.
 // All fields need to match unless optional is set to true and no values are found for all the paths.
-func matchField(field Field, credential vc.VerifiableCredential) (bool, error) {
-	// jsonpath works on interfaces, so convert the VC to an interface
-	asJSON, _ := json.Marshal(credential)
-	var asInterface interface{}
-	_ = json.Unmarshal(asJSON, &asInterface)
-
+func matchField(field Field, credential map[string]interface{}) (bool, error) {
 	// for each path in field.paths:
 	//   a vc must match one of the path
 	var optionalInvalid int
 	for _, path := range field.Path {
 		// if path is not found continue
-		value, err := getValueAtPath(path, asInterface)
+		value, err := getValueAtPath(path, credential)
 		if err != nil {
 			return false, err
 		}
@@ -337,7 +358,10 @@ func matchField(field Field, credential vc.VerifiableCredential) (bool, error) {
 func getValueAtPath(path string, vcAsInterface interface{}) (interface{}, error) {
 	value, err := jsonpath.Get(path, vcAsInterface)
 	// jsonpath.Get returns some errors if the path is not found, or it has a different type as expected
-	if err != nil && (strings.HasPrefix(err.Error(), "unknown key") || strings.HasPrefix(err.Error(), "unsupported value type")) {
+	if err != nil && (strings.HasPrefix(err.Error(), "unknown key") ||
+		strings.HasPrefix(err.Error(), "unsupported value type") ||
+		// Then a JSON path points to an array, but the expression doesn't specify an index
+		strings.HasPrefix(err.Error(), "could not select value, invalid key: expected number but got")) {
 		return nil, nil
 	}
 	return value, err
@@ -442,4 +466,17 @@ func vcEqual(a, b vc.VerifiableCredential) bool {
 	aJSON, _ := json.Marshal(a)
 	bJSON, _ := json.Marshal(b)
 	return string(aJSON) == string(bJSON)
+}
+
+func remarshalToMap(v interface{}) (map[string]interface{}, error) {
+	asJSON, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var result map[string]interface{}
+	err = json.Unmarshal(asJSON, &result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }

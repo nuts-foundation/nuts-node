@@ -1,0 +1,99 @@
+{
+  "id": "Definition requesting NutsOrganizationCredential",
+  "submission_requirements": [
+    {
+      "rule": "pick",
+      "count": 1,
+      "from": "vc"
+    }
+  ],
+  "input_descriptors": [
+    {
+      "id": "as_jsonld",
+      "group": [
+        "vc"
+      ],
+      "constraints": {
+        "fields": [
+          {
+            "path": [
+              "$.credentialSubject.organization.city"
+            ],
+            "filter": {
+              "type": "string",
+              "const": "IJbergen"
+            }
+          },
+          {
+            "path": [
+              "$.credentialSubject.organization.name"
+            ],
+            "filter": {
+              "type": "string",
+              "pattern": "care"
+            }
+          },
+          {
+            "path": [
+              "$.type"
+            ],
+            "filter": {
+              "type": "string",
+              "const": "NutsOrganizationCredential"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "as_jwt",
+      "group": [
+        "vc"
+      ],
+      "constraints": {
+        "fields": [
+          {
+            "path": [
+              "$.credentialSubject[0].organization.city"
+            ],
+            "filter": {
+              "type": "string",
+              "const": "IJbergen"
+            }
+          },
+          {
+            "path": [
+              "$.credentialSubject[0].organization.name"
+            ],
+            "filter": {
+              "type": "string",
+              "pattern": "care"
+            }
+          },
+          {
+            "path": [
+              "$.type"
+            ],
+            "filter": {
+              "type": "string",
+              "const": "NutsOrganizationCredential"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "format": {
+    "jwt_vc": {
+      "alg": [
+        "ES256K",
+        "ES384"
+      ]
+    },
+    "ldp_vc": {
+      "proof_type": [
+        "JsonWebSignature2020"
+      ]
+    }
+  }
+}
