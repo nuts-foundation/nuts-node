@@ -147,7 +147,7 @@ func (presentationDefinition PresentationDefinition) matchSubmissionRequirements
 	}
 	for _, group := range presentationDefinition.groups() {
 		if _, ok := availableGroups[group.Name]; !ok {
-			return nil, nil, fmt.Errorf("group %s is required but not available", group.Name)
+			return nil, nil, fmt.Errorf("group '%s' is required but not available", group.Name)
 		}
 	}
 

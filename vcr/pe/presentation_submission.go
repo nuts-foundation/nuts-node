@@ -21,10 +21,12 @@ package pe
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/PaesslerAG/jsonpath"
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
+	"strings"
 )
 
 // ParsePresentationSubmission validates the given JSON and parses it into a PresentationSubmission.
@@ -168,4 +170,87 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 	}
 
 	return presentationSubmission, nonEmptySignInstructions, nil
+}
+
+// Resolve returns a map where each of the input descriptors is mapped to the corresponding VerifiableCredential.
+// If an input descriptor can't be mapped to a VC, an error is returned.
+// This function is specified by https://identity.foundation/presentation-exchange/#processing-of-submission-entries
+func (s PresentationSubmission) Resolve(presentations []vc.VerifiablePresentation) (map[string]vc.VerifiableCredential, error) {
+	var envelopeJSON []byte
+	if len(presentations) == 1 {
+		// TODO: This might not be right, caller might even use a JSON array as envelope with a single VP?
+		envelopeJSON, _ = json.Marshal(presentations[0])
+	} else {
+		envelopeJSON, _ = json.Marshal(presentations)
+	}
+	var envelope interface{}
+	if err := json.Unmarshal(envelopeJSON, &envelope); err != nil {
+		return nil, fmt.Errorf("unable to convert presentations to an interface: %w", err)
+	}
+
+	result := make(map[string]vc.VerifiableCredential)
+	for _, inputDescriptor := range s.DescriptorMap {
+		resolvedCredential, err := resolveCredential(nil, inputDescriptor, envelope)
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve credential for input descriptor '%s': %w", inputDescriptor.Id, err)
+		}
+		result[inputDescriptor.Id] = *resolvedCredential
+	}
+	return result, nil
+}
+
+func resolveCredential(path []string, mapping InputDescriptorMappingObject, value interface{}) (*vc.VerifiableCredential, error) {
+	fullPath := append(path, mapping.Path)
+	fullPathString := strings.Join(fullPath, "/")
+
+	targetValueRaw, err := jsonpath.Get(mapping.Path, value)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get value for path %s: %w", fullPathString, err)
+	}
+
+	var decodedTargetValue interface{}
+	switch targetValue := targetValueRaw.(type) {
+	case string:
+		// must be JWT VC or VP
+		if mapping.Format == vc.JWTCredentialProofFormat {
+			decodedTargetValue, err = vc.ParseVerifiableCredential(targetValue)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JWT credential at path '%s': %w", fullPathString, err)
+			}
+		} else if mapping.Format == vc.JWTPresentationProofFormat {
+			decodedTargetValue, err = vc.ParseVerifiablePresentation(targetValue)
+			if err != nil {
+				return nil, fmt.Errorf("invalid JWT presentation at path '%s': %w", fullPathString, err)
+			}
+		}
+	case map[string]interface{}:
+		// must be JSON-LD
+		targetValueAsJSON, _ := json.Marshal(targetValue)
+		if mapping.Format == vc.JSONLDCredentialProofFormat {
+			decodedTargetValue, err = vc.ParseVerifiableCredential(string(targetValueAsJSON))
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON-LD credential at path '%s': %w", fullPathString, err)
+			}
+		} else if mapping.Format == vc.JSONLDPresentationProofFormat {
+			decodedTargetValue, err = vc.ParseVerifiablePresentation(string(targetValueAsJSON))
+			if err != nil {
+				return nil, fmt.Errorf("invalid JSON-LD presentation at path '%s': %w", fullPathString, err)
+			}
+		}
+	}
+	if decodedTargetValue == nil {
+		return nil, fmt.Errorf("value of Go type '%T' at path '%s' can't be decoded using format '%s'", targetValueRaw, fullPathString, mapping.Format)
+	}
+	if mapping.PathNested == nil {
+		if decodedCredential, ok := decodedTargetValue.(*vc.VerifiableCredential); ok {
+			return decodedCredential, nil
+		}
+		return nil, fmt.Errorf("path '%s' does not reference a credential", fullPathString)
+	}
+	// path_nested implies the credential is not found at the evaluated JSON path, but further down.
+	// We need to decode the value at the path (could be a credential or presentation in JWT or VP format) and evaluate the nested path.
+	decodedValueJSON, _ := json.Marshal(decodedTargetValue)
+	var decodedValueMap map[string]interface{}
+	_ = json.Unmarshal(decodedValueJSON, &decodedValueMap)
+	return resolveCredential(fullPath, *mapping.PathNested, decodedValueMap)
 }
