@@ -34,6 +34,7 @@ var errInvalidWebDIDURL = errors.New("URL does not represent a Web DID")
 // - https://localhost/.well-known/did.json -> did:web:localhost
 // - https://localhost/alice+and+bob/path/did.json -> did:web:localhost:alice%2Band%2Bbob:path
 // - https://localhost:3000/alice -> did:web:localhost%3A3000:alice
+// - https://nodeA/iam/5/ -> did:web:nodeA:iam:5
 func URLToDID(u url.URL) (*did.DID, error) {
 	path := u.Path
 	if u.RawPath != "" {
@@ -43,11 +44,19 @@ func URLToDID(u url.URL) (*did.DID, error) {
 	path, _ = strings.CutSuffix(path, "/.well-known/did.json")
 	path, _ = strings.CutSuffix(path, "/did.json")
 	parts := strings.Split(path, "/")
-	for i, part := range parts {
-		part = percentEncodeString(part)
-		parts[i] = part
+	j := 0
+	for _, part := range parts {
+		if len(part) > 0 {
+			part = percentEncodeString(part)
+			parts[j] = part
+			j++
+		}
 	}
-	str := "did:web:" + percentEncodeString(u.Host) + strings.Join(parts, ":")
+	parts = parts[:j]
+	str := "did:web:" + percentEncodeString(u.Host)
+	if len(parts) > 0 {
+		str += ":" + strings.Join(parts, ":")
+	}
 	result, err := did.ParseDID(str)
 	if err != nil {
 		return nil, errors.Join(errInvalidWebDIDURL, err)

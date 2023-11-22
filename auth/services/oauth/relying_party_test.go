@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"net/http"
 	"net/http/httptest"
@@ -154,10 +153,9 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		_, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
 
 		require.Error(t, err)
-		httpError, ok := err.(core.HttpError)
+		oauthError, ok := err.(oauth.OAuth2Error)
 		require.True(t, ok)
-		assert.Equal(t, http.StatusBadRequest, httpError.StatusCode)
-		assert.Equal(t, oauthErrorBytes, httpError.ResponseBody)
+		assert.Equal(t, oauth.InvalidScope, oauthError.Code)
 	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		ctx := createOAuthRPContext(t)
