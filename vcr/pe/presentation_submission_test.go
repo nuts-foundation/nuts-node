@@ -508,7 +508,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 		assert.Equal(t, vcID.String(), credentials["1"].ID.String())
 		assert.Equal(t, secondVCID.String(), credentials["2"].ID.String())
 	})
-	t.Run("credentials don't match input descriptors", func(t *testing.T) {
+	t.Run("submission mappings don't match definition input descriptors", func(t *testing.T) {
 		constant := "incorrect ID"
 		definition := PresentationDefinition{
 			InputDescriptors: []*InputDescriptor{
