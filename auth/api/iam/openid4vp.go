@@ -138,8 +138,8 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *S
 	}
 
 	submissionBuilder := presentationDefinition.PresentationSubmissionBuilder()
-	submissionBuilder.AddWallet(session.OwnDID, ownCredentials)
-	_, signInstructions, err := submissionBuilder.Build("ldp_vp")
+	submissionBuilder.AddWallet(session.OwnDID, ownCredentials, "ldp_vp")
+	_, signInstructions, err := submissionBuilder.Build()
 	if err != nil {
 		return nil, fmt.Errorf("unable to match presentation definition: %w", err)
 	}
@@ -210,8 +210,8 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	// TODO: Options (including format)
 	resultParams := map[string]string{}
 	submissionBuilder := presentationDefinition.PresentationSubmissionBuilder()
-	submissionBuilder.AddWallet(session.OwnDID, credentials)
-	submission, signInstructions, err := submissionBuilder.Build("ldp_vp")
+	submissionBuilder.AddWallet(session.OwnDID, credentials, "ldp_vp")
+	submission, signInstructions, err := submissionBuilder.Build()
 	if err != nil {
 		return err
 	}

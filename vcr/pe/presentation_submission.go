@@ -50,6 +50,7 @@ type PresentationSubmissionBuilder struct {
 	holders                []did.DID
 	presentationDefinition PresentationDefinition
 	wallets                [][]vc.VerifiableCredential
+	presentationFormats    []string
 }
 
 // PresentationSubmissionBuilder returns a new PresentationSubmissionBuilder.
@@ -61,9 +62,11 @@ func (presentationDefinition PresentationDefinition) PresentationSubmissionBuild
 }
 
 // AddWallet adds credentials from a wallet that may be used to create the PresentationSubmission.
-func (b *PresentationSubmissionBuilder) AddWallet(holder did.DID, vcs []vc.VerifiableCredential) *PresentationSubmissionBuilder {
+// Presentation format indicates which VP format (ldp_vp or jwt_vp) will be used in the resulting submission and sign instructions.
+func (b *PresentationSubmissionBuilder) AddWallet(holder did.DID, vcs []vc.VerifiableCredential, presentationFormat string) *PresentationSubmissionBuilder {
 	b.holders = append(b.holders, holder)
 	b.wallets = append(b.wallets, vcs)
+	b.presentationFormats = append(b.presentationFormats, presentationFormat)
 	return b
 }
 
@@ -76,6 +79,8 @@ type SignInstruction struct {
 	VerifiableCredentials []vc.VerifiableCredential
 	// Mappings contains the Input Descriptor that are mapped by this SignInstruction.
 	Mappings []InputDescriptorMappingObject
+	// Format contains the proof format (ldp_vp, jwt_vp) that should be used for the resulting VP.
+	Format string
 }
 
 // Empty returns true if there are no VCs in the SignInstruction.
@@ -97,8 +102,7 @@ func (signInstructions SignInstructions) Empty() bool {
 }
 
 // Build creates a PresentationSubmission from the added wallets.
-// The VP format is determined by the given format.
-func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmission, SignInstructions, error) {
+func (b *PresentationSubmissionBuilder) Build() (PresentationSubmission, SignInstructions, error) {
 	presentationSubmission := PresentationSubmission{
 		Id:           uuid.New().String(),
 		DefinitionId: b.presentationDefinition.Id,
@@ -125,6 +129,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 				// do a JSON equality check
 				if selectedVCs[j].Raw() == walletVC.Raw() {
 					signInstructions[i].Holder = b.holders[i]
+					signInstructions[i].Format = b.presentationFormats[i]
 					signInstructions[i].VerifiableCredentials = append(signInstructions[i].VerifiableCredentials, selectedVCs[j])
 					// remap the path to the correct wallet index
 					mapping := inputDescriptorMappingObjects[j]
@@ -156,7 +161,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 				if len(nonEmptySignInstructions) > 1 {
 					presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, InputDescriptorMappingObject{
 						Id:         inputDescriptorMapping.Id,
-						Format:     format,
+						Format:     signInstruction.Format,
 						Path:       fmt.Sprintf("$[%d]", index),
 						PathNested: &inputDescriptorMapping,
 					})

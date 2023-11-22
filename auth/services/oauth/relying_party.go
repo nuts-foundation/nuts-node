@@ -153,13 +153,13 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	// if there's a match, create a VP and call the token endpoint
 	// If the token endpoint succeeds, return the access token
 	// If no presentation definition matches, return a 412 "no matching credentials" error
-	builder := presentationDefinition.PresentationSubmissionBuilder()
-	builder.AddWallet(requester, walletCredentials)
 	format, err := determineFormat(metadata.VPFormats)
 	if err != nil {
 		return nil, err
 	}
-	submission, signInstructions, err := builder.Build(format)
+	builder := presentationDefinition.PresentationSubmissionBuilder()
+	builder.AddWallet(requester, walletCredentials, format)
+	submission, signInstructions, err := builder.Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to match presentation definition: %w", err)
 	}

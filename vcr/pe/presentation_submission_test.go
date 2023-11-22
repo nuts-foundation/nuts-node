@@ -73,9 +73,9 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 		presentationDefinition := PresentationDefinition{}
 		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
 		builder := presentationDefinition.PresentationSubmissionBuilder()
-		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
+		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2}, "ldp_vc")
 
-		submission, signInstructions, err := builder.Build("ldp_vp")
+		submission, signInstructions, err := builder.Build()
 
 		require.NoError(t, err)
 		require.NotNil(t, signInstructions)
@@ -104,7 +104,7 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
       }
     },
     {
-      "format": "ldp_vp",
+      "format": "jwt_vp",
       "id": "Match ID=2",
       "path": "$[1]",
       "path_nested": {
@@ -119,14 +119,18 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 		presentationDefinition := PresentationDefinition{}
 		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
 		builder := presentationDefinition.PresentationSubmissionBuilder()
-		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1})
-		builder.AddWallet(holder2, []vc.VerifiableCredential{vc2})
+		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1}, "ldp_vp")
+		builder.AddWallet(holder2, []vc.VerifiableCredential{vc2}, "jwt_vp")
 
-		submission, signInstructions, err := builder.Build("ldp_vp")
+		submission, signInstructions, err := builder.Build()
 
 		require.NoError(t, err)
 		require.NotNil(t, signInstructions)
 		assert.Len(t, signInstructions, 2)
+		assert.Equal(t, holder1, signInstructions[0].Holder)
+		assert.Equal(t, "ldp_vp", signInstructions[0].Format)
+		assert.Equal(t, holder2, signInstructions[1].Holder)
+		assert.Equal(t, "jwt_vp", signInstructions[1].Format)
 		assert.Len(t, submission.DescriptorMap, 2)
 
 		submission.Id = "for-test" // easier assertion
@@ -154,10 +158,10 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 		presentationDefinition := PresentationDefinition{}
 		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
 		builder := presentationDefinition.PresentationSubmissionBuilder()
-		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
-		builder.AddWallet(holder2, []vc.VerifiableCredential{vc3})
+		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2}, "ldp_vp")
+		builder.AddWallet(holder2, []vc.VerifiableCredential{vc3}, "jwt_vp")
 
-		submission, signInstructions, err := builder.Build("ldp_vp")
+		submission, signInstructions, err := builder.Build()
 
 		require.NoError(t, err)
 		require.NotNil(t, signInstructions)
