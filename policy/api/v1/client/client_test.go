@@ -45,6 +45,7 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 			switch request.URL.Path {
 			case "/presentation_definition":
 				capturedRequest = request
+				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(http.StatusOK)
 				bytes, _ := json.Marshal(definition)
 				writer.Write(bytes)
@@ -57,6 +58,7 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, definition)
+		require.NotNil(t, response)
 		assert.Equal(t, definition, *response)
 		require.NotNil(t, capturedRequest)
 		assert.Equal(t, "GET", capturedRequest.Method)
@@ -88,7 +90,7 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		assert.Nil(t, response)
 	})
 	t.Run("error - invalid response", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}", ResponseHeader: http.Header{"Content-Type": []string{"application/json"}}}
 		tlsServer, client := testServerAndClient(t, &handler)
 
 		response, err := client.PresentationDefinition(ctx, tlsServer.URL, authorizer, "test")
@@ -120,8 +122,9 @@ func TestHTTPClient_Authorized(t *testing.T) {
 			case "/authorized":
 				capturedRequest = request
 				capturedRequestBody, _ = io.ReadAll(request.Body)
+				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(http.StatusOK)
-				writer.Write([]byte("true"))
+				writer.Write([]byte("{\"authorized\":true}"))
 			}
 			writer.WriteHeader(http.StatusNotFound)
 		}
@@ -162,7 +165,7 @@ func TestHTTPClient_Authorized(t *testing.T) {
 		assert.False(t, response)
 	})
 	t.Run("error - invalid response", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}", ResponseHeader: http.Header{"Content-Type": []string{"application/json"}}}
 		tlsServer, client := testServerAndClient(t, &handler)
 
 		response, err := client.Authorized(ctx, tlsServer.URL, request)

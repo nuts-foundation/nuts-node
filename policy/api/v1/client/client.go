@@ -21,10 +21,8 @@ package client
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"io"
 	"net/http"
 	"time"
 
@@ -46,7 +44,7 @@ func NewHTTPClient(strictMode bool, timeout time.Duration, tlsConfig *tls.Config
 	}
 }
 
-// PresentationDefinition retrieves the presentation definition from the presentation definition endpoint for the given scope and .
+// PresentationDefinition retrieves the presentation definition from the presentation definition endpoint for the given scope and authorizer.
 func (hb HTTPClient) PresentationDefinition(ctx context.Context, serverAddress string, authorizer did.DID, scopes string) (*pe.PresentationDefinition, error) {
 	_, err := core.ParsePublicURL(serverAddress, hb.strictMode)
 	if err != nil {
@@ -69,19 +67,16 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, serverAddress s
 		return nil, httpErr
 	}
 
-	var presentationDefinition pe.PresentationDefinition
-	var data []byte
-
-	if data, err = io.ReadAll(response.Body); err != nil {
-		return nil, fmt.Errorf("unable to read response: %w", err)
-	}
-	if err = json.Unmarshal(data, &presentationDefinition); err != nil {
+	presentationDefinitionResponse, err := ParsePresentationDefinitionResponse(response)
+	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
 	}
 
-	return &presentationDefinition, nil
+	return presentationDefinitionResponse.JSON200, nil
 }
 
+// Authorized checks if the given request is authorized by the policy backend.
+// The AuthorizedRequest contains the information that is needed to check if the request is authorized.
 func (hb HTTPClient) Authorized(ctx context.Context, serverAddress string, request AuthorizedRequest) (bool, error) {
 	_, err := core.ParsePublicURL(serverAddress, hb.strictMode)
 	if err != nil {
@@ -101,15 +96,15 @@ func (hb HTTPClient) Authorized(ctx context.Context, serverAddress string, reque
 		return false, httpErr
 	}
 
-	var authorized bool
-	var data []byte
-
-	if data, err = io.ReadAll(response.Body); err != nil {
-		return false, fmt.Errorf("unable to read response: %w", err)
-	}
-	if err = json.Unmarshal(data, &authorized); err != nil {
+	authorizedResponse, err := ParseCheckAuthorizedResponse(response)
+	if err != nil {
 		return false, fmt.Errorf("unable to unmarshal response: %w", err)
 	}
 
-	return authorized, nil
+	// theoretically, the JSON200 field could be nil. The API should always return a response, so we return it as error.
+	if authorizedResponse.JSON200 == nil {
+		return false, fmt.Errorf("response is nil")
+	}
+
+	return authorizedResponse.JSON200.Authorized, nil
 }
