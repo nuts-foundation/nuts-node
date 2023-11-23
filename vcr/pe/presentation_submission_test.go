@@ -595,6 +595,74 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 		assert.EqualError(t, err, "incorrect mapping for input descriptor: 2")
 		assert.Empty(t, credentials)
 	})
+	t.Run("envelope contains an invalid presentation", func(t *testing.T) {
+		credentials, err := PresentationSubmission{}.Validate(map[string]interface{}{"id": true}, PresentationDefinition{})
+
+		assert.EqualError(t, err, "unable to unmarshal envelope: json: cannot unmarshal bool into Go struct field Alias.id of type string")
+		assert.Empty(t, credentials)
+	})
+	t.Run("envelope contains an invalid presentation (envelope is array)", func(t *testing.T) {
+		credentials, err := PresentationSubmission{}.Validate([]interface{}{map[string]interface{}{"id": true}}, PresentationDefinition{})
+
+		assert.EqualError(t, err, "unable to unmarshal envelope: json: cannot unmarshal bool into Go struct field Alias.id of type string")
+		assert.Empty(t, credentials)
+	})
+	t.Run("submission contains mappings for non-existing input descriptors", func(t *testing.T) {
+		definition := PresentationDefinition{
+			InputDescriptors: []*InputDescriptor{
+				{
+					Id: "1",
+					Constraints: &Constraints{
+						Fields: []Field{
+							{
+								Path: []string{"$.id"},
+								Filter: &Filter{
+									Type: "string",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		submission := PresentationSubmission{
+			DescriptorMap: []InputDescriptorMappingObject{
+				{
+					Id:     "1",
+					Path:   "$.verifiableCredential[0]",
+					Format: "ldp_vc",
+				},
+				{
+					Id:     "non-existent",
+					Path:   "$.verifiableCredential[1]",
+					Format: "ldp_vc",
+				},
+			},
+		}
+
+		secondVCID := ssi.MustParseURI("did:example:123#second-vc")
+		vp = vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{
+				{ID: &vcID},
+				{ID: &secondVCID},
+			},
+			Proof: []interface{}{
+				proof.LDProof{VerificationMethod: vcID},
+			},
+		}
+
+		credentials, err := submission.Validate(remarshalToInterface(vp), definition)
+
+		assert.EqualError(t, err, "expected 1 credentials, got 2")
+		assert.Empty(t, credentials)
+	})
+	t.Run("unable to derive presentation signer", func(t *testing.T) {
+		vp = vc.VerifiablePresentation{}
+		credentials, err := PresentationSubmission{}.Validate(remarshalToInterface(vp), PresentationDefinition{})
+
+		assert.EqualError(t, err, "unable to derive presentation signer: presentation should have exactly 1 proof, got 0")
+		assert.Empty(t, credentials)
+	})
 }
 
 func remarshalToInterface(input interface{}) interface{} {
