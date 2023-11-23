@@ -34,6 +34,7 @@ type Handler struct {
 	StatusCode     int
 	RequestData    []byte
 	ResponseData   interface{}
+	ResponseHeader http.Header
 }
 
 func (h *Handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
@@ -49,6 +50,9 @@ func (h *Handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 		bytes, _ = json.Marshal(h.ResponseData)
 	}
 
+	for k, v := range h.ResponseHeader {
+		writer.Header().Add(k, v[0])
+	}
 	writer.WriteHeader(h.StatusCode)
 	writer.Write(bytes)
 }
