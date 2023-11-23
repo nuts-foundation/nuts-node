@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/pe/test"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -211,7 +212,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+		credentials, err := submission.Resolve(remarshalToInterface(vp))
 
 		require.NoError(t, err)
 		assert.Len(t, credentials, 1)
@@ -240,7 +241,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+		credentials, err := submission.Resolve(remarshalToInterface(vp))
 
 		require.NoError(t, err)
 		assert.Len(t, credentials, 2)
@@ -283,7 +284,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp1, vp2})
+		credentials, err := submission.Resolve(remarshalToInterface([]vc.VerifiablePresentation{vp1, vp2}))
 
 		require.NoError(t, err)
 		assert.Len(t, credentials, 2)
@@ -308,7 +309,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+		credentials, err := submission.Resolve(remarshalToInterface(vp))
 
 		require.EqualError(t, err, "unable to resolve credential for input descriptor '1': path '$.verifiableCredential' does not reference a credential")
 		assert.Nil(t, credentials)
@@ -331,7 +332,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+		credentials, err := submission.Resolve(remarshalToInterface(vp))
 
 		require.ErrorContains(t, err, "unable to resolve credential for input descriptor '1': invalid JSON-LD credential at path")
 		assert.Nil(t, credentials)
@@ -354,7 +355,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+		credentials, err := submission.Resolve(remarshalToInterface(vp))
 
 		require.ErrorContains(t, err, "unable to resolve credential for input descriptor '1': invalid JSON-LD presentation at path")
 		assert.Nil(t, credentials)
@@ -377,9 +378,296 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve([]vc.VerifiablePresentation{vp})
+		credentials, err := submission.Resolve(remarshalToInterface(vp))
 
 		assert.EqualError(t, err, "unable to resolve credential for input descriptor '1': value of Go type 'string' at path '$.verifiableCredential.expirationDate' can't be decoded using format 'ldp_vc'")
 		assert.Nil(t, credentials)
 	})
+}
+
+func TestPresentationSubmission_Validate(t *testing.T) {
+	vcID := ssi.MustParseURI("did:example:123#first-vc")
+	vp := vc.VerifiablePresentation{
+		VerifiableCredential: []vc.VerifiableCredential{
+			credentialToJSONLD(vc.VerifiableCredential{ID: &vcID}),
+		},
+		Proof: []interface{}{
+			proof.LDProof{VerificationMethod: vcID},
+		},
+	}
+
+	t.Run("ok - 1 presentation", func(t *testing.T) {
+		constant := vcID.String()
+		definition := PresentationDefinition{
+			InputDescriptors: []*InputDescriptor{
+				{
+					Id: "1",
+					Constraints: &Constraints{
+						Fields: []Field{
+							{
+								Path: []string{"$.id"},
+								Filter: &Filter{
+									Type:  "string",
+									Const: &constant,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		submission := PresentationSubmission{
+			DescriptorMap: []InputDescriptorMappingObject{
+				{
+					Id:     "1",
+					Path:   "$.verifiableCredential",
+					Format: "ldp_vc",
+				},
+			},
+		}
+
+		credentials, err := submission.Validate(remarshalToInterface(vp), definition)
+
+		require.NoError(t, err)
+		require.Len(t, credentials, 1)
+		assert.Equal(t, vcID.String(), credentials["1"].ID.String())
+	})
+	t.Run("ok - 2 presentations", func(t *testing.T) {
+		constant1 := vcID.String()
+		secondVCID := ssi.MustParseURI("did:example:123#second-vc")
+		constant2 := secondVCID.String()
+		secondVP := vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{
+				{ID: &secondVCID},
+			},
+			Proof: []interface{}{
+				proof.LDProof{VerificationMethod: vcID},
+			},
+		}
+		definition := PresentationDefinition{
+			InputDescriptors: []*InputDescriptor{
+				{
+					Id: "1",
+					Constraints: &Constraints{
+						Fields: []Field{
+							{
+								Path: []string{"$.id"},
+								Filter: &Filter{
+									Type:  "string",
+									Const: &constant1,
+								},
+							},
+						},
+					},
+				},
+				{
+					Id: "2",
+					Constraints: &Constraints{
+						Fields: []Field{
+							{
+								Path: []string{"$.id"},
+								Filter: &Filter{
+									Type:  "string",
+									Const: &constant2,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		submission := PresentationSubmission{
+			DescriptorMap: []InputDescriptorMappingObject{
+				{
+					Id:     "1",
+					Path:   "$[0]",
+					Format: "ldp_vp",
+					PathNested: &InputDescriptorMappingObject{
+						Id:     "1",
+						Path:   "$.verifiableCredential",
+						Format: "ldp_vc",
+					},
+				},
+				{
+					Id:     "2",
+					Path:   "$[1]",
+					Format: "ldp_vp",
+					PathNested: &InputDescriptorMappingObject{
+						Id:     "2",
+						Path:   "$.verifiableCredential",
+						Format: "ldp_vc",
+					},
+				},
+			},
+		}
+
+		credentials, err := submission.Validate(remarshalToInterface([]vc.VerifiablePresentation{vp, secondVP}), definition)
+
+		require.NoError(t, err)
+		require.Len(t, credentials, 2)
+		assert.Equal(t, vcID.String(), credentials["1"].ID.String())
+		assert.Equal(t, secondVCID.String(), credentials["2"].ID.String())
+	})
+	t.Run("submission mappings don't match definition input descriptors", func(t *testing.T) {
+		constant := "incorrect ID"
+		definition := PresentationDefinition{
+			InputDescriptors: []*InputDescriptor{
+				{
+					Id: "1",
+					Constraints: &Constraints{
+						Fields: []Field{
+							{
+								Path: []string{"$.id"},
+								Filter: &Filter{
+									Type:  "string",
+									Const: &constant,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		credentials, err := PresentationSubmission{}.Validate(remarshalToInterface([]vc.VerifiablePresentation{vp}), definition)
+
+		assert.EqualError(t, err, "presentation submission doesn't match presentation definition")
+		assert.Empty(t, credentials)
+	})
+	t.Run("credentials match wrong input descriptors", func(t *testing.T) {
+		incorrectID := "incorrect ID"
+		correctID := vcID.String()
+		count := 1
+		definition := PresentationDefinition{
+			SubmissionRequirements: []*SubmissionRequirement{
+				{
+					Name:  "pick",
+					Count: &count,
+					From:  "any",
+					Rule:  "pick",
+				},
+			},
+			InputDescriptors: []*InputDescriptor{
+				{
+					Id:    "1",
+					Group: []string{"any"},
+					Constraints: &Constraints{
+						Fields: []Field{
+							{
+								Path: []string{"$.id"},
+								Filter: &Filter{
+									Type:  "string",
+									Const: &incorrectID,
+								},
+							},
+						},
+					},
+				},
+				{
+					Id:    "2",
+					Group: []string{"any"},
+					Constraints: &Constraints{
+						Fields: []Field{
+							{
+								Path: []string{"$.id"},
+								Filter: &Filter{
+									Type:  "string",
+									Const: &correctID,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		submission := PresentationSubmission{
+			DescriptorMap: []InputDescriptorMappingObject{
+				{
+					Id:     "1", // actually maps to input descriptor 2, so should cause an error
+					Path:   "$.verifiableCredential",
+					Format: "ldp_vc",
+				},
+			},
+		}
+
+		credentials, err := submission.Validate(remarshalToInterface(vp), definition)
+
+		assert.EqualError(t, err, "incorrect mapping for input descriptor: 2")
+		assert.Empty(t, credentials)
+	})
+	t.Run("envelope contains an invalid presentation", func(t *testing.T) {
+		credentials, err := PresentationSubmission{}.Validate(map[string]interface{}{"id": true}, PresentationDefinition{})
+
+		assert.EqualError(t, err, "unable to unmarshal envelope: json: cannot unmarshal bool into Go struct field Alias.id of type string")
+		assert.Empty(t, credentials)
+	})
+	t.Run("envelope contains an invalid presentation (envelope is array)", func(t *testing.T) {
+		credentials, err := PresentationSubmission{}.Validate([]interface{}{map[string]interface{}{"id": true}}, PresentationDefinition{})
+
+		assert.EqualError(t, err, "unable to unmarshal envelope: json: cannot unmarshal bool into Go struct field Alias.id of type string")
+		assert.Empty(t, credentials)
+	})
+	t.Run("submission contains mappings for non-existing input descriptors", func(t *testing.T) {
+		definition := PresentationDefinition{
+			InputDescriptors: []*InputDescriptor{
+				{
+					Id: "1",
+					Constraints: &Constraints{
+						Fields: []Field{
+							{
+								Path: []string{"$.id"},
+								Filter: &Filter{
+									Type: "string",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		submission := PresentationSubmission{
+			DescriptorMap: []InputDescriptorMappingObject{
+				{
+					Id:     "1",
+					Path:   "$.verifiableCredential[0]",
+					Format: "ldp_vc",
+				},
+				{
+					Id:     "non-existent",
+					Path:   "$.verifiableCredential[1]",
+					Format: "ldp_vc",
+				},
+			},
+		}
+
+		secondVCID := ssi.MustParseURI("did:example:123#second-vc")
+		vp = vc.VerifiablePresentation{
+			VerifiableCredential: []vc.VerifiableCredential{
+				{ID: &vcID},
+				{ID: &secondVCID},
+			},
+			Proof: []interface{}{
+				proof.LDProof{VerificationMethod: vcID},
+			},
+		}
+
+		credentials, err := submission.Validate(remarshalToInterface(vp), definition)
+
+		assert.EqualError(t, err, "expected 1 credentials, got 2")
+		assert.Empty(t, credentials)
+	})
+	t.Run("unable to derive presentation signer", func(t *testing.T) {
+		vp = vc.VerifiablePresentation{}
+		credentials, err := PresentationSubmission{}.Validate(remarshalToInterface(vp), PresentationDefinition{})
+
+		assert.EqualError(t, err, "unable to derive presentation signer: presentation should have exactly 1 proof, got 0")
+		assert.Empty(t, credentials)
+	})
+}
+
+func remarshalToInterface(input interface{}) interface{} {
+	bytes, _ := json.Marshal(input)
+	var result interface{}
+	_ = json.Unmarshal(bytes, &result)
+	return result
 }
