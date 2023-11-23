@@ -266,7 +266,7 @@ func (s PresentationSubmission) Validate(envelope interface{}, definition Presen
 		return nil, fmt.Errorf("resolve credentials from presentation submission: %w", err)
 	}
 
-	// Create a new presentation submission the being validated should map the Input Descriptors to the same credentials.
+	// Create a new presentation submission: the submission being validated should have the same input descriptor mapping.
 	// First, create a new submission
 	var presentations []vc.VerifiablePresentation
 	envelopeJSON, _ := json.Marshal(envelope)
