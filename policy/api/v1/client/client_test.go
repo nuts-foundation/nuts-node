@@ -181,7 +181,9 @@ func TestHTTPClient_Authorized(t *testing.T) {
 		response, err := client.Authorized(ctx, "http://test.test", request)
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "failed to call endpoint: Post \"http://test.test/authorized\": dial tcp: lookup test.test: no such host")
+		// CI has a slightly different error: lookup test.test vs lookup test.test on 127.0.0.x
+		assert.ErrorContains(t, err, "failed to call endpoint: Post \"http://test.test/authorized\": dial tcp: lookup test.test")
+		assert.ErrorContains(t, err, "no such host")
 		assert.False(t, response)
 	})
 }
