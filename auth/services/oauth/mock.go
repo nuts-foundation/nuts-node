@@ -42,6 +42,21 @@ func (m *MockRelyingParty) EXPECT() *MockRelyingPartyMockRecorder {
 	return m.recorder
 }
 
+// CreateAuthorizationRequest mocks base method.
+func (m *MockRelyingParty) CreateAuthorizationRequest(ctx context.Context, requestHolder, verifier did.DID, scopes, clientState string) (*url.URL, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateAuthorizationRequest", ctx, requestHolder, verifier, scopes, clientState)
+	ret0, _ := ret[0].(*url.URL)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateAuthorizationRequest indicates an expected call of CreateAuthorizationRequest.
+func (mr *MockRelyingPartyMockRecorder) CreateAuthorizationRequest(ctx, requestHolder, verifier, scopes, clientState any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAuthorizationRequest", reflect.TypeOf((*MockRelyingParty)(nil).CreateAuthorizationRequest), ctx, requestHolder, verifier, scopes, clientState)
+}
+
 // CreateJwtGrant mocks base method.
 func (m *MockRelyingParty) CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
 	m.ctrl.T.Helper()

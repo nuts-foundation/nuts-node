@@ -222,6 +222,55 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 }
 
+func TestRelyingParty_AuthorizationRequest(t *testing.T) {
+	walletDID := did.MustParseDID("did:test:123")
+	scopes := "first second"
+	clientState := crypto.GenerateNonce()
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := createOAuthRPContext(t)
+
+		redirectURL, err := ctx.relyingParty.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
+
+		assert.NoError(t, err)
+		require.NotNil(t, redirectURL)
+		assert.Equal(t, walletDID.String(), redirectURL.Query().Get("client_id"))
+		assert.Equal(t, "code", redirectURL.Query().Get("response_type"))
+		assert.Equal(t, "first second", redirectURL.Query().Get("scope"))
+		assert.NotEmpty(t, redirectURL.Query().Get("state"))
+	})
+	t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
+		ctx := createOAuthRPContext(t)
+		ctx.metadata = nil
+
+		_, err := ctx.relyingParty.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
+	})
+	t.Run("error - faulty authorization server metadata", func(t *testing.T) {
+		ctx := createOAuthRPContext(t)
+		ctx.metadata = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte("{"))
+		}
+
+		_, err := ctx.relyingParty.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: unable to unmarshal response: unexpected end of JSON input, {")
+	})
+	t.Run("error - missing authorization endpoint", func(t *testing.T) {
+		ctx := createOAuthRPContext(t)
+		ctx.authzServerMetadata.AuthorizationEndpoint = ""
+
+		_, err := ctx.relyingParty.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
+
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "no authorization endpoint found in metadata for")
+	})
+}
 func Test_chooseVPFormat(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		formats := map[string]map[string][]string{
@@ -481,6 +530,7 @@ func createOAuthRPContext(t *testing.T) *rpOAuthTestContext {
 			return
 		},
 	}
+
 	ctx.handler = func(writer http.ResponseWriter, request *http.Request) {
 		switch request.URL.Path {
 		case "/.well-known/oauth-authorization-server":
@@ -505,6 +555,7 @@ func createOAuthRPContext(t *testing.T) *rpOAuthTestContext {
 	ctx.verifierDID = didweb.ServerURLToDIDWeb(t, ctx.tlsServer.URL)
 	authzServerMetadata.TokenEndpoint = ctx.tlsServer.URL + "/token"
 	authzServerMetadata.PresentationDefinitionEndpoint = ctx.tlsServer.URL + "/presentation_definition"
+	authzServerMetadata.AuthorizationEndpoint = ctx.tlsServer.URL + "/authorize"
 	ctx.authzServerMetadata = authzServerMetadata
 
 	return ctx

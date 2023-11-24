@@ -43,6 +43,21 @@ const s2sMaxPresentationValidity = 5 * time.Second
 // The value is specified by Nuts RFC021.
 const s2sMaxClockSkew = 5 * time.Second
 
+// sessionValidity defines how long user sessions are valid.
+// TODO: Might want to make this configurable at some point
+const sessionValidity = 15 * time.Minute
+
+// serviceToService adds support for service-to-service OAuth2 flows,
+// which uses a custom vp_token grant to authenticate calls to the token endpoint.
+// Clients first call the presentation definition endpoint to get a presentation definition for the desired scope,
+// then create a presentation submission given the definition which is posted to the token endpoint as vp_token.
+// The AS then returns an access token with the requested scope.
+// Requires:
+// - GET /presentation_definition?scope=... (returns a presentation definition)
+// - POST /token (with vp_token grant)
+type serviceToService struct {
+}
+
 // handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
 func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
@@ -106,24 +121,12 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r *Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	if request.Body == nil {
-		// why did oapi-codegen generate a pointer for the body??
-		return nil, core.InvalidInputError("missing request body")
-	}
-	// resolve wallet
-	requestHolder, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, core.NotFoundError("did not found: %w", err)
-	}
-	isWallet, err := r.vdr.IsOwner(ctx, *requestHolder)
-	if err != nil {
-		return nil, err
-	}
-	if !isWallet {
-		return nil, core.InvalidInputError("did not owned by this node: %w", err)
-	}
+func (s serviceToService) handleAuthzRequest(_ map[string]string, _ *OAuthSession) (*authzResponse, error) {
+	// Protocol does not support authorization code flow
+	return nil, nil
+}
 
+func (r Wrapper) requestServiceAccessToken(ctx context.Context, requestHolder did.DID, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
 	// resolve verifier metadata
 	requestVerifier, err := did.ParseDID(request.Body.Verifier)
 	if err != nil {
@@ -137,7 +140,7 @@ func (r *Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessT
 		return nil, err
 	}
 
-	tokenResult, err := r.auth.RelyingParty().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope)
+	tokenResult, err := r.auth.RelyingParty().RequestRFC021AccessToken(ctx, requestHolder, *requestVerifier, request.Body.Scope)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err

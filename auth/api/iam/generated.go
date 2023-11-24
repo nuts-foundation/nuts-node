@@ -116,9 +116,16 @@ type HandleTokenRequestFormdataBody struct {
 
 // RequestAccessTokenJSONBody defines parameters for RequestAccessToken.
 type RequestAccessTokenJSONBody struct {
+	// RedirectURL The URL to which the user-agent will be redirected after the authorization request.
+	RedirectURL *string `json:"redirectURL,omitempty"`
+
 	// Scope The scope that will be The service for which this access token can be used.
-	Scope    string `json:"scope"`
-	Verifier string `json:"verifier"`
+	Scope string `json:"scope"`
+
+	// UserID The ID of the user for which this access token is requested.
+	// It's handled as opaque ID and is scoped to the requester DID.
+	UserID   *string `json:"userID,omitempty"`
+	Verifier string  `json:"verifier"`
 }
 
 // HandleTokenRequestFormdataRequestBody defines body for HandleTokenRequest for application/x-www-form-urlencoded ContentType.
@@ -619,6 +626,20 @@ func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenRespons
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestAccessToken302ResponseHeaders struct {
+	Location string
+}
+
+type RequestAccessToken302Response struct {
+	Headers RequestAccessToken302ResponseHeaders
+}
+
+func (response RequestAccessToken302Response) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
 }
 
 type RequestAccessTokendefaultApplicationProblemPlusJSONResponse struct {

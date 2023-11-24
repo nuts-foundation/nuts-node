@@ -20,10 +20,12 @@ package iam
 
 import (
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/http"
 	"net/url"
 )
 
-type Session struct {
+// OAuthSession is the session object for an OAuth2.0 flow (request/authorize/token).
+type OAuthSession struct {
 	ClientID     string
 	Scope        string
 	OwnDID       did.DID
@@ -33,17 +35,25 @@ type Session struct {
 	ResponseType string
 }
 
-func AddQueryParams(u url.URL, params map[string]string) url.URL {
-	values := u.Query()
-	for key, value := range params {
-		values.Add(key, value)
-	}
-	u.RawQuery = values.Encode()
-	return u
+// UserSession is the session object for handling the user browser session.
+// A RedirectSession is replaced with a UserSession.
+type UserSession struct {
+	ClientState string
+	SessionID   string
+	UserID      string
+	OwnDID      did.DID
 }
 
-func (s Session) CreateRedirectURI(params map[string]string) string {
+// RedirectSession is the session object that is used to redirect the user to a Nuts node website.
+// It stores information from the internal API call that started the request access token.
+// The key to this session is passed to the user via a 302 redirect.
+type RedirectSession struct {
+	OwnDID             did.DID
+	AccessTokenRequest RequestAccessTokenRequestObject
+}
+
+func (s OAuthSession) CreateRedirectURI(params map[string]string) string {
 	redirectURI, _ := url.Parse(s.RedirectURI)
-	r := AddQueryParams(*redirectURI, params)
+	r := http.AddQueryParams(*redirectURI, params)
 	return r.String()
 }

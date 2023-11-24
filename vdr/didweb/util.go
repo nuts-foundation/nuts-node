@@ -71,7 +71,7 @@ func URLToDID(u url.URL) (*did.DID, error) {
 // - did:web:localhost%3A3000:alice -> https://localhost:3000/alice
 func DIDToURL(id did.DID) (*url.URL, error) {
 	if id.Method != "web" {
-		return nil, errors.Join(errInvalidWebDIDURL, fmt.Errorf("unsupported DID method: %s", id.Method))
+		return nil, fmt.Errorf("unsupported DID method: %s", id.Method)
 	}
 	var baseID = id.ID
 	var path string

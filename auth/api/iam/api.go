@@ -104,6 +104,8 @@ func (r *Wrapper) Routes(router core.EchoRouter) {
 	// - POST handles the form submission, initiating the flow.
 	router.GET("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoLanding, auditMiddleware)
 	router.POST("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoSendRequest, auditMiddleware)
+	// The following handlers are used for the user facing OAuth2 flows.
+	router.GET("/iam/:did/user", r.handleUserLanding, auditMiddleware)
 }
 
 func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
@@ -375,8 +377,32 @@ func (r Wrapper) idToOwnedDID(ctx context.Context, id string) (*did.DID, error) 
 	return &ownDID, nil
 }
 
-func createSession(params map[string]string, ownDID did.DID) *Session {
-	session := &Session{
+func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
+	if request.Body == nil {
+		// why did oapi-codegen generate a pointer for the body??
+		return nil, core.InvalidInputError("missing request body")
+	}
+	// resolve wallet
+	requestHolder, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, core.NotFoundError("did not found: %w", err)
+	}
+	isWallet, err := r.vdr.IsOwner(ctx, *requestHolder)
+	if err != nil {
+		return nil, err
+	}
+	if !isWallet {
+		return nil, core.InvalidInputError("did not owned by this node: %w", err)
+	}
+	if request.Body.UserID != nil && len(*request.Body.UserID) > 0 {
+		// forward to user flow
+		return r.requestUserAccessToken(ctx, *requestHolder, request)
+	}
+	return r.requestServiceAccessToken(ctx, *requestHolder, request)
+}
+
+func createSession(params map[string]string, ownDID did.DID) *OAuthSession {
+	session := &OAuthSession{
 		// TODO: Validate client ID
 		ClientID: params[clientIDParam],
 		// TODO: Validate scope

@@ -269,13 +269,13 @@ paths:
   /internal/auth/v2/{did}/request-access-token:
     post:
       operationId: requestAccessToken
-      summary: Requests an access token using the vp_token-bearer grant.
+      summary: Start the authorization flow to get an access token from a remote authorization server.
       description: |
         Initiates an OAuth2 flow to request an access token from a remote authorization server.
-        This endpoint is only usable for a service 2 service flow.
+        If a userID is given, it'll initiate an OpenID4VP flow. Otherwise, it'll initiate a s2s (RFC021) flow.
 
         error returns:
-        * 400 - one of the parameters has the wrong format
+        * 400 - one of the parameters has the wrong format or an OAuth error occurred
         * 412 - the organization wallet does not contain the correct credentials
         * 503 - the authorizer could not be reached or returned an error
       tags:
@@ -304,6 +304,14 @@ paths:
                   type: string
                   description: The scope that will be The service for which this access token can be used.
                   example: eOverdracht-sender
+                userID:
+                  type: string
+                  description: | 
+                    The ID of the user for which this access token is requested.
+                redirectURL:
+                  type: string
+                  description: |
+                    The URL to which the user-agent will be redirected after the authorization request.
       responses:
         '200':
           description: Successful request. Responds with an access token as described in rfc6749 section 5.1.
@@ -311,6 +319,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+        '302':
+          description: |
+            The user-agent is redirected to the authorization server to start the OpenID4VP flow.
+            Optionally, the user could be asked to agree or authenticate.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/accesstoken/introspect:

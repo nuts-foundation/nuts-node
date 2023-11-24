@@ -24,18 +24,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	httpNuts "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 const sessionExpiry = 5 * time.Minute
@@ -55,7 +57,7 @@ func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.Res
 	params[responseTypeParam] = responseTypeVPIDToken
 	// TODO: Depending on parameter size, we either use redirect with query parameters or a form post.
 	//       For simplicity, we now just query parameters.
-	result := AddQueryParams(*authzEndpoint, params)
+	result := httpNuts.AddQueryParams(*authzEndpoint, params)
 	response.Header().Add("Location", result.String())
 	response.WriteHeader(http.StatusFound)
 	return nil
@@ -63,7 +65,7 @@ func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.Res
 
 // handlePresentationRequest handles an Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is handled by a wallet, called by a verifier who wants the wallet to present one or more verifiable credentials.
-func (r *Wrapper) handlePresentationRequest(params map[string]string, session *Session) (HandleAuthorizeRequestResponseObject, error) {
+func (r *Wrapper) handlePresentationRequest(params map[string]string, session *OAuthSession) (HandleAuthorizeRequestResponseObject, error) {
 	ctx := context.TODO()
 	// Presentation definition is always derived from the scope.
 	// Later on, we might support presentation_definition and/or presentation_definition_uri parameters instead of scope as well.
@@ -179,7 +181,7 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 		return errors.New("missing sessionID parameter")
 	}
 
-	var session Session
+	var session OAuthSession
 	sessionStore := r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, "openid", session.OwnDID.String(), "session")
 	err := sessionStore.Get(sessionID, &session)
 	if err != nil {
