@@ -260,29 +260,15 @@ func resolveCredential(path []string, mapping InputDescriptorMappingObject, valu
 // The credentials will be returned as map with the InputDescriptor.Id as key.
 // The Presentation Definitions are passed in the envelope, as specified by the PEX specification.
 // It assumes credentials of the presentations only map in 1 way to the input descriptors.
-func (s PresentationSubmission) Validate(envelope interface{}, definition PresentationDefinition) (map[string]vc.VerifiableCredential, error) {
-	actualCredentials, err := s.Resolve(envelope)
+func (s PresentationSubmission) Validate(envelope Envelope, definition PresentationDefinition) (map[string]vc.VerifiableCredential, error) {
+	actualCredentials, err := s.Resolve(envelope.Interface)
 	if err != nil {
 		return nil, fmt.Errorf("resolve credentials from presentation submission: %w", err)
 	}
 
 	// Create a new presentation submission: the submission being validated should have the same input descriptor mapping.
-	// First, create a new submission
-	var presentations []vc.VerifiablePresentation
-	envelopeJSON, _ := json.Marshal(envelope)
-	if _, ok := envelope.([]interface{}); ok {
-		if err := json.Unmarshal(envelopeJSON, &presentations); err != nil {
-			return nil, fmt.Errorf("unable to unmarshal envelope: %w", err)
-		}
-	} else {
-		var presentation vc.VerifiablePresentation
-		if err := json.Unmarshal(envelopeJSON, &presentation); err != nil {
-			return nil, fmt.Errorf("unable to unmarshal envelope: %w", err)
-		}
-		presentations = []vc.VerifiablePresentation{presentation}
-	}
 	submissionBuilder := definition.PresentationSubmissionBuilder()
-	for _, presentation := range presentations {
+	for _, presentation := range envelope.Presentations {
 		signer, err := credential.PresentationSigner(presentation)
 		if err != nil {
 			return nil, fmt.Errorf("unable to derive presentation signer: %w", err)
