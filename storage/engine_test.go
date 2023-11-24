@@ -52,7 +52,7 @@ func Test_engine_lifecycle(t *testing.T) {
 
 func Test_engine_GetProvider(t *testing.T) {
 	sut := New()
-	_ = sut.Configure(*core.NewServerConfig())
+	_ = sut.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 	t.Run("moduleName is empty", func(t *testing.T) {
 		store, err := sut.GetProvider("").GetKVStore("store", VolatileStorageClass)
 		assert.Nil(t, store)
@@ -62,7 +62,7 @@ func Test_engine_GetProvider(t *testing.T) {
 
 func Test_engine_GetKVStore(t *testing.T) {
 	sut := New()
-	_ = sut.Configure(*core.NewServerConfig())
+	_ = sut.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 	t.Run("store is empty", func(t *testing.T) {
 		store, err := sut.GetProvider("engine").GetKVStore("", VolatileStorageClass)
 		assert.Nil(t, store)
@@ -132,7 +132,7 @@ func Test_engine_sqlDatabase(t *testing.T) {
 	})
 	t.Run("runs migrations", func(t *testing.T) {
 		e := New().(*engine)
-		require.NoError(t, e.Configure(*core.NewServerConfig()))
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 		require.NoError(t, e.Start())
 		t.Cleanup(func() {
 			_ = e.Shutdown()
@@ -146,5 +146,4 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		assert.NoError(t, row.Scan(&count))
 		assert.Equal(t, 1, count)
 	})
-
 }
