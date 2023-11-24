@@ -52,7 +52,6 @@ paths:
               type: object
               required:
                 - grant_type
-                - code
               properties:
                 grant_type:
                   type: string

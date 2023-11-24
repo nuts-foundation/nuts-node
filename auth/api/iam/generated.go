@@ -107,7 +107,7 @@ type HandleAuthorizeRequestParams struct {
 
 // HandleTokenRequestFormdataBody defines parameters for HandleTokenRequest.
 type HandleTokenRequestFormdataBody struct {
-	Code                 string            `form:"code" json:"code"`
+	Code                 *string           `form:"code,omitempty" json:"code,omitempty"`
 	GrantType            string            `form:"grant_type" json:"grant_type"`
 	AdditionalProperties map[string]string `json:"-"`
 }
@@ -188,9 +188,11 @@ func (a HandleTokenRequestFormdataBody) MarshalJSON() ([]byte, error) {
 	var err error
 	object := make(map[string]json.RawMessage)
 
-	object["code"], err = json.Marshal(a.Code)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'code': %w", err)
+	if a.Code != nil {
+		object["code"], err = json.Marshal(a.Code)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'code': %w", err)
+		}
 	}
 
 	object["grant_type"], err = json.Marshal(a.GrantType)
