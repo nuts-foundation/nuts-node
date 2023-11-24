@@ -164,12 +164,12 @@ func (m *Module) validateRegistration(definition ServiceDefinition, presentation
 	// VP can't be valid longer than the credentialRecord it contains
 	expiration := presentation.JWT().Expiration()
 	for _, cred := range presentation.VerifiableCredential {
-		exp := cred.JWT().Expiration()
-		if !exp.IsZero() && expiration.After(exp) {
+		if cred.ExpirationDate != nil && expiration.After(*cred.ExpirationDate) {
 			return fmt.Errorf("presentation is valid longer than the credential(s) it contains")
 		}
 	}
 	// VP must fulfill the PEX Presentation ServiceDefinition
+	// TODO: Use Validate() once PR is merged
 	creds, _, err := definition.PresentationDefinition.Match(presentation.VerifiableCredential)
 	if err != nil || len(creds) != len(presentation.VerifiableCredential) {
 		return fmt.Errorf("presentation does not fulfill Presentation ServiceDefinition: %w", err)
