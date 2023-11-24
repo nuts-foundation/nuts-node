@@ -26,6 +26,8 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"os"
 	"path"
 	"strings"
@@ -44,9 +46,10 @@ var _ Server = &Module{}
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
 // New creates a new Module.
-func New(storageInstance storage.Engine) *Module {
+func New(storageInstance storage.Engine, vcrInstance vcr.VCR) *Module {
 	return &Module{
 		storageInstance: storageInstance,
+		vcrInstance:     vcrInstance,
 	}
 }
 
@@ -57,6 +60,7 @@ type Module struct {
 	store             *sqlStore
 	serverDefinitions map[string]ServiceDefinition
 	services          map[string]ServiceDefinition
+	vcrInstance       vcr.VCR
 }
 
 func (m *Module) Configure(_ core.ServerConfig) error {
@@ -105,8 +109,9 @@ func (m *Module) Config() interface{} {
 }
 
 func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) error {
-	definition, exists := m.services[serviceID]
-	if !exists {
+	// First, simple sanity checks
+	definition, serviceExists := m.services[serviceID]
+	if !serviceExists {
 		return ErrServiceNotFound
 	}
 	if _, isMaintainer := m.serverDefinitions[serviceID]; !isMaintainer {
@@ -115,7 +120,6 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 	if presentation.Format() != vc.JWTPresentationProofFormat {
 		return errors.New("only JWT presentations are supported")
 	}
-	// TODO: validate signature
 	if presentation.ID == nil {
 		return errors.New("presentation does not have an ID")
 	}
@@ -127,15 +131,36 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 	if int(expiration.Sub(time.Now()).Seconds()) > definition.PresentationMaxValidity {
 		return fmt.Errorf("presentation is valid for too long (max %s)", time.Duration(definition.PresentationMaxValidity)*time.Second)
 	}
-
-	if presentation.IsType(retractionPresentationType) {
-		return m.addRetraction(definition.ID, presentation)
-	} else {
-		return m.addPresentation(definition, presentation)
+	// Check if the presentation already exists
+	credentialSubjectID, err := credential.PresentationSigner(presentation)
+	if err != nil {
+		return err
 	}
+	exists, err := m.store.exists(serviceID, credentialSubjectID.String(), presentation.ID.String())
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrPresentationAlreadyExists
+	}
+	// Depending on the presentation type, we need to validate different properties before storing it.
+	if presentation.IsType(retractionPresentationType) {
+		err = m.validateRetraction(definition.ID, presentation)
+	} else {
+		err = m.validateRegistration(definition, presentation)
+	}
+	if err != nil {
+		return err
+	}
+	// Check signature of presentation and contained credential(s)
+	_, err = m.vcrInstance.Verifier().VerifyVP(presentation, true, true, nil)
+	if err != nil {
+		return fmt.Errorf("presentation verification failed: %w", err)
+	}
+	return m.store.add(definition.ID, presentation, nil)
 }
 
-func (m *Module) addPresentation(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
+func (m *Module) validateRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
 	// VP can't be valid longer than the credentialRecord it contains
 	expiration := presentation.JWT().Expiration()
 	for _, cred := range presentation.VerifiableCredential {
@@ -149,10 +174,10 @@ func (m *Module) addPresentation(definition ServiceDefinition, presentation vc.V
 	if err != nil || len(creds) != len(presentation.VerifiableCredential) {
 		return fmt.Errorf("presentation does not fulfill Presentation ServiceDefinition: %w", err)
 	}
-	return m.store.add(definition.ID, presentation, nil)
+	return nil
 }
 
-func (m *Module) addRetraction(serviceID string, presentation vc.VerifiablePresentation) error {
+func (m *Module) validateRetraction(serviceID string, presentation vc.VerifiablePresentation) error {
 	// Presentation might be a retraction (deletion of an earlier credentialRecord) must contain no credentials, and refer to the VP being retracted by ID.
 	// If those conditions aren't met, we don't need to register the retraction.
 	if len(presentation.VerifiableCredential) > 0 {
@@ -169,11 +194,7 @@ func (m *Module) addRetraction(serviceID string, presentation vc.VerifiablePrese
 			return errors.New("retraction presentation 'retract_jti' claim is not a string")
 		}
 	}
-	signer := presentation.JWT().Issuer()
-	signerDID, err := did.ParseDID(signer)
-	if err != nil {
-		return fmt.Errorf("retraction presentation issuer is not a valid DID: %w", err)
-	}
+	signerDID, _ := credential.PresentationSigner(presentation) // checked before
 	retractJTI, err := did.ParseDIDURL(retractJTIString)
 	if err != nil {
 		return fmt.Errorf("retraction presentation 'retract_jti' claim is not a valid DID URL: %w", err)
@@ -181,14 +202,14 @@ func (m *Module) addRetraction(serviceID string, presentation vc.VerifiablePrese
 	if !signerDID.Equals(retractJTI.DID) {
 		return errors.New("retraction presentation 'retract_jti' claim does not match JWT issuer")
 	}
-	exists, err := m.store.exists(serviceID, signer, retractJTIString)
+	exists, err := m.store.exists(serviceID, signerDID.String(), retractJTIString)
 	if err != nil {
 		return err
 	}
 	if !exists {
 		return errors.New("retraction presentation refers to a non-existing presentation")
 	}
-	return m.store.add(serviceID, presentation, nil)
+	return nil
 }
 
 func (m *Module) Get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {

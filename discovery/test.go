@@ -44,10 +44,12 @@ var vpAlice vc.VerifiablePresentation
 var bobDID did.DID
 var vcBob vc.VerifiableCredential
 var vpBob vc.VerifiablePresentation
+var unsupportedDID did.DID
 
 var testServiceID = "usecase_v1"
 
 func testDefinitions() map[string]ServiceDefinition {
+	issuerPattern := "did:example:*"
 	return map[string]ServiceDefinition{
 		testServiceID: {
 			ID:       testServiceID,
@@ -61,7 +63,8 @@ func testDefinitions() map[string]ServiceDefinition {
 								{
 									Path: []string{"$.issuer"},
 									Filter: &pe.Filter{
-										Type: "string",
+										Type:    "string",
+										Pattern: &issuerPattern,
 									},
 								},
 							},
@@ -103,6 +106,8 @@ func init() {
 	keyPairs[aliceDID.String()], _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	bobDID = did.MustParseDID("did:example:bob")
 	keyPairs[bobDID.String()], _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	unsupportedDID = did.MustParseDID("did:web:example.com")
+	keyPairs[unsupportedDID.String()], _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
 	vcAlice = createCredential(authorityDID, aliceDID, map[string]interface{}{
 		"person": map[string]interface{}{

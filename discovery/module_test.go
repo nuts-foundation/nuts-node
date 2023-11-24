@@ -19,11 +19,15 @@
 package discovery
 
 import (
+	"errors"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"testing"
 	"time"
 )
@@ -39,9 +43,73 @@ func TestModule_Shutdown(t *testing.T) {
 func Test_Module_Add(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
+
+	t.Run("not a maintainer", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+
+		err := m.Add("other", vpAlice)
+		require.EqualError(t, err, "node is not a discovery server for this service")
+	})
+	t.Run("VP verification fails (e.g. invalid signature)", func(t *testing.T) {
+		m, presentationVerifier := setupModule(t, storageEngine)
+		presentationVerifier.EXPECT().VerifyVP(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
+
+		err := m.Add(testServiceID, vpAlice)
+		require.EqualError(t, err, "presentation verification failed: failed")
+
+		_, timestamp, err := m.Get(testServiceID, 0)
+		require.NoError(t, err)
+		assert.Equal(t, Timestamp(0), *timestamp)
+	})
+	t.Run("already exists", func(t *testing.T) {
+		m, presentationVerifier := setupModule(t, storageEngine)
+		presentationVerifier.EXPECT().VerifyVP(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+
+		err := m.Add(testServiceID, vpAlice)
+		assert.NoError(t, err)
+		err = m.Add(testServiceID, vpAlice)
+		assert.EqualError(t, err, "presentation already exists")
+	})
+	t.Run("valid for too long", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		def := m.services[testServiceID]
+		def.PresentationMaxValidity = 1
+		m.services[testServiceID] = def
+
+		err := m.Add(testServiceID, vpAlice)
+		assert.EqualError(t, err, "presentation is valid for too long (max 1s)")
+	})
+	t.Run("no expiration", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		err := m.Add(testServiceID, createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
+			delete(claims, "exp")
+		}))
+		assert.EqualError(t, err, "presentation does not have an expiration")
+	})
+	t.Run("presentation does not contain an ID", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+
+		vpWithoutID := createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
+			delete(claims, "jti")
+		}, vcAlice)
+		err := m.Add(testServiceID, vpWithoutID)
+		assert.EqualError(t, err, "presentation does not have an ID")
+	})
+	t.Run("not a JWT", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		err := m.Add(testServiceID, vc.VerifiablePresentation{})
+		assert.EqualError(t, err, "only JWT presentations are supported")
+	})
+	t.Run("service unknown", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		err := m.Add("unknown", vpAlice)
+		assert.ErrorIs(t, err, ErrServiceNotFound)
+	})
+
 	t.Run("registration", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
+			m, presentationVerifier := setupModule(t, storageEngine)
+			presentationVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil)
 
 			err := m.Add(testServiceID, vpAlice)
 			require.NoError(t, err)
@@ -50,25 +118,8 @@ func Test_Module_Add(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, Timestamp(1), *timestamp)
 		})
-		t.Run("already exists", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
-
-			err := m.Add(testServiceID, vpAlice)
-			assert.NoError(t, err)
-			err = m.Add(testServiceID, vpAlice)
-			assert.EqualError(t, err, "presentation already exists")
-		})
-		t.Run("valid for too long", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
-			def := m.services[testServiceID]
-			def.PresentationMaxValidity = 1
-			m.services[testServiceID] = def
-
-			err := m.Add(testServiceID, vpAlice)
-			assert.EqualError(t, err, "presentation is valid for too long (max 1s)")
-		})
 		t.Run("valid longer than its credentials", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 
 			vcAlice := createCredential(authorityDID, aliceDID, nil, func(claims map[string]interface{}) {
 				claims["exp"] = time.Now().Add(time.Hour)
@@ -77,31 +128,16 @@ func Test_Module_Add(t *testing.T) {
 			err := m.Add(testServiceID, vpAlice)
 			assert.EqualError(t, err, "presentation is valid longer than the credential(s) it contains")
 		})
-		t.Run("no expiration", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
-			err := m.Add(testServiceID, createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
-				delete(claims, "exp")
-			}))
-			assert.EqualError(t, err, "presentation does not have an expiration")
-		})
-		t.Run("presentation does not contain an ID", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
+		t.Run("not conform to Presentation Definition", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine)
 
-			vpWithoutID := createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
-				delete(claims, "jti")
-			}, vcAlice)
-			err := m.Add(testServiceID, vpWithoutID)
-			assert.EqualError(t, err, "presentation does not have an ID")
-		})
-		t.Run("not a JWT", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
-			err := m.Add(testServiceID, vc.VerifiablePresentation{})
-			assert.EqualError(t, err, "only JWT presentations are supported")
-		})
-		t.Run("service unknown", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
-			err := m.Add("unknown", vpAlice)
-			assert.ErrorIs(t, err, ErrServiceNotFound)
+			// Presentation Definition only allows did:example DIDs
+			otherVP := createPresentation(unsupportedDID, createCredential(unsupportedDID, unsupportedDID, nil, nil))
+			err := m.Add(testServiceID, otherVP)
+			require.ErrorContains(t, err, "presentation does not fulfill Presentation ServiceDefinition")
+
+			_, timestamp, _ := m.Get(testServiceID, 0)
+			assert.Equal(t, Timestamp(0), *timestamp)
 		})
 	})
 	t.Run("retraction", func(t *testing.T) {
@@ -110,19 +146,21 @@ func Test_Module_Add(t *testing.T) {
 			claims["retract_jti"] = vpAlice.ID.String()
 		})
 		t.Run("ok", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
+			m, presentationVerifier := setupModule(t, storageEngine)
+			presentationVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Times(2)
+
 			err := m.Add(testServiceID, vpAlice)
 			require.NoError(t, err)
 			err = m.Add(testServiceID, vpAliceRetract)
 			assert.NoError(t, err)
 		})
 		t.Run("non-existent presentation", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 			err := m.Add(testServiceID, vpAliceRetract)
 			assert.EqualError(t, err, "retraction presentation refers to a non-existing presentation")
 		})
 		t.Run("must not contain credentials", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 			}, vcAlice)
@@ -130,7 +168,7 @@ func Test_Module_Add(t *testing.T) {
 			assert.EqualError(t, err, "retraction presentation must not contain credentials")
 		})
 		t.Run("missing 'retract_jti' claim", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(_ map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 			})
@@ -138,7 +176,7 @@ func Test_Module_Add(t *testing.T) {
 			assert.EqualError(t, err, "retraction presentation does not contain 'retract_jti' claim")
 		})
 		t.Run("'retract_jti' claim in not a string", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 				claims["retract_jti"] = 10
@@ -147,7 +185,7 @@ func Test_Module_Add(t *testing.T) {
 			assert.EqualError(t, err, "retraction presentation 'retract_jti' claim is not a string")
 		})
 		t.Run("'retract_jti' claim in not a valid DID", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 				claims["retract_jti"] = "not a DID"
@@ -156,7 +194,7 @@ func Test_Module_Add(t *testing.T) {
 			assert.EqualError(t, err, "retraction presentation 'retract_jti' claim is not a valid DID URL: invalid DID")
 		})
 		t.Run("'retract_jti' claim does not reference a presentation of the signer", func(t *testing.T) {
-			m := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 				claims["retract_jti"] = bobDID.String()
@@ -171,30 +209,34 @@ func Test_Module_Get(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 	t.Run("ok", func(t *testing.T) {
-		m := setupModule(t, storageEngine)
-		require.NoError(t, m.Add(testServiceID, vpAlice))
+		m, _ := setupModule(t, storageEngine)
+		require.NoError(t, m.store.add(testServiceID, vpAlice, nil))
 		presentations, timestamp, err := m.Get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{vpAlice}, presentations)
 		assert.Equal(t, Timestamp(1), *timestamp)
 	})
 	t.Run("service unknown", func(t *testing.T) {
-		m := setupModule(t, storageEngine)
+		m, _ := setupModule(t, storageEngine)
 		_, _, err := m.Get("unknown", 0)
 		assert.ErrorIs(t, err, ErrServiceNotFound)
 	})
 }
 
-func setupModule(t *testing.T, storageInstance storage.Engine) *Module {
+func setupModule(t *testing.T, storageInstance storage.Engine) (*Module, *verifier.MockVerifier) {
 	resetStore(t, storageInstance.GetSQLDatabase())
-	m := New(storageInstance)
+	ctrl := gomock.NewController(t)
+	mockVerifier := verifier.NewMockVerifier(ctrl)
+	mockVCR := vcr.NewMockVCR(ctrl)
+	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
+	m := New(storageInstance, mockVCR)
 	require.NoError(t, m.Configure(core.ServerConfig{}))
 	m.services = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{
 		testServiceID: m.services[testServiceID],
 	}
 	require.NoError(t, m.Start())
-	return m
+	return m, mockVerifier
 }
 
 func TestModule_Configure(t *testing.T) {

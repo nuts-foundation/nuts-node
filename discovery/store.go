@@ -128,11 +128,6 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 	if err != nil {
 		return err
 	}
-	if exists, err := s.exists(serviceID, credentialSubjectID.String(), presentation.ID.String()); err != nil {
-		return err
-	} else if exists {
-		return ErrPresentationAlreadyExists
-	}
 	if _, isSQLite := s.db.Config.Dialector.(*sqlite.Dialector); isSQLite {
 		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
 		// and any other attempt to acquire a write transaction will directly return an error.
@@ -208,7 +203,7 @@ func createPresentationRecord(serviceID string, timestamp Timestamp, presentatio
 			CredentialSubjectID: credentialSubjectID.String(),
 			CredentialType:      credentialType,
 		}
-		// Store credential's properties
+		// Create key-value properties of the credential subject, which is then stored in the property table for searching.
 		keys, values := indexJSONObject(currCred.CredentialSubject[0].(map[string]interface{}), nil, nil, "credentialSubject")
 		for i, key := range keys {
 			if key == "credentialSubject.id" {
@@ -226,6 +221,9 @@ func createPresentationRecord(serviceID string, timestamp Timestamp, presentatio
 	return &newPresentation, nil
 }
 
+// get returns all presentations, registered on the given service, starting after the given timestamp.
+// It also returns the latest timestamp of the returned presentations.
+// This timestamp can then be used next time to only retrieve presentations that were added after that timestamp.
 func (s *sqlStore) get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {
 	var rows []presentationRecord
 	err := s.db.Order("lamport_timestamp ASC").Find(&rows, "service_id = ? AND lamport_timestamp > ?", serviceID, int(startAt)).Error
@@ -245,6 +243,10 @@ func (s *sqlStore) get(serviceID string, startAt Timestamp) ([]vc.VerifiablePres
 	return presentations, &timestamp, nil
 }
 
+// search searches for presentations, registered on the given service, matching the given query.
+// The query is a map of JSON paths and expected string values, matched against the presentation's credentials.
+// Wildcard matching is supported by prefixing or suffixing the value with an asterisk (*).
+// It returns the presentations which contain credentials that match the given query.
 func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error) {
 	propertyColumns := map[string]string{
 		"id":                   "cred.credential_id",
@@ -261,7 +263,8 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 		if value == "*" {
 			continue
 		}
-		// sort out wildcard mode
+		// sort out wildcard mode: prefix and postfix asterisks (*) are replaced with %, which then is used in a LIKE query.
+		// Otherwise, exact match (=) is used.
 		var eq = "="
 		if strings.HasPrefix(value, "*") {
 			value = "%" + value[1:]
@@ -300,6 +303,9 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 	return results, nil
 }
 
+// updateTimestamp updates the timestamp of the given service.
+// Clients should pass the timestamp they received from the server (which simply sets it).
+// Servers should pass nil (since they "own" the timestamp), which causes it to be incremented.
 func (s *sqlStore) updateTimestamp(tx *gorm.DB, serviceID string, newTimestamp *Timestamp) (Timestamp, error) {
 	var result serviceRecord
 	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the lamport timestamp.
@@ -322,6 +328,7 @@ func (s *sqlStore) updateTimestamp(tx *gorm.DB, serviceID string, newTimestamp *
 	return Timestamp(result.LamportTimestamp), nil
 }
 
+// exists checks whether a presentation of the given subject is registered on a service.
 func (s *sqlStore) exists(serviceID string, credentialSubjectID string, presentationID string) (bool, error) {
 	var count int64
 	if err := s.db.Model(presentationRecord{}).Where(presentationRecord{
