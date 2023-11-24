@@ -55,6 +55,7 @@ func testDefinitions() map[string]ServiceDefinition {
 			PresentationDefinition: pe.PresentationDefinition{
 				InputDescriptors: []*pe.InputDescriptor{
 					{
+						Id: "1",
 						Constraints: &pe.Constraints{
 							Fields: []pe.Field{
 								{

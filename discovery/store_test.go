@@ -107,6 +107,23 @@ func Test_sqlStore_add(t *testing.T) {
 		assert.NoError(t, m.db.Find(&actual).Error)
 		assert.Empty(t, actual)
 	})
+	t.Run("replaces previous presentation of same subject", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+
+		secondVP := createPresentation(aliceDID, vcAlice)
+		require.NoError(t, m.add(testServiceID, vpAlice, nil))
+		require.NoError(t, m.add(testServiceID, secondVP, nil))
+
+		// First VP should not exist
+		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
+		require.NoError(t, err)
+		assert.False(t, exists)
+
+		// Only second VP should exist
+		exists, err = m.exists(testServiceID, aliceDID.String(), secondVP.ID.String())
+		require.NoError(t, err)
+		assert.True(t, exists)
+	})
 }
 
 func Test_sqlStore_get(t *testing.T) {
