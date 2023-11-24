@@ -20,12 +20,12 @@ package discovery
 
 // Config holds the config of the module
 type Config struct {
-	Server      ServerConfig      `koanf:"server"`
-	Definitions DefinitionsConfig `koanf:"definitions"`
+	Server      ServerConfig             `koanf:"server"`
+	Definitions ServiceDefinitionsConfig `koanf:"definitions"`
 }
 
-// DefinitionsConfig holds the config for loading Service Definitions.
-type DefinitionsConfig struct {
+// ServiceDefinitionsConfig holds the config for loading Service Definitions.
+type ServiceDefinitionsConfig struct {
 	Directory string `koanf:"directory"`
 }
 

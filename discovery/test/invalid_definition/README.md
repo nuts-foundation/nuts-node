@@ -1,1 +1,1 @@
-This directory contains an invalid use case definition: it does not fields that are required according to the JSON schema.
+This directory contains an invalid use case definition: it does not contain the fields that are required according to the JSON schema.

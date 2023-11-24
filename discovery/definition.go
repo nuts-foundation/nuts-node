@@ -29,7 +29,7 @@ import (
 
 //go:embed *.json
 var jsonSchemaFiles embed.FS
-var definitionJsonSchema *jsonschema.Schema
+var serviceDefinitionJsonSchema *jsonschema.Schema
 
 func init() {
 	serviceDefinitionSchemaData, err := jsonSchemaFiles.ReadFile("service-definition-schema.json")
@@ -41,27 +41,29 @@ func init() {
 	if err := compiler.AddResource(schemaURL, bytes.NewReader(serviceDefinitionSchemaData)); err != nil {
 		panic(err)
 	}
-	definitionJsonSchema = compiler.MustCompile(schemaURL)
+	serviceDefinitionJsonSchema = compiler.MustCompile(schemaURL)
 }
 
-// Definition holds the definition of a service.
-type Definition struct {
+// ServiceDefinition holds the definition of a service.
+type ServiceDefinition struct {
 	// ID is the unique identifier of the use case.
 	ID string `json:"id"`
 	// Endpoint is the endpoint where the use case list is served.
 	Endpoint string `json:"endpoint"`
-	// PresentationDefinition specifies the Presentation Definition submissions to the list must conform to,
+	// PresentationDefinition specifies the Presentation ServiceDefinition submissions to the list must conform to,
 	// according to the Presentation Exchange specification.
 	PresentationDefinition pe.PresentationDefinition `json:"presentation_definition"`
 	// PresentationMaxValidity specifies how long submitted presentations are allowed to be valid (in seconds).
 	PresentationMaxValidity int `json:"presentation_max_validity"`
 }
 
-func ParseDefinition(data []byte) (*Definition, error) {
-	if err := definitionJsonSchema.Validate(bytes.NewReader(data)); err != nil {
+// ParseServiceDefinition validates the input against the JSON schema for service definitions.
+// If the input is valid, it is parsed and returned as a ServiceDefinition.
+func ParseServiceDefinition(data []byte) (*ServiceDefinition, error) {
+	if err := serviceDefinitionJsonSchema.Validate(bytes.NewReader(data)); err != nil {
 		return nil, err
 	}
-	var definition Definition
+	var definition ServiceDefinition
 	if err := json.Unmarshal(data, &definition); err != nil {
 		return nil, err
 	}

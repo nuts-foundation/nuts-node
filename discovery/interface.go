@@ -40,7 +40,7 @@ var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 // Server defines the API for Discovery Servers.
 type Server interface {
 	// Add registers a presentation on the given Discovery Service.
-	// If the presentation is not valid or it does not conform to the Service Definition, it returns an error.
+	// If the presentation is not valid or it does not conform to the Service ServiceDefinition, it returns an error.
 	Add(serviceID string, presentation vc.VerifiablePresentation) error
 	// Get retrieves the presentations for the given service, starting at the given timestamp.
 	Get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error)

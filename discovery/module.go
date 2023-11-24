@@ -55,8 +55,8 @@ type Module struct {
 	config            Config
 	storageInstance   storage.Engine
 	store             *sqlStore
-	serverDefinitions map[string]Definition
-	services          map[string]Definition
+	serverDefinitions map[string]ServiceDefinition
+	services          map[string]ServiceDefinition
 }
 
 func (m *Module) Configure(_ core.ServerConfig) error {
@@ -70,10 +70,10 @@ func (m *Module) Configure(_ core.ServerConfig) error {
 	}
 	if len(m.config.Server.DefinitionIDs) > 0 {
 		// Get the definitions that are enabled for this server
-		serverDefinitions := make(map[string]Definition)
+		serverDefinitions := make(map[string]ServiceDefinition)
 		for _, definitionID := range m.config.Server.DefinitionIDs {
 			if definition, exists := m.services[definitionID]; !exists {
-				return fmt.Errorf("definition '%s' not found", definitionID)
+				return fmt.Errorf("service definition '%s' not found", definitionID)
 			} else {
 				serverDefinitions[definitionID] = definition
 			}
@@ -135,7 +135,7 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 	}
 }
 
-func (m *Module) addPresentation(definition Definition, presentation vc.VerifiablePresentation) error {
+func (m *Module) addPresentation(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
 	// VP can't be valid longer than the credentialRecord it contains
 	expiration := presentation.JWT().Expiration()
 	for _, cred := range presentation.VerifiableCredential {
@@ -144,10 +144,10 @@ func (m *Module) addPresentation(definition Definition, presentation vc.Verifiab
 			return fmt.Errorf("presentation is valid longer than the credential(s) it contains")
 		}
 	}
-	// VP must fulfill the PEX Presentation Definition
+	// VP must fulfill the PEX Presentation ServiceDefinition
 	creds, _, err := definition.PresentationDefinition.Match(presentation.VerifiableCredential)
 	if err != nil || len(creds) != len(presentation.VerifiableCredential) {
-		return fmt.Errorf("presentation does not fulfill Presentation Definition: %w", err)
+		return fmt.Errorf("presentation does not fulfill Presentation ServiceDefinition: %w", err)
 	}
 	return m.store.add(definition.ID, presentation, nil)
 }
@@ -198,12 +198,12 @@ func (m *Module) Get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresen
 	return m.store.get(serviceID, startAt)
 }
 
-func loadDefinitions(directory string) (map[string]Definition, error) {
+func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 	entries, err := os.ReadDir(directory)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read definitions directory '%s': %w", directory, err)
 	}
-	result := make(map[string]Definition)
+	result := make(map[string]ServiceDefinition)
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
@@ -211,14 +211,14 @@ func loadDefinitions(directory string) (map[string]Definition, error) {
 		filePath := path.Join(directory, entry.Name())
 		data, err := os.ReadFile(filePath)
 		if err != nil {
-			return nil, fmt.Errorf("unable to read definition file '%s': %w", filePath, err)
+			return nil, fmt.Errorf("unable to read service definition file '%s': %w", filePath, err)
 		}
-		definition, err := ParseDefinition(data)
+		definition, err := ParseServiceDefinition(data)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse definition file '%s': %w", filePath, err)
+			return nil, fmt.Errorf("unable to parse service definition file '%s': %w", filePath, err)
 		}
 		if _, exists := result[definition.ID]; exists {
-			return nil, fmt.Errorf("duplicate definition ID '%s' in file '%s'", definition.ID, filePath)
+			return nil, fmt.Errorf("duplicate service definition ID '%s' in file '%s'", definition.ID, filePath)
 		}
 		result[definition.ID] = *definition
 	}

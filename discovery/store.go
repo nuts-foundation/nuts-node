@@ -103,7 +103,7 @@ type sqlStore struct {
 	writeLock sync.Mutex
 }
 
-func newSQLStore(db *gorm.DB, definitions map[string]Definition) (*sqlStore, error) {
+func newSQLStore(db *gorm.DB, definitions map[string]ServiceDefinition) (*sqlStore, error) {
 	// Creates entries in the discovery service table with initial timestamp, if they don't exist yet
 	for _, definition := range definitions {
 		currentList := serviceRecord{

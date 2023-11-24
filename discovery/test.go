@@ -47,8 +47,8 @@ var vpBob vc.VerifiablePresentation
 
 var testServiceID = "usecase_v1"
 
-func testDefinitions() map[string]Definition {
-	return map[string]Definition{
+func testDefinitions() map[string]ServiceDefinition {
+	return map[string]ServiceDefinition{
 		testServiceID: {
 			ID:       testServiceID,
 			Endpoint: "http://example.com/usecase",
