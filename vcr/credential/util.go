@@ -22,6 +22,8 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"time"
 )
 
 // ResolveSubjectDID resolves the subject DID from the given credentials.
@@ -61,4 +63,59 @@ func VerifyPresenterIsCredentialSubject(vp vc.VerifiablePresentation) error {
 		return errors.New("not all VC credentialSubject.id match VP signer")
 	}
 	return nil
+}
+
+// PresentationIssuanceDate returns the date at which the presentation was issued.
+// For JSON-LD, it looks at the first LinkedData proof's 'created' property.
+// For JWT, it looks at the 'iat' claim, or if that is not present, the 'nbf' claim.
+// If it can't resolve the date, it returns nil.
+func PresentationIssuanceDate(presentation vc.VerifiablePresentation) *time.Time {
+	var result time.Time
+	switch presentation.Format() {
+	case vc.JWTPresentationProofFormat:
+		jwt := presentation.JWT()
+		if result = jwt.IssuedAt(); result.IsZero() {
+			result = jwt.NotBefore()
+		}
+	case vc.JSONLDPresentationProofFormat:
+		var proofs []proof.LDProof
+		if err := presentation.UnmarshalProofValue(&proofs); err != nil {
+			return nil
+		}
+		if len(proofs) == 0 {
+			return nil
+		}
+		result = proofs[0].Created
+	}
+	if result.IsZero() {
+		return nil
+	}
+	return &result
+}
+
+// PresentationExpirationDate returns the date at which the presentation was issued.
+// For JSON-LD, it looks at the first LinkedData proof's 'expires' property.
+// For JWT, it looks at the 'exp' claim.
+// If it can't resolve the date, it returns nil.
+func PresentationExpirationDate(presentation vc.VerifiablePresentation) *time.Time {
+	var result time.Time
+	switch presentation.Format() {
+	case vc.JWTPresentationProofFormat:
+		result = presentation.JWT().Expiration()
+	case vc.JSONLDPresentationProofFormat:
+		var proofs []proof.LDProof
+		if err := presentation.UnmarshalProofValue(&proofs); err != nil {
+			return nil
+		}
+		if len(proofs) == 0 {
+			return nil
+		}
+		if proofs[0].Expires != nil {
+			result = *proofs[0].Expires
+		}
+	}
+	if result.IsZero() {
+		return nil
+	}
+	return &result
 }

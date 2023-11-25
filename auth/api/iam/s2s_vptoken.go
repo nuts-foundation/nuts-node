@@ -41,6 +41,9 @@ import (
 // TODO: Might want to make this configurable at some point
 const accessTokenValidity = 15 * time.Minute
 
+// maxPresentationValidity defines the maximum validity of a presentation.
+const maxPresentationValidity = 10 * time.Second
+
 // handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity), then the more expensive ones (checking signatures and matching VCs to the presentation definition):
 // 1. Check presence and format of parameters
@@ -94,11 +97,27 @@ func (s Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]s
 	}
 
 	for _, presentation := range pexEnvelope.Presentations {
+		// Presenter should be credential holder
 		err = credential.VerifyPresenterIsCredentialSubject(presentation)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
 				Description: fmt.Sprintf("verifiable presentation is invalid: %s", err.Error()),
+			}
+		}
+		// Presentation should not be valid for too long
+		created := credential.PresentationIssuanceDate(presentation)
+		expires := credential.PresentationExpirationDate(presentation)
+		if created == nil || expires == nil {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "assertion parameter is invalid: missing creation or expiration date",
+			}
+		}
+		if expires.Sub(*created) > maxPresentationValidity {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: fmt.Sprintf("assertion parameter is invalid: presentation is valid for too long (max %s)", maxPresentationValidity),
 			}
 		}
 	}

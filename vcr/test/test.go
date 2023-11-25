@@ -36,7 +36,7 @@ import (
 )
 
 // CreateJWTPresentation creates a JWT presentation with the given subject DID and credentials.
-func CreateJWTPresentation(t *testing.T, subjectDID did.DID, credentials ...vc.VerifiableCredential) vc.VerifiablePresentation {
+func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(token jwt.Token), credentials ...vc.VerifiableCredential) vc.VerifiablePresentation {
 	headers := jws.NewHeaders()
 	require.NoError(t, headers.Set(jws.TypeKey, "JWT"))
 	claims := map[string]interface{}{
@@ -44,7 +44,7 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, credentials ...vc.V
 		jwt.SubjectKey:    subjectDID.String(),
 		jwt.JwtIDKey:      subjectDID.String() + "#" + uuid.NewString(),
 		jwt.NotBeforeKey:  time.Now().Unix(),
-		jwt.ExpirationKey: time.Now().Add(time.Hour).Unix(),
+		jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
 		"vp": vc.VerifiablePresentation{
 			Type:                 []ssi.URI{vc.VerifiablePresentationTypeV1URI()},
 			VerifiableCredential: credentials,
@@ -53,6 +53,9 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, credentials ...vc.V
 	unsignedToken := jwt.New()
 	for k, v := range claims {
 		require.NoError(t, unsignedToken.Set(k, v))
+	}
+	if tokenVisitor != nil {
+		tokenVisitor(unsignedToken)
 	}
 	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	token, _ := jwt.Sign(unsignedToken, jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
@@ -65,16 +68,28 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, credentials ...vc.V
 // The presentation is not actually signed.
 func CreateJSONLDPresentation(t *testing.T, subjectDID did.DID, verifiableCredential ...vc.VerifiableCredential) vc.VerifiablePresentation {
 	id := ssi.MustParseURI(subjectDID.String() + "#" + uuid.NewString())
-	data, _ := vc.VerifiablePresentation{
+	exp := time.Now().Add(5 * time.Second)
+	vp := vc.VerifiablePresentation{
 		ID:                   &id,
 		VerifiableCredential: verifiableCredential,
 		Proof: []interface{}{
 			proof.LDProof{
 				Type:               ssi.JsonWebSignature2020,
 				VerificationMethod: ssi.MustParseURI(subjectDID.String() + "#1"),
+				ProofOptions: proof.ProofOptions{
+					Created: time.Now(),
+					Expires: &exp,
+				},
 			},
 		},
-	}.MarshalJSON()
+	}
+	return ParsePresentation(t, vp)
+}
+
+// ParsePresentation marshals the given presentation and parses it again, to make sure the format property is set correctly.
+func ParsePresentation(t *testing.T, presentation vc.VerifiablePresentation) vc.VerifiablePresentation {
+	data, err := presentation.MarshalJSON()
+	require.NoError(t, err)
 	result, err := vc.ParseVerifiablePresentation(string(data))
 	require.NoError(t, err)
 	return *result

@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"net/http"
 	"testing"
 	"time"
@@ -178,9 +179,57 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		assert.EqualError(t, err, "invalid_request - missing required parameters")
 		assert.Nil(t, resp)
 	})
+	t.Run("missing presentation expiry date", func(t *testing.T) {
+		ctx := newTestClient(t)
+		presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+			require.NoError(t, token.Remove(jwt.ExpirationKey))
+		}, verifiableCredential)
+
+		params := map[string]string{
+			"assertion":               url.QueryEscape(presentation.Raw()),
+			"presentation_submission": url.QueryEscape(string(submissionJSON)),
+			"scope":                   requestedScope,
+		}
+
+		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
+
+		require.EqualError(t, err, "invalid_request - assertion parameter is invalid: missing creation or expiration date")
+	})
+	t.Run("missing presentation not before date", func(t *testing.T) {
+		ctx := newTestClient(t)
+		presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+			require.NoError(t, token.Remove(jwt.NotBeforeKey))
+		}, verifiableCredential)
+
+		params := map[string]string{
+			"assertion":               url.QueryEscape(presentation.Raw()),
+			"presentation_submission": url.QueryEscape(string(submissionJSON)),
+			"scope":                   requestedScope,
+		}
+
+		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
+
+		require.EqualError(t, err, "invalid_request - assertion parameter is invalid: missing creation or expiration date")
+	})
+	t.Run("missing presentation valid for too long", func(t *testing.T) {
+		ctx := newTestClient(t)
+		presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+			require.NoError(t, token.Set(jwt.ExpirationKey, time.Now().Add(time.Hour)))
+		}, verifiableCredential)
+
+		params := map[string]string{
+			"assertion":               url.QueryEscape(presentation.Raw()),
+			"presentation_submission": url.QueryEscape(string(submissionJSON)),
+			"scope":                   requestedScope,
+		}
+
+		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
+
+		require.EqualError(t, err, "invalid_request - assertion parameter is invalid: presentation is valid for too long (max 10s)")
+	})
 	t.Run("JWT VP", func(t *testing.T) {
 		ctx := newTestClient(t)
-		presentation := test.CreateJWTPresentation(t, *subjectDID, verifiableCredential)
+		presentation := test.CreateJWTPresentation(t, *subjectDID, nil, verifiableCredential)
 		ctx.verifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 
 		params := map[string]string{

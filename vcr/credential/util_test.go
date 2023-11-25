@@ -19,12 +19,16 @@
 package credential
 
 import (
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestResolveSubjectDID(t *testing.T) {
@@ -164,5 +168,107 @@ func TestVerifyPresenterIsCredentialSubject(t *testing.T) {
 		}
 		err := VerifyPresenterIsCredentialSubject(vp)
 		assert.EqualError(t, err, "presentation should have exactly 1 proof, got 2")
+	})
+}
+
+func TestPresentationIssuanceDate(t *testing.T) {
+	presenterDID := did.MustParseDID("did:test:123")
+	expected := time.Now().In(time.UTC).Truncate(time.Second)
+	t.Run("JWT iat", func(t *testing.T) {
+		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+			_ = token.Remove(jwt.NotBeforeKey)
+			require.NoError(t, token.Set(jwt.IssuedAtKey, expected))
+		})
+		actual := PresentationIssuanceDate(presentation)
+		assert.Equal(t, expected, *actual)
+	})
+	t.Run("JWT nbf", func(t *testing.T) {
+		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+			_ = token.Remove(jwt.IssuedAtKey)
+			require.NoError(t, token.Set(jwt.NotBeforeKey, expected))
+		})
+		actual := PresentationIssuanceDate(presentation)
+		assert.Equal(t, expected, *actual)
+	})
+	t.Run("JWT no iat or nbf", func(t *testing.T) {
+		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+			_ = token.Remove(jwt.IssuedAtKey)
+			_ = token.Remove(jwt.NotBeforeKey)
+		})
+		actual := PresentationIssuanceDate(presentation)
+		assert.Nil(t, actual)
+	})
+	t.Run("JSON-LD", func(t *testing.T) {
+		presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
+			Proof: []interface{}{
+				proof.LDProof{
+					ProofOptions: proof.ProofOptions{
+						Created: expected,
+					},
+				},
+			},
+		})
+		actual := PresentationIssuanceDate(presentation)
+		assert.Equal(t, expected, *actual)
+	})
+	t.Run("JSON-LD no proof", func(t *testing.T) {
+		presentation := test.ParsePresentation(t, vc.VerifiablePresentation{})
+		actual := PresentationIssuanceDate(presentation)
+		assert.Nil(t, actual)
+	})
+	t.Run("JSON-LD no created", func(t *testing.T) {
+		presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
+			Proof: []interface{}{
+				proof.LDProof{},
+			},
+		})
+		actual := PresentationIssuanceDate(presentation)
+		assert.Nil(t, actual)
+	})
+}
+
+func TestPresentationExpirationDate(t *testing.T) {
+	presenterDID := did.MustParseDID("did:test:123")
+	expected := time.Now().In(time.UTC).Truncate(time.Second)
+	t.Run("JWT", func(t *testing.T) {
+		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+			require.NoError(t, token.Set(jwt.ExpirationKey, expected))
+		})
+		actual := PresentationExpirationDate(presentation)
+		assert.Equal(t, expected, *actual)
+	})
+	t.Run("JWT no exp", func(t *testing.T) {
+		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+			_ = token.Remove(jwt.ExpirationKey)
+		})
+		actual := PresentationExpirationDate(presentation)
+		assert.Nil(t, actual)
+	})
+	t.Run("JSON-LD", func(t *testing.T) {
+		presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
+			Proof: []interface{}{
+				proof.LDProof{
+					ProofOptions: proof.ProofOptions{
+						Expires: &expected,
+					},
+				},
+			},
+		})
+		actual := PresentationExpirationDate(presentation)
+		assert.Equal(t, expected, *actual)
+	})
+	t.Run("JSON-LD no proof", func(t *testing.T) {
+		presentation := test.ParsePresentation(t, vc.VerifiablePresentation{})
+		actual := PresentationExpirationDate(presentation)
+		assert.Nil(t, actual)
+	})
+	t.Run("JSON-LD no expires", func(t *testing.T) {
+		presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
+			Proof: []interface{}{
+				proof.LDProof{},
+			},
+		})
+		actual := PresentationExpirationDate(presentation)
+		assert.Nil(t, actual)
 	})
 }
