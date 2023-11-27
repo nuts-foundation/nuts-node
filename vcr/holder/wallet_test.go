@@ -89,6 +89,9 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			assert.Equal(t, testDID, did.MustParseDIDURL(result.ID.String()).DID, "id must be the DID of the holder")
 			assert.NotEmpty(t, result.ID.Fragment, "id must have a fragment")
 			assert.Equal(t, JSONLDPresentationFormat, result.Format())
+			ldProof, err := credential.ParseLDProof(*result)
+			require.NoError(t, err)
+			assert.NotEmpty(t, ldProof.Nonce)
 		})
 		t.Run("ok - custom options", func(t *testing.T) {
 			ctrl := gomock.NewController(t)

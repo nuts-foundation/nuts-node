@@ -167,9 +167,10 @@ func (h wallet) buildJSONLDPresentation(ctx context.Context, subjectDID did.DID,
 		return nil, err
 	}
 
-	// TODO: choose between different proof types (JWT or LD-Proof)
-	signingResult, err := proof.
-		NewLDProof(options.ProofOptions).
+	ldProof := proof.NewLDProof(options.ProofOptions)
+	nonce := crypto.GenerateNonce()
+	ldProof.Nonce = &nonce
+	signingResult, err := ldProof.
 		Sign(ctx, document, signature.JSONWebSignature2020{ContextLoader: h.jsonldManager.DocumentLoader(), Signer: h.keyStore}, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign VP with LD proof: %w", err)
