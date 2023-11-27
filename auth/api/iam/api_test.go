@@ -245,7 +245,7 @@ func TestWrapper_HandleTokenRequest(t *testing.T) {
 			},
 		})
 
-		requireOAuthError(t, err, oauth.UnsupportedGrantType, "")
+		requireOAuthError(t, err, oauth.UnsupportedGrantType, "grant_type 'unsupported' is not supported")
 		assert.Nil(t, res)
 	})
 }

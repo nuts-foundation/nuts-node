@@ -245,7 +245,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			result, err := w.BuildPresentation(ctx, []vc.VerifiableCredential{testCredential}, PresentationOptions{Format: "paper"}, &testDID, true)
 
-			assert.EqualError(t, err, "unsupported presentation proof format")
+			assert.EqualError(t, err, "unsupported presentation proof format: paper")
 			assert.Nil(t, result)
 		})
 	})

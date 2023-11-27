@@ -197,11 +197,11 @@ func determineFormat(formats map[string]map[string][]string) (string, error) {
 	for format := range formats {
 		switch format {
 		case openid4vc.VerifiablePresentationJWTFormat:
-			fallthrough
+			return format, nil
 		case openid4vc.VerifiablePresentationJSONLDFormat:
 			fallthrough
 		case "jwt_vp_json":
-			return format, nil
+			return openid4vc.VerifiablePresentationJSONLDFormat, nil
 		default:
 			continue
 		}

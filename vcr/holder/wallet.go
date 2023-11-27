@@ -103,7 +103,7 @@ func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.Verifiab
 	case JSONLDPresentationFormat:
 		return h.buildJSONLDPresentation(ctx, *signerDID, credentials, options, key)
 	default:
-		return nil, errors.New("unsupported presentation proof format")
+		return nil, fmt.Errorf("unsupported presentation proof format: %s", options.Format)
 	}
 }
 

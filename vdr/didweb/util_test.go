@@ -55,6 +55,13 @@ func TestUrlToDid(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "did:web:localhost:something-else", result.String())
 	})
+	t.Run("empty part", func(t *testing.T) {
+		requestUrl, _ := url.Parse("https://localhost/iam/5/")
+		result, err := URLToDID(*requestUrl)
+
+		require.NoError(t, err)
+		assert.Equal(t, "did:web:localhost:iam:5", result.String())
+	})
 	t.Run("encoded path", func(t *testing.T) {
 		requestUrl, _ := url.Parse("https://localhost/x/y%2Fz/did.json")
 		result, err := URLToDID(*requestUrl)
