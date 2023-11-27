@@ -44,12 +44,8 @@ const accessTokenValidity = 15 * time.Minute
 const maxPresentationValidity = 10 * time.Second
 
 // handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
-// It performs cheap checks first (parameter presence and validity), then the more expensive ones (checking signatures and matching VCs to the presentation definition):
-// 1. Check presence and format of parameters
-// 2. Check VC issuer trust
-// 3. Check signer of VP == subject of VCs
-// 4. Check signatures of VP and VCs
-func (s Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]string) (HandleTokenRequestResponseObject, error) {
+// It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
+func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]string) (HandleTokenRequestResponseObject, error) {
 	submissionEncoded := params["presentation_submission"]
 	scope := params[scopeParam]
 	assertionEncoded := params["assertion"]
@@ -106,18 +102,18 @@ func (s Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]s
 		}
 	}
 	var definition *PresentationDefinition
-	if definition, err = s.validatePresentationSubmission(scope, submission, pexEnvelope); err != nil {
+	if definition, err = r.validatePresentationSubmission(scope, submission, pexEnvelope); err != nil {
 		return nil, err
 	}
 	for _, presentation := range pexEnvelope.Presentations {
-		if err := s.validatePresentationNonce(presentation); err != nil {
+		if err := r.validatePresentationNonce(presentation); err != nil {
 			return nil, err
 		}
 	}
 
 	// Check signatures of VP and VCs. Trust should be established by the Presentation Definition.
 	for _, presentation := range pexEnvelope.Presentations {
-		_, err = s.vcr.Verifier().VerifyVP(presentation, true, true, nil)
+		_, err = r.vcr.Verifier().VerifyVP(presentation, true, true, nil)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.InvalidRequest,
@@ -128,14 +124,14 @@ func (s Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]s
 	}
 
 	// All OK, allow access
-	response, err := s.createAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope)
+	response, err := r.createAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope)
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
+func (r *Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
 	if request.Body == nil {
 		// why did oapi-codegen generate a pointer for the body??
 		return nil, core.InvalidInputError("missing request body")
@@ -174,7 +170,7 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	return RequestAccessToken200JSONResponse(*tokenResult), nil
 }
 
-func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation,
+func (r *Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation,
 	submission pe.PresentationSubmission, definition PresentationDefinition, scope string) (*oauth.TokenResponse, error) {
 	accessToken := AccessToken{
 		Token:  crypto.GenerateNonce(),
@@ -204,8 +200,8 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 // validatePresentationSubmission checks if the presentation submission is valid for the given scope:
 //  1. Resolve presentation definition for the requested scope
 //  2. Check submission against presentation and definition
-func (s Wrapper) validatePresentationSubmission(scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (*PresentationDefinition, error) {
-	definition := s.auth.PresentationDefinitions().ByScope(scope)
+func (r Wrapper) validatePresentationSubmission(scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (*PresentationDefinition, error) {
+	definition := r.auth.PresentationDefinitions().ByScope(scope)
 	if definition == nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidScope,
@@ -262,7 +258,7 @@ func validatePresentationSigner(presentation vc.VerifiablePresentation) error {
 }
 
 // validatePresentationNonce checks if the nonce has been used before; 'jti' claim for JWTs or LDProof's 'nonce' for JSON-LD.
-func (s Wrapper) validatePresentationNonce(presentation vc.VerifiablePresentation) error {
+func (r *Wrapper) validatePresentationNonce(presentation vc.VerifiablePresentation) error {
 	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
@@ -285,7 +281,7 @@ func (s Wrapper) validatePresentationNonce(presentation vc.VerifiablePresentatio
 		nonce = *proof.Nonce
 	}
 
-	nonceStore := s.storageEngine.GetSessionDatabase().GetStore(maxPresentationValidity, "s2s", "nonce")
+	nonceStore := r.storageEngine.GetSessionDatabase().GetStore(maxPresentationValidity, "s2s", "nonce")
 	err := nonceStore.Get(nonce, new(bool))
 	if !errors.Is(err, storage.ErrNotFound) {
 		if err != nil {
@@ -328,7 +324,7 @@ func validatePresentationAudience(presentation vc.VerifiablePresentation, issuer
 	}
 }
 
-func (r Wrapper) s2sAccessTokenStore() storage.SessionStore {
+func (r *Wrapper) s2sAccessTokenStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "s2s", "accesstoken")
 }
 
