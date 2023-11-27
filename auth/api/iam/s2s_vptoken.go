@@ -198,10 +198,10 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 	}, nil
 }
 
+// validatePresentationSubmission checks if the presentation submission is valid for the given scope:
+//  1. Resolve presentation definition for the requested scope
+//  2. Check submission against presentation and definition
 func (s Wrapper) validatePresentationSubmission(scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (*PresentationDefinition, error) {
-	// Validate the presentation submission:
-	// 1. Resolve presentation definition for the requested scope
-	// 2. Check submission against presentation and definition
 	definition := s.auth.PresentationDefinitions().ByScope(scope)
 	if definition == nil {
 		return nil, oauth.OAuth2Error{
@@ -221,8 +221,8 @@ func (s Wrapper) validatePresentationSubmission(scope string, submission *pe.Pre
 	return definition, err
 }
 
+// validatePresentationValidity checks that the presentation is valid for a reasonable amount of time.
 func validatePresentationValidity(presentation vc.VerifiablePresentation) error {
-	// Presentation should not be valid for too long
 	created := credential.PresentationIssuanceDate(presentation)
 	expires := credential.PresentationExpirationDate(presentation)
 	if created == nil || expires == nil {
