@@ -51,7 +51,7 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
-	schneider.vip/problem v1.8.1
+	schneider.vip/problem v1.9.0
 
 )
 
