@@ -125,6 +125,9 @@ func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, cr
 			VerifiableCredential: credentials,
 		},
 	}
+	if options.ProofOptions.Domain != nil {
+		claims[jwt.AudienceKey] = *options.ProofOptions.Domain
+	}
 	if options.ProofOptions.Created.IsZero() {
 		claims[jwt.NotBeforeKey] = time.Now().Unix()
 	} else {

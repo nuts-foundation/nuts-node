@@ -181,11 +181,13 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	}
 	expires := time.Now().Add(time.Second * 5)
 	// todo: support multiple wallets
+	domain := verifier.String()
 	vp, err := s.wallet.BuildPresentation(ctx, signInstructions[0].VerifiableCredentials, holder.PresentationOptions{
 		Format: format,
 		ProofOptions: proof.ProofOptions{
 			Created: time.Now(),
 			Expires: &expires,
+			Domain:  &domain,
 		},
 	}, &requester, false)
 	if err != nil {

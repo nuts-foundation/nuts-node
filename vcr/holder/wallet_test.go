@@ -96,11 +96,13 @@ func TestWallet_BuildPresentation(t *testing.T) {
 		t.Run("ok - custom options", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			specialType := ssi.MustParseURI("SpecialPresentation")
+			domain := "https://example.com"
 			options := PresentationOptions{
 				AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
 				AdditionalTypes:    []ssi.URI{specialType},
 				ProofOptions: proof.ProofOptions{
 					ProofPurpose: "authentication",
+					Domain:       &domain,
 				},
 				Format: JSONLDPresentationFormat,
 			}
@@ -118,7 +120,8 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			assert.True(t, result.ContainsContext(credential.NutsV1ContextURI))
 			proofs, _ := result.Proofs()
 			require.Len(t, proofs, 1)
-			assert.Equal(t, proofs[0].ProofPurpose, "authentication")
+			assert.Equal(t, "authentication", proofs[0].ProofPurpose)
+			assert.Equal(t, "https://example.com", *proofs[0].Domain)
 			assert.Equal(t, JSONLDPresentationFormat, result.Format())
 		})
 		t.Run("ok - multiple VCs", func(t *testing.T) {
@@ -174,11 +177,13 @@ func TestWallet_BuildPresentation(t *testing.T) {
 		})
 		t.Run("optional proof options", func(t *testing.T) {
 			exp := time.Now().Local().Truncate(time.Second)
+			domain := "https://example.com"
 			options := PresentationOptions{
 				Format: JWTPresentationFormat,
 				ProofOptions: proof.ProofOptions{
 					Expires: &exp,
 					Created: exp.Add(-1 * time.Hour),
+					Domain:  &domain,
 				},
 			}
 
@@ -197,6 +202,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			assert.NotNil(t, result.JWT())
 			assert.Equal(t, *options.ProofOptions.Expires, result.JWT().Expiration().Local())
 			assert.Equal(t, options.ProofOptions.Created, result.JWT().NotBefore().Local())
+			assert.Equal(t, []string{domain}, result.JWT().Audience())
 		})
 	})
 	t.Run("validation", func(t *testing.T) {

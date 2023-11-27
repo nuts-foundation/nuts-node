@@ -290,8 +290,9 @@ func validatePresentationAudience(presentation vc.VerifiablePresentation, issuer
 		}
 	}
 	return oauth.OAuth2Error{
-		Code:        oauth.InvalidRequest,
-		Description: "presentation audience is missing or does not match",
+		Code:          oauth.InvalidRequest,
+		Description:   "presentation audience is missing or does not match",
+		InternalError: fmt.Errorf("expected: %s, got: %v", issuer, audience),
 	}
 }
 
