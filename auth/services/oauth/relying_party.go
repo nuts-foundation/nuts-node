@@ -196,12 +196,12 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 func determineFormat(formats map[string]map[string][]string) (string, error) {
 	for format := range formats {
 		switch format {
-		case openid4vc.VerifiablePresentationJWTFormat:
-			return format, nil
 		case openid4vc.VerifiablePresentationJSONLDFormat:
+			return format, nil
+		case openid4vc.VerifiablePresentationJWTFormat:
 			fallthrough
 		case "jwt_vp_json":
-			return openid4vc.VerifiablePresentationJSONLDFormat, nil
+			return openid4vc.VerifiablePresentationJWTFormat, nil
 		default:
 			continue
 		}

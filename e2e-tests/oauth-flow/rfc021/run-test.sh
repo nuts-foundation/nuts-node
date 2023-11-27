@@ -54,7 +54,7 @@ else
 fi
 
 echo "---------------------------------------"
-echo "Perform OAuth 2.0 OpenID4VP-s2s flow..."
+echo "Perform OAuth 2.0 rfc021 flow..."
 echo "---------------------------------------"
 # Request access token
 # Create DID for A with :nuts: replaced with :web:
