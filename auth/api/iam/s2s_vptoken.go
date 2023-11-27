@@ -101,6 +101,9 @@ func (s Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]s
 		if err := validatePresentationSigner(presentation); err != nil {
 			return nil, err
 		}
+		if err := validatePresentationAudience(presentation, issuer); err != nil {
+			return nil, err
+		}
 	}
 	var definition *PresentationDefinition
 	if definition, err = s.validatePresentationSubmission(scope, submission, pexEnvelope); err != nil {
@@ -298,6 +301,31 @@ func (s Wrapper) validatePresentationNonce(presentation vc.VerifiablePresentatio
 		return fmt.Errorf("unable to store nonce: %w", err)
 	}
 	return nil
+}
+
+func validatePresentationAudience(presentation vc.VerifiablePresentation, issuer did.DID) error {
+	var audience []string
+	switch presentation.Format() {
+	case vc.JWTPresentationProofFormat:
+		audience = presentation.JWT().Audience()
+	case vc.JSONLDPresentationProofFormat:
+		proof, err := credential.ParseLDProof(presentation)
+		if err != nil {
+			return err
+		}
+		if proof.Domain != nil {
+			audience = []string{*proof.Domain}
+		}
+	}
+	for _, aud := range audience {
+		if aud == issuer.String() {
+			return nil
+		}
+	}
+	return oauth.OAuth2Error{
+		Code:        oauth.InvalidRequest,
+		Description: "presentation audience is missing or does not match",
+	}
 }
 
 func (r Wrapper) s2sAccessTokenStore() storage.SessionStore {

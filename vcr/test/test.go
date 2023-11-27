@@ -67,7 +67,7 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 
 // CreateJSONLDPresentation creates a JSON-LD presentation with the given subject DID and credentials.
 // The presentation is not actually signed.
-func CreateJSONLDPresentation(t *testing.T, subjectDID did.DID, verifiableCredential ...vc.VerifiableCredential) vc.VerifiablePresentation {
+func CreateJSONLDPresentation(t *testing.T, subjectDID did.DID, visitor func(presentation *vc.VerifiablePresentation), verifiableCredential ...vc.VerifiableCredential) vc.VerifiablePresentation {
 	id := ssi.MustParseURI(subjectDID.String() + "#" + uuid.NewString())
 	exp := time.Now().Add(5 * time.Second)
 	nonce := crypto.GenerateNonce()
@@ -86,7 +86,19 @@ func CreateJSONLDPresentation(t *testing.T, subjectDID did.DID, verifiableCreden
 			},
 		},
 	}
+	if visitor != nil {
+		visitor(&vp)
+	}
 	return ParsePresentation(t, vp)
+}
+
+// LDProofVisitor is a util function that creates a visitor for CreateJSONLDPresentation to easily modify the LinkedData proof.
+func LDProofVisitor(visitor func(proof *proof.LDProof)) func(*vc.VerifiablePresentation) {
+	return func(presentation *vc.VerifiablePresentation) {
+		ldProof := presentation.Proof[0].(proof.LDProof)
+		visitor(&ldProof)
+		presentation.Proof[0] = ldProof
+	}
 }
 
 // ParsePresentation marshals the given presentation and parses it again, to make sure the format property is set correctly.

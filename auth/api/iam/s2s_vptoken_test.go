@@ -20,6 +20,7 @@ package iam
 
 import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"net/http"
 	"testing"
 	"time"
@@ -118,7 +119,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 }
 
 func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
-	issuerDID := did.MustParseDID("did:test:123")
+	issuerDIDStr := "did:test:123"
+	issuerDID := did.MustParseDID(issuerDIDStr)
 	const requestedScope = "eOverdracht-overdrachtsbericht"
 	// Create issuer DID document and keys
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -145,7 +147,10 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	submissionJSON, _ := json.Marshal(submission)
 	verifiableCredential := credential.ValidNutsOrganizationCredential(t)
 	subjectDID, _ := verifiableCredential.SubjectDID()
-	presentation := test.CreateJSONLDPresentation(t, *subjectDID, verifiableCredential)
+	proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
+		proof.Domain = &issuerDIDStr
+	})
+	presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
 
 	t.Run("JSON-LD VP", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -228,7 +233,9 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("JWT VP", func(t *testing.T) {
 		ctx := newTestClient(t)
-		presentation := test.CreateJWTPresentation(t, *subjectDID, nil, verifiableCredential)
+		presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+			require.NoError(t, token.Set(jwt.AudienceKey, issuerDID.String()))
+		}, verifiableCredential)
 		ctx.verifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 
 		params := map[string]string{
@@ -276,6 +283,38 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		assert.EqualError(t, err, "invalid_request - assertion parameter is invalid: unable to parse PEX envelope as list of verifiable presentations: invalid JWT")
 		assert.Nil(t, resp)
 	})
+	t.Run("audience", func(t *testing.T) {
+		t.Run("missing", func(t *testing.T) {
+			ctx := newTestClient(t)
+			presentation := test.CreateJWTPresentation(t, *subjectDID, nil, verifiableCredential)
+			params := map[string]string{
+				"assertion":               url.QueryEscape(presentation.Raw()),
+				"presentation_submission": url.QueryEscape(string(submissionJSON)),
+				"scope":                   requestedScope,
+			}
+
+			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
+
+			assert.EqualError(t, err, "invalid_request - presentation audience is missing or does not match")
+			assert.Nil(t, resp)
+		})
+		t.Run("not matching", func(t *testing.T) {
+			ctx := newTestClient(t)
+			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+				require.NoError(t, token.Set(jwt.AudienceKey, "did:example:other"))
+			}, verifiableCredential)
+			params := map[string]string{
+				"assertion":               url.QueryEscape(presentation.Raw()),
+				"presentation_submission": url.QueryEscape(string(submissionJSON)),
+				"scope":                   requestedScope,
+			}
+
+			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
+
+			assert.EqualError(t, err, "invalid_request - presentation audience is missing or does not match")
+			assert.Nil(t, resp)
+		})
+	})
 	t.Run("VP verification fails", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.verifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(nil, errors.New("invalid"))
@@ -294,7 +333,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("proof of ownership", func(t *testing.T) {
 		t.Run("VC without credentialSubject.id", func(t *testing.T) {
 			ctx := newTestClient(t)
-			verifiablePresentation := test.CreateJSONLDPresentation(t, *subjectDID, vc.VerifiableCredential{
+			verifiablePresentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, vc.VerifiableCredential{
 				CredentialSubject: []interface{}{map[string]string{}},
 			})
 			verifiablePresentationJSON, _ := verifiablePresentation.MarshalJSON()
@@ -368,7 +407,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 				},
 			},
 		}
-		verifiablePresentation := test.CreateJSONLDPresentation(t, *subjectDID, otherVerifiableCredential)
+		verifiablePresentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, otherVerifiableCredential)
 
 		ctx := newTestClient(t)
 
