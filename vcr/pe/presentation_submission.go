@@ -177,21 +177,10 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 // Resolve returns a map where each of the input descriptors is mapped to the corresponding VerifiableCredential.
 // If an input descriptor can't be mapped to a VC, an error is returned.
 // This function is specified by https://identity.foundation/presentation-exchange/#processing-of-submission-entries
-func (s PresentationSubmission) Resolve(envelope interface{}) (map[string]vc.VerifiableCredential, error) {
-	switch envelope.(type) {
-	case []interface{}:
-		// list of VPs
-	case map[string]interface{}:
-		// single VP (JSON)
-	case string:
-		// single VP (JWT)
-	default:
-		return nil, errors.New("invalid Presentation Exchange envelope")
-	}
-
+func (s PresentationSubmission) Resolve(envelope Envelope) (map[string]vc.VerifiableCredential, error) {
 	result := make(map[string]vc.VerifiableCredential)
 	for _, inputDescriptor := range s.DescriptorMap {
-		resolvedCredential, err := resolveCredential(nil, inputDescriptor, envelope)
+		resolvedCredential, err := resolveCredential(nil, inputDescriptor, envelope.asInterface)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve credential for input descriptor '%s': %w", inputDescriptor.Id, err)
 		}
@@ -261,7 +250,7 @@ func resolveCredential(path []string, mapping InputDescriptorMappingObject, valu
 // The Presentation Definitions are passed in the envelope, as specified by the PEX specification.
 // It assumes credentials of the presentations only map in 1 way to the input descriptors.
 func (s PresentationSubmission) Validate(envelope Envelope, definition PresentationDefinition) (map[string]vc.VerifiableCredential, error) {
-	actualCredentials, err := s.Resolve(envelope.Interface)
+	actualCredentials, err := s.Resolve(envelope)
 	if err != nil {
 		return nil, fmt.Errorf("resolve credentials from presentation submission: %w", err)
 	}

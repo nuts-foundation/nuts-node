@@ -33,7 +33,7 @@ func TestParseEnvelope(t *testing.T) {
 		presentation := test.CreateJWTPresentation(t, did.MustParseDID("did:example:1"), credential.ValidNutsOrganizationCredential(t))
 		envelope, err := ParseEnvelope([]byte(presentation.Raw()))
 		require.NoError(t, err)
-		require.Equal(t, presentation.ID.String(), envelope.Interface.(map[string]interface{})["id"])
+		require.Equal(t, presentation.ID.String(), envelope.asInterface.(map[string]interface{})["id"])
 		require.Len(t, envelope.Presentations, 1)
 	})
 	t.Run("invalid JWT", func(t *testing.T) {
@@ -44,7 +44,7 @@ func TestParseEnvelope(t *testing.T) {
 	t.Run("JSON object", func(t *testing.T) {
 		envelope, err := ParseEnvelope([]byte(`{"id": "value"}`))
 		require.NoError(t, err)
-		require.Equal(t, map[string]interface{}{"id": "value"}, envelope.Interface)
+		require.Equal(t, map[string]interface{}{"id": "value"}, envelope.asInterface)
 		require.Len(t, envelope.Presentations, 1)
 	})
 	t.Run("invalid VP as JSON object", func(t *testing.T) {
@@ -55,7 +55,7 @@ func TestParseEnvelope(t *testing.T) {
 	t.Run("JSON array with objects", func(t *testing.T) {
 		envelope, err := ParseEnvelope([]byte(`[{"id": "value"}]`))
 		require.NoError(t, err)
-		require.Equal(t, []interface{}{map[string]interface{}{"id": "value"}}, envelope.Interface)
+		require.Equal(t, []interface{}{map[string]interface{}{"id": "value"}}, envelope.asInterface)
 		require.Len(t, envelope.Presentations, 1)
 	})
 	t.Run("JSON array with JWTs", func(t *testing.T) {
@@ -64,7 +64,7 @@ func TestParseEnvelope(t *testing.T) {
 		listJSON, _ := json.Marshal(presentations)
 		envelope, err := ParseEnvelope(listJSON)
 		require.NoError(t, err)
-		require.Len(t, envelope.Interface, 2)
+		require.Len(t, envelope.asInterface, 2)
 		require.Len(t, envelope.Presentations, 2)
 	})
 	t.Run("invalid VPs list as JSON", func(t *testing.T) {

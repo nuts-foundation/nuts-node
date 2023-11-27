@@ -25,9 +25,11 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 )
 
+// Envelope is a parsed Presentation Exchange envelope, containing zero or more Verifiable Presentations that are referenced by the Presentation Submission.
 type Envelope struct {
-	Interface     interface{}
+	// Presentations contains the Verifiable Presentations that were parsed from the envelope.
 	Presentations []vc.VerifiablePresentation
+	asInterface   interface{}
 }
 
 // ParseEnvelope parses a Presentation Exchange envelope, which is a JSON type that encompasses zero or more Verifiable Presentations.
@@ -46,7 +48,7 @@ func ParseEnvelope(envelopeBytes []byte) (*Envelope, error) {
 			return nil, err
 		}
 		return &Envelope{
-			Interface:     asInterface,
+			asInterface:   asInterface,
 			Presentations: presentations,
 		}, nil
 	}
@@ -56,7 +58,7 @@ func ParseEnvelope(envelopeBytes []byte) (*Envelope, error) {
 		return nil, err
 	}
 	return &Envelope{
-		Interface:     asInterface,
+		asInterface:   asInterface,
 		Presentations: []vc.VerifiablePresentation{*presentation},
 	}, nil
 }

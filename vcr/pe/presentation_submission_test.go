@@ -212,7 +212,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(toEnvelope(t, vp).Interface)
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		require.NoError(t, err)
 		assert.Len(t, credentials, 1)
@@ -241,7 +241,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(toEnvelope(t, vp).Interface)
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		require.NoError(t, err)
 		assert.Len(t, credentials, 2)
@@ -284,7 +284,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(toEnvelope(t, []interface{}{vp1, vp2}).Interface)
+		credentials, err := submission.Resolve(toEnvelope(t, []interface{}{vp1, vp2}))
 
 		require.NoError(t, err)
 		assert.Len(t, credentials, 2)
@@ -309,7 +309,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(toEnvelope(t, vp).Interface)
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		require.EqualError(t, err, "unable to resolve credential for input descriptor '1': path '$.verifiableCredential' does not reference a credential")
 		assert.Nil(t, credentials)
@@ -332,7 +332,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(toEnvelope(t, vp).Interface)
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		require.ErrorContains(t, err, "unable to resolve credential for input descriptor '1': invalid JSON-LD credential at path")
 		assert.Nil(t, credentials)
@@ -355,7 +355,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(toEnvelope(t, vp).Interface)
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		require.ErrorContains(t, err, "unable to resolve credential for input descriptor '1': invalid JSON-LD presentation at path")
 		assert.Nil(t, credentials)
@@ -378,7 +378,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(toEnvelope(t, vp).Interface)
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		assert.EqualError(t, err, "unable to resolve credential for input descriptor '1': value of Go type 'string' at path '$.verifiableCredential.expirationDate' can't be decoded using format 'ldp_vc'")
 		assert.Nil(t, credentials)
