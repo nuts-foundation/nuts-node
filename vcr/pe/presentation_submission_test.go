@@ -212,7 +212,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(remarshalToInterface(vp))
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		require.NoError(t, err)
 		assert.Len(t, credentials, 1)
@@ -241,7 +241,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(remarshalToInterface(vp))
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		require.NoError(t, err)
 		assert.Len(t, credentials, 2)
@@ -284,7 +284,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(remarshalToInterface([]vc.VerifiablePresentation{vp1, vp2}))
+		credentials, err := submission.Resolve(toEnvelope(t, []interface{}{vp1, vp2}))
 
 		require.NoError(t, err)
 		assert.Len(t, credentials, 2)
@@ -309,7 +309,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(remarshalToInterface(vp))
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		require.EqualError(t, err, "unable to resolve credential for input descriptor '1': path '$.verifiableCredential' does not reference a credential")
 		assert.Nil(t, credentials)
@@ -332,7 +332,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(remarshalToInterface(vp))
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		require.ErrorContains(t, err, "unable to resolve credential for input descriptor '1': invalid JSON-LD credential at path")
 		assert.Nil(t, credentials)
@@ -355,7 +355,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(remarshalToInterface(vp))
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		require.ErrorContains(t, err, "unable to resolve credential for input descriptor '1': invalid JSON-LD presentation at path")
 		assert.Nil(t, credentials)
@@ -378,7 +378,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 		var submission PresentationSubmission
 		require.NoError(t, json.Unmarshal([]byte(submissionJSON), &submission))
 
-		credentials, err := submission.Resolve(remarshalToInterface(vp))
+		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
 		assert.EqualError(t, err, "unable to resolve credential for input descriptor '1': value of Go type 'string' at path '$.verifiableCredential.expirationDate' can't be decoded using format 'ldp_vc'")
 		assert.Nil(t, credentials)
@@ -426,7 +426,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 			},
 		}
 
-		credentials, err := submission.Validate(remarshalToInterface(vp), definition)
+		credentials, err := submission.Validate(toEnvelope(t, vp), definition)
 
 		require.NoError(t, err)
 		require.Len(t, credentials, 1)
@@ -501,7 +501,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 			},
 		}
 
-		credentials, err := submission.Validate(remarshalToInterface([]vc.VerifiablePresentation{vp, secondVP}), definition)
+		credentials, err := submission.Validate(toEnvelope(t, []vc.VerifiablePresentation{vp, secondVP}), definition)
 
 		require.NoError(t, err)
 		require.Len(t, credentials, 2)
@@ -529,7 +529,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 			},
 		}
 
-		credentials, err := PresentationSubmission{}.Validate(remarshalToInterface([]vc.VerifiablePresentation{vp}), definition)
+		credentials, err := PresentationSubmission{}.Validate(toEnvelope(t, []vc.VerifiablePresentation{vp}), definition)
 
 		assert.EqualError(t, err, "presentation submission doesn't match presentation definition")
 		assert.Empty(t, credentials)
@@ -590,21 +590,9 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 			},
 		}
 
-		credentials, err := submission.Validate(remarshalToInterface(vp), definition)
+		credentials, err := submission.Validate(toEnvelope(t, vp), definition)
 
 		assert.EqualError(t, err, "incorrect mapping for input descriptor: 2")
-		assert.Empty(t, credentials)
-	})
-	t.Run("envelope contains an invalid presentation", func(t *testing.T) {
-		credentials, err := PresentationSubmission{}.Validate(map[string]interface{}{"id": true}, PresentationDefinition{})
-
-		assert.EqualError(t, err, "unable to unmarshal envelope: json: cannot unmarshal bool into Go struct field Alias.id of type string")
-		assert.Empty(t, credentials)
-	})
-	t.Run("envelope contains an invalid presentation (envelope is array)", func(t *testing.T) {
-		credentials, err := PresentationSubmission{}.Validate([]interface{}{map[string]interface{}{"id": true}}, PresentationDefinition{})
-
-		assert.EqualError(t, err, "unable to unmarshal envelope: json: cannot unmarshal bool into Go struct field Alias.id of type string")
 		assert.Empty(t, credentials)
 	})
 	t.Run("submission contains mappings for non-existing input descriptors", func(t *testing.T) {
@@ -651,23 +639,23 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 			},
 		}
 
-		credentials, err := submission.Validate(remarshalToInterface(vp), definition)
+		credentials, err := submission.Validate(toEnvelope(t, vp), definition)
 
 		assert.EqualError(t, err, "expected 1 credentials, got 2")
 		assert.Empty(t, credentials)
 	})
 	t.Run("unable to derive presentation signer", func(t *testing.T) {
 		vp = vc.VerifiablePresentation{}
-		credentials, err := PresentationSubmission{}.Validate(remarshalToInterface(vp), PresentationDefinition{})
+		credentials, err := PresentationSubmission{}.Validate(toEnvelope(t, vp), PresentationDefinition{})
 
 		assert.EqualError(t, err, "unable to derive presentation signer: presentation should have exactly 1 proof, got 0")
 		assert.Empty(t, credentials)
 	})
 }
 
-func remarshalToInterface(input interface{}) interface{} {
-	bytes, _ := json.Marshal(input)
-	var result interface{}
-	_ = json.Unmarshal(bytes, &result)
-	return result
+func toEnvelope(t *testing.T, presentations interface{}) Envelope {
+	vpBytes, _ := json.Marshal(presentations)
+	envelope, err := ParseEnvelope(vpBytes)
+	require.NoError(t, err)
+	return *envelope
 }

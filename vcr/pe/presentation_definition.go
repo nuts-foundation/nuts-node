@@ -468,14 +468,17 @@ func vcEqual(a, b vc.VerifiableCredential) bool {
 	return string(aJSON) == string(bJSON)
 }
 
-func remarshalToMap(v interface{}) (map[string]interface{}, error) {
-	asJSON, err := json.Marshal(v)
+func remarshal(src interface{}, dst interface{}) error {
+	asJSON, err := json.Marshal(src)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	return json.Unmarshal(asJSON, &dst)
+}
+
+func remarshalToMap(v interface{}) (map[string]interface{}, error) {
 	var result map[string]interface{}
-	err = json.Unmarshal(asJSON, &result)
-	if err != nil {
+	if err := remarshal(v, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
