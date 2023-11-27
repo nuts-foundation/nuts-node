@@ -38,6 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -333,8 +334,7 @@ func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (G
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
 func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error) {
-	// TODO: must be web DID once web DID creation and DB are implemented
-	ownDID := idToNutsDID(request.Id)
+	ownDID := idToDID(request.Id)
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
 		log.Logger().WithField("did", ownDID.String()).Errorf("oauth metadata: failed to assert ownership of did: %s", err.Error())

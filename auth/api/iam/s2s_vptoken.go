@@ -68,7 +68,7 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 		if err := validatePresentationSigner(presentation); err != nil {
 			return nil, err
 		}
-		if err := validatePresentationAudience(presentation, issuer); err != nil {
+		if err := r.validatePresentationAudience(presentation, issuer); err != nil {
 			return nil, err
 		}
 	}
@@ -270,7 +270,7 @@ func (r *Wrapper) validatePresentationNonce(presentation vc.VerifiablePresentati
 	return nil
 }
 
-func validatePresentationAudience(presentation vc.VerifiablePresentation, issuer did.DID) error {
+func (r *Wrapper) validatePresentationAudience(presentation vc.VerifiablePresentation, issuer did.DID) error {
 	var audience []string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
@@ -284,15 +284,17 @@ func validatePresentationAudience(presentation vc.VerifiablePresentation, issuer
 			audience = []string{*proof.Domain}
 		}
 	}
+	// Callers use the did:web variant, so we need to check against that instead of did:nuts
+	webDID := nutsToWebDID(issuer, *r.auth.PublicURL())
 	for _, aud := range audience {
-		if aud == issuer.String() {
+		if aud == webDID.String() {
 			return nil
 		}
 	}
 	return oauth.OAuth2Error{
 		Code:          oauth.InvalidRequest,
 		Description:   "presentation audience is missing or does not match",
-		InternalError: fmt.Errorf("expected: %s, got: %v", issuer, audience),
+		InternalError: fmt.Errorf("expected: %s, got: %v", webDID.String(), audience),
 	}
 }
 
