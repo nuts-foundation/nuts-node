@@ -66,7 +66,7 @@ func TestResolveSubjectDID(t *testing.T) {
 
 }
 
-func TestVerifyPresenterIsCredentialSubject(t *testing.T) {
+func TestPresenterIsCredentialSubject(t *testing.T) {
 	subjectDID := ssi.MustParseURI("did:test:123")
 	keyID := ssi.MustParseURI("did:test:123#1")
 	t.Run("ok", func(t *testing.T) {
@@ -83,13 +83,15 @@ func TestVerifyPresenterIsCredentialSubject(t *testing.T) {
 				},
 			},
 		}
-		err := VerifyPresenterIsCredentialSubject(vp)
+		is, err := PresenterIsCredentialSubject(vp)
 		assert.NoError(t, err)
+		assert.True(t, is)
 	})
 	t.Run("no proof", func(t *testing.T) {
 		vp := vc.VerifiablePresentation{}
-		err := VerifyPresenterIsCredentialSubject(vp)
+		is, err := PresenterIsCredentialSubject(vp)
 		assert.EqualError(t, err, "presentation should have exactly 1 proof, got 0")
+		assert.False(t, is)
 	})
 	t.Run("no VC subject", func(t *testing.T) {
 		vp := vc.VerifiablePresentation{
@@ -103,8 +105,9 @@ func TestVerifyPresenterIsCredentialSubject(t *testing.T) {
 				{},
 			},
 		}
-		err := VerifyPresenterIsCredentialSubject(vp)
+		is, err := PresenterIsCredentialSubject(vp)
 		assert.EqualError(t, err, "unable to get subject DID from VC: there must be at least 1 credentialSubject")
+		assert.False(t, is)
 	})
 	t.Run("no VC subject ID", func(t *testing.T) {
 		vp := vc.VerifiablePresentation{
@@ -120,8 +123,9 @@ func TestVerifyPresenterIsCredentialSubject(t *testing.T) {
 				},
 			},
 		}
-		err := VerifyPresenterIsCredentialSubject(vp)
+		is, err := PresenterIsCredentialSubject(vp)
 		assert.EqualError(t, err, "unable to get subject DID from VC: credential subjects have no ID")
+		assert.False(t, is)
 	})
 	t.Run("proof verification method does not equal VC subject ID", func(t *testing.T) {
 		vp := vc.VerifiablePresentation{
@@ -137,8 +141,9 @@ func TestVerifyPresenterIsCredentialSubject(t *testing.T) {
 				},
 			},
 		}
-		err := VerifyPresenterIsCredentialSubject(vp)
-		assert.EqualError(t, err, "not all VC credentialSubject.id match VP signer")
+		is, err := PresenterIsCredentialSubject(vp)
+		assert.NoError(t, err)
+		assert.False(t, is)
 	})
 	t.Run("proof type is unsupported", func(t *testing.T) {
 		vp := vc.VerifiablePresentation{
@@ -151,8 +156,9 @@ func TestVerifyPresenterIsCredentialSubject(t *testing.T) {
 				},
 			},
 		}
-		err := VerifyPresenterIsCredentialSubject(vp)
+		is, err := PresenterIsCredentialSubject(vp)
 		assert.EqualError(t, err, "invalid LD-proof for presentation: json: cannot unmarshal bool into Go value of type proof.LDProof")
+		assert.False(t, is)
 	})
 	t.Run("too many proofs", func(t *testing.T) {
 		vp := vc.VerifiablePresentation{
@@ -166,8 +172,9 @@ func TestVerifyPresenterIsCredentialSubject(t *testing.T) {
 				},
 			},
 		}
-		err := VerifyPresenterIsCredentialSubject(vp)
+		is, err := PresenterIsCredentialSubject(vp)
 		assert.EqualError(t, err, "presentation should have exactly 1 proof, got 2")
+		assert.False(t, is)
 	})
 }
 

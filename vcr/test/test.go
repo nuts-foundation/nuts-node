@@ -29,6 +29,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -69,6 +70,7 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 func CreateJSONLDPresentation(t *testing.T, subjectDID did.DID, verifiableCredential ...vc.VerifiableCredential) vc.VerifiablePresentation {
 	id := ssi.MustParseURI(subjectDID.String() + "#" + uuid.NewString())
 	exp := time.Now().Add(5 * time.Second)
+	nonce := crypto.GenerateNonce()
 	vp := vc.VerifiablePresentation{
 		ID:                   &id,
 		VerifiableCredential: verifiableCredential,
@@ -80,6 +82,7 @@ func CreateJSONLDPresentation(t *testing.T, subjectDID did.DID, verifiableCreden
 					Created: time.Now(),
 					Expires: &exp,
 				},
+				Nonce: &nonce,
 			},
 		},
 	}

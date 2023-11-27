@@ -744,7 +744,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-			assert.EqualError(t, err, "verification error: unsupported proof type: json: cannot unmarshal string into Go value of type proof.LDProof")
+			assert.EqualError(t, err, "verification error: unsupported proof type: invalid LD-proof for presentation: json: cannot unmarshal string into Go value of type proof.LDProof")
 			assert.Empty(t, vcs)
 		})
 		t.Run("error - no proof", func(t *testing.T) {

@@ -328,12 +328,10 @@ func (v *verifier) validateJSONLDPresentation(presentation vc.VerifiablePresenta
 		return newVerificationError("exactly 1 proof is expected")
 	}
 	// Make sure the proofs are LD-proofs
-	var ldProofs []proof.LDProof
-	err := presentation.UnmarshalProofValue(&ldProofs)
+	ldProof, err := credential.ParseLDProof(presentation)
 	if err != nil {
 		return newVerificationError("unsupported proof type: %w", err)
 	}
-	ldProof := ldProofs[0]
 
 	// Validate signing time
 	at := timeFunc()

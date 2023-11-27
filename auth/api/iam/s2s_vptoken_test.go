@@ -37,7 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
@@ -193,7 +192,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
 
-		require.EqualError(t, err, "invalid_request - assertion parameter is invalid: missing creation or expiration date")
+		require.EqualError(t, err, "invalid_request - presentation is missing creation or expiration date")
 	})
 	t.Run("missing presentation not before date", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -209,7 +208,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
 
-		require.EqualError(t, err, "invalid_request - assertion parameter is invalid: missing creation or expiration date")
+		require.EqualError(t, err, "invalid_request - presentation is missing creation or expiration date")
 	})
 	t.Run("missing presentation valid for too long", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -225,7 +224,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
 
-		require.EqualError(t, err, "invalid_request - assertion parameter is invalid: presentation is valid for too long (max 10s)")
+		require.EqualError(t, err, "invalid_request - presentation is valid for too long (max 10s)")
 	})
 	t.Run("JWT VP", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -247,6 +246,22 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		assert.Equal(t, requestedScope, *tokenResponse.Scope)
 		assert.Equal(t, int(accessTokenValidity.Seconds()), *tokenResponse.ExpiresIn)
 		assert.NotEmpty(t, tokenResponse.AccessToken)
+	})
+	t.Run("replay attack (nonce is reused)", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.verifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+		params := map[string]string{
+			"assertion":               url.QueryEscape(presentation.Raw()),
+			"presentation_submission": url.QueryEscape(string(submissionJSON)),
+			"scope":                   requestedScope,
+		}
+
+		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
+		require.NoError(t, err)
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
+		assert.EqualError(t, err, "invalid_request - presentation nonce has already been used")
+		assert.Nil(t, resp)
 	})
 	t.Run("VP is not valid JSON", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -273,37 +288,15 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
 
-		assert.EqualError(t, err, "invalid_request - invalid - verifiable presentation is invalid")
+		assert.EqualError(t, err, "invalid_request - invalid - presentation(s) or contained credential(s) are invalid")
 		assert.Nil(t, resp)
 	})
 	t.Run("proof of ownership", func(t *testing.T) {
-		t.Run("VP has no proof", func(t *testing.T) {
-			ctx := newTestClient(t)
-			verifiablePresentation := vc.VerifiablePresentation{
-				VerifiableCredential: []vc.VerifiableCredential{verifiableCredential},
-			}
-			verifiablePresentationJSON, _ := verifiablePresentation.MarshalJSON()
-			params := map[string]string{
-				"assertion":               url.QueryEscape(string(verifiablePresentationJSON)),
-				"presentation_submission": url.QueryEscape(string(submissionJSON)),
-				"scope":                   requestedScope,
-			}
-
-			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
-
-			assert.EqualError(t, err, `invalid_request - verifiable presentation is invalid: presentation should have exactly 1 proof, got 0`)
-			assert.Nil(t, resp)
-		})
 		t.Run("VC without credentialSubject.id", func(t *testing.T) {
 			ctx := newTestClient(t)
-			verifiablePresentation := vc.VerifiablePresentation{
-				VerifiableCredential: []vc.VerifiableCredential{
-					{
-						CredentialSubject: []interface{}{map[string]string{}},
-					},
-				},
-				Proof: []interface{}{proof.LDProof{Type: ssi.JsonWebSignature2020}},
-			}
+			verifiablePresentation := test.CreateJSONLDPresentation(t, *subjectDID, vc.VerifiableCredential{
+				CredentialSubject: []interface{}{map[string]string{}},
+			})
 			verifiablePresentationJSON, _ := verifiablePresentation.MarshalJSON()
 			params := map[string]string{
 				"assertion":               url.QueryEscape(string(verifiablePresentationJSON)),
@@ -313,20 +306,16 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
 
-			assert.EqualError(t, err, `invalid_request - verifiable presentation is invalid: invalid verification method for JSON-LD presentation: %!w(<nil>)`)
+			assert.EqualError(t, err, `invalid_request - unable to get subject DID from VC: credential subjects have no ID`)
 			assert.Nil(t, resp)
 		})
 		t.Run("signing key is not owned by credentialSubject.id", func(t *testing.T) {
 			ctx := newTestClient(t)
-			otherKeyID := ssi.MustParseURI("did:example:other#1")
+			invalidProof := presentation.Proof[0].(map[string]interface{})
+			invalidProof["verificationMethod"] = "did:example:other#1"
 			verifiablePresentation := vc.VerifiablePresentation{
 				VerifiableCredential: []vc.VerifiableCredential{verifiableCredential},
-				Proof: []interface{}{
-					proof.LDProof{
-						Type:               ssi.JsonWebSignature2020,
-						VerificationMethod: otherKeyID,
-					},
-				},
+				Proof:                []interface{}{invalidProof},
 			}
 			verifiablePresentationJSON, _ := verifiablePresentation.MarshalJSON()
 			params := map[string]string{
@@ -337,7 +326,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
 
-			assert.EqualError(t, err, `invalid_request - verifiable presentation is invalid: not all VC credentialSubject.id match VP signer`)
+			assert.EqualError(t, err, `invalid_request - presentation signer is not credential subject`)
 			assert.Nil(t, resp)
 		})
 	})
@@ -351,7 +340,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, params)
 
-		assert.EqualError(t, err, `invalid_request - invalid character 'o' in literal null (expecting 'u') - presentation_submission parameter is invalid: invalid JSON`)
+		assert.EqualError(t, err, `invalid_request - invalid presentation submission: invalid character 'o' in literal null (expecting 'u')`)
 		assert.Nil(t, resp)
 	})
 	t.Run("unsupported scope", func(t *testing.T) {

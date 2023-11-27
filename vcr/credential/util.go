@@ -22,7 +22,6 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"time"
 )
 
@@ -45,24 +44,22 @@ func ResolveSubjectDID(credentials ...vc.VerifiableCredential) (*did.DID, error)
 	return &subjectID, nil
 }
 
-// VerifyPresenterIsCredentialSubject checks if the presenter of the VP is the same as the subject of the VCs being presented.
-// It returns an error when:
-// - the VP proof is unsupported.
-// - the VP signer is not the same as the subject of the VCs.
-// If the check succeeds, it returns nil.
-func VerifyPresenterIsCredentialSubject(vp vc.VerifiablePresentation) error {
+// PresenterIsCredentialSubject checks if the presenter of the VP is the same as the subject of the VCs being presented.
+// If the presentation signer or credential subject can't be resolved, it returns an error.
+// If parsing succeeds and the signer DID is the same as the credential subject DID, it returns true.
+func PresenterIsCredentialSubject(vp vc.VerifiablePresentation) (bool, error) {
 	signerDID, err := PresentationSigner(vp)
 	if err != nil {
-		return err
+		return false, err
 	}
 	credentialSubjectID, err := ResolveSubjectDID(vp.VerifiableCredential...)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !credentialSubjectID.Equals(*signerDID) {
-		return errors.New("not all VC credentialSubject.id match VP signer")
+		return false, nil
 	}
-	return nil
+	return true, nil
 }
 
 // PresentationIssuanceDate returns the date at which the presentation was issued.
@@ -78,14 +75,11 @@ func PresentationIssuanceDate(presentation vc.VerifiablePresentation) *time.Time
 			result = jwt.NotBefore()
 		}
 	case vc.JSONLDPresentationProofFormat:
-		var proofs []proof.LDProof
-		if err := presentation.UnmarshalProofValue(&proofs); err != nil {
+		ldProof, err := ParseLDProof(presentation)
+		if err != nil {
 			return nil
 		}
-		if len(proofs) == 0 {
-			return nil
-		}
-		result = proofs[0].Created
+		result = ldProof.Created
 	}
 	if result.IsZero() {
 		return nil
@@ -103,16 +97,11 @@ func PresentationExpirationDate(presentation vc.VerifiablePresentation) *time.Ti
 	case vc.JWTPresentationProofFormat:
 		result = presentation.JWT().Expiration()
 	case vc.JSONLDPresentationProofFormat:
-		var proofs []proof.LDProof
-		if err := presentation.UnmarshalProofValue(&proofs); err != nil {
+		ldProof, err := ParseLDProof(presentation)
+		if err != nil || ldProof.Expires == nil {
 			return nil
 		}
-		if len(proofs) == 0 {
-			return nil
-		}
-		if proofs[0].Expires != nil {
-			result = *proofs[0].Expires
-		}
+		result = *ldProof.Expires
 	}
 	if result.IsZero() {
 		return nil

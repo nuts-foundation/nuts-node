@@ -20,7 +20,6 @@ package iam
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -66,7 +65,7 @@ func (s Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]s
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
-			Description:   "assertion parameter is invalid: invalid query escaping",
+			Description:   "assertion parameter is invalid",
 			InternalError: err,
 		}
 	}
@@ -83,62 +82,33 @@ func (s Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]s
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
-			Description:   "presentation_submission parameter is invalid: invalid query escaping",
+			Description:   "presentation_submission parameter is invalid",
 			InternalError: err,
 		}
 	}
 	submission, err := pe.ParsePresentationSubmission([]byte(submissionDecoded))
-	if err = json.Unmarshal([]byte(submissionDecoded), &submission); err != nil {
+	if err != nil {
 		return nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidRequest,
-			Description:   "presentation_submission parameter is invalid: invalid JSON",
-			InternalError: err,
+			Code:        oauth.InvalidRequest,
+			Description: fmt.Sprintf("invalid presentation submission: %s", err.Error()),
 		}
 	}
 
 	for _, presentation := range pexEnvelope.Presentations {
-		// Presenter should be credential holder
-		err = credential.VerifyPresenterIsCredentialSubject(presentation)
-		if err != nil {
-			return nil, oauth.OAuth2Error{
-				Code:        oauth.InvalidRequest,
-				Description: fmt.Sprintf("verifiable presentation is invalid: %s", err.Error()),
-			}
+		if err := validatePresentationValidity(presentation); err != nil {
+			return nil, err
 		}
-		// Presentation should not be valid for too long
-		created := credential.PresentationIssuanceDate(presentation)
-		expires := credential.PresentationExpirationDate(presentation)
-		if created == nil || expires == nil {
-			return nil, oauth.OAuth2Error{
-				Code:        oauth.InvalidRequest,
-				Description: "assertion parameter is invalid: missing creation or expiration date",
-			}
-		}
-		if expires.Sub(*created) > maxPresentationValidity {
-			return nil, oauth.OAuth2Error{
-				Code:        oauth.InvalidRequest,
-				Description: fmt.Sprintf("assertion parameter is invalid: presentation is valid for too long (max %s)", maxPresentationValidity),
-			}
+		if err := validatePresentationSigner(presentation); err != nil {
+			return nil, err
 		}
 	}
-
-	// Validate the presentation submission:
-	// 1. Resolve presentation definition for the requested scope
-	// 2. Check submission against presentation and definition
-	definition := s.auth.PresentationDefinitions().ByScope(scope)
-	if definition == nil {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidScope,
-			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", scope),
-		}
+	var definition *PresentationDefinition
+	if definition, err = s.validatePresentationSubmission(scope, submission, pexEnvelope); err != nil {
+		return nil, err
 	}
-
-	_, err = submission.Validate(*pexEnvelope, *definition)
-	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidRequest,
-			Description:   "presentation submission does not conform to Presentation Definition",
-			InternalError: err,
+	for _, presentation := range pexEnvelope.Presentations {
+		if err := s.validatePresentationNonce(presentation); err != nil {
+			return nil, err
 		}
 	}
 
@@ -148,7 +118,7 @@ func (s Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]s
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.InvalidRequest,
-				Description:   "verifiable presentation is invalid",
+				Description:   "presentation(s) or contained credential(s) are invalid",
 				InternalError: err,
 			}
 		}
@@ -226,6 +196,108 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 		Scope:       &scope,
 		TokenType:   "bearer",
 	}, nil
+}
+
+func (s Wrapper) validatePresentationSubmission(scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (*PresentationDefinition, error) {
+	// Validate the presentation submission:
+	// 1. Resolve presentation definition for the requested scope
+	// 2. Check submission against presentation and definition
+	definition := s.auth.PresentationDefinitions().ByScope(scope)
+	if definition == nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidScope,
+			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", scope),
+		}
+	}
+
+	_, err := submission.Validate(*pexEnvelope, *definition)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "presentation submission does not conform to Presentation Definition",
+			InternalError: err,
+		}
+	}
+	return definition, err
+}
+
+func validatePresentationValidity(presentation vc.VerifiablePresentation) error {
+	// Presentation should not be valid for too long
+	created := credential.PresentationIssuanceDate(presentation)
+	expires := credential.PresentationExpirationDate(presentation)
+	if created == nil || expires == nil {
+		return oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "presentation is missing creation or expiration date",
+		}
+	}
+	if expires.Sub(*created) > maxPresentationValidity {
+		return oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: fmt.Sprintf("presentation is valid for too long (max %s)", maxPresentationValidity),
+		}
+	}
+	return nil
+}
+
+// validatePresentationSigner checks if the presenter of the VP is the same as the subject of the VCs being presented.
+func validatePresentationSigner(presentation vc.VerifiablePresentation) error {
+	ok, err := credential.PresenterIsCredentialSubject(presentation)
+	if err != nil {
+		return oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: err.Error(),
+		}
+	}
+	if !ok {
+		return oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "presentation signer is not credential subject",
+		}
+	}
+	return nil
+}
+
+// validatePresentationNonce checks if the nonce has been used before; 'jti' claim for JWTs or LDProof's 'nonce' for JSON-LD.
+func (s Wrapper) validatePresentationNonce(presentation vc.VerifiablePresentation) error {
+	var nonce string
+	switch presentation.Format() {
+	case vc.JWTPresentationProofFormat:
+		nonce = presentation.JWT().JwtID()
+		if nonce == "" {
+			return oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "presentation is missing jti",
+			}
+		}
+	case vc.JSONLDPresentationProofFormat:
+		proof, err := credential.ParseLDProof(presentation)
+		if err != nil || proof.Nonce == nil {
+			return oauth.OAuth2Error{
+				Code:          oauth.InvalidRequest,
+				InternalError: err,
+				Description:   "presentation has invalid proof or nonce",
+			}
+		}
+		nonce = *proof.Nonce
+	}
+
+	nonceStore := s.storageEngine.GetSessionDatabase().GetStore(maxPresentationValidity, "s2s", "nonce")
+	err := nonceStore.Get(nonce, new(bool))
+	if !errors.Is(err, storage.ErrNotFound) {
+		if err != nil {
+			// unable to check nonce
+			return err
+		}
+		return oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "presentation nonce has already been used",
+		}
+	}
+	if err := nonceStore.Put(nonce, true); err != nil {
+		return fmt.Errorf("unable to store nonce: %w", err)
+	}
+	return nil
 }
 
 func (r Wrapper) s2sAccessTokenStore() storage.SessionStore {
