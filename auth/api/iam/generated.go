@@ -107,9 +107,11 @@ type HandleAuthorizeRequestParams struct {
 
 // HandleTokenRequestFormdataBody defines parameters for HandleTokenRequest.
 type HandleTokenRequestFormdataBody struct {
-	Code                 *string           `form:"code,omitempty" json:"code,omitempty"`
-	GrantType            string            `form:"grant_type" json:"grant_type"`
-	AdditionalProperties map[string]string `json:"-"`
+	Assertion              *string `form:"assertion,omitempty" json:"assertion,omitempty"`
+	Code                   *string `form:"code,omitempty" json:"code,omitempty"`
+	GrantType              string  `form:"grant_type" json:"grant_type"`
+	PresentationSubmission *string `form:"presentation_submission,omitempty" json:"presentation_submission,omitempty"`
+	Scope                  *string `form:"scope,omitempty" json:"scope,omitempty"`
 }
 
 // RequestAccessTokenJSONBody defines parameters for RequestAccessToken.
@@ -127,87 +129,6 @@ type IntrospectAccessTokenFormdataRequestBody = TokenIntrospectionRequest
 
 // RequestAccessTokenJSONRequestBody defines body for RequestAccessToken for application/json ContentType.
 type RequestAccessTokenJSONRequestBody RequestAccessTokenJSONBody
-
-// Getter for additional properties for HandleTokenRequestFormdataBody. Returns the specified
-// element and whether it was found
-func (a HandleTokenRequestFormdataBody) Get(fieldName string) (value string, found bool) {
-	if a.AdditionalProperties != nil {
-		value, found = a.AdditionalProperties[fieldName]
-	}
-	return
-}
-
-// Setter for additional properties for HandleTokenRequestFormdataBody
-func (a *HandleTokenRequestFormdataBody) Set(fieldName string, value string) {
-	if a.AdditionalProperties == nil {
-		a.AdditionalProperties = make(map[string]string)
-	}
-	a.AdditionalProperties[fieldName] = value
-}
-
-// Override default JSON handling for HandleTokenRequestFormdataBody to handle AdditionalProperties
-func (a *HandleTokenRequestFormdataBody) UnmarshalJSON(b []byte) error {
-	object := make(map[string]json.RawMessage)
-	err := json.Unmarshal(b, &object)
-	if err != nil {
-		return err
-	}
-
-	if raw, found := object["code"]; found {
-		err = json.Unmarshal(raw, &a.Code)
-		if err != nil {
-			return fmt.Errorf("error reading 'code': %w", err)
-		}
-		delete(object, "code")
-	}
-
-	if raw, found := object["grant_type"]; found {
-		err = json.Unmarshal(raw, &a.GrantType)
-		if err != nil {
-			return fmt.Errorf("error reading 'grant_type': %w", err)
-		}
-		delete(object, "grant_type")
-	}
-
-	if len(object) != 0 {
-		a.AdditionalProperties = make(map[string]string)
-		for fieldName, fieldBuf := range object {
-			var fieldVal string
-			err := json.Unmarshal(fieldBuf, &fieldVal)
-			if err != nil {
-				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
-			}
-			a.AdditionalProperties[fieldName] = fieldVal
-		}
-	}
-	return nil
-}
-
-// Override default JSON handling for HandleTokenRequestFormdataBody to handle AdditionalProperties
-func (a HandleTokenRequestFormdataBody) MarshalJSON() ([]byte, error) {
-	var err error
-	object := make(map[string]json.RawMessage)
-
-	if a.Code != nil {
-		object["code"], err = json.Marshal(a.Code)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'code': %w", err)
-		}
-	}
-
-	object["grant_type"], err = json.Marshal(a.GrantType)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'grant_type': %w", err)
-	}
-
-	for fieldName, field := range a.AdditionalProperties {
-		object[fieldName], err = json.Marshal(field)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
-		}
-	}
-	return json.Marshal(object)
-}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {

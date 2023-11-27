@@ -76,7 +76,7 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 	}
 }
 
-func (r Wrapper) Routes(router core.EchoRouter) {
+func (r *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, NewStrictHandler(r, []StrictMiddlewareFunc{
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
@@ -151,7 +151,13 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		}
 	case "vp_token-bearer":
 		// Nuts RFC021 vp_token bearer flow
-		return r.handleS2SAccessTokenRequest(*ownDID, request.Body.AdditionalProperties)
+		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "missing required parameters",
+			}
+		}
+		return r.handleS2SAccessTokenRequest(*ownDID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 	default:
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,

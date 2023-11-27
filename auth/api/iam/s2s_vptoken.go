@@ -22,7 +22,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -45,27 +44,8 @@ const maxPresentationValidity = 10 * time.Second
 
 // handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
-func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]string) (HandleTokenRequestResponseObject, error) {
-	submissionEncoded := params["presentation_submission"]
-	scope := params[scopeParam]
-	assertionEncoded := params["assertion"]
-	if submissionEncoded == "" || scope == "" || assertionEncoded == "" {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: "missing required parameters",
-		}
-	}
-
-	// Unmarshal VP, which can be in URL-encoded JSON(LD) or JWT format.
-	assertionDecoded, err := url.QueryUnescape(assertionEncoded)
-	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidRequest,
-			Description:   "assertion parameter is invalid",
-			InternalError: err,
-		}
-	}
-	pexEnvelope, err := pe.ParseEnvelope([]byte(assertionDecoded))
+func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
+	pexEnvelope, err := pe.ParseEnvelope([]byte(assertionJSON))
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
@@ -73,16 +53,7 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, params map[string]
 		}
 	}
 
-	// Unmarshal presentation submission
-	submissionDecoded, err := url.QueryUnescape(submissionEncoded)
-	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidRequest,
-			Description:   "presentation_submission parameter is invalid",
-			InternalError: err,
-		}
-	}
-	submission, err := pe.ParsePresentationSubmission([]byte(submissionDecoded))
+	submission, err := pe.ParsePresentationSubmission([]byte(submissionJSON))
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,

@@ -58,9 +58,12 @@ paths:
                   example: urn:ietf:params:oauth:grant-type:authorized_code
                 code:
                   type: string
-                  example: secret
-              additionalProperties:
-                type: string
+                assertion:
+                  type: string
+                presentation_submission:
+                  type: string
+                scope:
+                  type: string
       responses:
         "200":
           description: OK
