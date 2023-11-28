@@ -55,16 +55,9 @@ echo "---------------------------------------"
 # Create DID for A with :nuts: replaced with :web:
 REQUEST="{\"verifier\":\"${VENDOR_A_DID}\",\"scope\":\"test\"}"
 RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:21323/internal/auth/v2/$VENDOR_B_DID/request-access-token -H "Content-Type:application/json" -v)
-#if echo $RESPONSE | grep -q "access_token"; then
-#  echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
-#  echo "access token stored in ./node-B/data/accesstoken.txt"
-#else
-#  echo "FAILED: Could not get access token from node-A" 1>&2
-#  echo $RESPONSE
-#  exitWithDockerLogs 1
-#fi
-if echo $RESPONSE | grep -q "unsupported_grant_type - not implemented yet"; then
-  echo "Good so far!"
+if echo $RESPONSE | grep -q "access_token"; then
+  echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
+  echo "access token stored in ./node-B/data/accesstoken.txt"
 else
   echo "FAILED: Could not get access token from node-A" 1>&2
   echo $RESPONSE

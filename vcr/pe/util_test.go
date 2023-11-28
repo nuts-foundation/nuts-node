@@ -59,7 +59,7 @@ func TestParseEnvelope(t *testing.T) {
 		require.Len(t, envelope.Presentations, 1)
 	})
 	t.Run("JSON array with JWTs", func(t *testing.T) {
-		presentation := test.CreateJWTPresentation(t, did.MustParseDID("did:example:1"), credential.ValidNutsOrganizationCredential(t))
+		presentation := test.CreateJWTPresentation(t, did.MustParseDID("did:example:1"), nil, credential.ValidNutsOrganizationCredential(t))
 		presentations := []string{presentation.Raw(), presentation.Raw()}
 		listJSON, _ := json.Marshal(presentations)
 		envelope, err := ParseEnvelope(listJSON)

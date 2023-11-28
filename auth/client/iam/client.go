@@ -139,6 +139,7 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp v
 	// create a POST request with x-www-form-urlencoded body
 	assertion, _ := json.Marshal(vp)
 	presentationSubmission, _ := json.Marshal(submission)
+	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", presentationDefinitionURL.String(), scopes, string(assertion), string(presentationSubmission))
 	data := url.Values{}
 	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
 	data.Set(oauth.AssertionParam, string(assertion))
