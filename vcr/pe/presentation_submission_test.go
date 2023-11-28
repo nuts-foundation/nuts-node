@@ -53,7 +53,38 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 	vc2 := credentialToJSONLD(vc.VerifiableCredential{ID: &id2})
 	vc3 := credentialToJSONLD(vc.VerifiableCredential{ID: &id3})
 
-	t.Run("1 presentation", func(t *testing.T) {
+	t.Run("1 presentation with 1 credential", func(t *testing.T) {
+		expectedJSON := `
+		{
+		 "id": "for-test",
+		 "definition_id": "",
+		 "descriptor_map": [
+		   {
+		     "format": "ldp_vc",
+		     "id": "Match ID=1",
+		     "path": "$.verifiableCredential"
+		   }
+		 ]
+		}`
+		presentationDefinition := PresentationDefinition{}
+		_ = json.Unmarshal([]byte(test.PickOne), &presentationDefinition)
+		builder := presentationDefinition.PresentationSubmissionBuilder()
+		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
+
+		submission, signInstructions, err := builder.Build("ldp_vp")
+
+		require.NoError(t, err)
+		require.NotNil(t, signInstructions)
+		assert.Len(t, signInstructions, 1)
+		require.Len(t, submission.DescriptorMap, 1)
+		assert.Equal(t, "$.verifiableCredential", submission.DescriptorMap[0].Path)
+
+		submission.Id = "for-test" // easier assertion
+		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+		println(string(actualJSON))
+		assert.JSONEq(t, expectedJSON, string(actualJSON))
+	})
+	t.Run("1 presentation with 2 credentials", func(t *testing.T) {
 		expectedJSON := `
 		{
 		 "id": "for-test",
@@ -101,7 +132,7 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
       "path_nested": {
         "format": "ldp_vc",
         "id": "Match ID=1",
-        "path": "$.verifiableCredential[0]"
+        "path": "$.verifiableCredential"
       }
     },
     {
@@ -111,7 +142,7 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
       "path_nested": {
         "format": "ldp_vc",
         "id": "Match ID=2",
-        "path": "$.verifiableCredential[0]"
+        "path": "$.verifiableCredential"
       }
     }
   ]

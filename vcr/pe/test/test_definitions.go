@@ -30,6 +30,7 @@ const PickOne = `
   ],
   "input_descriptors": [
 	{
+      "id": "Match ID=1",
 	  "name": "Pick 1",
       "group": ["A"],
 	  "constraints": {
@@ -47,6 +48,7 @@ const PickOne = `
 	  }
     },
     {
+      "id": "Match ID=2",
 	  "name": "Pick 2",
       "group": ["A"],
 	  "constraints": {
