@@ -42,6 +42,21 @@ func (m *MockRelyingParty) EXPECT() *MockRelyingPartyMockRecorder {
 	return m.recorder
 }
 
+// AuthorizationServerMetadata mocks base method.
+func (m *MockRelyingParty) AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthorizationServerMetadata", ctx, webdid)
+	ret0, _ := ret[0].(*oauth.AuthorizationServerMetadata)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AuthorizationServerMetadata indicates an expected call of AuthorizationServerMetadata.
+func (mr *MockRelyingPartyMockRecorder) AuthorizationServerMetadata(ctx, webdid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthorizationServerMetadata", reflect.TypeOf((*MockRelyingParty)(nil).AuthorizationServerMetadata), ctx, webdid)
+}
+
 // CreateAuthorizationRequest mocks base method.
 func (m *MockRelyingParty) CreateAuthorizationRequest(ctx context.Context, requestHolder, verifier did.DID, scopes, clientState string) (*url.URL, error) {
 	m.ctrl.T.Helper()

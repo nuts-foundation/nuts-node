@@ -28,6 +28,9 @@ import (
 
 // RelyingParty implements the OAuth2 relying party role.
 type RelyingParty interface {
+	// AuthorizationServerMetadata returns the metadata of the remote authorization server.
+	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
+
 	CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error)
 	// CreateAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
 	CreateAuthorizationRequest(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, clientState string) (*url.URL, error)

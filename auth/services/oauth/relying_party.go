@@ -159,9 +159,9 @@ func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantTok
 
 func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
 	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
+	metadata, err := s.AuthorizationServerMetadata(ctx, verifier)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+		return nil, err
 	}
 
 	// get the presentation definition from the verifier
@@ -232,6 +232,15 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 		TokenType:   token.TokenType,
 		Scope:       &scopes,
 	}, nil
+}
+
+func (s *relyingParty) AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
+	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, webdid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+	}
+	return metadata, nil
 }
 
 func chooseVPFormat(formats map[string]map[string][]string) string {

@@ -45,7 +45,7 @@ const s2sMaxClockSkew = 5 * time.Second
 
 // handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
-func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
 	pexEnvelope, err := pe.ParseEnvelope([]byte(assertionJSON))
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -128,7 +128,7 @@ func (r Wrapper) requestServiceAccessToken(ctx context.Context, requestHolder di
 	return RequestAccessToken200JSONResponse(*tokenResult), nil
 }
 
-func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submission pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+func (r Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submission pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	fieldsMap, err := definition.ResolveConstraintsFields(credentialMap)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve Presentation Definition Constraints Fields: %w", err)
@@ -225,7 +225,7 @@ func validatePresentationSigner(presentation vc.VerifiablePresentation, expected
 }
 
 // validateS2SPresentationNonce checks if the nonce has been used before; 'nonce' claim for JWTs or LDProof's 'nonce' for JSON-LD.
-func (r *Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresentation) error {
+func (r Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresentation) error {
 	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
@@ -272,7 +272,7 @@ func (r *Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresent
 }
 
 // validatePresentationAudience checks if the presentation audience (aud claim for JWTs, domain property for JSON-LD proofs) contains the issuer DID.
-func (r *Wrapper) validatePresentationAudience(presentation vc.VerifiablePresentation, issuer did.DID) error {
+func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresentation, issuer did.DID) error {
 	var audience []string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
