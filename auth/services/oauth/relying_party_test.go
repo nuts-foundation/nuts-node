@@ -210,6 +210,41 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 }
 
+func Test_determineFormat(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		formats := map[string]map[string][]string{
+			"jwt_vp": {
+				"alg": {"ES256K"},
+			},
+		}
+
+		format, err := determineFormat(formats)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "jwt_vp", format)
+	})
+	t.Run("error - no supported format", func(t *testing.T) {
+		formats := map[string]map[string][]string{}
+
+		format, err := determineFormat(formats)
+
+		assert.EqualError(t, err, "authorization server metadata does not contain any supported VP formats")
+		assert.Empty(t, format)
+	})
+	t.Run(" jwt_vp_json returns jwt_vp", func(t *testing.T) {
+		formats := map[string]map[string][]string{
+			"jwt_vp_json": {
+				"alg": {"ES256K"},
+			},
+		}
+
+		format, err := determineFormat(formats)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "jwt_vp", format)
+	})
+}
+
 func TestService_CreateJwtBearerToken(t *testing.T) {
 	usi := vc.VerifiablePresentation{}
 
