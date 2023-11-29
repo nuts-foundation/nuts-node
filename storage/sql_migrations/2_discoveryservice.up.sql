@@ -1,8 +1,9 @@
 -- discovery contains the known discovery services and the highest timestamp
 create table discovery_service
 (
-    id                varchar(36) not null primary key,
-    lamport_timestamp integer     not null
+    -- id is the unique identifier for the service. It comes from the service definition.
+    id                varchar(200) not null primary key,
+    lamport_timestamp integer      not null
 );
 
 -- discovery_presentation contains the presentations of the discovery services
@@ -18,6 +19,8 @@ create table discovery_presentation
     unique (service_id, credential_subject_id),
     constraint fk_discovery_presentation_service_id foreign key (service_id) references discovery_service (id) on delete cascade
 );
+-- index for the presentation_expiration column, used by prune()
+create index idx_discovery_presentation_expiration on discovery_presentation (presentation_expiration);
 
 -- discovery_credential is a credential in a presentation of the discovery service.
 -- We could do without the table, but having it allows to have a normalized index for credential properties that appear on every credential.
@@ -25,6 +28,7 @@ create table discovery_presentation
 create table discovery_credential
 (
     id                    varchar(36) not null primary key,
+    -- presentation_id is NOT the ID of the presentation (VerifiablePresentation.ID), but refers to the presentation record in the discovery_presentation table.
     presentation_id       varchar(36) not null,
     credential_id         varchar     not null,
     credential_issuer     varchar     not null,
