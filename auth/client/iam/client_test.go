@@ -219,10 +219,10 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		_, err := client.AccessToken(ctx, tlsServer.URL, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "test")
 
 		require.Error(t, err)
-		// check if the error is a http error
-		httpError, ok := err.(core.HttpError)
+		// check if the error is an OAuth error
+		oauthError, ok := err.(oauth.OAuth2Error)
 		require.True(t, ok)
-		assert.Equal(t, "{\"error\":\"invalid_scope\"}", string(httpError.ResponseBody))
+		assert.Equal(t, oauth.InvalidScope, oauthError.Code)
 	})
 	t.Run("error - generic server error", func(t *testing.T) {
 		ctx := context.Background()

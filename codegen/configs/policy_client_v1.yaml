@@ -1,0 +1,11 @@
+package: client
+generate:
+  echo-server: false
+  client: true
+  models: true
+  strict-server: true
+output-options:
+  skip-prune: true
+  exclude-schemas:
+  - PresentationDefinition
+  - PresentationSubmission

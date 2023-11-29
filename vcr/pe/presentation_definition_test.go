@@ -19,70 +19,22 @@
 package pe
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"embed"
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"testing"
 
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-const testPresentationDefinition = `
-{
-  "id": "Definition requesting NutsOrganizationCredential",
-  "input_descriptors": [
-	{
-	  "id": "some random ID",
-	  "name": "Organization matcher",
-	  "purpose": "Finding any organization in CareTown starting with 'Care'",
-	  "constraints": {
-		"fields": [
-		  {
-			"path": [
-			  "$.credentialSubject.organization.city"
-			],
-			"filter": {
-			  "type": "string",
-			  "const": "IJbergen"
-			}
-		  },
-		  {
-			"path": [
-			  "$.credentialSubject.organization.name"
-			],
-			"filter": {
-			  "type": "string",
-			  "pattern": "care"
-			}
-		  },
-		  {
-			"path": [
-			  "$.type"
-			],
-			"filter": {
-			  "type": "string",
-			  "const": "NutsOrganizationCredential"
-			}
-		  }
-		]
-	  }
-	}
-  ],
-  "format": {
-    "jwt_vc": {
-      "alg": ["ES256K", "ES384"]
-    },
-	"ldp_vc": {
-      "proof_type": [
-	    "JsonWebSignature2020"
-	  ]
-	}
-  } 
-}
-`
 
 var testCredentialString = `
 {
@@ -92,41 +44,98 @@ var testCredentialString = `
   }
 }`
 
+//go:embed test/*.json
+var testFiles embed.FS
+
+type testDefinitions struct {
+	JSONLD              PresentationDefinition
+	JSONLDorJWT         PresentationDefinition
+	JSONLDorJWTWithPick PresentationDefinition
+	JWT                 PresentationDefinition
+}
+
+func definitions() testDefinitions {
+	var result testDefinitions
+	if data, err := testFiles.ReadFile("test/pd_jsonld.json"); err != nil {
+		panic(err)
+	} else {
+		if err = json.Unmarshal(data, &result.JSONLD); err != nil {
+			panic(err)
+		}
+	}
+	if data, err := testFiles.ReadFile("test/pd_jsonld_jwt.json"); err != nil {
+		panic(err)
+	} else {
+		if err = json.Unmarshal(data, &result.JSONLDorJWT); err != nil {
+			panic(err)
+		}
+	}
+	if data, err := testFiles.ReadFile("test/pd_jsonld_jwt_pick.json"); err != nil {
+		panic(err)
+	} else {
+		if err = json.Unmarshal(data, &result.JSONLDorJWTWithPick); err != nil {
+			panic(err)
+		}
+	}
+	if data, err := testFiles.ReadFile("test/pd_jwt.json"); err != nil {
+		panic(err)
+	} else {
+		if err = json.Unmarshal(data, &result.JWT); err != nil {
+			panic(err)
+		}
+	}
+	return result
+}
+
 func TestMatch(t *testing.T) {
-	id1 := ssi.MustParseURI("1")
-	id2 := ssi.MustParseURI("2")
-	id3 := ssi.MustParseURI("3")
-	id4 := ssi.MustParseURI("4")
-	vc1 := vc.VerifiableCredential{ID: &id1}
-	vc2 := vc.VerifiableCredential{ID: &id2}
-	vc3 := vc.VerifiableCredential{ID: &id3}
-	vc4 := vc.VerifiableCredential{ID: &id4}
-	verifiableCredential := credential.ValidNutsOrganizationCredential(t)
+	jsonldVC := credential.ValidNutsOrganizationCredential(t)
+	jwtVC := credential.JWTNutsOrganizationCredential(t)
 
 	t.Run("Basic", func(t *testing.T) {
-		presentationDefinition := PresentationDefinition{}
-		_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
+		t.Run("JSON-LD", func(t *testing.T) {
+			t.Run("Happy flow", func(t *testing.T) {
+				vcs, mappingObjects, err := definitions().JSONLD.Match([]vc.VerifiableCredential{jsonldVC})
 
-		t.Run("Happy flow", func(t *testing.T) {
-			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				require.Len(t, mappingObjects, 1)
+				assert.Equal(t, "$.verifiableCredential[0]", mappingObjects[0].Path)
+			})
+			t.Run("Only second VC matches", func(t *testing.T) {
+				vcs, mappingObjects, err := definitions().JSONLD.Match([]vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, jsonldVC})
 
-			require.NoError(t, err)
-			assert.Len(t, vcs, 1)
-			require.Len(t, mappingObjects, 1)
-			assert.Equal(t, "$.verifiableCredential[0]", mappingObjects[0].Path)
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				assert.Len(t, mappingObjects, 1)
+			})
 		})
-		t.Run("Only second VC matches", func(t *testing.T) {
-			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{{Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential")}}, verifiableCredential})
+		t.Run("JWT", func(t *testing.T) {
+			t.Run("Happy flow", func(t *testing.T) {
+				vcs, mappingObjects, err := definitions().JWT.Match([]vc.VerifiableCredential{jwtVC})
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				require.Len(t, mappingObjects, 1)
+				assert.Equal(t, "$.verifiableCredential[0]", mappingObjects[0].Path)
+			})
+			t.Run("unsupported JOSE alg", func(t *testing.T) {
+				token := jwt.New()
+				privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+				require.NoError(t, err)
+				jwtCredential, err := vc.ParseVerifiableCredential(string(signedToken))
+				require.NoError(t, err)
 
-			require.NoError(t, err)
-			assert.Len(t, vcs, 1)
-			assert.Len(t, mappingObjects, 1)
+				vcs, mappingObjects, err := definitions().JWT.Match([]vc.VerifiableCredential{*jwtCredential})
+
+				assert.NoError(t, err)
+				assert.Empty(t, vcs)
+				assert.Empty(t, mappingObjects)
+			})
 		})
 	})
 	t.Run("Input Descriptor Claim Format matching", func(t *testing.T) {
-		presentationDefinition := PresentationDefinition{}
-		_ = json.Unmarshal([]byte(testPresentationDefinition), &presentationDefinition)
 		// making sure this test doesn't break when testPresentationDefinition changes
+		presentationDefinition := definitions().JSONLDorJWT
 		fullFormat := presentationDefinition.Format
 		require.NotNil(t, fullFormat)
 		require.NotNil(t, (*fullFormat)["jwt_vc"])
@@ -135,7 +144,7 @@ func TestMatch(t *testing.T) {
 			presentationDefinition.Format = nil
 			presentationDefinition.InputDescriptors[0].Format = fullFormat
 
-			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{jsonldVC})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 1)
@@ -146,7 +155,7 @@ func TestMatch(t *testing.T) {
 			presentationDefinition.Format = fullFormat
 			presentationDefinition.InputDescriptors[0].Format = &PresentationDefinitionClaimFormatDesignations{"jwt_vc": (*fullFormat)["jwt_vc"]}
 
-			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{verifiableCredential})
+			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{jsonldVC})
 
 			require.NoError(t, err)
 			assert.Len(t, vcs, 0)
@@ -154,6 +163,15 @@ func TestMatch(t *testing.T) {
 		})
 	})
 	t.Run("Submission requirement feature", func(t *testing.T) {
+		id1 := ssi.MustParseURI("1")
+		id2 := ssi.MustParseURI("2")
+		id3 := ssi.MustParseURI("3")
+		id4 := ssi.MustParseURI("4")
+		vc1 := credentialToJSONLD(vc.VerifiableCredential{ID: &id1})
+		vc2 := credentialToJSONLD(vc.VerifiableCredential{ID: &id2})
+		vc3 := credentialToJSONLD(vc.VerifiableCredential{ID: &id3})
+		vc4 := credentialToJSONLD(vc.VerifiableCredential{ID: &id4})
+
 		t.Run("Pick", func(t *testing.T) {
 			t.Run("Pick 1", func(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}
@@ -164,6 +182,34 @@ func TestMatch(t *testing.T) {
 				require.NoError(t, err)
 				assert.Len(t, vcs, 1)
 				assert.Len(t, mappingObjects, 1)
+			})
+			t.Run("choose JSON-LD (with multiple 'path's)", func(t *testing.T) {
+				vcs, mappingObjects, err := definitions().JSONLDorJWT.Match([]vc.VerifiableCredential{jsonldVC})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				require.Len(t, mappingObjects, 1)
+			})
+			t.Run("choose JWT(with multiple 'path's)", func(t *testing.T) {
+				vcs, mappingObjects, err := definitions().JSONLDorJWT.Match([]vc.VerifiableCredential{jwtVC})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				require.Len(t, mappingObjects, 1)
+			})
+			t.Run("choose JSON-LD (with 'pick')", func(t *testing.T) {
+				vcs, mappingObjects, err := definitions().JSONLDorJWTWithPick.Match([]vc.VerifiableCredential{jsonldVC})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				require.Len(t, mappingObjects, 1)
+			})
+			t.Run("choose JWT (with 'pick')", func(t *testing.T) {
+				vcs, mappingObjects, err := definitions().JSONLDorJWTWithPick.Match([]vc.VerifiableCredential{jwtVC})
+
+				require.NoError(t, err)
+				assert.Len(t, vcs, 1)
+				require.Len(t, mappingObjects, 1)
 			})
 			t.Run("error", func(t *testing.T) {
 				presentationDefinition := PresentationDefinition{}
@@ -300,8 +346,6 @@ func TestMatch(t *testing.T) {
 }
 
 func Test_matchFormat(t *testing.T) {
-	verifiableCredential := credential.ValidNutsOrganizationCredential(t)
-
 	t.Run("no format", func(t *testing.T) {
 		match := matchFormat(nil, vc.VerifiableCredential{})
 
@@ -309,42 +353,81 @@ func Test_matchFormat(t *testing.T) {
 	})
 
 	t.Run("countable format", func(t *testing.T) {
-		match := matchFormat(&PresentationDefinitionClaimFormatDesignations{}, vc.VerifiableCredential{})
+		match := matchFormat(&PresentationDefinitionClaimFormatDesignations{}, credentialToJSONLD(vc.VerifiableCredential{}))
 
 		assert.True(t, match)
 	})
 
-	t.Run("format with jwt_vc always returns false", func(t *testing.T) {
-		asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}}
-		asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
-		match := matchFormat(&asFormat, vc.VerifiableCredential{})
+	t.Run("JWT", func(t *testing.T) {
+		// JWT example credential taken from VC data model (expired)
+		const jwtCredential = `eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRpZDpleGFtcGxlOmFiZmUxM2Y3MTIxMjA0
+MzFjMjc2ZTEyZWNhYiNrZXlzLTEifQ.eyJzdWIiOiJkaWQ6ZXhhbXBsZTplYmZlYjFmNzEyZWJjNmYxY
+zI3NmUxMmVjMjEiLCJqdGkiOiJodHRwOi8vZXhhbXBsZS5lZHUvY3JlZGVudGlhbHMvMzczMiIsImlzc
+yI6Imh0dHBzOi8vZXhhbXBsZS5jb20va2V5cy9mb28uandrIiwibmJmIjoxNTQxNDkzNzI0LCJpYXQiO
+jE1NDE0OTM3MjQsImV4cCI6MTU3MzAyOTcyMywibm9uY2UiOiI2NjAhNjM0NUZTZXIiLCJ2YyI6eyJAY
+29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFscy92MSIsImh0dHBzOi8vd
+3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL2V4YW1wbGVzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZ
+UNyZWRlbnRpYWwiLCJVbml2ZXJzaXR5RGVncmVlQ3JlZGVudGlhbCJdLCJjcmVkZW50aWFsU3ViamVjd
+CI6eyJkZWdyZWUiOnsidHlwZSI6IkJhY2hlbG9yRGVncmVlIiwibmFtZSI6IjxzcGFuIGxhbmc9J2ZyL
+UNBJz5CYWNjYWxhdXLDqWF0IGVuIG11c2lxdWVzIG51bcOpcmlxdWVzPC9zcGFuPiJ9fX19.KLJo5GAy
+BND3LDTn9H7FQokEsUEi8jKwXhGvoN3JtRa51xrNDgXDb0cq1UTYB-rK4Ft9YVmR1NI_ZOF8oGc_7wAp
+8PHbF2HaWodQIoOBxxT-4WNqAxft7ET6lkH-4S6Ux3rSGAmczMohEEf8eCeN-jC8WekdPl6zKZQj0YPB
+1rx6X0-xlFBs7cl6Wt8rfBP_tZ9YgVWrQmUWypSioc0MUyiphmyEbLZagTyPlUyflGlEdqrZAv6eSe6R
+txJy6M1-lD7a5HTzanYTWBPAUHDZGyGKXdJw-W_x0IWChBzI8t3kpG253fg6V3tPgHeKXE94fz_QpYfg
+--7kLsyBAfQGbg`
+		verifiableCredential, err := vc.ParseVerifiableCredential(jwtCredential)
+		require.NoError(t, err)
+		t.Run("alg match", func(t *testing.T) {
+			asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"RS256"}}}
+			asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
+			match := matchFormat(&asFormat, *verifiableCredential)
 
-		assert.False(t, match)
+			assert.True(t, match)
+		})
+		t.Run("no alg match", func(t *testing.T) {
+			asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}}
+			asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
+			match := matchFormat(&asFormat, *verifiableCredential)
+
+			assert.False(t, match)
+		})
+		t.Run("missing proof_type", func(t *testing.T) {
+			asMap := map[string]map[string][]string{"jwt_vc": {}}
+			asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
+			match := matchFormat(&asFormat, *verifiableCredential)
+
+			assert.False(t, match)
+		})
 	})
 
-	t.Run("format with matching ldp_vc", func(t *testing.T) {
-		asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}, "ldp_vc": {"proof_type": {"JsonWebSignature2020"}}}
-		asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
-		match := matchFormat(&asFormat, verifiableCredential)
+	t.Run("JSON-LD", func(t *testing.T) {
+		verifiableCredential := credential.ValidNutsOrganizationCredential(t)
 
-		assert.True(t, match)
+		t.Run("format with matching ldp_vc", func(t *testing.T) {
+			asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}, "ldp_vc": {"proof_type": {"JsonWebSignature2020"}}}
+			asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
+			match := matchFormat(&asFormat, verifiableCredential)
+
+			assert.True(t, match)
+		})
+
+		t.Run("non-matching ldp_vc", func(t *testing.T) {
+			asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}, "ldp_vc": {"proof_type": {"Ed25519Signature2018"}}}
+			asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
+			match := matchFormat(&asFormat, verifiableCredential)
+
+			assert.False(t, match)
+		})
+
+		t.Run("missing proof_type", func(t *testing.T) {
+			asMap := map[string]map[string][]string{"ldp_vc": {}}
+			asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
+			match := matchFormat(&asFormat, verifiableCredential)
+
+			assert.False(t, match)
+		})
 	})
 
-	t.Run("non-matching ldp_vc", func(t *testing.T) {
-		asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}, "ldp_vc": {"proof_type": {"Ed25519Signature2018"}}}
-		asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
-		match := matchFormat(&asFormat, verifiableCredential)
-
-		assert.False(t, match)
-	})
-
-	t.Run("missing proof_type", func(t *testing.T) {
-		asMap := map[string]map[string][]string{"ldp_vc": {}}
-		asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
-		match := matchFormat(&asFormat, verifiableCredential)
-
-		assert.False(t, match)
-	})
 }
 
 func Test_matchCredential(t *testing.T) {
@@ -398,30 +481,31 @@ func Test_matchConstraint(t *testing.T) {
 }
 
 func Test_matchField(t *testing.T) {
-	testCredential := vc.VerifiableCredential{}
-	_ = json.Unmarshal([]byte(testCredentialString), &testCredential)
+	testCredential, err := vc.ParseVerifiableCredential(testCredentialString)
+	require.NoError(t, err)
+	testCredentialMap, _ := remarshalToMap(testCredential)
 
 	t.Run("single path match", func(t *testing.T) {
-		match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}}, testCredential)
+		match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.True(t, match)
 	})
 	t.Run("multi path match", func(t *testing.T) {
-		match, err := matchField(Field{Path: []string{"$.other", "$.credentialSubject.field"}}, testCredential)
+		match, err := matchField(Field{Path: []string{"$.other", "$.credentialSubject.field"}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.True(t, match)
 	})
 	t.Run("no match", func(t *testing.T) {
-		match, err := matchField(Field{Path: []string{"$.foo", "$.bar"}}, testCredential)
+		match, err := matchField(Field{Path: []string{"$.foo", "$.bar"}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.False(t, match)
 	})
 	t.Run("no match, but optional", func(t *testing.T) {
 		trueVal := true
-		match, err := matchField(Field{Path: []string{"$.foo", "$.bar"}, Optional: &trueVal}, testCredential)
+		match, err := matchField(Field{Path: []string{"$.foo", "$.bar"}, Optional: &trueVal}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.True(t, match)
@@ -429,21 +513,21 @@ func Test_matchField(t *testing.T) {
 	t.Run("invalid match and optional", func(t *testing.T) {
 		trueVal := true
 		stringVal := "bar"
-		match, err := matchField(Field{Path: []string{"$.credentialSubject.field", "$.foo"}, Optional: &trueVal, Filter: &Filter{Const: &stringVal}}, testCredential)
+		match, err := matchField(Field{Path: []string{"$.credentialSubject.field", "$.foo"}, Optional: &trueVal, Filter: &Filter{Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.False(t, match)
 	})
 	t.Run("valid match with Filter", func(t *testing.T) {
 		stringVal := "value"
-		match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredential)
+		match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.True(t, match)
 	})
 	t.Run("match on type", func(t *testing.T) {
 		stringVal := "VerifiableCredential"
-		match, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredential)
+		match, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.True(t, match)
@@ -456,9 +540,9 @@ func Test_matchField(t *testing.T) {
 	"field": "value"
   }
 }`
-		_ = json.Unmarshal([]byte(testCredentialString), &testCredential)
+		_ = json.Unmarshal([]byte(testCredentialString), &testCredentialMap)
 		stringVal := "VerifiableCredential"
-		match, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredential)
+		match, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.True(t, match)
@@ -466,14 +550,14 @@ func Test_matchField(t *testing.T) {
 
 	t.Run("errors", func(t *testing.T) {
 		t.Run("invalid path", func(t *testing.T) {
-			match, err := matchField(Field{Path: []string{"$$"}}, testCredential)
+			match, err := matchField(Field{Path: []string{"$$"}}, testCredentialMap)
 
 			require.Error(t, err)
 			assert.False(t, match)
 		})
 		t.Run("invalid pattern", func(t *testing.T) {
 			pattern := "["
-			match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Pattern: &pattern}}, testCredential)
+			match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Pattern: &pattern}}, testCredentialMap)
 
 			require.Error(t, err)
 			assert.False(t, match)
@@ -559,4 +643,17 @@ func Test_matchFilter(t *testing.T) {
 			assert.Error(t, err, "error parsing regexp: missing closing ]: `[`")
 		})
 	})
+}
+
+func credentialToJSONLD(credential vc.VerifiableCredential) vc.VerifiableCredential {
+	bytes, err := credential.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	var result vc.VerifiableCredential
+	err = json.Unmarshal(bytes, &result)
+	if err != nil {
+		panic(err)
+	}
+	return result
 }

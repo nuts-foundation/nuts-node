@@ -9,8 +9,8 @@ services:
     volumes:
       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "./node-A/data:/opt/nuts/data:rw"
-      - "../tls-certs/nodeA-backend-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
-      - "../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+      - "../../tls-certs/nodeA-backend-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeA:
@@ -19,9 +19,9 @@ services:
       - "10443:443"
     volumes:
       - "./node-A/nginx.conf:/etc/nginx/nginx.conf:ro"
-      - "../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
-      - "../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
-      - "../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
+      - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
       - "./node-A/html:/etc/nginx/html:ro"
   nodeB:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
@@ -32,7 +32,7 @@ services:
     volumes:
       - "./node-B/data:/opt/nuts/data:rw"
       - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
-      - "../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
-      - "../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+      - "../../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often

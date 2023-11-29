@@ -106,19 +106,23 @@ func (p Oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err 
 	}
 	redirectURI, _ := url.Parse(oauthErr.RedirectURI)
 	if oauthErr.RedirectURI == "" || redirectURI == nil {
-		// Can't redirect the user-agent back, render error as JSON or plain text (depending on content-type)
+		// Can't redirect the user-agent back, render error as JSON or plain text (depending on accept/content-type)
+		accept := echoContext.Request().Header.Get("Accept")
+		if strings.Contains(accept, "application/json") {
+			// Return JSON response
+			return echoContext.JSON(oauthErr.StatusCode(), oauthErr)
+		}
 		contentType := echoContext.Request().Header.Get("Content-Type")
 		if strings.Contains(contentType, "application/json") {
 			// Return JSON response
 			return echoContext.JSON(oauthErr.StatusCode(), oauthErr)
-		} else {
-			// Return plain text response
-			parts := []string{string(oauthErr.Code)}
-			if oauthErr.Description != "" {
-				parts = append(parts, oauthErr.Description)
-			}
-			return echoContext.String(oauthErr.StatusCode(), strings.Join(parts, " - "))
 		}
+		// Return plain text response
+		parts := []string{string(oauthErr.Code)}
+		if oauthErr.Description != "" {
+			parts = append(parts, oauthErr.Description)
+		}
+		return echoContext.String(oauthErr.StatusCode(), strings.Join(parts, " - "))
 	}
 	// Redirect the user-agent back to the client
 	query := redirectURI.Query()

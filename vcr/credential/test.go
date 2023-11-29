@@ -20,8 +20,14 @@
 package credential
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -66,6 +72,26 @@ func ValidNutsOrganizationCredential(t *testing.T) vc.VerifiableCredential {
 		t.Fatal(err)
 	}
 	return inputVC
+}
+
+func JWTNutsOrganizationCredential(t *testing.T) vc.VerifiableCredential {
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	token := jwt.New()
+	require.NoError(t, token.Set("vc", map[string]interface{}{
+		"credentialSubject": map[string]interface{}{
+			"organization": map[string]interface{}{
+				"city": "IJbergen",
+				"name": "care",
+			},
+		},
+		"type": "NutsOrganizationCredential",
+	}))
+	signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES384, privateKey))
+	require.NoError(t, err)
+	jwtVC, err := vc.ParseVerifiableCredential(string(signedToken))
+	require.NoError(t, err)
+	return *jwtVC
 }
 
 func stringToURI(input string) ssi.URI {

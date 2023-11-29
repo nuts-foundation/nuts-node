@@ -23,6 +23,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -81,6 +82,9 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 				return r.middleware(ctx, request, operationID, f)
 			}
 		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return audit.StrictMiddleware(f, apiModuleName, operationID)
+		},
 	}))
 	auditMiddleware := audit.Middleware(apiModuleName)
 	// The following handler is of the OpenID4VCI wallet which is called by the holder (wallet owner)
@@ -110,12 +114,12 @@ func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID s
 	if strings.HasPrefix(ctx.Request().URL.Path, "/iam/") {
 		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{})
 	}
-	audit.StrictMiddleware(f, apiModuleName, operationID)
+
 	return f(ctx, request)
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
-func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) HandleTokenRequest(_ context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
 	switch request.Body.GrantType {
 	case "authorization_code":
 		// Options:
@@ -125,7 +129,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
 		}
-	case "vp_token":
+	case "vp_token-bearer":
 		// Options:
 		// - service-to-service vp_token flow
 		return nil, oauth.OAuth2Error{
@@ -141,7 +145,8 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		}
 	default:
 		return nil, oauth.OAuth2Error{
-			Code: oauth.UnsupportedGrantType,
+			Code:        oauth.UnsupportedGrantType,
+			Description: fmt.Sprintf("grant_type '%s' is not supported", request.Body.GrantType),
 		}
 	}
 }

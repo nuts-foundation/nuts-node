@@ -21,8 +21,12 @@ package credential
 
 import (
 	"errors"
+	"fmt"
+	"github.com/nuts-foundation/go-did/did"
+	"errors"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
 // FindValidator finds the Validator the provided credential based on its Type
@@ -55,6 +59,10 @@ func ExtractTypes(credential vc.VerifiableCredential) []string {
 	return vcTypes
 }
 
+// PresentationSigner returns the DID of the signer of the presentation.
+// It does not do any signature validation.
+// For JWTs it returns the issuer (iss) of the JWT.
+// For JSON-LD it returns the verification method of the proof.
 func PresentationSigner(presentation vc.VerifiablePresentation) (*did.DID, error) {
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
@@ -64,7 +72,20 @@ func PresentationSigner(presentation vc.VerifiablePresentation) (*did.DID, error
 			return nil, errors.New("JWT presentation does not have 'iss' claim")
 		}
 		return did.ParseDID(issuer)
+	case vc.JSONLDCredentialProofFormat:
+		fallthrough
 	default:
-		return nil, errors.New("unsupported presentation format")
+		var proofs []proof.LDProof
+		if err := presentation.UnmarshalProofValue(&proofs); err != nil {
+			return nil, fmt.Errorf("invalid LD-proof for presentation: %w", err)
+		}
+		if len(proofs) != 1 {
+			return nil, fmt.Errorf("presentation should have exactly 1 proof, got %d", len(proofs))
+		}
+		verificationMethod, err := did.ParseDIDURL(proofs[0].VerificationMethod.String())
+		if err != nil || verificationMethod.DID.Empty() {
+			return nil, fmt.Errorf("invalid verification method for JSON-LD presentation: %w", err)
+		}
+		return &verificationMethod.DID, nil
 	}
 }

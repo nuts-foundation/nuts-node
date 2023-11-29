@@ -145,6 +145,7 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp v
 	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
 	data.Set(oauth.ScopeParam, scopes)
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, presentationDefinitionURL.String(), strings.NewReader(data.Encode()))
+	request.Header.Add("Accept", "application/json")
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	if err != nil {
 		return token, err
@@ -158,9 +159,15 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp v
 		if innerErr := core.TestResponseCode(http.StatusBadRequest, response); innerErr != nil {
 			// a non oauth error, the response body could contain a lot of stuff. We'll log and return the entire error
 			log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
+			return token, err
+		}
+		httpErr := err.(core.HttpError)
+		oauthError := oauth.OAuth2Error{}
+		if err := json.Unmarshal(httpErr.ResponseBody, &oauthError); err != nil {
+			return token, fmt.Errorf("unable to unmarshal OAuth error response: %w", err)
 		}
 
-		return token, err
+		return token, oauthError
 	}
 
 	var responseData []byte

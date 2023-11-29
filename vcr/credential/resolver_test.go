@@ -20,6 +20,14 @@
 package credential
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -58,4 +66,86 @@ func TestExtractTypes(t *testing.T) {
 
 	assert.Len(t, types, 1)
 	assert.Equal(t, NutsOrganizationCredentialType, types[0])
+}
+
+func TestPresentationSigner(t *testing.T) {
+	keyID := did.MustParseDIDURL("did:example:issuer#1")
+	t.Run("JWT", func(t *testing.T) {
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		t.Run("ok", func(t *testing.T) {
+			token := jwt.New()
+			require.NoError(t, token.Set(jwt.IssuerKey, keyID.DID.String()))
+			signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+			require.NoError(t, err)
+			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
+			require.NoError(t, err)
+
+			actual, err := PresentationSigner(*presentation)
+			require.NoError(t, err)
+			assert.Equal(t, keyID.DID, *actual)
+		})
+		t.Run("missing 'iss' claim", func(t *testing.T) {
+			token := jwt.New()
+			signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+			require.NoError(t, err)
+			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
+			require.NoError(t, err)
+
+			actual, err := PresentationSigner(*presentation)
+			assert.EqualError(t, err, "JWT presentation does not have 'iss' claim")
+			assert.Nil(t, actual)
+		})
+	})
+	t.Run("JSON-LD", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			presentation := vc.VerifiablePresentation{
+				Proof: []interface{}{proof.LDProof{
+					VerificationMethod: keyID.URI(),
+				}},
+			}
+			actual, err := PresentationSigner(presentation)
+			assert.NoError(t, err)
+			assert.Equal(t, keyID.DID, *actual)
+		})
+		t.Run("too many proofs", func(t *testing.T) {
+			presentation := vc.VerifiablePresentation{
+				Proof: []interface{}{proof.LDProof{
+					VerificationMethod: keyID.URI(),
+				}, proof.LDProof{
+					VerificationMethod: keyID.URI(),
+				}},
+			}
+			actual, err := PresentationSigner(presentation)
+			assert.EqualError(t, err, "presentation should have exactly 1 proof, got 2")
+			assert.Nil(t, actual)
+		})
+		t.Run("not a JSON-LD proof", func(t *testing.T) {
+			presentation := vc.VerifiablePresentation{
+				Proof: []interface{}{5},
+			}
+			actual, err := PresentationSigner(presentation)
+			assert.EqualError(t, err, "invalid LD-proof for presentation: json: cannot unmarshal number into Go value of type proof.LDProof")
+			assert.Nil(t, actual)
+		})
+		t.Run("invalid DID in proof", func(t *testing.T) {
+			presentation := vc.VerifiablePresentation{
+				Proof: []interface{}{proof.LDProof{
+					VerificationMethod: ssi.MustParseURI("foo"),
+				}},
+			}
+			actual, err := PresentationSigner(presentation)
+			assert.EqualError(t, err, "invalid verification method for JSON-LD presentation: invalid DID")
+			assert.Nil(t, actual)
+		})
+		t.Run("empty VerificationMethod", func(t *testing.T) {
+			presentation := vc.VerifiablePresentation{
+				Proof: []interface{}{proof.LDProof{
+					VerificationMethod: ssi.MustParseURI(""),
+				}},
+			}
+			actual, err := PresentationSigner(presentation)
+			assert.ErrorContains(t, err, "invalid verification method for JSON-LD presentation")
+			assert.Nil(t, actual)
+		})
+	})
 }
