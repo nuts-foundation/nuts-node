@@ -169,10 +169,13 @@ func (m *Module) validateRegistration(definition ServiceDefinition, presentation
 		}
 	}
 	// VP must fulfill the PEX Presentation ServiceDefinition
-	// TODO: Use Validate() once PR is merged
+	// We don't have a PresentationSubmission, so we can't use Validate().
 	creds, _, err := definition.PresentationDefinition.Match(presentation.VerifiableCredential)
-	if err != nil || len(creds) != len(presentation.VerifiableCredential) {
-		return fmt.Errorf("presentation does not fulfill Presentation ServiceDefinition: %w", err)
+	if err != nil {
+		return err
+	}
+	if len(creds) != len(presentation.VerifiableCredential) {
+		return errors.New("presentation does not fulfill Presentation ServiceDefinition")
 	}
 	return nil
 }
