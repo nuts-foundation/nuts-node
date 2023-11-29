@@ -12,6 +12,6 @@ popd
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 echo "!! Running test: OAuth flow (rfc021) !!"
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-pushd openid4vp
+pushd rfc021
 ./run-test.sh
 popd
