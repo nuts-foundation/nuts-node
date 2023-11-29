@@ -31,6 +31,7 @@ type VDR interface {
 	management.DocumentOwner
 	management.DocCreator
 	management.DocUpdater
+	management.DocReader
 
 	// Resolver returns the resolver for getting the DID document for a DID.
 	Resolver() resolver.DIDResolver

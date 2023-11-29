@@ -60,7 +60,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	storageEngine := storage.NewTestStorageEngine(t)
 	networkInstance := network.NewTestNetworkInstance(t)
 	eventManager := events.NewTestManager(t)
-	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager)
+	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager, storageEngine)
 	err := vdrInstance.Configure(core.ServerConfig{})
 	require.NoError(t, err)
 	newInstance := NewVCRInstance(
@@ -95,7 +95,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 	networkInstance := network.NewNetworkInstance(network.TestNetworkConfig(), didStore, keyStore, eventManager, storageEngine.GetProvider("network"), nil)
 	serverCfg := core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})
 	_ = networkInstance.Configure(serverCfg)
-	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager)
+	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager, storageEngine)
 	err := vdrInstance.Configure(core.ServerConfig{})
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +124,7 @@ func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 	storageEngine := storage.NewTestStorageEngineInDir(testDirectory)
 	networkInstance := network.NewTestNetworkInstance(t)
 	eventManager := events.NewTestManager(t)
-	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager)
+	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager, storageEngine)
 	err := vdrInstance.Configure(core.ServerConfig{})
 	if err != nil {
 		t.Fatal(err)

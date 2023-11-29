@@ -299,16 +299,15 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 	return OAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
 }
 
-func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
-	baseURL := *(r.auth.PublicURL().JoinPath(apiPath))
+func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
 	ownDID := idToDID(request.Id)
 
-	document, err := r.vdr.DeriveWebDIDDocument(ctx, baseURL, ownDID)
+	document, err := r.vdr.Read(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
 			return GetWebDID404Response{}, nil
 		}
-		log.Logger().WithError(err).Errorf("Could not resolve Nuts DID: %s", ownDID.String())
+		log.Logger().WithError(err).Errorf("Could not resolve Web DID: %s", ownDID.String())
 		return nil, errors.New("unable to resolve DID")
 	}
 	return GetWebDID200JSONResponse(*document), nil

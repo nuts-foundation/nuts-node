@@ -60,9 +60,9 @@ func (mr *MockVDRMockRecorder) ConflictedDocuments() *gomock.Call {
 }
 
 // Create mocks base method.
-func (m *MockVDR) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (m *MockVDR) Create(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, options)
+	ret := m.ctrl.Call(m, "Create", ctx, method, options)
 	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(crypto.Key)
 	ret2, _ := ret[2].(error)
@@ -70,9 +70,9 @@ func (m *MockVDR) Create(ctx context.Context, options management.DIDCreationOpti
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockVDRMockRecorder) Create(ctx, options any) *gomock.Call {
+func (mr *MockVDRMockRecorder) Create(ctx, method, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), ctx, options)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), ctx, method, options)
 }
 
 // DeriveWebDIDDocument mocks base method.
@@ -118,6 +118,21 @@ func (m *MockVDR) ListOwned(ctx context.Context) ([]did.DID, error) {
 func (mr *MockVDRMockRecorder) ListOwned(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOwned", reflect.TypeOf((*MockVDR)(nil).ListOwned), ctx)
+}
+
+// Read mocks base method.
+func (m *MockVDR) Read(id did.DID) (*did.Document, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Read", id)
+	ret0, _ := ret[0].(*did.Document)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Read indicates an expected call of Read.
+func (mr *MockVDRMockRecorder) Read(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockVDR)(nil).Read), id)
 }
 
 // Resolver mocks base method.

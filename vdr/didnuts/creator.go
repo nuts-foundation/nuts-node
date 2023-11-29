@@ -126,7 +126,11 @@ var ErrInvalidOptions = errors.New("create request has invalid combination of op
 
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
-func (n Creator) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
+func (n Creator) Create(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
+	if method != MethodName {
+		return nil, nil, fmt.Errorf("unsupported DID method: %s", method)
+	}
+
 	var key nutsCrypto.Key
 	var err error
 

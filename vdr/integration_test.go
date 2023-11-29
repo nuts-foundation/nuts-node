@@ -299,7 +299,7 @@ func setup(t *testing.T) testContext {
 	return testContext{
 		vdr:            vdr,
 		eventPublisher: eventPublisher,
-		docCreator:     vdr.didDocCreator,
+		docCreator:     vdr.creators,
 		didStore:       didStore,
 		cryptoInstance: cryptoInstance,
 		audit:          audit.TestContext(),

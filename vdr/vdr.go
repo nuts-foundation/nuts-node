@@ -63,13 +63,22 @@ type Module struct {
 	store             didnutsStore.Store
 	network           network.Transactions
 	networkAmbassador didnuts.Ambassador
-	didDocCreator     management.DocCreator
+	creators          map[string]management.DocCreator
+	readers           map[string]management.DocReader
 	didResolver       *resolver.DIDResolverRouter
 	serviceResolver   resolver.ServiceResolver
 	documentOwner     management.DocumentOwner
 	keyStore          crypto.KeyStore
-	storageProvider   storage.Provider
+	storageInstance   storage.Engine
 	eventManager      events.Event
+}
+
+func (r *Module) Read(id did.DID) (*did.Document, error) {
+	reader := r.readers[id.Method]
+	if reader == nil {
+		return nil, fmt.Errorf("unsupported method: %s", id.Method)
+	}
+	return reader.Read(id)
 }
 
 func (r *Module) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID did.DID) (*did.Document, error) {
@@ -115,17 +124,17 @@ func (r *Module) Resolver() resolver.DIDResolver {
 
 // NewVDR creates a new Module with provided params
 func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
-	didStore didnutsStore.Store, eventManager events.Event) *Module {
+	didStore didnutsStore.Store, eventManager events.Event, storageInstance storage.Engine) *Module {
 	didResolver := &resolver.DIDResolverRouter{}
 	return &Module{
 		network:         networkClient,
 		eventManager:    eventManager,
-		didDocCreator:   didnuts.Creator{KeyStore: cryptoClient},
 		didResolver:     didResolver,
 		store:           didStore,
 		serviceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
 		documentOwner:   newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, didResolver),
 		keyStore:        cryptoClient,
+		storageInstance: storageInstance,
 	}
 }
 
@@ -134,7 +143,7 @@ func (r *Module) Name() string {
 }
 
 // Configure configures the Module engine.
-func (r *Module) Configure(_ core.ServerConfig) error {
+func (r *Module) Configure(config core.ServerConfig) error {
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
 
 	// Register DID methods
@@ -142,6 +151,21 @@ func (r *Module) Configure(_ core.ServerConfig) error {
 	r.didResolver.Register(didweb.MethodName, didweb.NewResolver())
 	r.didResolver.Register(didjwk.MethodName, didjwk.NewResolver())
 	r.didResolver.Register(didkey.MethodName, didkey.NewResolver())
+
+	// Methods we can produce from the Nuts node
+	publicURL, err := config.ServerURL()
+	if err != nil {
+		return err
+	}
+
+	didwebManager := didweb.NewManager(*publicURL.JoinPath("iam"), r.keyStore, r.storageInstance.GetSQLDatabase())
+	r.creators = map[string]management.DocCreator{
+		didnuts.MethodName: didnuts.Creator{KeyStore: r.keyStore},
+		didweb.MethodName:  didwebManager,
+	}
+	r.readers = map[string]management.DocReader{
+		didweb.MethodName: didwebManager,
+	}
 
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()
@@ -265,44 +289,52 @@ func (r *Module) Diagnostics() []core.DiagnosticResult {
 }
 
 // Create generates a new DID Document
-func (r *Module) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (r *Module) Create(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	log.Logger().Debug("Creating new DID Document.")
 
-	// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
-	// holder for all metadata of the controllers
-	controllerMetadata := make([]resolver.DocumentMetadata, len(options.Controllers))
+	creator := r.creators[method]
+	if creator == nil {
+		return nil, nil, fmt.Errorf("unsupported method: %s", method)
+	}
+	doc, key, err := creator.Create(ctx, method, options)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not create DID document (method %s): %w", method, err)
+	}
 
-	// if any controllers have been added, check if they exist through the didResolver
-	if len(options.Controllers) > 0 {
-		for _, controller := range options.Controllers {
-			_, meta, err := r.didResolver.Resolve(controller, nil)
-			if err != nil {
-				return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
+	if method == didnuts.MethodName {
+		// did:nuts needs to be published on the network
+
+		// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
+		// holder for all metadata of the controllers
+		controllerMetadata := make([]resolver.DocumentMetadata, len(options.Controllers))
+
+		// if any controllers have been added, check if they exist through the didResolver
+		if len(options.Controllers) > 0 {
+			for _, controller := range options.Controllers {
+				_, meta, err := r.didResolver.Resolve(controller, nil)
+				if err != nil {
+					return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
+				}
+				controllerMetadata = append(controllerMetadata, *meta)
 			}
-			controllerMetadata = append(controllerMetadata, *meta)
 		}
-	}
 
-	doc, key, err := r.didDocCreator.Create(ctx, options)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not create DID document: %w", err)
-	}
+		payload, err := json.Marshal(doc)
+		if err != nil {
+			return nil, nil, err
+		}
 
-	payload, err := json.Marshal(doc)
-	if err != nil {
-		return nil, nil, err
-	}
+		// extract the transaction refs from the controller metadata
+		refs := make([]hash.SHA256Hash, 0)
+		for _, meta := range controllerMetadata {
+			refs = append(refs, meta.SourceTransactions...)
+		}
 
-	// extract the transaction refs from the controller metadata
-	refs := make([]hash.SHA256Hash, 0)
-	for _, meta := range controllerMetadata {
-		refs = append(refs, meta.SourceTransactions...)
-	}
-
-	tx := network.TransactionTemplate(didnuts.DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
-	_, err = r.network.CreateTransaction(ctx, tx)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not store DID document in network: %w", err)
+		tx := network.TransactionTemplate(didnuts.DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
+		_, err = r.network.CreateTransaction(ctx, tx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("could not store DID document in network: %w", err)
+		}
 	}
 
 	log.Logger().

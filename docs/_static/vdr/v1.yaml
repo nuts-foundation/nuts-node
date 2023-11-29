@@ -301,6 +301,13 @@ components:
           type: boolean
           description: whether the generated DID Document can be altered with its own capabilityInvocation key.
           default: true
+        method:
+          type: string
+          description: type of DID to create.
+          default: nuts
+          enum:
+            - nuts
+            - web
     VerificationMethodRelationship:
       properties:
         assertionMethod:

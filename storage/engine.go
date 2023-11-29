@@ -73,9 +73,6 @@ func (e *engine) Name() string {
 }
 
 func (e *engine) Start() error {
-	if err := e.initSQLDatabase(); err != nil {
-		return fmt.Errorf("failed to initialize SQL database: %w", err)
-	}
 	return nil
 }
 
@@ -138,6 +135,11 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("unable to configure BBolt database: %w", err)
 	}
 	e.databases = append(e.databases, bboltDB)
+
+	if err := e.initSQLDatabase(); err != nil {
+		return fmt.Errorf("failed to initialize SQL database: %w", err)
+	}
+
 	return nil
 }
 
