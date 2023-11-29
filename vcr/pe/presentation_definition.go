@@ -296,8 +296,8 @@ func matchField(field Field, credential vc.VerifiableCredential) (bool, error) {
 	var asJSON []byte
 	if credential.Format() == vc.JWTCredentialProofFormat {
 		// json.Marshal on a JWT VC leads to the JWT string, not a map with the VC properties
-		type Alias vc.VerifiableCredential
-		asJSON, _ = json.Marshal(Alias(credential))
+		type altType vc.VerifiableCredential
+		asJSON, _ = json.Marshal(altType(credential))
 	} else {
 		asJSON, _ = json.Marshal(credential)
 	}

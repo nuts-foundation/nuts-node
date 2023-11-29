@@ -58,8 +58,6 @@ func Compiler() *jsonschema.Compiler {
 	if err := loadSchemas(schemaFiles, compiler); err != nil {
 		panic(err)
 	}
-	PresentationDefinition = compiler.MustCompile(presentationDefinition)
-	PresentationSubmission = compiler.MustCompile(presentationSubmission)
 	return compiler
 }
 
