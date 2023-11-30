@@ -104,21 +104,20 @@ func buildDocument(subject did.DID, verificationMethods []did.VerificationMethod
 	for _, verificationMethod := range verificationMethods {
 		vms = append(vms, &verificationMethod)
 	}
-	var vmRelationships did.VerificationRelationships
-	for _, verificationMethod := range verificationMethods {
-		vmRelationships = append(vmRelationships, did.VerificationRelationship{VerificationMethod: &verificationMethod})
-	}
-	return did.Document{
+
+	document := did.Document{
 		Context: []interface{}{
 			ssi.MustParseURI(jsonld.Jws2020Context),
 			did.DIDContextV1URI(),
 		},
-		ID:                   subject,
-		VerificationMethod:   vms,
-		Authentication:       vmRelationships,
-		AssertionMethod:      vmRelationships,
-		KeyAgreement:         vmRelationships,
-		CapabilityInvocation: vmRelationships,
-		CapabilityDelegation: vmRelationships,
+		ID: subject,
 	}
+	for _, verificationMethod := range verificationMethods {
+		document.AddAssertionMethod(&verificationMethod)
+		document.AddAuthenticationMethod(&verificationMethod)
+		document.AddKeyAgreement(&verificationMethod)
+		document.AddCapabilityDelegation(&verificationMethod)
+		document.AddCapabilityInvocation(&verificationMethod)
+	}
+	return document
 }
