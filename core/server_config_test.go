@@ -294,3 +294,46 @@ func TestTLSConfig_LoadTrustStore(t *testing.T) {
 		assert.EqualError(t, err, "unable to read trust store (file=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
 }
+
+func TestServerConfig_ServerURL(t *testing.T) {
+	t.Run("url", func(t *testing.T) {
+		cfg := ServerConfig{LegacyAuth: LegacyAuthConfig{PublicURL: "https://example.com"}}
+		actual, err := cfg.ServerURL()
+		assert.NoError(t, err)
+		assert.Equal(t, "https://example.com", actual.String())
+	})
+	t.Run("deprecated auth.publicurl", func(t *testing.T) {
+		cfg := ServerConfig{URL: "https://example.com"}
+		actual, err := cfg.ServerURL()
+		assert.NoError(t, err)
+		assert.Equal(t, "https://example.com", actual.String())
+	})
+	t.Run("precedence to url", func(t *testing.T) {
+		cfg := ServerConfig{URL: "https://nuts.nl", LegacyAuth: LegacyAuthConfig{PublicURL: "https://example.com"}}
+		actual, err := cfg.ServerURL()
+		assert.NoError(t, err)
+		assert.Equal(t, "https://nuts.nl", actual.String())
+	})
+	t.Run("public URL can be http when not in strict mode", func(t *testing.T) {
+		cfg := ServerConfig{URL: "http://nuts.nl"}
+		actual, err := cfg.ServerURL()
+		assert.NoError(t, err)
+		assert.Equal(t, "http://nuts.nl", actual.String())
+	})
+	t.Run("url is required", func(t *testing.T) {
+		cfg := ServerConfig{}
+		_, err := cfg.ServerURL()
+		assert.EqualError(t, err, "'url' must be configured")
+	})
+	t.Run("url is invalid", func(t *testing.T) {
+		cfg := ServerConfig{URL: "nuts.nl"}
+		_, err := cfg.ServerURL()
+		assert.EqualError(t, err, "invalid 'url': url must contain scheme and host")
+	})
+	t.Run("deprecated auth.publicurl is still supported", func(t *testing.T) {
+		cfg := ServerConfig{LegacyAuth: LegacyAuthConfig{PublicURL: "https://example.com"}}
+		actual, err := cfg.ServerURL()
+		assert.NoError(t, err)
+		assert.Equal(t, "https://example.com", actual.String())
+	})
+}

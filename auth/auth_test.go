@@ -33,6 +33,7 @@ import (
 
 func TestAuth_Configure(t *testing.T) {
 	tlsServerConfig := *core.NewServerConfig()
+	tlsServerConfig.URL = "https://nuts.nl"
 	tlsServerConfig.LegacyTLS.TrustStoreFile = "test/certs/ca.pem"
 	tlsServerConfig.LegacyTLS.CertKeyFile = "test/certs/example.com.key"
 	tlsServerConfig.LegacyTLS.CertFile = "test/certs/example.com.pem"
@@ -40,7 +41,6 @@ func TestAuth_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		config := DefaultConfig()
 		config.ContractValidators = []string{"uzi"}
-		config.PublicURL = "https://nuts.nl"
 		ctrl := gomock.NewController(t)
 		pkiMock := pki.NewMockProvider(ctrl)
 		pkiMock.EXPECT().AddTruststore(gomock.Any())   // uzi
@@ -51,28 +51,6 @@ func TestAuth_Configure(t *testing.T) {
 		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
 
 		require.NoError(t, i.Configure(tlsServerConfig))
-	})
-
-	t.Run("publicUrl", func(t *testing.T) {
-		t.Run("error - missing", func(t *testing.T) {
-			authCfg := TestConfig()
-			authCfg.PublicURL = ""
-			authCfg.Irma.SchemeManager = "pbdf"
-			i := testInstance(t, authCfg)
-			cfg := core.NewServerConfig()
-			cfg.Strictmode = true
-			cfg.TLS.CertFile = "certificate.pem"
-			assert.EqualError(t, i.Configure(*cfg), "invalid auth.publicurl: must provide url")
-		})
-		t.Run("error - invalid URL (must be hostname, not IP)", func(t *testing.T) {
-			authCfg := TestConfig()
-			authCfg.Irma.SchemeManager = "pbdf"
-			authCfg.PublicURL = "https://127.0.0.1"
-			i := testInstance(t, authCfg)
-			cfg := core.NewServerConfig()
-			cfg.Strictmode = true
-			assert.EqualError(t, i.Configure(*cfg), "invalid auth.publicurl: hostname is IP")
-		})
 	})
 
 	t.Run("error - IRMA config failure", func(t *testing.T) {
@@ -106,6 +84,7 @@ func TestAuth_Configure(t *testing.T) {
 		i := testInstance(t, authCfg)
 		serverConfig := core.NewServerConfig()
 		serverConfig.Strictmode = true
+		serverConfig.URL = "https://nuts.nl"
 		err := i.Configure(*serverConfig)
 		assert.EqualError(t, err, "in strictmode TLS must be enabled")
 	})
@@ -117,33 +96,6 @@ func TestAuth_Configure(t *testing.T) {
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, assert.AnError)
 		err := i.Configure(tlsServerConfig)
 		assert.ErrorIs(t, err, assert.AnError)
-	})
-	t.Run("public url", func(t *testing.T) {
-		type test struct {
-			strict bool
-			pURL   string
-			errStr string
-		}
-		tt := []test{
-			{true, "", "invalid auth.publicurl: must provide url"},
-			{true, ":invalid", "invalid auth.publicurl: parse \":invalid\": missing protocol scheme"},
-			{true, "https://127.0.0.1", "invalid auth.publicurl: hostname is IP"},
-			{true, "https://example.com", "invalid auth.publicurl: hostname is RFC2606 reserved"},
-			{true, "https://localhost", "invalid auth.publicurl: hostname is RFC2606 reserved"},
-			{true, "http://nuts.nl", "invalid auth.publicurl: scheme must be https"},
-
-			{false, "", "invalid auth.publicurl: must provide url"},
-			{false, ":invalid", "invalid auth.publicurl: parse \":invalid\": missing protocol scheme"},
-			{false, "something://nuts.nl", "invalid auth.publicurl: scheme must be http or https"},
-		}
-		authCfg := TestConfig()
-		cfg := core.NewServerConfig()
-		for _, test := range tt {
-			authCfg.PublicURL = test.pURL
-			i := testInstance(t, authCfg)
-			cfg.Strictmode = test.strict
-			assert.EqualError(t, i.Configure(*cfg), test.errStr, "test config: url=%s; strict=%s", test.pURL, test.strict)
-		}
 	})
 }
 

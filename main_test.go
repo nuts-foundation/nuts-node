@@ -206,6 +206,7 @@ func getIntegrationTestConfig(t *testing.T, testDirectory string) (core.ServerCo
 	}
 
 	config := *system.Config
+	config.URL = "https://nuts.nl"
 	config.LegacyTLS.Enabled = true
 	config.TLS.CertFile = pki.CertificateFile(t)
 	config.TLS.CertKeyFile = config.TLS.CertFile
@@ -218,7 +219,6 @@ func getIntegrationTestConfig(t *testing.T, testDirectory string) (core.ServerCo
 
 	authConfig := auth.DefaultConfig()
 	authConfig.ContractValidators = []string{"dummy"} // disables IRMA
-	authConfig.PublicURL = "https://nuts.nl"
 
 	cryptoConfig := crypto.Config{Storage: "fs"}
 
