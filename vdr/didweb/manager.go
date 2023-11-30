@@ -64,7 +64,7 @@ func (m Manager) Create(ctx context.Context, method string, _ management.DIDCrea
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := m.store.create(newDID.String(), *verificationMethod); err != nil {
+	if err := m.store.create(*newDID, *verificationMethod); err != nil {
 		return nil, nil, fmt.Errorf("store new DID: %w", err)
 	}
 
@@ -73,7 +73,7 @@ func (m Manager) Create(ctx context.Context, method string, _ management.DIDCrea
 }
 
 func (m Manager) Read(id did.DID) (*did.Document, error) {
-	verificationMethods, err := m.store.get(id.String())
+	verificationMethods, err := m.store.get(id)
 	if err != nil {
 		return nil, err
 	}

@@ -20,15 +20,16 @@ package didweb
 
 import (
 	"encoding/json"
-	ssi "github.com/nuts-foundation/go-did"
+	"errors"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
 
 type store interface {
-	create(did string, methods ...did.VerificationMethod) error
-	get(did string) ([]did.VerificationMethod, error)
+	create(did did.DID, methods ...did.VerificationMethod) error
+	get(did did.DID) ([]did.VerificationMethod, error)
 }
 
 var _ schema.Tabler = (*sqlDID)(nil)
@@ -45,10 +46,9 @@ func (d sqlDID) TableName() string {
 var _ schema.Tabler = (*sqlVerificationMethod)(nil)
 
 type sqlVerificationMethod struct {
-	ID         string `gorm:"primaryKey"`
-	Did        string `gorm:"primaryKey"`
-	MethodType string
-	Data       string
+	ID   string `gorm:"primaryKey"`
+	Did  string `gorm:"primaryKey"`
+	Data []byte
 }
 
 func (v sqlVerificationMethod) TableName() string {
@@ -61,32 +61,34 @@ type sqlStore struct {
 	db *gorm.DB
 }
 
-func (s *sqlStore) create(did string, methods ...did.VerificationMethod) error {
-	record := &sqlDID{Did: did}
+func (s *sqlStore) create(did did.DID, methods ...did.VerificationMethod) error {
+	record := &sqlDID{Did: did.String()}
 	for _, method := range methods {
 		data, _ := json.Marshal(method)
 		record.VerificationMethods = append(record.VerificationMethods, sqlVerificationMethod{
-			ID:         method.ID.String(),
-			Did:        did,
-			MethodType: string(method.Type),
-			Data:       string(data),
+			ID:   method.ID.String(),
+			Did:  record.Did,
+			Data: data,
 		})
 	}
 	return s.db.Create(record).Error
 }
 
-func (s *sqlStore) get(id string) ([]did.VerificationMethod, error) {
-	var verificationMethods []sqlVerificationMethod
-	err := s.db.Model(&sqlDID{}).Where("did = ?", id).
-		Association("VerificationMethods").
-		Find(&verificationMethods)
+func (s *sqlStore) get(id did.DID) ([]did.VerificationMethod, error) {
+	var record sqlDID
+	err := s.db.Model(&sqlDID{}).Where("did = ?", id.String()).
+		Preload("VerificationMethods").
+		First(&record).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, resolver.ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
 	var result []did.VerificationMethod
-	for _, curr := range verificationMethods {
+	for _, curr := range record.VerificationMethods {
 		var method did.VerificationMethod
-		if err := json.Unmarshal([]byte(curr.Data), &method); err != nil {
+		if err := json.Unmarshal(curr.Data, &method); err != nil {
 			return nil, err
 		}
 		result = append(result, method)
@@ -96,7 +98,6 @@ func (s *sqlStore) get(id string) ([]did.VerificationMethod, error) {
 			return nil, err
 		}
 		method.ID = *vmID
-		method.Type = ssi.KeyType(curr.MethodType)
 	}
 	return result, nil
 }
