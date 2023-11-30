@@ -51,17 +51,23 @@ var PresentationDefinition *jsonschema.Schema
 // PresentationSubmission is the JSON schema for a presentation submission.
 var PresentationSubmission *jsonschema.Schema
 
+// Compiler returns a JSON schema compiler with the Presentation Exchange schemas loaded.
+func Compiler() *jsonschema.Compiler {
+	compiler := jsonschema.NewCompiler()
+	compiler.Draft = jsonschema.Draft7
+	if err := loadSchemas(schemaFiles, compiler); err != nil {
+		panic(err)
+	}
+	return compiler
+}
+
 func init() {
 	// By default, it loads from filesystem, but that sounds unsafe.
 	// Since register our schemas, we don't need to allow loading resources.
 	loader.Load = func(url string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("refusing to load unknown schema: %s", url)
 	}
-	compiler := jsonschema.NewCompiler()
-	compiler.Draft = jsonschema.Draft7
-	if err := loadSchemas(schemaFiles, compiler); err != nil {
-		panic(err)
-	}
+	compiler := Compiler()
 	PresentationDefinition = compiler.MustCompile(presentationDefinition)
 	PresentationSubmission = compiler.MustCompile(presentationSubmission)
 }

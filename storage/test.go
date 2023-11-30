@@ -28,12 +28,10 @@ import (
 	"testing"
 )
 
-// SQLiteInMemoryConnectionString is a connection string for an in-memory SQLite database
-const SQLiteInMemoryConnectionString = "file::memory:?cache=shared"
-
 func NewTestStorageEngineInDir(dir string) Engine {
 	result := New().(*engine)
-	result.config.SQL = SQLConfig{ConnectionString: SQLiteInMemoryConnectionString}
+
+	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
 	_ = result.Configure(core.TestServerConfig(core.ServerConfig{Datadir: dir + "/data"}))
 	return result
 }
