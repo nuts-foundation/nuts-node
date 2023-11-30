@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -186,9 +185,8 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	if len(presentation.VerifiableCredential) > 0 {
 		return errors.New("retraction presentation must not contain credentials")
 	}
-	// Check that the retraction refers to a presentation that:
-	// - is owned by the signer (same DID)
-	// - exists (if not, it might've already been removed due to expiry, or superseeded by a newer presentation)
+	// Check that the retraction refers to an existing presentation.
+	// If not, it might've already been removed due to expiry or superseded by a newer presentation.
 	var retractJTIString string
 	if retractJTIRaw, ok := presentation.JWT().Get("retract_jti"); !ok {
 		return errors.New("retraction presentation does not contain 'retract_jti' claim")
@@ -198,13 +196,6 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 		}
 	}
 	signerDID, _ := credential.PresentationSigner(presentation) // checked before
-	retractJTI, err := did.ParseDIDURL(retractJTIString)
-	if err != nil {
-		return fmt.Errorf("retraction presentation 'retract_jti' claim is not a valid DID URL: %w", err)
-	}
-	if !signerDID.Equals(retractJTI.DID) {
-		return errors.New("retraction presentation 'retract_jti' claim DID does not match JWT issuer")
-	}
 	exists, err := m.store.exists(serviceID, signerDID.String(), retractJTIString)
 	if err != nil {
 		return err

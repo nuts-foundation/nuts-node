@@ -184,24 +184,6 @@ func Test_Module_Add(t *testing.T) {
 			err := m.Add(testServiceID, vp)
 			assert.EqualError(t, err, "retraction presentation 'retract_jti' claim is not a string")
 		})
-		t.Run("'retract_jti' claim in not a valid DID", func(t *testing.T) {
-			m, _ := setupModule(t, storageEngine)
-			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
-				vp.Type = append(vp.Type, retractionPresentationType)
-				claims["retract_jti"] = "not a DID"
-			})
-			err := m.Add(testServiceID, vp)
-			assert.EqualError(t, err, "retraction presentation 'retract_jti' claim is not a valid DID URL: invalid DID")
-		})
-		t.Run("'retract_jti' claim does not reference a presentation of the signer", func(t *testing.T) {
-			m, _ := setupModule(t, storageEngine)
-			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
-				vp.Type = append(vp.Type, retractionPresentationType)
-				claims["retract_jti"] = bobDID.String()
-			})
-			err := m.Add(testServiceID, vp)
-			assert.EqualError(t, err, "retraction presentation 'retract_jti' claim DID does not match JWT issuer")
-		})
 	})
 }
 
