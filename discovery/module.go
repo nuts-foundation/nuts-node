@@ -203,7 +203,7 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 		return fmt.Errorf("retraction presentation 'retract_jti' claim is not a valid DID URL: %w", err)
 	}
 	if !signerDID.Equals(retractJTI.DID) {
-		return errors.New("retraction presentation 'retract_jti' claim does not match JWT issuer")
+		return errors.New("retraction presentation 'retract_jti' claim DID does not match JWT issuer")
 	}
 	exists, err := m.store.exists(serviceID, signerDID.String(), retractJTIString)
 	if err != nil {

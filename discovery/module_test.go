@@ -200,7 +200,7 @@ func Test_Module_Add(t *testing.T) {
 				claims["retract_jti"] = bobDID.String()
 			})
 			err := m.Add(testServiceID, vp)
-			assert.EqualError(t, err, "retraction presentation 'retract_jti' claim does not match JWT issuer")
+			assert.EqualError(t, err, "retraction presentation 'retract_jti' claim DID does not match JWT issuer")
 		})
 	})
 }
