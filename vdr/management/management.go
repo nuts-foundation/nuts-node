@@ -22,15 +22,7 @@ import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
-
-type Manager interface {
-	DocCreator
-	DocumentOwner
-	DocManipulator
-	resolver.DIDResolver
-}
 
 // DocCreator is the interface that wraps the Create method
 type DocCreator interface {
