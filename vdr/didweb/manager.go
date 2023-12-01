@@ -55,7 +55,11 @@ type Manager struct {
 
 // Create creates a new did:web document.
 func (m Manager) Create(ctx context.Context, _ management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
-	newDID, err := URLToDID(*m.baseURL.JoinPath(uuid.NewString()))
+	return m.create(ctx, uuid.NewString())
+}
+
+func (m Manager) create(ctx context.Context, mostSignificantBits string) (*did.Document, crypto.Key, error) {
+	newDID, err := URLToDID(*m.baseURL.JoinPath(mostSignificantBits))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -71,19 +75,10 @@ func (m Manager) Create(ctx context.Context, _ management.DIDCreationOptions) (*
 	return &document, verificationMethodKey, nil
 }
 
-func (m Manager) Read(id did.DID) (*did.Document, error) {
-	verificationMethods, err := m.store.get(id)
-	if err != nil {
-		return nil, err
-	}
-	document := buildDocument(id, verificationMethods)
-	return &document, nil
-}
-
 func (m Manager) createVerificationMethod(ctx context.Context, ownerDID did.DID) (crypto.Key, *did.VerificationMethod, error) {
 	verificationMethodID := did.DIDURL{
 		DID:      ownerDID,
-		Fragment: "0",
+		Fragment: "0", // TODO: Which fragment should we use? Thumbprint, UUID, index, etc...
 	}
 	verificationMethodKey, err := m.keyStore.New(ctx, func(key crypt.PublicKey) (string, error) {
 		return verificationMethodID.String(), nil

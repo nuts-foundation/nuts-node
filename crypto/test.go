@@ -125,3 +125,25 @@ func (t TestKey) Public() crypto.PublicKey {
 func (t TestKey) Private() crypto.PrivateKey {
 	return t.PrivateKey
 }
+
+// TestPublicKey is a Key impl for testing purposes that only contains a public key. It can't be used for signing.
+type TestPublicKey struct {
+	Kid       string
+	PublicKey crypto.PublicKey
+}
+
+func (t TestPublicKey) Signer() crypto.Signer {
+	panic("test public key is not for signing")
+}
+
+func (t TestPublicKey) KID() string {
+	return t.Kid
+}
+
+func (t TestPublicKey) Public() crypto.PublicKey {
+	return t.PublicKey
+}
+
+func (t TestPublicKey) Private() crypto.PrivateKey {
+	panic("test public key is not for signing")
+}
