@@ -79,7 +79,7 @@ See :ref:`getting started <configure-node>` on how to set this up correctly.
 
 The incorporated `IRMA server <https://irma.app/docs/irma-server/#production-mode>`_ is automatically changed to production mode.
 In fact, running in strict mode is the only way to enable IRMA's production mode.
-In addition, it requires ``auth.irma.schememanager=pbdf`` and the ``url`` where the IRMA client can reach the server must be set.
+In addition, it requires ``auth.irma.schememanager=pbdf``.
 
 As a general safety precaution ``auth.contractvalidators`` ignores the ``dummy`` option if configured,
 requesting an access token from another node on ``/n2n/auth/v1/accesstoken`` does not return any error details,
