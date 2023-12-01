@@ -72,7 +72,7 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 	t.Setenv("NUTS_NETWORK_GRPCADDR", grpcPort)
 	t.Setenv("NUTS_EVENTS_NATS_PORT", natsPort)
 	t.Setenv("NUTS_EVENTS_NATS_HOSTNAME", "localhost")
-	t.Setenv("NUTS_AUTH_PUBLICURL", httpServerURL)
+	t.Setenv("NUTS_URL", httpServerURL)
 	certFile := pki.CertificateFile(t)
 	t.Setenv("NUTS_TLS_CERTFILE", certFile)
 	t.Setenv("NUTS_TLS_CERTKEYFILE", certFile)
