@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@ import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
@@ -38,9 +40,19 @@ func (w Wrapper) ResolveStatusCode(err error) int {
 	panic("implement me")
 }
 
-func (w Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
-	//TODO implement me
-	panic("implement me")
+func (w Wrapper) CreateDID(ctx context.Context, _ CreateDIDRequestObject) (CreateDIDResponseObject, error) {
+	options := management.DIDCreationOptions{
+		KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
+		SelfControl: true,
+	}
+
+	doc, _, err := w.VDR.Create(ctx, didweb.MethodName, options)
+	// if this operation leads to an error, it may return a 500
+	if err != nil {
+		return nil, err
+	}
+
+	return CreateDID200JSONResponse(*doc), nil
 }
 
 func (w Wrapper) DeleteDID(ctx context.Context, request DeleteDIDRequestObject) (DeleteDIDResponseObject, error) {
