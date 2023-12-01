@@ -380,9 +380,3 @@ func idToNutsDID(id string) did.DID {
 		DecodedID: id,
 	}
 }
-
-func (r Wrapper) idToDID(id string) did.DID {
-	url := r.auth.PublicURL().JoinPath("iam", id)
-	did, _ := didweb.URLToDID(*url)
-	return *did
-}
