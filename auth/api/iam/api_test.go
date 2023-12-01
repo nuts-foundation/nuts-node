@@ -48,12 +48,13 @@ import (
 )
 
 var nutsDID = did.MustParseDID("did:nuts:123")
+var webDID = did.MustParseDID("did:web:example.com:iam:123")
 
 func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		//	200
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: nutsDID.ID})
 
@@ -64,7 +65,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID)
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: nutsDID.ID})
 
@@ -75,7 +76,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - did does not exist", func(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, resolver.ErrNotFound)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, resolver.ErrNotFound)
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: nutsDID.ID})
 
@@ -86,7 +87,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - internal error 500", func(t *testing.T) {
 		//500
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, errors.New("unknown error"))
+		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: nutsDID.ID})
 
@@ -140,7 +141,7 @@ func TestWrapper_GetWebDID(t *testing.T) {
 func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
 		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: nutsDID.ID})
 
@@ -149,7 +150,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	})
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID)
 
 		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: nutsDID.ID})
 
@@ -158,7 +159,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	})
 	t.Run("error - internal error 500", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, errors.New("unknown error"))
+		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
 
 		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: nutsDID.ID})
 
