@@ -33,13 +33,10 @@ type VDR interface {
 
 	// Create creates a new DID document according to the given DID method and returns it.
 	Create(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, crypto.Key, error)
-
 	// ResolveManaged resolves a DID document that is managed by the local node.
 	ResolveManaged(id did.DID) (*did.Document, error)
-
 	// Resolver returns the resolver for getting the DID document for a DID.
 	Resolver() resolver.DIDResolver
-
 	// ConflictedDocuments returns the DID Document and metadata of all documents with a conflict.
 	ConflictedDocuments() ([]did.Document, []resolver.DocumentMetadata, error)
 }

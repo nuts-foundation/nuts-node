@@ -21,10 +21,15 @@ package v2
 
 import (
 	"context"
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/http"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
@@ -35,9 +40,30 @@ type Wrapper struct {
 	VDR vdr.VDR
 }
 
-func (w Wrapper) ResolveStatusCode(err error) int {
-	//TODO implement me
-	panic("implement me")
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
+func (a *Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
+		resolver.ErrNotFound:                http.StatusNotFound,
+		resolver.ErrDIDNotManagedByThisNode: http.StatusForbidden,
+		resolver.ErrDuplicateService:        http.StatusBadRequest,
+		did.ErrInvalidDID:                   http.StatusBadRequest,
+	})
+}
+
+func (a *Wrapper) Routes(router core.EchoRouter) {
+	RegisterHandlers(router, NewStrictHandler(a, []StrictMiddlewareFunc{
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
+				ctx.Set(core.OperationIDContextKey, operationID)
+				ctx.Set(core.ModuleNameContextKey, vdr.ModuleName)
+				ctx.Set(core.StatusCodeResolverContextKey, a)
+				return f(ctx, request)
+			}
+		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return audit.StrictMiddleware(f, vdr.ModuleName, operationID)
+		},
+	}))
 }
 
 func (w Wrapper) CreateDID(ctx context.Context, _ CreateDIDRequestObject) (CreateDIDResponseObject, error) {

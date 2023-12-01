@@ -24,12 +24,12 @@ VENDOR_A_DID=$(echo $VENDOR_A_DIDDOC | jq -r .id)
 echo Vendor A DID: $VENDOR_A_DID
 
 # Register Vendor B
-VENDOR_B_DIDDOC=$(docker compose exec nodeB nuts vdr create-did --v2)
+VENDOR_B_DIDDOC=$(docker compose exec nodeB-backend nuts vdr create-did --v2)
 VENDOR_B_DID=$(echo $VENDOR_B_DIDDOC | jq -r .id)
 echo Vendor B DID: $VENDOR_B_DID
 
 # Issue NutsOrganizationCredential for Vendor B
-REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"visibility\": \"public\"}"
+REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"visibility\": \"private\"}"
 RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "VerifiableCredential"; then
   echo "VC issued"

@@ -95,13 +95,12 @@ paths:
         * 400 - Returned in case of malformed DID or service
         * 404 - Corresponding DID document could not be found
         * 500 - An error occurred while processing the request
-      parameters:
-        - name: service
-          in: body
-          description: Service to be added to the DID document.
-          required: true
-          schema:
-            $ref: '#/components/schemas/Service'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Service'
       operationId: addService
       tags:
         - DID
@@ -111,7 +110,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VerificationMethod'
+                $ref: '#/components/schemas/Service'
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/did/{did}/service/{id}:

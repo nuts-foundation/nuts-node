@@ -4,6 +4,7 @@
 package v2
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -29,6 +30,9 @@ type DIDResolutionResult struct {
 	// DocumentMetadata The DID document metadata.
 	DocumentMetadata DIDDocumentMetadata `json:"documentMetadata"`
 }
+
+// AddServiceJSONRequestBody defines body for AddService for application/json ContentType.
+type AddServiceJSONRequestBody = Service
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -112,8 +116,10 @@ type ClientInterface interface {
 	// ResolveDID request
 	ResolveDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AddService request
-	AddService(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// AddServiceWithBody request with any body
+	AddServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AddService(ctx context.Context, did string, body AddServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteService request
 	DeleteService(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -164,8 +170,20 @@ func (c *Client) ResolveDID(ctx context.Context, did string, reqEditors ...Reque
 	return c.Client.Do(req)
 }
 
-func (c *Client) AddService(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAddServiceRequest(c.Server, did)
+func (c *Client) AddServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddServiceRequestWithBody(c.Server, did, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddService(ctx context.Context, did string, body AddServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddServiceRequest(c.Server, did, body)
 	if err != nil {
 		return nil, err
 	}
@@ -319,8 +337,19 @@ func NewResolveDIDRequest(server string, did string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewAddServiceRequest generates requests for AddService
-func NewAddServiceRequest(server string, did string) (*http.Request, error) {
+// NewAddServiceRequest calls the generic AddService builder with application/json body
+func NewAddServiceRequest(server string, did string, body AddServiceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddServiceRequestWithBody(server, did, "application/json", bodyReader)
+}
+
+// NewAddServiceRequestWithBody generates requests for AddService with any type of body
+func NewAddServiceRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -345,10 +374,12 @@ func NewAddServiceRequest(server string, did string) (*http.Request, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -562,8 +593,10 @@ type ClientWithResponsesInterface interface {
 	// ResolveDIDWithResponse request
 	ResolveDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*ResolveDIDResponse, error)
 
-	// AddServiceWithResponse request
-	AddServiceWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*AddServiceResponse, error)
+	// AddServiceWithBodyWithResponse request with any body
+	AddServiceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddServiceResponse, error)
+
+	AddServiceWithResponse(ctx context.Context, did string, body AddServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*AddServiceResponse, error)
 
 	// DeleteServiceWithResponse request
 	DeleteServiceWithResponse(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
@@ -676,7 +709,7 @@ func (r ResolveDIDResponse) StatusCode() int {
 type AddServiceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *VerificationMethod
+	JSON200                       *Service
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -858,9 +891,17 @@ func (c *ClientWithResponses) ResolveDIDWithResponse(ctx context.Context, did st
 	return ParseResolveDIDResponse(rsp)
 }
 
-// AddServiceWithResponse request returning *AddServiceResponse
-func (c *ClientWithResponses) AddServiceWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*AddServiceResponse, error) {
-	rsp, err := c.AddService(ctx, did, reqEditors...)
+// AddServiceWithBodyWithResponse request with arbitrary body returning *AddServiceResponse
+func (c *ClientWithResponses) AddServiceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddServiceResponse, error) {
+	rsp, err := c.AddServiceWithBody(ctx, did, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddServiceResponse(rsp)
+}
+
+func (c *ClientWithResponses) AddServiceWithResponse(ctx context.Context, did string, body AddServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*AddServiceResponse, error) {
+	rsp, err := c.AddService(ctx, did, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1037,7 +1078,7 @@ func ParseAddServiceResponse(rsp *http.Response) (*AddServiceResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest VerificationMethod
+		var dest Service
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1564,14 +1605,15 @@ func (response ResolveDIDdefaultApplicationProblemPlusJSONResponse) VisitResolve
 }
 
 type AddServiceRequestObject struct {
-	Did string `json:"did"`
+	Did  string `json:"did"`
+	Body *AddServiceJSONRequestBody
 }
 
 type AddServiceResponseObject interface {
 	VisitAddServiceResponse(w http.ResponseWriter) error
 }
 
-type AddService200JSONResponse VerificationMethod
+type AddService200JSONResponse Service
 
 func (response AddService200JSONResponse) VisitAddServiceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -1872,6 +1914,12 @@ func (sh *strictHandler) AddService(ctx echo.Context, did string) error {
 	var request AddServiceRequestObject
 
 	request.Did = did
+
+	var body AddServiceJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.AddService(ctx.Request().Context(), request.(AddServiceRequestObject))

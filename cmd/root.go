@@ -23,13 +23,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/discovery"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-
-	"github.com/nuts-foundation/nuts-node/golden_hammer"
-	goldenHammerCmd "github.com/nuts-foundation/nuts-node/golden_hammer/cmd"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"io"
 	"os"
 	"runtime/pprof"
@@ -47,9 +43,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/didman"
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
 	didmanCmd "github.com/nuts-foundation/nuts-node/didman/cmd"
+	"github.com/nuts-foundation/nuts-node/discovery"
 	discoveryCmd "github.com/nuts-foundation/nuts-node/discovery/cmd"
 	"github.com/nuts-foundation/nuts-node/events"
 	eventsCmd "github.com/nuts-foundation/nuts-node/events/cmd"
+	"github.com/nuts-foundation/nuts-node/golden_hammer"
+	goldenHammerCmd "github.com/nuts-foundation/nuts-node/golden_hammer/cmd"
 	httpEngine "github.com/nuts-foundation/nuts-node/http"
 	httpCmd "github.com/nuts-foundation/nuts-node/http/cmd"
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -65,10 +64,11 @@ import (
 	vcrCmd "github.com/nuts-foundation/nuts-node/vcr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	vdrAPIv2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 var stdOutWriter io.Writer = os.Stdout
@@ -209,6 +209,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 		Updater:    vdrInstance,
 		Resolver:   vdrInstance.Resolver(),
 	}})
+	system.RegisterRoutes(&vdrAPIv2.Wrapper{VDR: vdrInstance, Storage: storageInstance, Crypto: cryptoInstance})
 	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
 	system.RegisterRoutes(&openid4vciAPI.Wrapper{
 		VCR:           credentialInstance,
