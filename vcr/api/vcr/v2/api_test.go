@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"testing"
@@ -76,7 +77,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 		response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
 		assert.NoError(t, err)
-		assert.Equal(t, IssueVC200JSONResponse(expectedRequestedVC), response)
+		assert.Equal(t, IssueVC200JSONResponse(types.CompactingVerifiableCredential(expectedRequestedVC)), response)
 	})
 
 	t.Run("checking request params", func(t *testing.T) {
@@ -130,7 +131,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 					PublishToNetwork:  &publishValue,
 				}
 				expectedVC := vc.VerifiableCredential{}
-				expectedResponse := IssueVC200JSONResponse(expectedVC)
+				expectedResponse := IssueVC200JSONResponse(types.CompactingVerifiableCredential(expectedVC))
 				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{
 					Publish: true,
 					Public:  false,
@@ -154,7 +155,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 					PublishToNetwork:  &publishValue,
 				}
 				expectedVC := vc.VerifiableCredential{}
-				expectedResponse := IssueVC200JSONResponse(expectedVC)
+				expectedResponse := IssueVC200JSONResponse(types.CompactingVerifiableCredential(expectedVC))
 				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{
 					Publish: true,
 					Public:  true,
@@ -226,7 +227,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 				PublishToNetwork:  &publishValue,
 			}
 			expectedVC := vc.VerifiableCredential{}
-			expectedResponse := IssueVC200JSONResponse(expectedVC)
+			expectedResponse := IssueVC200JSONResponse(types.CompactingVerifiableCredential(expectedVC))
 			testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{
 				Publish: false,
 				Public:  false,
@@ -322,9 +323,9 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 
 	t.Run("ok - without subject, 1 result", func(t *testing.T) {
 		testContext := newMockContext(t)
-		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
+		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return([]vc.VerifiableCredential{foundVC}, nil)
 		testContext.mockVerifier.EXPECT().GetRevocation(vcID).Return(nil, verifier.ErrNotFound)
-		expectedResponse := SearchIssuedVCs200JSONResponse(SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC}}})
+		expectedResponse := SearchIssuedVCs200JSONResponse(SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: types.CompactingVerifiableCredential(foundVC)}}})
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
 			Issuer:         issuerID.String(),
@@ -339,9 +340,9 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 	t.Run("ok - without subject, 1 result, revoked", func(t *testing.T) {
 		revocation := &Revocation{Reason: "because of reasons"}
 		testContext := newMockContext(t)
-		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
+		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return([]vc.VerifiableCredential{foundVC}, nil)
 		testContext.mockVerifier.EXPECT().GetRevocation(vcID).Return(revocation, nil)
-		expectedResponse := SearchIssuedVCs200JSONResponse(SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC, Revocation: revocation}}})
+		expectedResponse := SearchIssuedVCs200JSONResponse(SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: types.CompactingVerifiableCredential(foundVC), Revocation: revocation}}})
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
 			Issuer:         issuerID.String(),
@@ -429,7 +430,7 @@ func TestWrapper_VerifyVC(t *testing.T) {
 	}
 
 	expectedVerifyRequest := VCVerificationRequest{
-		VerifiableCredential: expectedVC,
+		VerifiableCredential: types.CompactingVerifiableCredential(expectedVC),
 		VerificationOptions:  &options,
 	}
 
@@ -520,7 +521,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 	expectedresponse := CreateVP200JSONResponse(*result)
 
 	createRequest := func() CreateVPRequest {
-		return CreateVPRequest{VerifiableCredentials: []VerifiableCredential{verifiableCredential}}
+		return CreateVPRequest{VerifiableCredentials: []types.CompactingVerifiableCredential{types.CompactingVerifiableCredential(verifiableCredential)}}
 	}
 
 	created := time.Now()
@@ -536,7 +537,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 		request := createRequest()
 		testContext.mockWallet.EXPECT().BuildPresentation(
 			testContext.requestCtx,
-			[]VerifiableCredential{verifiableCredential},
+			[]vc.VerifiableCredential{verifiableCredential},
 			holder.PresentationOptions{ProofOptions: proof.ProofOptions{Created: created}},
 			nil,
 			true,
@@ -553,7 +554,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 		request.SignerDID = &subjectDIDString
 		testContext.mockWallet.EXPECT().BuildPresentation(
 			testContext.requestCtx,
-			[]VerifiableCredential{verifiableCredential},
+			[]vc.VerifiableCredential{verifiableCredential},
 			holder.PresentationOptions{ProofOptions: proof.ProofOptions{Created: created}},
 			&subjectDID,
 			true,
@@ -587,7 +588,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 		}
 		testContext.mockWallet.EXPECT().BuildPresentation(
 			testContext.requestCtx,
-			[]VerifiableCredential{verifiableCredential},
+			[]vc.VerifiableCredential{verifiableCredential},
 			opts,
 			nil,
 			true,
@@ -657,16 +658,16 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		Type: []ssi.URI{ssi.MustParseURI("ExampleType")},
 	}
 	vp := vc.VerifiablePresentation{
-		VerifiableCredential: []VerifiableCredential{verifiableCredential},
+		VerifiableCredential: []vc.VerifiableCredential{verifiableCredential},
 		Proof:                []interface{}{"It's a very good proof. I know it because I made it myself. ALl the rest is fake."},
 	}
-	expectedVCs := []VerifiableCredential{vp.VerifiableCredential[0]}
+	expectedVCs := []types.CompactingVerifiableCredential{types.CompactingVerifiableCredential(vp.VerifiableCredential[0])}
 
 	t.Run("ok", func(t *testing.T) {
 		testContext := newMockContext(t)
 		validAt, validAtStr := parsedTimeStr(time.Now())
 		request := VPVerificationRequest{
-			VerifiablePresentation: vp,
+			VerifiablePresentation: types.CompactingVerifiablePresentation(vp),
 			ValidAt:                &validAtStr,
 		}
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, false, &validAt).Return(vp.VerifiableCredential, nil)
@@ -683,7 +684,7 @@ func TestWrapper_VerifyVP(t *testing.T) {
 	t.Run("ok - verifyCredentials set", func(t *testing.T) {
 		testContext := newMockContext(t)
 		verifyCredentials := false
-		request := VPVerificationRequest{VerifiablePresentation: vp, VerifyCredentials: &verifyCredentials}
+		request := VPVerificationRequest{VerifiablePresentation: types.CompactingVerifiablePresentation(vp), VerifyCredentials: &verifyCredentials}
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, false, false, nil).Return(vp.VerifiableCredential, nil)
 		expectedResponse := VerifyVP200JSONResponse(VPVerificationResult{
 			Credentials: &expectedVCs,
@@ -697,7 +698,7 @@ func TestWrapper_VerifyVP(t *testing.T) {
 	})
 	t.Run("error - verification failed (other error)", func(t *testing.T) {
 		testContext := newMockContext(t)
-		request := VPVerificationRequest{VerifiablePresentation: vp}
+		request := VPVerificationRequest{VerifiablePresentation: types.CompactingVerifiablePresentation(vp)}
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, false, nil).Return(nil, errors.New("failed"))
 
 		response, err := testContext.client.VerifyVP(testContext.requestCtx, VerifyVPRequestObject{Body: &request})
@@ -709,7 +710,7 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		testContext := newMockContext(t)
 		validAtStr := "a"
 		request := VPVerificationRequest{
-			VerifiablePresentation: vp,
+			VerifiablePresentation: types.CompactingVerifiablePresentation(vp),
 			ValidAt:                &validAtStr,
 		}
 
@@ -720,7 +721,7 @@ func TestWrapper_VerifyVP(t *testing.T) {
 	})
 	t.Run("error - verification failed (verification error)", func(t *testing.T) {
 		testContext := newMockContext(t)
-		request := VPVerificationRequest{VerifiablePresentation: vp}
+		request := VPVerificationRequest{VerifiablePresentation: types.CompactingVerifiablePresentation(vp)}
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, false, nil).Return(nil, verifier.VerificationError{})
 		errMsg := "verification error: "
 		expectedRepsonse := VerifyVP200JSONResponse(VPVerificationResult{

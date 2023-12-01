@@ -86,7 +86,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 
 	payload, _ := json.Marshal(verifiableCredential)
 	tx := network.TransactionTemplate(types.VcDocumentType, payload, key).
-		WithTimestamp(verifiableCredential.IssuanceDate).
+		WithTimestamp(*verifiableCredential.IssuanceDate).
 		WithAdditionalPrevs(meta.SourceTransactions).
 		WithPrivate(participants)
 

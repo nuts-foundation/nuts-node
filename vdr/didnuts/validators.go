@@ -19,6 +19,7 @@
 package didnuts
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -130,7 +131,7 @@ type managedServiceValidator struct {
 func (m managedServiceValidator) Validate(document did.Document) error {
 	// normalize services for consistent type checking.
 	// TODO: this should probably happen somewhere else
-	bytes, err := document.MarshalJSON()
+	bytes, err := json.Marshal(document)
 	if err != nil {
 		return InvalidServiceError{err}
 	}
@@ -164,6 +165,8 @@ func (m managedServiceValidator) Validate(document did.Document) error {
 		case []interface{}:
 			// RFC006 only allows maps or string, not sets.
 			// Since service is not a map, and go-did normalizes everything to plurals, assume this is a string.
+			resolvedEndpoint, err = m.resolveOrReturnEndpoint(service, cache)
+		case string:
 			resolvedEndpoint, err = m.resolveOrReturnEndpoint(service, cache)
 		default:
 			err = errors.New("invalid service format")

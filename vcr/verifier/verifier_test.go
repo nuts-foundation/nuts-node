@@ -206,7 +206,8 @@ func Test_verifier_Validate(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.verifier
 		vc2 := testCredential(t)
-		vc2.IssuanceDate = time.Now()
+		issuanceDate := time.Now()
+		vc2.IssuanceDate = &issuanceDate
 
 		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, resolver.NutsSigningKeyType).Return(pk, nil)
 
@@ -239,7 +240,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		assert.ErrorContains(t, err, "unable to extract ldproof from signed document: json: cannot unmarshal array into Go value of type proof.LDProof")
+		assert.ErrorContains(t, err, "unable to extract ldproof from signed document: no proof")
 	})
 
 	t.Run("error - wrong jws in proof", func(t *testing.T) {
@@ -443,7 +444,7 @@ func Test_verifier_validateAtTime(t *testing.T) {
 		t.Run("credential is valid", func(t *testing.T) {
 			sut := verifier{}
 			credentialToTest := testCredential(t)
-			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
+			valid := sut.validateAtTime(*credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
 			assert.True(t, valid)
 		})
 	})
@@ -454,7 +455,7 @@ func Test_verifier_validateAtTime(t *testing.T) {
 			timeToCheck = &now
 			sut := verifier{}
 			credentialToTest := testCredential(t)
-			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
+			valid := sut.validateAtTime(*credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
 			assert.True(t, valid)
 		})
 
@@ -464,7 +465,7 @@ func Test_verifier_validateAtTime(t *testing.T) {
 			timeToCheck = &beforeIssuance
 			sut := verifier{}
 			credentialToTest := testCredential(t)
-			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
+			valid := sut.validateAtTime(*credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
 			assert.False(t, valid)
 		})
 
@@ -477,7 +478,7 @@ func Test_verifier_validateAtTime(t *testing.T) {
 			credentialToTest := testCredential(t)
 			// Set expirationDate since the testCredential does not have one
 			credentialToTest.ExpirationDate = &expireTime
-			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
+			valid := sut.validateAtTime(*credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
 			assert.False(t, valid)
 		})
 

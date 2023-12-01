@@ -221,7 +221,11 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	}
 
 	// Check issuance/expiration time
-	if !v.validateAtTime(credentialToVerify.IssuanceDate, credentialToVerify.ExpirationDate, validAt) {
+	validAtNotNil := time.Now()
+	if validAt != nil {
+		validAtNotNil = *validAt
+	}
+	if !credentialToVerify.ValidAt(validAtNotNil, maxSkew) {
 		return types.ErrCredentialNotValidAtTime
 	}
 

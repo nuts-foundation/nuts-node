@@ -448,8 +448,8 @@ github.com/nightlyone/lockfile v1.0.0/go.mod h1:rywoIealpdNse2r832aiD9jRk8ErCatR
 github.com/npillmayer/nestext v0.1.3/go.mod h1:h2lrijH8jpicr25dFY+oAJLyzlya6jhnuG+zWp9L0Uk=
 github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b h1:80icUxWHwE1MrIOOEK5rxrtyKOgZeq5Iu1IjAEkggTY=
 github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b/go.mod h1:6YUioYirD6/8IahZkoS4Ypc8xbeJW76Xdk1QKcziNTM=
-github.com/nuts-foundation/go-did v0.9.0 h1:JBz1cYaMxplKZ31QyWierrR3Yt2RIpaxZTt8KFm4Ph4=
-github.com/nuts-foundation/go-did v0.9.0/go.mod h1:L39mh6SBsuenqeZw2JxARx4a/bwdARwchG2x3zPMTjc=
+github.com/nuts-foundation/go-did v0.10.1 h1:7A2qgqD6XYOWEEn1bOlttOBl59J/bF8qhMwDGB5Ihpk=
+github.com/nuts-foundation/go-did v0.10.1/go.mod h1:lIoZWplLKE5wHejFVCs3pVdT1u659ZOnTRNvF1Q8lqE=
 github.com/nuts-foundation/go-leia/v4 v4.0.1 h1:+Sbk3Bew1QnRUqRXSOwomMw3nIZgncmTX425J7U5Q34=
 github.com/nuts-foundation/go-leia/v4 v4.0.1/go.mod h1:eaZuWIolpU61TMvTMcen85+SOEOnHiALdg5SxqLXzz8=
 github.com/nuts-foundation/go-stoabs v1.9.0 h1:zK+ugfolaJYyBvGwsRuavLVdycXk4Yw/1gI+tz17lWQ=

@@ -215,8 +215,9 @@ func (i issuer) buildVC(ctx context.Context, template vc.VerifiableCredential, o
 		ExpirationDate:    template.ExpirationDate,
 		IssuanceDate:      template.IssuanceDate,
 	}
-	if unsignedCredential.IssuanceDate.IsZero() {
-		unsignedCredential.IssuanceDate = TimeFunc()
+	if unsignedCredential.IssuanceDate == nil || unsignedCredential.IssuanceDate.IsZero() {
+		issuanceDate := TimeFunc()
+		unsignedCredential.IssuanceDate = &issuanceDate
 	}
 	if !unsignedCredential.ContainsContext(vc.VCContextV1URI()) {
 		unsignedCredential.Context = append(unsignedCredential.Context, vc.VCContextV1URI())
@@ -246,7 +247,7 @@ func (i issuer) buildJSONLDCredential(ctx context.Context, unsignedCredential vc
 	b, _ := json.Marshal(unsignedCredential)
 	_ = json.Unmarshal(b, &credentialAsMap)
 
-	proofOptions := proof.ProofOptions{Created: unsignedCredential.IssuanceDate}
+	proofOptions := proof.ProofOptions{Created: *unsignedCredential.IssuanceDate}
 
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
 	signingResult, err := proof.NewLDProof(proofOptions).Sign(ctx, credentialAsMap, webSig, key)

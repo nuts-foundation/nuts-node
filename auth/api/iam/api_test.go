@@ -106,7 +106,7 @@ func TestWrapper_GetWebDID(t *testing.T) {
 		ID: webDID,
 	}
 	// remarshal expectedWebDIDDoc to make sure in-memory format is the same as the one returned by the API
-	data, _ := expectedWebDIDDoc.MarshalJSON()
+	data, _ := json.Marshal(expectedWebDIDDoc)
 	_ = expectedWebDIDDoc.UnmarshalJSON(data)
 
 	t.Run("ok", func(t *testing.T) {

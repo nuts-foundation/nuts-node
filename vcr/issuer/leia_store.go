@@ -89,7 +89,7 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 }
 
 func (s leiaIssuerStore) StoreCredential(vc vc.VerifiableCredential) error {
-	vcAsBytes, _ := json.Marshal(vc)
+	vcAsBytes, _ := json.Marshal(types.CompactingVerifiableCredential(vc))
 	return s.issuedCollection().Add([]leia.Document{vcAsBytes})
 }
 

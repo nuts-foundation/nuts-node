@@ -66,7 +66,7 @@ func Test_issuer_buildVC(t *testing.T) {
 		Context:        []ssi.URI{schemaOrgContext},
 		Type:           []ssi.URI{credentialType},
 		Issuer:         issuerID,
-		IssuanceDate:   issuance,
+		IssuanceDate:   &issuance,
 		ExpirationDate: &expirationDate,
 		CredentialSubject: []interface{}{map[string]interface{}{
 			"id": subjectDID,
@@ -137,7 +137,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			// Assert JWT
 			require.NotNil(t, result.JWT())
 			assert.Equal(t, subjectDID, result.JWT().Subject())
-			assert.Equal(t, result.IssuanceDate, result.JWT().NotBefore())
+			assert.Equal(t, *result.IssuanceDate, result.JWT().NotBefore())
 			assert.Equal(t, *result.ExpirationDate, result.JWT().Expiration())
 			assert.Equal(t, result.ID.String(), result.JWT().JwtID())
 		})
@@ -151,11 +151,12 @@ func Test_issuer_buildVC(t *testing.T) {
 		jsonldManager := jsonld.NewTestJSONLDManager(t)
 		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
 
+		issuanceDate := time.Now()
 		template := vc.VerifiableCredential{
 			Context:      []ssi.URI{vc.VCContextV1URI()},
 			Type:         []ssi.URI{credentialType},
 			Issuer:       issuerID,
-			IssuanceDate: time.Now(),
+			IssuanceDate: &issuanceDate,
 		}
 
 		result, err := sut.buildVC(ctx, template, CredentialOptions{})

@@ -94,6 +94,6 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 		return fmt.Errorf("unable to write credential to wallet (id=%s): %w", subject.ID, err)
 	}
 
-	doc, _ := json.Marshal(subject)
+	doc, _ := json.Marshal(types.CompactingVerifiableCredential(subject))
 	return c.credentialCollection().Add([]leia.Document{doc})
 }

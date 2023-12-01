@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/node"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http/httptest"
@@ -59,9 +60,10 @@ func TestCredentialFormats(t *testing.T) {
 		// Issuance
 		credentialRequest := credentialRequestTemplate
 		credential := issueVC(t, vcrAPI, ctx, credentialRequest)
-		assert.True(t, strings.HasPrefix(credential.Raw(), "{"), "expected JSON-LD VC response")
+		data, _ := json.Marshal(credential)
+		assert.True(t, strings.HasPrefix(string(data), "{"), "expected JSON-LD VC response")
 		// Verification
-		verifyVC(t, ctx, credential, vcrAPI)
+		verifyVC(t, ctx, vc.VerifiableCredential(credential), vcrAPI)
 	})
 	t.Run("VC in JWT format", func(t *testing.T) {
 		// Issuance
@@ -69,9 +71,10 @@ func TestCredentialFormats(t *testing.T) {
 		credentialRequest := credentialRequestTemplate
 		credentialRequest.Format = &format
 		credential := issueVC(t, vcrAPI, ctx, credentialRequest)
-		assert.True(t, strings.HasPrefix(credential.Raw(), `ey`), "expected JWT VC response")
+		data, _ := json.Marshal(credential)
+		assert.True(t, strings.HasPrefix(string(data), `"ey`), "expected JWT VC response")
 		// Verification
-		verifyVC(t, ctx, credential, vcrAPI)
+		verifyVC(t, ctx, vc.VerifiableCredential(credential), vcrAPI)
 	})
 	t.Run("VP in JSON-LD format, containing VC in JSON-LD format", func(t *testing.T) {
 		credential := issueVC(t, vcrAPI, ctx, credentialRequestTemplate)
@@ -117,9 +120,9 @@ func TestCredentialFormats(t *testing.T) {
 	})
 }
 
-func createVP(t *testing.T, ctx context.Context, credential v2.VerifiableCredential, format string, vcrAPI v2.Wrapper) vc.VerifiablePresentation {
+func createVP(t *testing.T, ctx context.Context, credential types.CompactingVerifiableCredential, format string, vcrAPI v2.Wrapper) vc.VerifiablePresentation {
 	request := v2.CreateVPJSONRequestBody{
-		VerifiableCredentials: []v2.VerifiableCredential{credential},
+		VerifiableCredentials: []types.CompactingVerifiableCredential{credential},
 	}
 	if format != "" {
 		f := v2.CreateVPRequestFormat(format)
@@ -135,12 +138,12 @@ func createVP(t *testing.T, ctx context.Context, credential v2.VerifiableCredent
 	return result
 }
 
-func issueVC(t *testing.T, vcrAPI v2.Wrapper, ctx context.Context, credentialRequest v2.IssueVCRequest) v2.VerifiableCredential {
+func issueVC(t *testing.T, vcrAPI v2.Wrapper, ctx context.Context, credentialRequest v2.IssueVCRequest) types.CompactingVerifiableCredential {
 	response, err := vcrAPI.IssueVC(ctx, v2.IssueVCRequestObject{Body: &credentialRequest})
 	require.NoError(t, err)
 	httpResponse := httptest.NewRecorder()
 	require.NoError(t, response.VisitIssueVCResponse(httpResponse))
-	var credential v2.VerifiableCredential
+	var credential types.CompactingVerifiableCredential
 	err = json.Unmarshal(httpResponse.Body.Bytes(), &credential)
 	require.NoError(t, err)
 	return credential
@@ -148,7 +151,7 @@ func issueVC(t *testing.T, vcrAPI v2.Wrapper, ctx context.Context, credentialReq
 
 func verifyVC(t *testing.T, ctx context.Context, credential vc.VerifiableCredential, vcrAPI v2.Wrapper) {
 	verifyResponse, err := vcrAPI.VerifyVC(ctx, v2.VerifyVCRequestObject{Body: &v2.VerifyVCJSONRequestBody{
-		VerifiableCredential: credential,
+		VerifiableCredential: types.CompactingVerifiableCredential(credential),
 	}})
 	require.NoError(t, err)
 	assert.True(t, verifyResponse.(v2.VerifyVC200JSONResponse).Validity)
@@ -159,7 +162,7 @@ func verifyVC(t *testing.T, ctx context.Context, credential vc.VerifiableCredent
 
 func verifyVP(t *testing.T, ctx context.Context, presentation vc.VerifiablePresentation, vcrAPI v2.Wrapper) {
 	verifyResponse, err := vcrAPI.VerifyVP(ctx, v2.VerifyVPRequestObject{Body: &v2.VerifyVPJSONRequestBody{
-		VerifiablePresentation: presentation,
+		VerifiablePresentation: types.CompactingVerifiablePresentation(presentation),
 	}})
 	require.NoError(t, err)
 	assert.True(t, verifyResponse.(v2.VerifyVP200JSONResponse).Validity)

@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -116,7 +117,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		actualVC := *credential.ValidNutsAuthorizationCredential()
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
-		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: actualVC}}})
+		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: types.CompactingVerifiableCredential(actualVC)}}})
 
 		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
@@ -154,7 +155,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		actualVC := *credential.ValidNutsAuthorizationCredential()
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
-		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: actualVC}}})
+		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: types.CompactingVerifiableCredential(actualVC)}}})
 
 		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
@@ -190,7 +191,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		actualVC := *credential.ValidNutsAuthorizationCredential()
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
-		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: actualVC}}})
+		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: types.CompactingVerifiableCredential(actualVC)}}})
 
 		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
@@ -335,7 +336,7 @@ func TestWrapper_ResolveVC(t *testing.T) {
 		response, err := ctx.client.ResolveVC(ctx.requestCtx, ResolveVCRequestObject{Id: id.String()})
 
 		assert.NoError(t, err)
-		assert.Equal(t, ResolveVC200JSONResponse(credential), response)
+		assert.Equal(t, ResolveVC200JSONResponse(types.CompactingVerifiableCredential(credential)), response)
 	})
 
 	t.Run("ok (verify error, but still returned)", func(t *testing.T) {
@@ -346,7 +347,7 @@ func TestWrapper_ResolveVC(t *testing.T) {
 		response, err := ctx.client.ResolveVC(ctx.requestCtx, ResolveVCRequestObject{Id: id.String()})
 
 		assert.NoError(t, err)
-		assert.Equal(t, ResolveVC200JSONResponse(credential), response)
+		assert.Equal(t, ResolveVC200JSONResponse(types.CompactingVerifiableCredential(credential)), response)
 	})
 
 	t.Run("error", func(t *testing.T) {

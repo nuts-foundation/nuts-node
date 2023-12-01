@@ -7,7 +7,7 @@
         "fields": [
           {
             "path": [
-              "$.credentialSubject.organization.city"
+              "$.credentialSubject[0].organization.city"
             ],
             "filter": {
               "type": "string",
@@ -16,7 +16,7 @@
           },
           {
             "path": [
-              "$.credentialSubject.organization.name"
+              "$.credentialSubject[0].organization.name"
             ],
             "filter": {
               "type": "string",

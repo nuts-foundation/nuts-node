@@ -89,7 +89,7 @@ func (r *Module) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nuts
 		return nil, resolver.ErrNotFound
 	}
 
-	resultDIDDocumentData, _ := nutsDIDDocument.MarshalJSON()
+	resultDIDDocumentData, _ := json.Marshal(nutsDIDDocument)
 	// Replace did:nuts DIDs with did:web, but only for owned DIDs
 	webDID, err := didweb.URLToDID(*baseURL.JoinPath(nutsDID.ID))
 	if err != nil {

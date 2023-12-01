@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/sirupsen/logrus"
 	"sort"
 	"strings"
@@ -42,7 +43,7 @@ func (w *Wrapper) ResolveVC(ctx context.Context, request ResolveVCRequestObject)
 	if result != nil {
 		// When err != nil credential is untrusted or revoked, credential is still returned.
 		// This API call must return the VC regardless its status: https://github.com/nuts-foundation/nuts-node/issues/1221
-		return ResolveVC200JSONResponse(*result), nil
+		return ResolveVC200JSONResponse(types.CompactingVerifiableCredential(*result)), nil
 	}
 	return nil, err
 }

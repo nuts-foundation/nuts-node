@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"io"
 	"net/http"
 	"net/url"
@@ -79,8 +80,8 @@ type CreateVPRequest struct {
 	SignerDID *string `json:"signerDID,omitempty"`
 
 	// Type Array of VerifiablePresentation types that will be added next to the default type. Types must be available in the given context.
-	Type                  *[]string              `json:"type,omitempty"`
-	VerifiableCredentials []VerifiableCredential `json:"verifiableCredentials"`
+	Type                  *[]string                              `json:"type,omitempty"`
+	VerifiableCredentials []types.CompactingVerifiableCredential `json:"verifiableCredentials"`
 }
 
 // CreateVPRequestFormat Proof format for the presentation (JSON-LD or JWT). If not set, it defaults to JSON-LD.
@@ -157,7 +158,7 @@ type SearchVCResult struct {
 	Revocation *Revocation `json:"revocation,omitempty"`
 
 	// VerifiableCredential A credential according to the W3C and Nuts specs.
-	VerifiableCredential VerifiableCredential `json:"verifiableCredential"`
+	VerifiableCredential types.CompactingVerifiableCredential `json:"verifiableCredential"`
 }
 
 // SearchVCResults result of a Search operation.
@@ -174,8 +175,8 @@ type VCVerificationOptions struct {
 // VCVerificationRequest defines model for VCVerificationRequest.
 type VCVerificationRequest struct {
 	// VerifiableCredential A credential according to the W3C and Nuts specs.
-	VerifiableCredential VerifiableCredential   `json:"verifiableCredential"`
-	VerificationOptions  *VCVerificationOptions `json:"verificationOptions,omitempty"`
+	VerifiableCredential types.CompactingVerifiableCredential `json:"verifiableCredential"`
+	VerificationOptions  *VCVerificationOptions               `json:"verificationOptions,omitempty"`
 }
 
 // VCVerificationResult Contains the verifiable credential verification result.
@@ -193,7 +194,7 @@ type VPVerificationRequest struct {
 	ValidAt *string `json:"validAt,omitempty"`
 
 	// VerifiablePresentation Verifiable Presentation
-	VerifiablePresentation VerifiablePresentation `json:"verifiablePresentation"`
+	VerifiablePresentation types.CompactingVerifiablePresentation `json:"verifiablePresentation"`
 
 	// VerifyCredentials Indicates whether the Verifiable Credentials within the VP must be verified, default true.
 	VerifyCredentials *bool `json:"verifyCredentials,omitempty"`
@@ -202,7 +203,7 @@ type VPVerificationRequest struct {
 // VPVerificationResult Contains the verifiable presentation verification result.
 type VPVerificationResult struct {
 	// Credentials If the VP is valid, it will contain the credentials inside the VP.
-	Credentials *[]VerifiableCredential `json:"credentials,omitempty"`
+	Credentials *[]types.CompactingVerifiableCredential `json:"credentials,omitempty"`
 
 	// Message Indicates what went wrong
 	Message *string `json:"message,omitempty"`
@@ -1182,7 +1183,7 @@ type ClientWithResponsesInterface interface {
 type CreateVPResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *VerifiablePresentation
+	JSON200                       *types.CompactingVerifiablePresentation
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1214,7 +1215,7 @@ func (r CreateVPResponse) StatusCode() int {
 type IssueVCResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *VerifiableCredential
+	JSON200                       *types.CompactingVerifiableCredential
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1342,7 +1343,7 @@ func (r SearchVCsResponse) StatusCode() int {
 type ResolveVCResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *VerifiableCredential
+	JSON200                       *types.CompactingVerifiableCredential
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1740,7 +1741,7 @@ func ParseCreateVPResponse(rsp *http.Response) (*CreateVPResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest VerifiablePresentation
+		var dest types.CompactingVerifiablePresentation
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1782,7 +1783,7 @@ func ParseIssueVCResponse(rsp *http.Response) (*IssueVCResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest VerifiableCredential
+		var dest types.CompactingVerifiableCredential
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1950,7 +1951,7 @@ func ParseResolveVCResponse(rsp *http.Response) (*ResolveVCResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest VerifiableCredential
+		var dest types.CompactingVerifiableCredential
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2494,7 +2495,7 @@ type CreateVPResponseObject interface {
 	VisitCreateVPResponse(w http.ResponseWriter) error
 }
 
-type CreateVP200JSONResponse VerifiablePresentation
+type CreateVP200JSONResponse types.CompactingVerifiablePresentation
 
 func (response CreateVP200JSONResponse) VisitCreateVPResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -2532,7 +2533,7 @@ type IssueVCResponseObject interface {
 	VisitIssueVCResponse(w http.ResponseWriter) error
 }
 
-type IssueVC200JSONResponse VerifiableCredential
+type IssueVC200JSONResponse types.CompactingVerifiableCredential
 
 func (response IssueVC200JSONResponse) VisitIssueVCResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -2684,7 +2685,7 @@ type ResolveVCResponseObject interface {
 	VisitResolveVCResponse(w http.ResponseWriter) error
 }
 
-type ResolveVC200JSONResponse VerifiableCredential
+type ResolveVC200JSONResponse types.CompactingVerifiableCredential
 
 func (response ResolveVC200JSONResponse) VisitResolveVCResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
