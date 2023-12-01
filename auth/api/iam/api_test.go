@@ -28,7 +28,6 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -98,8 +97,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 
 func TestWrapper_GetWebDID(t *testing.T) {
 	webDID := did.MustParseDID("did:web:example.com:iam:123")
-	publicURL := ssi.MustParseURI("https://example.com").URL
-	webDIDBaseURL := publicURL.JoinPath("/iam")
+	id := "123"
 	ctx := audit.TestContext()
 	expectedWebDIDDoc := did.Document{
 		ID: webDID,
@@ -110,27 +108,27 @@ func TestWrapper_GetWebDID(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
-		test.vdr.EXPECT().DeriveWebDIDDocument(gomock.Any(), *webDIDBaseURL, nutsDID).Return(&expectedWebDIDDoc, nil)
+		test.vdr.EXPECT().ResolveManaged(webDID).Return(&expectedWebDIDDoc, nil)
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{nutsDID.ID})
+		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{id})
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetWebDID200JSONResponse)))
 	})
 	t.Run("unknown DID", func(t *testing.T) {
 		test := newTestClient(t)
-		test.vdr.EXPECT().DeriveWebDIDDocument(ctx, *webDIDBaseURL, nutsDID).Return(nil, resolver.ErrNotFound)
+		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, resolver.ErrNotFound)
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{nutsDID.ID})
+		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{id})
 
 		assert.NoError(t, err)
 		assert.IsType(t, GetWebDID404Response{}, response)
 	})
 	t.Run("other error", func(t *testing.T) {
 		test := newTestClient(t)
-		test.vdr.EXPECT().DeriveWebDIDDocument(gomock.Any(), *webDIDBaseURL, nutsDID).Return(nil, errors.New("failed"))
+		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, errors.New("failed"))
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{nutsDID.ID})
+		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{id})
 
 		assert.EqualError(t, err, "unable to resolve DID")
 		assert.Nil(t, response)

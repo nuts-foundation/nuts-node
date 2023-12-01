@@ -30,6 +30,7 @@ import (
 type store interface {
 	create(did did.DID, methods ...did.VerificationMethod) error
 	get(did did.DID) ([]did.VerificationMethod, error)
+	list() ([]did.DID, error)
 }
 
 var _ schema.Tabler = (*sqlDID)(nil)
@@ -98,6 +99,24 @@ func (s *sqlStore) get(id did.DID) ([]did.VerificationMethod, error) {
 			return nil, err
 		}
 		method.ID = *vmID
+	}
+	return result, nil
+}
+
+// list returns all DIDs in the store.
+func (s *sqlStore) list() ([]did.DID, error) {
+	var list []sqlDID
+	err := s.db.Model(&sqlDID{}).Select("did").Find(&list).Error
+	if err != nil {
+		return nil, err
+	}
+	var result []did.DID
+	for _, curr := range list {
+		parsed, err := did.ParseDID(curr.Did)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, *parsed)
 	}
 	return result, nil
 }

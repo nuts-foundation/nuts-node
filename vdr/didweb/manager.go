@@ -21,6 +21,7 @@ package didweb
 import (
 	"context"
 	crypt "crypto"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
@@ -28,12 +29,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"net/url"
 )
 
 var _ management.DocCreator = (*Manager)(nil)
-var _ management.DocReader = (*Manager)(nil)
+var _ resolver.DIDResolver = (*Manager)(nil)
 
 // NewManager creates a new Manager to create and update did:web DID documents.
 func NewManager(baseURL url.URL, keyStore crypto.KeyStore, db *gorm.DB) *Manager {
@@ -52,10 +54,7 @@ type Manager struct {
 }
 
 // Create creates a new did:web document.
-func (m Manager) Create(ctx context.Context, method string, _ management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
-	if method != MethodName {
-		return nil, nil, fmt.Errorf("unsupported method: %s", method)
-	}
+func (m Manager) Create(ctx context.Context, _ management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	newDID, err := URLToDID(*m.baseURL.JoinPath(uuid.NewString()))
 	if err != nil {
 		return nil, nil, err
@@ -97,6 +96,28 @@ func (m Manager) createVerificationMethod(ctx context.Context, ownerDID did.DID)
 		return nil, nil, err
 	}
 	return verificationMethodKey, verificationMethod, nil
+}
+
+// Resolve returns the did:web document for the given DID, if it is managed by this node.
+func (m Manager) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
+	vms, err := m.store.get(id)
+	if err != nil {
+		return nil, nil, err
+	}
+	document := buildDocument(id, vms)
+	return &document, &resolver.DocumentMetadata{}, nil
+}
+
+func (m Manager) IsOwner(_ context.Context, id did.DID) (bool, error) {
+	_, err := m.store.get(id)
+	if errors.Is(err, resolver.ErrNotFound) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+func (m Manager) ListOwned(_ context.Context) ([]did.DID, error) {
+	return m.store.list()
 }
 
 func buildDocument(subject did.DID, verificationMethods []did.VerificationMethod) did.Document {

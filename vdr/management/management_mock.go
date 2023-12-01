@@ -14,8 +14,137 @@ import (
 
 	did "github.com/nuts-foundation/go-did/did"
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
+	resolver "github.com/nuts-foundation/nuts-node/vdr/resolver"
 	gomock "go.uber.org/mock/gomock"
 )
+
+// MockManager is a mock of Manager interface.
+type MockManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockManagerMockRecorder
+}
+
+// MockManagerMockRecorder is the mock recorder for MockManager.
+type MockManagerMockRecorder struct {
+	mock *MockManager
+}
+
+// NewMockManager creates a new mock instance.
+func NewMockManager(ctrl *gomock.Controller) *MockManager {
+	mock := &MockManager{ctrl: ctrl}
+	mock.recorder = &MockManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockManager) EXPECT() *MockManagerMockRecorder {
+	return m.recorder
+}
+
+// AddVerificationMethod mocks base method.
+func (m *MockManager) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddVerificationMethod", ctx, id, keyUsage)
+	ret0, _ := ret[0].(*did.VerificationMethod)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddVerificationMethod indicates an expected call of AddVerificationMethod.
+func (mr *MockManagerMockRecorder) AddVerificationMethod(ctx, id, keyUsage any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockManager)(nil).AddVerificationMethod), ctx, id, keyUsage)
+}
+
+// Create mocks base method.
+func (m *MockManager) Create(ctx context.Context, method string, options DIDCreationOptions) (*did.Document, crypto.Key, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Create", ctx, method, options)
+	ret0, _ := ret[0].(*did.Document)
+	ret1, _ := ret[1].(crypto.Key)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Create indicates an expected call of Create.
+func (mr *MockManagerMockRecorder) Create(ctx, method, options any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockManager)(nil).Create), ctx, method, options)
+}
+
+// Deactivate mocks base method.
+func (m *MockManager) Deactivate(ctx context.Context, id did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Deactivate", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Deactivate indicates an expected call of Deactivate.
+func (mr *MockManagerMockRecorder) Deactivate(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockManager)(nil).Deactivate), ctx, id)
+}
+
+// IsOwner mocks base method.
+func (m *MockManager) IsOwner(arg0 context.Context, arg1 did.DID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsOwner", arg0, arg1)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsOwner indicates an expected call of IsOwner.
+func (mr *MockManagerMockRecorder) IsOwner(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwner", reflect.TypeOf((*MockManager)(nil).IsOwner), arg0, arg1)
+}
+
+// ListOwned mocks base method.
+func (m *MockManager) ListOwned(ctx context.Context) ([]did.DID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListOwned", ctx)
+	ret0, _ := ret[0].([]did.DID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListOwned indicates an expected call of ListOwned.
+func (mr *MockManagerMockRecorder) ListOwned(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOwned", reflect.TypeOf((*MockManager)(nil).ListOwned), ctx)
+}
+
+// RemoveVerificationMethod mocks base method.
+func (m *MockManager) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID did.DIDURL) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveVerificationMethod", ctx, id, keyID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveVerificationMethod indicates an expected call of RemoveVerificationMethod.
+func (mr *MockManagerMockRecorder) RemoveVerificationMethod(ctx, id, keyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveVerificationMethod", reflect.TypeOf((*MockManager)(nil).RemoveVerificationMethod), ctx, id, keyID)
+}
+
+// Resolve mocks base method.
+func (m *MockManager) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Resolve", id, metadata)
+	ret0, _ := ret[0].(*did.Document)
+	ret1, _ := ret[1].(*resolver.DocumentMetadata)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Resolve indicates an expected call of Resolve.
+func (mr *MockManagerMockRecorder) Resolve(id, metadata any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockManager)(nil).Resolve), id, metadata)
+}
 
 // MockDocCreator is a mock of DocCreator interface.
 type MockDocCreator struct {
@@ -157,44 +286,6 @@ func (m *MockDocManipulator) RemoveVerificationMethod(ctx context.Context, id di
 func (mr *MockDocManipulatorMockRecorder) RemoveVerificationMethod(ctx, id, keyID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).RemoveVerificationMethod), ctx, id, keyID)
-}
-
-// MockDocReader is a mock of DocReader interface.
-type MockDocReader struct {
-	ctrl     *gomock.Controller
-	recorder *MockDocReaderMockRecorder
-}
-
-// MockDocReaderMockRecorder is the mock recorder for MockDocReader.
-type MockDocReaderMockRecorder struct {
-	mock *MockDocReader
-}
-
-// NewMockDocReader creates a new mock instance.
-func NewMockDocReader(ctrl *gomock.Controller) *MockDocReader {
-	mock := &MockDocReader{ctrl: ctrl}
-	mock.recorder = &MockDocReaderMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDocReader) EXPECT() *MockDocReaderMockRecorder {
-	return m.recorder
-}
-
-// Read mocks base method.
-func (m *MockDocReader) Read(id did.DID) (*did.Document, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Read", id)
-	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Read indicates an expected call of Read.
-func (mr *MockDocReaderMockRecorder) Read(id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockDocReader)(nil).Read), id)
 }
 
 // MockDocumentOwner is a mock of DocumentOwner interface.

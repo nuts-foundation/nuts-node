@@ -22,15 +22,23 @@ import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
+
+type Manager interface {
+	DocCreator
+	DocumentOwner
+	DocManipulator
+	resolver.DIDResolver
+}
 
 // DocCreator is the interface that wraps the Create method
 type DocCreator interface {
-	// Create creates a new DID document according to the given DID method and returns it.
+	// Create creates a new DID document and returns it.
 	// The ID in the provided DID document will be ignored and a new one will be generated.
 	// If something goes wrong an error is returned.
 	// Implementors should generate private key and store it in a secure backend
-	Create(ctx context.Context, method string, options DIDCreationOptions) (*did.Document, crypto.Key, error)
+	Create(ctx context.Context, options DIDCreationOptions) (*did.Document, crypto.Key, error)
 }
 
 // DocUpdater is the interface that defines functions that alter the state of a DID document
@@ -66,13 +74,6 @@ type DocManipulator interface {
 	// It returns an ErrDeactivated when the DID document has the deactivated state.
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
 	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
-}
-
-// DocReader is the interface that defines functions a locally managed DID document.
-type DocReader interface {
-	// Read returns the locally-managed DID document identified by DID.
-	// If the DID can't be found or isn't locally managed, ErrNotFound is returned.
-	Read(id did.DID) (*did.Document, error)
 }
 
 // DIDCreationOptions defines options for creating a DID Document.

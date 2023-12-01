@@ -21,24 +21,25 @@ package vdr
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/url"
 )
 
 // VDR defines the public end facing methods for the Verifiable Data Registry.
 type VDR interface {
 	management.DocumentOwner
-	management.DocCreator
 	management.DocUpdater
-	management.DocReader
+
+	// Create creates a new DID document according to the given DID method and returns it.
+	Create(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, crypto.Key, error)
+
+	// ResolveManaged resolves a DID document that is managed by the local node.
+	ResolveManaged(id did.DID) (*did.Document, error)
 
 	// Resolver returns the resolver for getting the DID document for a DID.
 	Resolver() resolver.DIDResolver
 
 	// ConflictedDocuments returns the DID Document and metadata of all documents with a conflict.
 	ConflictedDocuments() ([]did.Document, []resolver.DocumentMetadata, error)
-
-	// DeriveWebDIDDocument returns the did:web equivalent of the given Nuts DID. If it doesn't exist or is not owned by this node it returns an error.
-	DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID did.DID) (*did.Document, error)
 }

@@ -24,7 +24,6 @@
 package vdr
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -64,58 +63,23 @@ type Module struct {
 	network           network.Transactions
 	networkAmbassador didnuts.Ambassador
 	creators          map[string]management.DocCreator
-	readers           map[string]management.DocReader
+	managedResolvers  map[string]resolver.DIDResolver
+	documentOwners    map[string]management.DocumentOwner
 	didResolver       *resolver.DIDResolverRouter
 	serviceResolver   resolver.ServiceResolver
-	documentOwner     management.DocumentOwner
 	keyStore          crypto.KeyStore
 	storageInstance   storage.Engine
 	eventManager      events.Event
 }
 
-func (r *Module) Read(id did.DID) (*did.Document, error) {
-	reader := r.readers[id.Method]
-	if reader == nil {
+// ResolveManaged resolves a DID document that is managed by the local node.
+func (r *Module) ResolveManaged(id did.DID) (*did.Document, error) {
+	managedResolver := r.managedResolvers[id.Method]
+	if managedResolver == nil {
 		return nil, fmt.Errorf("unsupported method: %s", id.Method)
 	}
-	return reader.Read(id)
-}
-
-func (r *Module) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID did.DID) (*did.Document, error) {
-	nutsDIDDocument, _, err := r.Resolver().Resolve(nutsDID, nil)
-	if err != nil {
-		return nil, err
-	}
-	isOwner, err := r.IsOwner(ctx, nutsDID)
-	if err != nil {
-		return nil, err
-	}
-	if !isOwner {
-		log.Logger().
-			WithError(err).
-			WithField(core.LogFieldDID, nutsDID).
-			Info("Tried to derive did:web document from Nuts DID that is not owned by this node")
-		return nil, resolver.ErrNotFound
-	}
-
-	resultDIDDocumentData, _ := nutsDIDDocument.MarshalJSON()
-	// Replace did:nuts DIDs with did:web, but only for owned DIDs
-	webDID, err := didweb.URLToDID(*baseURL.JoinPath(nutsDID.ID))
-	if err != nil {
-		return nil, fmt.Errorf("unable to derive Web DID from Nuts DID (%s): %w", nutsDID, err)
-	}
-	resultDIDDocumentData = bytes.ReplaceAll(resultDIDDocumentData, []byte(nutsDID.String()), []byte(webDID.String()))
-	var result did.Document
-	if err = result.UnmarshalJSON(resultDIDDocumentData); err != nil {
-		return nil, fmt.Errorf("did:web unmarshal error (%s): %w", nutsDID, err)
-	}
-	result.AlsoKnownAs = append(result.AlsoKnownAs, nutsDID.URI())
-	// did:web support is currently just for supporting third party systems resolving key material,
-	// so no need to retain services (which often refer to services in other did:nuts documents, complicating things).
-	result.Service = nil
-	// did:web does not authenticate DID documents with signatures like did:nuts does, so no need for controllers.
-	result.Controller = nil
-	return &result, nil
+	document, _, err := managedResolver.Resolve(id, nil)
+	return document, err
 }
 
 func (r *Module) Resolver() resolver.DIDResolver {
@@ -132,7 +96,6 @@ func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 		didResolver:     didResolver,
 		store:           didStore,
 		serviceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
-		documentOwner:   newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: cryptoClient}, didResolver),
 		keyStore:        cryptoClient,
 		storageInstance: storageInstance,
 	}
@@ -163,7 +126,11 @@ func (r *Module) Configure(config core.ServerConfig) error {
 		didnuts.MethodName: didnuts.Creator{KeyStore: r.keyStore},
 		didweb.MethodName:  didwebManager,
 	}
-	r.readers = map[string]management.DocReader{
+	r.documentOwners = map[string]management.DocumentOwner{
+		didnuts.MethodName: newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
+		didweb.MethodName:  didwebManager,
+	}
+	r.managedResolvers = map[string]resolver.DIDResolver{
 		didweb.MethodName: didwebManager,
 	}
 
@@ -208,11 +175,23 @@ func (r *Module) ConflictedDocuments() ([]did.Document, []resolver.DocumentMetad
 }
 
 func (r *Module) IsOwner(ctx context.Context, id did.DID) (bool, error) {
-	return r.documentOwner.IsOwner(ctx, id)
+	owner := r.documentOwners[id.Method]
+	if owner == nil {
+		return false, fmt.Errorf("unsupported method: %s", id.Method)
+	}
+	return owner.IsOwner(ctx, id)
 }
 
 func (r *Module) ListOwned(ctx context.Context) ([]did.DID, error) {
-	return r.documentOwner.ListOwned(ctx)
+	var results []did.DID
+	for _, owner := range r.documentOwners {
+		owned, err := owner.ListOwned(ctx)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, owned...)
+	}
+	return results, nil
 }
 
 // newOwnConflictedDocIterator accepts two counters and returns a new DocIterator that counts the total number of
@@ -292,33 +271,31 @@ func (r *Module) Diagnostics() []core.DiagnosticResult {
 func (r *Module) Create(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	log.Logger().Debug("Creating new DID Document.")
 
+	// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
+	// holder for all metadata of the controllers
+	controllerMetadata := make([]resolver.DocumentMetadata, len(options.Controllers))
+
+	// if any controllers have been added, check if they exist through the didResolver
+	if len(options.Controllers) > 0 {
+		for _, controller := range options.Controllers {
+			_, meta, err := r.didResolver.Resolve(controller, nil)
+			if err != nil {
+				return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
+			}
+			controllerMetadata = append(controllerMetadata, *meta)
+		}
+	}
+
 	creator := r.creators[method]
 	if creator == nil {
 		return nil, nil, fmt.Errorf("unsupported method: %s", method)
 	}
-	doc, key, err := creator.Create(ctx, method, options)
+	doc, key, err := creator.Create(ctx, options)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create DID document (method %s): %w", method, err)
 	}
 
 	if method == didnuts.MethodName {
-		// did:nuts needs to be published on the network
-
-		// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
-		// holder for all metadata of the controllers
-		controllerMetadata := make([]resolver.DocumentMetadata, len(options.Controllers))
-
-		// if any controllers have been added, check if they exist through the didResolver
-		if len(options.Controllers) > 0 {
-			for _, controller := range options.Controllers {
-				_, meta, err := r.didResolver.Resolve(controller, nil)
-				if err != nil {
-					return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
-				}
-				controllerMetadata = append(controllerMetadata, *meta)
-			}
-		}
-
 		payload, err := json.Marshal(doc)
 		if err != nil {
 			return nil, nil, err

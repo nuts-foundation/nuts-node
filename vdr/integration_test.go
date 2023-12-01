@@ -54,7 +54,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
+	docA, _, err := ctx.vdr.Create(ctx.audit, didnuts.MethodName, didnuts.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, docA)
 
@@ -89,7 +89,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
+	docB, _, err := ctx.vdr.Create(ctx.audit, didnuts.MethodName, didnuts.DefaultCreationOptions())
 	require.NoError(t, err, "unexpected error while creating DocumentB")
 	assert.NotNil(t, docB,
 		"a new document should have been created")
@@ -160,7 +160,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	initialDoc, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
+	initialDoc, _, err := ctx.vdr.Create(ctx.audit, didnuts.MethodName, didnuts.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, initialDoc)
 
@@ -226,12 +226,13 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 }
 
 type testContext struct {
-	vdr            *Module
-	eventPublisher events.Event
-	docCreator     management.DocCreator
-	didStore       didstore.Store
-	cryptoInstance *crypto.Crypto
-	audit          context.Context
+	vdr             *Module
+	eventPublisher  events.Event
+	docCreator      management.DocCreator
+	didStore        didstore.Store
+	cryptoInstance  *crypto.Crypto
+	audit           context.Context
+	storageInstance storage.Engine
 }
 
 func setup(t *testing.T) testContext {
@@ -280,7 +281,7 @@ func setup(t *testing.T) testContext {
 		storageEngine.GetProvider("network"),
 		pkiValidator,
 	)
-	vdr := NewVDR(cryptoInstance, nutsNetwork, didStore, eventPublisher)
+	vdr := NewVDR(cryptoInstance, nutsNetwork, didStore, eventPublisher, storageEngine)
 
 	// Configure
 	require.NoError(t, vdr.Configure(nutsConfig))
@@ -297,11 +298,12 @@ func setup(t *testing.T) testContext {
 	})
 
 	return testContext{
-		vdr:            vdr,
-		eventPublisher: eventPublisher,
-		docCreator:     vdr.creators,
-		didStore:       didStore,
-		cryptoInstance: cryptoInstance,
-		audit:          audit.TestContext(),
+		vdr:             vdr,
+		eventPublisher:  eventPublisher,
+		docCreator:      vdr.creators[didnuts.MethodName],
+		didStore:        didStore,
+		cryptoInstance:  cryptoInstance,
+		audit:           audit.TestContext(),
+		storageInstance: storageEngine,
 	}
 }
