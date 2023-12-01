@@ -1,3 +1,4 @@
+url: http://node-A
 verbosity: debug
 strictmode: false
 internalratelimiter: false
@@ -6,7 +7,6 @@ http:
   default:
     address: :1323
 auth:
-  publicurl: http://node-A
   contractvalidators:
     - dummy
   irma:

@@ -1,3 +1,4 @@
+url: http://nuts-node
 verbosity: trace
 strictmode: false
 internalratelimiter: false
@@ -5,7 +6,6 @@ http:
   default:
     address: :1323
 auth:
-  publicurl: http://nuts-node
   contractvalidators:
     - dummy
   irma:

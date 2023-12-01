@@ -1,7 +1,7 @@
+url: https://node-B
 verbosity: debug
 internalratelimiter: false
 auth:
-  publicurl: https://node-B
   contractvalidators:
     - dummy
   irma:

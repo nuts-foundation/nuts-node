@@ -1,3 +1,4 @@
+url: https://nodeA:1323
 verbosity: debug
 strictmode: true
 internalratelimiter: false
@@ -10,7 +11,6 @@ http:
       address: :443
       tls: server-client
 auth:
-  publicurl: https://nodeA:1323
   contractvalidators:
     - dummy
   irma:
