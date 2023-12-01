@@ -23,6 +23,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"net/url"
@@ -170,14 +171,48 @@ func (e *engine) initSQLDatabase() error {
 		connectionString = sqliteConnectionString(e.datadir)
 	}
 
+	// Find right SQL adapter
+	type sqlAdapter struct {
+		connector        func(dsn string) gorm.Dialector
+		connectionString func(config string) string
+	}
+	adapters := map[string]sqlAdapter{
+		"sqlite": {
+			connector: sqlite.Open,
+			connectionString: func(config string) string {
+				return fmt.Sprintf("sqlite:%s", config)
+			},
+		},
+		"postgres": {
+			connector: postgres.Open,
+			connectionString: func(config string) string {
+				return fmt.Sprintf("postgres:%s", config)
+			},
+		},
+	}
+	var adapter *sqlAdapter
+	for prefix, curr := range adapters {
+		parsedConnectionString := strings.TrimPrefix(connectionString, prefix+":")
+		if len(parsedConnectionString) != len(connectionString) {
+			adapter = &curr
+			connectionString = parsedConnectionString
+			break
+		}
+	}
+
+	// Open connection and migrate
 	var err error
-	e.sqlDB, err = gorm.Open(sqlite.Open(connectionString), &gorm.Config{})
+	e.sqlDB, err = gorm.Open(adapter.connector(connectionString), &gorm.Config{})
 	if err != nil {
 		return err
 	}
 	log.Logger().Debug("Running database migrations...")
 
-	dbURL, _ := url.Parse(fmt.Sprintf("sqlite:%s", connectionString))
+	// we need the connectionString with adapter specific prefix here
+	dbURL, err := url.Parse(adapter.connectionString(e.config.SQL.ConnectionString))
+	if err != nil {
+		return err
+	}
 	db := dbmate.New(dbURL)
 	db.FS = sqlMigrationsFS
 	db.MigrationsDir = []string{"sql_migrations"}
@@ -188,7 +223,7 @@ func (e *engine) initSQLDatabase() error {
 }
 
 func sqliteConnectionString(datadir string) string {
-	return "file:" + path.Join(datadir, "sqlite.db?_journal_mode=WAL&_foreign_keys=on")
+	return "sqlite:file:" + path.Join(datadir, "sqlite.db?_journal_mode=WAL&_foreign_keys=on")
 }
 
 type provider struct {
