@@ -232,7 +232,8 @@ func toAnyMap(input any) (*map[string]any, error) {
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
-	ownDID := r.idToDID(request.Id)
+	// TODO: must be web DID once web DID creation and DB are implemented
+	ownDID := idToNutsDID(request.Id)
 	// Create session object to be passed to handler
 
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
@@ -282,7 +283,8 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	ownDID := r.idToDID(request.Id)
+	// TODO: must be web DID once web DID creation and DB are implemented
+	ownDID := idToNutsDID(request.Id)
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -318,7 +320,8 @@ func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) 
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
 func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error) {
-	ownDID := r.idToDID(request.Id)
+	// TODO: must be web DID once web DID creation and DB are implemented
+	ownDID := idToNutsDID(request.Id)
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
 		log.Logger().WithField("did", ownDID.String()).Errorf("oauth metadata: failed to assert ownership of did: %s", err.Error())
