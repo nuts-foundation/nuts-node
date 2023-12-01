@@ -23,7 +23,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"time"
 
@@ -54,6 +57,7 @@ var TimeFunc = time.Now
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
+	documentOwner management.DocumentOwner, wallet holder.Wallet,
 ) Issuer {
 	keyResolver := vdrKeyResolver{
 		publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
@@ -71,6 +75,8 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 		jsonldManager: jsonldManager,
 		trustConfig:   trustConfig,
 		vcrStore:      vcrStore,
+		documentOwner: documentOwner,
+		wallet:        wallet,
 	}
 }
 
@@ -85,6 +91,8 @@ type issuer struct {
 	jsonldManager    jsonld.JSONLD
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
+	documentOwner    management.DocumentOwner
+	wallet           holder.Wallet
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -92,7 +100,7 @@ type issuer struct {
 // Use the public flag to pass the visibility settings to the Publisher.
 func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
 	// Until further notice we don't support publishing JWT VCs, since they're not officially supported by Nuts yet.
-	if options.Publish && options.Format == JWTCredentialFormat {
+	if options.Publish && options.Format == vc.JWTCredentialProofFormat {
 		return nil, errors.New("publishing VC JWTs is not supported")
 	}
 
@@ -155,7 +163,45 @@ func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, opt
 			return nil, fmt.Errorf("unable to publish the issued credential: %w", err)
 		}
 	}
+	// local to local wallet for did:web
+	i.tryLocalIssuance(ctx, options, createdVC)
+
 	return createdVC, nil
+}
+
+func (i issuer) tryLocalIssuance(ctx context.Context, options CredentialOptions, createdVC *vc.VerifiableCredential) {
+	if options.Publish {
+		// not supported, return silently
+		return
+	}
+	if options.Public {
+		// not supported, return silently
+		return
+	}
+	subject, err := createdVC.SubjectDID()
+	if err != nil {
+		log.Logger().Debug("Unable to determine subject DID, skipping local issuance")
+		return
+	}
+	if subject.Method != didweb.MethodName {
+		// not supported, return silently
+		return
+	}
+	isOwned, err := i.documentOwner.IsOwner(ctx, *subject)
+	if err != nil {
+		log.Logger().Debug("Unable to determine if subject DID is owned by this node, skipping local issuance")
+		return
+	}
+	if !isOwned {
+		// not supported, return silently
+		return
+	}
+	// put in wallet
+	if err := i.wallet.Put(ctx, *createdVC); err != nil {
+		// todo: at one point this becomes mainstream and the error needs to be returned
+		log.Logger().Error("Unable to put credential in wallet, skipping local issuance")
+		return
+	}
 }
 
 // issueUsingOpenID4VCI tries to issue the credential over OpenID4VCI. It returns whether the credential was offered successfully.
@@ -228,13 +274,13 @@ func (i issuer) buildVC(ctx context.Context, template vc.VerifiableCredential, o
 	}
 
 	switch options.Format {
-	case JWTCredentialFormat:
+	case vc.JWTCredentialProofFormat:
 		return vc.CreateJWTVerifiableCredential(ctx, unsignedCredential, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
 			return i.keyStore.SignJWT(ctx, claims, headers, key)
 		})
 	case "":
 		fallthrough
-	case JSONLDCredentialFormat:
+	case vc.JSONLDCredentialProofFormat:
 		return i.buildJSONLDCredential(ctx, unsignedCredential, key)
 	default:
 		return nil, errors.New("unsupported credential proof format")

@@ -26,7 +26,9 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"path"
@@ -86,11 +88,11 @@ func Test_issuer_buildVC(t *testing.T) {
 			jsonldManager := jsonld.NewTestJSONLDManager(t)
 			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
 
-			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: JSONLDCredentialFormat})
+			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: vc.JSONLDCredentialProofFormat})
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
-			assert.Equal(t, JSONLDCredentialFormat, result.Format())
+			assert.Equal(t, vc.JSONLDCredentialProofFormat, result.Format())
 			assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
 			assert.Contains(t, result.Context, schemaOrgContext)
 			assert.Contains(t, result.Context, vc.VCContextV1URI())
@@ -110,7 +112,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			result, err := sut.buildVC(ctx, template, CredentialOptions{})
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			assert.Equal(t, JSONLDCredentialFormat, result.Format())
+			assert.Equal(t, vc.JSONLDCredentialProofFormat, result.Format())
 		})
 	})
 	t.Run("JWT", func(t *testing.T) {
@@ -121,11 +123,11 @@ func Test_issuer_buildVC(t *testing.T) {
 			jsonldManager := jsonld.NewTestJSONLDManager(t)
 			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
 
-			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: JWTCredentialFormat})
+			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: vc.JWTCredentialProofFormat})
 
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			assert.Equal(t, JWTCredentialFormat, result.Format())
+			assert.Equal(t, vc.JWTCredentialProofFormat, result.Format())
 			assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 			assert.Contains(t, result.Context, schemaOrgContext)
 			assert.Contains(t, result.Context, vc.VCContextV1URI())
@@ -290,7 +292,7 @@ func Test_issuer_Issue(t *testing.T) {
 		result, err := sut.Issue(ctx, template, CredentialOptions{
 			Publish: true,
 			Public:  true,
-			Format:  JWTCredentialFormat,
+			Format:  vc.JWTCredentialProofFormat,
 		})
 		require.EqualError(t, err, "publishing VC JWTs is not supported")
 		assert.Nil(t, result)
@@ -509,10 +511,49 @@ func Test_issuer_Issue(t *testing.T) {
 			assert.Nil(t, result)
 		})
 	})
+
+	t.Run("local issuer", func(t *testing.T) {
+		issuerDID := did.MustParseDID("did:web:nuts.test:iam:123")
+		issuerKeyID := issuerDID.String() + "#abc"
+		holderDID := did.MustParseDID("did:web:nuts.test:iam:456")
+
+		template := vc.VerifiableCredential{
+			Context: []ssi.URI{credential.NutsV1ContextURI},
+			Type:    []ssi.URI{credentialType},
+			Issuer:  issuerDID.URI(),
+			CredentialSubject: []interface{}{map[string]interface{}{
+				"id": holderDID.String(),
+			}},
+		}
+		ctrl := gomock.NewController(t)
+
+		trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
+		keyResolverMock := NewMockkeyResolver(ctrl)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
+		mockStore := NewMockStore(ctrl)
+		mockStore.EXPECT().StoreCredential(gomock.Any())
+		mockDocumentOwner := management.NewMockDocumentOwner(ctrl)
+		mockDocumentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		mockWallet := holder.NewMockWallet(ctrl)
+		mockWallet.EXPECT().Put(gomock.Any(), gomock.Any()).Return(nil)
+		sut := issuer{
+			keyResolver: keyResolverMock, store: mockStore,
+			jsonldManager: jsonldManager, trustConfig: trustConfig,
+			keyStore:      crypto.NewMemoryCryptoInstance(),
+			wallet:        mockWallet,
+			documentOwner: mockDocumentOwner,
+		}
+
+		_, err := sut.Issue(ctx, template, CredentialOptions{
+			Publish: false,
+			Public:  false,
+		})
+		require.NoError(t, err)
+	})
 }
 
 func TestNewIssuer(t *testing.T) {
-	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil)
+	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	assert.IsType(t, &issuer{}, createdIssuer)
 }
 

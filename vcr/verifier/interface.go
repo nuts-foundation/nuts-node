@@ -20,12 +20,12 @@ package verifier
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 

@@ -261,17 +261,19 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		c.walletHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
 		c.openidSessionStore = c.storageClient.GetSessionDatabase()
 	}
-	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig)
+	// verifier, wallet and issuer order is important!
+	// verifier
 	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
-
-	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
-
 	// Create holder/wallet
 	c.walletStore, err = c.storageClient.GetProvider(ModuleName).GetKVStore("wallet", storage.PersistentStorageClass)
 	if err != nil {
 		return err
 	}
 	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager, c.walletStore)
+	// issuer
+	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig, c.vdrInstance, c.wallet)
+
+	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
 	if err = c.store.HandleRestore(); err != nil {
 		return err

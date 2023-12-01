@@ -23,22 +23,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 var timeFunc = time.Now
@@ -118,9 +117,9 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 	}
 
 	switch credentialToVerify.Format() {
-	case issuer.JSONLDCredentialFormat:
+	case vc.JSONLDCredentialProofFormat:
 		return v.validateJSONLDCredential(credentialToVerify, at)
-	case issuer.JWTCredentialFormat:
+	case vc.JWTCredentialProofFormat:
 		return v.validateJWTCredential(credentialToVerify, at)
 	default:
 		return errors.New("unsupported credential proof format")
@@ -316,9 +315,9 @@ func (v verifier) VerifyVP(vp vc.VerifiablePresentation, verifyVCs bool, allowUn
 func (v verifier) doVerifyVP(vcVerifier Verifier, presentation vc.VerifiablePresentation, verifyVCs bool, allowUntrustedVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
 	var err error
 	switch presentation.Format() {
-	case issuer.JSONLDPresentationFormat:
+	case vc.JSONLDPresentationProofFormat:
 		err = v.validateJSONLDPresentation(presentation, validAt)
-	case issuer.JWTPresentationFormat:
+	case vc.JWTPresentationProofFormat:
 		err = v.validateJWTPresentation(presentation, validAt)
 	default:
 		err = errors.New("unsupported presentation proof format")
