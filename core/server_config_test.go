@@ -297,22 +297,10 @@ func TestTLSConfig_LoadTrustStore(t *testing.T) {
 
 func TestServerConfig_ServerURL(t *testing.T) {
 	t.Run("url", func(t *testing.T) {
-		cfg := ServerConfig{LegacyAuth: LegacyAuthConfig{PublicURL: "https://example.com"}}
-		actual, err := cfg.ServerURL()
-		assert.NoError(t, err)
-		assert.Equal(t, "https://example.com", actual.String())
-	})
-	t.Run("deprecated auth.publicurl", func(t *testing.T) {
 		cfg := ServerConfig{URL: "https://example.com"}
 		actual, err := cfg.ServerURL()
 		assert.NoError(t, err)
 		assert.Equal(t, "https://example.com", actual.String())
-	})
-	t.Run("precedence to url", func(t *testing.T) {
-		cfg := ServerConfig{URL: "https://nuts.nl", LegacyAuth: LegacyAuthConfig{PublicURL: "https://example.com"}}
-		actual, err := cfg.ServerURL()
-		assert.NoError(t, err)
-		assert.Equal(t, "https://nuts.nl", actual.String())
 	})
 	t.Run("public URL can be http when not in strict mode", func(t *testing.T) {
 		cfg := ServerConfig{URL: "http://nuts.nl"}
@@ -329,11 +317,5 @@ func TestServerConfig_ServerURL(t *testing.T) {
 		cfg := ServerConfig{URL: "nuts.nl"}
 		_, err := cfg.ServerURL()
 		assert.EqualError(t, err, "invalid 'url': url must contain scheme and host")
-	})
-	t.Run("deprecated auth.publicurl is still supported", func(t *testing.T) {
-		cfg := ServerConfig{LegacyAuth: LegacyAuthConfig{PublicURL: "https://example.com"}}
-		actual, err := cfg.ServerURL()
-		assert.NoError(t, err)
-		assert.Equal(t, "https://example.com", actual.String())
 	})
 }

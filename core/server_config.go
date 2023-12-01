@@ -60,7 +60,6 @@ type ServerConfig struct {
 	Datadir             string            `koanf:"datadir"`
 	TLS                 TLSConfig         `koanf:"tls"`
 	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
-	LegacyAuth          LegacyAuthConfig  `koanf:"auth"`
 	// URL contains the base URL for public-facing HTTP services.
 	URL       string `koanf:"url"`
 	configMap *koanf.Koanf
@@ -234,12 +233,6 @@ func (ngc *ServerConfig) Load(flags *pflag.FlagSet) (err error) {
 	return nil
 }
 
-// LegacyAuthConfig is here since we're moving auth.publicurl to the "url" root property.
-// This way we can validate the property at the correct (future) place.
-type LegacyAuthConfig struct {
-	PublicURL string `koanf:"publicurl"`
-}
-
 // resolveConfigFilePath resolves the path of the config file using the following sources:
 // 1. commandline params (using the given flags)
 // 2. environment vars,
@@ -272,7 +265,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Bool("strictmode", true, "When set, insecure settings are forbidden.")
 	flagSet.Bool("internalratelimiter", true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String("datadir", "./data", "Directory where the node stores its files.")
-	flagSet.String("url", "", "Public facing URL of the server (required). Must be HTTPS when strictmode is set. Superseeds 'auth.publicurl', which is deprecated.")
+	flagSet.String("url", "", "Public facing URL of the server (required). Must be HTTPS when strictmode is set.")
 	flagSet.String("tls.certfile", "", "PEM file containing the certificate for the server (also used as client certificate).")
 	flagSet.String("tls.certkeyfile", "", "PEM file containing the private key of the server certificate.")
 	flagSet.String("tls.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote servers.")
@@ -290,14 +283,12 @@ func FlagSet() *pflag.FlagSet {
 		"Required when 'network.enabletls' is 'true'.")
 	flagSet.String("network.truststorefile", "", "Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.maxcrlvaliditydays", 0, "Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.")
-	flagSet.String("auth.publicurl", "", "Public URL which can be reached by a users IRMA client, this should include the scheme and domain: https://example.com. Additional paths should only be added if some sort of url-rewriting is done in a reverse-proxy.")
 
 	flagSet.MarkDeprecated("tls.crl.maxvaliditydays", "CRLs can no longer be accepted after the time in NextUpdate has past")
 	flagSet.MarkDeprecated("network.certfile", "use 'tls.certfile' instead")
 	flagSet.MarkDeprecated("network.certkeyfile", "use 'tls.certkeyfile' instead")
 	flagSet.MarkDeprecated("network.truststorefile", "use 'tls.truststorefile' instead")
 	flagSet.MarkDeprecated("network.maxcrlvaliditydays", "use 'tls.crl.maxvaliditydays' instead")
-	flagSet.MarkDeprecated("auth.publicurl", "use 'url' instead")
 
 	return flagSet
 }
@@ -332,18 +323,10 @@ func (ngc *ServerConfig) InjectIntoEngine(e Injectable) error {
 // ServerURL returns the parsed URL of the server
 func (ngc *ServerConfig) ServerURL() (*url.URL, error) {
 	// Validate server URL
-	if ngc.LegacyAuth.PublicURL != "" {
-		coreLogger.Warn("Deprecated: use 'url' instead of 'auth.publicurl', which will be removed in the removed")
-	}
-	serverURL := ngc.LegacyAuth.PublicURL
-	if ngc.URL != "" {
-		// give precedence over new property
-		serverURL = ngc.URL
-	}
-	if serverURL == "" {
+	if ngc.URL == "" {
 		return nil, errors.New("'url' must be configured")
 	}
-	result, err := ParsePublicURL(serverURL, ngc.Strictmode)
+	result, err := ParsePublicURL(ngc.URL, ngc.Strictmode)
 	if err != nil {
 		return nil, fmt.Errorf("invalid 'url': %w", err)
 	}
