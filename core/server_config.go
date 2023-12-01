@@ -79,10 +79,6 @@ type TLSConfig struct {
 	legacyTLS            *NetworkTLSConfig
 }
 
-type AuthConfig struct {
-	PublicURL string `koanf:"publicurl"`
-}
-
 // Enabled returns whether TLS should be enabled, according to the global config.
 func (t TLSConfig) Enabled() bool {
 	return len(t.CertFile) > 0 || len(t.CertKeyFile) > 0 ||

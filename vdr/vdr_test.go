@@ -529,7 +529,7 @@ func TestVDR_Configure(t *testing.T) {
 		})
 
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
-		err := instance.Configure(core.ServerConfig{Auth: core.AuthConfig{PublicURL: "https://nuts.nl"}})
+		err := instance.Configure(core.ServerConfig{URL: "https://nuts.nl"})
 		require.NoError(t, err)
 
 		doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com"), nil)

@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -45,7 +46,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/url"
 )
 
 // ModuleName is the name of the engine
@@ -115,23 +115,22 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	r.didResolver.Register(didjwk.MethodName, didjwk.NewResolver())
 	r.didResolver.Register(didkey.MethodName, didkey.NewResolver())
 
-	// Methods we can produce from the Nuts node
-	publicURL, err := config.ServerURL()
-	if err != nil {
-		return err
-	}
-
-	didwebManager := didweb.NewManager(*publicURL.JoinPath("iam"), r.keyStore, r.storageInstance.GetSQLDatabase())
 	r.creators = map[string]management.DocCreator{
 		didnuts.MethodName: didnuts.Creator{KeyStore: r.keyStore},
-		didweb.MethodName:  didwebManager,
 	}
 	r.documentOwners = map[string]management.DocumentOwner{
 		didnuts.MethodName: newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
-		didweb.MethodName:  didwebManager,
 	}
-	r.managedResolvers = map[string]resolver.DIDResolver{
-		didweb.MethodName: didwebManager,
+
+	// Methods we can produce from the Nuts node
+	publicURL, err := config.ServerURL()
+	if err == nil {
+		didwebManager := didweb.NewManager(*publicURL.JoinPath("iam"), r.keyStore, r.storageInstance.GetSQLDatabase())
+		r.creators[didweb.MethodName] = didwebManager
+		r.documentOwners[didweb.MethodName] = didwebManager
+		r.managedResolvers = map[string]resolver.DIDResolver{
+			didweb.MethodName: didwebManager,
+		}
 	}
 
 	// Initiate the routines for auto-updating the data.
