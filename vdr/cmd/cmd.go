@@ -23,9 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io"
 	"os"
 	"strings"
@@ -33,6 +30,10 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	apiv2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -75,14 +76,25 @@ func createCmd() *cobra.Command {
 		Controllers: new([]string),
 		SelfControl: new(bool),
 	}
+	// todo should become default
+	var useV2 bool
 
 	result := &cobra.Command{
 		Use:   "create-did",
 		Short: "Registers a new DID",
+		Long:  "When using the V2 API, a web:did will be created. All the other options are ignored for a web:did.",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientConfig := core.NewClientConfigForCommand(cmd)
-			doc, err := httpClient(clientConfig).Create(createRequest)
+			var (
+				doc *did.Document
+				err error
+			)
+			if useV2 {
+				doc, err = httpClientV2(clientConfig).Create()
+			} else {
+				doc, err = httpClient(clientConfig).Create(createRequest)
+			}
 			if err != nil {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
@@ -106,6 +118,7 @@ func createCmd() *cobra.Command {
 	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.KeyFlags.Is(management.CapabilityInvocationUsage), setUsage(defs.KeyFlags.Is(management.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
 	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.KeyFlags.Is(management.KeyAgreementUsage), setUsage(defs.KeyFlags.Is(management.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
 	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", defs.SelfControl, setUsage(defs.SelfControl, "Pass '%t' to %s DID Document control."))
+	result.Flags().BoolVar(&useV2, "v2", false, "Pass 'true' to use the V2 API and create a web:did.")
 	result.Flags().StringSliceVar(createRequest.Controllers, "controllers", []string{}, "Comma-separated list of DIDs that can control the generated DID Document.")
 
 	return result
@@ -382,6 +395,13 @@ func readFromStdin() ([]byte, error) {
 // httpClient creates a remote client
 func httpClient(config core.ClientConfig) api.HTTPClient {
 	return api.HTTPClient{
+		ClientConfig: config,
+	}
+}
+
+// httpClientV2 creates a remote client using the V2 API
+func httpClientV2(config core.ClientConfig) apiv2.HTTPClient {
+	return apiv2.HTTPClient{
 		ClientConfig: config,
 	}
 }

@@ -73,7 +73,7 @@ func TestEngine_Command(t *testing.T) {
 		return command
 	}
 
-	newCmdWithServer := func(t *testing.T, handler *http2.Handler) *cobra.Command {
+	newCmdWithServer := func(t *testing.T, handler http.Handler) *cobra.Command {
 		cmd := newCmd(t)
 		s := httptest.NewServer(handler)
 		t.Setenv("NUTS_ADDRESS", s.URL)
@@ -96,7 +96,23 @@ func TestEngine_Command(t *testing.T) {
 			assert.Empty(t, errBuf.Bytes())
 			assert.NoError(t, err)
 		})
+		t.Run("ok - v2", func(t *testing.T) {
+			cmd := newCmdWithServer(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				assert.Equal(t, "/internal/vdr/v2/did", request.URL.Path)
+				writer.WriteHeader(http.StatusOK)
+				bytes, _ := json.Marshal(exampleDIDDocument)
+				_, _ = writer.Write(bytes)
+			}))
+			cmd.SetArgs([]string{"create-did", "--v2"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
+			err := cmd.Execute()
+			require.NoError(t, err)
+			document := did.Document{}
+			err = json.Unmarshal(buf.Bytes(), &document)
+			assert.Empty(t, errBuf.Bytes())
+			assert.NoError(t, err)
+		})
 		t.Run("error - server error", func(t *testing.T) {
 			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
 			cmd.SetArgs([]string{"create-did"})
