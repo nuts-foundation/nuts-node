@@ -48,8 +48,7 @@ This setup uses the following ``nuts.yaml`` configuration file:
   network:
     bootstrapnodes:
       - example.com:5555
-  auth:
-    publicurl: https://example.com
+  url: https://example.com
 
 .. note::
 

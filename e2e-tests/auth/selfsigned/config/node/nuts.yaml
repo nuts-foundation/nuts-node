@@ -1,3 +1,4 @@
+url: http://node:1323
 datadir: /opt/nuts/data
 strictmode: false
 http:
@@ -7,7 +8,6 @@ http:
       origin: "*"
 verbosity: debug
 auth:
-  publicurl: http://node:1323
   contractvalidators:
     - selfsigned
 network:

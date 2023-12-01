@@ -29,7 +29,6 @@ import (
 type Config struct {
 	Irma                            IrmaConfig `koanf:"irma"`
 	HTTPTimeout                     int        `koanf:"http.timeout"`
-	PublicURL                       string     `koanf:"publicurl"`
 	ClockSkew                       int        `koanf:"clockskew"`
 	ContractValidators              []string   `koanf:"contractvalidators"`
 	AccessTokenLifeSpan             int        `koanf:"accesstokenlifespan"`

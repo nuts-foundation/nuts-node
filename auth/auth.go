@@ -124,17 +124,14 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return errors.New("in strictmode the only valid irma-scheme-manager is 'pbdf'")
 	}
 
-	if auth.config.PublicURL == "" {
-		return errors.New("invalid auth.publicurl: must provide url")
-	}
 	var err error
-	auth.publicURL, err = core.ParsePublicURL(auth.config.PublicURL, config.Strictmode)
+	auth.publicURL, err = config.ServerURL()
 	if err != nil {
-		return fmt.Errorf("invalid auth.publicurl: %w", err)
+		return err
 	}
 
 	auth.contractNotary = notary.NewNotary(notary.Config{
-		PublicURL:             auth.config.PublicURL,
+		PublicURL:             auth.publicURL.String(),
 		IrmaConfigPath:        path.Join(config.Datadir, "irma"),
 		IrmaSchemeManager:     auth.config.Irma.SchemeManager,
 		AutoUpdateIrmaSchemas: auth.config.Irma.AutoUpdateSchemas,

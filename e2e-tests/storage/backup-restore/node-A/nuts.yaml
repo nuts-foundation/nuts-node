@@ -1,8 +1,8 @@
+url: "http://nodeA"
 verbosity: debug
 strictmode: false
 internalratelimiter: false
 auth:
-  publicurl: "http://nodeA"
   contractvalidators:
     - dummy
   irma:

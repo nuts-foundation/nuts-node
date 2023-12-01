@@ -1,3 +1,4 @@
+url: https://nodeB
 verbosity: debug
 strictmode: false
 internalratelimiter: false
@@ -8,7 +9,6 @@ http:
 auth:
   tlsenabled: true
   v2apienabled: true
-  publicurl: https://nodeB
   contractvalidators:
     - dummy
   irma:

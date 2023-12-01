@@ -20,8 +20,7 @@ The domain must be configured on the Nuts node:
 
 .. code-block:: yaml
 
-  auth:
-    publicurl: https://example.com
+  url: https://example.com
 
 Getting a valid contract
 ************************

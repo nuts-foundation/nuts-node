@@ -23,12 +23,14 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"net/url"
 	"reflect"
 	"strings"
 )
@@ -58,7 +60,9 @@ type ServerConfig struct {
 	Datadir             string            `koanf:"datadir"`
 	TLS                 TLSConfig         `koanf:"tls"`
 	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
-	configMap           *koanf.Koanf
+	// URL contains the base URL for public-facing HTTP services.
+	URL       string `koanf:"url"`
+	configMap *koanf.Koanf
 }
 
 // TLSConfig specifies how TLS should be configured for connections.
@@ -261,6 +265,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Bool("strictmode", true, "When set, insecure settings are forbidden.")
 	flagSet.Bool("internalratelimiter", true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String("datadir", "./data", "Directory where the node stores its files.")
+	flagSet.String("url", "", "Public facing URL of the server (required). Must be HTTPS when strictmode is set.")
 	flagSet.String("tls.certfile", "", "PEM file containing the certificate for the server (also used as client certificate).")
 	flagSet.String("tls.certkeyfile", "", "PEM file containing the private key of the server certificate.")
 	flagSet.String("tls.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote servers.")
@@ -313,6 +318,19 @@ func (ngc *ServerConfig) PrintConfig() string {
 // InjectIntoEngine takes the loaded config and sets the engine's config struct
 func (ngc *ServerConfig) InjectIntoEngine(e Injectable) error {
 	return unmarshalRecursive([]string{strings.ToLower(e.Name())}, e.Config(), ngc.configMap)
+}
+
+// ServerURL returns the parsed URL of the server
+func (ngc *ServerConfig) ServerURL() (*url.URL, error) {
+	// Validate server URL
+	if ngc.URL == "" {
+		return nil, errors.New("'url' must be configured")
+	}
+	result, err := ParsePublicURL(ngc.URL, ngc.Strictmode)
+	if err != nil {
+		return nil, fmt.Errorf("invalid 'url': %w", err)
+	}
+	return result, nil
 }
 
 func elemType(ty reflect.Type) (reflect.Type, bool) {

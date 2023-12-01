@@ -109,8 +109,8 @@ nuts:
     network:
       enabletls: true
       grpcaddr: :5555
+    url: https://chart-example.local
     auth:
-        publicurl: https://chart-example.local
         contractvalidators:
         - irma
         - uzi

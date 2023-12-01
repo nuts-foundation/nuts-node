@@ -1,3 +1,4 @@
+url: http://node-b
 verbosity: debug
 strictmode: false
 internalratelimiter: false
@@ -7,7 +8,6 @@ http:
     address: :1323
 auth:
   tlsenabled: true
-  publicurl: http://node-b
   contractvalidators:
     - dummy
   irma:
