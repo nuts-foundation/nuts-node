@@ -232,7 +232,7 @@ func toAnyMap(input any) (*map[string]any, error) {
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
-	ownDID := idToDID(request.Id)
+	ownDID := idToNutsDID(request.Id)
 	// Create session object to be passed to handler
 
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
@@ -282,7 +282,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	ownDID := idToDID(request.Id)
+	ownDID := idToNutsDID(request.Id)
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -301,7 +301,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 }
 
 func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
-	ownDID := r.idToWebDID(request.Id)
+	ownDID := r.idToDID(request.Id)
 
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
@@ -316,7 +316,7 @@ func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (G
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
 func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error) {
-	ownDID := idToDID(request.Id)
+	ownDID := idToNutsDID(request.Id)
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
 		log.Logger().WithField("did", ownDID.String()).Errorf("oauth metadata: failed to assert ownership of did: %s", err.Error())
@@ -364,7 +364,7 @@ func createSession(params map[string]string, ownDID did.DID) *Session {
 	return session
 }
 
-func idToDID(id string) did.DID {
+func idToNutsDID(id string) did.DID {
 	return did.DID{
 		// should be changed to web when migrated to web DID
 		Method:    "nuts",
@@ -373,7 +373,7 @@ func idToDID(id string) did.DID {
 	}
 }
 
-func (r Wrapper) idToWebDID(id string) did.DID {
+func (r Wrapper) idToDID(id string) did.DID {
 	url := r.auth.PublicURL().JoinPath("iam", id)
 	did, _ := didweb.URLToDID(*url)
 	return *did

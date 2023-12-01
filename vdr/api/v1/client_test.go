@@ -49,16 +49,20 @@ func TestHTTPClient_Create(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, doc)
 	})
-
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := getClient(s.URL)
 		_, err := c.Create(DIDCreateRequest{})
 		assert.Error(t, err)
 	})
-
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := getClient("not_an_address")
+		_, err := c.Create(DIDCreateRequest{})
+		assert.Error(t, err)
+	})
+	t.Run("error - invalid response", func(t *testing.T) {
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
+		c := getClient(s.URL)
 		_, err := c.Create(DIDCreateRequest{})
 		assert.Error(t, err)
 	})

@@ -42,9 +42,6 @@ type DIDCreateRequest struct {
 
 	// whether the generated DID Document can be altered with its own capabilityInvocation key.
 	SelfControl *bool `json:"selfControl,omitempty"`
-
-	// Method contains the type of the DID to create. Defaults to "nuts".
-	Method *string
 }
 
 // VerificationMethodRelationship defines model for VerificationMethodRelationship.
