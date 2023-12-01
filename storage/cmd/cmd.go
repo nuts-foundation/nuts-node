@@ -38,6 +38,9 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.StringSlice("storage.redis.sentinel.nodes", defs.Redis.Sentinel.Nodes, "Addresses of the Redis Sentinels to connect to initially. Setting this property enables Redis Sentinel.")
 	flagSet.String("storage.redis.sentinel.username", defs.Redis.Sentinel.Username, "Username for authenticating to Redis Sentinels.")
 	flagSet.String("storage.redis.sentinel.password", defs.Redis.Sentinel.Password, "Password for authenticating to Redis Sentinels.")
-	flagSet.String("storage.sql.connection", defs.SQL.ConnectionString, "Connection string for the SQL database. If not set, it defaults to a SQLite database stored inside the configured data directory")
+	flagSet.String("storage.sql.connection", defs.SQL.ConnectionString, "Connection string for the SQL database. "+
+		"If not set it, defaults to a SQLite database stored inside the configured data directory. "+
+		"Note: using SQLite is not recommended in production environments. "+
+		"If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').")
 	return flagSet
 }

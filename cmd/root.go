@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/nuts-foundation/nuts-node/golden_hammer"
@@ -46,6 +47,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/didman"
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
 	didmanCmd "github.com/nuts-foundation/nuts-node/didman/cmd"
+	discoveryCmd "github.com/nuts-foundation/nuts-node/discovery/cmd"
 	"github.com/nuts-foundation/nuts-node/events"
 	eventsCmd "github.com/nuts-foundation/nuts-node/events/cmd"
 	httpEngine "github.com/nuts-foundation/nuts-node/http"
@@ -192,6 +194,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	vdrInstance := vdr.NewVDR(cryptoInstance, networkInstance, didStore, eventManager)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, vdrInstance, networkInstance, jsonld, eventManager, storageInstance, pkiInstance)
 	didmanInstance := didman.NewDidmanInstance(vdrInstance, credentialInstance, jsonld)
+	discoveryInstance := discovery.New(storageInstance, credentialInstance)
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
@@ -233,6 +236,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(networkInstance)
 	system.RegisterEngine(authInstance)
+	system.RegisterEngine(discoveryInstance)
 	system.RegisterEngine(didmanInstance)
 	system.RegisterEngine(goldenHammer)
 	// HTTP engine MUST be registered last, because when started it dispatches HTTP calls to the registered routes.
@@ -333,6 +337,7 @@ func serverConfigFlags() *pflag.FlagSet {
 	set.AddFlagSet(eventsCmd.FlagSet())
 	set.AddFlagSet(pki.FlagSet())
 	set.AddFlagSet(goldenHammerCmd.FlagSet())
+	set.AddFlagSet(discoveryCmd.FlagSet())
 
 	return set
 }

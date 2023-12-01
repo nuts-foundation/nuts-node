@@ -21,6 +21,16 @@
               }
             },
             {
+              "path": ["$.issuer"],
+              "filter": {
+                "type": "string",
+                "filter": {
+                    "type": "string",
+                    "pattern": "^did:example:123456789abcdefghi$"
+                }
+              }
+            },
+            {
               "path": ["$.credentialSubject.organization.name"],
               "filter": {
                 "type": "string"

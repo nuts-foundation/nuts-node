@@ -37,6 +37,7 @@ Nuts documentation
     pages/deployment/monitoring.rst
     pages/deployment/administering-your-node.rst
     pages/deployment/cli-reference.rst
+    pages/deployment/discovery.rst
     pages/deployment/backup-restore.rst
     pages/deployment/key-rotation.rst
     pages/deployment/storage-configuration.rst
