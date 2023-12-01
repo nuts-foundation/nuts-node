@@ -47,6 +47,7 @@ import (
 )
 
 var nutsDID = did.MustParseDID("did:nuts:123")
+var webDID = did.MustParseDID("did:web:example.com:iam:123")
 
 func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
