@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   node:
-    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:local}"
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
