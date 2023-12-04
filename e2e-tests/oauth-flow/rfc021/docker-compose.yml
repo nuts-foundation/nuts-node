@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   nodeA-backend:
-    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:latest}"
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
       - "11323:1323"
     environment:
@@ -25,7 +25,7 @@ services:
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
       - "./node-A/html:/etc/nginx/html:ro"
   nodeB-backend:
-    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:latest}"
+    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     ports:
       - "21323:1323"
     environment:
