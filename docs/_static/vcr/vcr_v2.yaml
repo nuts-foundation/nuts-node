@@ -420,7 +420,7 @@ paths:
     post:
       summary: Load a VerifiableCredential into the holders wallet.
       description: |
-        If a VerifiableCredential is obtained in another way or when it's created without publishing, this API allows to add it to a wallet.
+        If a VerifiableCredential is not directly issued to the wallet through e.g. OpenID4VCI, this API allows to add it to a wallet.
         The DID of the holder has to be provided in the path.
         It's assumed that the credentialSubject.id equals the holder DID.
 
