@@ -327,7 +327,7 @@ func (w *Wrapper) LoadVC(ctx context.Context, request LoadVCRequestObject) (Load
 	if err != nil {
 		return nil, core.InvalidInputError("invalid holder did: %w", err)
 	}
-	// VCs can only be added to the wallet of the credentialSubject.ID
+	
 	if request.Body == nil {
 		return nil, core.InvalidInputError("missing credential in body")
 	}
