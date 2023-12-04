@@ -209,7 +209,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 		Updater:    vdrInstance,
 		Resolver:   vdrInstance.Resolver(),
 	}})
-	system.RegisterRoutes(&vdrAPIv2.Wrapper{VDR: vdrInstance, Storage: storageInstance, Crypto: cryptoInstance})
+	system.RegisterRoutes(&vdrAPIv2.Wrapper{VDR: vdrInstance})
 	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
 	system.RegisterRoutes(&openid4vciAPI.Wrapper{
 		VCR:           credentialInstance,

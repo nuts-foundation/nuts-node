@@ -29,12 +29,21 @@ VENDOR_B_DID=$(echo $VENDOR_B_DIDDOC | jq -r .id)
 echo Vendor B DID: $VENDOR_B_DID
 
 # Issue NutsOrganizationCredential for Vendor B
-REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"visibility\": \"private\"}"
+REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"publishToNetwork\": false}"
 RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "VerifiableCredential"; then
   echo "VC issued"
 else
   echo "FAILED: Could not issue NutsOrganizationCredential to node-B" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+RESPONSE=$(echo $RESPONSE | curl -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/holder/${VENDOR_B_DID}/vc -H "Content-Type:application/json")
+if echo $RESPONSE == ""; then
+  echo "VC stored in wallet"
+else
+  echo "FAILED: Could not load NutsOrganizationCredential in node-B wallet" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
