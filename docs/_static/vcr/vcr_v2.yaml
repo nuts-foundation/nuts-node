@@ -416,7 +416,39 @@ paths:
                 $ref: "#/components/schemas/VerifiablePresentation"
         default:
           $ref: '../common/error_response.yaml'
+  /internal/vcr/v2/holder/{did}/vc:
+    post:
+      summary: Load a VerifiableCredential into the holders wallet.
+      description: |
+        If a VerifiableCredential is obtained in another way or when it's created without publishing, this API allows to add it to a wallet.
+        The DID of the holder has to be provided in the path.
+        It's assumed that the credentialSubject.id equals the holder DID.
 
+        error returns:
+        * 400 - Invalid credential
+        * 500 - An error occurred while processing the request
+      operationId: loadVC
+      tags:
+        - credential
+      parameters:
+        - name: did
+          in: path
+          description: URL encoded DID.
+          required: true
+          example: "did:web:example.com:iam:123"
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifiableCredential"
+      responses:
+        "204":
+          description: The credential will not be altered in any way, so no need to return it.
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     VerifiableCredential:
