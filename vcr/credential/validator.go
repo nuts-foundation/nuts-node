@@ -101,7 +101,8 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 		return failure("'ID' is required")
 	}
 
-	if credential.IssuanceDate.IsZero() {
+	if (credential.IssuanceDate == nil || credential.IssuanceDate.IsZero()) &&
+		(credential.ValidFrom == nil || credential.ValidFrom.IsZero()) {
 		return failure("'issuanceDate' is required")
 	}
 
