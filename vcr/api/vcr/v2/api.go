@@ -321,6 +321,23 @@ func (w *Wrapper) VerifyVP(ctx context.Context, request VerifyVPRequestObject) (
 	return VerifyVP200JSONResponse(result), nil
 }
 
+func (w *Wrapper) LoadVC(ctx context.Context, request LoadVCRequestObject) (LoadVCResponseObject, error) {
+	// the actual holder is ignored for now, since we only support a single wallet...
+	_, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, core.InvalidInputError("invalid holder did: %w", err)
+	}
+	// VCs can only be added to the wallet of the credentialSubject.ID
+	if request.Body == nil {
+		return nil, core.InvalidInputError("missing credential in body")
+	}
+	err = w.VCR.Wallet().Put(ctx, *request.Body)
+	if err != nil {
+		return nil, err
+	}
+	return LoadVC204Response{}, nil
+}
+
 // TrustIssuer handles API request to start trusting an issuer of a Verifiable Credential.
 func (w *Wrapper) TrustIssuer(ctx context.Context, request TrustIssuerRequestObject) (TrustIssuerResponseObject, error) {
 	if err := changeTrust(*request.Body, w.VCR.Trust); err != nil {
