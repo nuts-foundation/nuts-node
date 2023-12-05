@@ -54,8 +54,13 @@ paths:
     post:
       summary: Register a presentation on the discovery service.
       description: |
-        An API provided by the use case maintainer that adds a presentation to the service.
+        An API provided by the discovery server that adds a presentation to the service.
         The presentation must be signed by subject of the credentials it contains.
+        
+        To delete a presentation, the client should send an empty presentation that:
+        * has a JWT claim 'retracted_jti' indicating the ID of the previous presentation of the same subject
+        * has no credentials in it
+        * has the type 'RetractedVerifiablePresentation'
         
         error returns:
         * 400 - incorrect input; e.g. unsupported presentation or credential type, invalid signature, unresolvable credential subject, etc.
