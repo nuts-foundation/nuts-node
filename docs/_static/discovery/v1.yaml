@@ -1,41 +1,40 @@
 openapi: "3.0.0"
 info:
-  title: Nuts Use Case List Service API spec
-  description: API specification for use case list services available within nuts node
+  title: Nuts Discovery Service API spec
+  description: API specification for discovery services available within Nuts node
   version: 1.0.0
   license:
     name: GPLv3
 servers:
   - url: http://localhost:1323
 paths:
-  /usecase/{listName}:
+  /discovery/{serviceID}:
     parameters:
-      - name: listName
+      - name: serviceID
         in: path
         required: true
         schema:
           type: string
     get:
-      summary: Retrieves a use case list
+      summary: Retrieves the presentations of a discovery service.
       description: |
-        An API provided by the use case maintainer to retrieve a use case list, starting at the given lamport timestamp.
+        An API provided by the discovery server to retrieve the presentations of a discovery service, starting at the given timestamp.
         The client should provide the timestamp it was returned in the last response.
-        If no timestamp is given or it is 0, it will return the full list.
+        If no timestamp is given, it will return all presentations.
 
         error returns:
-        * 400 - incorrect input
-      operationId: getList
+        * 404 - unknown service ID
+      operationId: getPresentations
       tags:
-        - usecase
+        - discovery
       parameters:
         - name: timestamp
           in: query
           schema:
-            type: integer
-            minimum: 0
+            type: string
       responses:
         "200":
-          description: Requested list is returned, alongside the timestamp which should be provided at the next query.
+          description: Presentations are returned, alongside the timestamp which should be provided at the next query.
           content:
             application/json:
               schema:
@@ -43,38 +42,28 @@ paths:
                 required:
                   - timestamp
                   - entries
-                  - tombstones
                 properties:
                   timestamp:
-                    type: integer
-                    minimum: 0
+                    type: string
                   entries:
                     type: array
                     items:
                       $ref: "#/components/schemas/VerifiablePresentation"
-                  tombstones:
-                    description: |
-                      List of presentation IDs that were removed from the list.
-                      The client should remove these entries from its local copy of the list.
-                    type: array
-                    items:
-                      type: string
-                      description: ID of the presentation that was removed from the list.
         default:
           $ref: "../common/error_response.yaml"
     post:
-      summary: Adds a presentation to the list
+      summary: Register a presentation on the discovery service.
       description: |
-        An API provided by the use case maintainer that adds a presentation to the list.
+        An API provided by the use case maintainer that adds a presentation to the service.
         The presentation must be signed by subject of the credentials it contains.
         
         error returns:
         * 400 - incorrect input; e.g. unsupported presentation or credential type, invalid signature, unresolvable credential subject, etc.
-      operationId: addPresentation
+      operationId: registerPresentation
       tags:
-        - usecase
+        - discovery
       requestBody:
-        description: The presentation to add to the list
+        description: The presentation to register to the discovery service.
         required: true
         content:
           application/json:
@@ -82,40 +71,14 @@ paths:
               $ref: "#/components/schemas/VerifiablePresentation"
       responses:
         "201":
-          description: Presentation was added to the list
+          description: Presentation was registered on the discovery service.
         "400":
           $ref: "../common/error_response.yaml"
         default:
           $ref: "../common/error_response.yaml"
-    delete:
-      summary: Delete a credential subject from list.
-      description: |
-        An API provided by the use case maintainer that removes all presentations of a specific credential subject from the list.
-        The presentation must be signed by credential subject which' presentations should be removed.
-        The presentation should not contain any credentials but if there are, they are ignored.
-
-        error returns:
-        * 400 - incorrect input; e.g. unsupported presentation, invalid signature, etc.
-      operationId: removePresentations
-      tags:
-        - usecase
-      requestBody:
-        description: Presentation identifying the credential subject to remove from the list.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/VerifiablePresentation"
-      responses:
-        "201":
-          description: Presentation was added to the list
-        "400":
-          $ref: "../common/error_response.yaml"
-        default:
-          $ref: "../common/error_response.yaml"
-  /usecase/{listName}/search:
+  /discovery/{serviceID}/search:
     parameters:
-      - name: listName
+      - name: serviceID
         in: path
         required: true
         schema:
@@ -131,9 +94,9 @@ paths:
         style: form
         explode: true
     get:
-      summary: Searches a for presentations on the usecase list.
+      summary: Searches for presentations registered on the discovery service.
       description: |
-        An API of the use case client that searches a for presentations on the usecase list,
+        An API of the discovery client that searches for presentations on the discovery service,
         whose credentials match the given query parameter.
         The query parameters are interpreted as JSON path expressions, evaluated on the verifiable credentials.
         The following features and limitations apply:
@@ -152,9 +115,9 @@ paths:
         - `credentialSubject.organization.name=Hospital*`
         - `credentialSubject.organization.name=*clinic`
         - `issuer=did:web:example.com`
-      operationId: searchList
+      operationId: searchPresentations
       tags:
-        - usecase
+        - discovery
       responses:
         "200":
           description: Search results are returned, if any.
