@@ -55,7 +55,7 @@ func Test_Module_Add(t *testing.T) {
 		presentationVerifier.EXPECT().VerifyVP(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := m.Add(testServiceID, vpAlice)
-		require.EqualError(t, err, "presentation verification failed: failed")
+		require.EqualError(t, err, "presentation is invalid for registration\npresentation verification failed: failed")
 
 		_, tag, err := m.Get(testServiceID, nil)
 		require.NoError(t, err)
@@ -69,7 +69,7 @@ func Test_Module_Add(t *testing.T) {
 		err := m.Add(testServiceID, vpAlice)
 		assert.NoError(t, err)
 		err = m.Add(testServiceID, vpAlice)
-		assert.EqualError(t, err, "presentation already exists")
+		assert.ErrorIs(t, err, ErrPresentationAlreadyExists)
 	})
 	t.Run("valid for too long", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
@@ -79,14 +79,14 @@ func Test_Module_Add(t *testing.T) {
 		m.serverDefinitions[testServiceID] = def
 
 		err := m.Add(testServiceID, vpAlice)
-		assert.EqualError(t, err, "presentation is valid for too long (max 1s)")
+		assert.EqualError(t, err, "presentation is invalid for registration\npresentation is valid for too long (max 1s)")
 	})
 	t.Run("no expiration", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 		err := m.Add(testServiceID, createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
 			delete(claims, "exp")
 		}))
-		assert.EqualError(t, err, "presentation does not have an expiration")
+		assert.ErrorIs(t, err, errPresentationWithoutExpiration)
 	})
 	t.Run("presentation does not contain an ID", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
@@ -95,12 +95,12 @@ func Test_Module_Add(t *testing.T) {
 			delete(claims, "jti")
 		}, vcAlice)
 		err := m.Add(testServiceID, vpWithoutID)
-		assert.EqualError(t, err, "presentation does not have an ID")
+		assert.ErrorIs(t, err, errPresentationWithoutID)
 	})
 	t.Run("not a JWT", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 		err := m.Add(testServiceID, vc.VerifiablePresentation{})
-		assert.EqualError(t, err, "only JWT presentations are supported")
+		assert.ErrorIs(t, err, errUnsupportedPresentationFormat)
 	})
 
 	t.Run("registration", func(t *testing.T) {
@@ -123,7 +123,7 @@ func Test_Module_Add(t *testing.T) {
 			})
 			vpAlice := createPresentation(aliceDID, vcAlice)
 			err := m.Add(testServiceID, vpAlice)
-			assert.EqualError(t, err, "presentation is valid longer than the credential(s) it contains")
+			assert.ErrorIs(t, err, errPresentationValidityExceedsCredentials)
 		})
 		t.Run("not conform to Presentation Definition", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
@@ -154,7 +154,7 @@ func Test_Module_Add(t *testing.T) {
 		t.Run("non-existent presentation", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
 			err := m.Add(testServiceID, vpAliceRetract)
-			assert.EqualError(t, err, "retraction presentation refers to a non-existing presentation")
+			assert.ErrorIs(t, err, errRetractionReferencesUnknownPresentation)
 		})
 		t.Run("must not contain credentials", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
@@ -162,7 +162,7 @@ func Test_Module_Add(t *testing.T) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 			}, vcAlice)
 			err := m.Add(testServiceID, vp)
-			assert.EqualError(t, err, "retraction presentation must not contain credentials")
+			assert.ErrorIs(t, err, errRetractionContainsCredentials)
 		})
 		t.Run("missing 'retract_jti' claim", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
@@ -170,7 +170,7 @@ func Test_Module_Add(t *testing.T) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 			})
 			err := m.Add(testServiceID, vp)
-			assert.EqualError(t, err, "retraction presentation does not contain 'retract_jti' claim")
+			assert.ErrorIs(t, err, errInvalidRetractionJTIClaim)
 		})
 		t.Run("'retract_jti' claim in not a string", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
@@ -179,7 +179,7 @@ func Test_Module_Add(t *testing.T) {
 				claims["retract_jti"] = 10
 			})
 			err := m.Add(testServiceID, vp)
-			assert.EqualError(t, err, "retraction presentation 'retract_jti' claim is not a string")
+			assert.ErrorIs(t, err, errInvalidRetractionJTIClaim)
 		})
 	})
 }

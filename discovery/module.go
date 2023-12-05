@@ -35,7 +35,23 @@ import (
 
 const ModuleName = "Discovery"
 
+// ErrServerModeDisabled is returned when a client invokes a Discovery Server (Add or Get) operation on the node,
+// for a Discovery Service which it doesn't serve.
 var ErrServerModeDisabled = errors.New("node is not a discovery server for this service")
+
+// ErrInvalidPresentation is returned when a client tries to register a Verifiable Presentation that is invalid.
+var ErrInvalidPresentation = errors.New("presentation is invalid for registration")
+
+var (
+	errUnsupportedPresentationFormat           = errors.New("only JWT presentations are supported")
+	errPresentationWithoutID                   = errors.New("presentation does not have an ID")
+	errPresentationWithoutExpiration           = errors.New("presentation does not have an expiration")
+	errPresentationValidityExceedsCredentials  = errors.New("presentation is valid longer than the credential(s) it contains")
+	errPresentationDoesNotFulfillDefinition    = errors.New("presentation does not fulfill Presentation ServiceDefinition")
+	errRetractionReferencesUnknownPresentation = errors.New("retraction presentation refers to a non-existing presentation")
+	errRetractionContainsCredentials           = errors.New("retraction presentation must not contain credentials")
+	errInvalidRetractionJTIClaim               = errors.New("invalid/missing 'retract_jti' claim for retraction presentation")
+)
 
 var _ core.Injectable = &Module{}
 var _ core.Runnable = &Module{}
@@ -114,18 +130,18 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 		return ErrServerModeDisabled
 	}
 	if presentation.Format() != vc.JWTPresentationProofFormat {
-		return errors.New("only JWT presentations are supported")
+		return errors.Join(ErrInvalidPresentation, errUnsupportedPresentationFormat)
 	}
 	if presentation.ID == nil {
-		return errors.New("presentation does not have an ID")
+		return errors.Join(ErrInvalidPresentation, errPresentationWithoutID)
 	}
 	expiration := presentation.JWT().Expiration()
 	if expiration.IsZero() {
-		return errors.New("presentation does not have an expiration")
+		return errors.Join(ErrInvalidPresentation, errPresentationWithoutExpiration)
 	}
 	// VPs should not be valid for too long, as that would prevent the server from pruning them.
 	if int(expiration.Sub(time.Now()).Seconds()) > definition.PresentationMaxValidity {
-		return fmt.Errorf("presentation is valid for too long (max %s)", time.Duration(definition.PresentationMaxValidity)*time.Second)
+		return errors.Join(ErrInvalidPresentation, fmt.Errorf("presentation is valid for too long (max %s)", time.Duration(definition.PresentationMaxValidity)*time.Second))
 	}
 	// Check if the presentation already exists
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
@@ -137,7 +153,7 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 		return err
 	}
 	if exists {
-		return ErrPresentationAlreadyExists
+		return errors.Join(ErrInvalidPresentation, ErrPresentationAlreadyExists)
 	}
 	// Depending on the presentation type, we need to validate different properties before storing it.
 	if presentation.IsType(retractionPresentationType) {
@@ -146,12 +162,12 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 		err = m.validateRegistration(definition, presentation)
 	}
 	if err != nil {
-		return err
+		return errors.Join(ErrInvalidPresentation, err)
 	}
 	// Check signature of presentation and contained credential(s)
 	_, err = m.vcrInstance.Verifier().VerifyVP(presentation, true, true, nil)
 	if err != nil {
-		return fmt.Errorf("presentation verification failed: %w", err)
+		return errors.Join(ErrInvalidPresentation, fmt.Errorf("presentation verification failed: %w", err))
 	}
 	return m.store.add(definition.ID, presentation, nil)
 }
@@ -161,7 +177,7 @@ func (m *Module) validateRegistration(definition ServiceDefinition, presentation
 	expiration := presentation.JWT().Expiration()
 	for _, cred := range presentation.VerifiableCredential {
 		if cred.ExpirationDate != nil && expiration.After(*cred.ExpirationDate) {
-			return fmt.Errorf("presentation is valid longer than the credential(s) it contains")
+			return errPresentationValidityExceedsCredentials
 		}
 	}
 	// VP must fulfill the PEX Presentation ServiceDefinition
@@ -171,7 +187,7 @@ func (m *Module) validateRegistration(definition ServiceDefinition, presentation
 		return err
 	}
 	if len(creds) != len(presentation.VerifiableCredential) {
-		return errors.New("presentation does not fulfill Presentation ServiceDefinition")
+		return errPresentationDoesNotFulfillDefinition
 	}
 	return nil
 }
@@ -180,25 +196,22 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	// Presentation might be a retraction (deletion of an earlier credentialRecord) must contain no credentials, and refer to the VP being retracted by ID.
 	// If those conditions aren't met, we don't need to register the retraction.
 	if len(presentation.VerifiableCredential) > 0 {
-		return errors.New("retraction presentation must not contain credentials")
+		return errRetractionContainsCredentials
 	}
 	// Check that the retraction refers to an existing presentation.
 	// If not, it might've already been removed due to expiry or superseded by a newer presentation.
-	var retractJTIString string
-	if retractJTIRaw, ok := presentation.JWT().Get("retract_jti"); !ok {
-		return errors.New("retraction presentation does not contain 'retract_jti' claim")
-	} else {
-		if retractJTIString, ok = retractJTIRaw.(string); !ok {
-			return errors.New("retraction presentation 'retract_jti' claim is not a string")
-		}
+	retractJTIRaw, _ := presentation.JWT().Get("retract_jti")
+	retractJTI, ok := retractJTIRaw.(string)
+	if !ok {
+		return errInvalidRetractionJTIClaim
 	}
 	signerDID, _ := credential.PresentationSigner(presentation) // checked before
-	exists, err := m.store.exists(serviceID, signerDID.String(), retractJTIString)
+	exists, err := m.store.exists(serviceID, signerDID.String(), retractJTI)
 	if err != nil {
 		return err
 	}
 	if !exists {
-		return errors.New("retraction presentation refers to a non-existing presentation")
+		return errRetractionReferencesUnknownPresentation
 	}
 	return nil
 }

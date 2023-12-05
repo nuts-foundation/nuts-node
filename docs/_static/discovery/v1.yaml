@@ -92,6 +92,7 @@ paths:
       # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
       - in: query
         name: query
+        required: true
         schema:
           type: object
           additionalProperties:
