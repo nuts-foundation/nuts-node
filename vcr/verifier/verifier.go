@@ -89,27 +89,6 @@ func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver reso
 	return &verifier{store: store, didResolver: didResolver, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig}
 }
 
-// validateAtTime is a helper method which checks if a credential/presentation is valid at a certain given time.
-// If no validAt is provided, validAt is set to now.
-func (v *verifier) validateAtTime(issuanceDate time.Time, expirationDate *time.Time, validAt *time.Time) bool {
-	// if validAt is nil, use the result from timeFunc (usually now)
-	at := timeFunc()
-	if validAt != nil {
-		at = *validAt
-	}
-
-	// check if issuanceDate is before validAt
-	if issuanceDate.After(at.Add(maxSkew)) {
-		return false
-	}
-
-	// check if expirationDate is after validAt
-	if expirationDate != nil && expirationDate.Add(maxSkew).Before(at) {
-		return false
-	}
-	return true
-}
-
 // Validate implements the Proof Verification Algorithm: https://w3c-ccg.github.io/data-integrity-spec/#proof-verification-algorithm
 func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time.Time) error {
 	err := v.validateType(credentialToVerify)
@@ -357,7 +336,11 @@ func (v *verifier) validateJSONLDPresentation(presentation vc.VerifiablePresenta
 	ldProof := ldProofs[0]
 
 	// Validate signing time
-	if !v.validateAtTime(ldProof.Created, ldProof.Expires, validAt) {
+	at := timeFunc()
+	if validAt != nil {
+		at = *validAt
+	}
+	if !ldProof.ValidAt(at, maxSkew) {
 		return toVerificationError(types.ErrPresentationNotValidAtTime)
 	}
 
