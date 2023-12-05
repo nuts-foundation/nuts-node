@@ -215,7 +215,7 @@ func (i issuer) buildVC(ctx context.Context, template vc.VerifiableCredential, o
 		ExpirationDate:    template.ExpirationDate,
 		IssuanceDate:      template.IssuanceDate,
 	}
-	if unsignedCredential.IssuanceDate == nil || unsignedCredential.IssuanceDate.IsZero() {
+	if unsignedCredential.IssuanceDate == nil {
 		issuanceDate := TimeFunc()
 		unsignedCredential.IssuanceDate = &issuanceDate
 	}
