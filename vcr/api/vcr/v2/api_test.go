@@ -505,6 +505,46 @@ func parsedTimeStr(t time.Time) (time.Time, string) {
 	return parsed, formatted
 }
 
+func TestWrapper_LoadVC(t *testing.T) {
+	holderDID := "did:web:example.com:iam:123"
+	credentialID := "did:web:example.com:iam:456#1"
+	credentialURI := ssi.MustParseURI(credentialID)
+	expectedVC := vc.VerifiableCredential{ID: &credentialURI}
+
+	t.Run("test integration with vcr", func(t *testing.T) {
+		t.Run("successful load", func(t *testing.T) {
+			testContext := newMockContext(t)
+			testContext.mockWallet.EXPECT().Put(gomock.Any(), expectedVC).Return(nil)
+
+			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: holderDID, Body: &expectedVC})
+
+			assert.NoError(t, err)
+			assert.IsType(t, response, LoadVC204Response{})
+		})
+
+		t.Run("vcr returns an error", func(t *testing.T) {
+			testContext := newMockContext(t)
+			testContext.mockWallet.EXPECT().Put(gomock.Any(), expectedVC).Return(assert.AnError)
+
+			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: holderDID, Body: &expectedVC})
+
+			assert.Empty(t, response)
+			assert.EqualError(t, err, assert.AnError.Error())
+		})
+	})
+
+	t.Run("param check", func(t *testing.T) {
+		t.Run("invalid credential id format", func(t *testing.T) {
+			testContext := newMockContext(t)
+
+			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: "%%"})
+
+			assert.Empty(t, response)
+			assert.EqualError(t, err, "invalid holder did: invalid DID")
+		})
+	})
+}
+
 func TestWrapper_CreateVP(t *testing.T) {
 	issuerURI := ssi.MustParseURI("did:nuts:123")
 	credentialType := ssi.MustParseURI("ExampleType")

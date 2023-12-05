@@ -226,6 +226,9 @@ type SearchIssuedVCsParams struct {
 // CreateVPJSONRequestBody defines body for CreateVP for application/json ContentType.
 type CreateVPJSONRequestBody = CreateVPRequest
 
+// LoadVCJSONRequestBody defines body for LoadVC for application/json ContentType.
+type LoadVCJSONRequestBody = VerifiableCredential
+
 // IssueVCJSONRequestBody defines body for IssueVC for application/json ContentType.
 type IssueVCJSONRequestBody = IssueVCRequest
 
@@ -322,6 +325,11 @@ type ClientInterface interface {
 
 	CreateVP(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// LoadVCWithBody request with any body
+	LoadVCWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	LoadVC(ctx context.Context, did string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// IssueVCWithBody request with any body
 	IssueVCWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -382,6 +390,30 @@ func (c *Client) CreateVPWithBody(ctx context.Context, contentType string, body 
 
 func (c *Client) CreateVP(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateVPRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) LoadVCWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLoadVCRequestWithBody(c.Server, did, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) LoadVC(ctx context.Context, did string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLoadVCRequest(c.Server, did, body)
 	if err != nil {
 		return nil, err
 	}
@@ -617,6 +649,53 @@ func NewCreateVPRequestWithBody(server string, contentType string, body io.Reade
 	}
 
 	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/vp")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewLoadVCRequest calls the generic LoadVC builder with application/json body
+func NewLoadVCRequest(server string, did string, body LoadVCJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewLoadVCRequestWithBody(server, did, "application/json", bodyReader)
+}
+
+// NewLoadVCRequestWithBody generates requests for LoadVC with any type of body
+func NewLoadVCRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/%s/vc", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1133,6 +1212,11 @@ type ClientWithResponsesInterface interface {
 
 	CreateVPWithResponse(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateVPResponse, error)
 
+	// LoadVCWithBodyWithResponse request with any body
+	LoadVCWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoadVCResponse, error)
+
+	LoadVCWithResponse(ctx context.Context, did string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*LoadVCResponse, error)
+
 	// IssueVCWithBodyWithResponse request with any body
 	IssueVCWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*IssueVCResponse, error)
 
@@ -1205,6 +1289,37 @@ func (r CreateVPResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateVPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type LoadVCResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r LoadVCResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LoadVCResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1578,6 +1693,23 @@ func (c *ClientWithResponses) CreateVPWithResponse(ctx context.Context, body Cre
 	return ParseCreateVPResponse(rsp)
 }
 
+// LoadVCWithBodyWithResponse request with arbitrary body returning *LoadVCResponse
+func (c *ClientWithResponses) LoadVCWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoadVCResponse, error) {
+	rsp, err := c.LoadVCWithBody(ctx, did, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLoadVCResponse(rsp)
+}
+
+func (c *ClientWithResponses) LoadVCWithResponse(ctx context.Context, did string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*LoadVCResponse, error) {
+	rsp, err := c.LoadVC(ctx, did, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLoadVCResponse(rsp)
+}
+
 // IssueVCWithBodyWithResponse request with arbitrary body returning *IssueVCResponse
 func (c *ClientWithResponses) IssueVCWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*IssueVCResponse, error) {
 	rsp, err := c.IssueVCWithBody(ctx, contentType, body, reqEditors...)
@@ -1746,6 +1878,41 @@ func ParseCreateVPResponse(rsp *http.Response) (*CreateVPResponse, error) {
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseLoadVCResponse parses an HTTP response from a LoadVCWithResponse call
+func ParseLoadVCResponse(rsp *http.Response) (*LoadVCResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LoadVCResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
 			// Detail A human-readable explanation specific to this occurrence of the problem.
@@ -2220,6 +2387,9 @@ type ServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
+	// Load a VerifiableCredential into the holders wallet.
+	// (POST /internal/vcr/v2/holder/{did}/vc)
+	LoadVC(ctx echo.Context, did string) error
 	// Issues a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx echo.Context) error
@@ -2268,6 +2438,24 @@ func (w *ServerInterfaceWrapper) CreateVP(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.CreateVP(ctx)
+	return err
+}
+
+// LoadVC converts echo context to params.
+func (w *ServerInterfaceWrapper) LoadVC(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.LoadVC(ctx, did)
 	return err
 }
 
@@ -2472,6 +2660,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.POST(baseURL+"/internal/vcr/v2/holder/vp", wrapper.CreateVP)
+	router.POST(baseURL+"/internal/vcr/v2/holder/:did/vc", wrapper.LoadVC)
 	router.POST(baseURL+"/internal/vcr/v2/issuer/vc", wrapper.IssueVC)
 	router.GET(baseURL+"/internal/vcr/v2/issuer/vc/search", wrapper.SearchIssuedVCs)
 	router.DELETE(baseURL+"/internal/vcr/v2/issuer/vc/:id", wrapper.RevokeVC)
@@ -2518,6 +2707,44 @@ type CreateVPdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response CreateVPdefaultApplicationProblemPlusJSONResponse) VisitCreateVPResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type LoadVCRequestObject struct {
+	Did  string `json:"did"`
+	Body *LoadVCJSONRequestBody
+}
+
+type LoadVCResponseObject interface {
+	VisitLoadVCResponse(w http.ResponseWriter) error
+}
+
+type LoadVC204Response struct {
+}
+
+func (response LoadVC204Response) VisitLoadVCResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type LoadVCdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response LoadVCdefaultApplicationProblemPlusJSONResponse) VisitLoadVCResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -2945,6 +3172,9 @@ type StrictServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
+	// Load a VerifiableCredential into the holders wallet.
+	// (POST /internal/vcr/v2/holder/{did}/vc)
+	LoadVC(ctx context.Context, request LoadVCRequestObject) (LoadVCResponseObject, error)
 	// Issues a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx context.Context, request IssueVCRequestObject) (IssueVCResponseObject, error)
@@ -3015,6 +3245,37 @@ func (sh *strictHandler) CreateVP(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(CreateVPResponseObject); ok {
 		return validResponse.VisitCreateVPResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// LoadVC operation middleware
+func (sh *strictHandler) LoadVC(ctx echo.Context, did string) error {
+	var request LoadVCRequestObject
+
+	request.Did = did
+
+	var body LoadVCJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.LoadVC(ctx.Request().Context(), request.(LoadVCRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LoadVC")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(LoadVCResponseObject); ok {
+		return validResponse.VisitLoadVCResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
