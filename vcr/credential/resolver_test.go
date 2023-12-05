@@ -27,6 +27,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -98,54 +99,60 @@ func TestPresentationSigner(t *testing.T) {
 	})
 	t.Run("JSON-LD", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			presentation := vc.VerifiablePresentation{
+			presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
 				Proof: []interface{}{proof.LDProof{
 					VerificationMethod: keyID.URI(),
 				}},
-			}
+			})
 			actual, err := PresentationSigner(presentation)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, keyID.DID, *actual)
 		})
 		t.Run("too many proofs", func(t *testing.T) {
-			presentation := vc.VerifiablePresentation{
+			presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
 				Proof: []interface{}{proof.LDProof{
 					VerificationMethod: keyID.URI(),
 				}, proof.LDProof{
 					VerificationMethod: keyID.URI(),
 				}},
-			}
+			})
 			actual, err := PresentationSigner(presentation)
 			assert.EqualError(t, err, "presentation should have exactly 1 proof, got 2")
 			assert.Nil(t, actual)
 		})
 		t.Run("not a JSON-LD proof", func(t *testing.T) {
-			presentation := vc.VerifiablePresentation{
+			presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
 				Proof: []interface{}{5},
-			}
+			})
 			actual, err := PresentationSigner(presentation)
 			assert.EqualError(t, err, "invalid LD-proof for presentation: json: cannot unmarshal number into Go value of type proof.LDProof")
 			assert.Nil(t, actual)
 		})
 		t.Run("invalid DID in proof", func(t *testing.T) {
-			presentation := vc.VerifiablePresentation{
+			presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
 				Proof: []interface{}{proof.LDProof{
 					VerificationMethod: ssi.MustParseURI("foo"),
 				}},
-			}
+			})
 			actual, err := PresentationSigner(presentation)
 			assert.EqualError(t, err, "invalid verification method for JSON-LD presentation: invalid DID")
 			assert.Nil(t, actual)
 		})
 		t.Run("empty VerificationMethod", func(t *testing.T) {
-			presentation := vc.VerifiablePresentation{
+			presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
 				Proof: []interface{}{proof.LDProof{
 					VerificationMethod: ssi.MustParseURI(""),
 				}},
-			}
+			})
 			actual, err := PresentationSigner(presentation)
 			assert.ErrorContains(t, err, "invalid verification method for JSON-LD presentation")
 			assert.Nil(t, actual)
 		})
+	})
+	t.Run("unsupported format", func(t *testing.T) {
+		presentation := vc.VerifiablePresentation{}
+		actual, err := PresentationSigner(presentation)
+		assert.EqualError(t, err, "unsupported presentation format: ")
+		assert.Nil(t, actual)
 	})
 }

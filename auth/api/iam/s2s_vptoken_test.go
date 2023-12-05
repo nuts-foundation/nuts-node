@@ -118,7 +118,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 }
 
 func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
-	issuerDIDStr := "did:test:123"
+	issuerDIDStr := "did:web:example.com:iam:123"
 	issuerDID := did.MustParseDID(issuerDIDStr)
 	const requestedScope = "eOverdracht-overdrachtsbericht"
 	// Create issuer DID document and keys

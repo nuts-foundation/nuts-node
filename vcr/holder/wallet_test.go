@@ -158,6 +158,8 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			assert.NotEmpty(t, result.ID.Fragment, "id must have a fragment")
 			assert.Equal(t, JWTPresentationFormat, result.Format())
 			assert.NotNil(t, result.JWT())
+			nonce, _ := result.JWT().Get("nonce")
+			assert.NotEmpty(t, nonce)
 		})
 		t.Run("ok - multiple VCs", func(t *testing.T) {
 			ctrl := gomock.NewController(t)

@@ -228,16 +228,23 @@ func validatePresentationSigner(presentation vc.VerifiablePresentation) error {
 	return nil
 }
 
-// validatePresentationNonce checks if the nonce has been used before; 'jti' claim for JWTs or LDProof's 'nonce' for JSON-LD.
+// validatePresentationNonce checks if the nonce has been used before; 'nonce' claim for JWTs or LDProof's 'nonce' for JSON-LD.
 func (r *Wrapper) validatePresentationNonce(presentation vc.VerifiablePresentation) error {
 	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		nonce = presentation.JWT().JwtID()
+		nonceRaw, hasNonce := presentation.JWT().Get("nonce")
+		if !hasNonce {
+			return oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "presentation is missing nonce",
+			}
+		}
+		nonce, _ = nonceRaw.(string)
 		if nonce == "" {
 			return oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
-				Description: "presentation is missing jti",
+				Description: "presentation has an invalid nonce",
 			}
 		}
 	case vc.JSONLDPresentationProofFormat:

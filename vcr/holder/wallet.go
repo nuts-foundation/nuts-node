@@ -119,6 +119,7 @@ func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, cr
 		jwt.IssuerKey:  subjectDID.String(),
 		jwt.SubjectKey: subjectDID.String(),
 		jwt.JwtIDKey:   id.String(),
+		"nonce":        crypto.GenerateNonce(),
 		"vp": vc.VerifiablePresentation{
 			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
 			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
