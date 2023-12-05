@@ -1,0 +1,280 @@
+openapi: "3.0.0"
+info:
+  title: Nuts Verifiable Data Registry API spec
+  description: API specification for the Verifiable Data Registry
+  version: 2.0.0
+  license:
+    name: GPLv3
+servers:
+  - url: http://localhost:1323
+paths:
+  /internal/vdr/v2/did:
+    post:
+      summary: Creates a new Web DID
+      description: |
+        A new web DID and DID Document are created.
+        A single key pair is generated and added to the DID document. The key pair is used for all verificationMethods.
+        No services are added. If no ID is given, a random UUID is generated.
+
+        error returns:
+        * 400 - Returned in case of malformed DID in the request body
+        * 500 - An error occurred while processing the request
+      operationId: "createDID"
+      tags:
+        - DID
+      requestBody:
+        description: Options for the DID creation.
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDIDOptions'
+      responses:
+        "200":
+          description: "New DID has been created successfully. Returns the DID document."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DIDDocument'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/vdr/v2/did/{did}:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
+        schema:
+          type: string
+    get:
+      summary: "Resolves a DID document"
+      description: |
+        Resolves a DID document.
+
+        error returns:
+          * 400 - Returned in case of malformed DID
+          * 404 - Corresponding DID document could not be found
+          * 500 - An error occurred while processing the request
+      operationId: "resolveDID"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: DID document has been found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DIDResolutionResult'
+        default:
+          $ref: '../common/error_response.yaml'
+    delete:
+      summary: Deletes a locally managed Document.
+      description: |
+
+        error returns:
+          * 400 - the DID param was malformed
+          * 404 - Corresponding DID document could not be found
+          * 500 - An error occurred while processing the request
+      operationId: "deleteDID"
+      tags:
+        - DID
+      responses:
+        "204":
+          description: DID document has been deactivated.
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/vdr/v2/did/{did}/service:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
+        schema:
+          type: string
+    post:
+      summary: Adds a service to the DID document.
+      description: |
+        It adds the given service to the DID Document. The ID will be generated when not given.
+
+        error returns:
+        * 400 - Returned in case of malformed DID or service
+        * 404 - Corresponding DID document could not be found
+        * 500 - An error occurred while processing the request
+      parameters:
+        - name: service
+          in: body
+          description: Service to be added to the DID document.
+          required: true
+          schema:
+            $ref: '#/components/schemas/Service'
+      operationId: addService
+      tags:
+        - DID
+      responses:
+        "200":
+          description: "New service has been added successfully. Returns the service."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationMethod'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/vdr/v2/did/{did}/service/{id}:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
+        schema:
+          type: string
+      - name: id
+        in: path
+        description: URL encoded id identifying the service.
+        required: true
+        example: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
+        schema:
+          type: string
+    delete:
+      summary: Delete a specific service
+      description: |
+        Removes the service from the DID Document.
+        No cascading will happen for references to the service. 
+
+        error returns:
+        * 404 - Corresponding DID document or verification method could not be found
+        * 500 - An error occurred while processing the request
+      tags:
+        - DID
+      operationId: deleteService
+      responses:
+        "204":
+          description: The service was successfully deleted
+        default:
+          $ref: '../common/error_response.yaml'
+    put:
+      summary: Updates a service in the DID document.
+      description: |
+        It updates the given service in the DID Document.
+
+        error returns:
+        * 400 - Returned in case of malformed DID or service
+        * 404 - Corresponding DID document could not be found
+        * 500 - An error occurred while processing the request
+      tags:
+        - DID
+      operationId: updateService
+      parameters:
+          - name: service
+            in: body
+            description: Service to be added to the DID document.
+            required: true
+            schema:
+                $ref: '#/components/schemas/Service'
+      responses:
+        "200":
+          description: "Service has been updated successfully. Returns the service."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/vdr/v2/did/{did}/verificationmethod:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
+        schema:
+          type: string
+    post:
+      summary: Creates and adds a new verificationMethod to the DID document.
+      description: |
+        It creates a new private public keypair. The public key is wrapped in verificationMethod. This method is added to the DID Document.
+        The key pair is used for all verificationMethods.
+
+        error returns:
+        * 404 - Corresponding DID document could not be found
+        * 500 - An error occurred while processing the request
+      operationId: addVerificationMethod
+      tags:
+        - DID
+      responses:
+        "200":
+          description: "New verification method has been created and added successfully. Returns the verification method."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationMethod'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/vdr/v2/did/{did}/verificationmethod/{id}:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
+        schema:
+          type: string
+      - name: id
+        in: path
+        description: URL encoded ID identifying the verification method.
+        required: true
+        example: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
+        schema:
+          type: string
+    delete:
+      summary: Delete a specific verification method
+      description: |
+        Removes the verification method from the DID Document.
+
+        error returns:
+        * 404 - Corresponding DID document or verification method could not be found
+        * 500 - An error occurred while processing the request
+      tags:
+        - DID
+      operationId: deleteVerificationMethod
+      responses:
+        "204":
+          description: Verification Method was successfully deleted
+        default:
+          $ref: '../common/error_response.yaml'
+components:
+  schemas:
+    CreateDIDOptions:
+        type: object
+        properties:
+          id:
+            type: string
+            description: The ID of the DID document. If not given, a random UUID is generated.
+            example: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b"
+    DIDDocument:
+      $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
+    DIDDocumentMetadata:
+      $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocumentMetadata'
+    VerificationMethod:
+      $ref: '../common/ssi_types.yaml#/components/schemas/VerificationMethod'
+    Service:
+      $ref: '../common/ssi_types.yaml#/components/schemas/Service'
+    DIDResolutionResult:
+      required:
+        - document
+        - documentMetadata
+      properties:
+        document:
+          $ref: '#/components/schemas/DIDDocument'
+        documentMetadata:
+          $ref: '#/components/schemas/DIDDocumentMetadata'
+  securitySchemes:
+    jwtBearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - {}
+  - jwtBearerAuth: []

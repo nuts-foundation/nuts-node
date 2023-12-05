@@ -1,0 +1,13 @@
+package: v2
+generate:
+  echo-server: true
+  client: true
+  models: true
+  strict-server: true
+output-options:
+  skip-prune: true
+  exclude-schemas:
+  - DIDDocument
+  - DIDDocumentMetadata
+  - Service
+  - VerificationMethod
