@@ -351,6 +351,7 @@ github.com/lestrrat-go/iter v1.0.2 h1:gMXo1q4c2pHmC3dn8LzRhJfP1ceCbgSiT9lUydIzlt
 github.com/lestrrat-go/iter v1.0.2/go.mod h1:Momfcq3AnRlRjI5b5O8/G5/BvpzrhoFTZcn06fEOPt4=
 github.com/lestrrat-go/jwx/v2 v2.0.17 h1:+WavkdKVWO90ECnIzUetOnjY+kcqqw4WXEUmil7sMCE=
 github.com/lestrrat-go/jwx/v2 v2.0.17/go.mod h1:G8randPHLGAqhcNCqtt6/V/7E6fvJRl3Sf9z777eTQ0=
+github.com/lestrrat-go/jwx/v2 v2.0.18/go.mod h1:fAJ+k5eTgKdDqanzCuK6DAt3W7n3cs2/FX7JhQdk83U=
 github.com/lestrrat-go/option v1.0.0/go.mod h1:5ZHFbivi4xwXxhxY9XHDe2FHo6/Z7WWmtT7T5nBBp3I=
 github.com/lestrrat-go/option v1.0.1 h1:oAzP2fvZGQKWkvHa1/SAcFolBEca1oN+mQ7eooNBEYU=
 github.com/lestrrat-go/option v1.0.1/go.mod h1:5ZHFbivi4xwXxhxY9XHDe2FHo6/Z7WWmtT7T5nBBp3I=
@@ -450,6 +451,8 @@ github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b h1:80
 github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b/go.mod h1:6YUioYirD6/8IahZkoS4Ypc8xbeJW76Xdk1QKcziNTM=
 github.com/nuts-foundation/go-did v0.10.1 h1:7A2qgqD6XYOWEEn1bOlttOBl59J/bF8qhMwDGB5Ihpk=
 github.com/nuts-foundation/go-did v0.10.1/go.mod h1:lIoZWplLKE5wHejFVCs3pVdT1u659ZOnTRNvF1Q8lqE=
+github.com/nuts-foundation/go-did v0.10.2-0.20231205093527-eb302101c820 h1:wD3DF5XBYegXOkSLU8/ni1xzGXndlbj/lxEel9uEgeg=
+github.com/nuts-foundation/go-did v0.10.2-0.20231205093527-eb302101c820/go.mod h1:2e2H2Hqk0SWrrGZEg97dbK/ZFIkkFB65hNWdOSbylrg=
 github.com/nuts-foundation/go-leia/v4 v4.0.1 h1:+Sbk3Bew1QnRUqRXSOwomMw3nIZgncmTX425J7U5Q34=
 github.com/nuts-foundation/go-leia/v4 v4.0.1/go.mod h1:eaZuWIolpU61TMvTMcen85+SOEOnHiALdg5SxqLXzz8=
 github.com/nuts-foundation/go-stoabs v1.9.0 h1:zK+ugfolaJYyBvGwsRuavLVdycXk4Yw/1gI+tz17lWQ=

@@ -209,7 +209,7 @@ func (w *Wrapper) VerifyVC(ctx context.Context, request VerifyVCRequestObject) (
 		}
 	}
 
-	if err := w.VCR.Verifier().Verify(vc.VerifiableCredential(requestedVC), allowUntrustedIssuer, true, nil); err != nil {
+	if err := w.VCR.Verifier().Verify(requestedVC, allowUntrustedIssuer, true, nil); err != nil {
 		errMsg := err.Error()
 
 		return VerifyVC200JSONResponse(VCVerificationResult{Validity: false, Message: &errMsg}), nil
@@ -222,11 +222,6 @@ func (w *Wrapper) VerifyVC(ctx context.Context, request VerifyVCRequestObject) (
 func (w *Wrapper) CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error) {
 	if len(request.Body.VerifiableCredentials) == 0 {
 		return nil, core.InvalidInputError("verifiableCredentials needs at least 1 item")
-	}
-
-	var vcs []vc.VerifiableCredential
-	for _, curr := range request.Body.VerifiableCredentials {
-		vcs = append(vcs, vc.VerifiableCredential(curr))
 	}
 
 	var signerDID *did.DID
@@ -290,7 +285,7 @@ func (w *Wrapper) CreateVP(ctx context.Context, request CreateVPRequestObject) (
 		}
 	}
 
-	vp, err := w.VCR.Wallet().BuildPresentation(ctx, vcs, presentationOptions, signerDID, true)
+	vp, err := w.VCR.Wallet().BuildPresentation(ctx, request.Body.VerifiableCredentials, presentationOptions, signerDID, true)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +308,7 @@ func (w *Wrapper) VerifyVP(ctx context.Context, request VerifyVPRequestObject) (
 		validAt = &parsedTime
 	}
 
-	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(vc.VerifiablePresentation(request.Body.VerifiablePresentation), verifyCredentials, false, validAt)
+	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.Body.VerifiablePresentation, verifyCredentials, false, validAt)
 	if err != nil {
 		if errors.Is(err, verifier.VerificationError{}) {
 			msg := err.Error()
@@ -322,11 +317,7 @@ func (w *Wrapper) VerifyVP(ctx context.Context, request VerifyVPRequestObject) (
 		return nil, err
 	}
 
-	var vcs []vcrTypes.CompactingVerifiableCredential
-	for _, verifiedCredential := range verifiedCredentials {
-		vcs = append(vcs, vcrTypes.CompactingVerifiableCredential(verifiedCredential))
-	}
-	result := VPVerificationResult{Validity: true, Credentials: &vcs}
+	result := VPVerificationResult{Validity: true, Credentials: &verifiedCredentials}
 	return VerifyVP200JSONResponse(result), nil
 }
 
@@ -372,7 +363,7 @@ func (w *Wrapper) vcsWithRevocationsToSearchResults(foundVCs []vc.VerifiableCred
 		if err != nil && !errors.Is(err, verifier.ErrNotFound) {
 			return nil, err
 		}
-		result[i] = SearchVCResult{VerifiableCredential: vcrTypes.CompactingVerifiableCredential(resolvedVC), Revocation: revocation}
+		result[i] = SearchVCResult{VerifiableCredential: resolvedVC, Revocation: revocation}
 	}
 	return result, nil
 }

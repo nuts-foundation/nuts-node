@@ -204,7 +204,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
     {
       "format": "ldp_vc",
       "id": "1",
-      "path": "$.verifiableCredential[0]"
+      "path": "$.verifiableCredential"
     }
   ]
 }
@@ -265,7 +265,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
       "path_nested": {
         "id": "1",
         "format": "ldp_vc",
-        "path": "$.verifiableCredential[0]"
+        "path": "$.verifiableCredential"
       }
     },
     {
@@ -275,7 +275,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
       "path_nested": {
         "id": "2",
         "format": "ldp_vc",
-        "path": "$.verifiableCredential[0]"
+        "path": "$.verifiableCredential"
       }
     }
   ]
@@ -301,7 +301,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
     {
       "format": "ldp_vp",
       "id": "1",
-      "path": "$.verifiableCredential[0]"
+      "path": "$.verifiableCredential"
     }
   ]
 }
@@ -311,7 +311,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 
 		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
-		require.EqualError(t, err, "unable to resolve credential for input descriptor '1': path '$.verifiableCredential[0]' does not reference a credential")
+		require.EqualError(t, err, "unable to resolve credential for input descriptor '1': path '$.verifiableCredential' does not reference a credential")
 		assert.Nil(t, credentials)
 	})
 	t.Run("invalid JSON-LD credential", func(t *testing.T) {
@@ -324,7 +324,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
     {
       "format": "ldp_vc",
       "id": "1",
-      "path": "$.verifiableCredential[0].credentialSubject[0]"
+      "path": "$.verifiableCredential.credentialSubject"
     }
   ]
 }
@@ -347,7 +347,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
     {
       "format": "ldp_vp",
       "id": "1",
-      "path": "$.verifiableCredential[0].credentialSubject[0]"
+      "path": "$.verifiableCredential.credentialSubject"
     }
   ]
 }
@@ -370,7 +370,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
     {
       "format": "ldp_vc",
       "id": "1",
-      "path": "$.verifiableCredential[0].expirationDate"
+      "path": "$.verifiableCredential.expirationDate"
     }
   ]
 }
@@ -380,7 +380,7 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 
 		credentials, err := submission.Resolve(toEnvelope(t, vp))
 
-		assert.EqualError(t, err, "unable to resolve credential for input descriptor '1': value of Go type 'string' at path '$.verifiableCredential[0].expirationDate' can't be decoded using format 'ldp_vc'")
+		assert.EqualError(t, err, "unable to resolve credential for input descriptor '1': value of Go type 'string' at path '$.verifiableCredential.expirationDate' can't be decoded using format 'ldp_vc'")
 		assert.Nil(t, credentials)
 	})
 }
@@ -420,7 +420,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 			DescriptorMap: []InputDescriptorMappingObject{
 				{
 					Id:     "1",
-					Path:   "$.verifiableCredential[0]",
+					Path:   "$.verifiableCredential",
 					Format: "ldp_vc",
 				},
 			},
@@ -484,7 +484,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 					Format: "ldp_vp",
 					PathNested: &InputDescriptorMappingObject{
 						Id:     "1",
-						Path:   "$.verifiableCredential[0]",
+						Path:   "$.verifiableCredential",
 						Format: "ldp_vc",
 					},
 				},
@@ -494,7 +494,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 					Format: "ldp_vp",
 					PathNested: &InputDescriptorMappingObject{
 						Id:     "2",
-						Path:   "$.verifiableCredential[0]",
+						Path:   "$.verifiableCredential",
 						Format: "ldp_vc",
 					},
 				},
@@ -584,7 +584,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 			DescriptorMap: []InputDescriptorMappingObject{
 				{
 					Id:     "1", // actually maps to input descriptor 2, so should cause an error
-					Path:   "$.verifiableCredential[0]",
+					Path:   "$.verifiableCredential",
 					Format: "ldp_vc",
 				},
 			},

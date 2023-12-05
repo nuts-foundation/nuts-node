@@ -20,7 +20,6 @@ package ssiTypes
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -68,7 +67,7 @@ func Test_VerifiablePresentation(t *testing.T) {
 		vp := createVerifiablePresentation()
 		vp.ID = &id
 		vp.Holder = &holder
-		vp.VerifiableCredential = []vc.VerifiableCredential{vc.VerifiableCredential(createVerifiableCredential())}
+		vp.VerifiableCredential = []vcr.VerifiableCredential{createVerifiableCredential()}
 		vp.Proof = []interface{}{"because"}
 
 		remarshallTest(t, vp, VerifiablePresentation{})
@@ -122,9 +121,9 @@ func Test_DIDDocumentMetadata(t *testing.T) {
 	})
 }
 
-func createVerifiableCredential() types.CompactingVerifiableCredential {
+func createVerifiableCredential() vcr.VerifiableCredential {
 	issuanceDate := time.Now()
-	return types.CompactingVerifiableCredential{
+	return vcr.VerifiableCredential{
 		Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
 		Type: []ssi.URI{
 			ssi.MustParseURI("NutsOrganizationCredential"),
@@ -145,8 +144,8 @@ func createRevocation() vcr.Revocation {
 	}
 }
 
-func createVerifiablePresentation() types.CompactingVerifiablePresentation {
-	return types.CompactingVerifiablePresentation{
+func createVerifiablePresentation() vcr.VerifiablePresentation {
+	return vcr.VerifiablePresentation{
 		Context: []ssi.URI{
 			ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
 			ssi.MustParseURI("https://nuts.nl/credentials/v1"),

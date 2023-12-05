@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"io"
 	"net/http"
 )
@@ -92,7 +91,7 @@ func (hb HTTPClient) Untrusted(credentialType string) ([]string, error) {
 }
 
 // IssueVC issues a new Verifiable Credential and returns it
-func (hb HTTPClient) IssueVC(request IssueVCRequest) (*types.CompactingVerifiableCredential, error) {
+func (hb HTTPClient) IssueVC(request IssueVCRequest) (*VerifiableCredential, error) {
 	ctx := context.Background()
 
 	httpResponse, err := hb.client().IssueVC(ctx, request)

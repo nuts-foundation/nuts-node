@@ -89,10 +89,7 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 }
 
 func (s leiaIssuerStore) StoreCredential(vc vc.VerifiableCredential) error {
-	// go-did 0.10 stopped compacting arrays for JSON-LD credentials,
-	// but leia's search breaks when single items become arrays.
-	// So we convert it to a helper type that does compact the arrays.
-	vcAsBytes, _ := json.Marshal(types.CompactingVerifiableCredential(vc))
+	vcAsBytes, _ := json.Marshal(vc)
 	return s.issuedCollection().Add([]leia.Document{vcAsBytes})
 }
 

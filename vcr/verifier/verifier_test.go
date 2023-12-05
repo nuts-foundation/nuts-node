@@ -240,7 +240,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		assert.ErrorContains(t, err, "unable to extract ldproof from signed document: no proof")
+		assert.ErrorContains(t, err, "unable to extract ldproof from signed document: json: cannot unmarshal array into Go value of type proof.LDProof")
 	})
 
 	t.Run("error - wrong jws in proof", func(t *testing.T) {

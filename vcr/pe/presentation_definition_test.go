@@ -444,9 +444,9 @@ func Test_matchConstraint(t *testing.T) {
 	_ = json.Unmarshal([]byte(testCredentialString), &testCredential)
 
 	typeVal := "VerifiableCredential"
-	f1True := Field{Path: []string{"$.credentialSubject[0].field"}}
+	f1True := Field{Path: []string{"$.credentialSubject.field"}}
 	f2True := Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &typeVal}}
-	f3False := Field{Path: []string{"$.credentialSubject[0].field"}, Filter: &Filter{Type: "string", Const: &typeVal}}
+	f3False := Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &typeVal}}
 
 	t.Run("single constraint match", func(t *testing.T) {
 		match, err := matchConstraint(&Constraints{Fields: []Field{f1True}}, testCredential)
@@ -486,13 +486,13 @@ func Test_matchField(t *testing.T) {
 	testCredentialMap, _ := remarshalToMap(testCredential)
 
 	t.Run("single path match", func(t *testing.T) {
-		match, err := matchField(Field{Path: []string{"$.credentialSubject[0].field"}}, testCredentialMap)
+		match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.True(t, match)
 	})
 	t.Run("multi path match", func(t *testing.T) {
-		match, err := matchField(Field{Path: []string{"$.other", "$.credentialSubject[0].field"}}, testCredentialMap)
+		match, err := matchField(Field{Path: []string{"$.other", "$.credentialSubject.field"}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.True(t, match)
@@ -513,14 +513,14 @@ func Test_matchField(t *testing.T) {
 	t.Run("invalid match and optional", func(t *testing.T) {
 		trueVal := true
 		stringVal := "bar"
-		match, err := matchField(Field{Path: []string{"$.credentialSubject[0].field", "$.foo"}, Optional: &trueVal, Filter: &Filter{Const: &stringVal}}, testCredentialMap)
+		match, err := matchField(Field{Path: []string{"$.credentialSubject.field", "$.foo"}, Optional: &trueVal, Filter: &Filter{Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.False(t, match)
 	})
 	t.Run("valid match with Filter", func(t *testing.T) {
 		stringVal := "value"
-		match, err := matchField(Field{Path: []string{"$.credentialSubject[0].field"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
+		match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
 		assert.True(t, match)

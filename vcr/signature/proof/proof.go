@@ -21,10 +21,8 @@ package proof
 import (
 	"crypto"
 	"encoding/json"
-	"errors"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
-	"reflect"
 )
 
 // Document represents the document to sign. It does not contain proofs or signatures
@@ -60,37 +58,13 @@ func (d SignedDocument) DocumentWithoutProof() Document {
 	return docWithoutProof
 }
 
-// UnmarshalProofValue unmarshalls the signature of the document into the provided target.
-// JSON-LD allows proof it be a compacted array (proof as JSON object instead of JSON array with objects).
-// It handles this gracefully: if the target is a slice, it will unmarshal the proof as a slice.
-// If the target is not a slice it will unmarshal the first element of the proof as the target,
-// or return an error if the proof to be unmarshalled contains more than one element.
+// UnmarshalProofValue unmarshalls the signature of the document in the provided target
 func (d SignedDocument) UnmarshalProofValue(target interface{}) error {
-	src := d["proof"]
-	// if target is a slice, make sure the proof is unmarshalled as a slice
-	if isPtrSlice(target) {
-		// target is a slice
-		if _, ok := d["proof"].([]interface{}); !ok {
-			// unmarshal target is a slice, but proof is not. Make it a slice.
-			src = []interface{}{d["proof"]}
-		}
-	} else {
-		if srcAsSlice, ok := d["proof"].([]interface{}); ok {
-			if len(srcAsSlice) > 1 {
-				return errors.New("tried to unmarshal multiple JSON-LD proofs into a single value, which is impossible")
-			}
-			if len(srcAsSlice) == 0 {
-				return errors.New("no proof")
-			}
-			// just take first element
-			src = srcAsSlice[0]
-		}
-	}
-	asJSON, err := json.Marshal(src)
+	asJSON, err := json.Marshal(d["proof"])
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(asJSON, &target)
+	return json.Unmarshal(asJSON, target)
 }
 
 // Proof is the interface that defines a set of methods which a proof should implement.
@@ -103,16 +77,4 @@ type Proof interface {
 type ProofVerifier interface {
 	// Verify verifies the Document with the provided public key. If the document is valid, it returns no error.
 	Verify(document Document, suite signature.Suite, key crypto.PublicKey) error
-}
-
-func isPtrSlice(i interface{}) bool {
-	// Taken from https://stackoverflow.com/questions/69675420/how-to-check-if-interface-is-a-a-pointer-to-a-slice
-	if i == nil {
-		return false
-	}
-	v := reflect.ValueOf(i)
-	if v.Kind() != reflect.Ptr {
-		return false
-	}
-	return v.Elem().Kind() == reflect.Slice
 }

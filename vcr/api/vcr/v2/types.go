@@ -21,12 +21,12 @@ package v2
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
 )
 
-var _ json.Unmarshaler = &types.CompactingVerifiableCredential{}
-var _ json.Marshaler = &types.CompactingVerifiableCredential{}
+// VerifiableCredential is an alias to use from within the API
+type VerifiableCredential = vc.VerifiableCredential
 
 // CredentialSubject is an alias to use from within the API
 type CredentialSubject = interface{}
@@ -34,11 +34,8 @@ type CredentialSubject = interface{}
 // Revocation is an alias to use from within the API
 type Revocation = credential.Revocation
 
-type VerifiableCredential = types.CompactingVerifiableCredential
-type VerifiablePresentation = types.CompactingVerifiablePresentation
-
-var _ json.Unmarshaler = &types.CompactingVerifiablePresentation{}
-var _ json.Marshaler = types.CompactingVerifiablePresentation{}
+// VerifiablePresentation is an alias to use from within the API
+type VerifiablePresentation = vc.VerifiablePresentation
 
 var _ json.Marshaler = (*IssueVC200JSONResponse)(nil)
 var _ json.Marshaler = (*ResolveVC200JSONResponse)(nil)
@@ -46,15 +43,15 @@ var _ json.Marshaler = (*CreateVP200JSONResponse)(nil)
 
 // MarshalJSON forwards the call to the underlying VerifiableCredential to make sure the credential is returned in the expected format (JSON-LD or JWT).
 func (r IssueVC200JSONResponse) MarshalJSON() ([]byte, error) {
-	return types.CompactingVerifiableCredential(r).MarshalJSON()
+	return vc.VerifiableCredential(r).MarshalJSON()
 }
 
 // MarshalJSON forwards the call to the underlying VerifiableCredential to make sure the expected JSON-LD is returned.
 func (r ResolveVC200JSONResponse) MarshalJSON() ([]byte, error) {
-	return types.CompactingVerifiableCredential(r).MarshalJSON()
+	return vc.VerifiableCredential(r).MarshalJSON()
 }
 
 // MarshalJSON forwards the call to the underlying VerifiableCredential to make sure the expected JSON-LD is returned.
 func (r CreateVP200JSONResponse) MarshalJSON() ([]byte, error) {
-	return types.CompactingVerifiablePresentation(r).MarshalJSON()
+	return vc.VerifiablePresentation(r).MarshalJSON()
 }

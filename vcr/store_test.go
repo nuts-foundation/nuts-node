@@ -27,7 +27,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -139,7 +138,7 @@ func TestStore_writeCredential(t *testing.T) {
 	t.Run("ok - stored in JSON-LD collection", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
-		vcBytes, _ := json.Marshal(types.CompactingVerifiableCredential(target))
+		vcBytes, _ := json.Marshal(target)
 		ref := sha1.Sum(vcBytes)
 
 		err := ctx.vcr.writeCredential(target)
@@ -153,7 +152,7 @@ func TestStore_writeCredential(t *testing.T) {
 	t.Run("ok - accepts credentials without custom type", func(t *testing.T) {
 		ctx := newMockContext(t)
 		vc := vc.VerifiableCredential{}
-		vcBytes, _ := json.Marshal(types.CompactingVerifiableCredential(vc))
+		vcBytes, _ := json.Marshal(vc)
 		ref := sha1.Sum(vcBytes)
 
 		err := ctx.vcr.writeCredential(vc)
