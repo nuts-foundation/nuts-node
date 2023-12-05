@@ -129,7 +129,8 @@ func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject m
 	vcID := did.DIDURL{DID: issuerDID}
 	vcID.Fragment = uuid.NewString()
 	vcIDURI := vcID.URI()
-	expirationDate := time.Now().Add(time.Hour * 24)
+	issuanceDate := time.Now()
+	expirationDate := issuanceDate.Add(time.Hour * 24)
 	if credentialSubject == nil {
 		credentialSubject = make(map[string]interface{})
 	}
@@ -138,7 +139,7 @@ func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject m
 		ID:                &vcIDURI,
 		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("TestCredential")},
 		Issuer:            issuerDID.URI(),
-		IssuanceDate:      time.Now(),
+		IssuanceDate:      &issuanceDate,
 		ExpirationDate:    &expirationDate,
 		CredentialSubject: []interface{}{credentialSubject},
 	}, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {

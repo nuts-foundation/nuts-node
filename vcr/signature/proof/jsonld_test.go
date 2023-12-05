@@ -245,3 +245,39 @@ func TestLDProof_Sign(t *testing.T) {
 		assert.Nil(t, result)
 	})
 }
+
+func TestProofOptions_ValidAt(t *testing.T) {
+	at := time.Now()
+	skew := 5 * time.Second
+	t.Run("valid", func(t *testing.T) {
+		exp := at.Add(1 * time.Hour)
+		valid := ProofOptions{
+			Created: at.Add(-1 * time.Hour),
+			Expires: &exp,
+		}.ValidAt(at, skew)
+		assert.True(t, valid)
+	})
+
+	t.Run("not yet valid", func(t *testing.T) {
+		valid := ProofOptions{
+			Created: at.Add(time.Hour),
+		}.ValidAt(at, skew)
+		assert.False(t, valid)
+	})
+
+	t.Run("expiration not set", func(t *testing.T) {
+		valid := ProofOptions{
+			Created: at.Add(-1 * time.Hour),
+		}.ValidAt(at, skew)
+		assert.True(t, valid)
+	})
+
+	t.Run("expired", func(t *testing.T) {
+		exp := at.Add(-1 * time.Hour)
+		valid := ProofOptions{
+			Created: at.Add(-2 * time.Hour),
+			Expires: &exp,
+		}.ValidAt(at, skew)
+		assert.False(t, valid)
+	})
+}

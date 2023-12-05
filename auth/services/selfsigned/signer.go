@@ -124,7 +124,7 @@ func (v *signer) createVP(ctx context.Context, s types.Session, issuanceDate tim
 		Context:           []ssi.URI{credential.NutsV1ContextURI},
 		Type:              []ssi.URI{ssi.MustParseURI(credentialType)},
 		Issuer:            issuerID.URI(),
-		IssuanceDate:      issuanceDate,
+		IssuanceDate:      &issuanceDate,
 		ExpirationDate:    &expirationData,
 		CredentialSubject: s.CredentialSubject(),
 	}

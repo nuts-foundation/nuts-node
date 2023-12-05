@@ -206,7 +206,8 @@ func Test_verifier_Validate(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.verifier
 		vc2 := testCredential(t)
-		vc2.IssuanceDate = time.Now()
+		issuanceDate := time.Now()
+		vc2.IssuanceDate = &issuanceDate
 
 		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, resolver.NutsSigningKeyType).Return(pk, nil)
 
@@ -433,56 +434,6 @@ func TestVerifier_Verify(t *testing.T) {
 
 		})
 	})
-}
-
-func Test_verifier_validateAtTime(t *testing.T) {
-	var timeToCheck *time.Time
-	t.Run("no time provided", func(t *testing.T) {
-		timeToCheck = nil
-
-		t.Run("credential is valid", func(t *testing.T) {
-			sut := verifier{}
-			credentialToTest := testCredential(t)
-			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
-			assert.True(t, valid)
-		})
-	})
-
-	t.Run("with a time provided", func(t *testing.T) {
-		now := time.Now()
-		t.Run("credential is valid at given time", func(t *testing.T) {
-			timeToCheck = &now
-			sut := verifier{}
-			credentialToTest := testCredential(t)
-			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
-			assert.True(t, valid)
-		})
-
-		t.Run("credential is invalid when timeAt is before issuance", func(t *testing.T) {
-			beforeIssuance, err := time.Parse(time.RFC3339, "2006-10-05T14:33:12+02:00")
-			require.NoError(t, err)
-			timeToCheck = &beforeIssuance
-			sut := verifier{}
-			credentialToTest := testCredential(t)
-			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
-			assert.False(t, valid)
-		})
-
-		t.Run("credential is invalid when timeAt is after expiration", func(t *testing.T) {
-			expireTime, err := time.Parse(time.RFC3339, "2021-10-05T14:33:12+02:00")
-			require.NoError(t, err)
-			afterExpire := expireTime.Add(10 * time.Hour)
-			timeToCheck = &afterExpire
-			sut := verifier{}
-			credentialToTest := testCredential(t)
-			// Set expirationDate since the testCredential does not have one
-			credentialToTest.ExpirationDate = &expireTime
-			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
-			assert.False(t, valid)
-		})
-
-	})
-
 }
 
 func Test_verifier_CheckAndStoreRevocation(t *testing.T) {

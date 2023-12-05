@@ -105,8 +105,10 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 		sut := networkPublisher{keyResolver: mockKeyResolver, didResolver: mockDidResolver, networkTx: mockNetwork}
 
+		issuanceDate := time.Now()
 		credentialToPublish := vc.VerifiableCredential{
 			Issuer:            issuerID,
+			IssuanceDate:      &issuanceDate,
 			CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
 		}
 		payload, _ := json.Marshal(credentialToPublish)
@@ -120,7 +122,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			Payload:         payload,
 			Type:            types.VcDocumentType,
 			AttachKey:       false,
-			Timestamp:       time.Time{},
+			Timestamp:       issuanceDate,
 			AdditionalPrevs: nil,
 			Participants:    []did.DID{},
 		}
@@ -145,8 +147,10 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			serviceResolver: mockServiceResolver,
 		}
 
+		issuanceDate := time.Now()
 		credentialToPublish := vc.VerifiableCredential{
 			Issuer:            issuerID,
+			IssuanceDate:      &issuanceDate,
 			CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
 		}
 		payload, _ := json.Marshal(credentialToPublish)
@@ -165,7 +169,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			Payload:         payload,
 			Type:            types.VcDocumentType,
 			AttachKey:       false,
-			Timestamp:       time.Time{},
+			Timestamp:       issuanceDate,
 			AdditionalPrevs: nil,
 			Participants:    []did.DID{*issuerDID, *subjectDID},
 		}
@@ -258,8 +262,10 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 			sut := networkPublisher{keyResolver: mockKeyResolver, didResolver: mockDidResolver, networkTx: mockNetwork}
 
+			issuanceDate := time.Now()
 			credentialToPublish := vc.VerifiableCredential{
 				Issuer:            issuerID,
+				IssuanceDate:      &issuanceDate,
 				CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
 			}
 			payload, _ := json.Marshal(credentialToPublish)
@@ -273,7 +279,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 				Payload:         payload,
 				Type:            types.VcDocumentType,
 				AttachKey:       false,
-				Timestamp:       time.Time{},
+				Timestamp:       issuanceDate,
 				AdditionalPrevs: nil,
 				Participants:    make([]did.DID, 0),
 			}
