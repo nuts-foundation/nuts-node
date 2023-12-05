@@ -64,6 +64,20 @@ type ProofOptions struct {
 	ProofPurpose string `json:"proofPurpose"`
 }
 
+// ValidAt checks if the proof is valid at a certain given time.
+func (o ProofOptions) ValidAt(at time.Time, maxSkew time.Duration) bool {
+	// check if issuanceDate is before validAt
+	if o.Created.After(at.Add(maxSkew)) {
+		return false
+	}
+
+	// check if expirationDate is after validAt
+	if o.Expires != nil && o.Expires.Add(maxSkew).Before(at) {
+		return false
+	}
+	return true
+}
+
 // LDProof contains the fields of the Proof data model: https://w3c-ccg.github.io/data-integrity-spec/#proofs
 type LDProof struct {
 	ProofOptions

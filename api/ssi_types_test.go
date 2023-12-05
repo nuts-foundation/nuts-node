@@ -122,6 +122,7 @@ func Test_DIDDocumentMetadata(t *testing.T) {
 }
 
 func createVerifiableCredential() vcr.VerifiableCredential {
+	issuanceDate := time.Now()
 	return vcr.VerifiableCredential{
 		Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
 		Type: []ssi.URI{
@@ -129,7 +130,7 @@ func createVerifiableCredential() vcr.VerifiableCredential {
 			ssi.MustParseURI("VerifiableCredential"),
 		},
 		Issuer:            ssi.MustParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey"),
-		IssuanceDate:      time.Now(),
+		IssuanceDate:      &issuanceDate,
 		CredentialSubject: []interface{}{"subject"},
 		Proof:             []interface{}{"because"},
 	}

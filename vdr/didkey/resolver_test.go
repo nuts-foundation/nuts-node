@@ -250,7 +250,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, doc)
 		require.NotNil(t, md)
-		docJSON, _ := doc.MarshalJSON()
+		docJSON, _ := json.Marshal(doc)
 		assert.JSONEq(t, expected, string(docJSON))
 		// Test the public key
 		publicKey, err := doc.VerificationMethod[0].PublicKey()

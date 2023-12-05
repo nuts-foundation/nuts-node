@@ -244,7 +244,7 @@ func TestAmbassador_callback(t *testing.T) {
 		// Document is missing context
 		id, _ := did.ParseDID("did:foo:bar")
 		emptyDIDDocument := did.Document{ID: *id}
-		didDocumentBytes, _ := emptyDIDDocument.MarshalJSON()
+		didDocumentBytes, _ := json.Marshal(emptyDIDDocument)
 
 		err := ctx.ambassador.callback(tx, didDocumentBytes)
 

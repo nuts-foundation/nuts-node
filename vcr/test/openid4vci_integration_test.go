@@ -259,6 +259,7 @@ func TestOpenID4VCIErrorResponses(t *testing.T) {
 }
 
 func testCredential() vc.VerifiableCredential {
+	issuanceDate := time.Now().Truncate(time.Second)
 	return vc.VerifiableCredential{
 		Context: []ssi.URI{
 			didnuts.JWS2020ContextV1URI(),
@@ -267,7 +268,7 @@ func testCredential() vc.VerifiableCredential {
 		Type: []ssi.URI{
 			ssi.MustParseURI("NutsAuthorizationCredential"),
 		},
-		IssuanceDate: time.Now().Truncate(time.Second),
+		IssuanceDate: &issuanceDate,
 	}
 }
 

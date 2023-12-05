@@ -12,16 +12,23 @@ paths:
     post:
       summary: Creates a new Web DID
       description: |
-        A new web DID is created. Only the DID is returned. The DID document can be retrieved using the DID resolution endpoint.
+        A new web DID and DID Document are created.
         A single key pair is generated and added to the DID document. The key pair is used for all verificationMethods.
-        No services are added. The PublicURL needs to be configured.
+        No services are added. If no ID is given, a random UUID is generated.
 
         error returns:
-        * 412 - PublicURL is not configured
+        * 400 - Returned in case of malformed DID in the request body
         * 500 - An error occurred while processing the request
       operationId: "createDID"
       tags:
         - DID
+      requestBody:
+        description: Options for the DID creation.
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDIDOptions'
       responses:
         "200":
           description: "New DID has been created successfully. Returns the DID document."
@@ -62,7 +69,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     delete:
-      summary: Deleted the web DID Document.
+      summary: Deletes a locally managed Document.
       description: |
 
         error returns:
@@ -89,28 +96,29 @@ paths:
     post:
       summary: Adds a service to the DID document.
       description: |
-        It adds the given service to the DID Document. The ID will be generated and replaced.
+        It adds the given service to the DID Document. The ID will be generated when not given.
 
         error returns:
         * 400 - Returned in case of malformed DID or service
         * 404 - Corresponding DID document could not be found
         * 500 - An error occurred while processing the request
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Service'
+      parameters:
+        - name: service
+          in: body
+          description: Service to be added to the DID document.
+          required: true
+          schema:
+            $ref: '#/components/schemas/Service'
       operationId: addService
       tags:
         - DID
       responses:
         "200":
-          description: "New verification method has been created and added successfully. Returns the verification method."
+          description: "New service has been added successfully. Returns the service."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Service'
+                $ref: '#/components/schemas/VerificationMethod'
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/did/{did}/service/{id}:
@@ -143,13 +151,13 @@ paths:
       operationId: deleteService
       responses:
         "204":
-          description: Verification Method was successfully deleted
+          description: The service was successfully deleted
         default:
           $ref: '../common/error_response.yaml'
     put:
       summary: Updates a service in the DID document.
       description: |
-        It updates the given service in the DID Document. The ID will remain the same.
+        It updates the given service in the DID Document.
 
         error returns:
         * 400 - Returned in case of malformed DID or service
@@ -204,7 +212,7 @@ paths:
                 $ref: '#/components/schemas/VerificationMethod'
         default:
           $ref: '../common/error_response.yaml'
-  /internal/vdr/v2/did/{did}/verificationmethod/{kid}:
+  /internal/vdr/v2/did/{did}/verificationmethod/{id}:
     parameters:
       - name: did
         in: path
@@ -213,9 +221,9 @@ paths:
         example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
         schema:
           type: string
-      - name: kid
+      - name: id
         in: path
-        description: URL encoded kid identifying the verification method.
+        description: URL encoded ID identifying the verification method.
         required: true
         example: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
         schema:
@@ -224,8 +232,6 @@ paths:
       summary: Delete a specific verification method
       description: |
         Removes the verification method from the DID Document.
-        Revokes the public key with the corresponding key-id.
-        Note: Other verification methods with different key-ids with the same private key will still be valid.
 
         error returns:
         * 404 - Corresponding DID document or verification method could not be found
@@ -240,6 +246,13 @@ paths:
           $ref: '../common/error_response.yaml'
 components:
   schemas:
+    CreateDIDOptions:
+        type: object
+        properties:
+          id:
+            type: string
+            description: The ID of the DID document. If not given, a random UUID is generated.
+            example: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b"
     DIDDocument:
       $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
     DIDDocumentMetadata:

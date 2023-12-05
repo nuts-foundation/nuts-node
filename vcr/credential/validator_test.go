@@ -27,6 +27,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func init() {
@@ -419,6 +420,17 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("ok - ValidFrom instead of IssuanceDate", func(t *testing.T) {
+		v := ValidNutsOrganizationCredential(t)
+		v.IssuanceDate, v.ValidFrom = v.ValidFrom, v.IssuanceDate
+
+		err := validator.Validate(v)
+
+		assert.Nil(t, v.IssuanceDate)
+		assert.NotEmpty(t, v.ValidFrom)
+		assert.NoError(t, err)
+	})
+
 	t.Run("failed - missing ID", func(t *testing.T) {
 		v := ValidNutsOrganizationCredential(t)
 		v.ID = nil
@@ -453,5 +465,23 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: type 'VerifiableCredential' is required")
+	})
+
+	t.Run("failed - issuanceDate and validFrom both missing", func(t *testing.T) {
+		v := ValidNutsOrganizationCredential(t)
+		v.IssuanceDate = nil
+
+		err := validator.Validate(v)
+
+		assert.EqualError(t, err, "validation failed: 'issuanceDate' is required")
+	})
+
+	t.Run("failed - issuanceDate is zero", func(t *testing.T) {
+		v := ValidNutsOrganizationCredential(t)
+		v.IssuanceDate = new(time.Time)
+
+		err := validator.Validate(v)
+
+		assert.EqualError(t, err, "validation failed: 'issuanceDate' is required")
 	})
 }

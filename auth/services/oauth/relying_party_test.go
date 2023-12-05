@@ -159,7 +159,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		ctx := createOAuthRPContext(t)
-		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return([]vcr.VerifiableCredential{}, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return([]vc.VerifiableCredential{}, nil)
 
 		_, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
 
@@ -257,12 +257,13 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 	id := vdr.TestDIDA.URI()
 	id.Fragment = "1"
+	issuanceDate := time.Now()
 	validCredential := vc.VerifiableCredential{
 		Context:      []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 		ID:           &id,
 		Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 		Issuer:       vdr.TestDIDA.URI(),
-		IssuanceDate: time.Now(),
+		IssuanceDate: &issuanceDate,
 		CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
 			ID:           vdr.TestDIDB.String(),
 			PurposeOfUse: "eTransfer",

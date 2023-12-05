@@ -489,13 +489,14 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	t.Run("happy_path", func(t *testing.T) {
 		ctx := createContext(t)
 
+		issuanceDate := time.Now()
 		credentials := []vc.VerifiableCredential{
 			{
 				Context:      []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 				ID:           &ssi.URI{},
 				Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 				Issuer:       vdr.TestDIDA.URI(),
-				IssuanceDate: time.Now(),
+				IssuanceDate: &issuanceDate,
 				CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
 					ID:           vdr.TestDIDB.String(),
 					PurposeOfUse: "eTransfer",

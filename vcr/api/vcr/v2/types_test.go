@@ -56,13 +56,14 @@ func Test_Marshalling(t *testing.T) {
 		assert.IsType(t, make(map[string]interface{}, 0), result["credentialSubject"]) // single entry should not end up as slice
 	})
 	t.Run("CreateVP200JSONResponse", func(t *testing.T) {
-		r := CreateVP200JSONResponse{
+		issuanceDate := time.Now()
+		r := CreateVP200JSONResponse(VerifiablePresentation{
 			VerifiableCredential: []VerifiableCredential{
 				{
-					IssuanceDate: time.Now(),
+					IssuanceDate: &issuanceDate,
 				},
 			},
-		}
+		})
 		data, _ := json.Marshal(r)
 		result := make(map[string]interface{}, 0)
 		err := json.Unmarshal(data, &result)
