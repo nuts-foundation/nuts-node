@@ -94,11 +94,13 @@ func Test_sqlStore_get(t *testing.T) {
 }
 
 func resetStore(t *testing.T, db *gorm.DB) {
-	underlyingDB, err := db.DB()
-	require.NoError(t, err)
-	// related tables are emptied due to on-delete-cascade clause
-	_, err = underlyingDB.Exec("DELETE FROM vdr_didweb")
-	require.NoError(t, err)
+	t.Cleanup(func() {
+		underlyingDB, err := db.DB()
+		require.NoError(t, err)
+		// related tables are emptied due to on-delete-cascade clause
+		_, err = underlyingDB.Exec("DELETE FROM vdr_didweb")
+		require.NoError(t, err)
+	})
 }
 
 func testVerificationMethod(t *testing.T, owner did.DID) did.VerificationMethod {

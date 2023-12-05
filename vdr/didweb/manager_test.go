@@ -52,6 +52,7 @@ func TestManager_Create(t *testing.T) {
 	require.NoError(t, keyAsJWK.Raw(&publicKey))
 
 	t.Run("ok", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
 		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
