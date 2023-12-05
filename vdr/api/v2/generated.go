@@ -37,8 +37,6 @@ type DIDResolutionResult struct {
 	DocumentMetadata DIDDocumentMetadata `json:"documentMetadata"`
 }
 
-// AddServiceJSONRequestBody defines body for AddService for application/json ContentType.
-type AddServiceJSONRequestBody = Service
 // CreateDIDJSONRequestBody defines body for CreateDID for application/json ContentType.
 type CreateDIDJSONRequestBody = CreateDIDOptions
 
@@ -126,10 +124,8 @@ type ClientInterface interface {
 	// ResolveDID request
 	ResolveDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AddServiceWithBody request with any body
-	AddServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	AddService(ctx context.Context, did string, body AddServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// AddService request
+	AddService(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteService request
 	DeleteService(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
