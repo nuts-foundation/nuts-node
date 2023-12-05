@@ -182,6 +182,7 @@ func (e *engine) initSQLDatabase() error {
 	db := dbmate.New(url)
 	db.FS = sqlMigrationsFS
 	db.MigrationsDir = []string{"sql_migrations"}
+	db.AutoDumpSchema = false
 
 	return db.CreateAndMigrate()
 }
