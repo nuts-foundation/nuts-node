@@ -34,6 +34,9 @@ type CredentialSubject = interface{}
 // Revocation is an alias to use from within the API
 type Revocation = credential.Revocation
 
+type VerifiableCredential = types.CompactingVerifiableCredential
+type VerifiablePresentation = types.CompactingVerifiablePresentation
+
 var _ json.Unmarshaler = &types.CompactingVerifiablePresentation{}
 var _ json.Marshaler = types.CompactingVerifiablePresentation{}
 
