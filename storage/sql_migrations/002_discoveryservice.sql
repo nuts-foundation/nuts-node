@@ -1,3 +1,4 @@
+-- migrate:up
 -- discovery contains the known discovery services and the highest timestamp
 create table discovery_service
 (
@@ -51,3 +52,10 @@ create table discovery_credential_prop
     -- cascading delete: if the presentation gets deleted, the properties get deleted as well
     constraint fk_discovery_credential_id foreign key (credential_id) references discovery_credential (id) on delete cascade
 );
+
+-- migrate:down
+drop table discovery_service;
+drop table discovery_presentation;
+drop table discovery_credential;
+drop table discovery_credential_prop;
+

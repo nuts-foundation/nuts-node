@@ -23,20 +23,24 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	url2 "net/url"
+	"path"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/amacneil/dbmate/v2/pkg/dbmate"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	"path"
-	"strings"
-	"sync"
-	"time"
+
+	_ "github.com/amacneil/dbmate/v2/pkg/driver/mysql"
+	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
+	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
 )
 
 const storeShutdownTimeout = 5 * time.Second
@@ -173,29 +177,13 @@ func (e *engine) initSQLDatabase() error {
 		return err
 	}
 	log.Logger().Debug("Running database migrations...")
-	underlyingDB, err := e.sqlDB.DB()
-	if err != nil {
-		return err
-	}
-	sourceDriver, err := iofs.New(sqlMigrationsFS, "sql_migrations")
-	if err != nil {
-		return err
-	}
-	databaseDriver, err := sqlite3.WithInstance(underlyingDB, &sqlite3.Config{})
-	if err != nil {
-		return err
-	}
-	migrations, err := migrate.NewWithInstance("iofs", sourceDriver, e.sqlDB.Name(), databaseDriver)
-	if err != nil {
-		return err
-	}
-	migrations.Log = sqlMigrationLogger{}
-	err = migrations.Up()
-	if errors.Is(err, migrate.ErrNoChange) {
-		// There was nothing to migrate
-		return nil
-	}
-	return err
+
+	url, _ := url2.Parse(fmt.Sprintf("sqlite:%s", connectionString))
+	db := dbmate.New(url)
+	db.FS = sqlMigrationsFS
+	db.MigrationsDir = []string{"sql_migrations"}
+
+	return db.CreateAndMigrate()
 }
 
 func sqliteConnectionString(datadir string) string {
