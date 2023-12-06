@@ -137,7 +137,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 	t.Run("authorization server supported VP formats don't match", func(t *testing.T) {
 		ctx := createOAuthRPContext(t)
-		ctx.authzServerMetadata.VPFormats = credential.SupportedFormats{
+		ctx.authzServerMetadata.VPFormats = map[string]map[string][]string{
 			"unsupported": nil,
 		}
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
@@ -426,7 +426,7 @@ func createOAuthRPContext(t *testing.T) *rpOAuthTestContext {
   ]
 }
 `
-	authzServerMetadata := &oauth.AuthorizationServerMetadata{VPFormats: credential.DefaultSupportedFormats()}
+	authzServerMetadata := &oauth.AuthorizationServerMetadata{VPFormats: credential.DefaultOpenIDSupportedFormats()}
 	ctx := &rpOAuthTestContext{
 		rpTestContext: createRPContext(t, nil),
 		metadata: func(writer http.ResponseWriter) {
