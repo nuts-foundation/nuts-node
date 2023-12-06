@@ -39,8 +39,13 @@ import (
 // TODO: Might want to make this configurable at some point
 const accessTokenValidity = 15 * time.Minute
 
-// maxPresentationValidity defines the maximum validity of a presentation.
-const maxPresentationValidity = 10 * time.Second
+// s2sMaxPresentationValidity defines the maximum validity of a presentation.
+// This is to prevent replay attacks. The value is specified by Nuts RFC021, and excludes max. clock skew.
+const s2sMaxPresentationValidity = 5 * time.Second
+
+// s2sMaxClockSkew defines the maximum clock skew between nodes.
+// The value is specified by Nuts RFC021.
+const s2sMaxClockSkew = 5 * time.Second
 
 // handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
@@ -62,7 +67,7 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 	}
 
 	for _, presentation := range pexEnvelope.Presentations {
-		if err := validatePresentationValidity(presentation); err != nil {
+		if err := validateS2SPresentationMaxValidity(presentation); err != nil {
 			return nil, err
 		}
 		if err := validatePresentationSigner(presentation); err != nil {
@@ -77,7 +82,7 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 		return nil, err
 	}
 	for _, presentation := range pexEnvelope.Presentations {
-		if err := r.validatePresentationNonce(presentation); err != nil {
+		if err := r.validateS2SPresentationNonce(presentation); err != nil {
 			return nil, err
 		}
 	}
@@ -95,7 +100,7 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 	}
 
 	// All OK, allow access
-	response, err := r.createAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope)
+	response, err := r.createS2SAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +146,7 @@ func (r *Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessT
 	return RequestAccessToken200JSONResponse(*tokenResult), nil
 }
 
-func (r *Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation,
+func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation,
 	submission pe.PresentationSubmission, definition PresentationDefinition, scope string) (*oauth.TokenResponse, error) {
 	accessToken := AccessToken{
 		Token:  crypto.GenerateNonce(),
@@ -191,8 +196,8 @@ func (r Wrapper) validatePresentationSubmission(scope string, submission *pe.Pre
 	return definition, err
 }
 
-// validatePresentationValidity checks that the presentation is valid for a reasonable amount of time.
-func validatePresentationValidity(presentation vc.VerifiablePresentation) error {
+// validateS2SPresentationMaxValidity checks that the presentation is valid for a reasonable amount of time.
+func validateS2SPresentationMaxValidity(presentation vc.VerifiablePresentation) error {
 	created := credential.PresentationIssuanceDate(presentation)
 	expires := credential.PresentationExpirationDate(presentation)
 	if created == nil || expires == nil {
@@ -201,10 +206,10 @@ func validatePresentationValidity(presentation vc.VerifiablePresentation) error 
 			Description: "presentation is missing creation or expiration date",
 		}
 	}
-	if expires.Sub(*created) > maxPresentationValidity {
+	if expires.Sub(*created) > s2sMaxPresentationValidity {
 		return oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
-			Description: fmt.Sprintf("presentation is valid for too long (max %s)", maxPresentationValidity),
+			Description: fmt.Sprintf("presentation is valid for too long (max %s)", s2sMaxPresentationValidity),
 		}
 	}
 	return nil
@@ -228,8 +233,8 @@ func validatePresentationSigner(presentation vc.VerifiablePresentation) error {
 	return nil
 }
 
-// validatePresentationNonce checks if the nonce has been used before; 'nonce' claim for JWTs or LDProof's 'nonce' for JSON-LD.
-func (r *Wrapper) validatePresentationNonce(presentation vc.VerifiablePresentation) error {
+// validateS2SPresentationNonce checks if the nonce has been used before; 'nonce' claim for JWTs or LDProof's 'nonce' for JSON-LD.
+func (r *Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresentation) error {
 	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
@@ -259,24 +264,29 @@ func (r *Wrapper) validatePresentationNonce(presentation vc.VerifiablePresentati
 		nonce = *proof.Nonce
 	}
 
-	nonceStore := r.storageEngine.GetSessionDatabase().GetStore(maxPresentationValidity, "s2s", "nonce")
-	err := nonceStore.Get(nonce, new(bool))
-	if !errors.Is(err, storage.ErrNotFound) {
-		if err != nil {
-			// unable to check nonce
-			return err
-		}
-		return oauth.OAuth2Error{
+	nonceStore := r.storageEngine.GetSessionDatabase().GetStore(s2sMaxPresentationValidity+s2sMaxClockSkew, "s2s", "nonce")
+	nonceError := nonceStore.Get(nonce, new(bool))
+	if nonceError != nil && errors.Is(nonceError, storage.ErrNotFound) {
+		// this is OK, nonce has not been used before
+		nonceError = nil
+	} else if nonceError != nil {
+		// other error occurred. Keep error to report after storing nonce
+	} else {
+		// no store error: value was retrieved from store, meaning the nonce has been used before
+		nonceError = oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: "presentation nonce has already been used",
 		}
 	}
+	// Regardless the result of the nonce checking, the nonce of the VP must not be used again.
+	// So always store the nonce.
 	if err := nonceStore.Put(nonce, true); err != nil {
-		return fmt.Errorf("unable to store nonce: %w", err)
+		nonceError = errors.Join(fmt.Errorf("unable to store nonce: %w", err), nonceError)
 	}
-	return nil
+	return nonceError
 }
 
+// validatePresentationAudience checks if the presentation audience (aud claim for JWTs, domain property for JSON-LD proofs) contains the issuer DID.
 func (r *Wrapper) validatePresentationAudience(presentation vc.VerifiablePresentation, issuer did.DID) error {
 	var audience []string
 	switch presentation.Format() {

@@ -194,7 +194,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
-		require.EqualError(t, err, "invalid_request - presentation is valid for too long (max 10s)")
+		require.EqualError(t, err, "invalid_request - presentation is valid for too long (max 5s)")
 	})
 	t.Run("JWT VP", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -343,7 +343,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), []VerifiablePresentation{presentation}, submission, definition, "everything")
+		accessToken, err := ctx.client.createS2SAccessToken(issuerDID, time.Now(), []VerifiablePresentation{presentation}, submission, definition, "everything")
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)

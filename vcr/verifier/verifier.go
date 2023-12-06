@@ -375,7 +375,7 @@ func (v *verifier) validateJWTPresentation(presentation vc.VerifiablePresentatio
 			return time.Now()
 		}
 		return *at
-	})))
+	})), jwt.WithAcceptableSkew(maxSkew))
 	if err != nil {
 		return fmt.Errorf("unable to validate JWT credential: %w", err)
 	}
