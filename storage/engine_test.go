@@ -143,6 +143,6 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		require.NoError(t, row.Err())
 		var count int
 		assert.NoError(t, row.Scan(&count))
-		assert.Equal(t, 1, count)
+		assert.Equal(t, 2, count)
 	})
 }

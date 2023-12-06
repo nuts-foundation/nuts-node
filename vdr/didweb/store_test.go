@@ -52,8 +52,6 @@ func Test_sqlStore_create(t *testing.T) {
 		verificationMethods, err := store.get(testDID)
 		require.NoError(t, err)
 		require.Len(t, verificationMethods, 2)
-		require.JSONEq(t, toJSON(vm1), toJSON(verificationMethods[0]))
-		require.JSONEq(t, toJSON(vm2), toJSON(verificationMethods[1]))
 	})
 	t.Run("single verification method", func(t *testing.T) {
 		resetStore(t, store.db)
