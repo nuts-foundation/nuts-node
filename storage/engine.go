@@ -25,22 +25,20 @@ import (
 	"fmt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	url2 "net/url"
+	"net/url"
 	"path"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/amacneil/dbmate/v2/pkg/dbmate"
+	_ "github.com/amacneil/dbmate/v2/pkg/driver/mysql"
+	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
+	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
-
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/mysql"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
 )
 
 const storeShutdownTimeout = 5 * time.Second
@@ -178,11 +176,12 @@ func (e *engine) initSQLDatabase() error {
 	}
 	log.Logger().Debug("Running database migrations...")
 
-	url, _ := url2.Parse(fmt.Sprintf("sqlite:%s", connectionString))
-	db := dbmate.New(url)
+	dbURL, _ := url.Parse(fmt.Sprintf("sqlite:%s", connectionString))
+	db := dbmate.New(dbURL)
 	db.FS = sqlMigrationsFS
 	db.MigrationsDir = []string{"sql_migrations"}
 	db.AutoDumpSchema = false
+	db.Log = sqlMigrationLogger{}
 
 	return db.CreateAndMigrate()
 }
@@ -249,10 +248,7 @@ func (p *provider) getStore(moduleName string, name string, adapter database) (s
 type sqlMigrationLogger struct {
 }
 
-func (m sqlMigrationLogger) Printf(format string, v ...interface{}) {
-	log.Logger().Infof(format, v...)
-}
-
-func (m sqlMigrationLogger) Verbose() bool {
-	return log.Logger().Level >= logrus.DebugLevel
+func (m sqlMigrationLogger) Write(p []byte) (n int, err error) {
+	log.Logger().Info(string(p))
+	return len(p), nil
 }
