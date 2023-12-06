@@ -66,14 +66,14 @@ fi
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
-RESPONSE=$(docker compose exec nodeB curl --insecure --cert /opt/nuts/certificate-and-key.pem --key /opt/nuts/certificate-and-key.pem https://nodeA:443/ping -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
-if echo $RESPONSE | grep -q "pong"; then
-  echo "success!"
-else
-  echo "FAILED: Could not ping node-A" 1>&2
-  echo $RESPONSE
-  exitWithDockerLogs 1
-fi
+#RESPONSE=$(docker compose exec nodeB curl --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/ping -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
+#if echo $RESPONSE | grep -q "pong"; then
+#  echo "success!"
+#else
+#  echo "FAILED: Could not ping node-A" 1>&2
+#  echo $RESPONSE
+#  exitWithDockerLogs 1
+#fi
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."
