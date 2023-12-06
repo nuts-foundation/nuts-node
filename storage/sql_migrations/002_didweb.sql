@@ -16,7 +16,7 @@ create table vdr_didweb_verificationmethod
     did  varchar(255) not null,
     -- data is a JSON object containing the verification method data, e.g. the public key.
     -- When producing the verificationMethod, data is used as JSON base object and the id and type are added.
-    data blob         not null,
+    data text         not null,
     primary key (did, id),
     foreign key (did) references vdr_didweb (did) on delete cascade
 );

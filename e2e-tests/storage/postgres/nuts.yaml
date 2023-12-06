@@ -1,0 +1,16 @@
+url: https://node
+verbosity: debug
+auth:
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+tls:
+  truststorefile: /opt/nuts/truststore.pem
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem
+crypto:
+  storage: fs
+storage:
+  sql:
+    connection: postgres://postgres:postgres@db:5432/postgres?sslmode=disable

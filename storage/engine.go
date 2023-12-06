@@ -23,6 +23,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"net/url"
@@ -32,13 +33,14 @@ import (
 	"time"
 
 	"github.com/amacneil/dbmate/v2/pkg/dbmate"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/mysql"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/redis/go-redis/v9"
+
+	_ "github.com/amacneil/dbmate/v2/pkg/driver/mysql"
+	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
+	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
 )
 
 const storeShutdownTimeout = 5 * time.Second
@@ -169,25 +171,65 @@ func (e *engine) initSQLDatabase() error {
 		connectionString = sqliteConnectionString(e.datadir)
 	}
 
+	// Find right SQL adapter
+	type sqlAdapter struct {
+		connector            func(dsn string) gorm.Dialector
+		gormConnectionString func(config string) string
+	}
+	adapters := map[string]sqlAdapter{
+		"sqlite": {
+			connector: sqlite.Open,
+			gormConnectionString: func(trimmed string) string {
+				return trimmed
+			},
+		},
+		"postgres": {
+			connector: postgres.Open,
+			gormConnectionString: func(trimmed string) string {
+				return fmt.Sprintf("postgres:%s", trimmed)
+			},
+		},
+	}
+	var adapter *sqlAdapter
+	var trimmedConnectionString string
+	for prefix, curr := range adapters {
+		trimmedConnectionString = strings.TrimPrefix(connectionString, prefix+":")
+		if len(trimmedConnectionString) != len(connectionString) {
+			adapter = &curr
+			break
+		}
+	}
+	if adapter == nil {
+		return fmt.Errorf("unsupported SQL database connection: %s", connectionString)
+	}
+
+	// Open connection and migrate
 	var err error
-	e.sqlDB, err = gorm.Open(sqlite.Open(connectionString), &gorm.Config{})
+	e.sqlDB, err = gorm.Open(adapter.connector(adapter.gormConnectionString(trimmedConnectionString)), &gorm.Config{})
 	if err != nil {
 		return err
 	}
 	log.Logger().Debug("Running database migrations...")
 
-	dbURL, _ := url.Parse(fmt.Sprintf("sqlite:%s", connectionString))
+	// we need the connectionString with adapter specific prefix here
+	dbURL, err := url.Parse(connectionString)
+	if err != nil {
+		return err
+	}
 	db := dbmate.New(dbURL)
 	db.FS = sqlMigrationsFS
 	db.MigrationsDir = []string{"sql_migrations"}
 	db.AutoDumpSchema = false
 	db.Log = sqlMigrationLogger{}
 
-	return db.CreateAndMigrate()
+	if err = db.CreateAndMigrate(); err != nil {
+		return fmt.Errorf("failed to migrate database: %w on %s", err, dbURL.String())
+	}
+	return nil
 }
 
 func sqliteConnectionString(datadir string) string {
-	return "file:" + path.Join(datadir, "sqlite.db?_journal_mode=WAL&_foreign_keys=on")
+	return "sqlite:file:" + path.Join(datadir, "sqlite.db?_journal_mode=WAL&_foreign_keys=on")
 }
 
 type provider struct {
