@@ -52,7 +52,6 @@ echo "---------------------------------------"
 echo "Perform OAuth 2.0 rfc021 flow..."
 echo "---------------------------------------"
 # Request access token
-# Create DID for A with :nuts: replaced with :web:
 REQUEST="{\"verifier\":\"${VENDOR_A_DID}\",\"scope\":\"test\"}"
 RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:21323/internal/auth/v2/$VENDOR_B_DID/request-access-token -H "Content-Type:application/json" -v)
 if echo $RESPONSE | grep -q "access_token"; then
@@ -64,18 +63,17 @@ else
   exitWithDockerLogs 1
 fi
 
-#echo "------------------------------------"
-#echo "Retrieving data..."
-#echo "------------------------------------"
-#
-#RESPONSE=$(docker compose exec nodeB curl --insecure --cert /opt/nuts/certificate-and-key.pem --key /opt/nuts/certificate-and-key.pem https://nodeA:443/ping -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
-#if echo $RESPONSE | grep -q "pong"; then
-#  echo "success!"
-#else
-#  echo "FAILED: Could not ping node-A" 1>&2
-#  echo $RESPONSE
-#  exitWithDockerLogs 1
-#fi
+echo "------------------------------------"
+echo "Retrieving data..."
+echo "------------------------------------"
+RESPONSE=$(docker compose exec nodeB curl --insecure --cert /opt/nuts/certificate-and-key.pem --key /opt/nuts/certificate-and-key.pem https://nodeA:443/ping -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
+if echo $RESPONSE | grep -q "pong"; then
+  echo "success!"
+else
+  echo "FAILED: Could not ping node-A" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."

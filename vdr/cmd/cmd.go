@@ -82,7 +82,7 @@ func createCmd() *cobra.Command {
 	result := &cobra.Command{
 		Use:   "create-did",
 		Short: "Registers a new DID",
-		Long:  "When using the V2 API, a web:did will be created. All the other options are ignored for a web:did.",
+		Long:  "When using the V2 API, a did:web DID will be created. All the other options are ignored for did:web.",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientConfig := core.NewClientConfigForCommand(cmd)
@@ -118,7 +118,7 @@ func createCmd() *cobra.Command {
 	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.KeyFlags.Is(management.CapabilityInvocationUsage), setUsage(defs.KeyFlags.Is(management.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
 	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.KeyFlags.Is(management.KeyAgreementUsage), setUsage(defs.KeyFlags.Is(management.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
 	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", defs.SelfControl, setUsage(defs.SelfControl, "Pass '%t' to %s DID Document control."))
-	result.Flags().BoolVar(&useV2, "v2", false, "Pass 'true' to use the V2 API and create a web:did.")
+	result.Flags().BoolVar(&useV2, "v2", false, "Pass 'true' to use the V2 API and create a did:web DID.")
 	result.Flags().StringSliceVar(createRequest.Controllers, "controllers", []string{}, "Comma-separated list of DIDs that can control the generated DID Document.")
 
 	return result
