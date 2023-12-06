@@ -24,6 +24,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/discovery/log"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -57,6 +58,7 @@ var _ core.Injectable = &Module{}
 var _ core.Runnable = &Module{}
 var _ core.Configurable = &Module{}
 var _ Server = &Module{}
+var _ Client = &Module{}
 
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
@@ -74,7 +76,7 @@ type Module struct {
 	storageInstance   storage.Engine
 	store             *sqlStore
 	serverDefinitions map[string]ServiceDefinition
-	services          map[string]ServiceDefinition
+	allDefinitions    map[string]ServiceDefinition
 	vcrInstance       vcr.VCR
 }
 
@@ -83,7 +85,7 @@ func (m *Module) Configure(_ core.ServerConfig) error {
 		return nil
 	}
 	var err error
-	m.services, err = loadDefinitions(m.config.Definitions.Directory)
+	m.allDefinitions, err = loadDefinitions(m.config.Definitions.Directory)
 	if err != nil {
 		return err
 	}
@@ -91,7 +93,7 @@ func (m *Module) Configure(_ core.ServerConfig) error {
 		// Get the definitions that are enabled for this server
 		serverDefinitions := make(map[string]ServiceDefinition)
 		for _, definitionID := range m.config.Server.DefinitionIDs {
-			if definition, exists := m.services[definitionID]; !exists {
+			if definition, exists := m.allDefinitions[definitionID]; !exists {
 				return fmt.Errorf("service definition '%s' not found", definitionID)
 			} else {
 				serverDefinitions[definitionID] = definition
@@ -104,7 +106,7 @@ func (m *Module) Configure(_ core.ServerConfig) error {
 
 func (m *Module) Start() error {
 	var err error
-	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.services, m.serverDefinitions)
+	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.allDefinitions, m.serverDefinitions)
 	if err != nil {
 		return err
 	}
@@ -254,6 +256,41 @@ func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 			return nil, fmt.Errorf("duplicate service definition ID '%s' in file '%s'", definition.ID, filePath)
 		}
 		result[definition.ID] = *definition
+	}
+	return result, nil
+}
+
+func (m *Module) Search(serviceID string, query map[string]string) ([]SearchResult, error) {
+	service, exists := m.allDefinitions[serviceID]
+	if !exists {
+		return nil, ErrServiceNotFound
+	}
+	matchingVPs, err := m.store.search(serviceID, query)
+	if err != nil {
+		return nil, err
+	}
+	var result []SearchResult
+	for _, matchingVP := range matchingVPs {
+		// Match credentials to Presentation Definition, to resolve map with InputDescriptorId -> CredentialValue
+		submissionVCs, inputDescriptorMappingObjects, err := service.PresentationDefinition.Match(matchingVP.VerifiableCredential)
+		var fields map[string]interface{}
+		if err != nil {
+			log.Logger().Infof("Search() is unable to build submission for VP '%s': %s", matchingVP.ID, err)
+		} else {
+			credentialMap := make(map[string]vc.VerifiableCredential)
+			for i := 0; i < len(inputDescriptorMappingObjects); i++ {
+				credentialMap[inputDescriptorMappingObjects[i].Id] = submissionVCs[i]
+			}
+			fields, err = service.PresentationDefinition.ResolveConstraintsFields(credentialMap)
+			if err != nil {
+				log.Logger().Infof("Search() is unable to resolve Input Descriptor Constraints Fields map for VP '%s': %s", matchingVP.ID, err)
+			}
+		}
+
+		result = append(result, SearchResult{
+			Presentation: matchingVP,
+			Fields:       fields,
+		})
 	}
 	return result, nil
 }

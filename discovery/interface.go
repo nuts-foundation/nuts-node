@@ -27,7 +27,6 @@ import (
 )
 
 // Tag is value that references a point in the list.
-// It is used by clients to request new entries since their last query.
 // It is opaque for clients: they should not try to interpret it.
 // The server who issued the tag can interpret it as Lamport timestamp.
 type Tag string
@@ -94,5 +93,17 @@ type Server interface {
 
 // Client defines the API for Discovery Clients.
 type Client interface {
-	Search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error)
+	// Search searches for presentations which credential(s) match the given query.
+	// Query parameters are formatted as simple JSON paths, e.g. "issuer" or "credentialSubject.name".
+	Search(serviceID string, query map[string]string) ([]SearchResult, error)
+}
+
+// SearchResult is a single result of a search operation.
+type SearchResult struct {
+	// Presentation is the Verifiable Presentation that was matched.
+	Presentation vc.VerifiablePresentation `json:"vp"`
+	// Fields is a map of Input Descriptor Constraint Fields from the Discovery Service's Presentation Definition.
+	// The keys are the Input Descriptor IDs mapped to the values from the credential(s) inside the Presentation.
+	// It only includes constraint fields that have an ID.
+	Fields map[string]interface{} `json:"fields"`
 }

@@ -19,6 +19,7 @@
 package discovery
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/vc"
@@ -74,9 +75,9 @@ func Test_Module_Add(t *testing.T) {
 	})
 	t.Run("valid for too long", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
-		def := m.services[testServiceID]
+		def := m.allDefinitions[testServiceID]
 		def.PresentationMaxValidity = 1
-		m.services[testServiceID] = def
+		m.allDefinitions[testServiceID] = def
 		m.serverDefinitions[testServiceID] = def
 
 		err := m.Add(testServiceID, vpAlice)
@@ -239,9 +240,9 @@ func setupModule(t *testing.T, storageInstance storage.Engine) (*Module, *verifi
 	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 	m := New(storageInstance, mockVCR)
 	require.NoError(t, m.Configure(core.ServerConfig{}))
-	m.services = testDefinitions()
+	m.allDefinitions = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{
-		testServiceID: m.services[testServiceID],
+		testServiceID: m.allDefinitions[testServiceID],
 	}
 	require.NoError(t, m.Start())
 	return m, mockVerifier
@@ -284,5 +285,31 @@ func TestModule_Configure(t *testing.T) {
 		}
 		err := (&Module{config: config}).Configure(serverConfig)
 		assert.ErrorContains(t, err, "unable to read definitions directory 'test/non_existent'")
+	})
+}
+
+func TestModule_Search(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Run("ok", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		require.NoError(t, m.store.add(testServiceID, vpAlice, nil))
+		results, err := m.Search(testServiceID, map[string]string{
+			"credentialSubject.id": aliceDID.String(),
+		})
+		assert.NoError(t, err)
+		expectedJSON, _ := json.Marshal([]SearchResult{
+			{
+				Presentation: vpAlice,
+				Fields:       map[string]interface{}{"issuer_field": authorityDID},
+			},
+		})
+		actualJSON, _ := json.Marshal(results)
+		assert.JSONEq(t, string(expectedJSON), string(actualJSON))
+	})
+	t.Run("unknown service ID", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		_, err := m.Search("unknown", nil)
+		assert.ErrorIs(t, err, ErrServiceNotFound)
 	})
 }
