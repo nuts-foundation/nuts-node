@@ -147,6 +147,16 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 		}
 	}
 
+	// the verifiableCredential property in Verifiable Presentations can be a single VC or an array of VCs when represented in JSON.
+	// go-did always marshals a single VC as a single VC for JSON-LD VPs. So we might need to fix the mapping paths.
+	if format == vc.JSONLDPresentationProofFormat {
+		for _, signInstruction := range nonEmptySignInstructions {
+			if len(signInstruction.Mappings) == 1 {
+				signInstruction.Mappings[0].Path = "$.verifiableCredential"
+			}
+		}
+	}
+
 	index := 0
 	// last we create the descriptor map for the presentation submission
 	// If there's only one sign instruction the Path will be $.
