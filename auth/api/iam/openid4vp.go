@@ -103,7 +103,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	redirectURL := httpNuts.AddQueryParams(*walletURL, map[string]string{
 		responseTypeParam:       responseTypeVPToken,
 		clientIDParam:           verifier.String(),
-		redirectURIParam:        callbackURL.String(),
+		responseURIParam:        callbackURL.String(),
 		presentationDefUriParam: presentationDefinitionURI.String(),
 		responseModeParam:       responseModeDirectPost,
 		nonceParam:              nonce,

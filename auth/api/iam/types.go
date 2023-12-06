@@ -138,6 +138,9 @@ const stateParam = "state"
 // Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
 const redirectURIParam = "redirect_uri"
 
+// responseURIParam is the name of the OpenID4VP response_uri parameter.
+const responseURIParam = "response_uri"
+
 // presentationDefParam is the name of the OpenID4VP presentation_definition parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-presentation_definition-par
 const presentationDefParam = "presentation_definition"

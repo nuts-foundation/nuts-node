@@ -231,7 +231,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		assert.Contains(t, location, "client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier")
 		assert.Contains(t, location, "nonce=")
 		assert.Contains(t, location, "presentation_definition_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fpresentation_definition%3Fscope%3Dtest")
-		assert.Contains(t, location, "redirect_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fresponse")
+		assert.Contains(t, location, "response_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fresponse")
 		assert.Contains(t, location, "response_mode=direct_post")
 		assert.Contains(t, location, "response_type=vp_token")
 
