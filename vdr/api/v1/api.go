@@ -130,7 +130,7 @@ func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject)
 		options.SelfControl = *request.Body.SelfControl
 	}
 
-	doc, _, err := a.VDR.Create(ctx, options)
+	doc, _, err := a.VDR.Create(ctx, didnuts.MethodName, options)
 	// if this operation leads to an error, it may return a 500
 	if err != nil {
 		return nil, err

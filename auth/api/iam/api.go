@@ -283,8 +283,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	// TODO: must be web DID once web DID creation and DB are implemented
-	ownDID := idToNutsDID(request.Id)
+	ownDID := r.idToDID(request.Id)
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -302,17 +301,15 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 	return OAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
 }
 
-func (r Wrapper) GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
-	baseURL := *(r.auth.PublicURL().JoinPath(apiPath))
-	// TODO: must be web DID once web DID creation and DB are implemented
-	ownDID := idToNutsDID(request.Id)
+func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
+	ownDID := r.idToDID(request.Id)
 
-	document, err := r.vdr.DeriveWebDIDDocument(ctx, baseURL, ownDID)
+	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
 			return GetWebDID404Response{}, nil
 		}
-		log.Logger().WithError(err).Errorf("Could not resolve Nuts DID: %s", ownDID.String())
+		log.Logger().WithError(err).Errorf("Could not resolve Web DID: %s", ownDID.String())
 		return nil, errors.New("unable to resolve DID")
 	}
 	return GetWebDID200JSONResponse(*document), nil

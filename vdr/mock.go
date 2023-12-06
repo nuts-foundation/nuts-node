@@ -10,7 +10,6 @@ package vdr
 
 import (
 	context "context"
-	url "net/url"
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
@@ -60,9 +59,9 @@ func (mr *MockVDRMockRecorder) ConflictedDocuments() *gomock.Call {
 }
 
 // Create mocks base method.
-func (m *MockVDR) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (m *MockVDR) Create(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, options)
+	ret := m.ctrl.Call(m, "Create", ctx, method, options)
 	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(crypto.Key)
 	ret2, _ := ret[2].(error)
@@ -70,24 +69,9 @@ func (m *MockVDR) Create(ctx context.Context, options management.DIDCreationOpti
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockVDRMockRecorder) Create(ctx, options any) *gomock.Call {
+func (mr *MockVDRMockRecorder) Create(ctx, method, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), ctx, options)
-}
-
-// DeriveWebDIDDocument mocks base method.
-func (m *MockVDR) DeriveWebDIDDocument(ctx context.Context, baseURL url.URL, nutsDID did.DID) (*did.Document, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeriveWebDIDDocument", ctx, baseURL, nutsDID)
-	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DeriveWebDIDDocument indicates an expected call of DeriveWebDIDDocument.
-func (mr *MockVDRMockRecorder) DeriveWebDIDDocument(ctx, baseURL, nutsDID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeriveWebDIDDocument", reflect.TypeOf((*MockVDR)(nil).DeriveWebDIDDocument), ctx, baseURL, nutsDID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), ctx, method, options)
 }
 
 // IsOwner mocks base method.
@@ -118,6 +102,21 @@ func (m *MockVDR) ListOwned(ctx context.Context) ([]did.DID, error) {
 func (mr *MockVDRMockRecorder) ListOwned(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOwned", reflect.TypeOf((*MockVDR)(nil).ListOwned), ctx)
+}
+
+// ResolveManaged mocks base method.
+func (m *MockVDR) ResolveManaged(id did.DID) (*did.Document, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveManaged", id)
+	ret0, _ := ret[0].(*did.Document)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveManaged indicates an expected call of ResolveManaged.
+func (mr *MockVDRMockRecorder) ResolveManaged(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveManaged", reflect.TypeOf((*MockVDR)(nil).ResolveManaged), id)
 }
 
 // Resolver mocks base method.

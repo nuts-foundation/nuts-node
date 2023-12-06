@@ -327,7 +327,6 @@ func (w *Wrapper) LoadVC(ctx context.Context, request LoadVCRequestObject) (Load
 	if err != nil {
 		return nil, core.InvalidInputError("invalid holder did: %w", err)
 	}
-	
 	if request.Body == nil {
 		return nil, core.InvalidInputError("missing credential in body")
 	}

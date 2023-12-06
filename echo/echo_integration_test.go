@@ -35,9 +35,6 @@ import (
 
 // TestStatusCodes tests if the returned errors from the API implementations are correctly translated to status codes
 func TestStatusCodes(t *testing.T) {
-	hook := logTest.NewGlobal()
-	baseUrl, _ := node.StartServer(t)
-
 	type operation struct {
 		module    string
 		operation string
@@ -45,6 +42,9 @@ func TestStatusCodes(t *testing.T) {
 		body      interface{}
 	}
 	t.Run("404s", func(t *testing.T) {
+		hook := logTest.NewGlobal()
+		baseUrl, _ := node.StartServer(t)
+
 		testCases := []operation{
 			{module: "Auth", operation: "GetSignSessionStatus", url: "/internal/auth/v1/signature/session/1"},
 			{module: "Auth", operation: "GetContractByType", url: "/public/auth/v1/contract/1"},
@@ -66,6 +66,9 @@ func TestStatusCodes(t *testing.T) {
 		}
 	})
 	t.Run("400s", func(t *testing.T) {
+		hook := logTest.NewGlobal()
+		baseUrl, _ := node.StartServer(t)
+
 		testCases := []operation{
 			{module: "Crypto", operation: "SignJwt", url: "/internal/crypto/v1/sign_jwt", body: map[string]interface{}{"kid": "fpp", "claims": map[string]interface{}{"foo": "bar"}}},
 			{module: "Network", operation: "GetTransaction", url: "/internal/network/v1/transaction/invalidhash"},

@@ -275,7 +275,7 @@ func testCredential() vc.VerifiableCredential {
 func registerDID(t *testing.T, system *core.System) did.DID {
 	vdrService := system.FindEngineByName("vdr").(vdr.VDR)
 	ctx := audit.TestContext()
-	didDocument, _, err := vdrService.Create(ctx, didnuts.DefaultCreationOptions())
+	didDocument, _, err := vdrService.Create(ctx, didnuts.MethodName, didnuts.DefaultCreationOptions())
 	require.NoError(t, err)
 	return didDocument.ID
 

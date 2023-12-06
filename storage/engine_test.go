@@ -115,8 +115,7 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		dataDir := io.TestDirectory(t)
 		require.NoError(t, os.Remove(dataDir))
 		e := New()
-		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
-		err := e.Start()
+		err := e.Configure(core.ServerConfig{Datadir: dataDir})
 		assert.EqualError(t, err, "failed to initialize SQL database: unable to open database file")
 	})
 	t.Run("nothing to migrate (already migrated)", func(t *testing.T) {

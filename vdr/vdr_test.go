@@ -29,13 +29,13 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -76,10 +76,12 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		store:             mockStore,
 		network:           mockNetwork,
 		networkAmbassador: mockAmbassador,
-		didDocCreator:     didnuts.Creator{KeyStore: mockKeyStore},
-		didResolver:       resolverRouter,
-		documentOwner:     mockDocumentOwner,
-		keyStore:          mockKeyStore,
+		creators: map[string]management.DocCreator{
+			didnuts.MethodName: &didnuts.Creator{KeyStore: mockKeyStore},
+		},
+		didResolver:    resolverRouter,
+		documentOwners: map[string]management.DocumentOwner{didnuts.MethodName: mockDocumentOwner},
+		keyStore:       mockKeyStore,
 	}
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
 	return vdrTestCtx{
@@ -207,7 +209,7 @@ func TestVDR_Create(t *testing.T) {
 		test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(key, nil)
 		test.mockNetwork.EXPECT().CreateTransaction(test.ctx, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey().WithAdditionalPrevs([]hash.SHA256Hash{}))
 
-		didDoc, key, err := test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions())
+		didDoc, key, err := test.vdr.Create(test.ctx, didnuts.MethodName, didnuts.DefaultCreationOptions())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, didDoc)
@@ -230,7 +232,7 @@ func TestVDR_Create(t *testing.T) {
 		test.mockStore.EXPECT().Resolve(controllerID, gomock.Any()).Return(&controllerDocument, &resolver.DocumentMetadata{SourceTransactions: refs}, nil)
 		test.mockNetwork.EXPECT().CreateTransaction(test.ctx, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey().WithAdditionalPrevs(refs))
 
-		didDoc, key, err := test.vdr.Create(test.ctx, creationOptions)
+		didDoc, key, err := test.vdr.Create(test.ctx, didnuts.MethodName, creationOptions)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, didDoc)
@@ -246,7 +248,7 @@ func TestVDR_Create(t *testing.T) {
 		}
 		test.mockStore.EXPECT().Resolve(controllerID, gomock.Any()).Return(nil, nil, resolver.ErrNotFound)
 
-		_, _, err := test.vdr.Create(test.ctx, creationOptions)
+		_, _, err := test.vdr.Create(test.ctx, didnuts.MethodName, creationOptions)
 
 		assert.EqualError(t, err, "could not create DID document: could not resolve a controller: unable to find the DID document")
 	})
@@ -255,9 +257,9 @@ func TestVDR_Create(t *testing.T) {
 		test := newVDRTestCtx(t)
 		test.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions())
+		_, _, err := test.vdr.Create(test.ctx, didnuts.MethodName, didnuts.DefaultCreationOptions())
 
-		assert.EqualError(t, err, "could not create DID document: b00m!")
+		assert.EqualError(t, err, "could not create DID document (method nuts): b00m!")
 	})
 
 	t.Run("error - transaction failed", func(t *testing.T) {
@@ -266,14 +268,14 @@ func TestVDR_Create(t *testing.T) {
 		test.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(key, nil)
 		test.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions())
+		_, _, err := test.vdr.Create(test.ctx, didnuts.MethodName, didnuts.DefaultCreationOptions())
 
 		assert.EqualError(t, err, "could not store DID document in network: b00m!")
 	})
 }
 
 func TestNewVDR(t *testing.T) {
-	vdr := NewVDR(nil, nil, nil, nil)
+	vdr := NewVDR(nil, nil, nil, nil, nil)
 	assert.IsType(t, &Module{}, vdr)
 }
 
@@ -315,7 +317,7 @@ func TestVDR_Start(t *testing.T) {
 func TestVDR_ConflictingDocuments(t *testing.T) {
 	t.Run("diagnostics", func(t *testing.T) {
 		t.Run("ok - no conflicts/no documents", func(t *testing.T) {
-			vdr := NewVDR(nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			results := vdr.Diagnostics()
 
@@ -325,7 +327,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			vdr := NewVDR(nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			didDocument := did.Document{ID: TestDIDA}
 			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
@@ -342,8 +344,9 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			keyID := did.DIDURL{DID: TestDIDA}
 			keyID.Fragment = "1"
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
-			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil)
-			vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})
+			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
+			_ = vdr.Configure(*core.NewServerConfig())
+			//vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})
 			didDocument := did.Document{ID: TestDIDA}
 
 			didDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: keyID})
@@ -362,14 +365,14 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			keyVendor := crypto.NewTestKey("did:nuts:vendor#keyVendor-1")
 			test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(keyVendor, nil)
 			test.mockNetwork.EXPECT().CreateTransaction(test.ctx, gomock.Any()).AnyTimes()
-			didDocVendor, keyVendor, err := test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions())
+			didDocVendor, keyVendor, err := test.vdr.Create(test.ctx, didnuts.MethodName, didnuts.DefaultCreationOptions())
 			require.NoError(t, err)
 
 			// organization
 			keyOrg := crypto.NewTestKey("did:nuts:org#keyOrg-1")
 			test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(keyOrg, nil).Times(2)
 			test.mockStore.EXPECT().Resolve(didDocVendor.ID, nil).Return(didDocVendor, &resolver.DocumentMetadata{}, nil)
-			didDocOrg, keyOrg, err := test.vdr.Create(test.ctx, management.DIDCreationOptions{
+			didDocOrg, keyOrg, err := test.vdr.Create(test.ctx, didnuts.MethodName, management.DIDCreationOptions{
 				Controllers: []did.DID{didDocVendor.ID},
 				KeyFlags:    management.AssertionMethodUsage | management.KeyAgreementUsage,
 				SelfControl: false,
@@ -379,7 +382,8 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			client := crypto.NewMemoryCryptoInstance()
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyVendor.KID()))
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyOrg.KID()))
-			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil)
+			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
+			_ = vdr.Configure(*core.NewServerConfig())
 			vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})
 
 			_ = vdr.store.Add(*didDocVendor, didstore.TestTransaction(*didDocVendor))
@@ -394,7 +398,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	})
 	t.Run("list", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
-			vdr := NewVDR(nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			docs, meta, err := vdr.ConflictedDocuments()
 
@@ -404,7 +408,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			vdr := NewVDR(nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			didDocument := did.Document{ID: TestDIDA}
 			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
@@ -504,8 +508,9 @@ func TestVDR_IsOwner(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		owner := management.NewMockDocumentOwner(ctrl)
 		owner.EXPECT().IsOwner(gomock.Any(), id).Return(true, nil)
+		owners := map[string]management.DocumentOwner{didnuts.MethodName: owner}
 
-		result, err := (&Module{documentOwner: owner}).IsOwner(context.Background(), id)
+		result, err := (&Module{documentOwners: owners}).IsOwner(context.Background(), id)
 
 		assert.NoError(t, err)
 		assert.True(t, result)
@@ -513,6 +518,7 @@ func TestVDR_IsOwner(t *testing.T) {
 }
 
 func TestVDR_Configure(t *testing.T) {
+	storageInstance := storage.NewTestStorageEngine(t)
 	t.Run("it can resolve using did:web", func(t *testing.T) {
 		http.DefaultTransport = roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -522,8 +528,8 @@ func TestVDR_Configure(t *testing.T) {
 			}, nil
 		})
 
-		instance := NewVDR(nil, nil, nil, nil)
-		err := instance.Configure(core.ServerConfig{})
+		instance := NewVDR(nil, nil, nil, nil, storageInstance)
+		err := instance.Configure(core.ServerConfig{URL: "https://nuts.nl"})
 		require.NoError(t, err)
 
 		doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com"), nil)
@@ -542,7 +548,7 @@ func TestVDR_Configure(t *testing.T) {
 		inputDID, err := did.ParseDID(inputDIDString)
 		require.NoError(t, err)
 
-		instance := NewVDR(nil, nil, nil, nil)
+		instance := NewVDR(nil, nil, nil, nil, storageInstance)
 		err = instance.Configure(core.ServerConfig{})
 		require.NoError(t, err)
 
@@ -556,7 +562,7 @@ func TestVDR_Configure(t *testing.T) {
 		assert.Equal(t, "P-256", doc.VerificationMethod[0].PublicKeyJwk["crv"])
 	})
 	t.Run("it can resolve using did:key", func(t *testing.T) {
-		instance := NewVDR(nil, nil, nil, nil)
+		instance := NewVDR(nil, nil, nil, nil, storageInstance)
 		err := instance.Configure(core.ServerConfig{})
 		require.NoError(t, err)
 
@@ -574,100 +580,3 @@ func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return fn(r)
 }
 
-func TestVDR_DeriveWebDIDDocument(t *testing.T) {
-	nutsDID := did.MustParseDID("did:nuts:123")
-	webDID := did.MustParseDID("did:web:example.com:iam:123")
-	baseURL, _ := url.Parse("https://example.com/iam")
-	nutsDIDDoc := did.Document{
-		ID:         nutsDID,
-		Controller: []did.DID{nutsDID},
-		Service: []did.Service{
-			{
-				ID:              ssi.MustParseURI(nutsDID.String() + "#service1"),
-				Type:            "eOverdracht-sender",
-				ServiceEndpoint: ssi.MustParseURI(nutsDID.String() + "#service2"),
-			},
-		},
-		VerificationMethod: []*did.VerificationMethod{
-			{
-				ID:         did.MustParseDIDURL(nutsDID.String() + "#key1"),
-				Controller: nutsDID,
-			},
-		},
-		CapabilityInvocation: []did.VerificationRelationship{
-			{
-				VerificationMethod: &did.VerificationMethod{
-					ID:         did.MustParseDIDURL(nutsDID.String() + "#key1"),
-					Controller: nutsDID,
-				},
-			},
-		},
-	}
-	expectedWebDIDDoc := did.Document{
-		ID: webDID,
-		AlsoKnownAs: []ssi.URI{
-			nutsDID.URI(),
-		},
-		VerificationMethod: []*did.VerificationMethod{
-			{
-				ID:         did.MustParseDIDURL(webDID.String() + "#key1"),
-				Controller: webDID,
-			},
-		},
-		CapabilityInvocation: []did.VerificationRelationship{
-			{
-				VerificationMethod: &did.VerificationMethod{
-					ID:         did.MustParseDIDURL(webDID.String() + "#key1"),
-					Controller: webDID,
-				},
-			},
-		},
-	}
-	// remarshal expectedWebDIDDoc to make sure in-memory format is the same as the one returned by the API
-	data, _ := json.Marshal(expectedWebDIDDoc)
-	_ = expectedWebDIDDoc.UnmarshalJSON(data)
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-
-		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(&nutsDIDDoc, nil, nil)
-		ctx.mockOwner.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(true, nil)
-
-		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
-
-		require.NoError(t, err)
-		assert.Equal(t, expectedWebDIDDoc, *actual)
-	})
-	t.Run("not owned by the node", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-
-		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(&nutsDIDDoc, nil, nil)
-		ctx.mockOwner.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(false, nil)
-
-		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
-
-		assert.ErrorIs(t, err, resolver.ErrNotFound)
-		assert.Nil(t, actual)
-	})
-	t.Run("resolver error", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-
-		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(nil, nil, resolver.ErrNotFound)
-
-		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
-
-		assert.ErrorIs(t, err, resolver.ErrNotFound)
-		assert.Nil(t, actual)
-	})
-	t.Run("ownership check error", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-
-		ctx.mockStore.EXPECT().Resolve(nutsDID, nil).Return(&nutsDIDDoc, nil, nil)
-		ctx.mockOwner.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(false, errors.New("failed"))
-
-		actual, err := ctx.vdr.DeriveWebDIDDocument(nil, *baseURL, nutsDID)
-
-		assert.EqualError(t, err, "failed")
-		assert.Nil(t, actual)
-	})
-}

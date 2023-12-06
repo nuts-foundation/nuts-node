@@ -40,6 +40,7 @@ func TestServerConfig(template ServerConfig) ServerConfig {
 	config.Datadir = template.Datadir
 	config.Strictmode = template.Strictmode
 	config.InternalRateLimiter = template.InternalRateLimiter
+	config.URL = template.URL
 	return *config
 }
 
