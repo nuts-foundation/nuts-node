@@ -44,6 +44,7 @@ import (
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
 	didmanCmd "github.com/nuts-foundation/nuts-node/didman/cmd"
 	"github.com/nuts-foundation/nuts-node/discovery"
+	discoveryAPI "github.com/nuts-foundation/nuts-node/discovery/api/v1"
 	discoveryCmd "github.com/nuts-foundation/nuts-node/discovery/cmd"
 	"github.com/nuts-foundation/nuts-node/events"
 	eventsCmd "github.com/nuts-foundation/nuts-node/events/cmd"
@@ -221,6 +222,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
+	system.RegisterRoutes(&discoveryAPI.Wrapper{Server: discoveryInstance})
 
 	// Register engines
 	// without dependencies
