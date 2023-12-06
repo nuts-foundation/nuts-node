@@ -21,14 +21,19 @@ package credential
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"github.com/piprate/json-gold/ld"
+	"strconv"
 	"strings"
 
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/credential/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/piprate/json-gold/ld"
 )
 
 // Validator is the interface specific VC verification.
@@ -101,6 +106,7 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 		return failure("'ID' is required")
 	}
 
+	// 'issuanceDate' must be present, but can be zero if replaced by alias 'validFrom'
 	if (credential.IssuanceDate == nil || credential.IssuanceDate.IsZero()) &&
 		(credential.ValidFrom == nil || credential.ValidFrom.IsZero()) {
 		return failure("'issuanceDate' is required")
@@ -110,6 +116,78 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 		return failure("'proof' is required for JSON-LD credentials")
 	}
 
+	// CredentialStatus is not specific to the credential type and the syntax (not status) should be checked here.
+	if err := validateCredentialStatus(credential); err != nil {
+		return failure("invalid credentialStatus: %s", err)
+	}
+
+	return nil
+}
+
+// validateCredentialStatus validates the
+func validateCredentialStatus(credential vc.VerifiableCredential) error {
+	// exit if the credential does not contain a status
+	if credential.CredentialStatus == nil {
+		return nil
+	}
+
+	// get base form of all credentialStatus
+	statuses, err := credential.CredentialStatuses()
+	if err != nil {
+		return err
+	}
+
+	// validate per CredentialStatus.Type
+	for _, credentialStatus := range statuses {
+		// base requirements
+		if credentialStatus.ID.String() == "" {
+			return errors.New("credentialStatus.id is required")
+		}
+		if credentialStatus.Type == "" {
+			return errors.New("credentialStatus.type is required")
+		}
+
+		// type specific validation
+		switch credentialStatus.Type {
+		case StatusList2021EntryType:
+			if !credential.ContainsContext(statusList2021ContextURI) {
+				return errors.New("StatusList2021 context is required")
+			}
+
+			// marshal as StatusList2021Entry
+			var cs StatusList2021Entry
+			if err = json.Unmarshal(credentialStatus.Raw(), &cs); err != nil {
+				return err
+			}
+
+			// 'id' MUST NOT be the URL for the status list
+			if cs.ID == cs.StatusListCredential {
+				return errors.New("StatusList2021Entry.id is the same as the StatusList2021Entry.statusListCredential")
+			}
+
+			// StatusPurpose must contain a purpose
+			if cs.StatusPurpose == "" {
+				return errors.New("StatusList2021Entry.statusPurpose is required")
+			}
+
+			// statusListIndex must be a non-negative number
+			if n, err := strconv.Atoi(cs.StatusListIndex); err != nil || n < 0 {
+				return errors.New("invalid StatusList2021Entry.statusListIndex")
+			}
+
+			// 'statusListCredential' must be a URL
+			// TODO: too strict? (requires https, no IP, and no Reserved Address like example.com)
+			if _, err = core.ParsePublicURL(cs.StatusListCredential, true); err != nil {
+				return fmt.Errorf("parse StatusList2021Entry.statusListCredential URL: %w", err)
+			}
+		default:
+			// TODO: what should happen if the node cannot process (any!all of) the CredentialStatus.
+			log.Logger().WithField("credentialStatus.type", credentialStatus.Type).
+				Debug("Received credential with unknown credentialStatus type")
+		}
+	}
+
+	// valid
 	return nil
 }
 
@@ -246,5 +324,53 @@ func validateNutsCredentialID(credential vc.VerifiableCredential) error {
 	if id.String() != credential.Issuer.String() {
 		return failure("credential ID must start with issuer")
 	}
+	return nil
+}
+
+// statusList2021CredentialValidator validates the syntax of a StatusList2021CredentialType
+type statusList2021CredentialValidator struct{}
+
+func (d statusList2021CredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	if err := (defaultCredentialValidator{}).Validate(credential); err != nil {
+		return err
+	}
+
+	{ // Credential checks
+		if !credential.ContainsContext(statusList2021ContextURI) {
+			return failure("context '%s' is required", statusList2021ContextURI)
+		}
+		if !credential.IsType(statusList2021CredentialTypeURI) {
+			return failure("type '%s' is required", statusList2021CredentialTypeURI)
+		}
+	}
+
+	{ // CredentialSubject checks
+		var target []StatusList2021CredentialSubject
+		err := credential.UnmarshalCredentialSubject(&target)
+		if err != nil {
+			return failure(err.Error())
+		}
+		// TODO: spec is not clear if there could be multiple CredentialSubjects. This could allow 'revocation' and 'suspension' to be defined in a single credential.
+		// However, it is not defined how to select the correct list (StatusPurpose) when validating credentials that are using this StatusList2021Credential
+		if len(target) != 1 {
+			return failure("single CredentialSubject expected")
+		}
+		cs := target[0]
+
+		if cs.Type != StatusList2021CredentialSubjectType {
+			return failure("credentialSubject.type '%s' is required", StatusList2021CredentialSubjectType)
+		}
+		if cs.StatusPurpose == "" {
+			return failure("credentialSubject.statusPurpose is required")
+		}
+		if cs.EncodedList == "" {
+			return failure("credentialSubject.encodedList is required")
+		}
+		// TODO: is this the right place to check this? All other checks are just very basic
+		if _, err = statuslist2021.Expand(cs.EncodedList); err != nil {
+			return failure("credentialSubject.encodedList is invalid: %v", err)
+		}
+	}
+
 	return nil
 }
