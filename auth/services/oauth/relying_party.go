@@ -159,7 +159,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	// - what the local Nuts node supports
 	// - the presentation definition "claimed format designation" (optional)
 	// - the verifier's metadata (optional)
-	formatCandidates := credential.OpenIDSupportedFormats(credential.DefaultOpenIDSupportedFormats())
+	formatCandidates := credential.OpenIDSupportedFormats(oauth.DefaultOpenIDSupportedFormats())
 	if metadata.VPFormats != nil {
 		formatCandidates = formatCandidates.Match(credential.OpenIDSupportedFormats(metadata.VPFormats))
 	}

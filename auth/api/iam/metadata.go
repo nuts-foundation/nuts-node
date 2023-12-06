@@ -21,7 +21,6 @@ package iam
 import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/url"
 	"strings"
 )
@@ -55,8 +54,8 @@ func authorizationServerMetadata(identity url.URL) oauth.AuthorizationServerMeta
 		GrantTypesSupported:    grantTypesSupported,
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionEndpoint:             identity.JoinPath("presentation_definition").String(),
-		VPFormats:                                  credential.DefaultOpenIDSupportedFormats(),
-		VPFormatsSupported:                         credential.DefaultOpenIDSupportedFormats(),
+		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
+		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
 	}
 }
@@ -76,7 +75,7 @@ func clientMetadata(identity url.URL) OAuthClientMetadata {
 		SoftwareID:      softwareID,      // nuts-node-refimpl
 		SoftwareVersion: softwareVersion, // version tag or "unknown"
 		//CredentialOfferEndpoint: "",
-		VPFormats:      credential.DefaultOpenIDSupportedFormats(),
+		VPFormats:      oauth.DefaultOpenIDSupportedFormats(),
 		ClientIdScheme: "did",
 	}
 }

@@ -426,7 +426,7 @@ func createOAuthRPContext(t *testing.T) *rpOAuthTestContext {
   ]
 }
 `
-	authzServerMetadata := &oauth.AuthorizationServerMetadata{VPFormats: credential.DefaultOpenIDSupportedFormats()}
+	authzServerMetadata := &oauth.AuthorizationServerMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
 	ctx := &rpOAuthTestContext{
 		rpTestContext: createRPContext(t, nil),
 		metadata: func(writer http.ResponseWriter) {
