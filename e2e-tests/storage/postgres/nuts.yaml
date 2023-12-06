@@ -13,4 +13,4 @@ crypto:
   storage: fs
 storage:
   sql:
-    connection: postgres:host=db user=postgres password=postgres dbname=postgres sslmode=disable TimeZone=Europe/Amsterdam
+    connection: postgres://postgres:postgres@db:5432/postgres?sslmode=disable

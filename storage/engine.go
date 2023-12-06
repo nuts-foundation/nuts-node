@@ -173,43 +173,46 @@ func (e *engine) initSQLDatabase() error {
 
 	// Find right SQL adapter
 	type sqlAdapter struct {
-		connector        func(dsn string) gorm.Dialector
-		connectionString func(config string) string
+		connector            func(dsn string) gorm.Dialector
+		gormConnectionString func(config string) string
 	}
 	adapters := map[string]sqlAdapter{
 		"sqlite": {
 			connector: sqlite.Open,
-			connectionString: func(config string) string {
-				return fmt.Sprintf("sqlite:%s", config)
+			gormConnectionString: func(trimmed string) string {
+				return trimmed
 			},
 		},
 		"postgres": {
 			connector: postgres.Open,
-			connectionString: func(config string) string {
-				return fmt.Sprintf("postgres:%s", config)
+			gormConnectionString: func(trimmed string) string {
+				return fmt.Sprintf("postgres:%s", trimmed)
 			},
 		},
 	}
 	var adapter *sqlAdapter
+	var trimmedConnectionString string
 	for prefix, curr := range adapters {
-		parsedConnectionString := strings.TrimPrefix(connectionString, prefix+":")
-		if len(parsedConnectionString) != len(connectionString) {
+		trimmedConnectionString = strings.TrimPrefix(connectionString, prefix+":")
+		if len(trimmedConnectionString) != len(connectionString) {
 			adapter = &curr
-			connectionString = parsedConnectionString
 			break
 		}
+	}
+	if adapter == nil {
+		return fmt.Errorf("unsupported SQL database connection: %s", connectionString)
 	}
 
 	// Open connection and migrate
 	var err error
-	e.sqlDB, err = gorm.Open(adapter.connector(connectionString), &gorm.Config{})
+	e.sqlDB, err = gorm.Open(adapter.connector(adapter.gormConnectionString(trimmedConnectionString)), &gorm.Config{})
 	if err != nil {
 		return err
 	}
 	log.Logger().Debug("Running database migrations...")
 
 	// we need the connectionString with adapter specific prefix here
-	dbURL, err := url.Parse(adapter.connectionString(connectionString))
+	dbURL, err := url.Parse(connectionString)
 	if err != nil {
 		return err
 	}
@@ -219,7 +222,10 @@ func (e *engine) initSQLDatabase() error {
 	db.AutoDumpSchema = false
 	db.Log = sqlMigrationLogger{}
 
-	return db.CreateAndMigrate()
+	if err = db.CreateAndMigrate(); err != nil {
+		return fmt.Errorf("failed to migrate database: %w on %s", err, dbURL.String())
+	}
+	return nil
 }
 
 func sqliteConnectionString(datadir string) string {
