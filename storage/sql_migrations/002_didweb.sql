@@ -1,3 +1,4 @@
+-- migrate:up
 -- this table is used to store the did:web
 create table vdr_didweb
 (
@@ -19,3 +20,8 @@ create table vdr_didweb_verificationmethod
     primary key (did, id),
     foreign key (did) references vdr_didweb (did) on delete cascade
 );
+
+-- migrate:down
+drop table vdr_didweb;
+drop table vdr_didweb_service;
+drop table vdr_didweb_verificationmethod;
