@@ -23,7 +23,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"net/http"
 	"net/url"
 	"strings"
@@ -155,9 +154,21 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	// If no presentation definition matches, return a 412 "no matching credentials" error
 	builder := presentationDefinition.PresentationSubmissionBuilder()
 	builder.AddWallet(requester, walletCredentials)
-	format, err := determineFormat(metadata.VPFormats)
-	if err != nil {
-		return nil, err
+
+	// Find supported VP format, matching support from:
+	// - what the local Nuts node supports
+	// - the presentation definition "claimed format designation" (optional)
+	// - the verifier's metadata (optional)
+	formatCandidates := credential.DefaultSupportedFormats()
+	if metadata.VPFormats != nil {
+		formatCandidates = formatCandidates.Match(metadata.VPFormats)
+	}
+	if presentationDefinition.Format != nil {
+		formatCandidates = formatCandidates.Match(credential.SupportedFormats(*presentationDefinition.Format))
+	}
+	format, _ := formatCandidates.First()
+	if format == "" {
+		return nil, errors.New("requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")
 	}
 	submission, signInstructions, err := builder.Build(format)
 	if err != nil {
@@ -191,23 +202,6 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 		TokenType:   token.TokenType,
 		Scope:       &scopes,
 	}, nil
-}
-
-func determineFormat(formats map[string]map[string][]string) (string, error) {
-	for format := range formats {
-		switch format {
-		case openid4vc.VerifiablePresentationJSONLDFormat:
-			return format, nil
-		case openid4vc.VerifiablePresentationJWTFormat:
-			fallthrough
-		case "jwt_vp_json":
-			return openid4vc.VerifiablePresentationJWTFormat, nil
-		default:
-			continue
-		}
-	}
-
-	return "", errors.New("authorization server metadata does not contain any supported VP formats")
 }
 
 var timeFunc = time.Now
