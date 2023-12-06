@@ -88,7 +88,7 @@ func (m *Module) Configure(_ core.ServerConfig) error {
 
 func (m *Module) Start() error {
 	var err error
-	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.services)
+	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.services, m.serverDefinitions)
 	if err != nil {
 		return err
 	}
@@ -210,17 +210,7 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	return nil
 }
 
-// validateAudience checks if the given audience of the presentation matches the service ID.
-func validateAudience(service ServiceDefinition, audience []string) error {
-	for _, audienceID := range audience {
-		if audienceID == service.ID {
-			return nil
-		}
-	}
-	return errors.New("aud claim is missing or invalid")
-}
-
-func (m *Module) Get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {
+func (m *Module) Get(serviceID string, startAt *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
 	if _, exists := m.services[serviceID]; !exists {
 		return nil, nil, ErrServiceNotFound
 	}
@@ -252,4 +242,14 @@ func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 		result[definition.ID] = *definition
 	}
 	return result, nil
+}
+
+// validateAudience checks if the given audience of the presentation matches the service ID.
+func validateAudience(service ServiceDefinition, audience []string) error {
+	for _, audienceID := range audience {
+		if audienceID == service.ID {
+			return nil
+		}
+	}
+	return errors.New("aud claim is missing or invalid")
 }

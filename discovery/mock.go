@@ -53,11 +53,11 @@ func (mr *MockServerMockRecorder) Add(serviceID, presentation any) *gomock.Call 
 }
 
 // Get mocks base method.
-func (m *MockServer) Get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {
+func (m *MockServer) Get(serviceID string, startAt *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", serviceID, startAt)
 	ret0, _ := ret[0].([]vc.VerifiablePresentation)
-	ret1, _ := ret[1].(*Timestamp)
+	ret1, _ := ret[1].(*Tag)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }

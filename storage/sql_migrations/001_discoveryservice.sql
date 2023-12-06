@@ -1,10 +1,14 @@
 -- migrate:up
--- discovery contains the known discovery services and the highest timestamp
+-- discovery contains the known discovery services and the associated tags.
 create table discovery_service
 (
     -- id is the unique identifier for the service. It comes from the service definition.
-    id                varchar(200) not null primary key,
-    lamport_timestamp integer      not null
+    id         varchar(200) not null primary key,
+    -- tag is the latest tag pointing to the last presentation registered on the service.
+    last_tag   varchar(40)  null,
+    -- tag_prefix is used to prefix the tag of the presentations of the service.
+    -- It is only populated if the node is server for this service.
+    tag_prefix varchar(5)   null
 );
 
 -- discovery_presentation contains the presentations of the discovery services
@@ -12,7 +16,9 @@ create table discovery_presentation
 (
     id                      varchar(36) not null primary key,
     service_id              varchar(36) not null,
-    lamport_timestamp       integer     not null,
+    -- lamport_timestamp is the lamport clock of the presentation, converted to a tag and then returned to the client.
+    -- It is only populated if the node is server for this service.
+    lamport_timestamp       integer     null,
     credential_subject_id   varchar     not null,
     presentation_id         varchar     not null,
     presentation_raw        varchar     not null,
