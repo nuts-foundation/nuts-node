@@ -130,47 +130,54 @@ func Test_sqlStore_get(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 
-	t.Run("empty list, empty timestamp", func(t *testing.T) {
+	t.Run("empty list, empty tag", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		presentations, timestamp, err := m.get(testServiceID, 0)
+		presentations, tag, err := m.get(testServiceID, nil)
 		assert.NoError(t, err)
 		assert.Empty(t, presentations)
-		assert.Empty(t, timestamp)
+		expectedTag := tagForTimestamp(t, m, testServiceID, 0)
+		assert.Equal(t, expectedTag, *tag)
 	})
-	t.Run("1 entry, empty timestamp", func(t *testing.T) {
+	t.Run("1 entry, empty tag", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 		require.NoError(t, m.add(testServiceID, vpAlice, nil))
-		presentations, timestamp, err := m.get(testServiceID, 0)
+		presentations, tag, err := m.get(testServiceID, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{vpAlice}, presentations)
-		assert.Equal(t, Timestamp(1), *timestamp)
+		expectedTag := tagForTimestamp(t, m, testServiceID, 1)
+		assert.Equal(t, expectedTag, *tag)
 	})
-	t.Run("2 entries, empty timestamp", func(t *testing.T) {
+	t.Run("2 entries, empty tag", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 		require.NoError(t, m.add(testServiceID, vpAlice, nil))
 		require.NoError(t, m.add(testServiceID, vpBob, nil))
-		presentations, timestamp, err := m.get(testServiceID, 0)
+		presentations, tag, err := m.get(testServiceID, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{vpAlice, vpBob}, presentations)
-		assert.Equal(t, Timestamp(2), *timestamp)
+		expectedTS := tagForTimestamp(t, m, testServiceID, 2)
+		assert.Equal(t, expectedTS, *tag)
 	})
 	t.Run("2 entries, start after first", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 		require.NoError(t, m.add(testServiceID, vpAlice, nil))
 		require.NoError(t, m.add(testServiceID, vpBob, nil))
-		presentations, timestamp, err := m.get(testServiceID, 1)
+		ts := tagForTimestamp(t, m, testServiceID, 1)
+		presentations, tag, err := m.get(testServiceID, &ts)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{vpBob}, presentations)
-		assert.Equal(t, Timestamp(2), *timestamp)
+		expectedTS := tagForTimestamp(t, m, testServiceID, 2)
+		assert.Equal(t, expectedTS, *tag)
 	})
 	t.Run("2 entries, start after end", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 		require.NoError(t, m.add(testServiceID, vpAlice, nil))
 		require.NoError(t, m.add(testServiceID, vpBob, nil))
-		presentations, timestamp, err := m.get(testServiceID, 2)
+		expectedTag := tagForTimestamp(t, m, testServiceID, 2)
+		presentations, tag, err := m.get(testServiceID, &expectedTag)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{}, presentations)
-		assert.Equal(t, Timestamp(2), *timestamp)
+		expectedTag = tagForTimestamp(t, m, testServiceID, 0)
+		assert.Equal(t, expectedTag, *tag)
 	})
 }
 
@@ -351,7 +358,8 @@ func Test_sqlStore_search(t *testing.T) {
 
 func setupStore(t *testing.T, db *gorm.DB) *sqlStore {
 	resetStore(t, db)
-	store, err := newSQLStore(db, testDefinitions())
+	defs := testDefinitions()
+	store, err := newSQLStore(db, defs, defs)
 	require.NoError(t, err)
 	return store
 }
@@ -370,4 +378,21 @@ func sliceToMap(slice []credentialPropertyRecord) map[string]string {
 		result[curr.Key] = curr.Value
 	}
 	return result
+}
+
+func Test_generateSeed(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		seed := generatePrefix()
+		assert.Len(t, seed, 5)
+		for _, char := range seed {
+			assert.True(t, char >= 'A' && char <= 'Z')
+		}
+	}
+}
+
+func tagForTimestamp(t *testing.T, store *sqlStore, serviceID string, ts int) Tag {
+	t.Helper()
+	var service serviceRecord
+	require.NoError(t, store.db.Find(&service, "id = ?", serviceID).Error)
+	return Timestamp(ts).Tag(service.TagPrefix)
 }
