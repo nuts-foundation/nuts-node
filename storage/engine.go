@@ -209,7 +209,7 @@ func (e *engine) initSQLDatabase() error {
 	log.Logger().Debug("Running database migrations...")
 
 	// we need the connectionString with adapter specific prefix here
-	dbURL, err := url.Parse(adapter.connectionString(e.config.SQL.ConnectionString))
+	dbURL, err := url.Parse(adapter.connectionString(connectionString))
 	if err != nil {
 		return err
 	}
