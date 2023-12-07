@@ -286,7 +286,8 @@ func (r *Module) Create(ctx context.Context, options management.DIDCreationOptio
 	return doc, key, nil
 }
 
-// Update updates a DID Document based on the DID
+// Update updates a DID Document based on the DID.
+// It only works on did:nuts, so is subject for removal in the future.
 func (r *Module) Update(ctx context.Context, id did.DID, next did.Document) error {
 	log.Logger().
 		WithField(core.LogFieldDID, id).
@@ -352,6 +353,33 @@ func (r *Module) Update(ctx context.Context, id did.DID, next did.Document) erro
 		Info("DID Document updated")
 
 	return nil
+}
+
+// CreateService creates a new service in the DID document identified by subjectDID.
+func (r *Module) CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
+	manager := r.documentManagers[subjectDID.Method]
+	if manager == nil {
+		return nil, fmt.Errorf("unsupported method: %s", subjectDID.Method)
+	}
+	return manager.CreateService(ctx, subjectDID, service)
+}
+
+// UpdateService updates a service in the DID document identified by subjectDID.
+func (r *Module) UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error) {
+	manager := r.documentManagers[subjectDID.Method]
+	if manager == nil {
+		return nil, fmt.Errorf("unsupported method: %s", subjectDID.Method)
+	}
+	return manager.UpdateService(ctx, subjectDID, serviceID, service)
+}
+
+// DeleteService removes a service from the DID document identified by subjectDID.
+func (r *Module) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
+	manager := r.documentManagers[subjectDID.Method]
+	if manager == nil {
+		return fmt.Errorf("unsupported method: %s", subjectDID.Method)
+	}
+	return manager.DeleteService(ctx, subjectDID, serviceID)
 }
 
 func (r *Module) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {

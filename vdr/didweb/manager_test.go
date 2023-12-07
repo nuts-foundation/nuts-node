@@ -19,26 +19,32 @@
 package didweb
 
 import (
+	"context"
 	"crypto"
 	"encoding/json"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"net/url"
+	"strings"
 	"testing"
 )
+
+var baseURL = test.MustParseURL("https://example.com")
+var subjectDID = did.MustParseDID("did:web:example.com:1234")
+var ctx = context.Background()
 
 func TestManager_Create(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
-	baseURL, _ := url.Parse("https://example.com")
 
 	const keyJSON = `{
         "crv": "P-256",
@@ -109,14 +115,12 @@ func TestManager_Create(t *testing.T) {
 func TestManager_IsOwner(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
-	baseURL, _ := url.Parse("https://example.com")
-	id := did.MustParseDID("did:web:example.com:1234")
 
 	t.Run("not owned (empty store)", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
 
-		owned, err := m.IsOwner(audit.TestContext(), id)
+		owned, err := m.IsOwner(audit.TestContext(), subjectDID)
 		require.NoError(t, err)
 		assert.False(t, owned)
 	})
@@ -126,7 +130,7 @@ func TestManager_IsOwner(t *testing.T) {
 		_, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
 		require.NoError(t, err)
 
-		owned, err := m.IsOwner(audit.TestContext(), id)
+		owned, err := m.IsOwner(audit.TestContext(), subjectDID)
 		require.NoError(t, err)
 		assert.False(t, owned)
 	})
@@ -145,7 +149,6 @@ func TestManager_IsOwner(t *testing.T) {
 func TestManager_ListOwned(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
-	baseURL, _ := url.Parse("https://example.com")
 
 	t.Run("empty store", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
@@ -182,7 +185,6 @@ func TestManager_ListOwned(t *testing.T) {
 func TestManager_Resolve(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
-	baseURL, _ := url.Parse("https://example.com")
 
 	t.Run("not found", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
@@ -204,4 +206,110 @@ func TestManager_Resolve(t *testing.T) {
 		actual, _ := resolvedDocument.MarshalJSON()
 		assert.JSONEq(t, string(expected), string(actual))
 	})
+}
+
+func TestManager_AddService(t *testing.T) {
+	t.Run("with ID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		store := NewMockstore(ctrl)
+		m := NewManager(*baseURL, nil, nil)
+		m.store = store
+
+		expected := did.Service{
+			ID:              ssi.MustParseURI(subjectDID.String() + "#api"),
+			Type:            "API",
+			ServiceEndpoint: "https://example.com/api",
+		}
+		store.EXPECT().createService(subjectDID, expected).Return(nil)
+
+		actual, err := m.CreateService(ctx, subjectDID, expected)
+
+		require.NoError(t, err)
+		require.Equal(t, expected, *actual)
+	})
+	t.Run("random ID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		store := NewMockstore(ctrl)
+		m := NewManager(*baseURL, nil, nil)
+		m.store = store
+
+		input := did.Service{
+			Type:            "API",
+			ServiceEndpoint: "https://example.com/api",
+		}
+		var storedService did.Service
+		store.EXPECT().createService(subjectDID, gomock.Any()).DoAndReturn(func(_ did.DID, service did.Service) error {
+			storedService = service
+			assert.NotEmpty(t, service.ID.Fragment)
+			assert.True(t, strings.HasPrefix(service.ID.String(), subjectDID.String()))
+			return nil
+		})
+
+		actual, err := m.CreateService(ctx, subjectDID, input)
+
+		require.NoError(t, err)
+		assert.Equal(t, storedService, *actual)
+	})
+}
+
+func TestManager_UpdateService(t *testing.T) {
+	t.Run("ID not set", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		store := NewMockstore(ctrl)
+		m := NewManager(*baseURL, nil, nil)
+		m.store = store
+
+		serviceID := ssi.MustParseURI(subjectDID.String() + "#api")
+		input := did.Service{}
+		expected := did.Service{
+			ID: serviceID,
+		}
+		var storedService did.Service
+		store.EXPECT().updateService(subjectDID, serviceID, gomock.Any()).DoAndReturn(func(_ did.DID, _ ssi.URI, service did.Service) error {
+			storedService = service
+			return nil
+		})
+
+		actual, err := m.UpdateService(ctx, subjectDID, serviceID, input)
+
+		require.NoError(t, err)
+		assert.Equal(t, expected, *actual)
+		assert.Equal(t, storedService, *actual)
+	})
+	t.Run("ID is set", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		store := NewMockstore(ctrl)
+		m := NewManager(*baseURL, nil, nil)
+		m.store = store
+
+		serviceID := ssi.MustParseURI(subjectDID.String() + "#api")
+		input := did.Service{
+			ID: serviceID,
+		}
+		var storedService did.Service
+		store.EXPECT().updateService(subjectDID, serviceID, gomock.Any()).DoAndReturn(func(_ did.DID, _ ssi.URI, service did.Service) error {
+			storedService = service
+			return nil
+		})
+
+		actual, err := m.UpdateService(ctx, subjectDID, serviceID, input)
+
+		require.NoError(t, err)
+		assert.Equal(t, input, *actual)
+		assert.Equal(t, storedService, *actual)
+	})
+}
+
+func TestManager_DeleteService(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	store := NewMockstore(ctrl)
+	m := NewManager(*baseURL, nil, nil)
+	m.store = store
+
+	serviceID := ssi.MustParseURI(subjectDID.String() + "#api")
+	store.EXPECT().deleteService(subjectDID, serviceID).Return(nil)
+
+	err := m.DeleteService(ctx, subjectDID, serviceID)
+
+	require.NoError(t, err)
 }

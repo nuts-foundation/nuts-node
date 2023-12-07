@@ -32,9 +32,9 @@ type DocumentManager interface {
 	DocumentOwner
 	resolver.DIDResolver
 
-	// AddService creates a new service in the DID document identified by subjectDID.
+	// CreateService creates a new service in the DID document identified by subjectDID.
 	// If the service DID is not provided, it will be generated.
-	AddService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error)
+	CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error)
 
 	// UpdateService updates a service in the DID document identified by subjectDID.
 	UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error)
@@ -87,6 +87,17 @@ type DocManipulator interface {
 	// It returns an ErrDeactivated when the DID document has the deactivated state.
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
 	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
+
+	// CreateService creates a new service in the DID document identified by subjectDID.
+	// If the service DID is not provided, it will be generated.
+	CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error)
+
+	// UpdateService updates a service in the DID document identified by subjectDID.
+	UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error)
+
+	// DeleteService deletes a service in the DID document identified by subjectDID.
+	// It returns an error if the DID or service isn't found.
+	DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error
 }
 
 // DIDCreationOptions defines options for creating a DID Document.

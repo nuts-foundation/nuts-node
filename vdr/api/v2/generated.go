@@ -40,7 +40,7 @@ type DIDResolutionResult struct {
 // CreateDIDJSONRequestBody defines body for CreateDID for application/json ContentType.
 type CreateDIDJSONRequestBody = CreateDIDOptions
 
-// AddServiceJSONRequestBody defines body for AddService for application/json ContentType.
+// AddServiceJSONRequestBody defines body for CreateService for application/json ContentType.
 type AddServiceJSONRequestBody = Service
 
 // UpdateServiceJSONRequestBody defines body for UpdateService for application/json ContentType.
@@ -432,7 +432,7 @@ func NewResolveDIDRequest(server string, did string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewAddServiceRequest calls the generic AddService builder with application/json body
+// NewAddServiceRequest calls the generic CreateService builder with application/json body
 func NewAddServiceRequest(server string, did string, body AddServiceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
@@ -443,7 +443,7 @@ func NewAddServiceRequest(server string, did string, body AddServiceJSONRequestB
 	return NewAddServiceRequestWithBody(server, did, "application/json", bodyReader)
 }
 
-// NewAddServiceRequestWithBody generates requests for AddService with any type of body
+// NewAddServiceRequestWithBody generates requests for CreateService with any type of body
 func NewAddServiceRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
@@ -2225,7 +2225,7 @@ func (sh *strictHandler) AddService(ctx echo.Context, did string) error {
 		return sh.ssi.AddService(ctx.Request().Context(), request.(AddServiceRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "AddService")
+		handler = middleware(handler, "CreateService")
 	}
 
 	response, err := handler(ctx, request)

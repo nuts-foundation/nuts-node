@@ -48,8 +48,20 @@ func NewManager(baseURL url.URL, keyStore crypto.KeyStore, db *gorm.DB) *Manager
 // Manager creates and updates did:web documents
 type Manager struct {
 	baseURL  url.URL
-	store    *sqlStore
+	store    store
 	keyStore crypto.KeyStore
+}
+
+func (m Manager) Deactivate(_ context.Context, _ did.DID) error {
+	return errors.New("Deactivate() is not yet supported for did:web")
+}
+
+func (m Manager) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID did.DIDURL) error {
+	return errors.New("RemoveVerificationMethod() is not yet supported for did:web")
+}
+
+func (m Manager) AddVerificationMethod(_ context.Context, _ did.DID, _ management.DIDKeyFlags) (*did.VerificationMethod, error) {
+	return nil, errors.New("AddVerificationMethod() is not yet supported for did:web")
 }
 
 // Create creates a new did:web document.
@@ -70,7 +82,7 @@ func (m Manager) create(ctx context.Context, mostSignificantBits string) (*did.D
 		return nil, nil, fmt.Errorf("store new DID: %w", err)
 	}
 
-	document := buildDocument(*newDID, []did.VerificationMethod{*verificationMethod})
+	document := buildDocument(*newDID, []did.VerificationMethod{*verificationMethod}, nil)
 	return &document, verificationMethodKey, nil
 }
 
@@ -94,16 +106,16 @@ func (m Manager) createVerificationMethod(ctx context.Context, ownerDID did.DID)
 
 // Resolve returns the did:web document for the given DID, if it is managed by this node.
 func (m Manager) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
-	vms, err := m.store.get(id)
+	vms, services, err := m.store.get(id)
 	if err != nil {
 		return nil, nil, err
 	}
-	document := buildDocument(id, vms)
+	document := buildDocument(id, vms, services)
 	return &document, &resolver.DocumentMetadata{}, nil
 }
 
 func (m Manager) IsOwner(_ context.Context, id did.DID) (bool, error) {
-	_, err := m.store.get(id)
+	_, _, err := m.store.get(id)
 	if errors.Is(err, resolver.ErrNotFound) {
 		return false, nil
 	}
@@ -114,22 +126,39 @@ func (m Manager) ListOwned(_ context.Context) ([]did.DID, error) {
 	return m.store.list()
 }
 
-func (m Manager) AddService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
-	//TODO implement me
-	panic("implement me")
+func (m Manager) CreateService(_ context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
+	if service.ID.String() == "" {
+		// Generate random service ID
+		serviceID := did.DIDURL{
+			DID:      subjectDID,
+			Fragment: uuid.NewString(),
+		}
+		service.ID = serviceID.URI()
+	}
+	err := m.store.createService(subjectDID, service)
+	if err != nil {
+		return nil, err
+	}
+	return &service, nil
 }
 
-func (m Manager) UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error) {
-	//TODO implement me
-	panic("implement me")
+func (m Manager) UpdateService(_ context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error) {
+	if service.ID.String() == "" {
+		// ID not set in new version of the service, use the provided serviceID
+		service.ID = serviceID
+	}
+	err := m.store.updateService(subjectDID, serviceID, service)
+	if err != nil {
+		return nil, err
+	}
+	return &service, nil
 }
 
-func (m Manager) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
-	//TODO implement me
-	panic("implement me")
+func (m Manager) DeleteService(_ context.Context, subjectDID did.DID, serviceID ssi.URI) error {
+	return m.store.deleteService(subjectDID, serviceID)
 }
 
-func buildDocument(subject did.DID, verificationMethods []did.VerificationMethod) did.Document {
+func buildDocument(subject did.DID, verificationMethods []did.VerificationMethod, services []did.Service) did.Document {
 	var vms []*did.VerificationMethod
 	for _, verificationMethod := range verificationMethods {
 		vms = append(vms, &verificationMethod)
@@ -140,7 +169,8 @@ func buildDocument(subject did.DID, verificationMethods []did.VerificationMethod
 			ssi.MustParseURI(jsonld.Jws2020Context),
 			did.DIDContextV1URI(),
 		},
-		ID: subject,
+		ID:      subject,
+		Service: services,
 	}
 	for _, verificationMethod := range verificationMethods {
 		document.AddAssertionMethod(&verificationMethod)

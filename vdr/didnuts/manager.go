@@ -80,8 +80,8 @@ func (m Manager) Resolve(_ did.DID, _ *resolver.ResolveMetadata) (*did.Document,
 	return nil, nil, fmt.Errorf("Resolve() is not supported for did:%s", MethodName)
 }
 
-func (m Manager) AddService(_ context.Context, _ did.DID, _ did.Service) (*did.Service, error) {
-	return nil, fmt.Errorf("AddService() is not supported for did:%s", MethodName)
+func (m Manager) CreateService(_ context.Context, _ did.DID, _ did.Service) (*did.Service, error) {
+	return nil, fmt.Errorf("CreateService() is not supported for did:%s", MethodName)
 }
 
 func (m Manager) UpdateService(_ context.Context, _ did.DID, _ ssi.URI, _ did.Service) (*did.Service, error) {

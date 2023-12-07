@@ -127,8 +127,8 @@ func TestManager_Resolve(t *testing.T) {
 }
 
 func TestManager_AddService(t *testing.T) {
-	_, err := Manager{}.AddService(nil, did.DID{}, did.Service{})
-	assert.EqualError(t, err, "AddService() is not supported for did:nuts")
+	_, err := Manager{}.CreateService(nil, did.DID{}, did.Service{})
+	assert.EqualError(t, err, "CreateService() is not supported for did:nuts")
 }
 
 func TestManager_DeleteService(t *testing.T) {
