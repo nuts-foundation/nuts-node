@@ -253,7 +253,6 @@ func (s *sqlStore) get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation,
 	if err != nil {
 		return nil, nil, fmt.Errorf("query service '%s': %w", serviceID, err)
 	}
-	highestLamportClock := startAfter
 	presentations := make([]vc.VerifiablePresentation, 0, len(rows))
 	for _, row := range rows {
 		presentation, err := vc.ParseVerifiablePresentation(row.PresentationRaw)
@@ -261,10 +260,13 @@ func (s *sqlStore) get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation,
 			return nil, nil, fmt.Errorf("parse presentation '%s' of service '%s': %w", row.PresentationID, serviceID, err)
 		}
 		presentations = append(presentations, *presentation)
-		highestLamportClock = row.LamportTimestamp
 	}
-	newTag := Timestamp(highestLamportClock).Tag(service.TagPrefix)
-	return presentations, &newTag, nil
+	lastTag := service.LastTag
+	if lastTag.Empty() {
+		// Make sure we don't return an empty string for the tag, instead return tag indicating the beginning of the list.
+		lastTag = Timestamp(0).Tag(service.TagPrefix)
+	}
+	return presentations, &lastTag, nil
 }
 
 // search searches for presentations, registered on the given service, matching the given query.

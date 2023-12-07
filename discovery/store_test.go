@@ -168,7 +168,7 @@ func Test_sqlStore_get(t *testing.T) {
 		expectedTS := tagForTimestamp(t, m, testServiceID, 2)
 		assert.Equal(t, expectedTS, *tag)
 	})
-	t.Run("2 entries, start after end", func(t *testing.T) {
+	t.Run("2 entries, start at end", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 		require.NoError(t, m.add(testServiceID, vpAlice, nil))
 		require.NoError(t, m.add(testServiceID, vpBob, nil))
@@ -176,7 +176,6 @@ func Test_sqlStore_get(t *testing.T) {
 		presentations, tag, err := m.get(testServiceID, &expectedTag)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{}, presentations)
-		expectedTag = tagForTimestamp(t, m, testServiceID, 0)
 		assert.Equal(t, expectedTag, *tag)
 	})
 }
