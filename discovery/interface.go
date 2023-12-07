@@ -56,6 +56,11 @@ func (t Tag) Timestamp(tagPrefix string) *Timestamp {
 	return &lamport
 }
 
+// Empty returns true if the Tag is empty.
+func (t Tag) Empty() bool {
+	return len(t) == 0
+}
+
 // Timestamp is the interpreted Tag.
 // It's implemented as lamport timestamp (https://en.wikipedia.org/wiki/Lamport_timestamp);
 // it is incremented when a new entry is added to the list.
