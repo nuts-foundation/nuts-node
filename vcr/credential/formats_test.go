@@ -131,27 +131,3 @@ func TestFormats_Match(t *testing.T) {
 		assert.Equal(t, expected, result)
 	})
 }
-
-func TestSupportedFormats_First(t *testing.T) {
-	t.Run("empty", func(t *testing.T) {
-		set := Formats{}
-		format, params := set.First()
-		assert.Equal(t, "", format)
-		assert.Nil(t, params)
-	})
-	t.Run("non-empty", func(t *testing.T) {
-		set := OpenIDSupportedFormats(map[string]map[string][]string{
-			"ldp_vp": {
-				"proof_type_values_supported": {"Ed25519Signature2018", "JsonWebSignature2020"},
-			},
-			"jwt_vp": {
-				"alg_values_supported": {"ES256", "EdDSA"},
-			},
-		})
-		format, params := set.First()
-		assert.Equal(t, "jwt_vp", format)
-		assert.Equal(t, map[string][]string{
-			"alg": {"ES256", "EdDSA"},
-		}, params)
-	})
-}

@@ -18,8 +18,6 @@
 
 package credential
 
-import "sort"
-
 // DIFClaimFormats returns the given DIF claim formats as specified by https://identity.foundation/claim-format-registry/
 // as Formats.
 func DIFClaimFormats(formats map[string]map[string][]string) Formats {
@@ -92,21 +90,6 @@ func (f Formats) Match(other Formats) Formats {
 	}
 
 	return result
-}
-
-// First returns the first format and its parameters.
-// If there are no formats, it returns an empty string and nil.
-func (f Formats) First() (string, map[string][]string) {
-	if len(f.Map) == 0 {
-		return "", nil
-	}
-	// Sort the keys to get a deterministic result
-	var formats []string
-	for format := range f.Map {
-		formats = append(formats, format)
-	}
-	sort.Strings(formats)
-	return formats[0], f.normalizeParameters(f.Map[formats[0]])
 }
 
 // normalizeParameter normalizes the parameter name to the name used in the DIF spec.

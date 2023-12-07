@@ -222,6 +222,38 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 }
 
+func Test_chooseVPFormat(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		formats := map[string]map[string][]string{
+			"jwt_vp": {
+				"alg": {"ES256K"},
+			},
+		}
+
+		format := chooseVPFormat(formats)
+
+		assert.Equal(t, "jwt_vp", format)
+	})
+	t.Run("no supported format", func(t *testing.T) {
+		formats := map[string]map[string][]string{}
+
+		format := chooseVPFormat(formats)
+
+		assert.Empty(t, format)
+	})
+	t.Run(" jwt_vp_json returns jwt_vp", func(t *testing.T) {
+		formats := map[string]map[string][]string{
+			"jwt_vp_json": {
+				"alg": {"ES256K"},
+			},
+		}
+
+		format := chooseVPFormat(formats)
+
+		assert.Equal(t, "jwt_vp", format)
+	})
+}
+
 func TestService_CreateJwtBearerToken(t *testing.T) {
 	usi := vc.VerifiablePresentation{}
 

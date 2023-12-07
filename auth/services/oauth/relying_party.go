@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/vc"
 	"net/http"
 	"net/url"
 	"strings"
@@ -166,10 +167,11 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	if presentationDefinition.Format != nil {
 		formatCandidates = formatCandidates.Match(credential.DIFClaimFormats(*presentationDefinition.Format))
 	}
-	format, _ := formatCandidates.First()
+	format := chooseVPFormat(formatCandidates.Map)
 	if format == "" {
 		return nil, errors.New("requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")
 	}
+	// TODO: format parameters (alg, proof_type, etc.) are ignored, but should be used in the actual signing
 	submission, signInstructions, err := builder.Build(format)
 	if err != nil {
 		return nil, fmt.Errorf("failed to match presentation definition: %w", err)
@@ -202,6 +204,20 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 		TokenType:   token.TokenType,
 		Scope:       &scopes,
 	}, nil
+}
+
+func chooseVPFormat(formats map[string]map[string][]string) string {
+	// They are in preferred order
+	if _, ok := formats[vc.JWTPresentationProofFormat]; ok {
+		return vc.JWTPresentationProofFormat
+	}
+	if _, ok := formats["jwt_vp_json"]; ok {
+		return vc.JWTPresentationProofFormat
+	}
+	if _, ok := formats[vc.JSONLDPresentationProofFormat]; ok {
+		return vc.JSONLDPresentationProofFormat
+	}
+	return ""
 }
 
 var timeFunc = time.Now
