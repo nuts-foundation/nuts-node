@@ -80,6 +80,8 @@ const (
 var responseTypesSupported = []string{responseTypeCode, responseTypeVPToken, responseTypeVPIDToken}
 
 const (
+	// didScheme is the client_id_scheme value for DIDs
+	didScheme = "did"
 	// responseModeParam is the name of the OAuth2 response_mode parameter.
 	// Specified by https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
 	responseModeParam = "response_mode"

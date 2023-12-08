@@ -36,4 +36,4 @@ type VerifiablePresentation = vc.VerifiablePresentation
 type AccessTokenResponse = oauth.TokenResponse
 
 // AccessTokenRequestFailedResponse is an alias to use from within the API
-type AccessTokenRequestFailedResponse = oauth.ErrorResponse
+type AccessTokenRequestFailedResponse = oauth.OAuth2Error

@@ -117,7 +117,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		assert.Nil(t, response)
 		require.NotNil(t, err.Description)
-		assert.Contains(t, *err.Description, "jwt bearer token validation failed")
+		assert.Contains(t, err.Description, "jwt bearer token validation failed")
 	})
 
 	t.Run("broken identity token", func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		assert.Nil(t, response)
 		require.NotNil(t, err.Description)
-		assert.Contains(t, *err.Description, "identity validation failed")
+		assert.Contains(t, err.Description, "identity validation failed")
 	})
 
 	t.Run("JWT validity too long", func(t *testing.T) {
@@ -151,7 +151,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		assert.Nil(t, response)
 		require.NotNil(t, err.Description)
-		assert.Contains(t, *err.Description, "JWT validity too long")
+		assert.Contains(t, err.Description, "JWT validity too long")
 	})
 
 	t.Run("invalid identity token", func(t *testing.T) {
@@ -170,7 +170,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		assert.Nil(t, response)
 		require.NotNil(t, err.Description)
-		assert.Contains(t, *err.Description, "identity validation failed: because of reasons")
+		assert.Contains(t, err.Description, "identity validation failed: because of reasons")
 	})
 
 	t.Run("error detail masking", func(t *testing.T) {
@@ -201,7 +201,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 			assert.Nil(t, response)
 			require.NotNil(t, err.Description)
-			assert.Contains(t, *err.Description, "could not build accessToken: signing error")
+			assert.Contains(t, err.Description, "could not build accessToken: signing error")
 		})
 		t.Run("mask internal errors when secureMode=true", func(t *testing.T) {
 			ctx := setup(createContext(t))
@@ -213,8 +213,8 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 			response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 			assert.Nil(t, response)
-			assert.Nil(t, err.Description)
-			assert.Equal(t, err.Error, "server_error")
+			assert.Empty(t, err.Description)
+			assert.Equal(t, "server_error", string(err.Code))
 		})
 	})
 

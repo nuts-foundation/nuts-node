@@ -28,9 +28,6 @@ import (
 
 // RelyingParty implements the OAuth2 relying party role.
 type RelyingParty interface {
-	// AuthorizationServerMetadata returns the metadata of the remote authorization server.
-	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
-
 	CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error)
 	// CreateAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
 	CreateAuthorizationRequest(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, clientState string) (*url.URL, error)
@@ -47,6 +44,13 @@ type AuthorizationServer interface {
 	// CreateAccessToken is called by remote Nuts nodes to create an access token,
 	// which can be used to access the local organization's XIS resources.
 	// It returns an oauth.ErrorResponse rather than a regular Go error, because the errors that may be returned are tightly specified.
-	CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.ErrorResponse)
+	CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.OAuth2Error)
 	IntrospectAccessToken(ctx context.Context, token string) (*services.NutsAccessToken, error)
+}
+
+type Verifier interface {
+	// AuthorizationServerMetadata returns the metadata of the remote wallet.
+	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
+	// ClientMetadataURL constructs the URL to the client metadata of the local verifier.
+	ClientMetadataURL(webdid did.DID) (*url.URL, error)
 }

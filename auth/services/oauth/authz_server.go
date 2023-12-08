@@ -183,14 +183,13 @@ func (s *authzServer) Configure(clockSkewInMilliseconds int, secureMode bool) er
 }
 
 // CreateAccessToken extracts the claims out of the request, checks the validity and builds the access token
-func (s *authzServer) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.ErrorResponse) {
-	var oauthError *oauth.ErrorResponse
+func (s *authzServer) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.OAuth2Error) {
+	var oauthError *oauth.OAuth2Error
 	var result *oauth.TokenResponse
 
 	validationCtx, err := s.validateAccessTokenRequest(ctx, request.RawJwtBearerToken)
 	if err != nil {
-		errStr := err.Error()
-		oauthError = &oauth.ErrorResponse{Error: "invalid_request", Description: &errStr}
+		oauthError = &oauth.OAuth2Error{Code: "invalid_request", Description: err.Error()}
 	} else {
 		var accessToken string
 		var rawToken services.NutsAccessToken
@@ -202,11 +201,10 @@ func (s *authzServer) CreateAccessToken(ctx context.Context, request services.Cr
 				ExpiresIn:   &expires,
 			}
 		} else {
-			oauthError = &oauth.ErrorResponse{Error: "server_error"}
+			oauthError = &oauth.OAuth2Error{Code: "server_error"}
 			if !s.secureMode {
 				// Only set details when secure mode is disabled
-				errStr := err.Error()
-				oauthError.Description = &errStr
+				oauthError.Description = err.Error()
 			}
 		}
 	}

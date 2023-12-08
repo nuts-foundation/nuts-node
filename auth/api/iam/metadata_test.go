@@ -55,7 +55,7 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 	t.Run("no IP allowed", func(t *testing.T) {
 		issuer := "https://127.0.0.1/iam/id"
 
-		u, err := IssuerIdToWellKnown(issuer, authzServerWellKnown, true)
+		u, err := IssuerIdToWellKnown(issuer, oauth.AuthzServerWellKnown, true)
 
 		assert.ErrorContains(t, err, "hostname is IP")
 		assert.Nil(t, u)

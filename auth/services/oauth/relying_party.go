@@ -159,7 +159,7 @@ func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantTok
 
 func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
 	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	metadata, err := s.AuthorizationServerMetadata(ctx, verifier)
+	metadata, err := s.authorizationServerMetadata(ctx, verifier)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	}, nil
 }
 
-func (s *relyingParty) AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
+func (s *relyingParty) authorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
 	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, webdid)
 	if err != nil {

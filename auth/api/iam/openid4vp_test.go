@@ -73,7 +73,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	})
 	t.Run("error on authorization server metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.relyingParty.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(nil, assert.AnError)
+		ctx.verifier.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
 
@@ -82,7 +82,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	t.Run("failed to generate verifier web url", func(t *testing.T) {
 		ctx := newTestClient(t)
 		verifierDID := did.MustParseDID("did:notweb:example.com:verifier")
-		ctx.relyingParty.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
+		ctx.verifier.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
 
@@ -90,7 +90,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	})
 	t.Run("incorrect holder AuthorizationEndpoint URL", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.relyingParty.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+		ctx.verifier.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
 			AuthorizationEndpoint: "://example.com",
 		}, nil)
 

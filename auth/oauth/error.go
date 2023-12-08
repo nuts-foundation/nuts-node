@@ -62,7 +62,7 @@ type OAuth2Error struct {
 	// It should not be set if the user-agent is not a browser, or there is no redirect_uri (because the request was malformed), this field is empty.
 	// When the field is set, the user-agent is redirected to the specified URI with the error code and description as query parameters.
 	// If it's not set, the error code and description are returned in the response body (plain text or JSON).
-	RedirectURI string `json:"-"`
+	RedirectURI *url.URL `json:"-"`
 }
 
 // StatusCode returns the HTTP status code to be returned to the client, in case the user-agent can't be redirected with HTTP 302 - Found.
@@ -104,8 +104,7 @@ func (p Oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err 
 		// Somebody forgot to set a code
 		oauthErr.Code = ServerError
 	}
-	redirectURI, _ := url.Parse(oauthErr.RedirectURI)
-	if oauthErr.RedirectURI == "" || redirectURI == nil {
+	if oauthErr.RedirectURI == nil {
 		// Can't redirect the user-agent back, render error as JSON or plain text (depending on accept/content-type)
 		accept := echoContext.Request().Header.Get("Accept")
 		if strings.Contains(accept, "application/json") {
@@ -125,13 +124,13 @@ func (p Oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err 
 		return echoContext.String(oauthErr.StatusCode(), strings.Join(parts, " - "))
 	}
 	// Redirect the user-agent back to the client
-	query := redirectURI.Query()
+	query := oauthErr.RedirectURI.Query()
 	query.Set("error", string(oauthErr.Code))
 	if oauthErr.Description != "" {
 		query.Set("error_description", oauthErr.Description)
 	}
-	redirectURI.RawQuery = query.Encode()
-	return echoContext.Redirect(http.StatusFound, redirectURI.String())
+	oauthErr.RedirectURI.RawQuery = query.Encode()
+	return echoContext.Redirect(http.StatusFound, oauthErr.RedirectURI.String())
 }
 
 // TestOAuthErrorCode tests if the response is an OAuth2 error with the given code.

@@ -66,9 +66,6 @@ func TestStatusCodes(t *testing.T) {
 		}
 	})
 	t.Run("400s", func(t *testing.T) {
-		hook := logTest.NewGlobal()
-		baseUrl, _ := node.StartServer(t)
-
 		testCases := []operation{
 			{module: "Crypto", operation: "SignJwt", url: "/internal/crypto/v1/sign_jwt", body: map[string]interface{}{"kid": "fpp", "claims": map[string]interface{}{"foo": "bar"}}},
 			{module: "Network", operation: "GetTransaction", url: "/internal/network/v1/transaction/invalidhash"},
@@ -76,6 +73,8 @@ func TestStatusCodes(t *testing.T) {
 		}
 
 		for _, testCase := range testCases {
+			hook := logTest.NewGlobal()
+			baseUrl, _ := node.StartServer(t)
 			var resp *http.Response
 			var err error
 			if testCase.body != nil {

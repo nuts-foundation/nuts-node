@@ -26,10 +26,10 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/test"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
@@ -61,7 +61,7 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		httpServer := httptest.NewServer(httpHandler)
 		t.Cleanup(httpServer.Close)
 
-		response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, mustParseURL(httpServer.URL))
+		response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpServer.URL))
 
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
@@ -74,7 +74,7 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		})
 		t.Cleanup(server.Close)
 
-		response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, mustParseURL(server.URL))
+		response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(server.URL))
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 502 (expected: 200)")
@@ -94,7 +94,7 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		t.Run("HTTPS in strict mode", func(t *testing.T) {
 			ctx.relyingParty.strictMode = true
 
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, mustParseURL(httpsServer.URL))
+			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpsServer.URL))
 
 			assert.NoError(t, err)
 			assert.NotNil(t, response)
@@ -102,7 +102,7 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		t.Run("HTTP allowed in non-strict mode", func(t *testing.T) {
 			ctx.relyingParty.strictMode = false
 
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, mustParseURL(httpServer.URL))
+			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpServer.URL))
 
 			assert.NoError(t, err)
 			assert.NotNil(t, response)
@@ -110,7 +110,7 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		t.Run("HTTP not allowed in strict mode", func(t *testing.T) {
 			ctx.relyingParty.strictMode = true
 
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, mustParseURL(httpServer.URL))
+			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpServer.URL))
 
 			assert.EqualError(t, err, fmt.Sprintf("authorization server endpoint must be HTTPS when in strict mode: %s", httpServer.URL))
 			assert.Nil(t, response)
@@ -429,11 +429,11 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 	})
 }
 
-func TestRelyingParty_AuthorizationServerMetadata(t *testing.T) {
+func TestRelyingParty_authorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createOAuthRPContext(t)
 
-		metadata, err := ctx.relyingParty.AuthorizationServerMetadata(context.Background(), ctx.verifierDID)
+		metadata, err := ctx.relyingParty.authorizationServerMetadata(context.Background(), ctx.verifierDID)
 
 		require.NoError(t, err)
 		require.NotNil(t, metadata)
@@ -443,7 +443,7 @@ func TestRelyingParty_AuthorizationServerMetadata(t *testing.T) {
 		ctx := createOAuthRPContext(t)
 		ctx.metadata = nil
 
-		_, err := ctx.relyingParty.AuthorizationServerMetadata(context.Background(), ctx.verifierDID)
+		_, err := ctx.relyingParty.authorizationServerMetadata(context.Background(), ctx.verifierDID)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
@@ -580,12 +580,4 @@ func createOAuthRPContext(t *testing.T) *rpOAuthTestContext {
 	ctx.authzServerMetadata = authzServerMetadata
 
 	return ctx
-}
-
-func mustParseURL(str string) url.URL {
-	u, err := url.Parse(str)
-	if err != nil {
-		panic(err)
-	}
-	return *u
 }

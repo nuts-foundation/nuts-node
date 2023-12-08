@@ -25,6 +25,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -48,7 +49,7 @@ func Test_oauth2ErrorWriter_Write(t *testing.T) {
 		err := Oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
 			Code:        InvalidRequest,
 			Description: "failure",
-			RedirectURI: "https://example.com",
+			RedirectURI: mustParseURL("https://example.com"),
 		})
 
 		assert.NoError(t, err)
@@ -120,4 +121,12 @@ func Test_oauth2ErrorWriter_Write(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		assert.Equal(t, `server_error`, strings.TrimSpace(string(body)))
 	})
+}
+
+func mustParseURL(theURL string) *url.URL {
+	parsed, err := url.Parse(theURL)
+	if err != nil {
+		panic(err)
+	}
+	return parsed
 }
