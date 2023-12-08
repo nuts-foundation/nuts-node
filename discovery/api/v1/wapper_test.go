@@ -61,3 +61,31 @@ func newMockContext(t *testing.T) mockContext {
 		wrapper: Wrapper{server},
 	}
 }
+
+func TestWrapper_RegisterPresentation(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		test := newMockContext(t)
+		presentation := vc.VerifiablePresentation{}
+		test.server.EXPECT().Add(serviceID, presentation).Return(nil)
+
+		response, err := test.wrapper.RegisterPresentation(nil, RegisterPresentationRequestObject{
+			ServiceID: serviceID,
+			Body:      &presentation,
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, RegisterPresentation201Response{}, response)
+	})
+	t.Run("error", func(t *testing.T) {
+		test := newMockContext(t)
+		presentation := vc.VerifiablePresentation{}
+		test.server.EXPECT().Add(serviceID, presentation).Return(discovery.ErrInvalidPresentation)
+
+		_, err := test.wrapper.RegisterPresentation(nil, RegisterPresentationRequestObject{
+			ServiceID: serviceID,
+			Body:      &presentation,
+		})
+
+		assert.ErrorIs(t, err, discovery.ErrInvalidPresentation)
+	})
+}

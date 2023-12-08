@@ -41,9 +41,6 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 				return f(ctx, request)
 			}
 		},
-		//func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
-		//	return audit.StrictMiddleware(f, discover.ModuleName, operationID)
-		//},
 	}))
 }
 
