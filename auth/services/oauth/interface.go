@@ -48,6 +48,7 @@ type AuthorizationServer interface {
 	IntrospectAccessToken(ctx context.Context, token string) (*services.NutsAccessToken, error)
 }
 
+// Verifier implements the OpenID4VP Verifier role.
 type Verifier interface {
 	// AuthorizationServerMetadata returns the metadata of the remote wallet.
 	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
