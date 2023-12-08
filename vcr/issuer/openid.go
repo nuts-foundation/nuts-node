@@ -32,7 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
@@ -208,7 +207,7 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 }
 
 func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request openid4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
-	if request.Format != openid4vc.VerifiableCredentialJSONLDFormat {
+	if request.Format != vc.JSONLDCredentialProofFormat {
 		return nil, openid4vci.Error{
 			Err:        fmt.Errorf("credential request: unsupported format '%s'", request.Format),
 			Code:       openid4vci.UnsupportedCredentialType,
@@ -409,7 +408,7 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 	offer := openid4vci.CredentialOffer{
 		CredentialIssuer: i.issuerIdentifierURL,
 		Credentials: []openid4vci.OfferedCredential{{
-			Format: openid4vc.VerifiableCredentialJSONLDFormat,
+			Format: vc.JSONLDCredentialProofFormat,
 			CredentialDefinition: &openid4vci.CredentialDefinition{
 				Context: credential.Context,
 				Type:    credential.Type,

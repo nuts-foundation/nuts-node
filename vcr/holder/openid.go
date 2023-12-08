@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"net/http"
 	"time"
 
@@ -96,7 +95,7 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 		}
 	}
 	offeredCredential := offer.Credentials[0]
-	if offeredCredential.Format != openid4vc.VerifiableCredentialJSONLDFormat {
+	if offeredCredential.Format != vc.JSONLDCredentialProofFormat {
 		return openid4vci.Error{
 			Err:        fmt.Errorf("credential offer: unsupported format '%s'", offeredCredential.Format),
 			Code:       openid4vci.UnsupportedCredentialType,
@@ -213,7 +212,7 @@ func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient ope
 
 	credentialRequest := openid4vci.CredentialRequest{
 		CredentialDefinition: offer,
-		Format:               openid4vc.VerifiableCredentialJSONLDFormat,
+		Format:               vc.JSONLDCredentialProofFormat,
 		Proof: &openid4vci.CredentialRequestProof{
 			Jwt:       proof,
 			ProofType: "jwt",

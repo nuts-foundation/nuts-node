@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/openid4vc"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -144,7 +143,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		proof, err := keyStore.SignJWT(ctx, claims, headers, headers["kid"])
 		require.NoError(t, err)
 		return openid4vci.CredentialRequest{
-			Format: openid4vc.VerifiableCredentialJSONLDFormat,
+			Format: vc.JSONLDCredentialProofFormat,
 			CredentialDefinition: &openid4vci.CredentialDefinition{
 				Context: []ssi.URI{
 					ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
