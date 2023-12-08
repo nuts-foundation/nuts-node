@@ -227,20 +227,19 @@ func checkSessionParams(params map[string]interface{}) error {
 	if !ok {
 		return fmt.Errorf("employee should be an object")
 	}
-	_, ok = employeeMap["identifier"]
-	if !ok {
-		return fmt.Errorf("missing employee identifier")
+	identifier, _ := employeeMap["identifier"].(string)
+	if len(identifier) == 0 {
+		return fmt.Errorf("missing/invalid employee identifier")
 	}
-	_, ok = employeeMap["initials"]
-	if !ok {
-		return fmt.Errorf("missing employee initials")
+	initials, _ := employeeMap["initials"].(string)
+	if len(initials) == 0 {
+		return fmt.Errorf("missing/invalid employee initials")
 	}
-	_, ok = employeeMap["familyName"]
-	if !ok {
-		return fmt.Errorf("missing employee familyName")
+	familyName, _ := employeeMap["familyName"].(string)
+	if len(familyName) == 0 {
+		return fmt.Errorf("missing/invalid employee familyName")
 	}
 	return nil
-
 }
 
 func (v *signer) Routes(router core.EchoRouter) {
