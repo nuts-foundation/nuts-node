@@ -35,10 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
-// accessTokenValidity defines how long access tokens are valid.
-// TODO: Might want to make this configurable at some point
-const accessTokenValidity = 15 * time.Minute
-
 // s2sMaxPresentationValidity defines the maximum validity of a presentation.
 // This is to prevent replay attacks. The value is specified by Nuts RFC021, and excludes max. clock skew.
 const s2sMaxPresentationValidity = 5 * time.Second
@@ -165,7 +161,7 @@ func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, pres
 		PresentationDefinition: &definition,
 		PresentationSubmission: &submission,
 	}
-	err = r.s2sAccessTokenStore().Put(accessToken.Token, accessToken)
+	err = r.accessTokenStore().Put(accessToken.Token, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
@@ -312,10 +308,6 @@ func (r *Wrapper) validatePresentationAudience(presentation vc.VerifiablePresent
 		Description:   "presentation audience is missing or does not match",
 		InternalError: fmt.Errorf("expected: %s, got: %v", webDID.String(), audience),
 	}
-}
-
-func (r *Wrapper) s2sAccessTokenStore() storage.SessionStore {
-	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "s2s", "accesstoken")
 }
 
 type AccessToken struct {

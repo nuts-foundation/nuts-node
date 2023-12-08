@@ -418,7 +418,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		assert.Equal(t, "everything", *accessToken.Scope)
 
 		var storedToken AccessToken
-		err = ctx.client.s2sAccessTokenStore().Get(accessToken.AccessToken, &storedToken)
+		err = ctx.client.accessTokenStore().Get(accessToken.AccessToken, &storedToken)
 		require.NoError(t, err)
 		assert.Equal(t, accessToken.AccessToken, storedToken.Token)
 		assert.Equal(t, submission, *storedToken.PresentationSubmission)

@@ -270,7 +270,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	})
 	t.Run("error - expired token", func(t *testing.T) {
 		token := AccessToken{Expiration: time.Now().Add(-time.Second)}
-		require.NoError(t, ctx.client.s2sAccessTokenStore().Put("token", token))
+		require.NoError(t, ctx.client.accessTokenStore().Put("token", token))
 
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
@@ -279,7 +279,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	})
 	t.Run("ok", func(t *testing.T) {
 		token := AccessToken{Expiration: time.Now().Add(time.Second)}
-		require.NoError(t, ctx.client.s2sAccessTokenStore().Put("token", token))
+		require.NoError(t, ctx.client.accessTokenStore().Put("token", token))
 
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
@@ -310,7 +310,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			PresentationDefinition:         &pe.PresentationDefinition{},
 		}
 
-		require.NoError(t, ctx.client.s2sAccessTokenStore().Put(token.Token, token))
+		require.NoError(t, ctx.client.accessTokenStore().Put(token.Token, token))
 		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
 			Active:                         true,
 			ClientId:                       ptrTo("client"),

@@ -50,6 +50,10 @@ const apiPath = "iam"
 const apiModuleName = auth.ModuleName + "/" + apiPath
 const httpRequestContextKey = "http-request"
 
+// accessTokenValidity defines how long access tokens are valid.
+// TODO: Might want to make this configurable at some point
+const accessTokenValidity = 15 * time.Minute
+
 //go:embed assets
 var assets embed.FS
 
@@ -176,7 +180,7 @@ func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAc
 	}
 
 	token := AccessToken{}
-	if err := r.s2sAccessTokenStore().Get(request.Body.Token, &token); err != nil {
+	if err := r.accessTokenStore().Get(request.Body.Token, &token); err != nil {
 		// Return 200 + 'Active = false' when token is invalid or malformed
 		return IntrospectAccessToken200JSONResponse{}, err
 	}
@@ -415,4 +419,8 @@ func idToNutsDID(id string) did.DID {
 		ID:        id,
 		DecodedID: id,
 	}
+}
+
+func (r *Wrapper) accessTokenStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "accesstoken")
 }
