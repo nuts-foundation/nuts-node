@@ -123,6 +123,8 @@ func (m *Module) Config() interface{} {
 	return &m.config
 }
 
+// Add registers a presentation on the given Discovery Service.
+// See interface.go for more information.
 func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) error {
 	// First, simple sanity checks
 	definition, isServer := m.serverDefinitions[serviceID]
@@ -216,6 +218,8 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	return nil
 }
 
+// Get retrieves the presentations for the given service, starting at the given tag.
+// See interface.go for more information.
 func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
 	if _, exists := m.serverDefinitions[serviceID]; !exists {
 		return nil, nil, ErrServerModeDisabled
