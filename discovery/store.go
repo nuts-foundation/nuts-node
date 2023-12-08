@@ -351,7 +351,7 @@ func (s *sqlStore) updateTag(tx *gorm.DB, serviceID string, newTimestamp *Tag) (
 			// If LastTag is empty, it means the service was just created and no presentations were added yet.
 			ts := service.LastTag.Timestamp(service.TagPrefix)
 			if ts == nil {
-				// would be very weird
+				// would be very weird: can't decode it, although it's our own tag
 				return nil, fmt.Errorf("invalid tag '%s'", service.LastTag)
 			}
 			currTimestamp = *ts
