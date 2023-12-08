@@ -87,8 +87,8 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		GrantTypesSupported:    []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionEndpoint:             identity + "/presentation_definition",
-		VPFormats:                                  vpFormatsSupported,
-		VPFormatsSupported:                         vpFormatsSupported,
+		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
+		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		ClientIdSchemesSupported:                   []string{"did"},
 	}
 	assert.Equal(t, expected, authorizationServerMetadata(*identityURL))
@@ -108,7 +108,7 @@ func Test_clientMetadata(t *testing.T) {
 		SoftwareID:              "nuts-node-refimpl",
 		SoftwareVersion:         "testVersion",
 		CredentialOfferEndpoint: "",
-		VPFormats:               vpFormatsSupported,
+		VPFormats:               oauth.DefaultOpenIDSupportedFormats(),
 		ClientIdScheme:          "did",
 	}
 	assert.Equal(t, expected, clientMetadata(url.URL{}))

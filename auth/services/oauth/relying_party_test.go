@@ -135,6 +135,18 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		assert.Equal(t, "token", response.AccessToken)
 		assert.Equal(t, "bearer", response.TokenType)
 	})
+	t.Run("authorization server supported VP formats don't match", func(t *testing.T) {
+		ctx := createOAuthRPContext(t)
+		ctx.authzServerMetadata.VPFormats = map[string]map[string][]string{
+			"unsupported": nil,
+		}
+		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
+
+		response, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
+
+		assert.EqualError(t, err, "requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")
+		assert.Nil(t, response)
+	})
 	t.Run("error - access denied", func(t *testing.T) {
 		oauthError := oauth.OAuth2Error{
 			Code:        "invalid_scope",
@@ -210,7 +222,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 }
 
-func Test_determineFormat(t *testing.T) {
+func Test_chooseVPFormat(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		formats := map[string]map[string][]string{
 			"jwt_vp": {
@@ -218,17 +230,15 @@ func Test_determineFormat(t *testing.T) {
 			},
 		}
 
-		format, err := determineFormat(formats)
+		format := chooseVPFormat(formats)
 
-		assert.NoError(t, err)
 		assert.Equal(t, "jwt_vp", format)
 	})
-	t.Run("error - no supported format", func(t *testing.T) {
+	t.Run("no supported format", func(t *testing.T) {
 		formats := map[string]map[string][]string{}
 
-		format, err := determineFormat(formats)
+		format := chooseVPFormat(formats)
 
-		assert.EqualError(t, err, "authorization server metadata does not contain any supported VP formats")
 		assert.Empty(t, format)
 	})
 	t.Run(" jwt_vp_json returns jwt_vp", func(t *testing.T) {
@@ -238,9 +248,8 @@ func Test_determineFormat(t *testing.T) {
 			},
 		}
 
-		format, err := determineFormat(formats)
+		format := chooseVPFormat(formats)
 
-		assert.NoError(t, err)
 		assert.Equal(t, "jwt_vp", format)
 	})
 }
@@ -416,7 +425,7 @@ func createRPContext(t *testing.T, tlsConfig *tls.Config) *rpTestContext {
 
 type rpOAuthTestContext struct {
 	*rpTestContext
-	authzServerMetadata    oauth.AuthorizationServerMetadata
+	authzServerMetadata    *oauth.AuthorizationServerMetadata
 	handler                http.HandlerFunc
 	tlsServer              *httptest.Server
 	verifierDID            did.DID
@@ -449,15 +458,13 @@ func createOAuthRPContext(t *testing.T) *rpOAuthTestContext {
   ]
 }
 `
-	formats := make(map[string]map[string][]string)
-	formats["jwt_vp"] = make(map[string][]string)
-	authzServerMetadata := oauth.AuthorizationServerMetadata{VPFormats: formats}
+	authzServerMetadata := &oauth.AuthorizationServerMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
 	ctx := &rpOAuthTestContext{
 		rpTestContext: createRPContext(t, nil),
 		metadata: func(writer http.ResponseWriter) {
 			writer.Header().Add("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusOK)
-			bytes, _ := json.Marshal(authzServerMetadata)
+			bytes, _ := json.Marshal(*authzServerMetadata)
 			_, _ = writer.Write(bytes)
 			return
 		},

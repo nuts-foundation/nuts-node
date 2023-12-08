@@ -54,8 +54,8 @@ func authorizationServerMetadata(identity url.URL) oauth.AuthorizationServerMeta
 		GrantTypesSupported:    grantTypesSupported,
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionEndpoint:             identity.JoinPath("presentation_definition").String(),
-		VPFormats:                                  vpFormatsSupported,
-		VPFormatsSupported:                         vpFormatsSupported,
+		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
+		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
 	}
 }
@@ -75,7 +75,7 @@ func clientMetadata(identity url.URL) OAuthClientMetadata {
 		SoftwareID:      softwareID,      // nuts-node-refimpl
 		SoftwareVersion: softwareVersion, // version tag or "unknown"
 		//CredentialOfferEndpoint: "",
-		VPFormats:      vpFormatsSupported,
+		VPFormats:      oauth.DefaultOpenIDSupportedFormats(),
 		ClientIdScheme: "did",
 	}
 }

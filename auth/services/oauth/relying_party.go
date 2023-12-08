@@ -23,7 +23,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/openid4vc"
+	"github.com/nuts-foundation/go-did/vc"
 	"net/http"
 	"net/url"
 	"strings"
@@ -155,10 +155,23 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	// If no presentation definition matches, return a 412 "no matching credentials" error
 	builder := presentationDefinition.PresentationSubmissionBuilder()
 	builder.AddWallet(requester, walletCredentials)
-	format, err := determineFormat(metadata.VPFormats)
-	if err != nil {
-		return nil, err
+
+	// Find supported VP format, matching support from:
+	// - what the local Nuts node supports
+	// - the presentation definition "claimed format designation" (optional)
+	// - the verifier's metadata (optional)
+	formatCandidates := credential.OpenIDSupportedFormats(oauth.DefaultOpenIDSupportedFormats())
+	if metadata.VPFormats != nil {
+		formatCandidates = formatCandidates.Match(credential.OpenIDSupportedFormats(metadata.VPFormats))
 	}
+	if presentationDefinition.Format != nil {
+		formatCandidates = formatCandidates.Match(credential.DIFClaimFormats(*presentationDefinition.Format))
+	}
+	format := chooseVPFormat(formatCandidates.Map)
+	if format == "" {
+		return nil, errors.New("requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")
+	}
+	// TODO: format parameters (alg, proof_type, etc.) are ignored, but should be used in the actual signing
 	submission, signInstructions, err := builder.Build(format)
 	if err != nil {
 		return nil, fmt.Errorf("failed to match presentation definition: %w", err)
@@ -193,21 +206,18 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	}, nil
 }
 
-func determineFormat(formats map[string]map[string][]string) (string, error) {
-	for format := range formats {
-		switch format {
-		case openid4vc.VerifiablePresentationJSONLDFormat:
-			return format, nil
-		case openid4vc.VerifiablePresentationJWTFormat:
-			fallthrough
-		case "jwt_vp_json":
-			return openid4vc.VerifiablePresentationJWTFormat, nil
-		default:
-			continue
-		}
+func chooseVPFormat(formats map[string]map[string][]string) string {
+	// They are in preferred order
+	if _, ok := formats[vc.JWTPresentationProofFormat]; ok {
+		return vc.JWTPresentationProofFormat
 	}
-
-	return "", errors.New("authorization server metadata does not contain any supported VP formats")
+	if _, ok := formats["jwt_vp_json"]; ok {
+		return vc.JWTPresentationProofFormat
+	}
+	if _, ok := formats[vc.JSONLDPresentationProofFormat]; ok {
+		return vc.JSONLDPresentationProofFormat
+	}
+	return ""
 }
 
 var timeFunc = time.Now
