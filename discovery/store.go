@@ -24,7 +24,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
-	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
