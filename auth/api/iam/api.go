@@ -32,7 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
@@ -305,9 +304,10 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		return r.handlePresentationRequest(params, session)
 	default:
 		// TODO: This should be a redirect?
+		redirectURI, _ := url.Parse(session.RedirectURI)
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedResponseType,
-			RedirectURI: test.MustParseURL(session.RedirectURI),
+			RedirectURI: redirectURI,
 		}
 	}
 }
