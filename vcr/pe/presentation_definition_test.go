@@ -24,6 +24,7 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/json"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"testing"
 
@@ -89,7 +90,7 @@ func definitions() testDefinitions {
 
 func TestMatch(t *testing.T) {
 	jsonldVC := credential.ValidNutsOrganizationCredential(t)
-	jwtVC := credential.JWTNutsOrganizationCredential(t)
+	jwtVC := credential.JWTNutsOrganizationCredential(t, did.MustParseDID("did:web:example.com"))
 
 	t.Run("Basic", func(t *testing.T) {
 		t.Run("JSON-LD", func(t *testing.T) {

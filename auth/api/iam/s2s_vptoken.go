@@ -62,12 +62,15 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 		}
 	}
 
+	var credentialSubjectID did.DID
 	for _, presentation := range pexEnvelope.Presentations {
 		if err := validateS2SPresentationMaxValidity(presentation); err != nil {
 			return nil, err
 		}
-		if err := validatePresentationSigner(presentation); err != nil {
+		if subjectDID, err := validatePresentationSigner(presentation, credentialSubjectID); err != nil {
 			return nil, err
+		} else {
+			credentialSubjectID = *subjectDID
 		}
 		if err := r.validatePresentationAudience(presentation, issuer); err != nil {
 			return nil, err
@@ -96,7 +99,7 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 	}
 
 	// All OK, allow access
-	response, err := r.createS2SAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope)
+	response, err := r.createS2SAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope, credentialSubjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,17 +146,11 @@ func (r *Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessT
 }
 
 func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation,
-	submission pe.PresentationSubmission, definition PresentationDefinition, scope string) (*oauth.TokenResponse, error) {
-	// TODO: RFC021 isn't clear on this, so take credential subject from first VP for now.
-	//       See https://github.com/nuts-foundation/nuts-specification/issues/269
-	clientDID, err := credential.PresentationSigner(presentations[0])
-	if err != nil {
-		return nil, fmt.Errorf("unable to extract client DID from presentation: %w", err)
-	}
+	submission pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID) (*oauth.TokenResponse, error) {
 	accessToken := AccessToken{
 		Token:                  crypto.GenerateNonce(),
 		Issuer:                 issuer.String(),
-		ClientId:               clientDID.String(),
+		ClientId:               credentialSubjectDID.String(),
 		IssuedAt:               issueTime,
 		Expiration:             issueTime.Add(accessTokenValidity),
 		Scope:                  scope,
@@ -161,7 +158,7 @@ func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, pres
 		PresentationDefinition: &definition,
 		PresentationSubmission: &submission,
 	}
-	err = r.accessTokenStore().Put(accessToken.Token, accessToken)
+	err := r.accessTokenStore().Put(accessToken.Token, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
@@ -217,21 +214,27 @@ func validateS2SPresentationMaxValidity(presentation vc.VerifiablePresentation) 
 }
 
 // validatePresentationSigner checks if the presenter of the VP is the same as the subject of the VCs being presented.
-func validatePresentationSigner(presentation vc.VerifiablePresentation) error {
-	ok, err := credential.PresenterIsCredentialSubject(presentation)
+func validatePresentationSigner(presentation vc.VerifiablePresentation, expectedCredentialSubjectDID did.DID) (*did.DID, error) {
+	subjectDID, err := credential.PresenterIsCredentialSubject(presentation)
 	if err != nil {
-		return oauth.OAuth2Error{
+		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: err.Error(),
 		}
 	}
-	if !ok {
-		return oauth.OAuth2Error{
+	if subjectDID == nil {
+		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: "presentation signer is not credential subject",
 		}
 	}
-	return nil
+	if !expectedCredentialSubjectDID.Empty() && !subjectDID.Equals(expectedCredentialSubjectDID) {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "not all presentations have the same credential subject ID",
+		}
+	}
+	return subjectDID, nil
 }
 
 // validateS2SPresentationNonce checks if the nonce has been used before; 'nonce' claim for JWTs or LDProof's 'nonce' for JSON-LD.

@@ -220,6 +220,17 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		assert.EqualError(t, err, "invalid_request - assertion parameter is invalid: unable to parse PEX envelope as verifiable presentation: invalid JWT")
 		assert.Nil(t, resp)
 	})
+	t.Run("not all VPs have the same credential subject ID", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		secondSubjectID := did.MustParseDID("did:web:example.com:other")
+		secondPresentation := test.CreateJSONLDPresentation(t, secondSubjectID, proofVisitor, credential.JWTNutsOrganizationCredential(t, secondSubjectID))
+		assertionJSON, _ := json.Marshal([]VerifiablePresentation{presentation, secondPresentation})
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, string(assertionJSON))
+		assert.EqualError(t, err, "invalid_request - not all presentations have the same credential subject ID")
+		assert.Nil(t, resp)
+	})
 	t.Run("nonce", func(t *testing.T) {
 		t.Run("replay attack (nonce is reused)", func(t *testing.T) {
 			ctx := newTestClient(t)
@@ -390,13 +401,15 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 }
 
 func TestWrapper_createAccessToken(t *testing.T) {
+	credentialSubjectID := did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
+	verificationMethodID := ssi.MustParseURI(credentialSubjectID.String() + "#1")
 	credential, err := vc.ParseVerifiableCredential(jsonld.TestOrganizationCredential)
 	require.NoError(t, err)
 	presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
 		VerifiableCredential: []vc.VerifiableCredential{*credential},
 		Proof: []interface{}{
 			proof.LDProof{
-				VerificationMethod: ssi.MustParseURI("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#1"),
+				VerificationMethod: verificationMethodID,
 			},
 		},
 	})
@@ -409,7 +422,8 @@ func TestWrapper_createAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		accessToken, err := ctx.client.createS2SAccessToken(issuerDID, time.Now(), []VerifiablePresentation{test.ParsePresentation(t, presentation)}, submission, definition, "everything")
+		vps := []VerifiablePresentation{test.ParsePresentation(t, presentation)}
+		accessToken, err := ctx.client.createS2SAccessToken(issuerDID, time.Now(), vps, submission, definition, "everything", credentialSubjectID)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)

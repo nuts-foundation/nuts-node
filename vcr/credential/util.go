@@ -46,20 +46,20 @@ func ResolveSubjectDID(credentials ...vc.VerifiableCredential) (*did.DID, error)
 
 // PresenterIsCredentialSubject checks if the presenter of the VP is the same as the subject of the VCs being presented.
 // If the presentation signer or credential subject can't be resolved, it returns an error.
-// If parsing succeeds and the signer DID is the same as the credential subject DID, it returns true.
-func PresenterIsCredentialSubject(vp vc.VerifiablePresentation) (bool, error) {
+// If parsing succeeds and the signer DID is the same as the credential subject DID, it returns the DID.
+func PresenterIsCredentialSubject(vp vc.VerifiablePresentation) (*did.DID, error) {
 	signerDID, err := PresentationSigner(vp)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	credentialSubjectID, err := ResolveSubjectDID(vp.VerifiableCredential...)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	if !credentialSubjectID.Equals(*signerDID) {
-		return false, nil
+		return nil, nil
 	}
-	return true, nil
+	return signerDID, nil
 }
 
 // PresentationIssuanceDate returns the date at which the presentation was issued.

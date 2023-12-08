@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -75,12 +76,13 @@ func ValidNutsOrganizationCredential(t *testing.T) vc.VerifiableCredential {
 	return inputVC
 }
 
-func JWTNutsOrganizationCredential(t *testing.T) vc.VerifiableCredential {
+func JWTNutsOrganizationCredential(t *testing.T, subjectID did.DID) vc.VerifiableCredential {
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	token := jwt.New()
 	require.NoError(t, token.Set("vc", map[string]interface{}{
 		"credentialSubject": map[string]interface{}{
+			"id": subjectID,
 			"organization": map[string]interface{}{
 				"city": "IJbergen",
 				"name": "care",
