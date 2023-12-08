@@ -109,11 +109,8 @@ func (m *Module) Config() interface{} {
 
 func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) error {
 	// First, simple sanity checks
-	definition, serviceExists := m.services[serviceID]
-	if !serviceExists {
-		return ErrServiceNotFound
-	}
-	if _, isMaintainer := m.serverDefinitions[serviceID]; !isMaintainer {
+	definition, isServer := m.serverDefinitions[serviceID]
+	if !isServer {
 		return ErrServerModeDisabled
 	}
 	if presentation.Format() != vc.JWTPresentationProofFormat {
@@ -210,11 +207,11 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	return nil
 }
 
-func (m *Module) Get(serviceID string, startAt *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
-	if _, exists := m.services[serviceID]; !exists {
-		return nil, nil, ErrServiceNotFound
+func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
+	if _, exists := m.serverDefinitions[serviceID]; !exists {
+		return nil, nil, ErrServerModeDisabled
 	}
-	return m.store.get(serviceID, startAt)
+	return m.store.get(serviceID, tag)
 }
 
 func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {

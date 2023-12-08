@@ -45,7 +45,7 @@ func Test_Module_Add(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 
-	t.Run("not a maintainer", func(t *testing.T) {
+	t.Run("not a server", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 
 		err := m.Add("other", vpAlice)
@@ -77,6 +77,7 @@ func Test_Module_Add(t *testing.T) {
 		def := m.services[testServiceID]
 		def.PresentationMaxValidity = 1
 		m.services[testServiceID] = def
+		m.serverDefinitions[testServiceID] = def
 
 		err := m.Add(testServiceID, vpAlice)
 		assert.EqualError(t, err, "presentation is valid for too long (max 1s)")
@@ -103,11 +104,6 @@ func Test_Module_Add(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 		err := m.Add(testServiceID, vc.VerifiablePresentation{})
 		assert.EqualError(t, err, "only JWT presentations are supported")
-	})
-	t.Run("service unknown", func(t *testing.T) {
-		m, _ := setupModule(t, storageEngine)
-		err := m.Add("unknown", vpAlice)
-		assert.ErrorIs(t, err, ErrServiceNotFound)
 	})
 
 	t.Run("registration", func(t *testing.T) {
@@ -218,10 +214,10 @@ func Test_Module_Get(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, presentations, 1)
 	})
-	t.Run("service unknown", func(t *testing.T) {
+	t.Run("not a server for this service ID", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
-		_, _, err := m.Get("unknown", nil)
-		assert.ErrorIs(t, err, ErrServiceNotFound)
+		_, _, err := m.Get("other", nil)
+		assert.ErrorIs(t, err, ErrServerModeDisabled)
 	})
 }
 
