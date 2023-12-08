@@ -239,17 +239,11 @@ func (r *Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresent
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
 		nonceRaw, hasNonce := presentation.JWT().Get("nonce")
+		nonce, hasNonce = nonceRaw.(string)
 		if !hasNonce {
 			return oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
-				Description: "presentation is missing nonce",
-			}
-		}
-		nonce, _ = nonceRaw.(string)
-		if nonce == "" {
-			return oauth.OAuth2Error{
-				Code:        oauth.InvalidRequest,
-				Description: "presentation has an invalid nonce",
+				Description: "presentation has invalid/missing nonce",
 			}
 		}
 	case vc.JSONLDPresentationProofFormat:
@@ -269,15 +263,15 @@ func (r *Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresent
 	if nonceError != nil && errors.Is(nonceError, storage.ErrNotFound) {
 		// this is OK, nonce has not been used before
 		nonceError = nil
-	} else if nonceError != nil {
-		// other error occurred. Keep error to report after storing nonce
-	} else {
+	} else if nonceError == nil {
 		// no store error: value was retrieved from store, meaning the nonce has been used before
 		nonceError = oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: "presentation nonce has already been used",
 		}
 	}
+	// Other error occurred. Keep error to report after storing nonce.
+
 	// Regardless the result of the nonce checking, the nonce of the VP must not be used again.
 	// So always store the nonce.
 	if err := nonceStore.Put(nonce, true); err != nil {

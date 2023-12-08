@@ -213,23 +213,49 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		assert.Equal(t, int(accessTokenValidity.Seconds()), *tokenResponse.ExpiresIn)
 		assert.NotEmpty(t, tokenResponse.AccessToken)
 	})
-	t.Run("replay attack (nonce is reused)", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.verifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
-
-		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
-		require.NoError(t, err)
-
-		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
-		assert.EqualError(t, err, "invalid_request - presentation nonce has already been used")
-		assert.Nil(t, resp)
-	})
 	t.Run("VP is not valid JSON", func(t *testing.T) {
 		ctx := newTestClient(t)
 		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, "[true, false]")
 
 		assert.EqualError(t, err, "invalid_request - assertion parameter is invalid: unable to parse PEX envelope as verifiable presentation: invalid JWT")
 		assert.Nil(t, resp)
+	})
+	t.Run("nonce", func(t *testing.T) {
+		t.Run("replay attack (nonce is reused)", func(t *testing.T) {
+			ctx := newTestClient(t)
+			ctx.verifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+
+			_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			require.NoError(t, err)
+
+			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			assert.EqualError(t, err, "invalid_request - presentation nonce has already been used")
+			assert.Nil(t, resp)
+		})
+		t.Run("JSON-LD VP is missing nonce", func(t *testing.T) {
+			ctx := newTestClient(t)
+
+			proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
+				proof.Domain = &issuerDIDStr
+				proof.Nonce = nil
+			})
+			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
+
+			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			assert.EqualError(t, err, "invalid_request - presentation has invalid proof or nonce")
+			assert.Nil(t, resp)
+		})
+		t.Run("JWT VP is missing nonce", func(t *testing.T) {
+			ctx := newTestClient(t)
+			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+				_ = token.Set(jwt.AudienceKey, issuerDID.String())
+				_ = token.Remove("nonce")
+			}, verifiableCredential)
+
+			_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+
+			require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
+		})
 	})
 	t.Run("audience", func(t *testing.T) {
 		t.Run("missing", func(t *testing.T) {
