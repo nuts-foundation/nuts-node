@@ -245,11 +245,46 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			assert.EqualError(t, err, "invalid_request - presentation has invalid proof or nonce")
 			assert.Nil(t, resp)
 		})
+		t.Run("JSON-LD VP has empty nonce", func(t *testing.T) {
+			ctx := newTestClient(t)
+
+			proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
+				proof.Domain = &issuerDIDStr
+				proof.Nonce = new(string)
+			})
+			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
+
+			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			assert.EqualError(t, err, "invalid_request - presentation has invalid proof or nonce")
+			assert.Nil(t, resp)
+		})
 		t.Run("JWT VP is missing nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
 			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerDID.String())
 				_ = token.Remove("nonce")
+			}, verifiableCredential)
+
+			_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+
+			require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
+		})
+		t.Run("JWT VP has empty nonce", func(t *testing.T) {
+			ctx := newTestClient(t)
+			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+				_ = token.Set(jwt.AudienceKey, issuerDID.String())
+				_ = token.Set("nonce", "")
+			}, verifiableCredential)
+
+			_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+
+			require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
+		})
+		t.Run("JWT VP nonce is not a string", func(t *testing.T) {
+			ctx := newTestClient(t)
+			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+				_ = token.Set(jwt.AudienceKey, issuerDID.String())
+				_ = token.Set("nonce", true)
 			}, verifiableCredential)
 
 			_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())

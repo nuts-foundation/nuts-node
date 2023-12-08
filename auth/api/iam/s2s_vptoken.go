@@ -238,9 +238,9 @@ func (r *Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresent
 	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		nonceRaw, hasNonce := presentation.JWT().Get("nonce")
-		nonce, hasNonce = nonceRaw.(string)
-		if !hasNonce {
+		nonceRaw, _ := presentation.JWT().Get("nonce")
+		nonce, _ = nonceRaw.(string)
+		if nonce == "" {
 			return oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
 				Description: "presentation has invalid/missing nonce",
@@ -248,7 +248,7 @@ func (r *Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresent
 		}
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := credential.ParseLDProof(presentation)
-		if err != nil || proof.Nonce == nil {
+		if err != nil || proof.Nonce == nil || *proof.Nonce == "" {
 			return oauth.OAuth2Error{
 				Code:          oauth.InvalidRequest,
 				InternalError: err,
