@@ -197,6 +197,14 @@ func TestPresentationIssuanceDate(t *testing.T) {
 		actual := PresentationIssuanceDate(presentation)
 		assert.Equal(t, expected, *actual)
 	})
+	t.Run("JWT nbf takes precedence over iat", func(t *testing.T) {
+		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+			require.NoError(t, token.Set(jwt.IssuedAtKey, expected.Add(time.Hour)))
+			require.NoError(t, token.Set(jwt.NotBeforeKey, expected))
+		})
+		actual := PresentationIssuanceDate(presentation)
+		assert.Equal(t, expected, *actual)
+	})
 	t.Run("JWT no iat or nbf", func(t *testing.T) {
 		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
 			_ = token.Remove(jwt.IssuedAtKey)

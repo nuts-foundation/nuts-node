@@ -64,15 +64,15 @@ func PresenterIsCredentialSubject(vp vc.VerifiablePresentation) (bool, error) {
 
 // PresentationIssuanceDate returns the date at which the presentation was issued.
 // For JSON-LD, it looks at the first LinkedData proof's 'created' property.
-// For JWT, it looks at the 'iat' claim, or if that is not present, the 'nbf' claim.
+// For JWT, it looks at the 'nbf' claim, or if that is not present, the 'iat' claim.
 // If it can't resolve the date, it returns nil.
 func PresentationIssuanceDate(presentation vc.VerifiablePresentation) *time.Time {
 	var result time.Time
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
 		jwt := presentation.JWT()
-		if result = jwt.IssuedAt(); result.IsZero() {
-			result = jwt.NotBefore()
+		if result = jwt.NotBefore(); result.IsZero() {
+			result = jwt.IssuedAt()
 		}
 	case vc.JSONLDPresentationProofFormat:
 		ldProof, err := ParseLDProof(presentation)
