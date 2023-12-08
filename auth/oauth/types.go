@@ -50,8 +50,17 @@ const (
 	ScopeParam = "scope"
 	// PresentationSubmissionParam is the parameter name for the presentation_submission parameter
 	PresentationSubmissionParam = "presentation_submission"
+	// VpTokenParam is the parameter name for the vp_token parameter
+	VpTokenParam = "vp_token"
 	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type
 	VpTokenGrantType = "vp_token-bearer"
+)
+
+const (
+	// ErrorParam is the parameter name for the error parameter
+	ErrorParam = "error"
+	// ErrorDescriptionParam is the parameter name for the error_description parameter
+	ErrorDescriptionParam = "error_description"
 )
 
 // IssuerIdToWellKnown converts the OAuth2 Issuer identity to the specified well-known endpoint by inserting the well-known at the root of the path.
@@ -129,4 +138,10 @@ type AuthorizationServerMetadata struct {
 	// ClientIdSchemesSupported defines the `client_id_schemes` currently supported.
 	// If omitted, the default value is `pre-registered` (referring to the client), which is currently not supported.
 	ClientIdSchemesSupported []string `json:"client_id_schemes_supported,omitempty"`
+}
+
+// Redirect is the response from the verifier on the direct_post authorization response.
+type Redirect struct {
+	// RedirectURI is the URI to redirect the user-agent to.
+	RedirectURI string `json:"redirect_uri"`
 }

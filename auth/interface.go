@@ -32,6 +32,8 @@ const ModuleName = "Auth"
 type AuthenticationServices interface {
 	// AuthzServer returns the oauth.AuthorizationServer
 	AuthzServer() oauth.AuthorizationServer
+	// Holder returens the oauth.Holder
+	Holder() oauth.Holder
 	// RelyingParty returns the oauth.RelyingParty
 	RelyingParty() oauth.RelyingParty
 	// Verifier returns the oauth.Verifier service provider

@@ -295,9 +295,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	case responseTypeVPToken:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
-		// TODO: Check parameters for right flow
-		// TODO: Do we actually need this? (probably not)
-		panic("not implemented")
+		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, params)
 	case responseTypeVPIDToken:
 		// Options:
 		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response

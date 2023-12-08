@@ -90,6 +90,40 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 	return &metadata, nil
 }
 
+// ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.
+// We use the AuthorizationServerMetadata struct since it overlaps greatly with the client metadata.
+func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.AuthorizationServerMetadata, error) {
+	_, err := core.ParsePublicURL(endpoint, hb.strictMode)
+	if err != nil {
+		return nil, err
+	}
+
+	// create a GET request
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
+		return nil, httpErr
+	}
+
+	var metadata oauth.AuthorizationServerMetadata
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return nil, fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &metadata); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
+	}
+
+	return &metadata, nil
+}
+
 // PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
 func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes string) (*pe.PresentationDefinition, error) {
 	presentationDefinitionURL, err := core.ParsePublicURL(definitionEndpoint, hb.strictMode)
@@ -184,4 +218,67 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp v
 		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
 	}
 	return token, nil
+}
+
+// PostError posts an OAuth error to the redirect URL and returns the redirect URL with the error as query parameter.
+func (hb HTTPClient) PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierCallbackURL string) (string, error) {
+	// initiate http client, create a POST request with x-www-form-urlencoded body and send it to the redirect URL
+	data := url.Values{}
+	data.Set(oauth.ErrorParam, string(auth2Error.Code))
+	data.Set(oauth.ErrorDescriptionParam, auth2Error.Description)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, verifierCallbackURL, strings.NewReader(data.Encode()))
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	if err != nil {
+		return "", err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return "", err
+	}
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return "", err
+	}
+	// take the redirectURL from the response body and return it
+	var responseData []byte
+	if responseData, err = io.ReadAll(response.Body); err != nil {
+		return "", fmt.Errorf("unable to read response: %w", err)
+	}
+	var redirect oauth.Redirect
+	if err = json.Unmarshal(responseData, &redirect); err != nil {
+		return "", fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
+	}
+	return redirect.RedirectURI, nil
+}
+
+func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (string, error) {
+	// initiate http client, create a POST request with x-www-form-urlencoded body and send it to the redirect URL
+	psBytes, _ := json.Marshal(presentationSubmission)
+	data := url.Values{}
+	data.Set(oauth.VpTokenParam, vp.Raw())
+	data.Set(oauth.PresentationSubmissionParam, string(psBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, verifierResponseURI, strings.NewReader(data.Encode()))
+	if err != nil {
+		return "", err
+	}
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return "", err
+	}
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return "", err
+	}
+	// take the redirectURL from the response body and return it
+	var responseData []byte
+	if responseData, err = io.ReadAll(response.Body); err != nil {
+		return "", fmt.Errorf("unable to read response: %w", err)
+	}
+	var redirect oauth.Redirect
+	if err = json.Unmarshal(responseData, &redirect); err != nil {
+		return "", fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
+	}
+	return redirect.RedirectURI, nil
 }

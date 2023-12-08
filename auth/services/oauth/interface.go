@@ -20,10 +20,13 @@ package oauth
 
 import (
 	"context"
+	"github.com/nuts-foundation/go-did/vc"
+	"net/url"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"net/url"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
 // RelyingParty implements the OAuth2 relying party role.
@@ -31,6 +34,11 @@ type RelyingParty interface {
 	CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error)
 	// CreateAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
 	CreateAuthorizationRequest(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, clientState string) (*url.URL, error)
+
+	// PresentationDefinition returns the presentation definition from the given endpoint.
+	// the presentationDefinitionURL contains the full path including the query parameters.
+	PresentationDefinition(ctx context.Context, presentationDefinitionURL string) (*pe.PresentationDefinition, error)
+
 	// RequestRFC003AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC003.
 	RequestRFC003AccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint url.URL) (*oauth.TokenResponse, error)
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC021.
@@ -54,4 +62,16 @@ type Verifier interface {
 	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
 	// ClientMetadataURL constructs the URL to the client metadata of the local verifier.
 	ClientMetadataURL(webdid did.DID) (*url.URL, error)
+}
+
+// Holder implements the OpenID4VP Holder role which acts as Authorization server in the OpenID4VP flow.
+type Holder interface {
+	// BuildPresentation builds a Verifiable Presentation based on the given presentation definition.
+	BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, verifierMetadata oauth.AuthorizationServerMetadata, nonce string) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
+	// ClientMetadata returns the metadata of the remote verifier.
+	ClientMetadata(ctx context.Context, endpoint string) (*oauth.AuthorizationServerMetadata, error)
+	// PostError posts an error to the verifier. If it fails, an error is returned.
+	PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string) (string, error)
+	// PostAuthorizationResponse posts the authorization response to the verifier. If it fails, an error is returned.
+	PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (string, error)
 }

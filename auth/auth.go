@@ -50,6 +50,7 @@ type Auth struct {
 	authzServer             oauth.AuthorizationServer
 	relyingParty            oauth.RelyingParty
 	verifier                oauth.Verifier
+	holder                  oauth.Holder
 	contractNotary          services.ContractNotary
 	serviceResolver         didman.CompoundServiceResolver
 	keyStore                crypto.KeyStore
@@ -119,6 +120,10 @@ func (auth *Auth) Verifier() oauth.Verifier {
 	return auth.verifier
 }
 
+func (auth *Auth) Holder() oauth.Holder {
+	return auth.holder
+}
+
 // Configure the Auth struct by creating a validator and create an Irma server
 func (auth *Auth) Configure(config core.ServerConfig) error {
 	if auth.config.Irma.SchemeManager == "" {
@@ -165,13 +170,14 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			return fmt.Errorf("failed to load presentation exchange mapping file: %w", err)
 		}
 	}
-
+	clientTimeout := time.Duration(auth.config.HTTPTimeout) * time.Second
 	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second
 	auth.authzServer = oauth.NewAuthorizationServer(auth.vdrInstance.Resolver(), auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
 		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenLifeSpan)
 	auth.relyingParty = oauth.NewRelyingParty(auth.vdrInstance.Resolver(), auth.serviceResolver,
-		auth.keyStore, auth.vcr.Wallet(), time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig, config.Strictmode)
-	auth.verifier = oauth.NewVerifier(config.Strictmode, time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig)
+		auth.keyStore, auth.vcr.Wallet(), clientTimeout, tlsConfig, config.Strictmode)
+	auth.verifier = oauth.NewVerifier(config.Strictmode, clientTimeout, tlsConfig)
+	auth.holder = oauth.NewHolder(auth.vcr.Wallet(), config.Strictmode, clientTimeout, tlsConfig)
 
 	if err := auth.authzServer.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err

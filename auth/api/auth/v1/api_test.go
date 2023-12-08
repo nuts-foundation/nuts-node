@@ -67,6 +67,7 @@ type mockAuthClient struct {
 	authzServer    *oauth.MockAuthorizationServer
 	relyingParty   *oauth.MockRelyingParty
 	verifier       *oauth.MockVerifier
+	holder         *oauth.MockHolder
 }
 
 func (m *mockAuthClient) V2APIEnabled() bool {
@@ -83,6 +84,10 @@ func (m *mockAuthClient) RelyingParty() oauth.RelyingParty {
 
 func (m *mockAuthClient) Verifier() oauth.Verifier {
 	return m.verifier
+}
+
+func (m *mockAuthClient) Holder() oauth.Holder {
+	return m.holder
 }
 
 func (m *mockAuthClient) ContractNotary() services.ContractNotary {
@@ -105,6 +110,7 @@ func createContext(t *testing.T) *TestContext {
 	relyingParty := oauth.NewMockRelyingParty(ctrl)
 	verifier := oauth.NewMockVerifier(ctrl)
 	mockCredentialResolver := vcr.NewMockResolver(ctrl)
+	holder := oauth.NewMockHolder(ctrl)
 
 	authMock := &mockAuthClient{
 		ctrl:           ctrl,
@@ -112,6 +118,7 @@ func createContext(t *testing.T) *TestContext {
 		authzServer:    authzServer,
 		relyingParty:   relyingParty,
 		verifier:       verifier,
+		holder:         holder,
 	}
 
 	requestCtx := audit.TestContext()

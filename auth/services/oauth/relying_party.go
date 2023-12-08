@@ -23,12 +23,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
@@ -41,6 +41,7 @@ import (
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
@@ -255,6 +256,24 @@ func chooseVPFormat(formats map[string]map[string][]string) string {
 		return vc.JSONLDPresentationProofFormat
 	}
 	return ""
+}
+
+func (s *relyingParty) PresentationDefinition(ctx context.Context, presentationDefinitionURL string) (*pe.PresentationDefinition, error) {
+	parsedURL, err := url.Parse(presentationDefinitionURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse presentation definition URL: %w", err)
+	}
+	presentationDefinitionEndpoint := *parsedURL
+	presentationDefinitionEndpoint.RawQuery = ""
+	presentationDefinitionEndpoint.Fragment = ""
+	scope := parsedURL.Query().Get("scope")
+
+	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
+	presentationDefinition, err := iamClient.PresentationDefinition(ctx, presentationDefinitionEndpoint.String(), scope)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
+	}
+	return presentationDefinition, nil
 }
 
 var timeFunc = time.Now
