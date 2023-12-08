@@ -128,37 +128,37 @@ func denylistTestServer(denylist string) *httptest.Server {
 func trustedDenylist(t *testing.T) string {
 	// Build the denylist contents
 	entries := []denylistEntry{
-		denylistEntry{
+		{
 			Issuer:        `FOO`,
 			SerialNumber:  `123`,
 			JWKThumbprint: `bim`,
 			Reason:        `bap`,
 		},
-		denylistEntry{
+		{
 			Issuer:        `BAR`,
 			SerialNumber:  `456`,
 			JWKThumbprint: `bam`,
 			Reason:        `bar`,
 		},
-		denylistEntry{
+		{
 			Issuer:        ``,
 			SerialNumber:  bannedCertSerialNumber,
 			JWKThumbprint: `PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ`,
 			Reason:        `baz1`,
 		},
-		denylistEntry{
+		{
 			Issuer:        bannedCertIssuer,
 			SerialNumber:  ``,
 			JWKThumbprint: ``,
 			Reason:        `baz2`,
 		},
-		denylistEntry{
+		{
 			Issuer:        bannedCertIssuer,
 			SerialNumber:  bannedCertSerialNumber,
 			JWKThumbprint: `PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ`,
 			Reason:        `baz3`,
 		},
-		denylistEntry{
+		{
 			Issuer:        bannedCertIssuer + `arst`,
 			SerialNumber:  bannedCertSerialNumber,
 			JWKThumbprint: `PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ`,

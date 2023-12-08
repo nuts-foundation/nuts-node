@@ -26,13 +26,13 @@ import (
 )
 
 // GitCommit holds the latest git commit hash for this build.
-var GitCommit string = "0"
+var GitCommit = "0"
 
 // GitVersion holds the tagged version belonging to the git commit.
 var GitVersion string
 
 // GitBranch holds the branch from where the binary is built.
-var GitBranch string = "development"
+var GitBranch = "development"
 
 // Version gives the current version according to the git tag or the branch if there's no tag.
 func Version() string {
