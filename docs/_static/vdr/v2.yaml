@@ -102,26 +102,26 @@ paths:
         * 400 - Returned in case of malformed DID or service
         * 404 - Corresponding DID document could not be found
         * 500 - An error occurred while processing the request
-      parameters:
-        - name: service
-          in: body
-          description: Service to be added to the DID document.
-          required: true
-          schema:
-            $ref: '#/components/schemas/Service'
       operationId: addService
       tags:
         - DID
+      requestBody:
+        description: Service to be added to the DID document.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Service'
       responses:
         "200":
           description: "New service has been added successfully. Returns the service."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VerificationMethod'
+                $ref: '#/components/schemas/Service'
         default:
           $ref: '../common/error_response.yaml'
-  /internal/vdr/v2/did/{did}/service/{id}:
+  /internal/vdr/v2/did/{did}/service/{serviceId}:
     parameters:
       - name: did
         in: path
@@ -130,11 +130,13 @@ paths:
         example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
         schema:
           type: string
-      - name: id
+      - name: serviceId
         in: path
-        description: URL encoded id identifying the service.
+        description: URL encoded ID identifying the service.
         required: true
-        example: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
+        example:
+          - "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
+          - "#3106f751-59e3-440f-b57b-39a96a2da6c6"
         schema:
           type: string
     delete:
@@ -166,13 +168,13 @@ paths:
       tags:
         - DID
       operationId: updateService
-      parameters:
-          - name: service
-            in: body
-            description: Service to be added to the DID document.
-            required: true
+      requestBody:
+        description: New version of the service.
+        required: true
+        content:
+          application/json:
             schema:
-                $ref: '#/components/schemas/Service'
+              $ref: '#/components/schemas/Service'
       responses:
         "200":
           description: "Service has been updated successfully. Returns the service."
