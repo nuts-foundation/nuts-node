@@ -115,14 +115,18 @@ func init() {
 			"familyName": "Jones",
 		},
 	}, nil)
-	vpAlice = createPresentation(aliceDID, vcAlice)
+	vpAlice = createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+		claims[jwt.AudienceKey] = []string{testServiceID}
+	}, vcAlice)
 	vcBob = createCredential(authorityDID, bobDID, map[string]interface{}{
 		"person": map[string]interface{}{
 			"givenName":  "Bob",
 			"familyName": "Jomper",
 		},
 	}, nil)
-	vpBob = createPresentation(bobDID, vcBob)
+	vpBob = createPresentationCustom(bobDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+		claims[jwt.AudienceKey] = []string{testServiceID}
+	}, vcBob)
 }
 
 func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject map[string]interface{}, claimVisitor func(map[string]interface{})) vc.VerifiableCredential {

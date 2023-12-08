@@ -20,6 +20,7 @@ package discovery
 
 import (
 	"errors"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -82,6 +83,7 @@ func Test_Module_Add(t *testing.T) {
 	t.Run("no expiration", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 		err := m.Add(testServiceID, createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
+			claims[jwt.AudienceKey] = []string{testServiceID}
 			delete(claims, "exp")
 		}))
 		assert.EqualError(t, err, "presentation does not have an expiration")
@@ -90,6 +92,7 @@ func Test_Module_Add(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 
 		vpWithoutID := createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
+			claims[jwt.AudienceKey] = []string{testServiceID}
 			delete(claims, "jti")
 		}, vcAlice)
 		err := m.Add(testServiceID, vpWithoutID)
@@ -122,9 +125,12 @@ func Test_Module_Add(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
 
 			vcAlice := createCredential(authorityDID, aliceDID, nil, func(claims map[string]interface{}) {
+				claims[jwt.AudienceKey] = []string{testServiceID}
 				claims["exp"] = time.Now().Add(time.Hour)
 			})
-			vpAlice := createPresentation(aliceDID, vcAlice)
+			vpAlice := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+				claims[jwt.AudienceKey] = []string{testServiceID}
+			}, vcAlice)
 			err := m.Add(testServiceID, vpAlice)
 			assert.EqualError(t, err, "presentation is valid longer than the credential(s) it contains")
 		})
@@ -132,7 +138,9 @@ func Test_Module_Add(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
 
 			// Presentation Definition only allows did:example DIDs
-			otherVP := createPresentation(unsupportedDID, createCredential(unsupportedDID, unsupportedDID, nil, nil))
+			otherVP := createPresentationCustom(unsupportedDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+				claims[jwt.AudienceKey] = []string{testServiceID}
+			}, createCredential(unsupportedDID, unsupportedDID, nil, nil))
 			err := m.Add(testServiceID, otherVP)
 			require.ErrorContains(t, err, "presentation does not fulfill Presentation ServiceDefinition")
 
@@ -144,6 +152,7 @@ func Test_Module_Add(t *testing.T) {
 		vpAliceRetract := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 			vp.Type = append(vp.Type, retractionPresentationType)
 			claims["retract_jti"] = vpAlice.ID.String()
+			claims[jwt.AudienceKey] = []string{testServiceID}
 		})
 		t.Run("ok", func(t *testing.T) {
 			m, presentationVerifier := setupModule(t, storageEngine)
@@ -163,14 +172,16 @@ func Test_Module_Add(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
+				claims[jwt.AudienceKey] = []string{testServiceID}
 			}, vcAlice)
 			err := m.Add(testServiceID, vp)
 			assert.EqualError(t, err, "retraction presentation must not contain credentials")
 		})
 		t.Run("missing 'retract_jti' claim", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
-			vp := createPresentationCustom(aliceDID, func(_ map[string]interface{}, vp *vc.VerifiablePresentation) {
+			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
+				claims[jwt.AudienceKey] = []string{testServiceID}
 			})
 			err := m.Add(testServiceID, vp)
 			assert.EqualError(t, err, "retraction presentation does not contain 'retract_jti' claim")
@@ -180,6 +191,7 @@ func Test_Module_Add(t *testing.T) {
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 				claims["retract_jti"] = 10
+				claims[jwt.AudienceKey] = []string{testServiceID}
 			})
 			err := m.Add(testServiceID, vp)
 			assert.EqualError(t, err, "retraction presentation 'retract_jti' claim is not a string")
