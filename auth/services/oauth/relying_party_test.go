@@ -429,27 +429,6 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 	})
 }
 
-func TestRelyingParty_authorizationServerMetadata(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-
-		metadata, err := ctx.relyingParty.authorizationServerMetadata(context.Background(), ctx.verifierDID)
-
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, ctx.authzServerMetadata, *metadata)
-	})
-	t.Run("error - failed to get metadata", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.metadata = nil
-
-		_, err := ctx.relyingParty.authorizationServerMetadata(context.Background(), ctx.verifierDID)
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
-	})
-}
-
 type rpTestContext struct {
 	ctrl            *gomock.Controller
 	keyStore        *crypto.MockKeyStore

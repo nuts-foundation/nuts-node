@@ -159,9 +159,9 @@ func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantTok
 
 func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
 	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	metadata, err := s.authorizationServerMetadata(ctx, verifier)
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 	}
 
 	// get the presentation definition from the verifier
