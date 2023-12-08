@@ -392,9 +392,14 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 func TestWrapper_createAccessToken(t *testing.T) {
 	credential, err := vc.ParseVerifiableCredential(jsonld.TestOrganizationCredential)
 	require.NoError(t, err)
-	presentation := vc.VerifiablePresentation{
+	presentation := test.ParsePresentation(t, vc.VerifiablePresentation{
 		VerifiableCredential: []vc.VerifiableCredential{*credential},
-	}
+		Proof: []interface{}{
+			proof.LDProof{
+				VerificationMethod: ssi.MustParseURI("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#1"),
+			},
+		},
+	})
 	submission := pe.PresentationSubmission{
 		Id: "submissive",
 	}
@@ -404,7 +409,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		accessToken, err := ctx.client.createS2SAccessToken(issuerDID, time.Now(), []VerifiablePresentation{presentation}, submission, definition, "everything")
+		accessToken, err := ctx.client.createS2SAccessToken(issuerDID, time.Now(), []VerifiablePresentation{test.ParsePresentation(t, presentation)}, submission, definition, "everything")
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)

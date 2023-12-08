@@ -148,11 +148,16 @@ func (r *Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessT
 
 func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation,
 	submission pe.PresentationSubmission, definition PresentationDefinition, scope string) (*oauth.TokenResponse, error) {
+	// TODO: RFC021 isn't clear on this, so take credential subject from first VP for now.
+	//       See https://github.com/nuts-foundation/nuts-specification/issues/269
+	clientDID, err := credential.PresentationSigner(presentations[0])
+	if err != nil {
+		return nil, fmt.Errorf("unable to extract client DID from presentation: %w", err)
+	}
 	accessToken := AccessToken{
-		Token:  crypto.GenerateNonce(),
-		Issuer: issuer.String(),
-		// TODO: set ClientId
-		ClientId:               "",
+		Token:                  crypto.GenerateNonce(),
+		Issuer:                 issuer.String(),
+		ClientId:               clientDID.String(),
 		IssuedAt:               issueTime,
 		Expiration:             issueTime.Add(accessTokenValidity),
 		Scope:                  scope,
@@ -160,7 +165,7 @@ func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, pres
 		PresentationDefinition: &definition,
 		PresentationSubmission: &submission,
 	}
-	err := r.s2sAccessTokenStore().Put(accessToken.Token, accessToken)
+	err = r.s2sAccessTokenStore().Put(accessToken.Token, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
