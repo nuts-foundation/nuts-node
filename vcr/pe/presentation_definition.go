@@ -73,6 +73,32 @@ func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCr
 	return selectedVCs, descriptorMaps, nil
 }
 
+// ResolveConstraintsFields returns a map where each of the InputDescriptor constraints field is mapped,
+// to the corresponding value from the Verifiable Credentials that map to the InputDescriptor.
+// The credentialMap is a map with the InputDescriptor.Id as key and the VerifiableCredential as value.
+// Constraints that contain no ID are ignored.
+func (presentationDefinition PresentationDefinition) ResolveConstraintsFields(credentialMap map[string]vc.VerifiableCredential) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+	for inputDescriptorID, cred := range credentialMap {
+		// Find the input descriptor
+		var inputDescriptor InputDescriptor
+		for _, curr := range presentationDefinition.InputDescriptors {
+			if curr.Id == inputDescriptorID {
+				inputDescriptor = *curr
+				break
+			}
+		}
+		if inputDescriptor.Constraints == nil {
+			continue
+		}
+		_, values, _ := matchConstraint(inputDescriptor.Constraints, cred)
+		for key, value := range values {
+			result[key] = value
+		}
+	}
+	return result, nil
+}
+
 func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential) ([]Candidate, error) {
 	var candidates []Candidate
 
@@ -275,7 +301,8 @@ func matchCredential(descriptor InputDescriptor, credential vc.VerifiableCredent
 	// for each constraint in descriptor.constraints:
 	//   a vc must match the constraint
 	if descriptor.Constraints != nil {
-		return matchConstraint(descriptor.Constraints, credential)
+		matches, _, err := matchConstraint(descriptor.Constraints, credential)
+		return matches, err
 	}
 	return true, nil
 }
@@ -284,7 +311,8 @@ func matchCredential(descriptor InputDescriptor, credential vc.VerifiableCredent
 // All Fields need to match according to the Field rules.
 // IsHolder, SameSubject, SubjectIsIssuer, Statuses are not supported for now.
 // LimitDisclosure is not supported for now.
-func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential) (bool, error) {
+// If the constraint matches, it returns true and a map containing constraint field IDs and matched values.
+func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential) (bool, map[string]interface{}, error) {
 	// jsonpath works on interfaces, so convert the VC to an interface
 	var credentialAsMap map[string]interface{}
 	var err error
@@ -298,26 +326,31 @@ func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential
 		credentialAsMap, err = remarshalToMap(credential)
 	}
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 
 	// for each field in constraint.fields:
 	//   a vc must match the field
+	values := make(map[string]interface{})
 	for _, field := range constraint.Fields {
-		match, err := matchField(field, credentialAsMap)
+		match, value, err := matchField(field, credentialAsMap)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		if !match {
-			return false, nil
+			return false, nil, nil
+		}
+		if field.Id != nil {
+			values[*field.Id] = value
 		}
 	}
-	return true, nil
+	return true, values, nil
 }
 
 // matchField matches the field against the VC.
+// If the field matches, it returns true and the matched value. The matched value can be nil if the field is optional.
 // All fields need to match unless optional is set to true and no values are found for all the paths.
-func matchField(field Field, credential map[string]interface{}) (bool, error) {
+func matchField(field Field, credential map[string]interface{}) (bool, interface{}, error) {
 	// for each path in field.paths:
 	//   a vc must match one of the path
 	var optionalInvalid int
@@ -325,23 +358,23 @@ func matchField(field Field, credential map[string]interface{}) (bool, error) {
 		// if path is not found continue
 		value, err := getValueAtPath(path, credential)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		if value == nil {
 			continue
 		}
 
 		if field.Filter == nil {
-			return true, nil
+			return true, value, nil
 		}
 
 		// if filter at path matches return true
 		match, err := matchFilter(*field.Filter, value)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		if match {
-			return true, nil
+			return true, value, nil
 		}
 		// if filter at path does not match continue and set optionalInvalid
 		optionalInvalid++
@@ -349,9 +382,9 @@ func matchField(field Field, credential map[string]interface{}) (bool, error) {
 	// no matches, check optional. Optional is only valid if all paths returned no results
 	// not if a filter did not match
 	if field.Optional != nil && *field.Optional && optionalInvalid == 0 {
-		return true, nil
+		return true, nil, nil
 	}
-	return false, nil
+	return false, nil, nil
 }
 
 // getValueAtPath uses the JSON path expression to get the value from the VC

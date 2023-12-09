@@ -24,6 +24,7 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/json"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"testing"
 
@@ -443,39 +444,54 @@ func Test_matchConstraint(t *testing.T) {
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(testCredentialString), &testCredential)
 
+	credSubjectFieldID := "credential_subject_field"
 	typeVal := "VerifiableCredential"
-	f1True := Field{Path: []string{"$.credentialSubject.field"}}
+	f1True := Field{Id: &credSubjectFieldID, Path: []string{"$.credentialSubject.field"}}
+	f1TrueWithoutID := Field{Path: []string{"$.credentialSubject.field"}}
 	f2True := Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &typeVal}}
 	f3False := Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &typeVal}}
+	fieldMap := map[string]interface{}{credSubjectFieldID: "value"}
 
 	t.Run("single constraint match", func(t *testing.T) {
-		match, err := matchConstraint(&Constraints{Fields: []Field{f1True}}, testCredential)
+		match, value, err := matchConstraint(&Constraints{Fields: []Field{f1True}}, testCredential)
 
 		require.NoError(t, err)
+		assert.Equal(t, fieldMap, value)
+		assert.True(t, match)
+	})
+	t.Run("field match without ID is not included in values map", func(t *testing.T) {
+		match, values, err := matchConstraint(&Constraints{Fields: []Field{f1TrueWithoutID}}, testCredential)
+
+		require.NoError(t, err)
+		assert.Empty(t, values)
 		assert.True(t, match)
 	})
 	t.Run("single constraint mismatch", func(t *testing.T) {
-		match, err := matchConstraint(&Constraints{Fields: []Field{f3False}}, testCredential)
+		match, values, err := matchConstraint(&Constraints{Fields: []Field{f3False}}, testCredential)
 
 		require.NoError(t, err)
+		assert.Nil(t, values)
 		assert.False(t, match)
 	})
 	t.Run("multi constraint match", func(t *testing.T) {
-		match, err := matchConstraint(&Constraints{Fields: []Field{f1True, f2True}}, testCredential)
+		match, values, err := matchConstraint(&Constraints{Fields: []Field{f1True, f2True}}, testCredential)
 
 		require.NoError(t, err)
+		assert.Equal(t, fieldMap, values)
 		assert.True(t, match)
 	})
 	t.Run("multi constraint, single mismatch", func(t *testing.T) {
-		match, err := matchConstraint(&Constraints{Fields: []Field{f1True, f3False}}, testCredential)
+		match, values, err := matchConstraint(&Constraints{Fields: []Field{f1True, f3False}}, testCredential)
 
 		require.NoError(t, err)
+		assert.Nil(t, values)
 		assert.False(t, match)
 	})
 	t.Run("error", func(t *testing.T) {
-		match, err := matchConstraint(&Constraints{Fields: []Field{{Path: []string{"$$"}}}}, testCredential)
+		match, values, err := matchConstraint(&Constraints{Fields: []Field{{Path: []string{"$$"}}}}, testCredential)
 
 		require.Error(t, err)
+		assert.Nil(t, values)
 		assert.False(t, match)
 	})
 }
@@ -486,50 +502,57 @@ func Test_matchField(t *testing.T) {
 	testCredentialMap, _ := remarshalToMap(testCredential)
 
 	t.Run("single path match", func(t *testing.T) {
-		match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}}, testCredentialMap)
+		match, value, err := matchField(Field{Path: []string{"$.credentialSubject.field"}}, testCredentialMap)
 
 		require.NoError(t, err)
+		assert.Equal(t, "value", value)
 		assert.True(t, match)
 	})
 	t.Run("multi path match", func(t *testing.T) {
-		match, err := matchField(Field{Path: []string{"$.other", "$.credentialSubject.field"}}, testCredentialMap)
+		match, value, err := matchField(Field{Path: []string{"$.other", "$.credentialSubject.field"}}, testCredentialMap)
 
 		require.NoError(t, err)
+		assert.Equal(t, "value", value)
 		assert.True(t, match)
 	})
 	t.Run("no match", func(t *testing.T) {
-		match, err := matchField(Field{Path: []string{"$.foo", "$.bar"}}, testCredentialMap)
+		match, value, err := matchField(Field{Path: []string{"$.foo", "$.bar"}}, testCredentialMap)
 
 		require.NoError(t, err)
+		assert.Nil(t, value)
 		assert.False(t, match)
 	})
 	t.Run("no match, but optional", func(t *testing.T) {
 		trueVal := true
-		match, err := matchField(Field{Path: []string{"$.foo", "$.bar"}, Optional: &trueVal}, testCredentialMap)
+		match, value, err := matchField(Field{Path: []string{"$.foo", "$.bar"}, Optional: &trueVal}, testCredentialMap)
 
 		require.NoError(t, err)
+		assert.Nil(t, value)
 		assert.True(t, match)
 	})
 	t.Run("invalid match and optional", func(t *testing.T) {
 		trueVal := true
 		stringVal := "bar"
-		match, err := matchField(Field{Path: []string{"$.credentialSubject.field", "$.foo"}, Optional: &trueVal, Filter: &Filter{Const: &stringVal}}, testCredentialMap)
+		match, value, err := matchField(Field{Path: []string{"$.credentialSubject.field", "$.foo"}, Optional: &trueVal, Filter: &Filter{Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
+		assert.Nil(t, value)
 		assert.False(t, match)
 	})
 	t.Run("valid match with Filter", func(t *testing.T) {
 		stringVal := "value"
-		match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
+		match, value, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
+		assert.Equal(t, stringVal, value)
 		assert.True(t, match)
 	})
 	t.Run("match on type", func(t *testing.T) {
 		stringVal := "VerifiableCredential"
-		match, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
+		match, value, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
+		assert.Equal(t, stringVal, value)
 		assert.True(t, match)
 	})
 	t.Run("match on type array", func(t *testing.T) {
@@ -542,24 +565,27 @@ func Test_matchField(t *testing.T) {
 }`
 		_ = json.Unmarshal([]byte(testCredentialString), &testCredentialMap)
 		stringVal := "VerifiableCredential"
-		match, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
+		match, value, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
+		assert.Equal(t, []interface{}{"VerifiableCredential"}, value)
 		assert.True(t, match)
 	})
 
 	t.Run("errors", func(t *testing.T) {
 		t.Run("invalid path", func(t *testing.T) {
-			match, err := matchField(Field{Path: []string{"$$"}}, testCredentialMap)
+			match, value, err := matchField(Field{Path: []string{"$$"}}, testCredentialMap)
 
 			require.Error(t, err)
+			assert.Nil(t, value)
 			assert.False(t, match)
 		})
 		t.Run("invalid pattern", func(t *testing.T) {
 			pattern := "["
-			match, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Pattern: &pattern}}, testCredentialMap)
+			match, value, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Pattern: &pattern}}, testCredentialMap)
 
 			require.Error(t, err)
+			assert.Nil(t, value)
 			assert.False(t, match)
 		})
 	})
@@ -656,4 +682,46 @@ func credentialToJSONLD(credential vc.VerifiableCredential) vc.VerifiableCredent
 		panic(err)
 	}
 	return result
+}
+
+func TestPresentationDefinition_ResolveConstraintsFields(t *testing.T) {
+	type fields struct {
+		Format                 *PresentationDefinitionClaimFormatDesignations
+		Frame                  *Frame
+		Id                     string
+		InputDescriptors       []*InputDescriptor
+		Name                   string
+		Purpose                *string
+		SubmissionRequirements []*SubmissionRequirement
+	}
+	type args struct {
+		credentialMap map[string]vc.VerifiableCredential
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    map[string]interface{}
+		wantErr assert.ErrorAssertionFunc
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{
+				Format:                 tt.fields.Format,
+				Frame:                  tt.fields.Frame,
+				Id:                     tt.fields.Id,
+				InputDescriptors:       tt.fields.InputDescriptors,
+				Name:                   tt.fields.Name,
+				Purpose:                tt.fields.Purpose,
+				SubmissionRequirements: tt.fields.SubmissionRequirements,
+			}
+			got, err := presentationDefinition.ResolveConstraintsFields(tt.args.credentialMap)
+			if !tt.wantErr(t, err, fmt.Sprintf("ResolveConstraintsFields(%v)", tt.args.credentialMap)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "ResolveConstraintsFields(%v)", tt.args.credentialMap)
+		})
+	}
 }
