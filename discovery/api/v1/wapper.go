@@ -32,6 +32,7 @@ var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 type Wrapper struct {
 	Server discovery.Server
+	Client discovery.Client
 }
 
 func (w *Wrapper) ResolveStatusCode(err error) int {
@@ -84,6 +85,17 @@ func (w *Wrapper) RegisterPresentation(_ context.Context, request RegisterPresen
 }
 
 func (w *Wrapper) SearchPresentations(_ context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error) {
-	// TODO: Do we need this from the start on, or are we hooking up VCR.SearchVCs to Discovery.Search()?
-	panic("implement me")
+	searchResults, err := w.Client.Search(request.ServiceID, request.Params.Query)
+	if err != nil {
+		return nil, err
+	}
+	var result []SearchResult
+	for _, searchResult := range searchResults {
+		result = append(result, SearchResult{
+			Vp:     searchResult.VP,
+			Id:     searchResult.VP.ID.String(),
+			Fields: searchResult.Fields,
+		})
+	}
+	return SearchPresentations200JSONResponse(result), nil
 }

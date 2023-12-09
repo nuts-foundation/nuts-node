@@ -132,23 +132,31 @@ paths:
               schema:
                 type: array
                 items:
-                  type: object
-                  required:
-                    - id
-                    - credential
-                  properties:
-                    id:
-                      type: string
-                      description: The ID of the Verifiable Presentation.
-                    credential:
-                      type: object
-                      description: The Verifiable Credential that matched the query.
+                  $ref: "#/components/schemas/SearchResult"
         default:
           $ref: "../common/error_response.yaml"
 components:
   schemas:
     VerifiablePresentation:
       $ref: "../common/ssi_types.yaml#/components/schemas/VerifiablePresentation"
+    SearchResult:
+      type: object
+      required:
+        - id
+        - vp
+        - fields
+      properties:
+        id:
+          type: string
+          description: The ID of the Verifiable Presentation.
+        vp:
+          $ref: "#/components/schemas/VerifiablePresentation"
+        fields:
+          type: object
+          description: Input descriptor IDs and their mapped values that from the Verifiable Credential.
+          additionalProperties:
+            type: string
+            description: The value of the field that matched the query.
   securitySchemes:
     jwtBearerAuth:
       type: http

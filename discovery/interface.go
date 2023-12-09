@@ -94,5 +94,10 @@ type Server interface {
 
 // Client defines the API for Discovery Clients.
 type Client interface {
-	Search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error)
+	Search(serviceID string, query map[string]string) ([]SearchResult, error)
+}
+
+type SearchResult struct {
+	VP     vc.VerifiablePresentation
+	Fields map[string]string
 }

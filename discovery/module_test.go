@@ -264,3 +264,27 @@ func TestModule_Configure(t *testing.T) {
 		assert.ErrorContains(t, err, "unable to read definitions directory 'test/non_existent'")
 	})
 }
+
+func TestModule_Search(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Run("ok", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		require.NoError(t, m.store.add(testServiceID, vpAlice, nil))
+		results, err := m.Search(testServiceID, map[string]string{
+			"credentialSubject.id": aliceDID.String(),
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, []SearchResult{
+			{
+				VP:     vpAlice,
+				Fields: nil,
+			},
+		}, results)
+	})
+	t.Run("not a client for this service ID", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		_, err := m.Search("other", nil)
+		assert.ErrorIs(t, err, ErrServerModeDisabled)
+	})
+}

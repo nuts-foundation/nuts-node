@@ -92,10 +92,10 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // Search mocks base method.
-func (m *MockClient) Search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error) {
+func (m *MockClient) Search(serviceID string, query map[string]string) ([]SearchResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Search", serviceID, query)
-	ret0, _ := ret[0].([]vc.VerifiablePresentation)
+	ret0, _ := ret[0].([]SearchResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

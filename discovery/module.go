@@ -57,6 +57,7 @@ var _ core.Injectable = &Module{}
 var _ core.Runnable = &Module{}
 var _ core.Configurable = &Module{}
 var _ Server = &Module{}
+var _ Client = &Module{}
 
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
@@ -250,6 +251,25 @@ func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 			return nil, fmt.Errorf("duplicate service definition ID '%s' in file '%s'", definition.ID, filePath)
 		}
 		result[definition.ID] = *definition
+	}
+	return result, nil
+}
+
+func (m *Module) Search(serviceID string, query map[string]string) ([]SearchResult, error) {
+	if _, exists := m.serverDefinitions[serviceID]; !exists {
+		return nil, ErrServerModeDisabled
+	}
+	matchingVPs, err := m.store.search(serviceID, query)
+	if err != nil {
+		return nil, err
+	}
+	var result []SearchResult
+	for _, matchingVP := range matchingVPs {
+		result = append(result, SearchResult{
+			VP: matchingVP,
+			// TODO: TokenIntrospection is also missing map[InputDescriptorId]CredentialValue ?
+			//Fields: matchingVP.Fields,
+		})
 	}
 	return result, nil
 }

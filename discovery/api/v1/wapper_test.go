@@ -19,8 +19,10 @@
 package v1
 
 import (
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/discovery"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -64,22 +66,6 @@ func TestWrapper_GetPresentations(t *testing.T) {
 	})
 }
 
-type mockContext struct {
-	ctrl    *gomock.Controller
-	server  *discovery.MockServer
-	wrapper Wrapper
-}
-
-func newMockContext(t *testing.T) mockContext {
-	ctrl := gomock.NewController(t)
-	server := discovery.NewMockServer(ctrl)
-	return mockContext{
-		ctrl:    ctrl,
-		server:  server,
-		wrapper: Wrapper{server},
-	}
-}
-
 func TestWrapper_RegisterPresentation(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
@@ -106,4 +92,67 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 
 		assert.ErrorIs(t, err, discovery.ErrInvalidPresentation)
 	})
+}
+
+func TestWrapper_SearchPresentations(t *testing.T) {
+	query := map[string]string{
+		"foo": "bar",
+	}
+	id, _ := ssi.ParseURI("did:nuts:foo#1")
+	vp := vc.VerifiablePresentation{
+		ID:                   id,
+		VerifiableCredential: []vc.VerifiableCredential{credential.ValidNutsOrganizationCredential(t)},
+	}
+	t.Run("ok", func(t *testing.T) {
+		test := newMockContext(t)
+		results := []discovery.SearchResult{
+			{
+				VP:     vp,
+				Fields: nil,
+			},
+		}
+		test.client.EXPECT().Search(serviceID, query).Return(results, nil)
+
+		response, err := test.wrapper.SearchPresentations(nil, SearchPresentationsRequestObject{
+			ServiceID: serviceID,
+			Params:    SearchPresentationsParams{Query: query},
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, SearchPresentations200JSONResponse{}, response)
+		actual := response.(SearchPresentations200JSONResponse)
+		require.Len(t, actual, 1)
+		assert.Equal(t, vp, actual[0].Vp)
+		assert.Equal(t, vp.ID.String(), actual[0].Id)
+	})
+	t.Run("error", func(t *testing.T) {
+		test := newMockContext(t)
+		test.client.EXPECT().Search(serviceID, query).Return(nil, discovery.ErrServiceNotFound)
+
+		_, err := test.wrapper.SearchPresentations(nil, SearchPresentationsRequestObject{
+			ServiceID: serviceID,
+			Params:    SearchPresentationsParams{Query: query},
+		})
+
+		assert.ErrorIs(t, err, discovery.ErrServiceNotFound)
+	})
+}
+
+type mockContext struct {
+	ctrl    *gomock.Controller
+	server  *discovery.MockServer
+	client  *discovery.MockClient
+	wrapper Wrapper
+}
+
+func newMockContext(t *testing.T) mockContext {
+	ctrl := gomock.NewController(t)
+	server := discovery.NewMockServer(ctrl)
+	client := discovery.NewMockClient(ctrl)
+	return mockContext{
+		ctrl:    ctrl,
+		server:  server,
+		client:  client,
+		wrapper: Wrapper{Server: server, Client: client},
+	}
 }

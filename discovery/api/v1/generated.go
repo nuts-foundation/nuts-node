@@ -22,6 +22,18 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// SearchResult defines model for SearchResult.
+type SearchResult struct {
+	// Fields Input descriptor IDs and their mapped values that from the Verifiable Credential.
+	Fields map[string]string `json:"fields"`
+
+	// Id The ID of the Verifiable Presentation.
+	Id string `json:"id"`
+
+	// Vp Verifiable Presentation
+	Vp VerifiablePresentation `json:"vp"`
+}
+
 // GetPresentationsParams defines parameters for GetPresentations.
 type GetPresentationsParams struct {
 	Tag *string `form:"tag,omitempty" json:"tag,omitempty"`
@@ -455,15 +467,9 @@ func (r RegisterPresentationResponse) StatusCode() int {
 }
 
 type SearchPresentationsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *[]struct {
-		// Credential The Verifiable Credential that matched the query.
-		Credential map[string]interface{} `json:"credential"`
-
-		// Id The ID of the Verifiable Presentation.
-		Id string `json:"id"`
-	}
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *[]SearchResult
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -638,13 +644,7 @@ func ParseSearchPresentationsResponse(rsp *http.Response) (*SearchPresentationsR
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []struct {
-			// Credential The Verifiable Credential that matched the query.
-			Credential map[string]interface{} `json:"credential"`
-
-			// Id The ID of the Verifiable Presentation.
-			Id string `json:"id"`
-		}
+		var dest []SearchResult
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -902,13 +902,7 @@ type SearchPresentationsResponseObject interface {
 	VisitSearchPresentationsResponse(w http.ResponseWriter) error
 }
 
-type SearchPresentations200JSONResponse []struct {
-	// Credential The Verifiable Credential that matched the query.
-	Credential map[string]interface{} `json:"credential"`
-
-	// Id The ID of the Verifiable Presentation.
-	Id string `json:"id"`
-}
+type SearchPresentations200JSONResponse []SearchResult
 
 func (response SearchPresentations200JSONResponse) VisitSearchPresentationsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
