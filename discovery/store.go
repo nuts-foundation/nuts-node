@@ -352,7 +352,7 @@ func (s *sqlStore) updateTag(tx *gorm.DB, serviceID string, newTimestamp *Tag) (
 			ts := service.LastTag.Timestamp(service.TagPrefix)
 			if ts == nil {
 				// would be very weird: can't decode it, although it's our own tag
-				return nil, fmt.Errorf("invalid tag '%s'", service.LastTag)
+				return nil, fmt.Errorf("can't decode tag '%s', did someone alter 'service.tag_prefix' or 'service.last_tag' in the database?", service.LastTag)
 			}
 			currTimestamp = *ts
 		}
