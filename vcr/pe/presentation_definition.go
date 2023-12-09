@@ -77,7 +77,7 @@ func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCr
 // to the corresponding value from the Verifiable Credentials that map to the InputDescriptor.
 // The credentialMap is a map with the InputDescriptor.Id as key and the VerifiableCredential as value.
 // Constraints that contain no ID are ignored.
-func (presentationDefinition PresentationDefinition) ResolveConstraintsFields(credentialMap map[string]vc.VerifiableCredential) (map[string]interface{}, error) {
+func (presentationDefinition PresentationDefinition) ResolveConstraintsFields(credentialMap map[string]vc.VerifiableCredential) map[string]interface{} {
 	result := make(map[string]interface{})
 	for inputDescriptorID, cred := range credentialMap {
 		// Find the input descriptor
@@ -96,7 +96,7 @@ func (presentationDefinition PresentationDefinition) ResolveConstraintsFields(cr
 			result[key] = value
 		}
 	}
-	return result, nil
+	return result
 }
 
 func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential) ([]Candidate, error) {

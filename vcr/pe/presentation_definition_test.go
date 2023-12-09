@@ -24,7 +24,6 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/json"
-	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"testing"
 
@@ -671,6 +670,52 @@ func Test_matchFilter(t *testing.T) {
 	})
 }
 
+func TestPresentationDefinition_ResolveConstraintsFields(t *testing.T) {
+	jwtCredential := credential.JWTNutsOrganizationCredential(t)
+	jsonldCredential := credential.JWTNutsOrganizationCredential(t)
+	definition := definitions().JSONLDorJWT
+	t.Run("match JWT", func(t *testing.T) {
+		credentialMap := map[string]vc.VerifiableCredential{
+			"organization_credential": jwtCredential,
+		}
+
+		fieldValues := definition.ResolveConstraintsFields(credentialMap)
+
+		require.Len(t, fieldValues, 2)
+		assert.Equal(t, "IJbergen", fieldValues["credentialsubject_organization_city"])
+		assert.Equal(t, "care", fieldValues["credentialsubject_organization_name"])
+	})
+	t.Run("match JSON-LD", func(t *testing.T) {
+		credentialMap := map[string]vc.VerifiableCredential{
+			"organization_credential": jsonldCredential,
+		}
+
+		fieldValues := definition.ResolveConstraintsFields(credentialMap)
+
+		require.Len(t, fieldValues, 2)
+		assert.Equal(t, "IJbergen", fieldValues["credentialsubject_organization_city"])
+		assert.Equal(t, "care", fieldValues["credentialsubject_organization_name"])
+	})
+	t.Run("input descriptor without constraints", func(t *testing.T) {
+		format := PresentationDefinitionClaimFormatDesignations(map[string]map[string][]string{"jwt_vc": {"alg": {"ES256"}}})
+		definition := PresentationDefinition{
+			InputDescriptors: []*InputDescriptor{
+				{
+					Id:     "any_credential",
+					Format: &format,
+				},
+			},
+		}
+		credentialMap := map[string]vc.VerifiableCredential{
+			"any_credential": jwtCredential,
+		}
+
+		fieldValues := definition.ResolveConstraintsFields(credentialMap)
+
+		assert.Empty(t, fieldValues)
+	})
+}
+
 func credentialToJSONLD(credential vc.VerifiableCredential) vc.VerifiableCredential {
 	bytes, err := credential.MarshalJSON()
 	if err != nil {
@@ -682,46 +727,4 @@ func credentialToJSONLD(credential vc.VerifiableCredential) vc.VerifiableCredent
 		panic(err)
 	}
 	return result
-}
-
-func TestPresentationDefinition_ResolveConstraintsFields(t *testing.T) {
-	type fields struct {
-		Format                 *PresentationDefinitionClaimFormatDesignations
-		Frame                  *Frame
-		Id                     string
-		InputDescriptors       []*InputDescriptor
-		Name                   string
-		Purpose                *string
-		SubmissionRequirements []*SubmissionRequirement
-	}
-	type args struct {
-		credentialMap map[string]vc.VerifiableCredential
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    map[string]interface{}
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			presentationDefinition := PresentationDefinition{
-				Format:                 tt.fields.Format,
-				Frame:                  tt.fields.Frame,
-				Id:                     tt.fields.Id,
-				InputDescriptors:       tt.fields.InputDescriptors,
-				Name:                   tt.fields.Name,
-				Purpose:                tt.fields.Purpose,
-				SubmissionRequirements: tt.fields.SubmissionRequirements,
-			}
-			got, err := presentationDefinition.ResolveConstraintsFields(tt.args.credentialMap)
-			if !tt.wantErr(t, err, fmt.Sprintf("ResolveConstraintsFields(%v)", tt.args.credentialMap)) {
-				return
-			}
-			assert.Equalf(t, tt.want, got, "ResolveConstraintsFields(%v)", tt.args.credentialMap)
-		})
-	}
 }
