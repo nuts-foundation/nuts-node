@@ -679,7 +679,7 @@ func TestPresentationDefinition_ResolveConstraintsFields(t *testing.T) {
 			"organization_credential": jwtCredential,
 		}
 
-		fieldValues := definition.ResolveConstraintsFields(credentialMap)
+		fieldValues, _ := definition.ResolveConstraintsFields(credentialMap)
 
 		require.Len(t, fieldValues, 2)
 		assert.Equal(t, "IJbergen", fieldValues["credentialsubject_organization_city"])
@@ -690,7 +690,7 @@ func TestPresentationDefinition_ResolveConstraintsFields(t *testing.T) {
 			"organization_credential": jsonldCredential,
 		}
 
-		fieldValues := definition.ResolveConstraintsFields(credentialMap)
+		fieldValues, _ := definition.ResolveConstraintsFields(credentialMap)
 
 		require.Len(t, fieldValues, 2)
 		assert.Equal(t, "IJbergen", fieldValues["credentialsubject_organization_city"])
@@ -710,7 +710,7 @@ func TestPresentationDefinition_ResolveConstraintsFields(t *testing.T) {
 			"any_credential": jwtCredential,
 		}
 
-		fieldValues := definition.ResolveConstraintsFields(credentialMap)
+		fieldValues, _ := definition.ResolveConstraintsFields(credentialMap)
 
 		assert.Empty(t, fieldValues)
 	})
