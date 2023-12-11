@@ -109,6 +109,52 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 
 		require.Error(t, err)
 	})
+
+	t.Run("empty employee familyName", func(t *testing.T) {
+		params := map[string]interface{}{
+			"employer": employer.String(),
+			"employee": map[string]interface{}{
+				"identifier": identifier,
+				"roleName":   roleName,
+				"initials":   initials,
+				"familyName": "",
+			},
+		}
+
+		ss := NewSigner(nil, "").(*signer)
+		_, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
+		require.ErrorContains(t, err, "missing/invalid employee familyName")
+	})
+	t.Run("empty employee initials", func(t *testing.T) {
+		params := map[string]interface{}{
+			"employer": employer.String(),
+			"employee": map[string]interface{}{
+				"identifier": identifier,
+				"roleName":   roleName,
+				"initials":   "",
+				"familyName": familyName,
+			},
+		}
+
+		ss := NewSigner(nil, "").(*signer)
+		_, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
+		require.ErrorContains(t, err, "missing/invalid employee initials")
+	})
+	t.Run("empty employee identifier", func(t *testing.T) {
+		params := map[string]interface{}{
+			"employer": employer.String(),
+			"employee": map[string]interface{}{
+				"identifier": "",
+				"roleName":   roleName,
+				"initials":   initials,
+				"familyName": familyName,
+			},
+		}
+
+		ss := NewSigner(nil, "").(*signer)
+		_, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
+		require.ErrorContains(t, err, "missing/invalid employee identifier")
+	})
 }
 
 func TestSessionStore_SigningSessionStatus(t *testing.T) {
