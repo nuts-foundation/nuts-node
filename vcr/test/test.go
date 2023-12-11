@@ -81,8 +81,8 @@ func CreateJSONLDPresentation(t *testing.T, subjectDID did.DID, visitor func(pre
 				ProofOptions: proof.ProofOptions{
 					Created: time.Now(),
 					Expires: &exp,
+					Nonce:   &nonce,
 				},
-				Nonce: &nonce,
 			},
 		},
 	}

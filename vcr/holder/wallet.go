@@ -119,12 +119,14 @@ func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, cr
 		jwt.IssuerKey:  subjectDID.String(),
 		jwt.SubjectKey: subjectDID.String(),
 		jwt.JwtIDKey:   id.String(),
-		"nonce":        crypto.GenerateNonce(),
 		"vp": vc.VerifiablePresentation{
 			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
 			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
 			VerifiableCredential: credentials,
 		},
+	}
+	if options.ProofOptions.Nonce != nil {
+		claims["nonce"] = *options.ProofOptions.Nonce
 	}
 	if options.ProofOptions.Domain != nil {
 		claims[jwt.AudienceKey] = *options.ProofOptions.Domain
@@ -172,8 +174,6 @@ func (h wallet) buildJSONLDPresentation(ctx context.Context, subjectDID did.DID,
 	}
 
 	ldProof := proof.NewLDProof(options.ProofOptions)
-	nonce := crypto.GenerateNonce()
-	ldProof.Nonce = &nonce
 	signingResult, err := ldProof.
 		Sign(ctx, document, signature.JSONWebSignature2020{ContextLoader: h.jsonldManager.DocumentLoader(), Signer: h.keyStore}, key)
 	if err != nil {
