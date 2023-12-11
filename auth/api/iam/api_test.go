@@ -48,7 +48,6 @@ import (
 	"time"
 )
 
-var nutsDID = did.MustParseDID("did:nuts:123")
 var webDID = did.MustParseDID("did:web:example.com:iam:123")
 var webIDPart = "123"
 
@@ -142,31 +141,12 @@ func TestWrapper_GetWebDID(t *testing.T) {
 func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
-		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: nutsDID.ID})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: webIDPart})
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthClientMetadata200JSONResponse{}, res)
-	})
-	t.Run("error - did not managed by this node", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID)
-
-		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: nutsDID.ID})
-
-		assert.Equal(t, 404, statusCodeFrom(err))
-		assert.Nil(t, res)
-	})
-	t.Run("error - internal error 500", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, errors.New("unknown error"))
-
-		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: nutsDID.ID})
-
-		assert.Equal(t, 500, statusCodeFrom(err))
-		assert.EqualError(t, err, "unknown error")
-		assert.Nil(t, res)
 	})
 }
 func TestWrapper_PresentationDefinition(t *testing.T) {
@@ -211,10 +191,10 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	t.Run("missing redirect_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{}), HandleAuthorizeRequestRequestObject{
-			Id: nutsDID.ID,
+			Id: webIDPart,
 		})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "redirect_uri is required")
@@ -222,13 +202,13 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	})
 	t.Run("unsupported response type", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
 			"redirect_uri":  "https://example.com",
 			"response_type": "unsupported",
 		}), HandleAuthorizeRequestRequestObject{
-			Id: nutsDID.ID,
+			Id: webIDPart,
 		})
 
 		requireOAuthError(t, err, oauth.UnsupportedResponseType, "")
@@ -239,10 +219,10 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 func TestWrapper_HandleTokenRequest(t *testing.T) {
 	t.Run("unsupported grant type", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), nutsDID).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
 		res, err := ctx.client.HandleTokenRequest(nil, HandleTokenRequestRequestObject{
-			Id: nutsDID.ID,
+			Id: webIDPart,
 			Body: &HandleTokenRequestFormdataRequestBody{
 				GrantType: "unsupported",
 			},
@@ -476,33 +456,33 @@ func TestWrapper_middleware(t *testing.T) {
 func TestWrapper_idToOwnedDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
-		_, err := ctx.client.idToOwnedDID(nil, nutsDID.ID)
+		_, err := ctx.client.idToOwnedDID(nil, webIDPart)
 
 		assert.NoError(t, err)
 	})
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID)
 
-		_, err := ctx.client.idToOwnedDID(nil, nutsDID.ID)
+		_, err := ctx.client.idToOwnedDID(nil, webIDPart)
 
 		assert.EqualError(t, err, "invalid_request - issuer DID not owned by the server")
 	})
 	t.Run("DID does not exist (functional resolver error)", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, resolver.ErrNotFound)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, resolver.ErrNotFound)
 
-		_, err := ctx.client.idToOwnedDID(nil, nutsDID.ID)
+		_, err := ctx.client.idToOwnedDID(nil, webIDPart)
 
 		assert.EqualError(t, err, "invalid_request - invalid issuer DID: unable to find the DID document")
 	})
 	t.Run("other resolver error", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, nutsDID).Return(false, errors.New("unknown error"))
+		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
 
-		_, err := ctx.client.idToOwnedDID(nil, nutsDID.ID)
+		_, err := ctx.client.idToOwnedDID(nil, webIDPart)
 
 		assert.EqualError(t, err, "DID resolution failed: unknown error")
 	})

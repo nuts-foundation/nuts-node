@@ -130,19 +130,11 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 	if err != nil {
 		return nil, err
 	}
-
 	switch request.Body.GrantType {
 	case "authorization_code":
 		// Options:
 		// - OpenID4VCI
 		// - OpenID4VP, vp_token is sent in Token Response
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.UnsupportedGrantType,
-			Description: "not implemented yet",
-		}
-	case "vp_token-bearer":
-		// Options:
-		// - service-to-service vp_token flow
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
@@ -324,7 +316,6 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 
 func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
 	ownDID := r.idToDID(request.Id)
-
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -338,19 +329,12 @@ func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (G
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
 func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error) {
-	ownDID := idToDID(request.Id)
-	owned, err := r.vdr.IsOwner(ctx, ownDID)
+	_, err := r.idToOwnedDID(ctx, request.Id)
 	if err != nil {
-		log.Logger().WithField("did", ownDID.String()).Errorf("oauth metadata: failed to assert ownership of did: %s", err.Error())
-		return nil, core.Error(500, err.Error())
-	}
-	if !owned {
-		return nil, core.NotFoundError("did not owned")
+		return nil, err
 	}
 
-	identity := r.auth.PublicURL().JoinPath("iam", request.Id)
-
-	return OAuthClientMetadata200JSONResponse(clientMetadata(*identity)), nil
+	return OAuthClientMetadata200JSONResponse(clientMetadata(*r.identityURL(request.Id))), nil
 }
 func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error) {
 	if len(request.Params.Scope) == 0 {
@@ -371,7 +355,7 @@ func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationD
 }
 
 func (r Wrapper) idToOwnedDID(ctx context.Context, id string) (*did.DID, error) {
-	ownDID := idToDID(id)
+	ownDID := r.idToDID(id)
 	owned, err := r.vdr.IsOwner(ctx, ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -406,19 +390,20 @@ func createSession(params map[string]string, ownDID did.DID) *Session {
 	}
 	return session
 }
+
+// idToDID converts the tenant-specific part of a did:web DID (e.g. 123)
+// to a fully qualified did:web DID (e.g. did:web:example.com:123), using the configured Nuts node URL.
 func (r Wrapper) idToDID(id string) did.DID {
-	url := r.auth.PublicURL().JoinPath("iam", id)
-	did, _ := didweb.URLToDID(*url)
-	return *did
+	identityURL := r.identityURL(id)
+	result, _ := didweb.URLToDID(*identityURL)
+	return *result
 }
 
-func idToNutsDID(id string) did.DID {
-	return did.DID{
-		// should be changed to web when migrated to web DID
-		Method:    "nuts",
-		ID:        id,
-		DecodedID: id,
-	}
+// identityURL the tenant-specific part of a did:web DID (e.g. 123)
+// to an identity URL (e.g. did:web:example.com:123), which is used as base URL for resolving metadata and its did:web DID,
+// using the configured Nuts node URL.
+func (r Wrapper) identityURL(id string) *url.URL {
+	return r.auth.PublicURL().JoinPath("iam", id)
 }
 
 func (r *Wrapper) accessTokenStore() storage.SessionStore {

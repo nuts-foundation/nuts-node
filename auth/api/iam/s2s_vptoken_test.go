@@ -310,7 +310,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
-			assert.EqualError(t, err, "invalid_request - presentation audience is missing or does not match")
+			assert.EqualError(t, err, "invalid_request - expected: did:web:example.com:iam:123, got: [] - presentation audience/domain is missing or does not match")
 			assert.Nil(t, resp)
 		})
 		t.Run("not matching", func(t *testing.T) {
@@ -321,7 +321,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
-			assert.EqualError(t, err, "invalid_request - presentation audience is missing or does not match")
+			assert.EqualError(t, err, "invalid_request - expected: did:web:example.com:iam:123, got: [did:example:other] - presentation audience/domain is missing or does not match")
 			assert.Nil(t, resp)
 		})
 	})

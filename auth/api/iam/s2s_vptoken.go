@@ -299,17 +299,15 @@ func (r *Wrapper) validatePresentationAudience(presentation vc.VerifiablePresent
 			audience = []string{*proof.Domain}
 		}
 	}
-	// Callers use the did:web variant, so we need to check against that instead of did:nuts
-	webDID := nutsToWebDID(issuer, *r.auth.PublicURL())
 	for _, aud := range audience {
-		if aud == webDID.String() {
+		if aud == issuer.String() {
 			return nil
 		}
 	}
 	return oauth.OAuth2Error{
 		Code:          oauth.InvalidRequest,
-		Description:   "presentation audience is missing or does not match",
-		InternalError: fmt.Errorf("expected: %s, got: %v", webDID.String(), audience),
+		Description:   "presentation audience/domain is missing or does not match",
+		InternalError: fmt.Errorf("expected: %s, got: %v", issuer, audience),
 	}
 }
 

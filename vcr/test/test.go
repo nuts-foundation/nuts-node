@@ -46,6 +46,7 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 		jwt.JwtIDKey:      subjectDID.String() + "#" + uuid.NewString(),
 		jwt.NotBeforeKey:  time.Now().Unix(),
 		jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
+		"nonce":           crypto.GenerateNonce(),
 		"vp": vc.VerifiablePresentation{
 			Type:                 []ssi.URI{vc.VerifiablePresentationTypeV1URI()},
 			VerifiableCredential: credentials,
