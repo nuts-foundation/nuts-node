@@ -1,8 +1,7 @@
-package: v1
+package: client
 generate:
-  echo-server: true
+  client: true
   models: true
-  strict-server: true
 output-options:
   skip-prune: true
   exclude-schemas:

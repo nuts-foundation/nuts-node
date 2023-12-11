@@ -56,8 +56,8 @@ type PresentationSubmissionBuilder struct {
 
 // PresentationSubmissionBuilder returns a new PresentationSubmissionBuilder.
 // A PresentationSubmissionBuilder can be used to create a PresentationSubmission with multiple wallets as input.
-func (presentationDefinition PresentationDefinition) PresentationSubmissionBuilder() PresentationSubmissionBuilder {
-	return PresentationSubmissionBuilder{
+func (presentationDefinition PresentationDefinition) PresentationSubmissionBuilder() *PresentationSubmissionBuilder {
+	return &PresentationSubmissionBuilder{
 		presentationDefinition: presentationDefinition,
 	}
 }
