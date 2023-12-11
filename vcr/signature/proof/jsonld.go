@@ -62,6 +62,8 @@ type ProofOptions struct {
 	// ProofPurpose contains a specific intent for the proof, the reason why an entity created it.
 	// Acts as a safeguard to prevent the proof from being misused for a purpose other than the one it was intended for.
 	ProofPurpose string `json:"proofPurpose"`
+	// Nonce contains a value that is used to prevent replay attacks
+	Nonce *string `json:"nonce,omitempty"`
 }
 
 // ValidAt checks if the proof is valid at a certain given time.
@@ -81,7 +83,6 @@ func (o ProofOptions) ValidAt(at time.Time, maxSkew time.Duration) bool {
 // LDProof contains the fields of the Proof data model: https://w3c-ccg.github.io/data-integrity-spec/#proofs
 type LDProof struct {
 	ProofOptions
-	Nonce *string `json:"nonce,omitempty"`
 	// Type contains the signature type. Its is determined from the key type.
 	Type ssi.ProofType `json:"type"`
 	// VerificationMethod is the key identifier for the public/private key pair used to sign this proof

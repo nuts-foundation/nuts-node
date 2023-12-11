@@ -412,7 +412,7 @@ Print conflicted documents and their metadata
 nuts vdr create-did
 ^^^^^^^^^^^^^^^^^^^
 
-When using the V2 API, a web:did will be created. All the other options are ignored for a web:did.
+When using the V2 API, a did:web DID will be created. All the other options are ignored for did:web.
 
 ::
 
@@ -430,7 +430,7 @@ When using the V2 API, a web:did will be created. All the other options are igno
       --timeout duration       Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string           Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string      File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
-      --v2                     Pass 'true' to use the V2 API and create a web:did.
+      --v2                     Pass 'true' to use the V2 API and create a did:web DID.
       --verbosity string       Log level (trace, debug, info, warn, error) (default "info")
 
 nuts vdr deactivate

@@ -70,20 +70,30 @@ func PresentationSigner(presentation vc.VerifiablePresentation) (*did.DID, error
 			return nil, errors.New("JWT presentation does not have 'iss' claim")
 		}
 		return did.ParseDID(issuer)
-	case vc.JSONLDCredentialProofFormat:
-		fallthrough
-	default:
-		var proofs []proof.LDProof
-		if err := presentation.UnmarshalProofValue(&proofs); err != nil {
-			return nil, fmt.Errorf("invalid LD-proof for presentation: %w", err)
+	case vc.JSONLDPresentationProofFormat:
+		proof, err := ParseLDProof(presentation)
+		if err != nil {
+			return nil, err
 		}
-		if len(proofs) != 1 {
-			return nil, fmt.Errorf("presentation should have exactly 1 proof, got %d", len(proofs))
-		}
-		verificationMethod, err := did.ParseDIDURL(proofs[0].VerificationMethod.String())
+		verificationMethod, err := did.ParseDIDURL(proof.VerificationMethod.String())
 		if err != nil || verificationMethod.DID.Empty() {
 			return nil, fmt.Errorf("invalid verification method for JSON-LD presentation: %w", err)
 		}
 		return &verificationMethod.DID, nil
+	default:
+		return nil, fmt.Errorf("unsupported presentation format: %s", presentation.Format())
 	}
+}
+
+// ParseLDProof parses the LinkedData proof from the presentation.
+// It returns an error if the presentation does not have exactly 1 proof.
+func ParseLDProof(presentation vc.VerifiablePresentation) (*proof.LDProof, error) {
+	var proofs []proof.LDProof
+	if err := presentation.UnmarshalProofValue(&proofs); err != nil {
+		return nil, fmt.Errorf("invalid LD-proof for presentation: %w", err)
+	}
+	if len(proofs) != 1 {
+		return nil, fmt.Errorf("presentation should have exactly 1 proof, got %d", len(proofs))
+	}
+	return &proofs[0], nil
 }

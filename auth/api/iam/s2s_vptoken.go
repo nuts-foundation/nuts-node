@@ -22,61 +22,91 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
-// accessTokenValidity defines how long access tokens are valid.
-// TODO: Might want to make this configurable at some point
-const accessTokenValidity = 15 * time.Minute
+// s2sMaxPresentationValidity defines the maximum validity of a presentation.
+// This is to prevent replay attacks. The value is specified by Nuts RFC021, and excludes max. clock skew.
+const s2sMaxPresentationValidity = 5 * time.Second
 
-// serviceToService adds support for service-to-service OAuth2 flows,
-// which uses a custom vp_token grant to authenticate calls to the token endpoint.
-// Clients first call the presentation definition endpoint to get a presentation definition for the desired scope,
-// then create a presentation submission given the definition which is posted to the token endpoint as vp_token.
-// The AS then returns an access token with the requested scope.
-// Requires:
-// - GET /presentation_definition?scope=... (returns a presentation definition)
-// - POST /token (with vp_token grant)
-type serviceToService struct {
-}
+// s2sMaxClockSkew defines the maximum clock skew between nodes.
+// The value is specified by Nuts RFC021.
+const s2sMaxClockSkew = 5 * time.Second
 
-func (s serviceToService) Routes(router core.EchoRouter) {
-	router.Add("GET", "/public/oauth2/:did/presentation_definition", func(echoCtx echo.Context) error {
-		// TODO: Read scope, map to presentation definition, return
-		return echoCtx.JSON(http.StatusOK, map[string]string{})
-	})
-}
-
-func (s serviceToService) validateVPToken(params map[string]string) (string, error) {
-	submission := params["presentation_submission"]
-	scope := params["scope"]
-	vp_token := params["vp_token"]
-	if submission == "" || scope == "" || vp_token == "" {
-		// TODO: right error response
-		return "", errors.New("missing required parameters")
+// handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
+// It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
+func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
+	pexEnvelope, err := pe.ParseEnvelope([]byte(assertionJSON))
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "assertion parameter is invalid: " + err.Error(),
+		}
 	}
-	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2418
-	// TODO: verify parameters
-	return scope, nil
+
+	submission, err := pe.ParsePresentationSubmission([]byte(submissionJSON))
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: fmt.Sprintf("invalid presentation submission: %s", err.Error()),
+		}
+	}
+
+	var credentialSubjectID did.DID
+	for _, presentation := range pexEnvelope.Presentations {
+		if err := validateS2SPresentationMaxValidity(presentation); err != nil {
+			return nil, err
+		}
+		if subjectDID, err := validatePresentationSigner(presentation, credentialSubjectID); err != nil {
+			return nil, err
+		} else {
+			credentialSubjectID = *subjectDID
+		}
+		if err := r.validatePresentationAudience(presentation, issuer); err != nil {
+			return nil, err
+		}
+	}
+	credentialMap, definition, err := r.validatePresentationSubmission(scope, submission, pexEnvelope)
+	if err != nil {
+		return nil, err
+	}
+	for _, presentation := range pexEnvelope.Presentations {
+		if err := r.validateS2SPresentationNonce(presentation); err != nil {
+			return nil, err
+		}
+	}
+
+	// Check signatures of VP and VCs. Trust should be established by the Presentation Definition.
+	for _, presentation := range pexEnvelope.Presentations {
+		_, err = r.vcr.Verifier().VerifyVP(presentation, true, true, nil)
+		if err != nil {
+			return nil, oauth.OAuth2Error{
+				Code:          oauth.InvalidRequest,
+				Description:   "presentation(s) or contained credential(s) are invalid",
+				InternalError: err,
+			}
+		}
+	}
+
+	// All OK, allow access
+	response, err := r.createS2SAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope, credentialSubjectID, credentialMap)
+	if err != nil {
+		return nil, err
+	}
+	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (s serviceToService) handleAuthzRequest(_ map[string]string, _ *Session) (*authzResponse, error) {
-	// Protocol does not support authorization code flow
-	return nil, nil
-}
-
-func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
+func (r *Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
 	if request.Body == nil {
 		// why did oapi-codegen generate a pointer for the body??
 		return nil, core.InvalidInputError("missing request body")
@@ -115,22 +145,24 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	return RequestAccessToken200JSONResponse(*tokenResult), nil
 }
 
-func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentation vc.VerifiablePresentation, scope string) (*oauth.TokenResponse, error) {
-	accessToken := AccessToken{
-		Token:  crypto.GenerateNonce(),
-		Issuer: issuer.String(),
-		// TODO: set ClientId
-		ClientId:   "",
-		IssuedAt:   issueTime,
-		Expiration: issueTime.Add(accessTokenValidity),
-		Scope:      scope,
-		// TODO: set values
-		InputDescriptorConstraintIdMap: nil,
-		VPToken:                        []VerifiablePresentation{presentation},
-		PresentationDefinition:         nil,
-		PresentationSubmission:         nil,
+func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submission pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+	fieldsMap, err := definition.ResolveConstraintsFields(credentialMap)
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve Presentation Definition Constraints Fields: %w", err)
 	}
-	err := r.s2sAccessTokenStore().Put(accessToken.Token, accessToken)
+	accessToken := AccessToken{
+		Token:                          crypto.GenerateNonce(),
+		Issuer:                         issuer.String(),
+		ClientId:                       credentialSubjectDID.String(),
+		IssuedAt:                       issueTime,
+		Expiration:                     issueTime.Add(accessTokenValidity),
+		Scope:                          scope,
+		VPToken:                        presentations,
+		PresentationDefinition:         &definition,
+		PresentationSubmission:         &submission,
+		InputDescriptorConstraintIdMap: fieldsMap,
+	}
+	err = r.accessTokenStore().Put(accessToken.Token, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
@@ -143,8 +175,144 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 	}, nil
 }
 
-func (r Wrapper) s2sAccessTokenStore() storage.SessionStore {
-	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "s2s", "accesstoken")
+// validatePresentationSubmission checks if the presentation submission is valid for the given scope:
+//  1. Resolve presentation definition for the requested scope
+//  2. Check submission against presentation and definition
+func (r Wrapper) validatePresentationSubmission(scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (map[string]vc.VerifiableCredential, *PresentationDefinition, error) {
+	definition := r.auth.PresentationDefinitions().ByScope(scope)
+	if definition == nil {
+		return nil, nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidScope,
+			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", scope),
+		}
+	}
+
+	credentialMap, err := submission.Validate(*pexEnvelope, *definition)
+	if err != nil {
+		return nil, nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "presentation submission does not conform to Presentation Definition",
+			InternalError: err,
+		}
+	}
+	return credentialMap, definition, err
+}
+
+// validateS2SPresentationMaxValidity checks that the presentation is valid for a reasonable amount of time.
+func validateS2SPresentationMaxValidity(presentation vc.VerifiablePresentation) error {
+	created := credential.PresentationIssuanceDate(presentation)
+	expires := credential.PresentationExpirationDate(presentation)
+	if created == nil || expires == nil {
+		return oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "presentation is missing creation or expiration date",
+		}
+	}
+	if expires.Sub(*created) > s2sMaxPresentationValidity {
+		return oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: fmt.Sprintf("presentation is valid for too long (max %s)", s2sMaxPresentationValidity),
+		}
+	}
+	return nil
+}
+
+// validatePresentationSigner checks if the presenter of the VP is the same as the subject of the VCs being presented.
+func validatePresentationSigner(presentation vc.VerifiablePresentation, expectedCredentialSubjectDID did.DID) (*did.DID, error) {
+	subjectDID, err := credential.PresenterIsCredentialSubject(presentation)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: err.Error(),
+		}
+	}
+	if subjectDID == nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "presentation signer is not credential subject",
+		}
+	}
+	if !expectedCredentialSubjectDID.Empty() && !subjectDID.Equals(expectedCredentialSubjectDID) {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "not all presentations have the same credential subject ID",
+		}
+	}
+	return subjectDID, nil
+}
+
+// validateS2SPresentationNonce checks if the nonce has been used before; 'nonce' claim for JWTs or LDProof's 'nonce' for JSON-LD.
+func (r *Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresentation) error {
+	var nonce string
+	switch presentation.Format() {
+	case vc.JWTPresentationProofFormat:
+		nonceRaw, _ := presentation.JWT().Get("nonce")
+		nonce, _ = nonceRaw.(string)
+		if nonce == "" {
+			return oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "presentation has invalid/missing nonce",
+			}
+		}
+	case vc.JSONLDPresentationProofFormat:
+		proof, err := credential.ParseLDProof(presentation)
+		if err != nil || proof.Nonce == nil || *proof.Nonce == "" {
+			return oauth.OAuth2Error{
+				Code:          oauth.InvalidRequest,
+				InternalError: err,
+				Description:   "presentation has invalid proof or nonce",
+			}
+		}
+		nonce = *proof.Nonce
+	}
+
+	nonceStore := r.storageEngine.GetSessionDatabase().GetStore(s2sMaxPresentationValidity+s2sMaxClockSkew, "s2s", "nonce")
+	nonceError := nonceStore.Get(nonce, new(bool))
+	if nonceError != nil && errors.Is(nonceError, storage.ErrNotFound) {
+		// this is OK, nonce has not been used before
+		nonceError = nil
+	} else if nonceError == nil {
+		// no store error: value was retrieved from store, meaning the nonce has been used before
+		nonceError = oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "presentation nonce has already been used",
+		}
+	}
+	// Other error occurred. Keep error to report after storing nonce.
+
+	// Regardless the result of the nonce checking, the nonce of the VP must not be used again.
+	// So always store the nonce.
+	if err := nonceStore.Put(nonce, true); err != nil {
+		nonceError = errors.Join(fmt.Errorf("unable to store nonce: %w", err), nonceError)
+	}
+	return nonceError
+}
+
+// validatePresentationAudience checks if the presentation audience (aud claim for JWTs, domain property for JSON-LD proofs) contains the issuer DID.
+func (r *Wrapper) validatePresentationAudience(presentation vc.VerifiablePresentation, issuer did.DID) error {
+	var audience []string
+	switch presentation.Format() {
+	case vc.JWTPresentationProofFormat:
+		audience = presentation.JWT().Audience()
+	case vc.JSONLDPresentationProofFormat:
+		proof, err := credential.ParseLDProof(presentation)
+		if err != nil {
+			return err
+		}
+		if proof.Domain != nil {
+			audience = []string{*proof.Domain}
+		}
+	}
+	for _, aud := range audience {
+		if aud == issuer.String() {
+			return nil
+		}
+	}
+	return oauth.OAuth2Error{
+		Code:          oauth.InvalidRequest,
+		Description:   "presentation audience/domain is missing or does not match",
+		InternalError: fmt.Errorf("expected: %s, got: %v", issuer, audience),
+	}
 }
 
 type AccessToken struct {

@@ -89,15 +89,22 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			assert.Equal(t, testDID, did.MustParseDIDURL(result.ID.String()).DID, "id must be the DID of the holder")
 			assert.NotEmpty(t, result.ID.Fragment, "id must have a fragment")
 			assert.Equal(t, JSONLDPresentationFormat, result.Format())
+			ldProof, err := credential.ParseLDProof(*result)
+			require.NoError(t, err)
+			assert.Empty(t, ldProof.Nonce)
 		})
 		t.Run("ok - custom options", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			specialType := ssi.MustParseURI("SpecialPresentation")
+			domain := "https://example.com"
+			nonce := "the-nonce"
 			options := PresentationOptions{
 				AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
 				AdditionalTypes:    []ssi.URI{specialType},
 				ProofOptions: proof.ProofOptions{
 					ProofPurpose: "authentication",
+					Domain:       &domain,
+					Nonce:        &nonce,
 				},
 				Format: JSONLDPresentationFormat,
 			}
@@ -113,9 +120,12 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			require.NotNil(t, result)
 			assert.True(t, result.IsType(specialType))
 			assert.True(t, result.ContainsContext(credential.NutsV1ContextURI))
-			proofs, _ := result.Proofs()
+			var proofs []proof.LDProof
+			require.NoError(t, result.UnmarshalProofValue(&proofs))
 			require.Len(t, proofs, 1)
-			assert.Equal(t, proofs[0].ProofPurpose, "authentication")
+			assert.Equal(t, "authentication", proofs[0].ProofPurpose)
+			assert.Equal(t, "https://example.com", *proofs[0].Domain)
+			assert.Equal(t, nonce, *proofs[0].Nonce)
 			assert.Equal(t, JSONLDPresentationFormat, result.Format())
 		})
 		t.Run("ok - multiple VCs", func(t *testing.T) {
@@ -152,6 +162,8 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			assert.NotEmpty(t, result.ID.Fragment, "id must have a fragment")
 			assert.Equal(t, JWTPresentationFormat, result.Format())
 			assert.NotNil(t, result.JWT())
+			nonce, _ := result.JWT().Get("nonce")
+			assert.Empty(t, nonce)
 		})
 		t.Run("ok - multiple VCs", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -171,11 +183,15 @@ func TestWallet_BuildPresentation(t *testing.T) {
 		})
 		t.Run("optional proof options", func(t *testing.T) {
 			exp := time.Now().Local().Truncate(time.Second)
+			domain := "https://example.com"
+			nonce := "the-nonce"
 			options := PresentationOptions{
 				Format: JWTPresentationFormat,
 				ProofOptions: proof.ProofOptions{
 					Expires: &exp,
 					Created: exp.Add(-1 * time.Hour),
+					Domain:  &domain,
+					Nonce:   &nonce,
 				},
 			}
 
@@ -194,6 +210,9 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			assert.NotNil(t, result.JWT())
 			assert.Equal(t, *options.ProofOptions.Expires, result.JWT().Expiration().Local())
 			assert.Equal(t, options.ProofOptions.Created, result.JWT().NotBefore().Local())
+			assert.Equal(t, []string{domain}, result.JWT().Audience())
+			actualNonce, _ := result.JWT().Get("nonce")
+			assert.Equal(t, nonce, actualNonce)
 		})
 	})
 	t.Run("validation", func(t *testing.T) {

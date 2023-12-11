@@ -179,15 +179,17 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	if signInstructions.Empty() {
 		return nil, core.Error(http.StatusPreconditionFailed, "no matching credentials")
 	}
-	expires := time.Now().Add(time.Minute * 15) //todo
-	nonce := nutsCrypto.GenerateNonce()
+	expires := time.Now().Add(time.Second * 5)
 	// todo: support multiple wallets
+	domain := verifier.String()
+	nonce := nutsCrypto.GenerateNonce()
 	vp, err := s.wallet.BuildPresentation(ctx, signInstructions[0].VerifiableCredentials, holder.PresentationOptions{
 		Format: format,
 		ProofOptions: proof.ProofOptions{
-			Created:   time.Now(),
-			Challenge: &nonce,
-			Expires:   &expires,
+			Created: time.Now(),
+			Expires: &expires,
+			Domain:  &domain,
+			Nonce:   &nonce,
 		},
 	}, &requester, false)
 	if err != nil {

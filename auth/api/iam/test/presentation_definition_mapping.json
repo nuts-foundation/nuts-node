@@ -1,6 +1,53 @@
 {
   "eOverdracht-overdrachtsbericht": {
     "id": "eOverdracht",
-    "input_descriptors": []
+    "input_descriptors": [
+      {
+        "id": "1",
+        "name": "Organization matcher",
+        "purpose": "Any care organization",
+        "constraints": {
+          "fields": [
+            {
+              "path": [
+                "$.credentialSubject.organization.city"
+              ],
+              "filter": {
+                "type": "string"
+              }
+            },
+            {
+              "path": [
+                "$.credentialSubject.organization.name"
+              ],
+              "filter": {
+                "type": "string"
+              }
+            },
+            {
+              "path": [
+                "$.type"
+              ],
+              "filter": {
+                "type": "string",
+                "const": "NutsOrganizationCredential"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "format": {
+      "jwt_vc": {
+        "alg": [
+          "ES256"
+        ]
+      },
+      "ldp_vc": {
+        "proof_type": [
+          "JsonWebSignature2020"
+        ]
+      }
+    }
   }
 }

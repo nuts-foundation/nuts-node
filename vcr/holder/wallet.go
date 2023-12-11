@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
@@ -71,7 +72,7 @@ func New(
 func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
 	var err error
 	if signerDID == nil {
-		signerDID, err = h.resolveSubjectDID(credentials)
+		signerDID, err = credential.ResolveSubjectDID(credentials...)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve signer DID from VCs for creating VP: %w", err)
 		}
@@ -124,6 +125,12 @@ func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, cr
 			VerifiableCredential: credentials,
 		},
 	}
+	if options.ProofOptions.Nonce != nil {
+		claims["nonce"] = *options.ProofOptions.Nonce
+	}
+	if options.ProofOptions.Domain != nil {
+		claims[jwt.AudienceKey] = *options.ProofOptions.Domain
+	}
 	if options.ProofOptions.Created.IsZero() {
 		claims[jwt.NotBeforeKey] = time.Now().Unix()
 	} else {
@@ -166,9 +173,8 @@ func (h wallet) buildJSONLDPresentation(ctx context.Context, subjectDID did.DID,
 		return nil, err
 	}
 
-	// TODO: choose between different proof types (JWT or LD-Proof)
-	signingResult, err := proof.
-		NewLDProof(options.ProofOptions).
+	ldProof := proof.NewLDProof(options.ProofOptions)
+	signingResult, err := ldProof.
 		Sign(ctx, document, signature.JSONWebSignature2020{ContextLoader: h.jsonldManager.DocumentLoader(), Signer: h.keyStore}, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign VP with LD proof: %w", err)
@@ -181,12 +187,12 @@ func (h wallet) Put(ctx context.Context, credentials ...vc.VerifiableCredential)
 	err := h.walletStore.Write(ctx, func(tx stoabs.WriteTx) error {
 		stats := tx.GetShelfWriter(statsShelf)
 		var newCredentials uint32
-		for _, credential := range credentials {
-			subjectDID, err := h.resolveSubjectDID([]vc.VerifiableCredential{credential})
+		for _, curr := range credentials {
+			subjectDID, err := curr.SubjectDID()
 			if err != nil {
-				return fmt.Errorf("unable to resolve subject DID from VC %s: %w", credential.ID, err)
+				return fmt.Errorf("unable to resolve subject DID from VC %s: %w", curr.ID, err)
 			}
-			walletKey := stoabs.BytesKey(credential.ID.String())
+			walletKey := stoabs.BytesKey(curr.ID.String())
 			// First check if the VC doesn't already exist; otherwise stats will be incorrect
 			walletShelf := tx.GetShelfWriter(subjectDID.String())
 			_, err = walletShelf.Get(walletKey)
@@ -195,13 +201,13 @@ func (h wallet) Put(ctx context.Context, credentials ...vc.VerifiableCredential)
 				continue
 			} else if !errors.Is(err, stoabs.ErrKeyNotFound) {
 				// Other error
-				return fmt.Errorf("unable to check if credential %s already exists: %w", credential.ID, err)
+				return fmt.Errorf("unable to check if credential %s already exists: %w", curr.ID, err)
 			}
 			// Write credential
-			data, _ := credential.MarshalJSON()
+			data, _ := curr.MarshalJSON()
 			err = walletShelf.Put(walletKey, data)
 			if err != nil {
-				return fmt.Errorf("unable to store credential %s: %w", credential.ID, err)
+				return fmt.Errorf("unable to store credential %s: %w", curr.ID, err)
 			}
 			newCredentials++
 		}
@@ -265,26 +271,6 @@ func (h wallet) IsEmpty() (bool, error) {
 		return err
 	})
 	return count == 0, err
-}
-
-func (h wallet) resolveSubjectDID(credentials []vc.VerifiableCredential) (*did.DID, error) {
-	var subjectID did.DID
-	for _, credential := range credentials {
-		sid, err := credential.SubjectDID()
-		if err != nil {
-			return nil, err
-		}
-		if !subjectID.Empty() && !subjectID.Equals(*sid) {
-			return nil, errors.New("not all VCs have the same credentialSubject.id")
-		}
-		subjectID = *sid
-	}
-
-	if subjectID.Empty() {
-		return nil, errors.New("could not resolve subject DID from VCs")
-	}
-
-	return &subjectID, nil
 }
 
 func (h wallet) readCredentialCount(statsShelf stoabs.Reader) (uint32, error) {

@@ -16,13 +16,15 @@
  *
  */
 
-package assets
+package pe
 
 import (
-	"embed"
+	"github.com/stretchr/testify/require"
+	"testing"
 )
 
-// TestAssets contains the embedded test files needed for VCR.
-//
-//go:embed test_assets/*
-var TestAssets embed.FS
+func TestDefinitionResolver(t testing.TB) *DefinitionResolver {
+	peStore := &DefinitionResolver{}
+	require.NoError(t, peStore.LoadFromFile("test/presentation_definition_mapping.json"))
+	return peStore
+}

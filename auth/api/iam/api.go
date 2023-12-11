@@ -38,6 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -48,6 +49,10 @@ var _ StrictServerInterface = &Wrapper{}
 const apiPath = "iam"
 const apiModuleName = auth.ModuleName + "/" + apiPath
 const httpRequestContextKey = "http-request"
+
+// accessTokenValidity defines how long access tokens are valid.
+// TODO: Might want to make this configurable at some point
+const accessTokenValidity = 15 * time.Minute
 
 //go:embed assets
 var assets embed.FS
@@ -76,7 +81,7 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 	}
 }
 
-func (r Wrapper) Routes(router core.EchoRouter) {
+func (r *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, NewStrictHandler(r, []StrictMiddlewareFunc{
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
@@ -120,19 +125,16 @@ func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID s
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
-func (r Wrapper) HandleTokenRequest(_ context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
+	ownDID, err := r.idToOwnedDID(ctx, request.Id)
+	if err != nil {
+		return nil, err
+	}
 	switch request.Body.GrantType {
 	case "authorization_code":
 		// Options:
 		// - OpenID4VCI
 		// - OpenID4VP, vp_token is sent in Token Response
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.UnsupportedGrantType,
-			Description: "not implemented yet",
-		}
-	case "vp_token-bearer":
-		// Options:
-		// - service-to-service vp_token flow
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
@@ -144,6 +146,15 @@ func (r Wrapper) HandleTokenRequest(_ context.Context, request HandleTokenReques
 			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
 		}
+	case "vp_token-bearer":
+		// Nuts RFC021 vp_token bearer flow
+		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "missing required parameters",
+			}
+		}
+		return r.handleS2SAccessTokenRequest(*ownDID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 	default:
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
@@ -161,7 +172,7 @@ func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAc
 	}
 
 	token := AccessToken{}
-	if err := r.s2sAccessTokenStore().Get(request.Body.Token, &token); err != nil {
+	if err := r.accessTokenStore().Get(request.Body.Token, &token); err != nil {
 		// Return 200 + 'Active = false' when token is invalid or malformed
 		return IntrospectAccessToken200JSONResponse{}, err
 	}
@@ -232,8 +243,10 @@ func toAnyMap(input any) (*map[string]any, error) {
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
-	// TODO: must be web DID once web DID creation and DB are implemented
-	ownDID := idToNutsDID(request.Id)
+	ownDID, err := r.idToOwnedDID(ctx, request.Id)
+	if err != nil {
+		return nil, err
+	}
 	// Create session object to be passed to handler
 
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
@@ -243,7 +256,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	for key, value := range httpRequest.URL.Query() {
 		params[key] = value[0]
 	}
-	session := createSession(params, ownDID)
+	session := createSession(params, *ownDID)
 	if session.RedirectURI == "" {
 		// TODO: Spec says that the redirect URI is optional, but it's not clear what to do if it's not provided.
 		//       Threat models say it's unsafe to omit redirect_uri.
@@ -303,7 +316,6 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 
 func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
 	ownDID := r.idToDID(request.Id)
-
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -317,20 +329,12 @@ func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (G
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
 func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error) {
-	// TODO: must be web DID once web DID creation and DB are implemented
-	ownDID := idToNutsDID(request.Id)
-	owned, err := r.vdr.IsOwner(ctx, ownDID)
+	_, err := r.idToOwnedDID(ctx, request.Id)
 	if err != nil {
-		log.Logger().WithField("did", ownDID.String()).Errorf("oauth metadata: failed to assert ownership of did: %s", err.Error())
-		return nil, core.Error(500, err.Error())
-	}
-	if !owned {
-		return nil, core.NotFoundError("did not owned")
+		return nil, err
 	}
 
-	identity := r.auth.PublicURL().JoinPath("iam", request.Id)
-
-	return OAuthClientMetadata200JSONResponse(clientMetadata(*identity)), nil
+	return OAuthClientMetadata200JSONResponse(clientMetadata(*r.identityURL(request.Id))), nil
 }
 func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error) {
 	if len(request.Params.Scope) == 0 {
@@ -350,6 +354,27 @@ func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationD
 	return PresentationDefinition200JSONResponse(*presentationDefinition), nil
 }
 
+func (r Wrapper) idToOwnedDID(ctx context.Context, id string) (*did.DID, error) {
+	ownDID := r.idToDID(id)
+	owned, err := r.vdr.IsOwner(ctx, ownDID)
+	if err != nil {
+		if resolver.IsFunctionalResolveError(err) {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "invalid issuer DID: " + err.Error(),
+			}
+		}
+		return nil, fmt.Errorf("DID resolution failed: %w", err)
+	}
+	if !owned {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "issuer DID not owned by the server",
+		}
+	}
+	return &ownDID, nil
+}
+
 func createSession(params map[string]string, ownDID did.DID) *Session {
 	session := &Session{
 		// TODO: Validate client ID
@@ -365,17 +390,22 @@ func createSession(params map[string]string, ownDID did.DID) *Session {
 	}
 	return session
 }
+
+// idToDID converts the tenant-specific part of a did:web DID (e.g. 123)
+// to a fully qualified did:web DID (e.g. did:web:example.com:123), using the configured Nuts node URL.
 func (r Wrapper) idToDID(id string) did.DID {
-	url := r.auth.PublicURL().JoinPath("iam", id)
-	did, _ := didweb.URLToDID(*url)
-	return *did
+	identityURL := r.identityURL(id)
+	result, _ := didweb.URLToDID(*identityURL)
+	return *result
 }
 
-func idToNutsDID(id string) did.DID {
-	return did.DID{
-		// should be changed to web when migrated to web DID
-		Method:    "nuts",
-		ID:        id,
-		DecodedID: id,
-	}
+// identityURL the tenant-specific part of a did:web DID (e.g. 123)
+// to an identity URL (e.g. did:web:example.com:123), which is used as base URL for resolving metadata and its did:web DID,
+// using the configured Nuts node URL.
+func (r Wrapper) identityURL(id string) *url.URL {
+	return r.auth.PublicURL().JoinPath("iam", id)
+}
+
+func (r *Wrapper) accessTokenStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "accesstoken")
 }
