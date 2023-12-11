@@ -125,7 +125,7 @@ func (w Wrapper) VerifySignature(_ context.Context, request VerifySignatureReque
 		vpType := validationResult.VPType()
 		response.VpType = &vpType
 	} else {
-		log.Logger().Warn("Signature verification failed, reason: %s", validationResult.Reason())
+		log.Logger().Warnf("Signature verification failed, reason: %s", validationResult.Reason())
 		response.Validity = false
 	}
 	return VerifySignature200JSONResponse(response), nil
