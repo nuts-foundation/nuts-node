@@ -710,8 +710,9 @@ func TestPresentationDefinition_ResolveConstraintsFields(t *testing.T) {
 			"any_credential": jwtCredential,
 		}
 
-		fieldValues, _ := definition.ResolveConstraintsFields(credentialMap)
+		fieldValues, err := definition.ResolveConstraintsFields(credentialMap)
 
+		require.NoError(t, err)
 		assert.Empty(t, fieldValues)
 	})
 }
