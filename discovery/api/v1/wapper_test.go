@@ -19,11 +19,13 @@
 package v1
 
 import (
+	"errors"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"net/http"
 	"testing"
 )
 
@@ -62,6 +64,14 @@ func TestWrapper_GetPresentations(t *testing.T) {
 		assert.Equal(t, latestTag, discovery.Tag(response.(GetPresentations200JSONResponse).Tag))
 		assert.Equal(t, presentations, response.(GetPresentations200JSONResponse).Entries)
 	})
+	t.Run("error", func(t *testing.T) {
+		test := newMockContext(t)
+		test.server.EXPECT().Get(serviceID, nil).Return(nil, nil, errors.New("foo"))
+
+		_, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{ServiceID: serviceID})
+
+		assert.Error(t, err)
+	})
 }
 
 func TestWrapper_RegisterPresentation(t *testing.T) {
@@ -90,6 +100,20 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 
 		assert.ErrorIs(t, err, discovery.ErrInvalidPresentation)
 	})
+}
+
+func TestWrapper_ResolveStatusCode(t *testing.T) {
+	expected := map[error]int{
+		discovery.ErrServerModeDisabled:  http.StatusBadRequest,
+		discovery.ErrInvalidPresentation: http.StatusBadRequest,
+		errors.New("foo"):                http.StatusInternalServerError,
+	}
+	wrapper := Wrapper{}
+	for err, expectedCode := range expected {
+		t.Run(err.Error(), func(t *testing.T) {
+			assert.Equal(t, expectedCode, wrapper.ResolveStatusCode(err))
+		})
+	}
 }
 
 type mockContext struct {
