@@ -76,8 +76,8 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 			return nil, err
 		}
 	}
-	var definition *PresentationDefinition
-	if definition, err = r.validatePresentationSubmission(scope, submission, pexEnvelope); err != nil {
+	credentialMap, definition, err := r.validatePresentationSubmission(scope, submission, pexEnvelope)
+	if err != nil {
 		return nil, err
 	}
 	for _, presentation := range pexEnvelope.Presentations {
@@ -99,7 +99,7 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 	}
 
 	// All OK, allow access
-	response, err := r.createS2SAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope, credentialSubjectID)
+	response, err := r.createS2SAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope, credentialSubjectID, credentialMap)
 	if err != nil {
 		return nil, err
 	}
@@ -145,20 +145,24 @@ func (r *Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessT
 	return RequestAccessToken200JSONResponse(*tokenResult), nil
 }
 
-func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation,
-	submission pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID) (*oauth.TokenResponse, error) {
-	accessToken := AccessToken{
-		Token:                  crypto.GenerateNonce(),
-		Issuer:                 issuer.String(),
-		ClientId:               credentialSubjectDID.String(),
-		IssuedAt:               issueTime,
-		Expiration:             issueTime.Add(accessTokenValidity),
-		Scope:                  scope,
-		VPToken:                presentations,
-		PresentationDefinition: &definition,
-		PresentationSubmission: &submission,
+func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submission pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+	fieldsMap, err := definition.ResolveConstraintsFields(credentialMap)
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve Presentation Definition Constraints Fields: %w", err)
 	}
-	err := r.accessTokenStore().Put(accessToken.Token, accessToken)
+	accessToken := AccessToken{
+		Token:                          crypto.GenerateNonce(),
+		Issuer:                         issuer.String(),
+		ClientId:                       credentialSubjectDID.String(),
+		IssuedAt:                       issueTime,
+		Expiration:                     issueTime.Add(accessTokenValidity),
+		Scope:                          scope,
+		VPToken:                        presentations,
+		PresentationDefinition:         &definition,
+		PresentationSubmission:         &submission,
+		InputDescriptorConstraintIdMap: fieldsMap,
+	}
+	err = r.accessTokenStore().Put(accessToken.Token, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
@@ -174,24 +178,24 @@ func (r *Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, pres
 // validatePresentationSubmission checks if the presentation submission is valid for the given scope:
 //  1. Resolve presentation definition for the requested scope
 //  2. Check submission against presentation and definition
-func (r Wrapper) validatePresentationSubmission(scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (*PresentationDefinition, error) {
+func (r Wrapper) validatePresentationSubmission(scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (map[string]vc.VerifiableCredential, *PresentationDefinition, error) {
 	definition := r.auth.PresentationDefinitions().ByScope(scope)
 	if definition == nil {
-		return nil, oauth.OAuth2Error{
+		return nil, nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidScope,
 			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", scope),
 		}
 	}
 
-	_, err := submission.Validate(*pexEnvelope, *definition)
+	credentialMap, err := submission.Validate(*pexEnvelope, *definition)
 	if err != nil {
-		return nil, oauth.OAuth2Error{
+		return nil, nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
 			Description:   "presentation submission does not conform to Presentation Definition",
 			InternalError: err,
 		}
 	}
-	return definition, err
+	return credentialMap, definition, err
 }
 
 // validateS2SPresentationMaxValidity checks that the presentation is valid for a reasonable amount of time.
