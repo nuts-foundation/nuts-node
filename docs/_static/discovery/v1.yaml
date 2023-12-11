@@ -18,9 +18,9 @@ paths:
     get:
       summary: Retrieves the presentations of a discovery service.
       description: |
-        An API provided by the discovery server to retrieve the presentations of a discovery service, starting at the given timestamp.
-        The client should provide the timestamp it was returned in the last response.
-        If no timestamp is given, it will return all presentations.
+        An API provided by the discovery server to retrieve the presentations of a discovery service, starting at the given tag.
+        The client should provide the tag it was returned in the last response.
+        If no tag is given, it will return all presentations.
 
         error returns:
         * 404 - unknown service ID
@@ -28,22 +28,22 @@ paths:
       tags:
         - discovery
       parameters:
-        - name: timestamp
+        - name: tag
           in: query
           schema:
             type: string
       responses:
         "200":
-          description: Presentations are returned, alongside the timestamp which should be provided at the next query.
+          description: Presentations are returned, alongside the tag which should be provided at the next query.
           content:
             application/json:
               schema:
                 type: object
                 required:
-                  - timestamp
+                  - tag
                   - entries
                 properties:
-                  timestamp:
+                  tag:
                     type: string
                   entries:
                     type: array

@@ -29,15 +29,19 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
+const tagPrefixLength = 5
+
 type serviceRecord struct {
-	ID               string `gorm:"primaryKey"`
-	LamportTimestamp uint64
+	ID        string `gorm:"primaryKey"`
+	LastTag   Tag
+	TagPrefix string
 }
 
 func (s serviceRecord) TableName() string {
@@ -103,11 +107,15 @@ type sqlStore struct {
 	writeLock sync.Mutex
 }
 
-func newSQLStore(db *gorm.DB, definitions map[string]ServiceDefinition) (*sqlStore, error) {
-	// Creates entries in the discovery service table with initial timestamp, if they don't exist yet
-	for _, definition := range definitions {
+func newSQLStore(db *gorm.DB, clientDefinitions map[string]ServiceDefinition, serverDefinitions map[string]ServiceDefinition) (*sqlStore, error) {
+	// Creates entries in the discovery service table, if they don't exist yet
+	for _, definition := range clientDefinitions {
 		currentList := serviceRecord{
 			ID: definition.ID,
+		}
+		// If the node is server for this discovery service, make sure the timestamp prefix is set.
+		if _, isServer := serverDefinitions[definition.ID]; isServer {
+			currentList.TagPrefix = generatePrefix()
 		}
 		if err := db.FirstOrCreate(&currentList, "id = ?", definition.ID).Error; err != nil {
 			return nil, err
@@ -120,10 +128,10 @@ func newSQLStore(db *gorm.DB, definitions map[string]ServiceDefinition) (*sqlSto
 }
 
 // Add adds a presentation to the list of presentations.
-// Timestamp should be passed if the presentation was received from a remote Discovery Server, then it is stored alongside the presentation.
+// Tag should be passed if the presentation was received from a remote Discovery Server, then it is stored alongside the presentation.
 // If the local node is the Discovery Server and thus is responsible for the timestamping,
 // nil should be passed to let the store determine the right value.
-func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, timestamp *Timestamp) error {
+func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, tag *Tag) error {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
 		return err
@@ -142,7 +150,7 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 		return err
 	}
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		newTimestamp, err := s.updateTimestamp(tx, serviceID, timestamp)
+		newTimestamp, err := s.updateTag(tx, serviceID, tag)
 		if err != nil {
 			return err
 		}
@@ -166,7 +174,7 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 // - presentationRecord
 // - presentationRecord.Credentials with credentialRecords of the credentials in the presentation
 // - presentationRecord.Credentials.Properties of the credentialSubject properties of the credential (for s
-func createPresentationRecord(serviceID string, timestamp Timestamp, presentation vc.VerifiablePresentation) (*presentationRecord, error) {
+func createPresentationRecord(serviceID string, timestamp *Timestamp, presentation vc.VerifiablePresentation) (*presentationRecord, error) {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
 		return nil, err
@@ -175,11 +183,13 @@ func createPresentationRecord(serviceID string, timestamp Timestamp, presentatio
 	newPresentation := presentationRecord{
 		ID:                     uuid.NewString(),
 		ServiceID:              serviceID,
-		LamportTimestamp:       uint64(timestamp),
 		CredentialSubjectID:    credentialSubjectID.String(),
 		PresentationID:         presentation.ID.String(),
 		PresentationRaw:        presentation.Raw(),
 		PresentationExpiration: presentation.JWT().Expiration().Unix(),
+	}
+	if timestamp != nil {
+		newPresentation.LamportTimestamp = uint64(*timestamp)
 	}
 
 	for _, currCred := range presentation.VerifiableCredential {
@@ -221,16 +231,28 @@ func createPresentationRecord(serviceID string, timestamp Timestamp, presentatio
 	return &newPresentation, nil
 }
 
-// get returns all presentations, registered on the given service, starting after the given timestamp.
-// It also returns the latest timestamp of the returned presentations.
-// This timestamp can then be used next time to only retrieve presentations that were added after that timestamp.
-func (s *sqlStore) get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {
+// get returns all presentations, registered on the given service, starting after the given tag.
+// It also returns the latest tag of the returned presentations.
+// This tag can then be used next time to only retrieve presentations that were added after that tag.
+func (s *sqlStore) get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
+	var service serviceRecord
+	if err := s.db.Find(&service, "id = ?", serviceID).Error; err != nil {
+		return nil, nil, fmt.Errorf("query service '%s': %w", serviceID, err)
+	}
+	var startAfter uint64
+	if tag != nil {
+		// Decode tag
+		lamportTimestamp := tag.Timestamp(service.TagPrefix)
+		if lamportTimestamp != nil {
+			startAfter = uint64(*lamportTimestamp)
+		}
+	}
+
 	var rows []presentationRecord
-	err := s.db.Order("lamport_timestamp ASC").Find(&rows, "service_id = ? AND lamport_timestamp > ?", serviceID, int(startAt)).Error
+	err := s.db.Order("lamport_timestamp ASC").Find(&rows, "service_id = ? AND lamport_timestamp > ?", serviceID, startAfter).Error
 	if err != nil {
 		return nil, nil, fmt.Errorf("query service '%s': %w", serviceID, err)
 	}
-	timestamp := startAt
 	presentations := make([]vc.VerifiablePresentation, 0, len(rows))
 	for _, row := range rows {
 		presentation, err := vc.ParseVerifiablePresentation(row.PresentationRaw)
@@ -238,9 +260,13 @@ func (s *sqlStore) get(serviceID string, startAt Timestamp) ([]vc.VerifiablePres
 			return nil, nil, fmt.Errorf("parse presentation '%s' of service '%s': %w", row.PresentationID, serviceID, err)
 		}
 		presentations = append(presentations, *presentation)
-		timestamp = Timestamp(row.LamportTimestamp)
 	}
-	return presentations, &timestamp, nil
+	lastTag := service.LastTag
+	if lastTag.Empty() {
+		// Make sure we don't return an empty string for the tag, instead return tag indicating the beginning of the list.
+		lastTag = Timestamp(0).Tag(service.TagPrefix)
+	}
+	return presentations, &lastTag, nil
 }
 
 // search searches for presentations, registered on the given service, matching the given query.
@@ -303,29 +329,44 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 	return results, nil
 }
 
-// updateTimestamp updates the timestamp of the given service.
-// Clients should pass the timestamp they received from the server (which simply sets it).
-// Servers should pass nil (since they "own" the timestamp), which causes it to be incremented.
-func (s *sqlStore) updateTimestamp(tx *gorm.DB, serviceID string, newTimestamp *Timestamp) (Timestamp, error) {
-	var result serviceRecord
+// updateTag updates the tag of the given service.
+// Clients should pass the tag they received from the server (which simply sets it).
+// Servers should pass nil (since they "own" the tag), which causes it to be incremented.
+// It returns
+func (s *sqlStore) updateTag(tx *gorm.DB, serviceID string, newTimestamp *Tag) (*Timestamp, error) {
+	var service serviceRecord
 	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the lamport timestamp.
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where(serviceRecord{ID: serviceID}).
-		Find(&result).
+		Find(&service).
 		Error; err != nil {
-		return 0, err
+		return nil, err
 	}
-	result.ID = serviceID
+	service.ID = serviceID
+	var result *Timestamp
 	if newTimestamp == nil {
-		// Increment timestamp
-		result.LamportTimestamp++
+		// Update tag: decode current timestamp, increment it, encode it again.
+		currTimestamp := Timestamp(0)
+		if service.LastTag != "" {
+			// If LastTag is empty, it means the service was just created and no presentations were added yet.
+			ts := service.LastTag.Timestamp(service.TagPrefix)
+			if ts == nil {
+				// would be very weird: can't decode it, although it's our own tag
+				return nil, fmt.Errorf("can't decode tag '%s', did someone alter 'service.tag_prefix' or 'service.last_tag' in the database?", service.LastTag)
+			}
+			currTimestamp = *ts
+		}
+		ts := currTimestamp.Increment()
+		result = &ts
+		service.LastTag = ts.Tag(service.TagPrefix)
 	} else {
-		result.LamportTimestamp = uint64(*newTimestamp)
+		// Set tag: just store it
+		service.LastTag = *newTimestamp
 	}
-	if err := tx.Save(&result).Error; err != nil {
-		return 0, err
+	if err := tx.Save(service).Error; err != nil {
+		return nil, err
 	}
-	return Timestamp(result.LamportTimestamp), nil
+	return result, nil
 }
 
 // exists checks whether a presentation of the given subject is registered on a service.
@@ -381,4 +422,15 @@ func indexJSONObject(target map[string]interface{}, jsonPaths []string, stringVa
 		}
 	}
 	return jsonPaths, stringValues
+}
+
+// generatePrefix generates a random seed for a service, consisting of 5 uppercase letters.
+func generatePrefix() string {
+	result := make([]byte, tagPrefixLength)
+	lower := int('A')
+	upper := int('Z')
+	for i := 0; i < len(result); i++ {
+		result[i] = byte(lower + rand.Intn(upper-lower))
+	}
+	return string(result)
 }

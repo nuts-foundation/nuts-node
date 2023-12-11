@@ -88,7 +88,7 @@ func (m *Module) Configure(_ core.ServerConfig) error {
 
 func (m *Module) Start() error {
 	var err error
-	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.services)
+	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.services, m.serverDefinitions)
 	if err != nil {
 		return err
 	}
@@ -109,11 +109,8 @@ func (m *Module) Config() interface{} {
 
 func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) error {
 	// First, simple sanity checks
-	definition, serviceExists := m.services[serviceID]
-	if !serviceExists {
-		return ErrServiceNotFound
-	}
-	if _, isMaintainer := m.serverDefinitions[serviceID]; !isMaintainer {
+	definition, isServer := m.serverDefinitions[serviceID]
+	if !isServer {
 		return ErrServerModeDisabled
 	}
 	if presentation.Format() != vc.JWTPresentationProofFormat {
@@ -210,21 +207,11 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	return nil
 }
 
-// validateAudience checks if the given audience of the presentation matches the service ID.
-func validateAudience(service ServiceDefinition, audience []string) error {
-	for _, audienceID := range audience {
-		if audienceID == service.ID {
-			return nil
-		}
+func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
+	if _, exists := m.serverDefinitions[serviceID]; !exists {
+		return nil, nil, ErrServerModeDisabled
 	}
-	return errors.New("aud claim is missing or invalid")
-}
-
-func (m *Module) Get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {
-	if _, exists := m.services[serviceID]; !exists {
-		return nil, nil, ErrServiceNotFound
-	}
-	return m.store.get(serviceID, startAt)
+	return m.store.get(serviceID, tag)
 }
 
 func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
@@ -252,4 +239,14 @@ func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 		result[definition.ID] = *definition
 	}
 	return result, nil
+}
+
+// validateAudience checks if the given audience of the presentation matches the service ID.
+func validateAudience(service ServiceDefinition, audience []string) error {
+	for _, audienceID := range audience {
+		if audienceID == service.ID {
+			return nil
+		}
+	}
+	return errors.New("aud claim is missing or invalid")
 }

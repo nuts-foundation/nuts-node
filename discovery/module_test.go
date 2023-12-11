@@ -45,7 +45,7 @@ func Test_Module_Add(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 
-	t.Run("not a maintainer", func(t *testing.T) {
+	t.Run("not a server", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 
 		err := m.Add("other", vpAlice)
@@ -58,9 +58,10 @@ func Test_Module_Add(t *testing.T) {
 		err := m.Add(testServiceID, vpAlice)
 		require.EqualError(t, err, "presentation verification failed: failed")
 
-		_, timestamp, err := m.Get(testServiceID, 0)
+		_, tag, err := m.Get(testServiceID, nil)
 		require.NoError(t, err)
-		assert.Equal(t, Timestamp(0), *timestamp)
+		expectedTag := tagForTimestamp(t, m.store, testServiceID, 0)
+		assert.Equal(t, expectedTag, *tag)
 	})
 	t.Run("already exists", func(t *testing.T) {
 		m, presentationVerifier := setupModule(t, storageEngine)
@@ -76,6 +77,7 @@ func Test_Module_Add(t *testing.T) {
 		def := m.services[testServiceID]
 		def.PresentationMaxValidity = 1
 		m.services[testServiceID] = def
+		m.serverDefinitions[testServiceID] = def
 
 		err := m.Add(testServiceID, vpAlice)
 		assert.EqualError(t, err, "presentation is valid for too long (max 1s)")
@@ -103,11 +105,6 @@ func Test_Module_Add(t *testing.T) {
 		err := m.Add(testServiceID, vc.VerifiablePresentation{})
 		assert.EqualError(t, err, "only JWT presentations are supported")
 	})
-	t.Run("service unknown", func(t *testing.T) {
-		m, _ := setupModule(t, storageEngine)
-		err := m.Add("unknown", vpAlice)
-		assert.ErrorIs(t, err, ErrServiceNotFound)
-	})
 
 	t.Run("registration", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
@@ -117,9 +114,9 @@ func Test_Module_Add(t *testing.T) {
 			err := m.Add(testServiceID, vpAlice)
 			require.NoError(t, err)
 
-			_, timestamp, err := m.Get(testServiceID, 0)
+			_, tag, err := m.Get(testServiceID, nil)
 			require.NoError(t, err)
-			assert.Equal(t, Timestamp(1), *timestamp)
+			assert.Equal(t, "1", string(*tag)[tagPrefixLength:])
 		})
 		t.Run("valid longer than its credentials", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
@@ -144,8 +141,8 @@ func Test_Module_Add(t *testing.T) {
 			err := m.Add(testServiceID, otherVP)
 			require.ErrorContains(t, err, "presentation does not fulfill Presentation ServiceDefinition")
 
-			_, timestamp, _ := m.Get(testServiceID, 0)
-			assert.Equal(t, Timestamp(0), *timestamp)
+			_, tag, _ := m.Get(testServiceID, nil)
+			assert.Equal(t, "0", string(*tag)[tagPrefixLength:])
 		})
 	})
 	t.Run("retraction", func(t *testing.T) {
@@ -205,15 +202,22 @@ func Test_Module_Get(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 		require.NoError(t, m.store.add(testServiceID, vpAlice, nil))
-		presentations, timestamp, err := m.Get(testServiceID, 0)
+		presentations, tag, err := m.Get(testServiceID, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{vpAlice}, presentations)
-		assert.Equal(t, Timestamp(1), *timestamp)
+		assert.Equal(t, "1", string(*tag)[tagPrefixLength:])
 	})
-	t.Run("service unknown", func(t *testing.T) {
+	t.Run("ok - retrieve delta", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
-		_, _, err := m.Get("unknown", 0)
-		assert.ErrorIs(t, err, ErrServiceNotFound)
+		require.NoError(t, m.store.add(testServiceID, vpAlice, nil))
+		presentations, _, err := m.Get(testServiceID, nil)
+		require.NoError(t, err)
+		require.Len(t, presentations, 1)
+	})
+	t.Run("not a server for this service ID", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		_, _, err := m.Get("other", nil)
+		assert.ErrorIs(t, err, ErrServerModeDisabled)
 	})
 }
 
