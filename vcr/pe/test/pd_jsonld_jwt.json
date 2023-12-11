@@ -2,9 +2,11 @@
   "id": "Definition requesting NutsOrganizationCredential",
   "input_descriptors": [
     {
+      "id": "organization_credential",
       "constraints": {
         "fields": [
           {
+            "id": "credentialsubject_organization_city",
             "path": [
               "$.credentialSubject.organization.city",
               "$.credentialSubject[0].organization.city"
@@ -15,6 +17,7 @@
             }
           },
           {
+            "id": "credentialsubject_organization_name",
             "path": [
               "$.credentialSubject.organization.name",
               "$.credentialSubject[0].organization.name"
