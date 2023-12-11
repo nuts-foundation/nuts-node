@@ -122,6 +122,10 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 	if presentation.ID == nil {
 		return errors.New("presentation does not have an ID")
 	}
+	// Make sure the presentation is intended for this service
+	if err := validateAudience(definition, presentation.JWT().Audience()); err != nil {
+		return err
+	}
 	expiration := presentation.JWT().Expiration()
 	if expiration.IsZero() {
 		return errors.New("presentation does not have an expiration")
@@ -204,6 +208,16 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 		return errors.New("retraction presentation refers to a non-existing presentation")
 	}
 	return nil
+}
+
+// validateAudience checks if the given audience of the presentation matches the service ID.
+func validateAudience(service ServiceDefinition, audience []string) error {
+	for _, audienceID := range audience {
+		if audienceID == service.ID {
+			return nil
+		}
+	}
+	return errors.New("aud claim is missing or invalid")
 }
 
 func (m *Module) Get(serviceID string, startAt Timestamp) ([]vc.VerifiablePresentation, *Timestamp, error) {
