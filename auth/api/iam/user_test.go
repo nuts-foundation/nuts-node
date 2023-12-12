@@ -31,53 +31,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWrapper_requestUserAccessToken(t *testing.T) {
-	walletDID := did.MustParseDID("did:web:test.test:iam:123")
-	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
-
-	t.Run("ok - user flow", func(t *testing.T) {
-		userID := "test"
-		body := &RequestAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", UserID: &userID}
-		ctx := newTestClient(t)
-
-		response, err := ctx.client.requestUserAccessToken(nil, walletDID, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
-
-		// assert token
-		require.NoError(t, err)
-		redirectResponse, ok := response.(RequestAccessToken302Response)
-		assert.True(t, ok)
-		assert.Contains(t, redirectResponse.Headers.Location, "https://test.test/iam/123/user?token=")
-
-		// assert session
-		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
-		var target RedirectSession
-		err = store.Get(redirectResponse.Headers.Location[37:], &target)
-		require.NoError(t, err)
-		assert.Equal(t, walletDID, target.OwnDID)
-
-	})
-	t.Run("error - wrong did type", func(t *testing.T) {
-		walletDID := did.MustParseDID("did:test:123")
-		ctx := newTestClient(t)
-		body := &RequestAccessTokenJSONRequestBody{Verifier: "invalid"}
-
-		_, err := ctx.client.requestUserAccessToken(nil, walletDID, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "URL does not represent a Web DID\nunsupported DID method: test")
-	})
-}
-
 func TestWrapper_handleUserLanding(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
 	userID := "user"
 	redirectSession := RedirectSession{
 		OwnDID: walletDID,
-		AccessTokenRequest: RequestAccessTokenRequestObject{
-			Body: &RequestAccessTokenJSONRequestBody{
+		AccessTokenRequest: RequestUserAccessTokenRequestObject{
+			Body: &RequestUserAccessTokenJSONRequestBody{
 				Scope:    "first second",
-				UserID:   &userID,
+				UserID:   userID,
 				Verifier: verifierDID.String(),
 			},
 			Did: walletDID.String(),
@@ -92,7 +55,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		echoCtx.EXPECT().Request().Return(&http.Request{Host: "test.test"})
 		echoCtx.EXPECT().Redirect(http.StatusFound, expectedURL.String())
 		ctx.relyingParty.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, "first second", gomock.Any()).Return(expectedURL, nil)
-		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
+		store := ctx.client.userRedirectStore()
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
 
@@ -130,10 +93,10 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
 		err := store.Put("token", RedirectSession{
 			OwnDID: walletDID,
-			AccessTokenRequest: RequestAccessTokenRequestObject{
-				Body: &RequestAccessTokenJSONRequestBody{
+			AccessTokenRequest: RequestUserAccessTokenRequestObject{
+				Body: &RequestUserAccessTokenJSONRequestBody{
 					Scope:    "first second",
-					UserID:   &userID,
+					UserID:   userID,
 					Verifier: "invalid",
 				},
 				Did: walletDID.String(),

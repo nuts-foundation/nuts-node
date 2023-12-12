@@ -29,12 +29,15 @@ import (
 type OAuthSession struct {
 	ClientID               string
 	Scope                  string
-	OwnDID                 did.DID
+	OwnDID                 *did.DID
 	ClientState            string
+	FlowToken              string
 	RedirectURI            string
 	ServerState            ServerState
 	ResponseType           string
 	PresentationDefinition PresentationDefinition
+	UserID                 string
+	VerifierDID            *did.DID
 }
 
 // ServerState is a convenience type for extracting different types of data from the session.
@@ -81,21 +84,14 @@ func (s ServerState) CredentialMap() map[string]vc.VerifiableCredential {
 	return map[string]vc.VerifiableCredential{}
 }
 
-// UserSession is the session object for handling the user browser session.
-// A RedirectSession is replaced with a UserSession.
-type UserSession struct {
-	ClientState string
-	SessionID   string
-	UserID      string
-	OwnDID      did.DID
-}
-
 // RedirectSession is the session object that is used to redirect the user to a Nuts node website.
 // It stores information from the internal API call that started the request access token.
 // The key to this session is passed to the user via a 302 redirect.
 type RedirectSession struct {
-	OwnDID             did.DID
-	AccessTokenRequest RequestAccessTokenRequestObject
+	AccessTokenRequest RequestUserAccessTokenRequestObject
+	// FlowToken is used by the calling app to get the access token later on
+	FlowToken string
+	OwnDID    did.DID
 }
 
 func (s OAuthSession) CreateRedirectURI(params map[string]string) string {

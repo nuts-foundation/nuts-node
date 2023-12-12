@@ -118,7 +118,63 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
 }
 
-func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp vc.VerifiablePresentation, submission pe.PresentationSubmission, scopes string) (oauth.TokenResponse, error) {
+func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, code string, callbackURI string, clientID string) (oauth.TokenResponse, error) {
+	// todo almost the same as S2SAccessToken
+	var token oauth.TokenResponse
+	tokenURL, err := url.Parse(tokenEndpoint)
+	if err != nil {
+		return token, err
+	}
+
+	// create a POST request with x-www-form-urlencoded body
+	data := url.Values{}
+	data.Set(oauth.ClientIDParam, clientID)
+	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
+	data.Set(oauth.CodeParam, code)
+	data.Set(oauth.RedirectURIParam, callbackURI)
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL.String(), strings.NewReader(data.Encode()))
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	if err != nil {
+		return token, err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return token, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		// check for oauth error
+		if innerErr := core.TestResponseCode(http.StatusBadRequest, response); innerErr != nil {
+			// a non oauth error, the response body could contain a lot of stuff. We'll log and return the entire error
+			log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
+			return token, err
+		}
+		httpErr := err.(core.HttpError)
+		oauthError := oauth.OAuth2Error{}
+		if err := json.Unmarshal(httpErr.ResponseBody, &oauthError); err != nil {
+			return token, fmt.Errorf("unable to unmarshal OAuth error response: %w", err)
+		}
+
+		return token, oauthError
+	}
+
+	var responseData []byte
+	if responseData, err = io.ReadAll(response.Body); err != nil {
+		return token, fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(responseData, &token); err != nil {
+		// Cut off the response body to 100 characters max to prevent logging of large responses
+		responseBodyString := string(responseData)
+		if len(responseBodyString) > 100 {
+			responseBodyString = responseBodyString[:100] + "...(clipped)"
+		}
+		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
+	}
+	return token, nil
+}
+
+func (hb HTTPClient) S2SAccessToken(ctx context.Context, tokenEndpoint string, vp vc.VerifiablePresentation, submission pe.PresentationSubmission, scopes string) (oauth.TokenResponse, error) {
 	var token oauth.TokenResponse
 	presentationDefinitionURL, err := url.Parse(tokenEndpoint)
 	if err != nil {

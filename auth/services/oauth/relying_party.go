@@ -73,6 +73,23 @@ func NewRelyingParty(
 	}
 }
 
+func (s *relyingParty) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error) {
+	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+	}
+	if len(metadata.TokenEndpoint) == 0 {
+		return nil, fmt.Errorf("no token endpoint found in metadata for %s", verifier)
+	}
+	// call token endpoint
+	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, code, callbackURI, clientID.String())
+	if err != nil {
+		return nil, fmt.Errorf("remote server: error creating access token: %w", err)
+	}
+	return &token, nil
+}
+
 // CreateJwtGrant creates a JWT Grant from the given CreateJwtGrantRequest
 func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
 	requester, err := did.ParseDID(request.Requester)
@@ -228,7 +245,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	if err != nil {
 		return nil, fmt.Errorf("failed to create verifiable presentation: %w", err)
 	}
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, *vp, submission, scopes)
+	token, err := iamClient.S2SAccessToken(ctx, metadata.TokenEndpoint, *vp, submission, scopes)
 	if err != nil {
 		// the error could be a http error, we just relay it here to make use of any 400 status codes.
 		return nil, err

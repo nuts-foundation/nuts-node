@@ -237,10 +237,10 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx.verifierRole.EXPECT().ClientMetadataURL(verifierDID).Return(test.MustParseURL("https://example.com/.well-known/authorization-server/iam/verifier"), nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
-			clientIDParam:     holderDID.String(),
-			redirectURIParam:  "https://example.com",
-			responseTypeParam: responseTypeCode,
-			scopeParam:        "test",
+			oauth.ClientIDParam:    holderDID.String(),
+			oauth.RedirectURIParam: "https://example.com",
+			responseTypeParam:      responseTypeCode,
+			oauth.ScopeParam:       "test",
 		}), HandleAuthorizeRequestRequestObject{
 			Id: "verifier",
 		})
@@ -265,7 +265,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			// this is the state from the holder that was stored at the creation of the first authorization request to the verifier
 			ClientID:     holderDID.String(),
 			Scope:        "test",
-			OwnDID:       holderDID,
+			OwnDID:       &holderDID,
 			ClientState:  "state",
 			RedirectURI:  "https://example.com/iam/holder/cb",
 			ResponseType: "code",
@@ -277,7 +277,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx.holderRole.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/iam/verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
-			clientIDParam:           verifierDID.String(),
+			oauth.ClientIDParam:     verifierDID.String(),
 			clientIDSchemeParam:     didScheme,
 			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
 			nonceParam:              "nonce",
@@ -285,8 +285,8 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			responseURIParam:        "https://example.com/iam/verifier/response",
 			responseModeParam:       responseModeDirectPost,
 			responseTypeParam:       responseTypeVPToken,
-			scopeParam:              "test",
-			stateParam:              "state",
+			oauth.ScopeParam:        "test",
+			oauth.StateParam:        "state",
 		}), HandleAuthorizeRequestRequestObject{
 			Id: "holder",
 		})
@@ -329,6 +329,91 @@ func TestWrapper_HandleTokenRequest(t *testing.T) {
 	})
 }
 
+func TestWrapper_Callback(t *testing.T) {
+	code := "code"
+	errorCode := "error"
+	errorDescription := "error description"
+	state := "state"
+	token := "token"
+
+	t.Run("ok - error flow", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		putState(ctx, state)
+
+		res, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Id: webIDPart,
+			Params: CallbackParams{
+				State:            &state,
+				Error:            &errorCode,
+				ErrorDescription: &errorDescription,
+			},
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "https://example.com/iam/holder/cb?error=error&error_description=error+description", res.(Callback302Response).Headers.Location)
+	})
+	t.Run("ok - success flow", func(t *testing.T) {
+		ctx := newTestClient(t)
+		putState(ctx, state)
+		putToken(ctx, token)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
+		ctx.relyingParty.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/iam/123/callback", holderDID).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+
+		res, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Id: webIDPart,
+			Params: CallbackParams{
+				Code:  &code,
+				State: &state,
+			},
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "https://example.com/iam/holder/cb", res.(Callback302Response).Headers.Location)
+
+		// assert AccessToken store entry has active status
+		var tokenResponse TokenResponse
+		err = ctx.client.accessTokenClientStore().Get(token, &tokenResponse)
+		require.NoError(t, err)
+		assert.Equal(t, oauth.AccessTokenStatusActive, *tokenResponse.Status)
+		assert.Equal(t, "access", tokenResponse.AccessToken)
+	})
+	t.Run("unknown did", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(false, nil)
+
+		res, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Id: webIDPart,
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "issuer DID not owned by the server")
+		assert.Nil(t, res)
+	})
+}
+
+func TestWrapper_RetrieveAccessToken(t *testing.T) {
+	request := RetrieveAccessTokenRequestObject{
+		Token: "token",
+	}
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+		putToken(ctx, "token")
+
+		res, err := ctx.client.RetrieveAccessToken(nil, request)
+
+		require.NoError(t, err)
+		assert.IsType(t, RetrieveAccessToken200JSONResponse{}, res)
+	})
+	t.Run("error - unknown token", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		res, err := ctx.client.RetrieveAccessToken(nil, request)
+
+		assert.Equal(t, storage.ErrNotFound, err)
+		assert.Nil(t, res)
+	})
+}
+
 func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	// mvp to store access token
 	ctx := newTestClient(t)
@@ -346,7 +431,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	})
 	t.Run("error - expired token", func(t *testing.T) {
 		token := AccessToken{Expiration: time.Now().Add(-time.Second)}
-		require.NoError(t, ctx.client.accessTokenStore().Put("token", token))
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
 
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
@@ -355,7 +440,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	})
 	t.Run("ok", func(t *testing.T) {
 		token := AccessToken{Expiration: time.Now().Add(time.Second)}
-		require.NoError(t, ctx.client.accessTokenStore().Put("token", token))
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
 
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
@@ -386,7 +471,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			PresentationDefinition:         &pe.PresentationDefinition{},
 		}
 
-		require.NoError(t, ctx.client.accessTokenStore().Put(token.Token, token))
+		require.NoError(t, ctx.client.accessTokenServerStore().Put(token.Token, token))
 		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
 			Active:                         true,
 			ClientId:                       ptrTo("client"),
@@ -594,10 +679,10 @@ func TestWrapper_idToOwnedDID(t *testing.T) {
 	})
 }
 
-func TestWrapper_RequestAccessToken(t *testing.T) {
+func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
-	body := &RequestAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second"}
+	body := &RequestServiceAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second"}
 
 	t.Run("ok - service flow", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -605,17 +690,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
 		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(&oauth.TokenResponse{}, nil)
 
-		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
-
-		require.NoError(t, err)
-	})
-	t.Run("ok - user flow", func(t *testing.T) {
-		userID := "test"
-		body := &RequestAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", UserID: &userID}
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-
-		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
 		require.NoError(t, err)
 	})
@@ -623,7 +698,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(false, nil)
 
-		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "not owned by this node")
@@ -631,23 +706,126 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	t.Run("error - invalid DID", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: "invalid", Body: body})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: "invalid", Body: body})
 
 		require.EqualError(t, err, "did not found: invalid DID")
 	})
 	t.Run("error - missing request body", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String()})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String()})
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "missing request body")
+	})
+	t.Run("error - invalid verifier did", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		body := &RequestServiceAccessTokenJSONRequestBody{Verifier: "invalid"}
+
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "invalid verifier: invalid DID")
+	})
+	t.Run("error - verifier not found", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(nil, nil, resolver.ErrNotFound)
+
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "verifier not found: unable to find the DID document")
+	})
+	t.Run("error - verifier error", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
+		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
+
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "no matching credentials")
+	})
+}
+
+func TestWrapper_RequestUserAccessToken(t *testing.T) {
+	walletDID := did.MustParseDID("did:web:test.test:iam:123")
+	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
+	userID := "test"
+	redirectURL := "https://test.test/iam/123/cb"
+	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", UserID: userID, RedirectURL: redirectURL}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+
+		response, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		// assert token
+		require.NoError(t, err)
+		redirectResponse, ok := response.(RequestUserAccessToken200JSONResponse)
+		assert.True(t, ok)
+		assert.Contains(t, redirectResponse.RedirectUri, "https://test.test/iam/123/user?token=")
+
+		// assert session
+		var target RedirectSession
+		err = ctx.client.userRedirectStore().Get(redirectResponse.RedirectUri[37:], &target)
+		require.NoError(t, err)
+		assert.Equal(t, walletDID, target.OwnDID)
+
+		// assert flow
+		var tokenResponse TokenResponse
+		require.NotNil(t, redirectResponse.Token)
+		err = ctx.client.accessTokenClientStore().Get(*redirectResponse.Token, &tokenResponse)
+		assert.Equal(t, oauth.AccessTokenStatusPending, *tokenResponse.Status)
+	})
+	t.Run("error - DID not owned", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(false, nil)
+
+		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "not owned by this node")
+	})
+	t.Run("error - invalid DID", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: "invalid", Body: body})
+
+		require.EqualError(t, err, "did not found: invalid DID")
+	})
+	t.Run("error - missing request body", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String()})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "missing request body")
+	})
+	t.Run("error - wrong did type", func(t *testing.T) {
+		walletDID := did.MustParseDID("did:test:123")
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		body := &RequestUserAccessTokenJSONRequestBody{Verifier: "invalid", RedirectURL: redirectURL, UserID: userID}
+
+		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "URL does not represent a Web DID\nunsupported DID method: test")
 	})
 }
 
 type strictServerCallCapturer bool
 
-func (s *strictServerCallCapturer) handle(ctx echo.Context, request interface{}) (response interface{}, err error) {
+func (s *strictServerCallCapturer) handle(_ echo.Context, _ interface{}) (response interface{}, err error) {
 	*s = true
 	return nil, nil
+}
+
+func putToken(ctx *testCtx, token string) {
+	_ = ctx.client.accessTokenClientStore().Put(token, TokenResponse{AccessToken: "token"})
 }

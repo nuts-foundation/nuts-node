@@ -156,6 +156,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 			signInstruction.Mappings[0].Path = "$.verifiableCredential"
 		}
 	}
+	//}
 
 	index := 0
 	// last we create the descriptor map for the presentation submission

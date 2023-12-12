@@ -120,10 +120,6 @@ var grantTypesSupported = []string{grantTypeAuthorizationCode, grantTypeVPToken,
 // https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-verifier-metadata-managemen
 var clientIdSchemesSupported = []string{"did"}
 
-// clientIDParam is the name of the client_id parameter.
-// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-2.2
-const clientIDParam = "client_id"
-
 // clientMetadataParam is the name of the OpenID4VP client_metadata parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
 const clientMetadataParam = "client_metadata"
@@ -135,22 +131,6 @@ const clientMetadataURIParam = "client_metadata_uri"
 // clientIDSchemeParam is the name of the OpenID4VP client_id_scheme parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
 const clientIDSchemeParam = "client_id_scheme"
-
-// codeParam is the name of the code parameter.
-// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.2
-const codeParam = "code"
-
-// scopeParam is the name of the scope parameter.
-// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.3
-const scopeParam = "scope"
-
-// stateParam is the name of the state parameter.
-// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1
-const stateParam = "state"
-
-// redirectURIParam is the name of the redirect_uri parameter.
-// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
-const redirectURIParam = "redirect_uri"
 
 // responseURIParam is the name of the OpenID4VP response_uri parameter.
 const responseURIParam = "response_uri"

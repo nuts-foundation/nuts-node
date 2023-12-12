@@ -46,6 +46,21 @@ func (m *MockRelyingParty) EXPECT() *MockRelyingPartyMockRecorder {
 	return m.recorder
 }
 
+// AccessToken mocks base method.
+func (m *MockRelyingParty) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AccessToken", ctx, code, verifier, callbackURI, clientID)
+	ret0, _ := ret[0].(*oauth.TokenResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AccessToken indicates an expected call of AccessToken.
+func (mr *MockRelyingPartyMockRecorder) AccessToken(ctx, code, verifier, callbackURI, clientID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccessToken", reflect.TypeOf((*MockRelyingParty)(nil).AccessToken), ctx, code, verifier, callbackURI, clientID)
+}
+
 // CreateAuthorizationRequest mocks base method.
 func (m *MockRelyingParty) CreateAuthorizationRequest(ctx context.Context, requestHolder, verifier did.DID, scopes, clientState string) (*url.URL, error) {
 	m.ctrl.T.Helper()

@@ -32,6 +32,9 @@ import (
 
 // RelyingParty implements the OAuth2 relying party role.
 type RelyingParty interface {
+	// AccessToken requests an access token at the oauth2 token endpoint.
+	AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error)
+	// CreateJwtGrant creates a JWT grant token that can be used to request an access token.
 	CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error)
 	// CreateAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
 	CreateAuthorizationRequest(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, clientState string) (*url.URL, error)

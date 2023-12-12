@@ -144,6 +144,71 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 	})
 }
 
+func TestHTTPClient_AccessToken(t *testing.T) {
+	ctx := context.Background()
+	// params are checked server side, so we don't need to provide valid values here
+	clientID := "id"
+	code := "code"
+	redirectURI := "http://test.test"
+	tokenResponse := oauth.TokenResponse{
+		AccessToken: "token",
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: tokenResponse}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.AccessToken(ctx, tlsServer.URL, code, redirectURI, clientID)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, tokenResponse, response)
+		require.NotNil(t, handler.Request)
+	})
+	t.Run("error - incorrect url", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: tokenResponse}
+		_, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, ":", code, redirectURI, clientID)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+	})
+	t.Run("error - oauth error", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidRequest}}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, tlsServer.URL, code, redirectURI, clientID)
+
+		require.Error(t, err)
+		// check if the error is an OAuth error
+		oauthError, ok := err.(oauth.OAuth2Error)
+		require.True(t, ok)
+		assert.Equal(t, oauth.InvalidRequest, oauthError.Code)
+	})
+	t.Run("error - generic server error", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusBadGateway, ResponseData: "offline"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, tlsServer.URL, code, redirectURI, clientID)
+
+		require.Error(t, err)
+		// check if the error is a http error
+		httpError, ok := err.(core.HttpError)
+		require.True(t, ok)
+		assert.Equal(t, "offline", string(httpError.ResponseBody))
+	})
+	t.Run("error - invalid response", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, tlsServer.URL, code, redirectURI, clientID)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value, }")
+	})
+}
+
 func TestHTTPClient_ClientMetadata(t *testing.T) {
 	ctx := context.Background()
 	metadata := oauth.OAuthClientMetadata{
@@ -173,7 +238,7 @@ func TestHTTPClient_ClientMetadata(t *testing.T) {
 	})
 }
 
-func TestHTTPClient_AccessToken(t *testing.T) {
+func TestHTTPClient_S2SAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := context.Background()
 		now := int(time.Now().Unix())
@@ -190,7 +255,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 			handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: accessToken}
 			tlsServer, client := testServerAndClient(t, &handler)
 
-			response, err := client.AccessToken(ctx, tlsServer.URL, vp, pe.PresentationSubmission{}, "test")
+			response, err := client.S2SAccessToken(ctx, tlsServer.URL, vp, pe.PresentationSubmission{}, "test")
 
 			require.NoError(t, err)
 			require.NotNil(t, response)
@@ -207,7 +272,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidScope}}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		_, err := client.AccessToken(ctx, tlsServer.URL, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "test")
+		_, err := client.S2SAccessToken(ctx, tlsServer.URL, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "test")
 
 		require.Error(t, err)
 		// check if the error is an OAuth error
@@ -220,7 +285,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadGateway, ResponseData: "offline"}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		_, err := client.AccessToken(ctx, tlsServer.URL, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "test")
+		_, err := client.S2SAccessToken(ctx, tlsServer.URL, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "test")
 
 		require.Error(t, err)
 		// check if the error is a http error

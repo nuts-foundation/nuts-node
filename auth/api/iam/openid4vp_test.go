@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
 	"net/url"
 	"strings"
@@ -42,6 +41,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -53,17 +53,17 @@ var issuerDID = did.MustParseDID("did:web:example.com:iam:issuer")
 func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	defaultParams := func() map[string]string {
 		return map[string]string{
-			clientIDParam:     holderDID.String(),
-			redirectURIParam:  "https://example.com",
-			responseTypeParam: "code",
-			scopeParam:        "test",
+			oauth.ClientIDParam:    holderDID.String(),
+			oauth.RedirectURIParam: "https://example.com",
+			responseTypeParam:      "code",
+			oauth.ScopeParam:       "test",
 		}
 	}
 
 	t.Run("invalid client_id", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		params[clientIDParam] = "did:nuts:1"
+		params[oauth.ClientIDParam] = "did:nuts:1"
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
@@ -118,7 +118,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	}
 	defaultParams := func() map[string]string {
 		return map[string]string{
-			clientIDParam:           verifierDID.String(),
+			oauth.ClientIDParam:     verifierDID.String(),
 			clientIDSchemeParam:     didScheme,
 			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
 			nonceParam:              "nonce",
@@ -126,15 +126,15 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 			responseModeParam:       responseModeDirectPost,
 			responseURIParam:        responseURI,
 			responseTypeParam:       responseTypeVPToken,
-			scopeParam:              "test",
-			stateParam:              "state",
+			oauth.ScopeParam:        "test",
+			oauth.StateParam:        "state",
 		}
 	}
 
 	t.Run("invalid client_id", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		params[clientIDParam] = "did:nuts:1"
+		params[oauth.ClientIDParam] = "did:nuts:1"
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
@@ -457,7 +457,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 	_ = json.Unmarshal([]byte(submissionAsStr), &submission)
 	validSession := OAuthSession{
 		ClientID:    clientID,
-		OwnDID:      verifierDID,
+		OwnDID:      &verifierDID,
 		RedirectURI: redirectURI,
 		Scope:       "scope",
 		ServerState: map[string]interface{}{
@@ -497,7 +497,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		_, err := ctx.client.handleAccessTokenRequest(context.Background(), verifierDID, &code, &redirectURI, &clientID)
 
 		require.Error(t, err)
-		_ = assertOAuthError(t, err, "client_id does not match")
+		_ = assertOAuthError(t, err, "client_id does not match: did:web:example.com:iam:holder vs other")
 	})
 	t.Run("invalid redirectURI", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -507,7 +507,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		_, err := ctx.client.handleAccessTokenRequest(context.Background(), verifierDID, &code, &redirectURI, &clientID)
 
 		require.Error(t, err)
-		_ = assertOAuthError(t, err, "redirect_uri does not match")
+		_ = assertOAuthError(t, err, "redirect_uri does not match: https://example.com/iam/holder/cb vs other")
 	})
 	t.Run("presentation definition backend server error", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -521,6 +521,66 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, oauth.ServerError, oauthErr.Code)
 		assert.Equal(t, "failed to fetch presentation definition: assert.AnError general error for testing", oauthErr.Description)
+	})
+}
+
+func Test_handleCallback(t *testing.T) {
+	code := "code"
+	state := "state"
+
+	t.Run("err - missing state", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
+			Id: webIDPart,
+			Params: CallbackParams{
+				Code: &code,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing state parameter")
+	})
+	t.Run("err - expired state", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
+			Id: webIDPart,
+			Params: CallbackParams{
+				Code:  &code,
+				State: &state,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid or expired state")
+	})
+	t.Run("err - missing code", func(t *testing.T) {
+		ctx := newTestClient(t)
+		putState(ctx, state)
+
+		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
+			Id: webIDPart,
+			Params: CallbackParams{
+				State: &state,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing code parameter")
+	})
+	t.Run("err - failed to retrieve access token", func(t *testing.T) {
+		ctx := newTestClient(t)
+		putState(ctx, state)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.relyingParty.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/iam/123/callback", holderDID).Return(nil, assert.AnError)
+
+		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
+			Id: webIDPart,
+			Params: CallbackParams{
+				Code:  &code,
+				State: &state,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.ServerError, "failed to retrieve access token: assert.AnError general error for testing")
 	})
 }
 
@@ -790,11 +850,16 @@ func (s *stubResponseWriter) WriteHeader(statusCode int) {
 }
 
 func putState(ctx *testCtx, state string) {
-	_ = ctx.client.oauthClientStateStore().Put(state, OAuthSession{OwnDID: holderDID, RedirectURI: "https://example.com/iam/holder/cb"})
+	_ = ctx.client.oauthClientStateStore().Put(state, OAuthSession{
+		FlowToken:   "token",
+		OwnDID:      &holderDID,
+		RedirectURI: "https://example.com/iam/holder/cb",
+		VerifierDID: &verifierDID,
+	})
 }
 
 func putNonce(ctx *testCtx, nonce string) {
-	_ = ctx.client.oauthNonceStore().Put(nonce, OAuthSession{Scope: "test", ClientState: "state", OwnDID: verifierDID, RedirectURI: "https://example.com/iam/holder/cb"})
+	_ = ctx.client.oauthNonceStore().Put(nonce, OAuthSession{Scope: "test", ClientState: "state", OwnDID: &verifierDID, RedirectURI: "https://example.com/iam/holder/cb"})
 }
 
 func putSession(ctx *testCtx, code string, oauthSession OAuthSession) {

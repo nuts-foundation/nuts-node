@@ -117,6 +117,54 @@ paths:
               schema:
                 type: string
                 format: uri
+  "/iam/{id}/callback":
+    get:
+      summary: The OAuth2 callback endpoint of the client.
+      description: |
+        When the OAuth2 flow is completed, the user-agent is redirected to this endpoint.
+        This can be the result of a successful authorization request or an error.
+        The result of this callback is a redirect back to the calling application.
+      operationId: callback
+      tags:
+        - oauth2
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            description: must be the key fingerprint identifying the did:web address
+            type: string
+            example: NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs
+        - name: code
+          in: query
+          description: The authorization code received from the authorization server.
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: The client state.
+          schema:
+            type: string
+        - name: error
+          in: query
+          description: The error code.
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          description: The error description.
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the calling application.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "default":
+          $ref: '../common/error_response.yaml'
   "/iam/{id}/presentation_definition":
     get:
       summary: Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
@@ -317,13 +365,13 @@ paths:
 #                    type: string
 #        default:
 #          $ref: '../common/error_response.yaml'
-  /internal/auth/v2/{did}/request-access-token:
+  /internal/auth/v2/{did}/request-service-access-token:
     post:
-      operationId: requestAccessToken
+      operationId: requestServiceAccessToken
       summary: Start the authorization flow to get an access token from a remote authorization server.
       description: |
         Initiates an OAuth2 flow to request an access token from a remote authorization server.
-        If a userID is given, it'll initiate an OpenID4VP flow. Otherwise, it'll initiate a s2s (RFC021) flow.
+        It'll initiate a s2s (RFC021) flow.
 
         error returns:
         * 400 - one of the parameters has the wrong format or an OAuth error occurred
@@ -355,14 +403,6 @@ paths:
                   type: string
                   description: The scope that will be the service for which this access token can be used.
                   example: eOverdracht-sender
-                userID:
-                  type: string
-                  description: | 
-                    The ID of the user for which this access token is requested.
-                redirectURL:
-                  type: string
-                  description: |
-                    The URL to which the user-agent will be redirected after the authorization request.
       responses:
         '200':
           description: Successful request. Responds with an access token as described in rfc6749 section 5.1.
@@ -370,15 +410,96 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
-        '302':
-          description: |
-            The user-agent is redirected to the authorization server to start the OpenID4VP flow.
-            Optionally, the user could be asked to agree or authenticate.
-          headers:
-            Location:
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/auth/v2/{did}/request-user-access-token:
+    post:
+      operationId: requestUserAccessToken
+      summary: Start the authorization flow to get an access token from a remote authorization server when user context is required.
+      description: |
+        Initiates an OAuth2 flow to request an access token from a remote authorization server.
+        A userID must be given. This call will initiate an OpenID4VP flow.
+
+        error returns:
+        * 400 - one of the parameters has the wrong format or an OAuth error occurred
+        * 412 - the organization wallet does not contain the correct credentials
+        * 503 - the authorizer could not be reached or returned an error
+      tags:
+        - auth
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: The DID of the requester, a Wallet owner at this node.
+          schema:
+            type: string
+            example: did:web:example.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - redirectURL
+                - scope
+                - userID
+                - verifier
+              properties:
+                verifier:
+                  type: string
+                  example: did:web:example.com
+                scope:
+                  type: string
+                  description: The scope that will be the service for which this access token can be used.
+                  example: eOverdracht-sender
+                userID:
+                  type: string
+                  description: |
+                    The ID of the user for which this access token is requested.
+                redirectURL:
+                  type: string
+                  description: |
+                    The URL to which the user-agent will be redirected after the authorization request.
+      responses:
+        '200':
+          description: | 
+            Successful request. Responds with a redirectURL for the user and a token for the calling application.
+            The token can be used by the calling application to get the status of the flow.
+          content:
+            application/json:
               schema:
-                type: string
-                format: uri
+                $ref: '#/components/schemas/RedirectResponseWithToken'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/auth/v2/accesstoken/{token}:
+    get:
+      operationId: retrieveAccessToken
+      summary: Get the access-token from the Nuts node that was request by /request-user-access-token.
+      description: |
+        If the OAuth2 flow has completed, this call will return the access token. 
+        After returning the access token, the token used to retrieve the access token is no longer valid.
+        If the flow hasn't completed yet, the response will contain the 'pending' status value.
+        Therefore this API can be used to poll for the status of the OAuth2 flow.
+        When the
+      tags:
+        - auth
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: This token is given to the calling application as response to the request-user-access-token call.
+          schema:
+            type: string
+            example: eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp
+      responses:
+        '200':
+          description: | 
+            Successful request. Responds with an access token as described in rfc6749 section 5.1 when available.
+            If the OAuth2 flow hasn't completed yet, the response will only contain the 'pending' status value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/accesstoken/introspect:
@@ -422,6 +543,21 @@ components:
           description: |
             The URL to which the user-agent will be redirected after the authorization request.
           example: "https://example.com/callback"
+    RedirectResponseWithToken:
+      type: object
+      required:
+        - redirect_uri
+      properties:
+        redirect_uri:
+          type: string
+          description: |
+            The URL to which the user-agent will be redirected after the authorization request.
+          example: "https://example.com/callback"
+        token:
+          type: string
+          description: |
+            The token that can be used to retrieve the access token by the calling application.
+          example: "eyJhbGciOiJSUzI1NiIsI"
     TokenResponse:
       type: object
       description: |
@@ -442,6 +578,12 @@ components:
           example: "bearer"
         scope:
           type: string
+        status:
+          type: string
+          description: |
+            The status of the access token request. Can be 'pending' or 'active'.
+            If the status is 'pending', the access token is not yet available.
+          enum: [pending, active]
         expires_in:
           type: integer
           description: |

@@ -26,6 +26,15 @@ const (
 	Substantial TokenIntrospectionResponseAssuranceLevel = "substantial"
 )
 
+// RedirectResponseWithToken defines model for RedirectResponseWithToken.
+type RedirectResponseWithToken struct {
+	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
+	RedirectUri string `json:"redirect_uri"`
+
+	// Token The token that can be used to retrieve the access token by the calling application.
+	Token *string `json:"token,omitempty"`
+}
+
 // TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
 type TokenIntrospectionRequest struct {
 	Token string `json:"token"`
@@ -100,6 +109,21 @@ type HandleAuthorizeRequestParams struct {
 	Params *map[string]string `form:"params,omitempty" json:"params,omitempty"`
 }
 
+// CallbackParams defines parameters for Callback.
+type CallbackParams struct {
+	// Code The authorization code received from the authorization server.
+	Code *string `form:"code,omitempty" json:"code,omitempty"`
+
+	// State The client state.
+	State *string `form:"state,omitempty" json:"state,omitempty"`
+
+	// Error The error code.
+	Error *string `form:"error,omitempty" json:"error,omitempty"`
+
+	// ErrorDescription The error description.
+	ErrorDescription *string `form:"error_description,omitempty" json:"error_description,omitempty"`
+}
+
 // PresentationDefinitionParams defines parameters for PresentationDefinition.
 type PresentationDefinitionParams struct {
 	Scope string `form:"scope" json:"scope"`
@@ -132,17 +156,24 @@ type HandleTokenRequestFormdataBody struct {
 	Scope                  *string `form:"scope,omitempty" json:"scope,omitempty"`
 }
 
-// RequestAccessTokenJSONBody defines parameters for RequestAccessToken.
-type RequestAccessTokenJSONBody struct {
+// RequestServiceAccessTokenJSONBody defines parameters for RequestServiceAccessToken.
+type RequestServiceAccessTokenJSONBody struct {
+	// Scope The scope that will be the service for which this access token can be used.
+	Scope    string `json:"scope"`
+	Verifier string `json:"verifier"`
+}
+
+// RequestUserAccessTokenJSONBody defines parameters for RequestUserAccessToken.
+type RequestUserAccessTokenJSONBody struct {
 	// RedirectURL The URL to which the user-agent will be redirected after the authorization request.
-	RedirectURL *string `json:"redirectURL,omitempty"`
+	RedirectURL string `json:"redirectURL"`
 
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 
 	// UserID The ID of the user for which this access token is requested.
-	UserID   *string `json:"userID,omitempty"`
-	Verifier string  `json:"verifier"`
+	UserID   string `json:"userID"`
+	Verifier string `json:"verifier"`
 }
 
 // HandleAuthorizeResponseFormdataRequestBody defines body for HandleAuthorizeResponse for application/x-www-form-urlencoded ContentType.
@@ -154,8 +185,11 @@ type HandleTokenRequestFormdataRequestBody HandleTokenRequestFormdataBody
 // IntrospectAccessTokenFormdataRequestBody defines body for IntrospectAccessToken for application/x-www-form-urlencoded ContentType.
 type IntrospectAccessTokenFormdataRequestBody = TokenIntrospectionRequest
 
-// RequestAccessTokenJSONRequestBody defines body for RequestAccessToken for application/json ContentType.
-type RequestAccessTokenJSONRequestBody RequestAccessTokenJSONBody
+// RequestServiceAccessTokenJSONRequestBody defines body for RequestServiceAccessToken for application/json ContentType.
+type RequestServiceAccessTokenJSONRequestBody RequestServiceAccessTokenJSONBody
+
+// RequestUserAccessTokenJSONRequestBody defines body for RequestUserAccessToken for application/json ContentType.
+type RequestUserAccessTokenJSONRequestBody RequestUserAccessTokenJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -165,6 +199,9 @@ type ServerInterface interface {
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{id}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, id string, params HandleAuthorizeRequestParams) error
+	// The OAuth2 callback endpoint of the client.
+	// (GET /iam/{id}/callback)
+	Callback(ctx echo.Context, id string, params CallbackParams) error
 	// Returns the did:web version of a Nuts DID document
 	// (GET /iam/{id}/did.json)
 	GetWebDID(ctx echo.Context, id string) error
@@ -183,9 +220,15 @@ type ServerInterface interface {
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
+	// Get the access-token from the Nuts node that was request by /request-user-access-token.
+	// (GET /internal/auth/v2/accesstoken/{token})
+	RetrieveAccessToken(ctx echo.Context, token string) error
 	// Start the authorization flow to get an access token from a remote authorization server.
-	// (POST /internal/auth/v2/{did}/request-access-token)
-	RequestAccessToken(ctx echo.Context, did string) error
+	// (POST /internal/auth/v2/{did}/request-service-access-token)
+	RequestServiceAccessToken(ctx echo.Context, did string) error
+	// Start the authorization flow to get an access token from a remote authorization server when user context is required.
+	// (POST /internal/auth/v2/{did}/request-user-access-token)
+	RequestUserAccessToken(ctx echo.Context, did string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -235,6 +278,54 @@ func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error 
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.HandleAuthorizeRequest(ctx, id, params)
+	return err
+}
+
+// Callback converts echo context to params.
+func (w *ServerInterfaceWrapper) Callback(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CallbackParams
+	// ------------- Optional query parameter "code" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "code", ctx.QueryParams(), &params.Code)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter code: %s", err))
+	}
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "state", ctx.QueryParams(), &params.State)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter state: %s", err))
+	}
+
+	// ------------- Optional query parameter "error" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "error", ctx.QueryParams(), &params.Error)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter error: %s", err))
+	}
+
+	// ------------- Optional query parameter "error_description" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "error_description", ctx.QueryParams(), &params.ErrorDescription)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter error_description: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.Callback(ctx, id, params)
 	return err
 }
 
@@ -348,8 +439,26 @@ func (w *ServerInterfaceWrapper) IntrospectAccessToken(ctx echo.Context) error {
 	return err
 }
 
-// RequestAccessToken converts echo context to params.
-func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
+// RetrieveAccessToken converts echo context to params.
+func (w *ServerInterfaceWrapper) RetrieveAccessToken(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "token", runtime.ParamLocationPath, ctx.Param("token"), &token)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter token: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RetrieveAccessToken(ctx, token)
+	return err
+}
+
+// RequestServiceAccessToken converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestServiceAccessToken(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "did" -------------
 	var did string
@@ -362,7 +471,25 @@ func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestAccessToken(ctx, did)
+	err = w.Handler.RequestServiceAccessToken(ctx, did)
+	return err
+}
+
+// RequestUserAccessToken converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestUserAccessToken(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RequestUserAccessToken(ctx, did)
 	return err
 }
 
@@ -396,13 +523,16 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:id", wrapper.OAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/iam/:id/authorize", wrapper.HandleAuthorizeRequest)
+	router.GET(baseURL+"/iam/:id/callback", wrapper.Callback)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetWebDID)
 	router.GET(baseURL+"/iam/:id/oauth-client", wrapper.OAuthClientMetadata)
 	router.GET(baseURL+"/iam/:id/presentation_definition", wrapper.PresentationDefinition)
 	router.POST(baseURL+"/iam/:id/response", wrapper.HandleAuthorizeResponse)
 	router.POST(baseURL+"/iam/:id/token", wrapper.HandleTokenRequest)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
-	router.POST(baseURL+"/internal/auth/v2/:did/request-access-token", wrapper.RequestAccessToken)
+	router.GET(baseURL+"/internal/auth/v2/accesstoken/:token", wrapper.RetrieveAccessToken)
+	router.POST(baseURL+"/internal/auth/v2/:did/request-service-access-token", wrapper.RequestServiceAccessToken)
+	router.POST(baseURL+"/internal/auth/v2/:did/request-user-access-token", wrapper.RequestUserAccessToken)
 
 }
 
@@ -484,6 +614,50 @@ func (response HandleAuthorizeRequest302Response) VisitHandleAuthorizeRequestRes
 	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
 	w.WriteHeader(302)
 	return nil
+}
+
+type CallbackRequestObject struct {
+	Id     string `json:"id"`
+	Params CallbackParams
+}
+
+type CallbackResponseObject interface {
+	VisitCallbackResponse(w http.ResponseWriter) error
+}
+
+type Callback302ResponseHeaders struct {
+	Location string
+}
+
+type Callback302Response struct {
+	Headers Callback302ResponseHeaders
+}
+
+func (response Callback302Response) VisitCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type CallbackdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response CallbackdefaultApplicationProblemPlusJSONResponse) VisitCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type GetWebDIDRequestObject struct {
@@ -670,39 +844,24 @@ func (response IntrospectAccessToken401Response) VisitIntrospectAccessTokenRespo
 	return nil
 }
 
-type RequestAccessTokenRequestObject struct {
-	Did  string `json:"did"`
-	Body *RequestAccessTokenJSONRequestBody
+type RetrieveAccessTokenRequestObject struct {
+	Token string `json:"token"`
 }
 
-type RequestAccessTokenResponseObject interface {
-	VisitRequestAccessTokenResponse(w http.ResponseWriter) error
+type RetrieveAccessTokenResponseObject interface {
+	VisitRetrieveAccessTokenResponse(w http.ResponseWriter) error
 }
 
-type RequestAccessToken200JSONResponse TokenResponse
+type RetrieveAccessToken200JSONResponse TokenResponse
 
-func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+func (response RetrieveAccessToken200JSONResponse) VisitRetrieveAccessTokenResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type RequestAccessToken302ResponseHeaders struct {
-	Location string
-}
-
-type RequestAccessToken302Response struct {
-	Headers RequestAccessToken302ResponseHeaders
-}
-
-func (response RequestAccessToken302Response) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
-	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
-	w.WriteHeader(302)
-	return nil
-}
-
-type RequestAccessTokendefaultApplicationProblemPlusJSONResponse struct {
+type RetrieveAccessTokendefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -716,7 +875,85 @@ type RequestAccessTokendefaultApplicationProblemPlusJSONResponse struct {
 	StatusCode int
 }
 
-func (response RequestAccessTokendefaultApplicationProblemPlusJSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+func (response RetrieveAccessTokendefaultApplicationProblemPlusJSONResponse) VisitRetrieveAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type RequestServiceAccessTokenRequestObject struct {
+	Did  string `json:"did"`
+	Body *RequestServiceAccessTokenJSONRequestBody
+}
+
+type RequestServiceAccessTokenResponseObject interface {
+	VisitRequestServiceAccessTokenResponse(w http.ResponseWriter) error
+}
+
+type RequestServiceAccessToken200JSONResponse TokenResponse
+
+func (response RequestServiceAccessToken200JSONResponse) VisitRequestServiceAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestServiceAccessTokendefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RequestServiceAccessTokendefaultApplicationProblemPlusJSONResponse) VisitRequestServiceAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type RequestUserAccessTokenRequestObject struct {
+	Did  string `json:"did"`
+	Body *RequestUserAccessTokenJSONRequestBody
+}
+
+type RequestUserAccessTokenResponseObject interface {
+	VisitRequestUserAccessTokenResponse(w http.ResponseWriter) error
+}
+
+type RequestUserAccessToken200JSONResponse RedirectResponseWithToken
+
+func (response RequestUserAccessToken200JSONResponse) VisitRequestUserAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestUserAccessTokendefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RequestUserAccessTokendefaultApplicationProblemPlusJSONResponse) VisitRequestUserAccessTokenResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -731,6 +968,9 @@ type StrictServerInterface interface {
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{id}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
+	// The OAuth2 callback endpoint of the client.
+	// (GET /iam/{id}/callback)
+	Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error)
 	// Returns the did:web version of a Nuts DID document
 	// (GET /iam/{id}/did.json)
 	GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error)
@@ -749,9 +989,15 @@ type StrictServerInterface interface {
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
+	// Get the access-token from the Nuts node that was request by /request-user-access-token.
+	// (GET /internal/auth/v2/accesstoken/{token})
+	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
 	// Start the authorization flow to get an access token from a remote authorization server.
-	// (POST /internal/auth/v2/{did}/request-access-token)
-	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
+	// (POST /internal/auth/v2/{did}/request-service-access-token)
+	RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error)
+	// Start the authorization flow to get an access token from a remote authorization server when user context is required.
+	// (POST /internal/auth/v2/{did}/request-user-access-token)
+	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
 }
 
 type StrictHandlerFunc = strictecho.StrictEchoHandlerFunc
@@ -811,6 +1057,32 @@ func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, id string, par
 		return err
 	} else if validResponse, ok := response.(HandleAuthorizeRequestResponseObject); ok {
 		return validResponse.VisitHandleAuthorizeRequestResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// Callback operation middleware
+func (sh *strictHandler) Callback(ctx echo.Context, id string, params CallbackParams) error {
+	var request CallbackRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Callback(ctx.Request().Context(), request.(CallbackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Callback")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CallbackResponseObject); ok {
+		return validResponse.VisitCallbackResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -996,31 +1268,87 @@ func (sh *strictHandler) IntrospectAccessToken(ctx echo.Context) error {
 	return nil
 }
 
-// RequestAccessToken operation middleware
-func (sh *strictHandler) RequestAccessToken(ctx echo.Context, did string) error {
-	var request RequestAccessTokenRequestObject
+// RetrieveAccessToken operation middleware
+func (sh *strictHandler) RetrieveAccessToken(ctx echo.Context, token string) error {
+	var request RetrieveAccessTokenRequestObject
 
-	request.Did = did
-
-	var body RequestAccessTokenJSONRequestBody
-	if err := ctx.Bind(&body); err != nil {
-		return err
-	}
-	request.Body = &body
+	request.Token = token
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.RequestAccessToken(ctx.Request().Context(), request.(RequestAccessTokenRequestObject))
+		return sh.ssi.RetrieveAccessToken(ctx.Request().Context(), request.(RetrieveAccessTokenRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "RequestAccessToken")
+		handler = middleware(handler, "RetrieveAccessToken")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(RequestAccessTokenResponseObject); ok {
-		return validResponse.VisitRequestAccessTokenResponse(ctx.Response())
+	} else if validResponse, ok := response.(RetrieveAccessTokenResponseObject); ok {
+		return validResponse.VisitRetrieveAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RequestServiceAccessToken operation middleware
+func (sh *strictHandler) RequestServiceAccessToken(ctx echo.Context, did string) error {
+	var request RequestServiceAccessTokenRequestObject
+
+	request.Did = did
+
+	var body RequestServiceAccessTokenJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestServiceAccessToken(ctx.Request().Context(), request.(RequestServiceAccessTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestServiceAccessToken")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RequestServiceAccessTokenResponseObject); ok {
+		return validResponse.VisitRequestServiceAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RequestUserAccessToken operation middleware
+func (sh *strictHandler) RequestUserAccessToken(ctx echo.Context, did string) error {
+	var request RequestUserAccessTokenRequestObject
+
+	request.Did = did
+
+	var body RequestUserAccessTokenJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestUserAccessToken(ctx.Request().Context(), request.(RequestUserAccessTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestUserAccessToken")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RequestUserAccessTokenResponseObject); ok {
+		return validResponse.VisitRequestUserAccessTokenResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

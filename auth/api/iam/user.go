@@ -19,7 +19,6 @@
 package iam
 
 import (
-	"context"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"net/http"
 	"time"
@@ -28,8 +27,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	http2 "github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 )
 
 const (
@@ -48,34 +45,6 @@ var oauthClientStateKey = []string{"oauth", "client_state"}
 var oauthCodeKey = []string{"oauth", "code"}
 var userRedirectSessionKey = []string{"user", "redirect"}
 var userSessionKey = []string{"user", "session"}
-
-func (r Wrapper) requestUserAccessToken(_ context.Context, requester did.DID, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	// generate a redirect token valid for 5 seconds
-	token := crypto.GenerateNonce()
-	store := r.userRedirectStore()
-	// put the request in the store
-	err := store.Put(token, RedirectSession{
-		OwnDID:             requester,
-		AccessTokenRequest: request,
-	})
-	if err != nil {
-		return nil, err
-	}
-	// generate a link to the redirect endpoint
-	webURL, err := didweb.DIDToURL(requester)
-	if err != nil {
-		return nil, err
-	}
-	// redirect to generic user page, context of token will render correct page
-	redirectURL := http2.AddQueryParams(*webURL.JoinPath("user"), map[string]string{
-		"token": token,
-	})
-	return RequestAccessToken302Response{
-		Headers: RequestAccessToken302ResponseHeaders{
-			Location: redirectURL.String(),
-		},
-	}, nil
-}
 
 // handleUserLanding is the handler for the landing page of the user.
 // It renders the page with the correct context based on the token.
@@ -102,35 +71,35 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		return echoCtx.NoContent(http.StatusForbidden)
 	}
 	accessTokenRequest := redirectSession.AccessTokenRequest
+
+	verifier, err := did.ParseDID(accessTokenRequest.Body.Verifier)
+	if err != nil {
+		return err
+	}
+
 	// burn token
 	err = store.Delete(token)
 	if err != nil {
 		//rare, log just in case
 		log.Logger().WithError(err).Warn("delete token failed")
 	}
-	// create UserSession with userID from request
+	// create oauthSession with userID from request
 	// generate new sessionID and clientState with crypto.GenerateNonce()
-	userSession := UserSession{
+	oauthSession := OAuthSession{
 		ClientState: crypto.GenerateNonce(),
-		SessionID:   crypto.GenerateNonce(),
-		UserID:      *accessTokenRequest.Body.UserID, // should be there...
-		OwnDID:      redirectSession.OwnDID,
+		OwnDID:      &redirectSession.OwnDID,
+		VerifierDID: verifier,
+		FlowToken:   redirectSession.FlowToken,
+		RedirectURI: accessTokenRequest.Body.RedirectURL,
+		UserID:      accessTokenRequest.Body.UserID,
 	}
-
+	// todo double use of access token store? (client vs server)
 	// store user session in session store under sessionID and clientState
-	err = r.userSessionStore().Put(userSession.SessionID, userSession)
+	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession)
 	if err != nil {
 		return err
 	}
-	err = r.oauthClientStateStore().Put(userSession.ClientState, userSession)
-	if err != nil {
-		return err
-	}
-	verifier, err := did.ParseDID(accessTokenRequest.Body.Verifier)
-	if err != nil {
-		return err
-	}
-	redirectURL, err := r.auth.RelyingParty().CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, *verifier, accessTokenRequest.Body.Scope, userSession.ClientState)
+	redirectURL, err := r.auth.RelyingParty().CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, *verifier, accessTokenRequest.Body.Scope, oauthSession.ClientState)
 	if err != nil {
 		return err
 	}
@@ -139,10 +108,6 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 
 func (r Wrapper) userRedirectStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(userRedirectTimeout, userRedirectSessionKey...)
-}
-
-func (r Wrapper) userSessionStore() storage.SessionStore {
-	return r.storageEngine.GetSessionDatabase().GetStore(userSessionTimeout, userSessionKey...)
 }
 
 func (r Wrapper) oauthClientStateStore() storage.SessionStore {

@@ -33,7 +33,15 @@ type TokenResponse struct {
 	TokenType   string  `json:"token_type"`
 	CNonce      *string `json:"c_nonce,omitempty"`
 	Scope       *string `json:"scope,omitempty"`
+	Status      *string `json:"status,omitempty"`
 }
+
+const (
+	// AccessTokenStatusPending is the status for a pending access token
+	AccessTokenStatusPending = "pending"
+	// AccessTokenStatusActive is the status for an active access token
+	AccessTokenStatusActive = "active"
+)
 
 const (
 	// AuthzServerWellKnown is the well-known base path for the oauth authorization server metadata as defined in RFC8414
@@ -44,10 +52,16 @@ const (
 	openidCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
 	// openidCredWalletWellKnown is the well-known path element we created for openid4vci to retrieve the oauth client metadata
 	openidCredWalletWellKnown = "/.well-known/openid-credential-wallet"
-	// GrantTypeParam is the parameter name for the grant_type parameter
-	GrantTypeParam = "grant_type"
 	// AssertionParam is the parameter name for the assertion parameter
 	AssertionParam = "assertion"
+	// ClientIDParam is the parameter name for the client_id parameter
+	ClientIDParam = "client_id"
+	// CodeParam is the parameter name for the code parameter
+	CodeParam = "code"
+	// GrantTypeParam is the parameter name for the grant_type parameter
+	GrantTypeParam = "grant_type"
+	// RedirectURIParam is the parameter name for the redirect_uri parameter
+	RedirectURIParam = "redirect_uri"
 	// ScopeParam is the parameter name for the scope parameter
 	ScopeParam = "scope"
 	// StateParam is the parameter name for the state parameter
@@ -65,6 +79,11 @@ const (
 	ErrorParam = "error"
 	// ErrorDescriptionParam is the parameter name for the error_description parameter
 	ErrorDescriptionParam = "error_description"
+)
+
+const (
+	// AuthorizationCodeGrantType is the grant_type for the authorization_code grant type
+	AuthorizationCodeGrantType = "authorization_code"
 )
 
 // IssuerIdToWellKnown converts the OAuth2 Issuer identity to the specified well-known endpoint by inserting the well-known at the root of the path.

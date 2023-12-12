@@ -27,7 +27,6 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"go.uber.org/mock/gomock"
-	"net/http"
 	"testing"
 	"time"
 
@@ -35,51 +34,14 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestWrapper_requestServiceAccessToken(t *testing.T) {
-	walletDID := did.MustParseDID("did:test:123")
-	verifierDID := did.MustParseDID("did:test:456")
-	body := &RequestAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second"}
-
-	t.Run("error - invalid verifier did", func(t *testing.T) {
-		ctx := newTestClient(t)
-		body := &RequestAccessTokenJSONRequestBody{Verifier: "invalid"}
-
-		_, err := ctx.client.requestServiceAccessToken(nil, walletDID, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "invalid verifier: invalid DID")
-	})
-	t.Run("error - verifier not found", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(nil, nil, resolver.ErrNotFound)
-
-		_, err := ctx.client.requestServiceAccessToken(nil, walletDID, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "verifier not found: unable to find the DID document")
-	})
-	t.Run("error - verifier error", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
-		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
-
-		_, err := ctx.client.requestServiceAccessToken(nil, walletDID, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "no matching credentials")
-	})
-}
 
 func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	issuerDIDStr := "did:web:example.com:iam:123"
@@ -435,7 +397,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		assert.Equal(t, "everything", *accessToken.Scope)
 
 		var storedToken AccessToken
-		err = ctx.client.accessTokenStore().Get(accessToken.AccessToken, &storedToken)
+		err = ctx.client.accessTokenServerStore().Get(accessToken.AccessToken, &storedToken)
 		require.NoError(t, err)
 		assert.Equal(t, accessToken.AccessToken, storedToken.Token)
 		assert.Equal(t, submission, *storedToken.PresentationSubmission)

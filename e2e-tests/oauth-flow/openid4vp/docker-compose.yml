@@ -38,3 +38,8 @@ services:
       - "./node-B/presentationexchangemapping.json:/opt/nuts/policies/presentationexchangemapping.json:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
+  resource:
+    image: nginx:1.25.1
+    volumes:
+      - "./resource/nginx.conf:/etc/nginx/nginx.conf:ro"
+      - "./resource/oauth2.js:/etc/nginx/oauth2.js:ro"
