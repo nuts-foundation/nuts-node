@@ -64,7 +64,7 @@ func TestWrapper_requestUserAccessToken(t *testing.T) {
 		_, err := ctx.client.requestUserAccessToken(nil, walletDID, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "unsupported DID method: test")
+		assert.EqualError(t, err, "URL does not represent a Web DID\nunsupported DID method: test")
 	})
 }
 
