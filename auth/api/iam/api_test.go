@@ -417,37 +417,34 @@ func newTestClient(t testing.TB) *testCtx {
 	require.NoError(t, err)
 	ctrl := gomock.NewController(t)
 	storageEngine := storage.NewTestStorageEngine(t)
-	mockVerifier := verifier.NewMockVerifier(ctrl)
-	mockVCR := vcr.NewMockVCR(ctrl)
-	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().PresentationDefinitions().Return(pe.TestDefinitionResolver(t)).AnyTimes()
-	resolver := resolver.NewMockDIDResolver(ctrl)
+	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
 	vcVerifier := verifier.NewMockVerifier(ctrl)
 	verifierRole := oauthServices.NewMockVerifier(ctrl)
-	vdr := vdr.NewMockVDR(ctrl)
-	vcr := vcr.NewMockVCR(ctrl)
+	mockVDR := vdr.NewMockVDR(ctrl)
+	mockVCR := vcr.NewMockVCR(ctrl)
 
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
-	vcr.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
+	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
 	authnServices.EXPECT().Verifier().Return(verifierRole).AnyTimes()
-	vdr.EXPECT().Resolver().Return(resolver).AnyTimes()
+	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
 
 	return &testCtx{
 		ctrl:          ctrl,
 		authnServices: authnServices,
 		relyingParty:  relyingPary,
 		vcVerifier:    vcVerifier,
-		resolver:      resolver,
-		vdr:           vdr,
+		resolver:      mockResolver,
+		vdr:           mockVDR,
 		verifierRole:  verifierRole,
 		vcr:           mockVCR,
 		client: &Wrapper{
 			auth:          authnServices,
-			vdr:           vdr,
+			vdr:           mockVDR,
 			vcr:           mockVCR,
 			storageEngine: storageEngine,
 		},
