@@ -83,16 +83,16 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	// the walletDID must be a did:web
 	walletDID, err := did.ParseDID(walletID)
 	if err != nil || walletDID.Method != "web" {
-		return nil, oauthError(oauth.InvalidRequest, "invalid client_id parameter", redirectURL)
+		return nil, oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", redirectURL)
 	}
 	metadata, err := r.auth.Verifier().AuthorizationServerMetadata(ctx, *walletDID)
 	if err != nil {
-		return nil, oauthError(oauth.ServerError, "failed to get authorization server metadata (holder)", redirectURL)
+		return nil, oauthError(oauth.ServerError, "failed to get metadata from wallet", redirectURL)
 	}
 	// own generic endpoint
 	ownURL, err := didweb.DIDToURL(verifier)
 	if err != nil {
-		return nil, oauthError(oauth.ServerError, "failed to translate own did to URL", redirectURL)
+		return nil, oauthError(oauth.ServerError, "invalid verifier DID", redirectURL)
 	}
 	// generate presentation_definition_uri based on own presentation_definition endpoint + scope
 	pdURL := ownURL.JoinPath("presentation_definition")
@@ -113,7 +113,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	//    &nonce=n-0S6_WzA2Mj HTTP/1.1
 	walletURL, err := url.Parse(metadata.AuthorizationEndpoint)
 	if err != nil || len(metadata.AuthorizationEndpoint) == 0 {
-		return nil, oauthError(oauth.InvalidRequest, "invalid authorization_endpoint (holder)", redirectURL)
+		return nil, oauthError(oauth.InvalidRequest, "invalid wallet endpoint", redirectURL)
 	}
 	nonce := crypto.GenerateNonce()
 	callbackURL := *ownURL

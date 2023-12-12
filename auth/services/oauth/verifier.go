@@ -20,7 +20,6 @@
 package oauth
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
@@ -28,7 +27,6 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 )
 
@@ -47,16 +45,6 @@ func NewVerifier(strictMode bool, httpClientTimeout time.Duration, httpClientTLS
 		httpClientTimeout: httpClientTimeout,
 		httpClientTLS:     httpClientTLS,
 	}
-}
-
-func (v *VerifierServiceProvider) AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
-	iamClient := iam.NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
-	// the wallet/holder acts as authorization server
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, webdid)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
-	}
-	return metadata, nil
 }
 
 func (v *VerifierServiceProvider) ClientMetadataURL(webdid did.DID) (*url.URL, error) {
