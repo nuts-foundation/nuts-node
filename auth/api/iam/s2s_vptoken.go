@@ -43,21 +43,6 @@ const s2sMaxPresentationValidity = 5 * time.Second
 // The value is specified by Nuts RFC021.
 const s2sMaxClockSkew = 5 * time.Second
 
-// sessionValidity defines how long user sessions are valid.
-// TODO: Might want to make this configurable at some point
-const sessionValidity = 15 * time.Minute
-
-// serviceToService adds support for service-to-service OAuth2 flows,
-// which uses a custom vp_token grant to authenticate calls to the token endpoint.
-// Clients first call the presentation definition endpoint to get a presentation definition for the desired scope,
-// then create a presentation submission given the definition which is posted to the token endpoint as vp_token.
-// The AS then returns an access token with the requested scope.
-// Requires:
-// - GET /presentation_definition?scope=... (returns a presentation definition)
-// - POST /token (with vp_token grant)
-type serviceToService struct {
-}
-
 // handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
 func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
@@ -119,11 +104,6 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
-}
-
-func (s serviceToService) handleAuthzRequest(_ map[string]string, _ *OAuthSession) (*authzResponse, error) {
-	// Protocol does not support authorization code flow
-	return nil, nil
 }
 
 func (r Wrapper) requestServiceAccessToken(ctx context.Context, requestHolder did.DID, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
