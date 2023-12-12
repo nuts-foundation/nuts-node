@@ -4,6 +4,16 @@ Release notes
 #############
 
 ************************
+Hazelnut update (v5.4.5)
+************************
+
+Release date: 2023-12-11
+
+- Auth: make sure create session and validate signatures perform the same checks (#2664)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.4...v5.4.5
+
+************************
 Hazelnut update (v5.4.4)
 ************************
 
