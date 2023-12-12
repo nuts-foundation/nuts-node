@@ -20,11 +20,12 @@
 package credential
 
 import (
-	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"strings"
 )
 
 // FindValidator finds the Validator the provided credential based on its Type
@@ -64,12 +65,12 @@ func ExtractTypes(credential vc.VerifiableCredential) []string {
 func PresentationSigner(presentation vc.VerifiablePresentation) (*did.DID, error) {
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		token := presentation.JWT()
-		issuer := token.Issuer()
-		if issuer == "" {
-			return nil, errors.New("JWT presentation does not have 'iss' claim")
+		kid, _, err := crypto.JWTKidAlg(presentation.Raw())
+		if err != nil {
+			return nil, err
 		}
-		return did.ParseDID(issuer)
+		signer := strings.Split(kid, "#")[0]
+		return did.ParseDID(signer)
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := ParseLDProof(presentation)
 		if err != nil {

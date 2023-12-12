@@ -20,12 +20,9 @@
 package credential
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/require"
@@ -72,29 +69,20 @@ func TestExtractTypes(t *testing.T) {
 func TestPresentationSigner(t *testing.T) {
 	keyID := did.MustParseDIDURL("did:example:issuer#1")
 	t.Run("JWT", func(t *testing.T) {
-		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		keyStore := crypto.NewMemoryCryptoInstance()
+		key, err := keyStore.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
+		require.NoError(t, err)
 		t.Run("ok", func(t *testing.T) {
-			token := jwt.New()
-			require.NoError(t, token.Set(jwt.IssuerKey, keyID.DID.String()))
-			signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+			claims := map[string]any{}
+			headers := map[string]any{}
+			signedToken, err := keyStore.SignJWT(audit.TestContext(), claims, headers, key.KID())
 			require.NoError(t, err)
-			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
+			presentation, err := vc.ParseVerifiablePresentation(signedToken)
 			require.NoError(t, err)
 
 			actual, err := PresentationSigner(*presentation)
 			require.NoError(t, err)
 			assert.Equal(t, keyID.DID, *actual)
-		})
-		t.Run("missing 'iss' claim", func(t *testing.T) {
-			token := jwt.New()
-			signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
-			require.NoError(t, err)
-			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
-			require.NoError(t, err)
-
-			actual, err := PresentationSigner(*presentation)
-			assert.EqualError(t, err, "JWT presentation does not have 'iss' claim")
-			assert.Nil(t, actual)
 		})
 	})
 	t.Run("JSON-LD", func(t *testing.T) {

@@ -224,6 +224,6 @@ func signJWT(subjectDID did.DID, claims map[string]interface{}, headers map[stri
 			return "", err
 		}
 	}
-	bytes, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, signingKey, jws.WithProtectedHeaders(hdr)))
+	bytes, err := jwt.Sign(token, jwt.WithKey(subjectKeyJWK.Algorithm(), subjectKeyJWK, jws.WithProtectedHeaders(hdr)))
 	return string(bytes), err
 }
