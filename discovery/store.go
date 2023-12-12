@@ -21,6 +21,12 @@ package discovery
 import (
 	"errors"
 	"fmt"
+	"math/rand"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
@@ -29,11 +35,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
-	"math/rand"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 const tagPrefixLength = 5

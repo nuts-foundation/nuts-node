@@ -23,7 +23,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/vc"
 	"net/http"
 	"net/url"
 	"strings"
@@ -31,6 +30,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -38,6 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
+	http2 "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
@@ -108,6 +109,31 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 	}
 
 	return &services.JwtBearerTokenResult{BearerToken: signingString, AuthorizationServerEndpoint: endpointURL}, nil
+}
+
+func (s *relyingParty) CreateAuthorizationRequest(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, clientState string) (*url.URL, error) {
+	// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
+	// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
+	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+	}
+	if len(metadata.AuthorizationEndpoint) == 0 {
+		return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", verifier)
+	}
+	endpoint, err := url.Parse(metadata.AuthorizationEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse authorization endpoint URL: %w", err)
+	}
+	// todo: redirect_uri
+	redirectURL := http2.AddQueryParams(*endpoint, map[string]string{
+		"client_id":     requestHolder.String(),
+		"response_type": "code",
+		"scope":         scopes,
+		"state":         clientState,
+	})
+	return &redirectURL, nil
 }
 
 func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantToken string, authorizationServerEndpoint url.URL) (*oauth.TokenResponse, error) {

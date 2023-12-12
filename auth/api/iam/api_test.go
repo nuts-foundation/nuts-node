@@ -26,6 +26,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
@@ -45,7 +46,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"time"
 )
 
 var webDID = did.MustParseDID("did:web:example.com:iam:123")
@@ -350,6 +350,7 @@ func statusCodeFrom(err error) int {
 }
 
 type testCtx struct {
+	ctrl          *gomock.Controller
 	client        *Wrapper
 	authnServices *auth.MockAuthenticationServices
 	vdr           *vdr.MockVDR
@@ -382,6 +383,7 @@ func newTestClient(t testing.TB) *testCtx {
 	vdr.EXPECT().Resolver().Return(resolver).AnyTimes()
 
 	return &testCtx{
+		ctrl:          ctrl,
 		authnServices: authnServices,
 		relyingParty:  relyingPary,
 		resolver:      resolver,
@@ -485,6 +487,57 @@ func TestWrapper_idToOwnedDID(t *testing.T) {
 		_, err := ctx.client.idToOwnedDID(nil, webIDPart)
 
 		assert.EqualError(t, err, "DID resolution failed: unknown error")
+	})
+}
+
+func TestWrapper_RequestAccessToken(t *testing.T) {
+	walletDID := did.MustParseDID("did:web:test.test:iam:123")
+	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
+	body := &RequestAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second"}
+
+	t.Run("ok - service flow", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
+		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(&oauth.TokenResponse{}, nil)
+
+		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.NoError(t, err)
+	})
+	t.Run("ok - user flow", func(t *testing.T) {
+		userID := "test"
+		body := &RequestAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", UserID: &userID}
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+
+		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.NoError(t, err)
+	})
+	t.Run("error - DID not owned", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(false, nil)
+
+		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "not owned by this node")
+	})
+	t.Run("error - invalid DID", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: "invalid", Body: body})
+
+		require.EqualError(t, err, "did not found: invalid DID")
+	})
+	t.Run("error - missing request body", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		_, err := ctx.client.RequestAccessToken(nil, RequestAccessTokenRequestObject{Did: walletDID.String()})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "missing request body")
 	})
 }
 

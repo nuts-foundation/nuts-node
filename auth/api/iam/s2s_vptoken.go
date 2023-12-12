@@ -106,24 +106,7 @@ func (r *Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, subm
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r *Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	if request.Body == nil {
-		// why did oapi-codegen generate a pointer for the body??
-		return nil, core.InvalidInputError("missing request body")
-	}
-	// resolve wallet
-	requestHolder, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, core.NotFoundError("did not found: %w", err)
-	}
-	isWallet, err := r.vdr.IsOwner(ctx, *requestHolder)
-	if err != nil {
-		return nil, err
-	}
-	if !isWallet {
-		return nil, core.InvalidInputError("did not owned by this node: %w", err)
-	}
-
+func (r Wrapper) requestServiceAccessToken(ctx context.Context, requestHolder did.DID, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
 	// resolve verifier metadata
 	requestVerifier, err := did.ParseDID(request.Body.Verifier)
 	if err != nil {
@@ -137,7 +120,7 @@ func (r *Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessT
 		return nil, err
 	}
 
-	tokenResult, err := r.auth.RelyingParty().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope)
+	tokenResult, err := r.auth.RelyingParty().RequestRFC021AccessToken(ctx, requestHolder, *requestVerifier, request.Body.Scope)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
