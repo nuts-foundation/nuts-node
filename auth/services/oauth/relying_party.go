@@ -38,7 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
-	http2 "github.com/nuts-foundation/nuts-node/http"
+	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
@@ -127,7 +127,7 @@ func (s *relyingParty) CreateAuthorizationRequest(ctx context.Context, requestHo
 		return nil, fmt.Errorf("failed to parse authorization endpoint URL: %w", err)
 	}
 	// todo: redirect_uri
-	redirectURL := http2.AddQueryParams(*endpoint, map[string]string{
+	redirectURL := nutsHttp.AddQueryParams(*endpoint, map[string]string{
 		"client_id":     requestHolder.String(),
 		"response_type": "code",
 		"scope":         scopes,
@@ -232,6 +232,15 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 		TokenType:   token.TokenType,
 		Scope:       &scopes,
 	}, nil
+}
+
+func (s *relyingParty) authorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
+	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, webdid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+	}
+	return metadata, nil
 }
 
 func chooseVPFormat(formats map[string]map[string][]string) string {

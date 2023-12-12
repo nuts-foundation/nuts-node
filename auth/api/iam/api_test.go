@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -50,6 +51,7 @@ import (
 
 var webDID = did.MustParseDID("did:web:example.com:iam:123")
 var webIDPart = "123"
+var verifierDID = did.MustParseDID("did:web:example.com:iam:verifier")
 
 func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
@@ -70,8 +72,8 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: webIDPart})
 
-		assert.Equal(t, 404, statusCodeFrom(err))
-		assert.EqualError(t, err, "authz server metadata: did not owned")
+		assert.Equal(t, 400, statusCodeFrom(err))
+		assert.EqualError(t, err, "invalid_request - issuer DID not owned by the server")
 		assert.Nil(t, res)
 	})
 	t.Run("error - did does not exist", func(t *testing.T) {
@@ -81,8 +83,8 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: webIDPart})
 
-		assert.Equal(t, 404, statusCodeFrom(err))
-		assert.EqualError(t, err, "authz server metadata: unable to find the DID document")
+		assert.Equal(t, 400, statusCodeFrom(err))
+		assert.EqualError(t, err, "invalid_request - invalid issuer DID: unable to find the DID document")
 		assert.Nil(t, res)
 	})
 	t.Run("error - internal error 500", func(t *testing.T) {
@@ -93,14 +95,12 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: webIDPart})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
-		assert.EqualError(t, err, "authz server metadata: unknown error")
+		assert.EqualError(t, err, "DID resolution failed: unknown error")
 		assert.Nil(t, res)
 	})
 }
 
 func TestWrapper_GetWebDID(t *testing.T) {
-	webDID := did.MustParseDID("did:web:example.com:iam:123")
-	id := "123"
 	ctx := audit.TestContext()
 	expectedWebDIDDoc := did.Document{
 		ID: webDID,
@@ -113,7 +113,7 @@ func TestWrapper_GetWebDID(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().ResolveManaged(webDID).Return(&expectedWebDIDDoc, nil)
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{id})
+		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{webIDPart})
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetWebDID200JSONResponse)))
@@ -122,7 +122,7 @@ func TestWrapper_GetWebDID(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, resolver.ErrNotFound)
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{id})
+		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{webIDPart})
 
 		assert.NoError(t, err)
 		assert.IsType(t, GetWebDID404Response{}, response)
@@ -131,7 +131,7 @@ func TestWrapper_GetWebDID(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, errors.New("failed"))
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{id})
+		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{webIDPart})
 
 		assert.EqualError(t, err, "unable to resolve DID")
 		assert.Nil(t, response)
@@ -147,6 +147,25 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthClientMetadata200JSONResponse{}, res)
+	})
+	t.Run("error - did not managed by this node", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID)
+
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: webIDPart})
+
+		assert.Equal(t, 400, statusCodeFrom(err))
+		assert.Nil(t, res)
+	})
+	t.Run("error - internal error 500", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
+
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: webIDPart})
+
+		assert.Equal(t, 500, statusCodeFrom(err))
+		assert.EqualError(t, err, "DID resolution failed: unknown error")
+		assert.Nil(t, res)
 	})
 }
 func TestWrapper_PresentationDefinition(t *testing.T) {
@@ -189,6 +208,38 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 }
 
 func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
+	metadata := oauth.AuthorizationServerMetadata{
+		AuthorizationEndpoint: "https://example.com/holder/authorize",
+	}
+	t.Run("ok - from holder", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.verifierRole.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&metadata, nil)
+		ctx.verifierRole.EXPECT().ClientMetadataURL(verifierDID).Return(test.MustParseURL("https://example.com/.well-known/authorization-server/iam/verifier"), nil)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
+			clientIDParam:     holderDID.String(),
+			redirectURIParam:  "https://example.com",
+			responseTypeParam: "code",
+			scopeParam:        "test",
+		}), HandleAuthorizeRequestRequestObject{
+			Id: "verifier",
+		})
+
+		require.NoError(t, err)
+		assert.IsType(t, HandleAuthorizeRequest302Response{}, res)
+		location := res.(HandleAuthorizeRequest302Response).Headers.Location
+		assert.Contains(t, location, "https://example.com/holder/authorize")
+		assert.Contains(t, location, "client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier")
+		assert.Contains(t, location, "client_id_scheme=did")
+		assert.Contains(t, location, "client_metadata_uri=https%3A%2F%2Fexample.com%2F.well-known%2Fauthorization-server%2Fiam%2Fverifier")
+		assert.Contains(t, location, "nonce=")
+		assert.Contains(t, location, "presentation_definition_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fpresentation_definition%3Fscope%3Dtest")
+		assert.Contains(t, location, "response_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fresponse")
+		assert.Contains(t, location, "response_mode=direct_post")
+		assert.Contains(t, location, "response_type=vp_token")
+
+	})
 	t.Run("missing redirect_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
@@ -346,7 +397,7 @@ func statusCodeFrom(err error) int {
 	if errors.As(err, &SE) {
 		return SE.StatusCode()
 	}
-	return 0
+	return 500
 }
 
 type testCtx struct {
@@ -356,8 +407,9 @@ type testCtx struct {
 	vdr           *vdr.MockVDR
 	resolver      *resolver.MockDIDResolver
 	relyingParty  *oauthServices.MockRelyingParty
-	verifier      *verifier.MockVerifier
+	vcVerifier    *verifier.MockVerifier
 	vcr           *vcr.MockVCR
+	verifierRole  *oauthServices.MockVerifier
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -365,34 +417,34 @@ func newTestClient(t testing.TB) *testCtx {
 	require.NoError(t, err)
 	ctrl := gomock.NewController(t)
 	storageEngine := storage.NewTestStorageEngine(t)
-	mockVerifier := verifier.NewMockVerifier(ctrl)
-	mockVCR := vcr.NewMockVCR(ctrl)
-	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().PresentationDefinitions().Return(pe.TestDefinitionResolver(t)).AnyTimes()
-	resolver := resolver.NewMockDIDResolver(ctrl)
+	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
-	verifier := verifier.NewMockVerifier(ctrl)
-	vdr := vdr.NewMockVDR(ctrl)
-	vcr := vcr.NewMockVCR(ctrl)
+	vcVerifier := verifier.NewMockVerifier(ctrl)
+	verifierRole := oauthServices.NewMockVerifier(ctrl)
+	mockVDR := vdr.NewMockVDR(ctrl)
+	mockVCR := vcr.NewMockVCR(ctrl)
 
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
-	vcr.EXPECT().Verifier().Return(verifier).AnyTimes()
-	vdr.EXPECT().Resolver().Return(resolver).AnyTimes()
+	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
+	authnServices.EXPECT().Verifier().Return(verifierRole).AnyTimes()
+	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
 
 	return &testCtx{
 		ctrl:          ctrl,
 		authnServices: authnServices,
 		relyingParty:  relyingPary,
-		resolver:      resolver,
-		vdr:           vdr,
-		verifier:      mockVerifier,
+		vcVerifier:    vcVerifier,
+		resolver:      mockResolver,
+		vdr:           mockVDR,
+		verifierRole:  verifierRole,
 		vcr:           mockVCR,
 		client: &Wrapper{
 			auth:          authnServices,
-			vdr:           vdr,
+			vdr:           mockVDR,
 			vcr:           mockVCR,
 			storageEngine: storageEngine,
 		},

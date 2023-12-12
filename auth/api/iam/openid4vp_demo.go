@@ -27,7 +27,7 @@ import (
 	"strings"
 )
 
-func (r *Wrapper) handleOpenID4VPDemoLanding(echoCtx echo.Context) error {
+func (r Wrapper) handleOpenID4VPDemoLanding(echoCtx echo.Context) error {
 	requestURL := *echoCtx.Request().URL
 	requestURL.Host = echoCtx.Request().Host
 	requestURL.Scheme = "http"
@@ -47,7 +47,7 @@ func (r *Wrapper) handleOpenID4VPDemoLanding(echoCtx echo.Context) error {
 	return echoCtx.HTML(http.StatusOK, buf.String())
 }
 
-func (r *Wrapper) handleOpenID4VPDemoSendRequest(echoCtx echo.Context) error {
+func (r Wrapper) handleOpenID4VPDemoSendRequest(echoCtx echo.Context) error {
 	verifierID := echoCtx.FormValue("verifier_id")
 	if verifierID == "" {
 		return errors.New("missing verifier_id")

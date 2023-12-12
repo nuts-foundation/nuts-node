@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"time"
 )
 
 // DIDDocument is an alias
@@ -48,6 +49,10 @@ type TokenResponse = oauth.TokenResponse
 type OAuthAuthorizationServerMetadata = oauth.AuthorizationServerMetadata
 
 const (
+	sessionExpiry = 5 * time.Minute
+)
+
+const (
 	// responseTypeParam is the name of the response_type parameter.
 	// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.1
 	//
@@ -69,11 +74,14 @@ const (
 	// responseTypeVPIDToken is defined in the OpenID4VP flow that combines its vp_token with SIOPv2's id_token
 	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#appendix-B
 	responseTypeVPIDToken = "vp_token id_token"
+	nonceParam            = "nonce"
 )
 
 var responseTypesSupported = []string{responseTypeCode, responseTypeVPToken, responseTypeVPIDToken}
 
 const (
+	// didScheme is the client_id_scheme value for DIDs
+	didScheme = "did"
 	// responseModeParam is the name of the OAuth2 response_mode parameter.
 	// Specified by https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
 	responseModeParam = "response_mode"
@@ -131,6 +139,9 @@ const stateParam = "state"
 // redirectURIParam is the name of the redirect_uri parameter.
 // Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
 const redirectURIParam = "redirect_uri"
+
+// responseURIParam is the name of the OpenID4VP response_uri parameter.
+const responseURIParam = "response_uri"
 
 // presentationDefParam is the name of the OpenID4VP presentation_definition parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-presentation_definition-par

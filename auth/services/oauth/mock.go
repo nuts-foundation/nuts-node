@@ -140,11 +140,11 @@ func (mr *MockAuthorizationServerMockRecorder) Configure(clockSkewInMilliseconds
 }
 
 // CreateAccessToken mocks base method.
-func (m *MockAuthorizationServer) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.ErrorResponse) {
+func (m *MockAuthorizationServer) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.OAuth2Error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateAccessToken", ctx, request)
 	ret0, _ := ret[0].(*oauth.TokenResponse)
-	ret1, _ := ret[1].(*oauth.ErrorResponse)
+	ret1, _ := ret[1].(*oauth.OAuth2Error)
 	return ret0, ret1
 }
 
@@ -167,4 +167,57 @@ func (m *MockAuthorizationServer) IntrospectAccessToken(ctx context.Context, tok
 func (mr *MockAuthorizationServerMockRecorder) IntrospectAccessToken(ctx, token any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IntrospectAccessToken", reflect.TypeOf((*MockAuthorizationServer)(nil).IntrospectAccessToken), ctx, token)
+}
+
+// MockVerifier is a mock of Verifier interface.
+type MockVerifier struct {
+	ctrl     *gomock.Controller
+	recorder *MockVerifierMockRecorder
+}
+
+// MockVerifierMockRecorder is the mock recorder for MockVerifier.
+type MockVerifierMockRecorder struct {
+	mock *MockVerifier
+}
+
+// NewMockVerifier creates a new mock instance.
+func NewMockVerifier(ctrl *gomock.Controller) *MockVerifier {
+	mock := &MockVerifier{ctrl: ctrl}
+	mock.recorder = &MockVerifierMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
+	return m.recorder
+}
+
+// AuthorizationServerMetadata mocks base method.
+func (m *MockVerifier) AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthorizationServerMetadata", ctx, webdid)
+	ret0, _ := ret[0].(*oauth.AuthorizationServerMetadata)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AuthorizationServerMetadata indicates an expected call of AuthorizationServerMetadata.
+func (mr *MockVerifierMockRecorder) AuthorizationServerMetadata(ctx, webdid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthorizationServerMetadata", reflect.TypeOf((*MockVerifier)(nil).AuthorizationServerMetadata), ctx, webdid)
+}
+
+// ClientMetadataURL mocks base method.
+func (m *MockVerifier) ClientMetadataURL(webdid did.DID) (*url.URL, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClientMetadataURL", webdid)
+	ret0, _ := ret[0].(*url.URL)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ClientMetadataURL indicates an expected call of ClientMetadataURL.
+func (mr *MockVerifierMockRecorder) ClientMetadataURL(webdid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClientMetadataURL", reflect.TypeOf((*MockVerifier)(nil).ClientMetadataURL), webdid)
 }

@@ -124,3 +124,17 @@ func (mr *MockAuthenticationServicesMockRecorder) V2APIEnabled() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "V2APIEnabled", reflect.TypeOf((*MockAuthenticationServices)(nil).V2APIEnabled))
 }
+
+// Verifier mocks base method.
+func (m *MockAuthenticationServices) Verifier() oauth.Verifier {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Verifier")
+	ret0, _ := ret[0].(oauth.Verifier)
+	return ret0
+}
+
+// Verifier indicates an expected call of Verifier.
+func (mr *MockAuthenticationServicesMockRecorder) Verifier() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verifier", reflect.TypeOf((*MockAuthenticationServices)(nil).Verifier))
+}

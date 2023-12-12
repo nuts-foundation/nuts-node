@@ -81,7 +81,7 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 	}
 }
 
-func (r *Wrapper) Routes(router core.EchoRouter) {
+func (r Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, NewStrictHandler(r, []StrictMiddlewareFunc{
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
@@ -166,7 +166,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 }
 
 // IntrospectAccessToken allows the resource server (XIS/EHR) to introspect details of an access token issued by this node
-func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
+func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
 	// Validate token
 	if request.Body.Token == "" {
 		// Return 200 + 'Active = false' when token is invalid or malformed
@@ -249,7 +249,6 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	if err != nil {
 		return nil, err
 	}
-	// Create session object to be passed to handler
 
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
@@ -268,15 +267,31 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 			Description: "redirect_uri is required",
 		}
 	}
+	// todo: store session in database?
 
 	switch session.ResponseType {
 	case responseTypeCode:
 		// Options:
 		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.
 		// - OpenID4VCI; authorization code flow for credential issuance to (end-user) wallet
-		// - OpenID4VP, vp_token is sent in Token Response; authorization code flow for presentation exchange (not required a.t.m.)
-		// TODO: Switch on parameters to right flow
-		panic("not implemented")
+
+		// TODO: officially flow switching has to be determined by the client_id
+		// registered client_ids should list which flow they support
+		// client registration could be done via rfc7591....
+		// for now we switch on client_id format.
+		// when client_id is a did:web, it is a cloud/server wallet
+		// otherwise it's a normal registered client which we do not support yet
+		// Note: this is the user facing OpenID4VP flow with a "vp_token" responseType, the demo uses the "vp_token id_token" responseType
+		clientId := session.ClientID
+		if strings.HasPrefix(clientId, "did:web:") {
+			// client is a cloud wallet with user
+			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, params)
+		} else {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "client_id must be a did:web",
+			}
+		}
 	case responseTypeVPToken:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
@@ -289,28 +304,20 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		return r.handlePresentationRequest(params, session)
 	default:
 		// TODO: This should be a redirect?
+		redirectURI, _ := url.Parse(session.RedirectURI)
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedResponseType,
-			RedirectURI: session.RedirectURI,
+			RedirectURI: redirectURI,
 		}
 	}
 }
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	ownDID := r.idToDID(request.Id)
-	owned, err := r.vdr.IsOwner(ctx, ownDID)
+	_, err := r.idToOwnedDID(ctx, request.Id)
 	if err != nil {
-		if resolver.IsFunctionalResolveError(err) {
-			return nil, core.NotFoundError("authz server metadata: %w", err)
-		}
-		log.Logger().WithField("did", ownDID.String()).Errorf("authz server metadata: failed to assert ownership of did: %s", err.Error())
-		return nil, core.Error(500, "authz server metadata: %w", err)
+		return nil, err
 	}
-	if !owned {
-		return nil, core.NotFoundError("authz server metadata: did not owned")
-	}
-
 	identity := r.auth.PublicURL().JoinPath("iam", request.Id)
 
 	return OAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
@@ -432,6 +439,6 @@ func (r Wrapper) identityURL(id string) *url.URL {
 	return r.auth.PublicURL().JoinPath("iam", id)
 }
 
-func (r *Wrapper) accessTokenStore() storage.SessionStore {
+func (r Wrapper) accessTokenStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "accesstoken")
 }

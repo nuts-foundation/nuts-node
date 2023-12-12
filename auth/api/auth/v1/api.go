@@ -311,15 +311,13 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 func (w Wrapper) CreateAccessToken(ctx context.Context, request CreateAccessTokenRequestObject) (CreateAccessTokenResponseObject, error) {
 
 	if request.Body.GrantType != client.JwtBearerGrantType {
-		errDesc := fmt.Sprintf("grant_type must be: '%s'", client.JwtBearerGrantType)
-		errorResponse := oauth.ErrorResponse{Error: errOauthUnsupportedGrant, Description: &errDesc}
+		errorResponse := oauth.OAuth2Error{Code: errOauthUnsupportedGrant, Description: fmt.Sprintf("grant_type must be: '%s'", client.JwtBearerGrantType)}
 		return CreateAccessToken400JSONResponse(errorResponse), nil
 	}
 
 	const jwtPattern = `^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$`
 	if matched, err := regexp.Match(jwtPattern, []byte(request.Body.Assertion)); !matched || err != nil {
-		errDesc := "Assertion must be a valid encoded jwt"
-		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthInvalidGrant, Description: &errDesc}
+		errorResponse := AccessTokenRequestFailedResponse{Code: errOauthInvalidGrant, Description: "Assertion must be a valid encoded jwt"}
 		return CreateAccessToken400JSONResponse(errorResponse), nil
 	}
 

@@ -55,6 +55,7 @@ type TestContext struct {
 	contractClientMock    *services.MockContractNotary
 	authzServerMock       *oauth.MockAuthorizationServer
 	relyingPartyMock      *oauth.MockRelyingParty
+	verifierMock          *oauth.MockVerifier
 	wrapper               Wrapper
 	cedentialResolverMock *vcr.MockResolver
 	audit                 context.Context
@@ -65,6 +66,7 @@ type mockAuthClient struct {
 	contractNotary *services.MockContractNotary
 	authzServer    *oauth.MockAuthorizationServer
 	relyingParty   *oauth.MockRelyingParty
+	verifier       *oauth.MockVerifier
 }
 
 func (m *mockAuthClient) V2APIEnabled() bool {
@@ -77,6 +79,10 @@ func (m *mockAuthClient) AuthzServer() oauth.AuthorizationServer {
 
 func (m *mockAuthClient) RelyingParty() oauth.RelyingParty {
 	return m.relyingParty
+}
+
+func (m *mockAuthClient) Verifier() oauth.Verifier {
+	return m.verifier
 }
 
 func (m *mockAuthClient) ContractNotary() services.ContractNotary {
@@ -97,6 +103,7 @@ func createContext(t *testing.T) *TestContext {
 	contractNotary := services.NewMockContractNotary(ctrl)
 	authzServer := oauth.NewMockAuthorizationServer(ctrl)
 	relyingParty := oauth.NewMockRelyingParty(ctrl)
+	verifier := oauth.NewMockVerifier(ctrl)
 	mockCredentialResolver := vcr.NewMockResolver(ctrl)
 
 	authMock := &mockAuthClient{
@@ -104,6 +111,7 @@ func createContext(t *testing.T) *TestContext {
 		contractNotary: contractNotary,
 		authzServer:    authzServer,
 		relyingParty:   relyingParty,
+		verifier:       verifier,
 	}
 
 	requestCtx := audit.TestContext()
@@ -115,6 +123,7 @@ func createContext(t *testing.T) *TestContext {
 		contractClientMock:    contractNotary,
 		authzServerMock:       authzServer,
 		relyingPartyMock:      relyingParty,
+		verifierMock:          verifier,
 		cedentialResolverMock: mockCredentialResolver,
 		wrapper:               Wrapper{Auth: authMock, CredentialResolver: mockCredentialResolver},
 		audit:                 requestCtx,
@@ -554,7 +563,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		params := CreateAccessTokenRequest{GrantType: "unknown type"}
 
 		errorDescription := "grant_type must be: 'urn:ietf:params:oauth:grant-type:jwt-bearer'"
-		expectedResponse := CreateAccessToken400JSONResponse{Description: &errorDescription, Error: errOauthUnsupportedGrant}
+		expectedResponse := CreateAccessToken400JSONResponse{Description: errorDescription, Code: errOauthUnsupportedGrant}
 
 		response, err := ctx.wrapper.CreateAccessToken(ctx.audit, CreateAccessTokenRequestObject{Body: &params})
 
@@ -568,7 +577,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: "invalid jwt"}
 
 		errorDescription := "Assertion must be a valid encoded jwt"
-		expectedResponse := CreateAccessToken400JSONResponse{Description: &errorDescription, Error: errOauthInvalidGrant}
+		expectedResponse := CreateAccessToken400JSONResponse{Description: errorDescription, Code: errOauthInvalidGrant}
 
 		response, err := ctx.wrapper.CreateAccessToken(ctx.audit, CreateAccessTokenRequestObject{Body: &params})
 
@@ -582,11 +591,11 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: validJwt}
 
 		errorDescription := "oh boy"
-		expectedResponse := CreateAccessToken400JSONResponse{Description: &errorDescription, Error: errOauthInvalidRequest}
+		expectedResponse := CreateAccessToken400JSONResponse{Description: errorDescription, Code: errOauthInvalidRequest}
 
-		ctx.authzServerMock.EXPECT().CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth2.ErrorResponse{
-			Description: &errorDescription,
-			Error:       errOauthInvalidRequest,
+		ctx.authzServerMock.EXPECT().CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth2.OAuth2Error{
+			Description: errorDescription,
+			Code:        errOauthInvalidRequest,
 		})
 
 		response, err := ctx.wrapper.CreateAccessToken(ctx.audit, CreateAccessTokenRequestObject{Body: &params})

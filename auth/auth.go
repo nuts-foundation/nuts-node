@@ -49,6 +49,7 @@ type Auth struct {
 	jsonldManager           jsonld.JSONLD
 	authzServer             oauth.AuthorizationServer
 	relyingParty            oauth.RelyingParty
+	verifier                oauth.Verifier
 	contractNotary          services.ContractNotary
 	serviceResolver         didman.CompoundServiceResolver
 	keyStore                crypto.KeyStore
@@ -114,6 +115,10 @@ func (auth *Auth) RelyingParty() oauth.RelyingParty {
 	return auth.relyingParty
 }
 
+func (auth *Auth) Verifier() oauth.Verifier {
+	return auth.verifier
+}
+
 // Configure the Auth struct by creating a validator and create an Irma server
 func (auth *Auth) Configure(config core.ServerConfig) error {
 	if auth.config.Irma.SchemeManager == "" {
@@ -166,6 +171,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenLifeSpan)
 	auth.relyingParty = oauth.NewRelyingParty(auth.vdrInstance.Resolver(), auth.serviceResolver,
 		auth.keyStore, auth.vcr.Wallet(), time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig, config.Strictmode)
+	auth.verifier = oauth.NewVerifier(config.Strictmode, time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig)
 
 	if err := auth.authzServer.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err

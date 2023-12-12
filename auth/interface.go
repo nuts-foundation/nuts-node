@@ -34,6 +34,8 @@ type AuthenticationServices interface {
 	AuthzServer() oauth.AuthorizationServer
 	// RelyingParty returns the oauth.RelyingParty
 	RelyingParty() oauth.RelyingParty
+	// Verifier returns the oauth.Verifier service provider
+	Verifier() oauth.Verifier
 	// ContractNotary returns an instance of ContractNotary
 	ContractNotary() services.ContractNotary
 	// V2APIEnabled returns true if the V2 API is enabled.

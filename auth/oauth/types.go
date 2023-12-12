@@ -130,9 +130,3 @@ type AuthorizationServerMetadata struct {
 	// If omitted, the default value is `pre-registered` (referring to the client), which is currently not supported.
 	ClientIdSchemesSupported []string `json:"client_id_schemes_supported,omitempty"`
 }
-
-// ErrorResponse models an error returned from an OAuth flow according to RFC6749 (https://tools.ietf.org/html/rfc6749#page-45)
-type ErrorResponse struct {
-	Description *string `json:"error_description,omitempty"`
-	Error       string  `json:"error"`
-}

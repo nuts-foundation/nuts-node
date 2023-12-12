@@ -44,6 +44,14 @@ type AuthorizationServer interface {
 	// CreateAccessToken is called by remote Nuts nodes to create an access token,
 	// which can be used to access the local organization's XIS resources.
 	// It returns an oauth.ErrorResponse rather than a regular Go error, because the errors that may be returned are tightly specified.
-	CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.ErrorResponse)
+	CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.OAuth2Error)
 	IntrospectAccessToken(ctx context.Context, token string) (*services.NutsAccessToken, error)
+}
+
+// Verifier implements the OpenID4VP Verifier role.
+type Verifier interface {
+	// AuthorizationServerMetadata returns the metadata of the remote wallet.
+	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
+	// ClientMetadataURL constructs the URL to the client metadata of the local verifier.
+	ClientMetadataURL(webdid did.DID) (*url.URL, error)
 }

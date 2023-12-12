@@ -25,15 +25,6 @@ import (
 	"strings"
 )
 
-const (
-	// authzServerWellKnown is the well-known base path for the oauth authorization server metadata as defined in RFC8414
-	authzServerWellKnown = "/.well-known/oauth-authorization-server"
-	// openidCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in OpenID4VCI specification
-	openidCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
-	// openidCredWalletWellKnown is the well-known path element we created for openid4vci to retrieve the oauth client metadata
-	openidCredWalletWellKnown = "/.well-known/openid-credential-wallet"
-)
-
 // IssuerIdToWellKnown converts the OAuth2 Issuer identity to the specified well-known endpoint by inserting the well-known at the root of the path.
 // It returns no url and an error when issuer is not a valid URL.
 func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url.URL, error) {

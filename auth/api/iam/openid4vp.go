@@ -27,7 +27,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -35,16 +34,133 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	httpNuts "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 )
 
-const sessionExpiry = 5 * time.Minute
+var oauthNonceKey = []string{"oauth", "nonce"}
+
+func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier did.DID, params map[string]string) (HandleAuthorizeRequestResponseObject, error) {
+	// we expect a generic OAuth2 request like this:
+	// GET /iam/123/authorize?response_type=token&client_id=did:web:example.com:iam:456&state=xyz
+	//        &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
+	//    Host: server.com
+	// The following parameters are expected
+	// response_type, REQUIRED.  Value MUST be set to "token".
+	// client_id, REQUIRED. This must be a did:web
+	// redirect_uri, REQUIRED. This must be the client or other node url (client for regular flow, node for popup)
+	// scope, OPTIONAL. The scope that maps to a presentation definition, if not set we just want an empty VP
+	// state, RECOMMENDED.  Opaque value used to maintain state between the request and the callback.
+
+	// first we check the redirect URL because later errors will redirect to this URL
+	// from RFC6749:
+	// If the request fails due to a missing, invalid, or mismatching
+	//   redirection URI, or if the client identifier is missing or invalid,
+	//   the authorization server SHOULD inform the resource owner of the
+	//   error and MUST NOT automatically redirect the user-agent to the
+	//   invalid redirection URI.
+	redirectURI, ok := params[redirectURIParam]
+	if !ok {
+		// todo render error page instead of technical error
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing redirect_uri parameter"}
+	}
+	redirectURL, err := url.Parse(redirectURI)
+	if err != nil {
+		// todo render error page instead of technical error
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid redirect_uri parameter"}
+	}
+	// now we have a valid redirectURL, so all future errors will redirect to this URL using the Oauth2ErrorWriter
+
+	// GET authorization server metadata for wallet
+	walletID, ok := params[clientIDParam]
+	if !ok {
+		return nil, oauthError(oauth.InvalidRequest, "missing client_id parameter", redirectURL)
+	}
+	// the walletDID must be a did:web
+	walletDID, err := did.ParseDID(walletID)
+	if err != nil || walletDID.Method != "web" {
+		return nil, oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", redirectURL)
+	}
+	metadata, err := r.auth.Verifier().AuthorizationServerMetadata(ctx, *walletDID)
+	if err != nil {
+		return nil, oauthError(oauth.ServerError, "failed to get metadata from wallet", redirectURL)
+	}
+	// own generic endpoint
+	ownURL, err := didweb.DIDToURL(verifier)
+	if err != nil {
+		return nil, oauthError(oauth.ServerError, "invalid verifier DID", redirectURL)
+	}
+	// generate presentation_definition_uri based on own presentation_definition endpoint + scope
+	pdURL := ownURL.JoinPath("presentation_definition")
+	presentationDefinitionURI := httpNuts.AddQueryParams(*pdURL, map[string]string{
+		"scope": params[scopeParam],
+	})
+
+	// redirect to wallet authorization endpoint, use direct_post mode
+	// like this:
+	// GET /authorize?
+	//    response_type=vp_token
+	//    &client_id=did:web:example.com:iam:123
+	//    &client_id_scheme=did
+	//    &client_metadata_uri=https%3A%2F%2Fexample.com%2F.well-known%2Fauthorization-server%2Fiam%2F123%2F%2F
+	//    &response_uri=https%3A%2F%2Fexample.com%2Fiam%2F123%2F%2Fresponse
+	//    &presentation_definition_uri=...
+	//    &response_mode=direct_post
+	//    &nonce=n-0S6_WzA2Mj HTTP/1.1
+	walletURL, err := url.Parse(metadata.AuthorizationEndpoint)
+	if err != nil || len(metadata.AuthorizationEndpoint) == 0 {
+		return nil, oauthError(oauth.InvalidRequest, "invalid wallet endpoint", redirectURL)
+	}
+	nonce := crypto.GenerateNonce()
+	callbackURL := *ownURL
+	callbackURL.Path, err = url.JoinPath(callbackURL.Path, "response")
+	if err != nil {
+		return nil, oauthError(oauth.ServerError, "failed to construct redirect path", redirectURL)
+	}
+
+	metadataURL, err := r.auth.Verifier().ClientMetadataURL(verifier)
+	if err != nil {
+		return nil, oauthError(oauth.ServerError, "failed to construct metadata URL", redirectURL)
+	}
+
+	// todo: because of the did scheme, the request needs to be signed using JAR according to §5.7 of the openid4vp spec
+
+	authServerURL := httpNuts.AddQueryParams(*walletURL, map[string]string{
+		responseTypeParam:       responseTypeVPToken,
+		clientIDParam:           verifier.String(),
+		clientIDSchemeParam:     didScheme,
+		responseURIParam:        callbackURL.String(),
+		presentationDefUriParam: presentationDefinitionURI.String(),
+		clientMetadataURIParam:  metadataURL.String(),
+		responseModeParam:       responseModeDirectPost,
+		nonceParam:              nonce,
+	})
+	openid4vpRequest := OAuthSession{
+		ClientID:    verifier.String(),
+		Scope:       params[scopeParam],
+		OwnDID:      verifier,
+		ClientState: nonce,
+		RedirectURI: redirectURL.String(),
+	}
+	// use nonce to store authorization request in session store
+	if err = r.oauthNonceStore().Put(nonce, openid4vpRequest); err != nil {
+		return nil, oauthError(oauth.ServerError, "failed to store server state", redirectURL)
+	}
+
+	return HandleAuthorizeRequest302Response{
+		Headers: HandleAuthorizeRequest302ResponseHeaders{
+			Location: authServerURL.String(),
+		},
+	}, nil
+}
 
 // createPresentationRequest creates a new Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is sent by a verifier to a wallet, to request one or more verifiable credentials as verifiable presentation from the wallet.
-func (r *Wrapper) sendPresentationRequest(ctx context.Context, response http.ResponseWriter, scope string,
+func (r Wrapper) sendPresentationRequest(ctx context.Context, response http.ResponseWriter, scope string,
 	redirectURL url.URL, verifierIdentifier url.URL, walletIdentifier url.URL) error {
 	// TODO: Lookup wallet metadata for correct authorization endpoint. But for Nuts nodes, we derive it from the walletIdentifier
 	authzEndpoint := walletIdentifier.JoinPath("/authorize")
@@ -91,7 +207,7 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *O
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: "response_mode must be direct_post",
-			RedirectURI: session.RedirectURI,
+			RedirectURI: session.redirectURI(),
 		}
 	}
 
@@ -102,7 +218,7 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *O
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", params[scopeParam]),
-			RedirectURI: session.RedirectURI,
+			RedirectURI: session.redirectURI(),
 		}
 	}
 
@@ -174,7 +290,7 @@ func (r *Wrapper) handlePresentationRequest(params map[string]string, session *O
 }
 
 // handleAuthConsent handles the authorization consent form submission.
-func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
+func (r Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	// TODO: Needs authentication?
 	sessionID := c.FormValue("sessionID")
 	if sessionID == "" {
@@ -234,7 +350,7 @@ func (r *Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 	return c.Redirect(http.StatusFound, session.CreateRedirectURI(resultParams))
 }
 
-func (r *Wrapper) handlePresentationRequestCompleted(ctx echo.Context) error {
+func (r Wrapper) handlePresentationRequestCompleted(ctx echo.Context) error {
 	// TODO: response direct_post mode
 	vpToken := ctx.QueryParams()[vpTokenParam]
 	if len(vpToken) == 0 {
@@ -262,6 +378,10 @@ func (r *Wrapper) handlePresentationRequestCompleted(ctx echo.Context) error {
 	return ctx.HTML(http.StatusOK, buf.String())
 }
 
+func (r Wrapper) oauthNonceStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthNonceKey...)
+}
+
 func assertParamPresent(params map[string]string, param ...string) error {
 	for _, curr := range param {
 		if len(params[curr]) == 0 {
@@ -278,4 +398,12 @@ func assertParamNotPresent(params map[string]string, param ...string) error {
 		}
 	}
 	return nil
+}
+
+func oauthError(code oauth.ErrorCode, description string, redirectURL *url.URL) oauth.OAuth2Error {
+	return oauth.OAuth2Error{
+		Code:        code,
+		Description: description,
+		RedirectURI: redirectURL,
+	}
 }

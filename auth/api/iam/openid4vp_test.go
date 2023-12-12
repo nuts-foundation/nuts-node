@@ -43,6 +43,63 @@ import (
 var holderDID = did.MustParseDID("did:web:example.com:holder")
 var issuerDID = did.MustParseDID("did:web:example.com:issuer")
 
+func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
+	defaultParams := func() map[string]string {
+		return map[string]string{
+			clientIDParam:     holderDID.String(),
+			redirectURIParam:  "https://example.com",
+			responseTypeParam: "code",
+			scopeParam:        "test",
+		}
+	}
+
+	t.Run("missing client_id", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, clientIDParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing client_id parameter")
+	})
+	t.Run("invalid client_id", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		params[clientIDParam] = "did:nuts:1"
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)")
+	})
+	t.Run("error on authorization server metadata", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.verifierRole.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(nil, assert.AnError)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
+
+		requireOAuthError(t, err, oauth.ServerError, "failed to get metadata from wallet")
+	})
+	t.Run("failed to generate verifier web url", func(t *testing.T) {
+		ctx := newTestClient(t)
+		verifierDID := did.MustParseDID("did:notweb:example.com:verifier")
+		ctx.verifierRole.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
+
+		requireOAuthError(t, err, oauth.ServerError, "invalid verifier DID")
+	})
+	t.Run("incorrect holder AuthorizationEndpoint URL", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.verifierRole.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+			AuthorizationEndpoint: "://example.com",
+		}, nil)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid wallet endpoint")
+	})
+}
+
 func TestWrapper_sendPresentationRequest(t *testing.T) {
 	instance := New(nil, nil, nil, nil)
 

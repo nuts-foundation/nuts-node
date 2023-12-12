@@ -24,21 +24,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/test"
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	vcr "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -61,7 +61,7 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		httpServer := httptest.NewServer(httpHandler)
 		t.Cleanup(httpServer.Close)
 
-		response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, mustParseURL(httpServer.URL))
+		response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpServer.URL))
 
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
@@ -74,7 +74,7 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		})
 		t.Cleanup(server.Close)
 
-		response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, mustParseURL(server.URL))
+		response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(server.URL))
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 502 (expected: 200)")
@@ -94,7 +94,7 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		t.Run("HTTPS in strict mode", func(t *testing.T) {
 			ctx.relyingParty.strictMode = true
 
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, mustParseURL(httpsServer.URL))
+			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpsServer.URL))
 
 			assert.NoError(t, err)
 			assert.NotNil(t, response)
@@ -102,7 +102,7 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		t.Run("HTTP allowed in non-strict mode", func(t *testing.T) {
 			ctx.relyingParty.strictMode = false
 
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, mustParseURL(httpServer.URL))
+			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpServer.URL))
 
 			assert.NoError(t, err)
 			assert.NotNil(t, response)
@@ -110,7 +110,7 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		t.Run("HTTP not allowed in strict mode", func(t *testing.T) {
 			ctx.relyingParty.strictMode = true
 
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, mustParseURL(httpServer.URL))
+			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpServer.URL))
 
 			assert.EqualError(t, err, fmt.Sprintf("authorization server endpoint must be HTTPS when in strict mode: %s", httpServer.URL))
 			assert.Nil(t, response)
@@ -559,12 +559,4 @@ func createOAuthRPContext(t *testing.T) *rpOAuthTestContext {
 	ctx.authzServerMetadata = authzServerMetadata
 
 	return ctx
-}
-
-func mustParseURL(str string) url.URL {
-	u, err := url.Parse(str)
-	if err != nil {
-		panic(err)
-	}
-	return *u
 }

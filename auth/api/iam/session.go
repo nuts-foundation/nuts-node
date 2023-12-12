@@ -57,3 +57,8 @@ func (s OAuthSession) CreateRedirectURI(params map[string]string) string {
 	r := http.AddQueryParams(*redirectURI, params)
 	return r.String()
 }
+
+func (s OAuthSession) redirectURI() *url.URL {
+	redirectURL, _ := url.Parse(s.RedirectURI)
+	return redirectURL
+}

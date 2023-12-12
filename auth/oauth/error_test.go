@@ -21,6 +21,7 @@ package oauth
 import (
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
@@ -48,7 +49,7 @@ func Test_oauth2ErrorWriter_Write(t *testing.T) {
 		err := Oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
 			Code:        InvalidRequest,
 			Description: "failure",
-			RedirectURI: "https://example.com",
+			RedirectURI: test.MustParseURL("https://example.com"),
 		})
 
 		assert.NoError(t, err)

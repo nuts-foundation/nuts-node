@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,20 +16,14 @@
  *
  */
 
-package v1
+package test
 
-import (
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-)
+import "net/url"
 
-// VerifiableCredential is an alias to use from within the API
-type VerifiableCredential = vc.VerifiableCredential
-
-// VerifiablePresentation is an alias to use from within the API
-type VerifiablePresentation = vc.VerifiablePresentation
-
-// AccessTokenResponse is an alias to use from within the API
-type AccessTokenResponse = oauth.TokenResponse
-
-type AccessTokenRequestFailedResponse = oauth.OAuth2Error
+func MustParseURL(str string) *url.URL {
+	u, err := url.Parse(str)
+	if err != nil {
+		panic(err)
+	}
+	return u
+}
