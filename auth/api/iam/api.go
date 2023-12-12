@@ -170,18 +170,21 @@ func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAc
 	// Validate token
 	if request.Body.Token == "" {
 		// Return 200 + 'Active = false' when token is invalid or malformed
+		log.Logger().Debug("IntrospectAccessToken: missing token")
 		return IntrospectAccessToken200JSONResponse{}, nil
 	}
 
 	token := AccessToken{}
 	if err := r.accessTokenStore().Get(request.Body.Token, &token); err != nil {
 		// Return 200 + 'Active = false' when token is invalid or malformed
+		log.Logger().Debug("IntrospectAccessToken: failed to get token from store")
 		return IntrospectAccessToken200JSONResponse{}, err
 	}
 
 	if token.Expiration.Before(time.Now()) {
 		// Return 200 + 'Active = false' when token is invalid or malformed
 		// can happen between token expiration and pruning of database
+		log.Logger().Debug("IntrospectAccessToken: token is expired")
 		return IntrospectAccessToken200JSONResponse{}, nil
 	}
 
@@ -215,12 +218,14 @@ func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAc
 	var err error
 	response.PresentationDefinition, err = toAnyMap(token.PresentationDefinition)
 	if err != nil {
+		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to marshal presentation definition")
 		return IntrospectAccessToken200JSONResponse{}, err
 	}
 
 	// set presentation submission if in token
 	response.PresentationSubmission, err = toAnyMap(token.PresentationSubmission)
 	if err != nil {
+		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to marshal presentation submission")
 		return IntrospectAccessToken200JSONResponse{}, err
 	}
 	return response, nil
