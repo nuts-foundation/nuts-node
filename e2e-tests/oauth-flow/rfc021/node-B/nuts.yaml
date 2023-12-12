@@ -17,7 +17,3 @@ tls:
   truststorefile: /opt/nuts/truststore.pem
   certfile: /opt/nuts/certificate-and-key.pem
   certkeyfile: /opt/nuts/certificate-and-key.pem
-<<<<<<< HEAD
-=======
-
->>>>>>> 3e996fc8 (add start of authorization request flow for user)
