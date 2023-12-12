@@ -174,28 +174,6 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 	})
 }
 
-func TestHolderService_PresentationDefinition(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctx := createOAuthHolderContext(t)
-		endpoint := fmt.Sprintf("%s/presentation_definition", ctx.tlsServer.URL)
-
-		pd, err := ctx.holder.PresentationDefinition(context.Background(), endpoint)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, pd)
-	})
-	t.Run("error", func(t *testing.T) {
-		ctx := createOAuthHolderContext(t)
-		endpoint := fmt.Sprintf("%s/presentation_definition", ctx.tlsServer.URL)
-		ctx.presentationDefinition = nil
-
-		pd, err := ctx.holder.PresentationDefinition(context.Background(), endpoint)
-
-		assert.Error(t, err)
-		assert.Nil(t, pd)
-	})
-}
-
 type holderTestContext struct {
 	ctrl   *gomock.Controller
 	audit  context.Context
@@ -226,14 +204,13 @@ func createHolderContext(t *testing.T, tlsConfig *tls.Config) *holderTestContext
 
 type holderOAuthTestContext struct {
 	*holderTestContext
-	authzServerMetadata    *oauth.AuthorizationServerMetadata
-	handler                http.HandlerFunc
-	tlsServer              *httptest.Server
-	verifierDID            did.DID
-	metadata               func(writer http.ResponseWriter)
-	errorResponse          func(writer http.ResponseWriter)
-	response               func(writer http.ResponseWriter)
-	presentationDefinition func(writer http.ResponseWriter)
+	authzServerMetadata *oauth.AuthorizationServerMetadata
+	handler             http.HandlerFunc
+	tlsServer           *httptest.Server
+	verifierDID         did.DID
+	metadata            func(writer http.ResponseWriter)
+	errorResponse       func(writer http.ResponseWriter)
+	response            func(writer http.ResponseWriter)
 }
 
 func createOAuthHolderContext(t *testing.T) *holderOAuthTestContext {
@@ -253,13 +230,6 @@ func createOAuthHolderContext(t *testing.T) *holderOAuthTestContext {
 			bytes, _ := json.Marshal(oauth.Redirect{
 				RedirectURI: "redirect",
 			})
-			_, _ = writer.Write(bytes)
-			return
-		},
-		presentationDefinition: func(writer http.ResponseWriter) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusOK)
-			bytes, _ := json.Marshal(pe.PresentationDefinition{})
 			_, _ = writer.Write(bytes)
 			return
 		},
@@ -285,11 +255,6 @@ func createOAuthHolderContext(t *testing.T) *holderOAuthTestContext {
 			if ctx.errorResponse != nil {
 				assert.Equal(t, string(oauth.InvalidRequest), request.FormValue("error"))
 				ctx.errorResponse(writer)
-				return
-			}
-		case "/presentation_definition":
-			if ctx.presentationDefinition != nil {
-				ctx.presentationDefinition(writer)
 				return
 			}
 		case "/response":

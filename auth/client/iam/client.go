@@ -104,7 +104,7 @@ func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oaut
 		return nil, err
 	}
 	var metadata oauth.OAuthClientMetadata
-	return &metadata, hb.doRequest(request, &metadata)
+	return &metadata, hb.doRequest(ctx, request, &metadata)
 }
 
 // PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
@@ -115,7 +115,7 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 		return nil, err
 	}
 	var presentationDefinition pe.PresentationDefinition
-	return &presentationDefinition, hb.doRequest(request, &presentationDefinition)
+	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
 }
 
 func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp vc.VerifiablePresentation, submission pe.PresentationSubmission, scopes string) (oauth.TokenResponse, error) {
@@ -205,14 +205,14 @@ func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values
 	request.Header.Add("Accept", "application/json")
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	var redirect oauth.Redirect
-	if err := hb.doRequest(request, &redirect); err != nil {
+	if err := hb.doRequest(ctx, request, &redirect); err != nil {
 		return "", err
 	}
 	return redirect.RedirectURI, nil
 }
 
-func (hb HTTPClient) doRequest(request *http.Request, target interface{}) error {
-	response, err := hb.httpClient.Do(request)
+func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, target interface{}) error {
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("failed to call endpoint: %w", err)
 	}
