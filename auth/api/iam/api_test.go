@@ -72,8 +72,8 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: webIDPart})
 
-		assert.Equal(t, 404, statusCodeFrom(err))
-		assert.EqualError(t, err, "authz server metadata: did not owned")
+		assert.Equal(t, 400, statusCodeFrom(err))
+		assert.EqualError(t, err, "invalid_request - issuer DID not owned by the server")
 		assert.Nil(t, res)
 	})
 	t.Run("error - did does not exist", func(t *testing.T) {
@@ -83,8 +83,8 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: webIDPart})
 
-		assert.Equal(t, 404, statusCodeFrom(err))
-		assert.EqualError(t, err, "authz server metadata: unable to find the DID document")
+		assert.Equal(t, 400, statusCodeFrom(err))
+		assert.EqualError(t, err, "invalid_request - invalid issuer DID: unable to find the DID document")
 		assert.Nil(t, res)
 	})
 	t.Run("error - internal error 500", func(t *testing.T) {
@@ -95,7 +95,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: webIDPart})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
-		assert.EqualError(t, err, "server_error - failed to assert ownership of did")
+		assert.EqualError(t, err, "DID resolution failed: unknown error")
 		assert.Nil(t, res)
 	})
 }
@@ -154,7 +154,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 
 		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: webIDPart})
 
-		assert.Equal(t, 404, statusCodeFrom(err))
+		assert.Equal(t, 400, statusCodeFrom(err))
 		assert.Nil(t, res)
 	})
 	t.Run("error - internal error 500", func(t *testing.T) {
@@ -164,7 +164,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: webIDPart})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
-		assert.EqualError(t, err, "server_error - failed to assert ownership of did")
+		assert.EqualError(t, err, "DID resolution failed: unknown error")
 		assert.Nil(t, res)
 	})
 }
@@ -397,7 +397,7 @@ func statusCodeFrom(err error) int {
 	if errors.As(err, &SE) {
 		return SE.StatusCode()
 	}
-	return 0
+	return 500
 }
 
 type testCtx struct {

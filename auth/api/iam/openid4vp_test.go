@@ -69,34 +69,34 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id parameter")
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)")
 	})
 	t.Run("error on authorization server metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.verifier.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(nil, assert.AnError)
+		ctx.verifierRole.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
 
-		requireOAuthError(t, err, oauth.ServerError, "failed to get authorization server metadata (holder)")
+		requireOAuthError(t, err, oauth.ServerError, "failed to get metadata from wallet")
 	})
 	t.Run("failed to generate verifier web url", func(t *testing.T) {
 		ctx := newTestClient(t)
 		verifierDID := did.MustParseDID("did:notweb:example.com:verifier")
-		ctx.verifier.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
+		ctx.verifierRole.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
 
-		requireOAuthError(t, err, oauth.ServerError, "failed to translate own did to URL")
+		requireOAuthError(t, err, oauth.ServerError, "invalid verifier DID")
 	})
 	t.Run("incorrect holder AuthorizationEndpoint URL", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.verifier.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+		ctx.verifierRole.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
 			AuthorizationEndpoint: "://example.com",
 		}, nil)
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid authorization_endpoint (holder)")
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid wallet endpoint")
 	})
 }
 
