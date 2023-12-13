@@ -89,7 +89,7 @@ func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.Verifiab
 
 	if validateVC {
 		for _, cred := range credentials {
-			err := h.verifier.Validate(cred, &options.ProofOptions.Created)
+			err := h.verifier.VerifySignature(cred, &options.ProofOptions.Created)
 			if err != nil {
 				return nil, core.InvalidInputError("invalid credential (id=%s): %w", cred.ID, err)
 			}

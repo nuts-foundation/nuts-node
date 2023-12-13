@@ -80,6 +80,9 @@ func (o ProofOptions) ValidAt(at time.Time, maxSkew time.Duration) bool {
 	return true
 }
 
+var _ Proof = (*LDProof)(nil)
+var _ ProofVerifier = (*LDProof)(nil)
+
 // LDProof contains the fields of the Proof data model: https://w3c-ccg.github.io/data-integrity-spec/#proofs
 type LDProof struct {
 	ProofOptions

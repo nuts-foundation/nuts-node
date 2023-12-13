@@ -86,20 +86,6 @@ func (mr *MockVerifierMockRecorder) RegisterRevocation(revocation any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterRevocation", reflect.TypeOf((*MockVerifier)(nil).RegisterRevocation), revocation)
 }
 
-// Validate mocks base method.
-func (m *MockVerifier) Validate(credentialToVerify vc.VerifiableCredential, at *time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", credentialToVerify, at)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Validate indicates an expected call of Validate.
-func (mr *MockVerifierMockRecorder) Validate(credentialToVerify, at any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockVerifier)(nil).Validate), credentialToVerify, at)
-}
-
 // Verify mocks base method.
 func (m *MockVerifier) Verify(credential vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
 	m.ctrl.T.Helper()
@@ -112,6 +98,20 @@ func (m *MockVerifier) Verify(credential vc.VerifiableCredential, allowUntrusted
 func (mr *MockVerifierMockRecorder) Verify(credential, allowUntrusted, checkSignature, validAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify), credential, allowUntrusted, checkSignature, validAt)
+}
+
+// VerifySignature mocks base method.
+func (m *MockVerifier) VerifySignature(credentialToVerify vc.VerifiableCredential, at *time.Time) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VerifySignature", credentialToVerify, at)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// VerifySignature indicates an expected call of VerifySignature.
+func (mr *MockVerifierMockRecorder) VerifySignature(credentialToVerify, at any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifySignature", reflect.TypeOf((*MockVerifier)(nil).VerifySignature), credentialToVerify, at)
 }
 
 // VerifyVP mocks base method.
