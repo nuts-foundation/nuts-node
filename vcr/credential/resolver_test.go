@@ -20,9 +20,13 @@
 package credential
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/require"
@@ -69,20 +73,42 @@ func TestExtractTypes(t *testing.T) {
 func TestPresentationSigner(t *testing.T) {
 	keyID := did.MustParseDIDURL("did:example:issuer#1")
 	t.Run("JWT", func(t *testing.T) {
-		keyStore := crypto.NewMemoryCryptoInstance()
-		key, err := keyStore.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
-		require.NoError(t, err)
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		t.Run("ok", func(t *testing.T) {
-			claims := map[string]any{}
-			headers := map[string]any{}
-			signedToken, err := keyStore.SignJWT(audit.TestContext(), claims, headers, key.KID())
+			headers := jws.NewHeaders()
+			headers.Set(jws.KeyIDKey, keyID.String())
+			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
 			require.NoError(t, err)
-			presentation, err := vc.ParseVerifiablePresentation(signedToken)
+			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
 			require.NoError(t, err)
 
 			actual, err := PresentationSigner(*presentation)
 			require.NoError(t, err)
 			assert.Equal(t, keyID.DID, *actual)
+		})
+		t.Run("no kid header", func(t *testing.T) {
+			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256, privateKey))
+			require.NoError(t, err)
+			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
+			require.NoError(t, err)
+
+			actual, err := PresentationSigner(*presentation)
+
+			assert.EqualError(t, err, "no kid header in JWT")
+			assert.Nil(t, actual)
+		})
+		t.Run("kid is not a did", func(t *testing.T) {
+			headers := jws.NewHeaders()
+			require.NoError(t, headers.Set(jws.KeyIDKey, "not a did"))
+			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
+			require.NoError(t, err)
+			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
+			require.NoError(t, err)
+
+			actual, err := PresentationSigner(*presentation)
+
+			assert.EqualError(t, err, "cannot parse kid as did: invalid DID")
+			assert.Nil(t, actual)
 		})
 	})
 	t.Run("JSON-LD", func(t *testing.T) {
