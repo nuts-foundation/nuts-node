@@ -19,16 +19,14 @@
 package test
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
+	"context"
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/require"
@@ -38,10 +36,8 @@ import (
 
 // CreateJWTPresentation creates a JWT presentation with the given subject DID and credentials.
 func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(token jwt.Token), credentials ...vc.VerifiableCredential) vc.VerifiablePresentation {
-	headers := jws.NewHeaders()
-	require.NoError(t, headers.Set(jws.TypeKey, "JWT"))
+	headers := map[string]any{jws.TypeKey: "JWT"}
 	claims := map[string]interface{}{
-		jwt.IssuerKey:     subjectDID.String(),
 		jwt.SubjectKey:    subjectDID.String(),
 		jwt.JwtIDKey:      subjectDID.String() + "#" + uuid.NewString(),
 		jwt.NotBeforeKey:  time.Now().Unix(),
@@ -59,9 +55,12 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 	if tokenVisitor != nil {
 		tokenVisitor(unsignedToken)
 	}
-	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	token, _ := jwt.Sign(unsignedToken, jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
-	result, err := vc.ParseVerifiablePresentation(string(token))
+	keyStore := crypto.NewMemoryCryptoInstance()
+	key, err := keyStore.New(audit.TestContext(), crypto.StringNamingFunc(subjectDID.String()))
+	require.NoError(t, err)
+	claims, err = unsignedToken.AsMap(context.Background())
+	signedToken, err := keyStore.SignJWT(audit.TestContext(), claims, headers, key.KID())
+	result, err := vc.ParseVerifiablePresentation(signedToken)
 	require.NoError(t, err)
 	return *result
 }

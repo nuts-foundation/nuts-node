@@ -116,7 +116,6 @@ func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, cr
 	id := did.DIDURL{DID: subjectDID}
 	id.Fragment = strings.ToLower(uuid.NewString())
 	claims := map[string]interface{}{
-		jwt.IssuerKey:  subjectDID.String(),
 		jwt.SubjectKey: subjectDID.String(),
 		jwt.JwtIDKey:   id.String(),
 		"vp": vc.VerifiablePresentation{
