@@ -333,7 +333,6 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			assert.EqualError(t, err, "unable to validate JWT signature: \"exp\" not satisfied")
 			assert.Empty(t, vcs)
 		})
-
 		t.Run("VP signer != VC credentialSubject.id", func(t *testing.T) {
 			// This VP was produced by a Sphereon Wallet, using did:key. The signer of the VP is a did:key,
 			// but the holder of the contained credential is a did:jwt. So the presenter is not the holder. Weird?
