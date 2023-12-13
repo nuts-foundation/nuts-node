@@ -211,7 +211,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	metadata := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint: "https://example.com/holder/authorize",
 	}
-	t.Run("ok - from holder", func(t *testing.T) {
+	t.Run("ok - code response type - from holder", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.verifierRole.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&metadata, nil)
@@ -220,7 +220,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
 			clientIDParam:     holderDID.String(),
 			redirectURIParam:  "https://example.com",
-			responseTypeParam: "code",
+			responseTypeParam: responseTypeCode,
 			scopeParam:        "test",
 		}), HandleAuthorizeRequestRequestObject{
 			Id: "verifier",
@@ -239,6 +239,42 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		assert.Contains(t, location, "response_mode=direct_post")
 		assert.Contains(t, location, "response_type=vp_token")
 
+	})
+	t.Run("ok - vp_token response type - from verifier", func(t *testing.T) {
+		ctx := newTestClient(t)
+		_ = ctx.client.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...).Put("state", OAuthSession{
+			// this is the state from the holder that was stored at the creation of the first authorization request to the verifier
+			ClientID:     holderDID.String(),
+			Scope:        "test",
+			OwnDID:       holderDID,
+			ClientState:  "state",
+			RedirectURI:  "https://example.com/iam/holder/cb",
+			ResponseType: "code",
+		})
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&metadata, nil)
+		ctx.relyingParty.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(&pe.PresentationDefinition{}, nil)
+		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, metadata, "nonce").Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
+		ctx.holderRole.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/iam/verifier/response").Return("https://example.com/iam/holder/redirect", nil)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
+			clientIDParam:           verifierDID.String(),
+			clientIDSchemeParam:     didScheme,
+			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
+			nonceParam:              "nonce",
+			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
+			responseURIParam:        "https://example.com/iam/verifier/response",
+			responseTypeParam:       responseTypeVPToken,
+			scopeParam:              "test",
+			stateParam:              "state",
+		}), HandleAuthorizeRequestRequestObject{
+			Id: "holder",
+		})
+
+		require.NoError(t, err)
+		assert.IsType(t, HandleAuthorizeRequest302Response{}, res)
+		location := res.(HandleAuthorizeRequest302Response).Headers.Location
+		assert.Equal(t, location, "https://example.com/iam/holder/redirect")
 	})
 	t.Run("missing redirect_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -410,6 +446,7 @@ type testCtx struct {
 	vcVerifier    *verifier.MockVerifier
 	vcr           *vcr.MockVCR
 	verifierRole  *oauthServices.MockVerifier
+	holderRole    *oauthServices.MockHolder
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -424,6 +461,7 @@ func newTestClient(t testing.TB) *testCtx {
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
 	vcVerifier := verifier.NewMockVerifier(ctrl)
 	verifierRole := oauthServices.NewMockVerifier(ctrl)
+	holderRole := oauthServices.NewMockHolder(ctrl)
 	mockVDR := vdr.NewMockVDR(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
 
@@ -431,6 +469,7 @@ func newTestClient(t testing.TB) *testCtx {
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
 	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
 	authnServices.EXPECT().Verifier().Return(verifierRole).AnyTimes()
+	authnServices.EXPECT().Holder().Return(holderRole).AnyTimes()
 	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
 
 	return &testCtx{
@@ -441,6 +480,7 @@ func newTestClient(t testing.TB) *testCtx {
 		resolver:      mockResolver,
 		vdr:           mockVDR,
 		verifierRole:  verifierRole,
+		holderRole:    holderRole,
 		vcr:           mockVCR,
 		client: &Wrapper{
 			auth:          authnServices,

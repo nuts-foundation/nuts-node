@@ -24,6 +24,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
@@ -39,9 +43,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
-	"net/http"
-	"net/url"
-	"strings"
 )
 
 var oauthNonceKey = []string{"oauth", "nonce"}

@@ -257,17 +257,8 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	for key, value := range httpRequest.URL.Query() {
 		params[key] = value[0]
 	}
+	// todo: store session in database? Isn't session specific for a particular flow?
 	session := createSession(params, *ownDID)
-	if session.RedirectURI == "" {
-		// TODO: Spec says that the redirect URI is optional, but it's not clear what to do if it's not provided.
-		//       Threat models say it's unsafe to omit redirect_uri.
-		//       See https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: "redirect_uri is required",
-		}
-	}
-	// todo: store session in database?
 
 	switch session.ResponseType {
 	case responseTypeCode:

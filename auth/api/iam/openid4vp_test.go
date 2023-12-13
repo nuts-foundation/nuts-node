@@ -40,8 +40,8 @@ import (
 	"testing"
 )
 
-var holderDID = did.MustParseDID("did:web:example.com:holder")
-var issuerDID = did.MustParseDID("did:web:example.com:issuer")
+var holderDID = did.MustParseDID("did:web:example.com:iam:holder")
+var issuerDID = did.MustParseDID("did:web:example.com:iam:issuer")
 
 func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	defaultParams := func() map[string]string {
@@ -98,6 +98,54 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid wallet endpoint")
 	})
+}
+
+func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
+	responseURI := "https://example.com/iam/verifier/response"
+	defaultParams := func() map[string]string {
+		return map[string]string{
+			clientIDParam:           verifierDID.String(),
+			clientIDSchemeParam:     didScheme,
+			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
+			nonceParam:              "nonce",
+			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
+			responseURIParam:        responseURI,
+			responseTypeParam:       responseTypeVPToken,
+			scopeParam:              "test",
+			stateParam:              "state",
+		}
+	}
+	putState := func(ctx *testCtx, state string) {
+		_ = ctx.client.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...).Put(state, OAuthSession{
+			// this is the state from the holder that was stored at the creation of the first authorization request to the verifier
+			ClientID:     holderDID.String(),
+			Scope:        "test",
+			OwnDID:       holderDID,
+			ClientState:  "state",
+			RedirectURI:  "https://example.com/iam/holder/cb",
+			ResponseType: "code",
+		})
+	}
+
+	t.Run("missing client_id", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		putState(ctx, "state")
+		delete(params, clientIDParam)
+		ctx.holderRole.EXPECT().PostError(gomock.Any(), gomock.Any(), responseURI).DoAndReturn(func(ctx context.Context, err oauth.OAuth2Error, responseURI string) (string, error) {
+			assert.Equal(t, oauth.InvalidRequest, err.Code)
+			assert.Equal(t, "missing client_id parameter", err.Description)
+			require.NotNil(t, err.RedirectURI)
+			assert.Equal(t, "https://example.com/iam/holder/cb", err.RedirectURI.String())
+			return "redirect", nil
+		})
+
+		response, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+
+		require.NoError(t, err)
+		assert.Equal(t, "redirect", response.(HandleAuthorizeRequest302Response).Headers.Location)
+	})
+	// todo other error conditions
 }
 
 func TestWrapper_sendPresentationRequest(t *testing.T) {

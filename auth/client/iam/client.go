@@ -226,29 +226,8 @@ func (hb HTTPClient) PostError(ctx context.Context, auth2Error oauth.OAuth2Error
 	data := url.Values{}
 	data.Set(oauth.ErrorParam, string(auth2Error.Code))
 	data.Set(oauth.ErrorDescriptionParam, auth2Error.Description)
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, verifierCallbackURL, strings.NewReader(data.Encode()))
-	request.Header.Add("Accept", "application/json")
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	if err != nil {
-		return "", err
-	}
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return "", err
-	}
-	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		return "", err
-	}
-	// take the redirectURL from the response body and return it
-	var responseData []byte
-	if responseData, err = io.ReadAll(response.Body); err != nil {
-		return "", fmt.Errorf("unable to read response: %w", err)
-	}
-	var redirect oauth.Redirect
-	if err = json.Unmarshal(responseData, &redirect); err != nil {
-		return "", fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
-	}
-	return redirect.RedirectURI, nil
+
+	return hb.postFormExpectRedirect(ctx, data, verifierCallbackURL)
 }
 
 func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (string, error) {
@@ -257,7 +236,12 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 	data := url.Values{}
 	data.Set(oauth.VpTokenParam, vp.Raw())
 	data.Set(oauth.PresentationSubmissionParam, string(psBytes))
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, verifierResponseURI, strings.NewReader(data.Encode()))
+
+	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
+}
+
+func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL string) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", err
 	}
@@ -278,7 +262,7 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 	}
 	var redirect oauth.Redirect
 	if err = json.Unmarshal(responseData, &redirect); err != nil {
-		return "", fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
+		return "", fmt.Errorf("unable to unmarshal response: %w", err)
 	}
 	return redirect.RedirectURI, nil
 }

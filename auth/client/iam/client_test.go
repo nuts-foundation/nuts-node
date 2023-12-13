@@ -20,6 +20,13 @@ package iam
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -29,11 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"testing"
-	"time"
 )
 
 func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
@@ -236,6 +238,94 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		httpError, ok := err.(core.HttpError)
 		require.True(t, ok)
 		assert.Equal(t, "offline", string(httpError.ResponseBody))
+	})
+}
+
+func TestHTTPClient_PostError(t *testing.T) {
+	redirectReturn := oauth.Redirect{
+		RedirectURI: "http://test.test",
+	}
+	//bytes, _ := json.Marshal(redirectReturn)
+	t.Run("ok", func(t *testing.T) {
+		ctx := context.Background()
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: redirectReturn}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		redirectURI, err := client.PostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "test"}, tlsServer.URL)
+
+		require.NoError(t, err)
+		assert.Equal(t, redirectReturn.RedirectURI, redirectURI)
+	})
+}
+
+func TestHTTPClient_PostAuthorizationResponse(t *testing.T) {
+	presentation := vc.VerifiablePresentation{ID: &ssi.URI{URL: url.URL{Scheme: "https", Host: "test.test"}}}
+	submission := pe.PresentationSubmission{Id: "id"}
+	redirectReturn := oauth.Redirect{
+		RedirectURI: "http://test.test",
+	}
+	t.Run("ok", func(t *testing.T) {
+		ctx := context.Background()
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: redirectReturn}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		redirectURI, err := client.PostAuthorizationResponse(ctx, presentation, submission, tlsServer.URL)
+
+		require.NoError(t, err)
+		assert.Equal(t, redirectReturn.RedirectURI, redirectURI)
+	})
+}
+
+func TestHTTPClient_postFormExpectRedirect(t *testing.T) {
+	redirectReturn := oauth.Redirect{
+		RedirectURI: "http://test.test",
+	}
+	data := url.Values{}
+	data.Set("test", "test")
+
+	t.Run("error - invalid URL", func(t *testing.T) {
+		ctx := context.Background()
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: redirectReturn}
+		_, client := testServerAndClient(t, &handler)
+
+		redirectURI, err := client.postFormExpectRedirect(ctx, data, ":")
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+		assert.Empty(t, redirectURI)
+	})
+	t.Run("error - unknown host", func(t *testing.T) {
+		ctx := context.Background()
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: redirectReturn}
+		_, client := testServerAndClient(t, &handler)
+
+		redirectURI, err := client.postFormExpectRedirect(ctx, data, "http://localhost")
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "connection refused")
+		assert.Empty(t, redirectURI)
+	})
+	t.Run("error - invalid response", func(t *testing.T) {
+		ctx := context.Background()
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		redirectURI, err := client.postFormExpectRedirect(ctx, data, tlsServer.URL)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value")
+		assert.Empty(t, redirectURI)
+	})
+	t.Run("error - server error", func(t *testing.T) {
+		ctx := context.Background()
+		handler := http2.Handler{StatusCode: http.StatusBadGateway, ResponseData: "offline"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		redirectURI, err := client.postFormExpectRedirect(ctx, data, tlsServer.URL)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "server returned HTTP 502 (expected: 200)")
+		assert.Empty(t, redirectURI)
 	})
 }
 
