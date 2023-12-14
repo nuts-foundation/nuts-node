@@ -227,7 +227,15 @@ func (v verifier) VerifyVP(vp vc.VerifiablePresentation, verifyVCs bool, allowUn
 
 // doVerifyVP delegates VC verification to the supplied Verifier, to aid unit testing.
 func (v verifier) doVerifyVP(vcVerifier Verifier, presentation vc.VerifiablePresentation, verifyVCs bool, allowUntrustedVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
-	err := v.signatureVerifier.verifyVPSignature(presentation, validAt)
+	// custom requirement: credentials may only be presented by subject
+	if subjectDID, err := credential.PresenterIsCredentialSubject(presentation); err != nil {
+		return nil, newVerificationError("presenter is credential subject: %w", err)
+	} else if subjectDID == nil {
+		return nil, newVerificationError("credential(s) must be presented by subject")
+	}
+
+	// check signature
+	err := v.signatureVerifier.VerifyVPSignature(presentation, validAt)
 	if err != nil {
 		return nil, err
 	}

@@ -100,7 +100,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 
 			err = sv.VerifySignature(*cred, nil)
 
-			assert.EqualError(t, err, "unable to validate JWT credential: could not verify message using any of the signatures or keys")
+			assert.EqualError(t, err, "unable to validate JWT signature: could not verify message using any of the signatures or keys")
 		})
 		t.Run("expired token", func(t *testing.T) {
 			// Credential taken from Sphereon Wallet, expires on Tue Oct 03 2023
@@ -114,7 +114,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			}
 			err := sv.VerifySignature(*cred, nil)
 
-			assert.EqualError(t, err, "unable to validate JWT credential: \"exp\" not satisfied")
+			assert.EqualError(t, err, "unable to validate JWT signature: \"exp\" not satisfied")
 		})
 		t.Run("without kid header, derived from issuer", func(t *testing.T) {
 			// Credential taken from Sphereon Wallet

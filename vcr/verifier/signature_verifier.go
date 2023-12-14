@@ -24,7 +24,7 @@ type signatureVerifier struct {
 	jsonldManager jsonld.JSONLD
 }
 
-// VerifySignature implements the Proof Verification Algorithm: https://w3c-ccg.github.io/data-integrity-spec/#proof-verification-algorithm
+// VerifySignature checks if the signature on a VP is valid at a given time
 func (sv *signatureVerifier) VerifySignature(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 	switch credentialToVerify.Format() {
 	case issuer.JSONLDCredentialFormat:
@@ -36,8 +36,8 @@ func (sv *signatureVerifier) VerifySignature(credentialToVerify vc.VerifiableCre
 	}
 }
 
-// verifyVPSignature implements the Proof Verification Algorithm: https://w3c-ccg.github.io/data-integrity-spec/#proof-verification-algorithm
-func (sv *signatureVerifier) verifyVPSignature(presentation vc.VerifiablePresentation, validateAt *time.Time) error {
+// VerifyVPSignature checks if the signature on a VP is valid at a given time
+func (sv *signatureVerifier) VerifyVPSignature(presentation vc.VerifiablePresentation, validateAt *time.Time) error {
 	signerDID, err := credential.PresentationSigner(presentation)
 	if err != nil {
 		return toVerificationError(err)
@@ -53,7 +53,7 @@ func (sv *signatureVerifier) verifyVPSignature(presentation vc.VerifiablePresent
 	}
 }
 
-// jsonldProof checks the signature on a VC or VP in jsonld format (contains a proof)
+// jsonldProof implements the Proof Verification Algorithm: https://w3c-ccg.github.io/data-integrity-spec/#proof-verification-algorithm
 func (sv *signatureVerifier) jsonldProof(documentToVerify any, issuer string, at *time.Time) error {
 	signedDocument, err := proof.NewSignedDocument(documentToVerify)
 	if err != nil {
@@ -107,7 +107,7 @@ func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer str
 		return *at
 	})))
 	if err != nil {
-		return fmt.Errorf("unable to validate JWT credential: %w", err)
+		return fmt.Errorf("unable to validate JWT signature: %w", err)
 	}
 	if keyID != "" && strings.Split(keyID, "#")[0] != issuer {
 		return errVerificationMethodNotOfIssuer
