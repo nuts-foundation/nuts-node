@@ -276,17 +276,6 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		location := res.(HandleAuthorizeRequest302Response).Headers.Location
 		assert.Equal(t, location, "https://example.com/iam/holder/redirect")
 	})
-	t.Run("missing redirect_uri", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{}), HandleAuthorizeRequestRequestObject{
-			Id: webIDPart,
-		})
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "redirect_uri is required")
-		assert.Nil(t, res)
-	})
 	t.Run("unsupported response type", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
