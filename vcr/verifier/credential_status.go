@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package verifier
 
 import (
@@ -19,7 +37,7 @@ import (
 
 type credentialStatus struct {
 	client          core.HTTPRequestDoer
-	verifySignature func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error //
+	verifySignature func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error // TODO: replace with new SignatureVerifier interface?
 }
 
 // statusList is an immutable struct containing all information needed to verify a credentialStatus
@@ -155,7 +173,7 @@ func (cs *credentialStatus) download(statusListCredential string) (*vc.Verifiabl
 func (cs *credentialStatus) verifyStatusList2021Credential(cred *vc.VerifiableCredential) error {
 	// make sure we have the correct credential.
 	if len(cred.Type) > 2 || !cred.IsType(ssi.MustParseURI(credential.StatusList2021CredentialType)) {
-		return errors.New("incorrect credential type recieved")
+		return errors.New("incorrect credential type received")
 	}
 
 	// returns statusList2021CredentialValidator, or Validate() fails because base type is missing
