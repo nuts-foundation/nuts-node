@@ -224,7 +224,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 			mockVerifier := verifier.NewMockVerifier(ctrl)
-			mockVerifier.EXPECT().Validate(testCredential, &created)
+			mockVerifier.EXPECT().VerifySignature(testCredential, &created)
 
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
@@ -240,7 +240,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 			mockVerifier := verifier.NewMockVerifier(ctrl)
-			mockVerifier.EXPECT().Validate(testCredential, &created).Return(errors.New("failed"))
+			mockVerifier.EXPECT().VerifySignature(testCredential, &created).Return(errors.New("failed"))
 
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
@@ -256,7 +256,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 			mockVerifier := verifier.NewMockVerifier(ctrl)
-			mockVerifier.EXPECT().Validate(gomock.Any(), gomock.Any())
+			mockVerifier.EXPECT().VerifySignature(gomock.Any(), gomock.Any())
 
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 

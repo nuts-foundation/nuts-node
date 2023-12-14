@@ -19,18 +19,10 @@
 package verifier
 
 import (
-	"context"
 	crypt "crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -56,234 +48,6 @@ import (
 func testCredential(t *testing.T) vc.VerifiableCredential {
 	subject := credential.ValidNutsOrganizationCredential(t)
 	return subject
-}
-
-func Test_verifier_Validate(t *testing.T) {
-	const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
-
-	// load pub key
-	pke := spi.PublicKeyEntry{}
-	pkeJSON, _ := os.ReadFile("../test/public.json")
-	json.Unmarshal(pkeJSON, &pke)
-	var pk = new(ecdsa.PublicKey)
-	pke.JWK().Raw(pk)
-
-	now := time.Now()
-	timeFunc = func() time.Time {
-		return now
-	}
-	defer func() {
-		timeFunc = time.Now
-	}()
-
-	t.Run("JSON-LD", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.verifier
-
-		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, gomock.Any(), resolver.NutsSigningKeyType).Return(pk, nil)
-
-		err := instance.Validate(testCredential(t), nil)
-
-		assert.NoError(t, err)
-	})
-	t.Run("JWT", func(t *testing.T) {
-		// Create did:jwk for issuer, and sign credential
-		keyStore := crypto.NewMemoryCryptoInstance()
-		key, err := keyStore.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
-			keyAsJWK, _ := jwk.FromRaw(key)
-			keyJSON, _ := json.Marshal(keyAsJWK)
-			return "did:jwk:" + base64.RawStdEncoding.EncodeToString(keyJSON) + "#0", nil
-		})
-		require.NoError(t, err)
-
-		template := testCredential(t)
-		template.Issuer = did.MustParseDIDURL(key.KID()).DID.URI()
-
-		cred, err := vc.CreateJWTVerifiableCredential(audit.TestContext(), template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
-			return keyStore.SignJWT(ctx, claims, headers, key)
-		})
-		require.NoError(t, err)
-
-		t.Run("with kid header", func(t *testing.T) {
-			ctx := newMockContext(t)
-			instance := ctx.verifier
-
-			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), gomock.Any(), resolver.NutsSigningKeyType).Return(key.Public(), nil)
-			err = instance.Validate(*cred, nil)
-
-			assert.NoError(t, err)
-		})
-		t.Run("kid header does not match credential issuer", func(t *testing.T) {
-			ctx := newMockContext(t)
-			instance := ctx.verifier
-
-			cred, err := vc.CreateJWTVerifiableCredential(audit.TestContext(), template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
-				return keyStore.SignJWT(ctx, claims, headers, key)
-			})
-			require.NoError(t, err)
-			cred.Issuer = ssi.MustParseURI("did:example:test")
-
-			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), gomock.Any(), resolver.NutsSigningKeyType).Return(key.Public(), nil)
-			err = instance.Validate(*cred, nil)
-
-			assert.ErrorIs(t, err, errVerificationMethodNotOfIssuer)
-		})
-		t.Run("signature invalid", func(t *testing.T) {
-			ctx := newMockContext(t)
-			instance := ctx.verifier
-
-			realKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-
-			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), gomock.Any(), resolver.NutsSigningKeyType).Return(realKey.Public(), nil)
-			err = instance.Validate(*cred, nil)
-
-			assert.EqualError(t, err, "unable to validate JWT credential: could not verify message using any of the signatures or keys")
-		})
-		t.Run("expired token", func(t *testing.T) {
-			// Credential taken from Sphereon Wallet, expires on Tue Oct 03 2023
-			const credentialJSON = `eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTYzMDE3MDgsInZjIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZUNyZWRlbnRpYWwiLCJHdWVzdENyZWRlbnRpYWwiXSwiY3JlZGVudGlhbFN1YmplY3QiOnsiZmlyc3ROYW1lIjoiSGVsbG8iLCJsYXN0TmFtZSI6IlNwaGVyZW9uIiwiZW1haWwiOiJzcGhlcmVvbkBleGFtcGxlLmNvbSIsInR5cGUiOiJTcGhlcmVvbiBHdWVzdCIsImlkIjoiZGlkOmp3azpleUpoYkdjaU9pSkZVekkxTmtzaUxDSjFjMlVpT2lKemFXY2lMQ0pyZEhraU9pSkZReUlzSW1OeWRpSTZJbk5sWTNBeU5UWnJNU0lzSW5naU9pSmpNVmRZY3pkWE0yMTVjMlZWWms1Q2NYTjRaRkJYUWtsSGFFdGtORlI2TUV4U0xVWnFPRVpOV1dFd0lpd2llU0k2SWxkdGEwTllkVEYzZVhwYVowZE9OMVY0VG1Gd2NIRnVUMUZoVDJ0WE1rTm5UMU51VDI5NVRVbFVkV01pZlEifX0sIkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZUNyZWRlbnRpYWwiLCJHdWVzdENyZWRlbnRpYWwiXSwiZXhwaXJhdGlvbkRhdGUiOiIyMDIzLTEwLTAzVDAyOjU1OjA4LjEzM1oiLCJjcmVkZW50aWFsU3ViamVjdCI6eyJmaXJzdE5hbWUiOiJIZWxsbyIsImxhc3ROYW1lIjoiU3BoZXJlb24iLCJlbWFpbCI6InNwaGVyZW9uQGV4YW1wbGUuY29tIiwidHlwZSI6IlNwaGVyZW9uIEd1ZXN0IiwiaWQiOiJkaWQ6andrOmV5SmhiR2NpT2lKRlV6STFOa3NpTENKMWMyVWlPaUp6YVdjaUxDSnJkSGtpT2lKRlF5SXNJbU55ZGlJNkluTmxZM0F5TlRack1TSXNJbmdpT2lKak1WZFljemRYTTIxNWMyVlZaazVDY1hONFpGQlhRa2xIYUV0a05GUjZNRXhTTFVacU9FWk5XV0V3SWl3aWVTSTZJbGR0YTBOWWRURjNlWHBhWjBkT04xVjRUbUZ3Y0hGdVQxRmhUMnRYTWtOblQxTnVUMjk1VFVsVWRXTWlmUSJ9LCJpc3N1ZXIiOiJkaWQ6andrOmV5SmhiR2NpT2lKRlV6STFOaUlzSW5WelpTSTZJbk5wWnlJc0ltdDBlU0k2SWtWRElpd2lZM0oySWpvaVVDMHlOVFlpTENKNElqb2lWRWN5U0RKNE1tUlhXRTR6ZFVOeFduQnhSakY1YzBGUVVWWkVTa1ZPWDBndFEwMTBZbWRxWWkxT1p5SXNJbmtpT2lJNVRUaE9lR1F3VUU0eU1rMDViRkJFZUdSd1JIQnZWRXg2TVRWM1pubGFTbk0yV21oTFNWVktNek00SW4wIiwiaXNzdWFuY2VEYXRlIjoiMjAyMy0wOS0yOVQxMjozMTowOC4xMzNaIiwic3ViIjoiZGlkOmp3azpleUpoYkdjaU9pSkZVekkxTmtzaUxDSjFjMlVpT2lKemFXY2lMQ0pyZEhraU9pSkZReUlzSW1OeWRpSTZJbk5sWTNBeU5UWnJNU0lzSW5naU9pSmpNVmRZY3pkWE0yMTVjMlZWWms1Q2NYTjRaRkJYUWtsSGFFdGtORlI2TUV4U0xVWnFPRVpOV1dFd0lpd2llU0k2SWxkdGEwTllkVEYzZVhwYVowZE9OMVY0VG1Gd2NIRnVUMUZoVDJ0WE1rTm5UMU51VDI5NVRVbFVkV01pZlEiLCJuYmYiOjE2OTU5OTA2NjgsImlzcyI6ImRpZDpqd2s6ZXlKaGJHY2lPaUpGVXpJMU5pSXNJblZ6WlNJNkluTnBaeUlzSW10MGVTSTZJa1ZESWl3aVkzSjJJam9pVUMweU5UWWlMQ0o0SWpvaVZFY3lTREo0TW1SWFdFNHpkVU54V25CeFJqRjVjMEZRVVZaRVNrVk9YMGd0UTAxMFltZHFZaTFPWnlJc0lua2lPaUk1VFRoT2VHUXdVRTR5TWswNWJGQkVlR1J3UkhCdlZFeDZNVFYzWm5sYVNuTTJXbWhMU1ZWS016TTRJbjAifQ.wdhtLXE4jU1C-3YBBpP9-qE-yh1xOZ6lBLJ-0e5_Sa7fnrUHcAaU1n3kN2CeCyTVjtm1Uy3Tl6RzUOM6MjP3vQ`
-			cred, _ := vc.ParseVerifiableCredential(credentialJSON)
-
-			keyResolver := resolver.DIDKeyResolver{
-				Resolver: didjwk.NewResolver(),
-			}
-			err := (&verifier{keyResolver: keyResolver}).Validate(*cred, nil)
-
-			assert.EqualError(t, err, "unable to validate JWT credential: \"exp\" not satisfied")
-		})
-		t.Run("without kid header, derived from issuer", func(t *testing.T) {
-			// Credential taken from Sphereon Wallet
-			const credentialJSON = `eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTYzMDE3MDgsInZjIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZUNyZWRlbnRpYWwiLCJHdWVzdENyZWRlbnRpYWwiXSwiY3JlZGVudGlhbFN1YmplY3QiOnsiZmlyc3ROYW1lIjoiSGVsbG8iLCJsYXN0TmFtZSI6IlNwaGVyZW9uIiwiZW1haWwiOiJzcGhlcmVvbkBleGFtcGxlLmNvbSIsInR5cGUiOiJTcGhlcmVvbiBHdWVzdCIsImlkIjoiZGlkOmp3azpleUpoYkdjaU9pSkZVekkxTmtzaUxDSjFjMlVpT2lKemFXY2lMQ0pyZEhraU9pSkZReUlzSW1OeWRpSTZJbk5sWTNBeU5UWnJNU0lzSW5naU9pSmpNVmRZY3pkWE0yMTVjMlZWWms1Q2NYTjRaRkJYUWtsSGFFdGtORlI2TUV4U0xVWnFPRVpOV1dFd0lpd2llU0k2SWxkdGEwTllkVEYzZVhwYVowZE9OMVY0VG1Gd2NIRnVUMUZoVDJ0WE1rTm5UMU51VDI5NVRVbFVkV01pZlEifX0sIkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZUNyZWRlbnRpYWwiLCJHdWVzdENyZWRlbnRpYWwiXSwiZXhwaXJhdGlvbkRhdGUiOiIyMDIzLTEwLTAzVDAyOjU1OjA4LjEzM1oiLCJjcmVkZW50aWFsU3ViamVjdCI6eyJmaXJzdE5hbWUiOiJIZWxsbyIsImxhc3ROYW1lIjoiU3BoZXJlb24iLCJlbWFpbCI6InNwaGVyZW9uQGV4YW1wbGUuY29tIiwidHlwZSI6IlNwaGVyZW9uIEd1ZXN0IiwiaWQiOiJkaWQ6andrOmV5SmhiR2NpT2lKRlV6STFOa3NpTENKMWMyVWlPaUp6YVdjaUxDSnJkSGtpT2lKRlF5SXNJbU55ZGlJNkluTmxZM0F5TlRack1TSXNJbmdpT2lKak1WZFljemRYTTIxNWMyVlZaazVDY1hONFpGQlhRa2xIYUV0a05GUjZNRXhTTFVacU9FWk5XV0V3SWl3aWVTSTZJbGR0YTBOWWRURjNlWHBhWjBkT04xVjRUbUZ3Y0hGdVQxRmhUMnRYTWtOblQxTnVUMjk1VFVsVWRXTWlmUSJ9LCJpc3N1ZXIiOiJkaWQ6andrOmV5SmhiR2NpT2lKRlV6STFOaUlzSW5WelpTSTZJbk5wWnlJc0ltdDBlU0k2SWtWRElpd2lZM0oySWpvaVVDMHlOVFlpTENKNElqb2lWRWN5U0RKNE1tUlhXRTR6ZFVOeFduQnhSakY1YzBGUVVWWkVTa1ZPWDBndFEwMTBZbWRxWWkxT1p5SXNJbmtpT2lJNVRUaE9lR1F3VUU0eU1rMDViRkJFZUdSd1JIQnZWRXg2TVRWM1pubGFTbk0yV21oTFNWVktNek00SW4wIiwiaXNzdWFuY2VEYXRlIjoiMjAyMy0wOS0yOVQxMjozMTowOC4xMzNaIiwic3ViIjoiZGlkOmp3azpleUpoYkdjaU9pSkZVekkxTmtzaUxDSjFjMlVpT2lKemFXY2lMQ0pyZEhraU9pSkZReUlzSW1OeWRpSTZJbk5sWTNBeU5UWnJNU0lzSW5naU9pSmpNVmRZY3pkWE0yMTVjMlZWWms1Q2NYTjRaRkJYUWtsSGFFdGtORlI2TUV4U0xVWnFPRVpOV1dFd0lpd2llU0k2SWxkdGEwTllkVEYzZVhwYVowZE9OMVY0VG1Gd2NIRnVUMUZoVDJ0WE1rTm5UMU51VDI5NVRVbFVkV01pZlEiLCJuYmYiOjE2OTU5OTA2NjgsImlzcyI6ImRpZDpqd2s6ZXlKaGJHY2lPaUpGVXpJMU5pSXNJblZ6WlNJNkluTnBaeUlzSW10MGVTSTZJa1ZESWl3aVkzSjJJam9pVUMweU5UWWlMQ0o0SWpvaVZFY3lTREo0TW1SWFdFNHpkVU54V25CeFJqRjVjMEZRVVZaRVNrVk9YMGd0UTAxMFltZHFZaTFPWnlJc0lua2lPaUk1VFRoT2VHUXdVRTR5TWswNWJGQkVlR1J3UkhCdlZFeDZNVFYzWm5sYVNuTTJXbWhMU1ZWS016TTRJbjAifQ.wdhtLXE4jU1C-3YBBpP9-qE-yh1xOZ6lBLJ-0e5_Sa7fnrUHcAaU1n3kN2CeCyTVjtm1Uy3Tl6RzUOM6MjP3vQ`
-			cred, _ := vc.ParseVerifiableCredential(credentialJSON)
-
-			keyResolver := resolver.DIDKeyResolver{
-				Resolver: didjwk.NewResolver(),
-			}
-			validAt := time.Date(2023, 9, 30, 0, 0, 0, 0, time.UTC)
-			err := (&verifier{keyResolver: keyResolver}).Validate(*cred, &validAt)
-
-			assert.NoError(t, err)
-		})
-	})
-
-	t.Run("type", func(t *testing.T) {
-		t.Run("incorrect number of types", func(t *testing.T) {
-			ctx := newMockContext(t)
-			instance := ctx.verifier
-
-			err := instance.Validate(vc.VerifiableCredential{Type: []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("a"), ssi.MustParseURI("b")}}, nil)
-
-			assert.EqualError(t, err, "verifiable credential must list at most 2 types")
-		})
-		t.Run("does not contain v1 context", func(t *testing.T) {
-			ctx := newMockContext(t)
-			instance := ctx.verifier
-
-			err := instance.Validate(vc.VerifiableCredential{Type: []ssi.URI{ssi.MustParseURI("foo"), ssi.MustParseURI("bar")}}, nil)
-
-			assert.EqualError(t, err, "verifiable credential does not list 'VerifiableCredential' as type")
-		})
-	})
-
-	t.Run("error - invalid vm", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.verifier
-
-		vc2 := testCredential(t)
-		pr := make([]vc.JSONWebSignature2020Proof, 0)
-		_ = vc2.UnmarshalProofValue(&pr)
-		u := ssi.MustParseURI(vc2.Issuer.String() + "2")
-		pr[0].VerificationMethod = u
-		vc2.Proof = []interface{}{pr[0]}
-
-		err := instance.Validate(vc2, nil)
-
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, errVerificationMethodNotOfIssuer)
-	})
-
-	t.Run("error - wrong hashed payload", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.verifier
-		vc2 := testCredential(t)
-		issuanceDate := time.Now()
-		vc2.IssuanceDate = &issuanceDate
-
-		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, resolver.NutsSigningKeyType).Return(pk, nil)
-
-		err := instance.Validate(vc2, nil)
-
-		assert.ErrorContains(t, err, "failed to verify signature")
-	})
-
-	t.Run("error - wrong hashed proof", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.verifier
-		vc2 := testCredential(t)
-		pr := make([]vc.JSONWebSignature2020Proof, 0)
-		vc2.UnmarshalProofValue(&pr)
-		pr[0].Created = time.Now()
-		vc2.Proof = []interface{}{pr[0]}
-
-		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, resolver.NutsSigningKeyType).Return(pk, nil)
-
-		err := instance.Validate(vc2, nil)
-
-		assert.ErrorContains(t, err, "failed to verify signature")
-	})
-
-	t.Run("error - no proof", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.verifier
-		vc2 := testCredential(t)
-		vc2.Proof = []interface{}{}
-
-		err := instance.Validate(vc2, nil)
-
-		assert.ErrorContains(t, err, "unable to extract ldproof from signed document: json: cannot unmarshal array into Go value of type proof.LDProof")
-	})
-
-	t.Run("error - wrong jws in proof", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, resolver.NutsSigningKeyType).Return(pk, nil)
-		instance := ctx.verifier
-		vc2 := testCredential(t)
-		pr := make([]vc.JSONWebSignature2020Proof, 0)
-		vc2.UnmarshalProofValue(&pr)
-		pr[0].Jws = ""
-		vc2.Proof = []interface{}{pr[0]}
-
-		err := instance.Validate(vc2, nil)
-
-		assert.ErrorContains(t, err, "invalid 'jws' value in proof")
-	})
-
-	t.Run("error - wrong base64 encoding in jws", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, resolver.NutsSigningKeyType).Return(pk, nil)
-		instance := ctx.verifier
-		vc2 := testCredential(t)
-		pr := make([]vc.JSONWebSignature2020Proof, 0)
-		vc2.UnmarshalProofValue(&pr)
-		pr[0].Jws = "abac..ab//"
-		vc2.Proof = []interface{}{pr[0]}
-
-		err := instance.Validate(vc2, nil)
-
-		assert.ErrorContains(t, err, "illegal base64 data")
-	})
-
-	t.Run("error - resolving key", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.verifier
-
-		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, nil, resolver.NutsSigningKeyType).Return(nil, errors.New("b00m!"))
-
-		err := instance.Validate(testCredential(t), nil)
-
-		assert.Error(t, err)
-	})
-
 }
 
 func TestVerifier_Verify(t *testing.T) {
@@ -320,9 +84,9 @@ func TestVerifier_Verify(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKeyByID(testKID, gomock.Any(), resolver.NutsSigningKeyType).Return(nil, errors.New("not found"))
 
 		at := time.Now()
-		err := instance.Validate(subject, &at)
+		err := instance.VerifySignature(subject, &at)
 
-		assert.EqualError(t, err, "unable to resolve valid signing key at given time: not found")
+		assert.EqualError(t, err, "unable to resolve valid signing key: not found")
 	})
 
 	// Verify calls other verifiers / validators.
@@ -340,7 +104,7 @@ func TestVerifier_Verify(t *testing.T) {
 
 			validationErr := ctx.verifier.Verify(vc, true, true, nil)
 
-			assert.EqualError(t, validationErr, "unable to resolve signing key: key not found in DID document")
+			assert.EqualError(t, validationErr, "unable to resolve valid signing key: key not found in DID document")
 		})
 
 		t.Run("fails when controller or issuer is deactivated", func(t *testing.T) {
@@ -433,6 +197,17 @@ func TestVerifier_Verify(t *testing.T) {
 			})
 
 		})
+	})
+
+	t.Run("incorrect number of types", func(t *testing.T) {
+		ctx := newMockContext(t)
+		instance := ctx.verifier
+		testCred := testCredential(t)
+		testCred.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("a"), ssi.MustParseURI("b")}
+
+		err := instance.Verify(testCred, true, false, nil)
+
+		assert.EqualError(t, err, "verifiable credential must list at most 2 types")
 	})
 }
 
@@ -555,32 +330,30 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			validAt := time.Date(2023, 10, 21, 12, 0, 0, 0, time.UTC)
 			vcs, err := ctx.verifier.VerifyVP(*presentation, false, false, &validAt)
 
-			assert.EqualError(t, err, "unable to validate JWT credential: \"exp\" not satisfied")
+			assert.EqualError(t, err, "unable to validate JWT signature: \"exp\" not satisfied")
 			assert.Empty(t, vcs)
 		})
+
 		t.Run("VP signer != VC credentialSubject.id", func(t *testing.T) {
 			// This VP was produced by a Sphereon Wallet, using did:key. The signer of the VP is a did:key,
 			// but the holder of the contained credential is a did:jwt. So the presenter is not the holder. Weird?
 			const rawVP = `eyJraWQiOiJkaWQ6a2V5Ono2TWtzRXl4NmQ1cEIxZWtvYVZtYUdzaWJiY1lIRTlWeHg3VjEzUFNxUHd4WVJ6TCN6Nk1rc0V5eDZkNXBCMWVrb2FWbWFHc2liYmNZSEU5Vnh4N1YxM1BTcVB3eFlSekwiLCJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJ2cCI6eyJAY29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvMjAxOC9jcmVkZW50aWFscy92MSIsImh0dHBzOi8vaWRlbnRpdHkuZm91bmRhdGlvbi9wcmVzZW50YXRpb24tZXhjaGFuZ2Uvc3VibWlzc2lvbi92MSJdLCJ0eXBlIjpbIlZlcmlmaWFibGVQcmVzZW50YXRpb24iLCJQcmVzZW50YXRpb25TdWJtaXNzaW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImV5SmhiR2NpT2lKRlV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUpsZUhBaU9qRTJPVFl6TURFM01EZ3NJblpqSWpwN0lrQmpiMjUwWlhoMElqcGJJbWgwZEhCek9pOHZkM2QzTG5jekxtOXlaeTh5TURFNEwyTnlaV1JsYm5ScFlXeHpMM1l4SWwwc0luUjVjR1VpT2xzaVZtVnlhV1pwWVdKc1pVTnlaV1JsYm5ScFlXd2lMQ0pIZFdWemRFTnlaV1JsYm5ScFlXd2lYU3dpWTNKbFpHVnVkR2xoYkZOMVltcGxZM1FpT25zaVptbHljM1JPWVcxbElqb2lTR1ZzYkc4aUxDSnNZWE4wVG1GdFpTSTZJbE53YUdWeVpXOXVJaXdpWlcxaGFXd2lPaUp6Y0dobGNtVnZia0JsZUdGdGNHeGxMbU52YlNJc0luUjVjR1VpT2lKVGNHaGxjbVZ2YmlCSGRXVnpkQ0lzSW1sa0lqb2laR2xrT21wM2F6cGxlVXBvWWtkamFVOXBTa1pWZWtreFRtdHphVXhEU2pGak1sVnBUMmxLZW1GWFkybE1RMHB5WkVocmFVOXBTa1pSZVVselNXMU9lV1JwU1RaSmJrNXNXVE5CZVU1VVduSk5VMGx6U1c1bmFVOXBTbXBOVm1SWlkzcGtXRTB5TVRWak1sWldXbXMxUTJOWVRqUmFSa0pZVVd0c1NHRkZkR3RPUmxJMlRVVjRVMHhWV25GUFJWcE9WMWRGZDBscGQybGxVMGsyU1d4a2RHRXdUbGxrVkVZelpWaHdZVm93WkU5T01WWTBWRzFHZDJOSVJuVlVNVVpvVkRKMFdFMXJUbTVVTVU1MVZESTVOVlJWYkZWa1YwMXBabEVpZlgwc0lrQmpiMjUwWlhoMElqcGJJbWgwZEhCek9pOHZkM2QzTG5jekxtOXlaeTh5TURFNEwyTnlaV1JsYm5ScFlXeHpMM1l4SWwwc0luUjVjR1VpT2xzaVZtVnlhV1pwWVdKc1pVTnlaV1JsYm5ScFlXd2lMQ0pIZFdWemRFTnlaV1JsYm5ScFlXd2lYU3dpWlhod2FYSmhkR2x2YmtSaGRHVWlPaUl5TURJekxURXdMVEF6VkRBeU9qVTFPakE0TGpFek0xb2lMQ0pqY21Wa1pXNTBhV0ZzVTNWaWFtVmpkQ0k2ZXlKbWFYSnpkRTVoYldVaU9pSklaV3hzYnlJc0lteGhjM1JPWVcxbElqb2lVM0JvWlhKbGIyNGlMQ0psYldGcGJDSTZJbk53YUdWeVpXOXVRR1Y0WVcxd2JHVXVZMjl0SWl3aWRIbHdaU0k2SWxOd2FHVnlaVzl1SUVkMVpYTjBJaXdpYVdRaU9pSmthV1E2YW5kck9tVjVTbWhpUjJOcFQybEtSbFY2U1RGT2EzTnBURU5LTVdNeVZXbFBhVXA2WVZkamFVeERTbkprU0d0cFQybEtSbEY1U1hOSmJVNTVaR2xKTmtsdVRteFpNMEY1VGxSYWNrMVRTWE5KYm1kcFQybEthazFXWkZsamVtUllUVEl4TldNeVZsWmFhelZEWTFoT05GcEdRbGhSYTJ4SVlVVjBhMDVHVWpaTlJYaFRURlZhY1U5RldrNVhWMFYzU1dsM2FXVlRTVFpKYkdSMFlUQk9XV1JVUmpObFdIQmhXakJrVDA0eFZqUlViVVozWTBoR2RWUXhSbWhVTW5SWVRXdE9ibFF4VG5WVU1qazFWRlZzVldSWFRXbG1VU0o5TENKcGMzTjFaWElpT2lKa2FXUTZhbmRyT21WNVNtaGlSMk5wVDJsS1JsVjZTVEZPYVVselNXNVdlbHBUU1RaSmJrNXdXbmxKYzBsdGREQmxVMGsyU1d0V1JFbHBkMmxaTTBveVNXcHZhVlZETUhsT1ZGbHBURU5LTkVscWIybFdSV041VTBSS05FMXRVbGhYUlRSNlpGVk9lRmR1UW5oU2FrWTFZekJHVVZWV1drVlRhMVpQV0RCbmRGRXdNVEJaYldSeFdXa3hUMXA1U1hOSmJtdHBUMmxKTlZSVWFFOWxSMUYzVlVVMGVVMXJNRFZpUmtKRlpVZFNkMUpJUW5aV1JYZzJUVlJXTTFwdWJHRlRiazB5VjIxb1RGTldWa3ROZWswMFNXNHdJaXdpYVhOemRXRnVZMlZFWVhSbElqb2lNakF5TXkwd09TMHlPVlF4TWpvek1Ub3dPQzR4TXpOYUlpd2ljM1ZpSWpvaVpHbGtPbXAzYXpwbGVVcG9Za2RqYVU5cFNrWlZla2t4VG10emFVeERTakZqTWxWcFQybEtlbUZYWTJsTVEwcHlaRWhyYVU5cFNrWlJlVWx6U1cxT2VXUnBTVFpKYms1c1dUTkJlVTVVV25KTlUwbHpTVzVuYVU5cFNtcE5WbVJaWTNwa1dFMHlNVFZqTWxaV1dtczFRMk5ZVGpSYVJrSllVV3RzU0dGRmRHdE9SbEkyVFVWNFUweFZXbkZQUlZwT1YxZEZkMGxwZDJsbFUwazJTV3hrZEdFd1RsbGtWRVl6WlZod1lWb3daRTlPTVZZMFZHMUdkMk5JUm5WVU1VWm9WREowV0UxclRtNVVNVTUxVkRJNU5WUlZiRlZrVjAxcFpsRWlMQ0p1WW1ZaU9qRTJPVFU1T1RBMk5qZ3NJbWx6Y3lJNkltUnBaRHBxZDJzNlpYbEthR0pIWTJsUGFVcEdWWHBKTVU1cFNYTkpibFo2V2xOSk5rbHVUbkJhZVVselNXMTBNR1ZUU1RaSmExWkVTV2wzYVZrelNqSkphbTlwVlVNd2VVNVVXV2xNUTBvMFNXcHZhVlpGWTNsVFJFbzBUVzFTV0ZkRk5IcGtWVTU0VjI1Q2VGSnFSalZqTUVaUlZWWmFSVk5yVms5WU1HZDBVVEF4TUZsdFpIRlphVEZQV25sSmMwbHVhMmxQYVVrMVZGUm9UMlZIVVhkVlJUUjVUV3N3TldKR1FrVmxSMUozVWtoQ2RsWkZlRFpOVkZZeldtNXNZVk51VFRKWGJXaE1VMVpXUzAxNlRUUkpiakFpZlEud2RodExYRTRqVTFDLTNZQkJwUDktcUUteWgxeE9aNmxCTEotMGU1X1NhN2ZuclVIY0FhVTFuM2tOMkNlQ3lUVmp0bTFVeTNUbDZSelVPTTZNalAzdlEiXX0sInByZXNlbnRhdGlvbl9zdWJtaXNzaW9uIjp7ImlkIjoidG9DdGp5Y0V3QlZCWVBsbktBQTZGIiwiZGVmaW5pdGlvbl9pZCI6InNwaGVyZW9uIiwiZGVzY3JpcHRvcl9tYXAiOlt7ImlkIjoiNGNlN2FmZjEtMDIzNC00ZjM1LTlkMjEtMjUxNjY4YTYwOTUwIiwiZm9ybWF0Ijoiand0X3ZjIiwicGF0aCI6IiQudmVyaWZpYWJsZUNyZWRlbnRpYWxbMF0ifV19LCJuYmYiOjE2OTU5OTU2MzYsImlzcyI6ImRpZDprZXk6ejZNa3NFeXg2ZDVwQjFla29hVm1hR3NpYmJjWUhFOVZ4eDdWMTNQU3FQd3hZUnpMIn0.w3guHX-pmxJGGn5dGSSIKSba9xywnOutDk-l3tc_bpgHEOSbcR1mmmCqX5sSlZM_G0hgAbgpIv_YYI5iQNIfCw`
 			const keyID = "did:key:z6MksEyx6d5pB1ekoaVmaGsibbcYHE9Vxx7V13PSqPwxYRzL#z6MksEyx6d5pB1ekoaVmaGsibbcYHE9Vxx7V13PSqPwxYRzL"
 			keyAsJWK, err := jwk.ParseKey([]byte(`{
-        "kty": "OKP",
-        "crv": "Ed25519",
-        "x": "vgLDESnU0TIlW-PmajyrvSlk9VysAsRkSYiEPBELj-U"
-      }`))
+		"kty": "OKP",
+		"crv": "Ed25519",
+		"x": "vgLDESnU0TIlW-PmajyrvSlk9VysAsRkSYiEPBELj-U"
+		}`))
 			require.NoError(t, err)
 			require.NoError(t, keyAsJWK.Set("kid", keyID))
-			publicKey, err := keyAsJWK.PublicKey()
-			require.NoError(t, err)
 
 			presentation, err := vc.ParseVerifiablePresentation(rawVP)
 			require.NoError(t, err)
 			ctx := newMockContext(t)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(keyID, gomock.Any(), resolver.NutsSigningKeyType).Return(publicKey, nil)
 
 			vcs, err := ctx.verifier.VerifyVP(*presentation, false, false, nil)
 
-			assert.EqualError(t, err, "verification method is not of issuer")
+			assert.EqualError(t, err, "verification error: credential(s) must be presented by subject")
 			assert.Empty(t, vcs)
 		})
 	})
@@ -744,7 +517,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-			assert.EqualError(t, err, "verification error: unsupported proof type: invalid LD-proof for presentation: json: cannot unmarshal string into Go value of type proof.LDProof")
+			assert.EqualError(t, err, "verification error: presenter is credential subject: invalid LD-proof for presentation: json: cannot unmarshal string into Go value of type proof.LDProof")
 			assert.Empty(t, vcs)
 		})
 		t.Run("error - no proof", func(t *testing.T) {
@@ -758,7 +531,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-			assert.EqualError(t, err, "verification error: exactly 1 proof is expected")
+			assert.EqualError(t, err, "verification error: presenter is credential subject: presentation should have exactly 1 proof, got 0")
 			assert.Empty(t, vcs)
 		})
 	})
@@ -843,6 +616,11 @@ func newMockContext(t *testing.T) mockContext {
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
 	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig).(*verifier)
+	sv := signatureVerifier{
+		keyResolver:   keyResolver,
+		jsonldManager: jsonldManager,
+	}
+	verifier.signatureVerifier = sv
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,

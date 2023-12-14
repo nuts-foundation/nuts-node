@@ -57,7 +57,7 @@ func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.
 	}
 
 	// verify first
-	if err := c.verifier.Validate(credential, validAt); err != nil {
+	if err := c.verifier.VerifySignature(credential, validAt); err != nil {
 		return err
 	}
 
