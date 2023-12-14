@@ -57,7 +57,7 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: true
-          tags: 'nutsfoundation/nuts-node@mitz-x-nuts'
+          tags: 'nutsfoundation/nuts-node:mitz-x-nuts'
           build-args: |
             GIT_VERSION=${{ steps.version.outputs.git_version }}
             GIT_COMMIT=${{ steps.version.outputs.git_commit }}
