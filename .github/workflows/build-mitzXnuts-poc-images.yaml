@@ -57,7 +57,7 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: mitzXnuts
+          tags: mitz-x-nuts
           build-args: |
             GIT_VERSION=${{ steps.version.outputs.git_version }}
             GIT_COMMIT=${{ steps.version.outputs.git_commit }}
