@@ -1,5 +1,5 @@
 ---
-name: 'Build Docker images'
+name: 'Build mitzXnuts Docker images'
 
 on:
   push:
@@ -37,18 +37,6 @@ jobs:
           echo "Latest tag: ${{ steps.get-latest-tag.outputs.tag }}"
           echo "This tag: ${{ github.ref }}"
 
-      - name: Docker meta
-        id: docker_meta
-        uses: docker/metadata-action@v5
-        with:
-          images: nutsfoundation/nuts-node
-          tags: |
-            # generate 'master' tag for the master branch
-            type=ref,event=branch,enable={{is_default_branch}},prefix=
-          flavor: |
-            latest=${{ steps.version.outputs.git_version == steps.get-latest-tag.outputs.tag }}
-            prefix=v,onlatest=false
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -69,7 +57,7 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.docker_meta.outputs.tags }}
+          tags: mitzXnuts
           build-args: |
             GIT_VERSION=${{ steps.version.outputs.git_version }}
             GIT_COMMIT=${{ steps.version.outputs.git_commit }}
