@@ -647,7 +647,7 @@ func Test_validateCredentialStatus(t *testing.T) {
 			cred := makeValidCSEntry()
 			cred.CredentialStatus[0].(*StatusList2021Entry).StatusListCredential = "not a URL"
 			err := validateCredentialStatus(cred)
-			assert.EqualError(t, err, "parse StatusList2021Entry.statusListCredential URL: url must contain scheme and host")
+			assert.EqualError(t, err, "parse StatusList2021Entry.statusListCredential URL: parse \"not a URL\": invalid URI for request")
 		})
 	})
 }
