@@ -182,12 +182,6 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	// get the original authorization request of the client, if something fails we need the redirectURI from this request
 	// get the state parameter
 	state, ok := params[stateParam]
-	if !ok && !responseOK {
-		// log and render error page
-		log.Logger().Error("handleAuthorizeRequestFromVerifier is missing state and response_uri parameter")
-		// this goes to the user-agent :(
-		return nil, oauthError(oauth.ServerError, "something went wrong", nil)
-	}
 	if !ok {
 		// post error to responseURI, if it fails, it'll render error page
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing state parameter", nil), responseURI)
@@ -198,9 +192,18 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	var session OAuthSession
 	err := r.oauthClientStateStore().Get(state, &session)
 	if err != nil {
+		if !responseOK {
+			return nil, oauthError(oauth.ServerError, "something went wrong", nil)
+		}
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "state has expired", nil), responseURI)
 	}
 	clientRedirectURL := session.redirectURI()
+	if !responseOK {
+		if clientRedirectURL != nil {
+			return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing response_uri parameter", nil), clientRedirectURL.String())
+		}
+		return nil, oauthError(oauth.ServerError, "something went wrong", nil)
+	}
 
 	verifierID, ok := params[clientIDParam]
 	if !ok {
@@ -209,7 +212,15 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	// the verifier must be a did:web
 	verifierDID, err := did.ParseDID(verifierID)
 	if err != nil || verifierDID.Method != "web" {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id parameter", clientRedirectURL), responseURI)
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", clientRedirectURL), responseURI)
+	}
+	clientIDScheme, ok := params[clientIDSchemeParam]
+	if !ok || clientIDScheme != didScheme {
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id_scheme parameter", clientRedirectURL), responseURI)
+	}
+	nonce, ok := params[nonceParam]
+	if !ok {
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing nonce parameter", clientRedirectURL), responseURI)
 	}
 	// get verifier metadata
 	clientMetadataURI, ok := params[clientMetadataURIParam]
@@ -229,12 +240,6 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	presentationDefinition, err := r.auth.RelyingParty().PresentationDefinition(ctx, presentationDefinitionURI)
 	if err != nil {
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidPresentationDefinitionURI, fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI), clientRedirectURL), responseURI)
-	}
-
-	// check nonce
-	nonce, ok := params[nonceParam]
-	if !ok {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing nonce parameter", clientRedirectURL), responseURI)
 	}
 
 	// at this point in the flow it would be possible to ask the user to confirm the credentials to use
