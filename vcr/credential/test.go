@@ -113,7 +113,7 @@ func ValidStatusList2021Credential(_ testing.TB) vc.VerifiableCredential {
 			Id:            "https://example-com/status/3#list",
 			Type:          StatusList2021CredentialSubjectType,
 			StatusPurpose: "revocation",
-			EncodedList:   "H4sIAAAAAAAAA-3BMQEAAADCoPVPbQwfoAAAAAAAAAAAAAAAAAAAAIC3AYbSVKsAQAAA",
+			EncodedList:   "H4sIAAAAAAAA_-zAsQAAAAACsNDypwqjZ2sAAAAAAAAAAAAAAAAAAACAtwUAAP__NxdfzQBAAAA=", // has bit 1 set to true
 		}},
 		Proof: []any{vc.Proof{}},
 	}

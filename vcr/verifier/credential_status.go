@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/credential/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"io"
 	"net/http"
@@ -49,7 +50,7 @@ type statusList struct {
 	statusListCredential string
 	// statusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
 	statusPurpose string
-	// expanded StatusList2021 bitstring
+	// expanded StatusList2021 Bitstring
 	expanded statuslist2021.Bitstring
 	// lastUpdated is the timestamp this statusList was generated
 	lastUpdated time.Time
@@ -63,7 +64,7 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 	}
 	statuses, err := credentialToVerify.CredentialStatuses()
 	if err != nil {
-		// this cannot happen, already checked in credential.validateCredentialStatus()
+		// cannot happen. already validated in credential.defaultCredentialValidator{}
 		return err
 	}
 
@@ -74,15 +75,22 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 		if status.Type != credential.StatusList2021EntryType {
 			// ignore other credentialStatus.type
 			// TODO: should this be logged?
+			log.Logger().
+				WithField("credentialStatus.type", status.Type).
+				Info("ignoring credentialStatus with unknown type")
 			continue
 		}
 		var slEntry credential.StatusList2021Entry // CredentialStatus of the credentialToVerify
 		if err = json.Unmarshal(status.Raw(), &slEntry); err != nil {
+			// cannot happen. already validated in credential.defaultCredentialValidator{}
 			return err
 		}
 		if slEntry.StatusPurpose != "revocation" {
 			// ignore purposes that aren't check for revocations
 			// TODO: should other purposes be logged?
+			log.Logger().
+				WithField("credentialStatus.statusPurpose", slEntry.StatusPurpose).
+				Info("ignoring credentialStatus with purpose other than 'revocation'")
 			continue
 		}
 
@@ -98,6 +106,7 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 		// check if listed
 		index, err := strconv.Atoi(slEntry.StatusListIndex)
 		if err != nil {
+			// cannot happen. already validated in credential.defaultCredentialValidator{}
 			return err
 		}
 		revoked, err := sList.expanded.Bit(index)
@@ -118,20 +127,20 @@ func (cs *credentialStatus) statusList(statusListCredential string) (*statusList
 
 // update
 func (cs *credentialStatus) update(statusListCredential string) (*statusList, error) {
+	// download and verify
 	cred, err := cs.download(statusListCredential)
 	if err != nil {
 		return nil, err
 	}
-	if err = cs.verifyStatusList2021Credential(cred); err != nil {
+	credSubject, err := cs.verifyStatusList2021Credential(*cred)
+	if err != nil {
 		return nil, err
 	}
-	var credSubjects []credential.StatusList2021CredentialSubject
-	if err := cred.UnmarshalCredentialSubject(&credSubjects); err != nil {
-		return nil, err
-	}
-	credSubject := credSubjects[0] // validators already ensured there is exactly 1 credentialSubject
+
+	// make statusList
 	expanded, err := statuslist2021.Expand(credSubject.EncodedList)
 	if err != nil {
+		// cant happen, already checked in verifyStatusList2021Credential
 		return nil, err
 	}
 	sl := statusList{
@@ -142,6 +151,7 @@ func (cs *credentialStatus) update(statusListCredential string) (*statusList, er
 		lastUpdated:          time.Now(),
 	}
 	// TODO: cache updated credential so it does not have to be downloaded everytime
+	//  	 also cache if statusPurposes != 'revocation' to prevent unnecessary downloads
 	return &sl, nil
 }
 
@@ -158,10 +168,14 @@ func (cs *credentialStatus) download(statusListCredential string) (*vc.Verifiabl
 	}
 	body, err := io.ReadAll(res.Body)
 	if err = res.Body.Close(); err != nil {
-		//TODO: log, don't fail
+		// log, don't fail
+		log.Logger().
+			WithError(err).
+			WithField("method", "credentialStatus.download").
+			Debug("failed to close response body")
 	}
 	if res.StatusCode > 299 || err != nil {
-		return nil, fmt.Errorf("fetching StatusList2021Credential from '%s' failed: %w", statusListCredential, err)
+		return nil, fmt.Errorf("fetching StatusList2021Credential from '%s' failed", statusListCredential)
 	}
 	if err = json.Unmarshal(body, &cred); err != nil {
 		return nil, err
@@ -170,23 +184,37 @@ func (cs *credentialStatus) download(statusListCredential string) (*vc.Verifiabl
 }
 
 // verifyStatusList2021Credential checks that the StatusList2021Credential is currently valid
-func (cs *credentialStatus) verifyStatusList2021Credential(cred *vc.VerifiableCredential) error {
+func (cs *credentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCredential) (*credential.StatusList2021CredentialSubject, error) {
 	// make sure we have the correct credential.
 	if len(cred.Type) > 2 || !cred.IsType(ssi.MustParseURI(credential.StatusList2021CredentialType)) {
-		return errors.New("incorrect credential type received")
+		return nil, errors.New("incorrect credential types")
 	}
 
 	// returns statusList2021CredentialValidator, or Validate() fails because base type is missing
-	if err := credential.FindValidator(*cred).Validate(*cred); err != nil {
-		return err
+	if err := credential.FindValidator(cred).Validate(cred); err != nil {
+		return nil, err
 	}
 
 	// prevent an infinite loops in credentialStatus resolution; not that this is not prohibited by the spec
 	if cred.CredentialStatus != nil {
-		return errors.New("StatusListCredential with a CredentialStatus is not supported")
+		return nil, errors.New("StatusList2021Credential with a CredentialStatus is not supported")
 	}
-	if err := cs.verifySignature(*cred, nil); err != nil {
-		return err
+
+	// check credentialSubject
+	var credSubjects []credential.StatusList2021CredentialSubject
+	if err := cred.UnmarshalCredentialSubject(&credSubjects); err != nil {
+		// cannot happen. already validated in credential.statusList2021CredentialValidator{}
+		return nil, err
 	}
-	return nil
+	credSubject := credSubjects[0] // validators already ensured there is exactly 1 credentialSubject
+	_, err := statuslist2021.Expand(credSubject.EncodedList)
+	if err != nil {
+		return nil, fmt.Errorf("credentialSubject.encodedList is invalid: %w", err)
+	}
+
+	// verify signature
+	if err = cs.verifySignature(cred, nil); err != nil {
+		return nil, err
+	}
+	return &credSubject, nil
 }

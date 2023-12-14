@@ -569,12 +569,6 @@ func TestStatusList2021CredentialValidator_Validate(t *testing.T) {
 		err := statusList2021CredentialValidator{}.Validate(cred)
 		assert.EqualError(t, err, "validation failed: credentialSubject.encodedList is required")
 	})
-	t.Run("error - invalid encodedList", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(*StatusList2021CredentialSubject).EncodedList = "@"
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "validation failed: credentialSubject.encodedList is invalid: illegal base64 data at input byte 0")
-	})
 }
 
 func Test_validateCredentialStatus(t *testing.T) {

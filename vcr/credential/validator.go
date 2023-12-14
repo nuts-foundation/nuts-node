@@ -30,7 +30,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/credential/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/piprate/json-gold/ld"
@@ -365,10 +364,6 @@ func (d statusList2021CredentialValidator) Validate(credential vc.VerifiableCred
 		}
 		if cs.EncodedList == "" {
 			return failure("credentialSubject.encodedList is required")
-		}
-		// TODO: is this the right place to check this? All other checks are just very basic
-		if _, err = statuslist2021.Expand(cs.EncodedList); err != nil {
-			return failure("credentialSubject.encodedList is invalid: %v", err)
 		}
 	}
 
