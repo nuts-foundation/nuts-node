@@ -75,7 +75,7 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 	for _, status := range statuses {
 		if status.Type != credential.StatusList2021EntryType {
 			// ignore other credentialStatus.type
-			// TODO: should this be logged?
+			// TODO: what log level?
 			log.Logger().
 				WithField("credentialStatus.type", status.Type).
 				Info("ignoring credentialStatus with unknown type")
@@ -87,8 +87,8 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 			return err
 		}
 		if slEntry.StatusPurpose != "revocation" {
-			// ignore purposes that aren't check for revocations
-			// TODO: should other purposes be logged?
+			// ignore purposes that are not revocation
+			// TODO: what log level?
 			log.Logger().
 				WithField("credentialStatus.statusPurpose", slEntry.StatusPurpose).
 				Info("ignoring credentialStatus with purpose other than 'revocation'")

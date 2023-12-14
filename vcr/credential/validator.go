@@ -24,13 +24,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/piprate/json-gold/ld"
 )
@@ -146,43 +145,39 @@ func validateCredentialStatus(credential vc.VerifiableCredential) error {
 			return errors.New("credentialStatus.type is required")
 		}
 
-		// type specific validation
-		switch credentialStatus.Type {
-		case StatusList2021EntryType:
-			if !credential.ContainsContext(statusList2021ContextURI) {
-				return errors.New("StatusList2021 context is required")
-			}
+		// only accept StatusList2021EntryType for now
+		if credentialStatus.Type != StatusList2021EntryType {
+			continue
+		}
 
-			// marshal as StatusList2021Entry
-			var cs StatusList2021Entry
-			if err = json.Unmarshal(credentialStatus.Raw(), &cs); err != nil {
-				return err
-			}
+		if !credential.ContainsContext(statusList2021ContextURI) {
+			return errors.New("StatusList2021 context is required")
+		}
 
-			// 'id' MUST NOT be the URL for the status list
-			if cs.ID == cs.StatusListCredential {
-				return errors.New("StatusList2021Entry.id is the same as the StatusList2021Entry.statusListCredential")
-			}
+		// marshal as StatusList2021Entry
+		var cs StatusList2021Entry
+		if err = json.Unmarshal(credentialStatus.Raw(), &cs); err != nil {
+			return err
+		}
 
-			// StatusPurpose must contain a purpose
-			if cs.StatusPurpose == "" {
-				return errors.New("StatusList2021Entry.statusPurpose is required")
-			}
+		// 'id' MUST NOT be the URL for the status list
+		if cs.ID == cs.StatusListCredential {
+			return errors.New("StatusList2021Entry.id is the same as the StatusList2021Entry.statusListCredential")
+		}
 
-			// statusListIndex must be a non-negative number
-			if n, err := strconv.Atoi(cs.StatusListIndex); err != nil || n < 0 {
-				return errors.New("invalid StatusList2021Entry.statusListIndex")
-			}
+		// StatusPurpose must contain a purpose
+		if cs.StatusPurpose == "" {
+			return errors.New("StatusList2021Entry.statusPurpose is required")
+		}
 
-			// 'statusListCredential' must be a URL
-			// TODO: too strict? (requires https, no IP, and no Reserved Address like example.com)
-			if _, err = core.ParsePublicURL(cs.StatusListCredential, false); err != nil {
-				return fmt.Errorf("parse StatusList2021Entry.statusListCredential URL: %w", err)
-			}
-		default:
-			// TODO: what should happen if the node cannot process (any!all of) the CredentialStatus.
-			log.Logger().WithField("credentialStatus.type", credentialStatus.Type).
-				Debug("Received credential with unknown credentialStatus type")
+		// statusListIndex must be a non-negative number
+		if n, err := strconv.Atoi(cs.StatusListIndex); err != nil || n < 0 {
+			return errors.New("invalid StatusList2021Entry.statusListIndex")
+		}
+
+		// 'statusListCredential' must be a URL
+		if _, err = url.ParseRequestURI(cs.StatusListCredential); err != nil {
+			return fmt.Errorf("parse StatusList2021Entry.statusListCredential URL: %w", err)
 		}
 	}
 
@@ -349,8 +344,8 @@ func (d statusList2021CredentialValidator) Validate(credential vc.VerifiableCred
 		if err != nil {
 			return failure(err.Error())
 		}
-		// TODO: spec is not clear if there could be multiple CredentialSubjects. This could allow 'revocation' and 'suspension' to be defined in a single credential.
-		// However, it is not defined how to select the correct list (StatusPurpose) when validating credentials that are using this StatusList2021Credential
+		// The spec is not clear if there could be multiple CredentialSubjects. This could allow 'revocation' and 'suspension' to be defined in a single credential.
+		// However, it is not defined how to select the correct list (StatusPurpose) when validating credentials that are using this StatusList2021Credential.
 		if len(target) != 1 {
 			return failure("single CredentialSubject expected")
 		}
