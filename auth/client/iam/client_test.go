@@ -136,51 +136,65 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidScope}}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.PresentationDefinition(ctx, tlsServer.URL, "test")
+		_, err := client.PresentationDefinition(ctx, tlsServer.URL, "test")
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "invalid_scope")
-		assert.Nil(t, response)
 	})
 	t.Run("error - not found", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusNotFound}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.PresentationDefinition(ctx, tlsServer.URL, "test")
+		_, err := client.PresentationDefinition(ctx, tlsServer.URL, "test")
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "server returned HTTP 404 (expected: 200)")
-		assert.Nil(t, response)
 	})
 	t.Run("error - invalid URL", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusNotFound}
 		_, client := testServerAndClient(t, &handler)
 
-		response, err := client.PresentationDefinition(ctx, ":", "test")
+		_, err := client.PresentationDefinition(ctx, ":", "test")
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
-		assert.Nil(t, response)
 	})
 	t.Run("error - unknown host", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusNotFound}
 		_, client := testServerAndClient(t, &handler)
 
-		response, err := client.PresentationDefinition(ctx, "http://localhost", "test")
+		_, err := client.PresentationDefinition(ctx, "http://localhost", "test")
 
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "connection refused")
-		assert.Nil(t, response)
 	})
 	t.Run("error - invalid response", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.PresentationDefinition(ctx, tlsServer.URL, "test")
+		_, err := client.PresentationDefinition(ctx, tlsServer.URL, "test")
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value")
-		assert.Nil(t, response)
+	})
+}
+
+func TestHTTPClient_ClientMetadata(t *testing.T) {
+	ctx := context.Background()
+	metadata := oauth.AuthorizationServerMetadata{
+		TokenEndpoint: "http://test.test",
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: metadata}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.ClientMetadata(ctx, tlsServer.URL)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, metadata, *response)
+		require.NotNil(t, handler.Request)
 	})
 }
 

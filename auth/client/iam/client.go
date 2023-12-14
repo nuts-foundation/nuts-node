@@ -103,25 +103,8 @@ func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oaut
 	if err != nil {
 		return nil, err
 	}
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call endpoint: %w", err)
-	}
-	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
-		return nil, httpErr
-	}
-
 	var metadata oauth.AuthorizationServerMetadata
-	var data []byte
-
-	if data, err = io.ReadAll(response.Body); err != nil {
-		return nil, fmt.Errorf("unable to read response: %w", err)
-	}
-	if err = json.Unmarshal(data, &metadata); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
-	}
-
-	return &metadata, nil
+	return &metadata, hb.doRequest(ctx, request, &metadata)
 }
 
 // PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
@@ -138,29 +121,8 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpo
 	if err != nil {
 		return nil, err
 	}
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call endpoint: %w", err)
-	}
-	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
-		rse := httpErr.(core.HttpError)
-		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidScope); ok {
-			return nil, oauthErr
-		}
-		return nil, httpErr
-	}
-
 	var presentationDefinition pe.PresentationDefinition
-	var data []byte
-
-	if data, err = io.ReadAll(response.Body); err != nil {
-		return nil, fmt.Errorf("unable to read response: %w", err)
-	}
-	if err = json.Unmarshal(data, &presentationDefinition); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
-	}
-
-	return &presentationDefinition, nil
+	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
 }
 
 func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp vc.VerifiablePresentation, submission pe.PresentationSubmission, scopes string) (oauth.TokenResponse, error) {
@@ -247,22 +209,34 @@ func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values
 	}
 	request.Header.Add("Accept", "application/json")
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return "", err
-	}
-	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		return "", err
-	}
-	// take the redirectURL from the response body and return it
-	var responseData []byte
-	if responseData, err = io.ReadAll(response.Body); err != nil {
-		return "", fmt.Errorf("unable to read response: %w", err)
-	}
 	var redirect oauth.Redirect
-	if err = json.Unmarshal(responseData, &redirect); err != nil {
-		return "", fmt.Errorf("unable to unmarshal response: %w", err)
+	if err := hb.doRequest(ctx, request, &redirect); err != nil {
+		return "", err
 	}
 	return redirect.RedirectURI, nil
+}
+
+func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, target interface{}) error {
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
+		rse := httpErr.(core.HttpError)
+		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidScope); ok {
+			return oauthErr
+		}
+		return httpErr
+	}
+
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &target); err != nil {
+		return fmt.Errorf("unable to unmarshal response: %w", err)
+	}
+
+	return nil
 }
