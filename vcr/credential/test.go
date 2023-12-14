@@ -110,7 +110,7 @@ func ValidStatusList2021Credential(_ testing.TB) vc.VerifiableCredential {
 		ValidUntil:       &validUntilTomorrow,
 		CredentialStatus: nil,
 		CredentialSubject: []any{&StatusList2021CredentialSubject{
-			Id:            "https://example.com/status/3#list",
+			Id:            "https://example-com/status/3#list",
 			Type:          StatusList2021CredentialSubjectType,
 			StatusPurpose: "revocation",
 			EncodedList:   "H4sIAAAAAAAAA-3BMQEAAADCoPVPbQwfoAAAAAAAAAAAAAAAAAAAAIC3AYbSVKsAQAAA",

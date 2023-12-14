@@ -177,7 +177,7 @@ func validateCredentialStatus(credential vc.VerifiableCredential) error {
 
 			// 'statusListCredential' must be a URL
 			// TODO: too strict? (requires https, no IP, and no Reserved Address like example.com)
-			if _, err = core.ParsePublicURL(cs.StatusListCredential, true); err != nil {
+			if _, err = core.ParsePublicURL(cs.StatusListCredential, false); err != nil {
 				return fmt.Errorf("parse StatusList2021Entry.statusListCredential URL: %w", err)
 			}
 		default:

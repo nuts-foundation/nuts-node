@@ -25,8 +25,11 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
+	"strconv"
 	"testing"
 	"time"
 
@@ -37,6 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/credential/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
@@ -125,6 +129,66 @@ func TestVerifier_Verify(t *testing.T) {
 		sut := ctx.verifier
 		validationErr := sut.Verify(vc, true, false, nil)
 		assert.EqualError(t, validationErr, "credential is revoked")
+	})
+
+	t.Run("validate credentialStatus", func(t *testing.T) {
+		// make StatusList2021Credential with a revocation bit set
+		statusListIndex := 1
+		bitstring := statuslist2021.NewBitstring()
+		err := bitstring.SetBit(statusListIndex, true)
+		require.NoError(t, err)
+		slCred := credential.ValidStatusList2021Credential(t)
+		slCred.CredentialSubject[0].(*credential.StatusList2021CredentialSubject).EncodedList, err = statuslist2021.Compress(*bitstring)
+		require.NoError(t, err)
+		slCredBytes, err := json.Marshal(slCred)
+
+		// Test server
+		ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.Write(slCredBytes)
+		}))
+		http.DefaultClient = ts.Client()
+
+		// statusListEntry for credentialToValidate without statusListIndex
+		slEntry := credential.StatusList2021Entry{
+			ID:                   "https://example-com/credentials/status/3#statusListIndex",
+			Type:                 credential.StatusList2021EntryType,
+			StatusPurpose:        "revocation",
+			StatusListCredential: ts.URL,
+		}
+
+		// mock context
+		ctx := newMockContext(t)
+		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
+		ctx.verifier.credentialStatus.verifySignature = func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
+
+		cred := credential.ValidNutsOrganizationCredential(t)
+		cred.Context = append(cred.Context, ssi.MustParseURI(jsonld.W3cStatusList2021Context))
+
+		t.Run("not revoked", func(t *testing.T) {
+			slEntry.StatusListIndex = strconv.Itoa(statusListIndex + 1)
+			cred.CredentialStatus = []any{slEntry}
+
+			validationErr := ctx.verifier.Verify(cred, true, false, nil)
+
+			assert.NoError(t, validationErr)
+		})
+		t.Run("is revoked", func(t *testing.T) {
+			slEntry.StatusListIndex = strconv.Itoa(statusListIndex)
+			cred.CredentialStatus = []any{slEntry}
+
+			validationErr := ctx.verifier.Verify(cred, true, false, nil)
+
+			assert.ErrorIs(t, validationErr, types.ErrRevoked)
+		})
+		t.Run("ignore other purpose", func(t *testing.T) {
+			slEntry.StatusListIndex = strconv.Itoa(statusListIndex)
+			slEntry.StatusPurpose = "suspension"
+			cred.CredentialStatus = []any{slEntry}
+
+			validationErr := ctx.verifier.Verify(cred, true, false, nil)
+
+			assert.NoError(t, validationErr)
+		})
 	})
 
 	t.Run("trust check", func(t *testing.T) {
@@ -614,7 +678,7 @@ func newMockContext(t *testing.T) mockContext {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
-	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig).(*verifier)
+	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, http.DefaultClient).(*verifier)
 	sv := signatureVerifier{
 		keyResolver:   keyResolver,
 		jsonldManager: jsonldManager,
