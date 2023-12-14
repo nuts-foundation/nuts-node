@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	oauth2 "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -311,6 +312,50 @@ func expectPostError(t *testing.T, ctx *testCtx, errorCode oauth.ErrorCode, desc
 		assert.Equal(t, description, err.Description)
 		assert.Equal(t, expectedResponseURI, responseURI)
 		return "redirect", nil
+	})
+}
+
+func TestWrapper_sendAndHandleDirectPost(t *testing.T) {
+	t.Run("failed to post response", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.holderRole.EXPECT().PostAuthorizationResponse(gomock.Any(), gomock.Any(), gomock.Any(), "response").Return("", assert.AnError)
+		redirectURI := test.MustParseURL("https://example.com/redirect")
+		expected := HandleAuthorizeRequest302Response{
+			Headers: HandleAuthorizeRequest302ResponseHeaders{
+				Location: "https://example.com/redirect?error=server_error&error_description=failed+to+post+authorization+response+to+verifier+%40+response",
+			},
+		}
+
+		redirect := ctx.client.sendAndHandleDirectPost(context.Background(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response", *redirectURI)
+
+		assert.Equal(t, expected, redirect)
+	})
+}
+
+func TestWrapper_sendAndHandleDirectPostError(t *testing.T) {
+	t.Run("failed to post error with redirect available", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.holderRole.EXPECT().PostError(gomock.Any(), gomock.Any(), "response").Return("", assert.AnError)
+		redirectURI := test.MustParseURL("https://example.com/redirect")
+		expected := HandleAuthorizeRequest302Response{
+			Headers: HandleAuthorizeRequest302ResponseHeaders{
+				Location: "https://example.com/redirect?error=server_error&error_description=failed+to+post+error+to+verifier+%40+response",
+			},
+		}
+
+		redirect, err := ctx.client.sendAndHandleDirectPostError(context.Background(), oauth.OAuth2Error{RedirectURI: redirectURI}, "response")
+
+		require.NoError(t, err)
+		assert.Equal(t, expected, redirect)
+	})
+	t.Run("failed to post error without redirect available", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.holderRole.EXPECT().PostError(gomock.Any(), gomock.Any(), "response").Return("", assert.AnError)
+
+		_, err := ctx.client.sendAndHandleDirectPostError(context.Background(), oauth.OAuth2Error{}, "response")
+
+		require.Error(t, err)
+		require.Equal(t, "server_error - something went wrong", err.Error())
 	})
 }
 

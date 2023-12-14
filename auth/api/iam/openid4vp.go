@@ -253,20 +253,20 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.ServerError, err.Error(), clientRedirectURL), responseURI)
 	}
 
-	return r.sendAndHandleDirectPost(ctx, *vp, *submission, responseURI, *clientRedirectURL)
+	return r.sendAndHandleDirectPost(ctx, *vp, *submission, responseURI, *clientRedirectURL), nil
 }
 
 // sendAndHandleDirectPost sends OpenID4VP direct_post to the verifier. The verifier responds with a redirect to the client (including error fields if needed).
 // If the direct post fails, the user-agent will be redirected back to the client with an error. (Original redirect_uri).
 // If no redirect_uri is present, the user-agent will be redirected to the error page.
-func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, clientRedirectURL url.URL) (HandleAuthorizeRequestResponseObject, error) {
+func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, clientRedirectURL url.URL) HandleAuthorizeRequestResponseObject {
 	redirectURI, err := r.auth.Holder().PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI)
 	if err == nil {
 		return HandleAuthorizeRequest302Response{
 			HandleAuthorizeRequest302ResponseHeaders{
 				Location: redirectURI,
 			},
-		}, nil
+		}
 	}
 
 	msg := fmt.Sprintf("failed to post authorization response to verifier @ %s", verifierResponseURI)
@@ -281,7 +281,7 @@ func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePr
 		HandleAuthorizeRequest302ResponseHeaders{
 			Location: clientRedirectURL.String(),
 		},
-	}, nil
+	}
 }
 
 // sendAndHandleDirectPostError sends errors from handleAuthorizeRequestFromVerifier as direct_post to the verifier. The verifier responds with a redirect to the client (including error fields).
