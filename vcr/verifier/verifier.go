@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
@@ -127,7 +128,14 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	// Check the credentialStatus if the credential is revoked
 	err := v.credentialStatus.verify(credentialToVerify)
 	if err != nil {
-		return err
+		// soft fail, only return an error when revocation is confirmed and log everything else
+		if errors.Is(err, types.ErrRevoked) {
+			return err
+		} else {
+			// TODO: what log level
+			bs, _ := json.Marshal(credentialToVerify)
+			log.Logger().WithError(err).WithField("credential", string(bs)).Info("CredentialStatus verification failed")
+		}
 	}
 
 	// Check trust status

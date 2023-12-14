@@ -23,6 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -30,10 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
-	"io"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type credentialStatus struct {

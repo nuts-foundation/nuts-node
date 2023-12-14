@@ -22,9 +22,6 @@ import (
 	crypt "crypto"
 	"encoding/json"
 	"errors"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -33,6 +30,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -40,12 +38,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/credential/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -133,20 +132,15 @@ func TestVerifier_Verify(t *testing.T) {
 
 	t.Run("validate credentialStatus", func(t *testing.T) {
 		// make StatusList2021Credential with a revocation bit set
-		statusListIndex := 1
-		bitstring := statuslist2021.NewBitstring()
-		err := bitstring.SetBit(statusListIndex, true)
+		statusListCred := credential.ValidStatusList2021Credential(t)
+		statusListCredBytes, err := json.Marshal(statusListCred)
 		require.NoError(t, err)
-		slCred := credential.ValidStatusList2021Credential(t)
-		slCred.CredentialSubject[0].(*credential.StatusList2021CredentialSubject).EncodedList, err = statuslist2021.Compress(*bitstring)
-		require.NoError(t, err)
-		slCredBytes, err := json.Marshal(slCred)
+		statusListIndex := 1 // bit 1 is set in slCred
 
 		// Test server
 		ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			writer.Write(slCredBytes)
+			writer.Write(statusListCredBytes)
 		}))
-		http.DefaultClient = ts.Client()
 
 		// statusListEntry for credentialToValidate without statusListIndex
 		slEntry := credential.StatusList2021Entry{
@@ -157,6 +151,7 @@ func TestVerifier_Verify(t *testing.T) {
 		}
 
 		// mock context
+		http.DefaultClient = ts.Client() // newMockContext sets credentialStatus.client to http.DefaultClient
 		ctx := newMockContext(t)
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
 		ctx.verifier.credentialStatus.verifySignature = func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
@@ -183,6 +178,23 @@ func TestVerifier_Verify(t *testing.T) {
 		t.Run("ignore other purpose", func(t *testing.T) {
 			slEntry.StatusListIndex = strconv.Itoa(statusListIndex)
 			slEntry.StatusPurpose = "suspension"
+			cred.CredentialStatus = []any{slEntry}
+
+			validationErr := ctx.verifier.Verify(cred, true, false, nil)
+
+			assert.NoError(t, validationErr)
+		})
+		t.Run("don't fail if error is other than types.ErrRevoked", func(t *testing.T) {
+			ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				writer.WriteHeader(400)
+			}))
+			slEntry := credential.StatusList2021Entry{
+				ID:                   "not relevant",
+				Type:                 credential.StatusList2021EntryType,
+				StatusPurpose:        "revocation",
+				StatusListIndex:      "1",
+				StatusListCredential: ts.URL, //
+			}
 			cred.CredentialStatus = []any{slEntry}
 
 			validationErr := ctx.verifier.Verify(cred, true, false, nil)
@@ -679,11 +691,6 @@ func newMockContext(t *testing.T) mockContext {
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
 	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, http.DefaultClient).(*verifier)
-	sv := signatureVerifier{
-		keyResolver:   keyResolver,
-		jsonldManager: jsonldManager,
-	}
-	verifier.signatureVerifier = sv
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,
