@@ -7,6 +7,7 @@ Below you can discover the Nuts Node APIs and download their OpenAPI specificati
 
 - Common: `SSI types <../../_static/common/ssi_types.yaml>`_, `Default Error <../../_static/common/error_response.yaml>`_
 - `DID Manager <../../_static/didman/v1.yaml>`_
+- `Discovery Service <../../_static/discovery/v1.yaml>`_
 - `Crypto <../../_static/crypto/v1.yaml>`_
 - `Verifiable Credential Registry (v2) <../../_static/vcr/vcr_v2.yaml>`_
 - `Verifiable Data Registry <../../_static/vdr/v1.yaml>`_
@@ -30,6 +31,7 @@ Below you can discover the Nuts Node APIs and download their OpenAPI specificati
                 "dom_id": "#swagger-ui",
                 urls: [
                     {url: "../../_static/didman/v1.yaml", name: "DID Manager"},
+                    {url: "../../_static/discovery/v1.yaml", name: "Discovery Service"},
                     {url: "../../_static/crypto/v1.yaml", name: "Crypto"},
                     {url: "../../_static/vcr/vcr_v2.yaml", name: "Verifiable Credential Registry (v2)"},
                     {url: "../../_static/vdr/v1.yaml", name: "Verifiable Data Registry"},
