@@ -19,7 +19,6 @@
 package verifier
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -178,7 +177,7 @@ func (cs *credentialStatus) download(statusListCredential string) (*vc.Verifiabl
 	}()
 	body, err := io.ReadAll(res.Body)
 	if res.StatusCode > 299 || err != nil {
-		return nil, fmt.Errorf("fetching StatusList2021Credential from '%s' failed", statusListCredential)
+		return nil, errors.Join(fmt.Errorf("fetching StatusList2021Credential from '%s' failed", statusListCredential), err)
 	}
 	if err = json.Unmarshal(body, &cred); err != nil {
 		return nil, err

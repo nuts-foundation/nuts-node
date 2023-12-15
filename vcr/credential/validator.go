@@ -321,7 +321,7 @@ func validateNutsCredentialID(credential vc.VerifiableCredential) error {
 	return nil
 }
 
-// statusList2021CredentialValidator validates the syntax of a StatusList2021CredentialType
+// statusList2021CredentialValidator validates that all required fields of a StatusList2021CredentialType are present
 type statusList2021CredentialValidator struct{}
 
 func (d statusList2021CredentialValidator) Validate(credential vc.VerifiableCredential) error {
