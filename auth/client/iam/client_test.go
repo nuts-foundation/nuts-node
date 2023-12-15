@@ -196,6 +196,16 @@ func TestHTTPClient_ClientMetadata(t *testing.T) {
 		assert.Equal(t, metadata, *response)
 		require.NotNil(t, handler.Request)
 	})
+
+	t.Run("error - incorrect url", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: metadata}
+		_, client := testServerAndClient(t, &handler)
+
+		_, err := client.ClientMetadata(ctx, ":")
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+	})
 }
 
 func TestHTTPClient_AccessToken(t *testing.T) {
