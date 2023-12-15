@@ -23,20 +23,20 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
-	vcr "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,6 +53,16 @@ func TestHolderService_ClientMetadata(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, clientMetadata)
 	})
+	t.Run("error", func(t *testing.T) {
+		ctx := createOAuthHolderContext(t)
+		endpoint := fmt.Sprintf("%s/.well-known/oauth-authorization-server", ctx.tlsServer.URL)
+		ctx.metadata = nil
+
+		clientMetadata, err := ctx.holder.ClientMetadata(ctx.audit, endpoint)
+
+		assert.Error(t, err)
+		assert.Nil(t, clientMetadata)
+	})
 }
 
 func TestHolderService_PostError(t *testing.T) {
@@ -68,6 +78,16 @@ func TestHolderService_PostError(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "redirect", redirect)
+	})
+	t.Run("error", func(t *testing.T) {
+		ctx := createOAuthHolderContext(t)
+		endpoint := fmt.Sprintf("%s/error", ctx.tlsServer.URL)
+		ctx.errorResponse = nil
+
+		redirect, err := ctx.holder.PostError(ctx.audit, oauth.OAuth2Error{}, endpoint)
+
+		assert.Error(t, err)
+		assert.Empty(t, redirect)
 	})
 }
 
@@ -90,6 +110,16 @@ func TestHolderService_PostResponse(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "redirect", redirect)
 	})
+	t.Run("error", func(t *testing.T) {
+		ctx := createOAuthHolderContext(t)
+		endpoint := fmt.Sprintf("%s/response", ctx.tlsServer.URL)
+		ctx.response = nil
+
+		redirect, err := ctx.holder.PostAuthorizationResponse(ctx.audit, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, endpoint)
+
+		assert.Error(t, err)
+		assert.Empty(t, redirect)
+	})
 }
 
 func TestHolderService_BuildPresentation(t *testing.T) {
@@ -108,6 +138,38 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
 		require.NotNil(t, submission)
+	})
+	// wallet failure, build failure, no credentials
+	t.Run("error - wallet failure", func(t *testing.T) {
+		ctx := createHolderContext(t, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(nil, assert.AnError)
+
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, clientMetadata, "")
+
+		assert.Error(t, err)
+		assert.Nil(t, vp)
+		assert.Nil(t, submission)
+	})
+	t.Run("error - build failure", func(t *testing.T) {
+		ctx := createHolderContext(t, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), credentials, gomock.Any(), &walletDID, false).Return(nil, assert.AnError)
+
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, clientMetadata, "")
+
+		assert.Error(t, err)
+		assert.Nil(t, vp)
+		assert.Nil(t, submission)
+	})
+	t.Run("error - no matching credentials", func(t *testing.T) {
+		ctx := createHolderContext(t, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
+
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, pe.PresentationDefinition{}, clientMetadata, "")
+
+		assert.Equal(t, ErrNoCredentials, err)
+		assert.Nil(t, vp)
+		assert.Nil(t, submission)
 	})
 }
 
@@ -189,15 +251,15 @@ func createOAuthHolderContext(t *testing.T) *holderOAuthTestContext {
 				return
 			}
 		case "/error":
-			assert.Equal(t, string(oauth.InvalidRequest), request.FormValue("error"))
 			if ctx.errorResponse != nil {
+				assert.Equal(t, string(oauth.InvalidRequest), request.FormValue("error"))
 				ctx.errorResponse(writer)
 				return
 			}
 		case "/response":
-			assert.NotEmpty(t, request.FormValue(oauth.VpTokenParam))
-			assert.NotEmpty(t, request.FormValue(oauth.PresentationSubmissionParam))
-			if ctx.errorResponse != nil {
+			if ctx.response != nil {
+				assert.NotEmpty(t, request.FormValue(oauth.VpTokenParam))
+				assert.NotEmpty(t, request.FormValue(oauth.PresentationSubmissionParam))
 				ctx.errorResponse(writer)
 				return
 			}

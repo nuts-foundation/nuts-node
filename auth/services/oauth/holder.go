@@ -105,11 +105,11 @@ func (v *HolderService) PostError(ctx context.Context, auth2Error oauth.OAuth2Er
 	iamClient := iam.NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
 
 	redirectURL, err := iamClient.PostError(ctx, auth2Error, verifierResponseURI)
-	if err == nil {
-		return redirectURL, nil
+	if err != nil {
+		return "", fmt.Errorf("failed to post error to verifier: %w", err)
 	}
 
-	return "", fmt.Errorf("failed to post error to verifier: %w", err)
+	return redirectURL, nil
 }
 
 func (v *HolderService) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (string, error) {
