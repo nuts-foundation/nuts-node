@@ -1,3 +1,4 @@
+// # check access via token introspection as described by https://www.nginx.com/blog/validating-oauth-2-0-access-tokens-nginx/
 function introspectAccessToken(r) {
     // strip the first 8 chars
     var token = "token=" + r.headersIn['Authorization'].substring(7);

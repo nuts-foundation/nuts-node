@@ -6,7 +6,6 @@ datadir: /opt/nuts/data
 http:
   default:
     address: :1323
-    log: metadata-and-body
 auth:
   v2apienabled: true
   presentationexchangemappingfile: /opt/nuts/presentationexchangemapping.json
