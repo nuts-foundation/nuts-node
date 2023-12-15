@@ -154,7 +154,7 @@ func validateCredentialStatus(credential vc.VerifiableCredential) error {
 			return errors.New("StatusList2021 context is required")
 		}
 
-		// marshal as StatusList2021Entry
+		// unmarshal as StatusList2021Entry
 		var cs StatusList2021Entry
 		if err = json.Unmarshal(credentialStatus.Raw(), &cs); err != nil {
 			return err

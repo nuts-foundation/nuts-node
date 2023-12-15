@@ -159,7 +159,7 @@ func (cs *credentialStatus) update(statusListCredential string) (*statusList, er
 // download the StatusList2021Credential found at statusList2021Entry.statusListCredential
 func (cs *credentialStatus) download(statusListCredential string) (*vc.VerifiableCredential, error) {
 	var cred vc.VerifiableCredential // VC containing CredentialStatus of the credentialToVerify
-	req, err := http.NewRequest(http.MethodGet, statusListCredential, new(bytes.Buffer))
+	req, err := http.NewRequest(http.MethodGet, statusListCredential, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -167,14 +167,16 @@ func (cs *credentialStatus) download(statusListCredential string) (*vc.Verifiabl
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err = res.Body.Close(); err != nil {
+			// log, don't fail
+			log.Logger().
+				WithError(err).
+				WithField("method", "credentialStatus.download").
+				Debug("failed to close response body")
+		}
+	}()
 	body, err := io.ReadAll(res.Body)
-	if err = res.Body.Close(); err != nil {
-		// log, don't fail
-		log.Logger().
-			WithError(err).
-			WithField("method", "credentialStatus.download").
-			Debug("failed to close response body")
-	}
 	if res.StatusCode > 299 || err != nil {
 		return nil, fmt.Errorf("fetching StatusList2021Credential from '%s' failed", statusListCredential)
 	}
