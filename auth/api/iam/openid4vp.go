@@ -176,6 +176,10 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	// state, REQUIRED. Original client state from the holder (in the client role)
 	// presentation_definition_uri, REQUIRED. For getting the presentation definition
 
+	// there are way more error conditions that listed at: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-error-response
+	// missing or invalid parameters are all mapped to invalid_request
+	// any operation that fails is mapped to server_error, this includes unreachable or broken backends.
+
 	// check the response URL because later errors will redirect to this URL
 	responseURI, responseOK := params[responseURIParam]
 
