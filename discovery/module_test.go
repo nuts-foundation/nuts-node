@@ -183,11 +183,21 @@ func Test_Module_Add(t *testing.T) {
 			err := m.Add(testServiceID, vp)
 			assert.ErrorIs(t, err, errInvalidRetractionJTIClaim)
 		})
-		t.Run("'retract_jti' claim in not a string", func(t *testing.T) {
+		t.Run("'retract_jti' claim is not a string", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 				claims["retract_jti"] = 10
+				claims[jwt.AudienceKey] = []string{testServiceID}
+			})
+			err := m.Add(testServiceID, vp)
+			assert.ErrorIs(t, err, errInvalidRetractionJTIClaim)
+		})
+		t.Run("'retract_jti' claim is an empty string", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine)
+			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+				vp.Type = append(vp.Type, retractionPresentationType)
+				claims["retract_jti"] = ""
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			})
 			err := m.Add(testServiceID, vp)

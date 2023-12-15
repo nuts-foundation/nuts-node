@@ -208,7 +208,7 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	// If not, it might've already been removed due to expiry or superseded by a newer presentation.
 	retractJTIRaw, _ := presentation.JWT().Get("retract_jti")
 	retractJTI, ok := retractJTIRaw.(string)
-	if !ok {
+	if !ok || retractJTI == "" {
 		return errInvalidRetractionJTIClaim
 	}
 	signerDID, _ := credential.PresentationSigner(presentation) // checked before
