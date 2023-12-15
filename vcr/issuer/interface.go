@@ -85,13 +85,6 @@ type CredentialSearcher interface {
 	SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error)
 }
 
-const (
-	JSONLDCredentialFormat   = vc.JSONLDCredentialProofFormat
-	JWTCredentialFormat      = vc.JWTCredentialProofFormat
-	JSONLDPresentationFormat = vc.JSONLDPresentationProofFormat
-	JWTPresentationFormat    = vc.JWTPresentationProofFormat
-)
-
 // CredentialOptions specifies options for issuing a credential.
 type CredentialOptions struct {
 	// Format specifies the proof format for the issued credential. If not set, it defaults to JSON-LD.

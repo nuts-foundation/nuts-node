@@ -13,7 +13,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -27,9 +26,9 @@ type signatureVerifier struct {
 // VerifySignature checks if the signature on a VP is valid at a given time
 func (sv *signatureVerifier) VerifySignature(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 	switch credentialToVerify.Format() {
-	case issuer.JSONLDCredentialFormat:
+	case vc.JSONLDCredentialProofFormat:
 		return sv.jsonldProof(credentialToVerify, credentialToVerify.Issuer.String(), validateAt)
-	case issuer.JWTCredentialFormat:
+	case vc.JWTCredentialProofFormat:
 		return sv.jwtSignature(credentialToVerify.Raw(), credentialToVerify.Issuer.String(), validateAt)
 	default:
 		return errors.New("unsupported credential proof format")
@@ -44,9 +43,9 @@ func (sv *signatureVerifier) VerifyVPSignature(presentation vc.VerifiablePresent
 	}
 
 	switch presentation.Format() {
-	case issuer.JSONLDPresentationFormat:
+	case vc.JSONLDPresentationProofFormat:
 		return sv.jsonldProof(presentation, signerDID.String(), validateAt)
-	case issuer.JWTPresentationFormat:
+	case vc.JWTPresentationProofFormat:
 		return sv.jwtSignature(presentation.Raw(), signerDID.String(), validateAt)
 	default:
 		return errors.New("unsupported presentation proof format")
