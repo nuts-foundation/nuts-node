@@ -73,7 +73,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	}
 	redirectURL, err := url.Parse(redirectURI)
 	if err != nil {
-		// todo render error page instead of technical error
+		// todo render error page instead of technical error (via errorWriter)
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid redirect_uri parameter"}
 	}
 	// now we have a valid redirectURL, so all future errors will redirect to this URL using the Oauth2ErrorWriter
@@ -262,7 +262,6 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 
 // sendAndHandleDirectPost sends OpenID4VP direct_post to the verifier. The verifier responds with a redirect to the client (including error fields if needed).
 // If the direct post fails, the user-agent will be redirected back to the client with an error. (Original redirect_uri).
-// If no redirect_uri is present, the user-agent will be redirected to the error page.
 func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, clientRedirectURL url.URL) HandleAuthorizeRequestResponseObject {
 	redirectURI, err := r.auth.Holder().PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI)
 	if err == nil {
