@@ -42,6 +42,11 @@ type ErrorResponse = oauth.OAuth2Error
 // PresentationDefinition is an alias
 type PresentationDefinition = pe.PresentationDefinition
 
+// PresentationSubmission is an alias
+type PresentationSubmission = pe.PresentationSubmission
+
+type RedirectResponse = oauth.Redirect
+
 // TokenResponse is an alias
 type TokenResponse = oauth.TokenResponse
 
@@ -130,6 +135,10 @@ const clientMetadataURIParam = "client_metadata_uri"
 // clientIDSchemeParam is the name of the OpenID4VP client_id_scheme parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
 const clientIDSchemeParam = "client_id_scheme"
+
+// codeParam is the name of the code parameter.
+// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.2
+const codeParam = "code"
 
 // scopeParam is the name of the scope parameter.
 // Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.3

@@ -273,7 +273,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.holderRole.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(&pe.PresentationDefinition{}, nil)
-		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, "nonce").Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
+		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, "nonce", verifierDID).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 		ctx.holderRole.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/iam/verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{

@@ -139,11 +139,8 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 	case "authorization_code":
 		// Options:
 		// - OpenID4VCI
-		// - OpenID4VP, vp_token is sent in Token Response
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.UnsupportedGrantType,
-			Description: "not implemented yet",
-		}
+		// - OpenID4VP
+		return r.handleAccessTokenRequest(ctx, *ownDID, request.Body.Code, request.Body.RedirectUri, request.Body.ClientId)
 	case "urn:ietf:params:oauth:grant-type:pre-authorized_code":
 		// Options:
 		// - OpenID4VCI
@@ -399,7 +396,7 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		return nil, err
 	}
 	if !isWallet {
-		return nil, core.InvalidInputError("did not owned by this node: %w", err)
+		return nil, core.InvalidInputError("did not owned by this node")
 	}
 	if request.Body.UserID != nil && len(*request.Body.UserID) > 0 {
 		// forward to user flow

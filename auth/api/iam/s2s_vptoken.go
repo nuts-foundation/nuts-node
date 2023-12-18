@@ -68,7 +68,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 			return nil, err
 		}
 		if subjectDID, err := validatePresentationSigner(presentation, credentialSubjectID); err != nil {
-			return nil, err
+			return nil, oauthError(oauth.InvalidRequest, err.Error())
 		} else {
 			credentialSubjectID = *subjectDID
 		}
@@ -158,30 +158,6 @@ func (r Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, prese
 	}, nil
 }
 
-// validatePresentationSubmission checks if the presentation submission is valid for the given scope:
-//  1. Resolve presentation definition for the requested scope
-//  2. Check submission against presentation and definition
-func (r Wrapper) validatePresentationSubmission(ctx context.Context, authorizer did.DID, scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (map[string]vc.VerifiableCredential, *PresentationDefinition, error) {
-	definition, err := r.policyBackend.PresentationDefinition(ctx, authorizer, scope)
-	if err != nil {
-		return nil, nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidScope,
-			InternalError: err,
-			Description:   fmt.Sprintf("unsupported scope (%s) for presentation exchange: %s", scope, err.Error()),
-		}
-	}
-
-	credentialMap, err := submission.Validate(*pexEnvelope, *definition)
-	if err != nil {
-		return nil, nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidRequest,
-			Description:   "presentation submission does not conform to Presentation Definition",
-			InternalError: err,
-		}
-	}
-	return credentialMap, definition, err
-}
-
 // validateS2SPresentationMaxValidity checks that the presentation is valid for a reasonable amount of time.
 func validateS2SPresentationMaxValidity(presentation vc.VerifiablePresentation) error {
 	created := credential.PresentationIssuanceDate(presentation)
@@ -201,53 +177,15 @@ func validateS2SPresentationMaxValidity(presentation vc.VerifiablePresentation) 
 	return nil
 }
 
-// validatePresentationSigner checks if the presenter of the VP is the same as the subject of the VCs being presented.
-func validatePresentationSigner(presentation vc.VerifiablePresentation, expectedCredentialSubjectDID did.DID) (*did.DID, error) {
-	subjectDID, err := credential.PresenterIsCredentialSubject(presentation)
-	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: err.Error(),
-		}
-	}
-	if subjectDID == nil {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: "presentation signer is not credential subject",
-		}
-	}
-	if !expectedCredentialSubjectDID.Empty() && !subjectDID.Equals(expectedCredentialSubjectDID) {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: "not all presentations have the same credential subject ID",
-		}
-	}
-	return subjectDID, nil
-}
-
 // validateS2SPresentationNonce checks if the nonce has been used before; 'nonce' claim for JWTs or LDProof's 'nonce' for JSON-LD.
 func (r Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresentation) error {
-	var nonce string
-	switch presentation.Format() {
-	case vc.JWTPresentationProofFormat:
-		nonceRaw, _ := presentation.JWT().Get("nonce")
-		nonce, _ = nonceRaw.(string)
-		if nonce == "" {
-			return oauth.OAuth2Error{
-				Code:        oauth.InvalidRequest,
-				Description: "presentation has invalid/missing nonce",
-			}
+	nonce, err := extractNonce(presentation)
+	if nonce == "" {
+		return oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			InternalError: err,
+			Description:   "presentation has invalid/missing nonce",
 		}
-	case vc.JSONLDPresentationProofFormat:
-		proof, err := credential.ParseLDProof(presentation)
-		if err != nil || proof.Nonce == nil || *proof.Nonce == "" {
-			return oauth.OAuth2Error{
-				Code:          oauth.InvalidRequest,
-				InternalError: err,
-				Description:   "presentation has invalid proof or nonce",
-			}
-		}
-		nonce = *proof.Nonce
 	}
 
 	nonceStore := r.storageEngine.GetSessionDatabase().GetStore(s2sMaxPresentationValidity+s2sMaxClockSkew, "s2s", "nonce")
@@ -272,31 +210,24 @@ func (r Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresenta
 	return nonceError
 }
 
-// validatePresentationAudience checks if the presentation audience (aud claim for JWTs, domain property for JSON-LD proofs) contains the issuer DID.
-func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresentation, issuer did.DID) error {
-	var audience []string
+// extractNonce extracts the nonce from the presentation.
+// it uses the nonce from the JWT if available, otherwise it uses the nonce from the LD proof.
+func extractNonce(presentation vc.VerifiablePresentation) (string, error) {
+	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		audience = presentation.JWT().Audience()
+		nonceRaw, _ := presentation.JWT().Get("nonce")
+		nonce, _ = nonceRaw.(string)
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := credential.ParseLDProof(presentation)
 		if err != nil {
-			return err
+			return "", err
 		}
-		if proof.Domain != nil {
-			audience = []string{*proof.Domain}
-		}
-	}
-	for _, aud := range audience {
-		if aud == issuer.String() {
-			return nil
+		if proof.Nonce != nil && *proof.Nonce != "" {
+			nonce = *proof.Nonce
 		}
 	}
-	return oauth.OAuth2Error{
-		Code:          oauth.InvalidRequest,
-		Description:   "presentation audience/domain is missing or does not match",
-		InternalError: fmt.Errorf("expected: %s, got: %v", issuer, audience),
-	}
+	return nonce, nil
 }
 
 type AccessToken struct {

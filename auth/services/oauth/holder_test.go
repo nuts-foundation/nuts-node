@@ -74,7 +74,7 @@ func TestHolderService_PostError(t *testing.T) {
 			Description: "missing required parameter",
 		}
 
-		redirect, err := ctx.holder.PostError(ctx.audit, oauthError, endpoint)
+		redirect, err := ctx.holder.PostError(ctx.audit, oauthError, endpoint, "state")
 
 		require.NoError(t, err)
 		assert.Equal(t, "redirect", redirect)
@@ -84,7 +84,7 @@ func TestHolderService_PostError(t *testing.T) {
 		endpoint := fmt.Sprintf("%s/error", ctx.tlsServer.URL)
 		ctx.errorResponse = nil
 
-		redirect, err := ctx.holder.PostError(ctx.audit, oauth.OAuth2Error{}, endpoint)
+		redirect, err := ctx.holder.PostError(ctx.audit, oauth.OAuth2Error{}, endpoint, "state")
 
 		assert.Error(t, err)
 		assert.Empty(t, redirect)
@@ -126,6 +126,7 @@ func TestHolderService_PostResponse(t *testing.T) {
 func TestHolderService_BuildPresentation(t *testing.T) {
 	credentials := []vcr.VerifiableCredential{credential.ValidNutsOrganizationCredential(t)}
 	walletDID := did.MustParseDID("did:web:example.com:iam:wallet")
+	verifierDID := did.MustParseDID("did:web:example.com:iam:verifier")
 	presentationDefinition := pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{{Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}}}}
 	vpFormats := oauth.DefaultOpenIDSupportedFormats()
 
@@ -134,18 +135,19 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), credentials, gomock.Any(), &walletDID, false).Return(&vc.VerifiablePresentation{}, nil)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "")
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID)
 
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
 		require.NotNil(t, submission)
+
 	})
 	// wallet failure, build failure, no credentials
 	t.Run("error - wallet failure", func(t *testing.T) {
 		ctx := createHolderContext(t, nil)
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(nil, assert.AnError)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "")
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID)
 
 		assert.Error(t, err)
 		assert.Nil(t, vp)
@@ -156,7 +158,7 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), credentials, gomock.Any(), &walletDID, false).Return(nil, assert.AnError)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "")
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID)
 
 		assert.Error(t, err)
 		assert.Nil(t, vp)
@@ -166,11 +168,33 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		ctx := createHolderContext(t, nil)
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, pe.PresentationDefinition{}, vpFormats, "")
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, pe.PresentationDefinition{}, vpFormats, "", verifierDID)
 
 		assert.Equal(t, ErrNoCredentials, err)
 		assert.Nil(t, vp)
 		assert.Nil(t, submission)
+	})
+}
+
+func TestHolderService_PresentationDefinition(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := createOAuthHolderContext(t)
+		endpoint := fmt.Sprintf("%s/presentation_definition", ctx.tlsServer.URL)
+
+		pd, err := ctx.holder.PresentationDefinition(context.Background(), endpoint)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, pd)
+	})
+	t.Run("error", func(t *testing.T) {
+		ctx := createOAuthHolderContext(t)
+		endpoint := fmt.Sprintf("%s/presentation_definition", ctx.tlsServer.URL)
+		ctx.presentationDefinition = nil
+
+		pd, err := ctx.holder.PresentationDefinition(context.Background(), endpoint)
+
+		assert.Error(t, err)
+		assert.Nil(t, pd)
 	})
 }
 
@@ -204,13 +228,14 @@ func createHolderContext(t *testing.T, tlsConfig *tls.Config) *holderTestContext
 
 type holderOAuthTestContext struct {
 	*holderTestContext
-	authzServerMetadata *oauth.AuthorizationServerMetadata
-	handler             http.HandlerFunc
-	tlsServer           *httptest.Server
-	verifierDID         did.DID
-	metadata            func(writer http.ResponseWriter)
-	errorResponse       func(writer http.ResponseWriter)
-	response            func(writer http.ResponseWriter)
+	authzServerMetadata    *oauth.AuthorizationServerMetadata
+	handler                http.HandlerFunc
+	tlsServer              *httptest.Server
+	verifierDID            did.DID
+	metadata               func(writer http.ResponseWriter)
+	errorResponse          func(writer http.ResponseWriter)
+	response               func(writer http.ResponseWriter)
+	presentationDefinition func(writer http.ResponseWriter)
 }
 
 func createOAuthHolderContext(t *testing.T) *holderOAuthTestContext {
@@ -230,6 +255,13 @@ func createOAuthHolderContext(t *testing.T) *holderOAuthTestContext {
 			bytes, _ := json.Marshal(oauth.Redirect{
 				RedirectURI: "redirect",
 			})
+			_, _ = writer.Write(bytes)
+			return
+		},
+		presentationDefinition: func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(pe.PresentationDefinition{})
 			_, _ = writer.Write(bytes)
 			return
 		},
@@ -255,6 +287,11 @@ func createOAuthHolderContext(t *testing.T) *holderOAuthTestContext {
 			if ctx.errorResponse != nil {
 				assert.Equal(t, string(oauth.InvalidRequest), request.FormValue("error"))
 				ctx.errorResponse(writer)
+				return
+			}
+		case "/presentation_definition":
+			if ctx.presentationDefinition != nil {
+				ctx.presentationDefinition(writer)
 				return
 			}
 		case "/response":

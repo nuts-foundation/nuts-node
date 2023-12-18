@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
 	"net/url"
 	"strings"
@@ -126,12 +127,18 @@ func (s *relyingParty) CreateAuthorizationRequest(ctx context.Context, requestHo
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse authorization endpoint URL: %w", err)
 	}
-	// todo: redirect_uri
+	// construct callback URL for wallet
+	callbackURL, err := didweb.DIDToURL(requestHolder)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create callback URL: %w", err)
+	}
+	callbackURL = callbackURL.JoinPath("callback")
 	redirectURL := nutsHttp.AddQueryParams(*endpoint, map[string]string{
 		"client_id":     requestHolder.String(),
 		"response_type": "code",
 		"scope":         scopes,
 		"state":         clientState,
+		"redirect_uri":  callbackURL.String(),
 	})
 	return &redirectURL, nil
 }

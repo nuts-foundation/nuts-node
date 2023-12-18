@@ -58,9 +58,13 @@ paths:
                   example: urn:ietf:params:oauth:grant-type:authorized_code
                 code:
                   type: string
+                client_id:
+                  type: string
                 assertion:
                   type: string
                 presentation_submission:
+                  type: string
+                redirect_uri:
                   type: string
                 scope:
                   type: string
@@ -149,6 +153,52 @@ paths:
                 "$ref": "#/components/schemas/PresentationDefinition"
         "default":
           $ref: '../common/error_response.yaml'
+  "/iam/{id}/response":
+    post:
+      summary: Used by wallets to post the authorization response or error to.
+      description: | 
+        Specified by https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-response-mode-direct_postjw
+        The response is either an error response with error, error_description and state filled or a submission with vp_token and presentation_submission filled.
+        When an error is posted, the state is used to fetch the holder's callbackURI from the verifiers client state.
+      operationId: handleAuthorizeResponse
+      tags:
+        - oauth2
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: the id part of the web DID
+          schema:
+            type: string
+            example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                error:
+                  description: error code as defined by the OAuth2 specification
+                  type: string
+                error_description:
+                  description: error description as defined by the OAuth2 specification
+                  type: string
+                presentation_submission:
+                  type: string
+                state:
+                  description: the client state for the verifier
+                  type: string
+                vp_token:
+                  description: A Verifiable Presentation in either JSON-LD or JWT format.
+                  type: string
+      responses:
+        "200":
+          description: Authorization response with a redirect URL, also used for error returns if possible.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectResponse'
   # TODO: What format to use? (codegenerator breaks on aliases)
   # See issue https://github.com/nuts-foundation/nuts-node/issues/2365
   # create aliases for the specced path
@@ -362,6 +412,16 @@ components:
       $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
     VerifiablePresentation:
       $ref: '../common/ssi_types.yaml#/components/schemas/VerifiablePresentation'
+    RedirectResponse:
+      type: object
+      required:
+        - redirect_uri
+      properties:
+        redirect_uri:
+          type: string
+          description: |
+            The URL to which the user-agent will be redirected after the authorization request.
+          example: "https://example.com/callback"
     TokenResponse:
       type: object
       description: |
@@ -406,6 +466,11 @@ components:
     PresentationDefinition:
       description: |
         A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
+        Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
+      type: object
+    PresentationSubmission:
+      description: |
+        A presentation submission is a JSON object that describes the mapping between the required verifiable credentials listed in the presentation definition and the supplied verifiable presentation.
         Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
       type: object
     ErrorResponse:

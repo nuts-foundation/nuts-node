@@ -62,11 +62,11 @@ type Verifier interface {
 // Holder implements the OpenID4VP Holder role which acts as Authorization server in the OpenID4VP flow.
 type Holder interface {
 	// BuildPresentation builds a Verifiable Presentation based on the given presentation definition.
-	BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
+	BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience did.DID) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
 	// ClientMetadata returns the metadata of the remote verifier.
 	ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error)
 	// PostError posts an error to the verifier. If it fails, an error is returned.
-	PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string) (string, error)
+	PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (string, error)
 	// PostAuthorizationResponse posts the authorization response to the verifier. If it fails, an error is returned.
 	PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error)
 	// PresentationDefinition returns the presentation definition from the given endpoint.
