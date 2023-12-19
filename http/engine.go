@@ -25,7 +25,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -205,24 +204,6 @@ func (h *Engine) Shutdown() error {
 	return h.server.Shutdown(context.Background())
 }
 
-// decodeURIPath is echo middleware that decodes path parameters
-func decodeURIPath(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		// FIXME: This is a hack because of https://github.com/labstack/echo/issues/1258
-		newValues := make([]string, len(c.ParamValues()))
-		for i, value := range c.ParamValues() {
-			path, err := url.PathUnescape(value)
-			if err != nil {
-				path = value
-			}
-			newValues[i] = path
-		}
-		c.SetParamNames(c.ParamNames()...)
-		c.SetParamValues(newValues...)
-		return next(c)
-	}
-}
-
 // matchesPath checks whether the request URI path hierarchically matches the given path.
 // Examples:
 // / matches /
@@ -244,9 +225,6 @@ func matchesPath(requestURI string, path string) bool {
 }
 
 func (h Engine) applyGlobalMiddleware(echoServer core.EchoRouter, serverConfig core.ServerConfig) {
-	// Use middleware to decode URL encoded path parameters like did%3Anuts%3A123 -> did:nuts:123
-	echoServer.Use(decodeURIPath)
-
 	// Always enabled in strict mode
 	if serverConfig.Strictmode || serverConfig.InternalRateLimiter {
 		echoServer.Use(newInternalRateLimiter(map[string][]string{
