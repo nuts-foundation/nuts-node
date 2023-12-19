@@ -47,7 +47,7 @@ require (
 	go.uber.org/mock v0.3.0
 	golang.org/x/crypto v0.17.0
 	golang.org/x/time v0.5.0
-	google.golang.org/grpc v1.60.0
+	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
