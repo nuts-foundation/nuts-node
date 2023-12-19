@@ -81,21 +81,21 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	// GET authorization server metadata for wallet
 	walletID, ok := params[clientIDParam]
 	if !ok {
-		return nil, oauthError(oauth.InvalidRequest, "missing client_id parameter", redirectURL)
+		return nil, oauthError(oauth.InvalidRequest, "missing client_id parameter")
 	}
 	// the walletDID must be a did:web
 	walletDID, err := did.ParseDID(walletID)
 	if err != nil || walletDID.Method != "web" {
-		return nil, oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", redirectURL)
+		return nil, oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)")
 	}
 	metadata, err := r.auth.Verifier().AuthorizationServerMetadata(ctx, *walletDID)
 	if err != nil {
-		return nil, oauthError(oauth.ServerError, "failed to get metadata from wallet", redirectURL)
+		return nil, oauthError(oauth.ServerError, "failed to get metadata from wallet")
 	}
 	// own generic endpoint
 	ownURL, err := didweb.DIDToURL(verifier)
 	if err != nil {
-		return nil, oauthError(oauth.ServerError, "invalid verifier DID", redirectURL)
+		return nil, oauthError(oauth.ServerError, "invalid verifier DID")
 	}
 	// generate presentation_definition_uri based on own presentation_definition endpoint + scope
 	pdURL := ownURL.JoinPath("presentation_definition")
@@ -118,18 +118,18 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	//    &nonce=n-0S6_WzA2Mj HTTP/1.1
 	walletURL, err := url.Parse(metadata.AuthorizationEndpoint)
 	if err != nil || len(metadata.AuthorizationEndpoint) == 0 {
-		return nil, oauthError(oauth.InvalidRequest, "invalid wallet endpoint", redirectURL)
+		return nil, oauthError(oauth.InvalidRequest, "invalid wallet endpoint")
 	}
 	nonce := crypto.GenerateNonce()
 	callbackURL := *ownURL
 	callbackURL.Path, err = url.JoinPath(callbackURL.Path, "response")
 	if err != nil {
-		return nil, oauthError(oauth.ServerError, "failed to construct redirect path", redirectURL)
+		return nil, oauthError(oauth.ServerError, "failed to construct redirect path")
 	}
 
 	metadataURL, err := r.auth.Verifier().ClientMetadataURL(verifier)
 	if err != nil {
-		return nil, oauthError(oauth.ServerError, "failed to construct metadata URL", redirectURL)
+		return nil, oauthError(oauth.ServerError, "failed to construct metadata URL")
 	}
 
 	// todo: because of the did scheme, the request needs to be signed using JAR according to §5.7 of the openid4vp spec
@@ -153,7 +153,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	}
 	// use nonce to store authorization request in session store
 	if err = r.oauthNonceStore().Put(nonce, openid4vpRequest); err != nil {
-		return nil, oauthError(oauth.ServerError, "failed to store server state", redirectURL)
+		return nil, oauthError(oauth.ServerError, "failed to store server state")
 	}
 
 	return HandleAuthorizeRequest302Response{
@@ -173,7 +173,6 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	// client_id, REQUIRED. This must be a did:web
 	// response_uri, REQUIRED. This must be the verifier node url
 	// response_mode, REQUIRED. Value MUST be "direct_post"
-	// state, REQUIRED. Original client state from the holder (in the client role)
 	// presentation_definition_uri, REQUIRED. For getting the presentation definition
 
 	// there are way more error conditions that listed at: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-error-response
@@ -182,68 +181,45 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 
 	// check the response URL because later errors will redirect to this URL
 	responseURI, responseOK := params[responseURIParam]
-
-	// get the original authorization request of the client, if something fails we need the redirectURI from this request
-	// get the state parameter
-	state, ok := params[stateParam]
-	if !ok {
-		// post error to responseURI, if it fails, it'll render error page
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing state parameter", nil), responseURI)
-	}
-
-	// check client state
-	// if no state, post error
-	var session OAuthSession
-	err := r.oauthClientStateStore().Get(state, &session)
-	if err != nil {
-		if !responseOK {
-			return nil, oauthError(oauth.ServerError, "something went wrong", nil)
-		}
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "state has expired", nil), responseURI)
-	}
-	clientRedirectURL := session.redirectURI()
 	if !responseOK {
-		if clientRedirectURL != nil {
-			return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing response_uri parameter", nil), clientRedirectURL.String())
-		}
-		return nil, oauthError(oauth.ServerError, "something went wrong", nil)
+		return nil, oauthError(oauth.InvalidRequest, "missing response_uri param")
 	}
 
 	verifierID, ok := params[clientIDParam]
 	if !ok {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing client_id parameter", clientRedirectURL), responseURI)
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing client_id parameter"), responseURI)
 	}
 	// the verifier must be a did:web
 	verifierDID, err := did.ParseDID(verifierID)
 	if err != nil || verifierDID.Method != "web" {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", clientRedirectURL), responseURI)
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), responseURI)
 	}
 	clientIDScheme, ok := params[clientIDSchemeParam]
 	if !ok || clientIDScheme != didScheme {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id_scheme parameter", clientRedirectURL), responseURI)
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id_scheme parameter"), responseURI)
 	}
 	nonce, ok := params[nonceParam]
 	if !ok {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing nonce parameter", clientRedirectURL), responseURI)
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing nonce parameter"), responseURI)
 	}
 	// get verifier metadata
 	clientMetadataURI, ok := params[clientMetadataURIParam]
 	if !ok {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing client_metadata_uri parameter", clientRedirectURL), responseURI)
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing client_metadata_uri parameter"), responseURI)
 	}
 	// we ignore any client_metadata, but officially an error must be returned when that param is present.
 	metadata, err := r.auth.Holder().ClientMetadata(ctx, clientMetadataURI)
 	if err != nil {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.ServerError, "failed to get client metadata (verifier)", clientRedirectURL), responseURI)
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.ServerError, "failed to get client metadata (verifier)"), responseURI)
 	}
 	// get presentation_definition from presentation_definition_uri
 	presentationDefinitionURI, ok := params[presentationDefUriParam]
 	if !ok {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing presentation_definition_uri parameter", clientRedirectURL), responseURI)
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing presentation_definition_uri parameter"), responseURI)
 	}
 	presentationDefinition, err := r.auth.RelyingParty().PresentationDefinition(ctx, presentationDefinitionURI)
 	if err != nil {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidPresentationDefinitionURI, fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI), clientRedirectURL), responseURI)
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidPresentationDefinitionURI, fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI)), responseURI)
 	}
 
 	// at this point in the flow it would be possible to ask the user to confirm the credentials to use
@@ -252,39 +228,28 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	vp, submission, err := r.auth.Holder().BuildPresentation(ctx, walletDID, *presentationDefinition, *metadata, nonce)
 	if err != nil {
 		if errors.Is(err, oauth2.ErrNoCredentials) {
-			return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "no credentials available", clientRedirectURL), responseURI)
+			return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "no credentials available"), responseURI)
 		}
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.ServerError, err.Error(), clientRedirectURL), responseURI)
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.ServerError, err.Error()), responseURI)
 	}
 
-	return r.sendAndHandleDirectPost(ctx, *vp, *submission, responseURI, *clientRedirectURL), nil
+	// any error here is a server error, might need a fixup to prevent exposing to a user
+	return r.sendAndHandleDirectPost(ctx, *vp, *submission, responseURI)
 }
 
 // sendAndHandleDirectPost sends OpenID4VP direct_post to the verifier. The verifier responds with a redirect to the client (including error fields if needed).
 // If the direct post fails, the user-agent will be redirected back to the client with an error. (Original redirect_uri).
-func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, clientRedirectURL url.URL) HandleAuthorizeRequestResponseObject {
+func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (HandleAuthorizeRequestResponseObject, error) {
 	redirectURI, err := r.auth.Holder().PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI)
-	if err == nil {
-		return HandleAuthorizeRequest302Response{
-			HandleAuthorizeRequest302ResponseHeaders{
-				Location: redirectURI,
-			},
-		}
+	if err != nil {
+		return nil, err
 	}
 
-	msg := fmt.Sprintf("failed to post authorization response to verifier @ %s", verifierResponseURI)
-	log.Logger().WithError(err).Error(msg)
-
-	// clientRedirectURI has been checked earlier in te process.
-	clientRedirectURL = httpNuts.AddQueryParams(clientRedirectURL, map[string]string{
-		oauth.ErrorParam:            string(oauth.ServerError),
-		oauth.ErrorDescriptionParam: msg,
-	})
 	return HandleAuthorizeRequest302Response{
 		HandleAuthorizeRequest302ResponseHeaders{
-			Location: clientRedirectURL.String(),
+			Location: redirectURI,
 		},
-	}
+	}, nil
 }
 
 // sendAndHandleDirectPostError sends errors from handleAuthorizeRequestFromVerifier as direct_post to the verifier. The verifier responds with a redirect to the client (including error fields).
@@ -307,7 +272,7 @@ func (r Wrapper) sendAndHandleDirectPostError(ctx context.Context, auth2Error oa
 		// render error page because all else failed, in a correct flow this should never happen
 		// it could be the case that the client state has just expired, so no redirectURI is present and the verifier is not responding
 		log.Logger().WithError(err).Error("failed to post error to verifier and no clientRedirectURI present")
-		return nil, oauthError(oauth.ServerError, "something went wrong", nil)
+		return nil, oauthError(oauth.ServerError, "something went wrong")
 	}
 
 	// clientRedirectURL has been checked earlier in te process.
@@ -564,10 +529,9 @@ func assertParamNotPresent(params map[string]string, param ...string) error {
 	return nil
 }
 
-func oauthError(code oauth.ErrorCode, description string, redirectURL *url.URL) oauth.OAuth2Error {
+func oauthError(code oauth.ErrorCode, description string) oauth.OAuth2Error {
 	return oauth.OAuth2Error{
 		Code:        code,
 		Description: description,
-		RedirectURI: redirectURL,
 	}
 }
