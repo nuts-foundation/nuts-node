@@ -22,17 +22,15 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
-	"regexp"
 	"testing"
 )
-
-var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)
 
 var goodKIDs = []string{
 	"admin-token-signing-key",
 	"did:nuts:2pgo54Z3ytC5EdjBicuJPe5gHyAsjF6rVio1FadSX74j#GxL7A5XNFr_tHcBW_fKCndGGko8DKa2ivPgJAGR0krA",
 	"did:nuts:3dGjPPeEuHsyNMgJwHkGX3HuJkEEnZ8H19qBqTaqLDbt#JwIR4Vct-EELNKeeB0BZ8Uff_rCZIrOhoiyp5LDFl68",
 	"did:nuts:BC5MtUzAncmfuGejPFGEgM2k8UfrKZVbbGyFeoG9JEEn#l2swLI0wus8gnzbI3sQaaiE7Yvv2qOUioaIZ8y_JZXs",
+	"did:web:nodeA%3A10443:iam:aa00a18b-3d6d-46fd-867b-468819437d00#0",
 }
 var badKIDs = []string{
 	"../server-certificate",
@@ -43,7 +41,7 @@ var badKIDs = []string{
 }
 
 func TestWrapper(t *testing.T) {
-	w := wrapper{kidPattern: kidPattern}
+	w := wrapper{kidPattern: KidPattern}
 
 	t.Run("good KIDs", func(t *testing.T) {
 		for _, kid := range goodKIDs {
@@ -60,7 +58,7 @@ func TestWrapper(t *testing.T) {
 func TestWrapper_GetPrivateKey(t *testing.T) {
 	ctx := context.Background()
 	t.Run("expect error for bad KIDs", func(t *testing.T) {
-		w := wrapper{kidPattern: kidPattern}
+		w := wrapper{kidPattern: KidPattern}
 		for _, kid := range badKIDs {
 			_, err := w.GetPrivateKey(ctx, kid)
 			assert.Error(t, err)
@@ -69,7 +67,7 @@ func TestWrapper_GetPrivateKey(t *testing.T) {
 	t.Run("expect call to wrapped backend for good KIDs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockStorage := NewMockStorage(ctrl)
-		w := NewValidatedKIDBackendWrapper(mockStorage, kidPattern)
+		w := NewValidatedKIDBackendWrapper(mockStorage, KidPattern)
 
 		for _, kid := range goodKIDs {
 			mockStorage.EXPECT().GetPrivateKey(ctx, kid)
@@ -83,7 +81,7 @@ func TestWrapper_GetPrivateKey(t *testing.T) {
 func TestWrapper_PrivateKeyExists(t *testing.T) {
 	ctx := context.Background()
 	t.Run("expect error for bad KIDs", func(t *testing.T) {
-		w := wrapper{kidPattern: kidPattern}
+		w := wrapper{kidPattern: KidPattern}
 		for _, kid := range badKIDs {
 			exists := w.PrivateKeyExists(ctx, kid)
 			assert.False(t, exists)
@@ -92,7 +90,7 @@ func TestWrapper_PrivateKeyExists(t *testing.T) {
 	t.Run("expect call to wrapped backend for good KIDs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockStorage := NewMockStorage(ctrl)
-		w := NewValidatedKIDBackendWrapper(mockStorage, kidPattern)
+		w := NewValidatedKIDBackendWrapper(mockStorage, KidPattern)
 
 		for _, kid := range goodKIDs {
 			mockStorage.EXPECT().PrivateKeyExists(ctx, kid).Return(true)
@@ -106,7 +104,7 @@ func TestWrapper_PrivateKeyExists(t *testing.T) {
 func TestWrapper_SavePrivateKey(t *testing.T) {
 	ctx := context.Background()
 	t.Run("expect error for bad KIDs", func(t *testing.T) {
-		w := wrapper{kidPattern: kidPattern}
+		w := wrapper{kidPattern: KidPattern}
 		for _, kid := range badKIDs {
 			err := w.SavePrivateKey(ctx, kid, nil)
 			assert.Error(t, err)
@@ -115,7 +113,7 @@ func TestWrapper_SavePrivateKey(t *testing.T) {
 	t.Run("expect call to wrapped backend for good KIDs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockStorage := NewMockStorage(ctrl)
-		w := NewValidatedKIDBackendWrapper(mockStorage, kidPattern)
+		w := NewValidatedKIDBackendWrapper(mockStorage, KidPattern)
 
 		for _, kid := range goodKIDs {
 			mockStorage.EXPECT().SavePrivateKey(ctx, kid, gomock.Any())
@@ -131,7 +129,7 @@ func TestWrapper_ListPrivateKeys(t *testing.T) {
 	t.Run("expect call to wrapped backend", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockStorage := NewMockStorage(ctrl)
-		w := NewValidatedKIDBackendWrapper(mockStorage, kidPattern)
+		w := NewValidatedKIDBackendWrapper(mockStorage, KidPattern)
 
 		mockStorage.EXPECT().ListPrivateKeys(ctx).Return([]string{"foo", "bar"})
 		keys := w.ListPrivateKeys(ctx)
