@@ -217,7 +217,7 @@ func createCrypto(t *testing.T) *Crypto {
 	dir := io.TestDirectory(t)
 	backend, _ := fs.NewFileSystemBackend(dir)
 	c := Crypto{
-		storage: spi.NewValidatedKIDBackendWrapper(backend, kidPattern),
+		storage: spi.NewValidatedKIDBackendWrapper(backend, spi.KidPattern),
 	}
 	return &c
 }

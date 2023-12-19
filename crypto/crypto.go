@@ -27,7 +27,6 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"regexp"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -43,8 +42,6 @@ const (
 	// ModuleName contains the name of this module
 	ModuleName = "Crypto"
 )
-
-var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)
 
 // Config holds the values for the crypto engine
 type Config struct {
@@ -98,7 +95,7 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-	client.storage = spi.NewValidatedKIDBackendWrapper(fsBackend, kidPattern)
+	client.storage = spi.NewValidatedKIDBackendWrapper(fsBackend, spi.KidPattern)
 	return nil
 }
 
@@ -108,7 +105,7 @@ func (client *Crypto) setupStorageAPIBackend() error {
 	if err != nil {
 		return fmt.Errorf("unable to set up external crypto API client: %w", err)
 	}
-	client.storage = spi.NewValidatedKIDBackendWrapper(apiBackend, kidPattern)
+	client.storage = spi.NewValidatedKIDBackendWrapper(apiBackend, spi.KidPattern)
 	return nil
 }
 
@@ -121,7 +118,7 @@ func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 		return err
 	}
 
-	client.storage = spi.NewValidatedKIDBackendWrapper(vaultBackend, kidPattern)
+	client.storage = spi.NewValidatedKIDBackendWrapper(vaultBackend, spi.KidPattern)
 	return nil
 }
 
