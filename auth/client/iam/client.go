@@ -92,7 +92,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 
 // ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.
 // We use the AuthorizationServerMetadata struct since it overlaps greatly with the client metadata.
-func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.AuthorizationServerMetadata, error) {
+func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
 	_, err := core.ParsePublicURL(endpoint, hb.strictMode)
 	if err != nil {
 		return nil, err
@@ -103,26 +103,19 @@ func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oaut
 	if err != nil {
 		return nil, err
 	}
-	var metadata oauth.AuthorizationServerMetadata
-	return &metadata, hb.doRequest(ctx, request, &metadata)
+	var metadata oauth.OAuthClientMetadata
+	return &metadata, hb.doRequest(request, &metadata)
 }
 
 // PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
-func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes string) (*pe.PresentationDefinition, error) {
-	presentationDefinitionURL, err := core.ParsePublicURL(definitionEndpoint, hb.strictMode)
-
-	if err != nil {
-		return nil, err
-	}
-	presentationDefinitionURL.RawQuery = url.Values{"scope": []string{scopes}}.Encode()
-
+func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDefinitionURL url.URL) (*pe.PresentationDefinition, error) {
 	// create a GET request with scope query param
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, presentationDefinitionURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 	var presentationDefinition pe.PresentationDefinition
-	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
+	return &presentationDefinition, hb.doRequest(request, &presentationDefinition)
 }
 
 func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp vc.VerifiablePresentation, submission pe.PresentationSubmission, scopes string) (oauth.TokenResponse, error) {
@@ -192,6 +185,7 @@ func (hb HTTPClient) PostError(ctx context.Context, auth2Error oauth.OAuth2Error
 	return hb.postFormExpectRedirect(ctx, data, verifierCallbackURL)
 }
 
+// PostAuthorizationResponse posts the authorization response to the verifier response URL and returns the callback URL.
 func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (string, error) {
 	// initiate http client, create a POST request with x-www-form-urlencoded body and send it to the redirect URL
 	psBytes, _ := json.Marshal(presentationSubmission)
@@ -210,14 +204,14 @@ func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values
 	request.Header.Add("Accept", "application/json")
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	var redirect oauth.Redirect
-	if err := hb.doRequest(ctx, request, &redirect); err != nil {
+	if err := hb.doRequest(request, &redirect); err != nil {
 		return "", err
 	}
 	return redirect.RedirectURI, nil
 }
 
-func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, target interface{}) error {
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
+func (hb HTTPClient) doRequest(request *http.Request, target interface{}) error {
+	response, err := hb.httpClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("failed to call endpoint: %w", err)
 	}

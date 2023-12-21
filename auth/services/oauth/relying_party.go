@@ -166,7 +166,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	}
 
 	// get the presentation definition from the verifier
-	presentationDefinition, err := iamClient.PresentationDefinition(ctx, metadata.PresentationDefinitionEndpoint, scopes)
+	presentationDefinition, err := s.presentationDefinition(ctx, metadata.PresentationDefinitionEndpoint, scopes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
 	}
@@ -258,20 +258,13 @@ func chooseVPFormat(formats map[string]map[string][]string) string {
 	return ""
 }
 
-func (s *relyingParty) PresentationDefinition(ctx context.Context, presentationDefinitionURL string) (*pe.PresentationDefinition, error) {
+func (s *relyingParty) presentationDefinition(ctx context.Context, presentationDefinitionURL string, scopes string) (*pe.PresentationDefinition, error) {
 	parsedURL, err := url.Parse(presentationDefinitionURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse presentation definition URL: %w", err)
-	}
-	presentationDefinitionEndpoint := *parsedURL
-	presentationDefinitionEndpoint.RawQuery = ""
-	presentationDefinitionEndpoint.Fragment = ""
-	scope := parsedURL.Query().Get("scope")
-
+	parsedURL.Query().Add("scope", scopes)
 	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	presentationDefinition, err := iamClient.PresentationDefinition(ctx, presentationDefinitionEndpoint.String(), scope)
+	presentationDefinition, err := iamClient.PresentationDefinition(ctx, *parsedURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
+		return nil, err
 	}
 	return presentationDefinition, nil
 }

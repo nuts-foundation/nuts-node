@@ -179,12 +179,19 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	// missing or invalid parameters are all mapped to invalid_request
 	// any operation that fails is mapped to server_error, this includes unreachable or broken backends.
 
+	responseMode, ok := params[responseModeParam]
+	if !ok || responseMode != responseModeDirectPost {
+		return nil, oauthError(oauth.InvalidRequest, "invalid response_mode parameter")
+	}
 	// check the response URL because later errors will redirect to this URL
 	responseURI, responseOK := params[responseURIParam]
 	if !responseOK {
-		return nil, oauthError(oauth.InvalidRequest, "missing response_uri param")
+		return nil, oauthError(oauth.InvalidRequest, "missing response_uri parameter")
 	}
-
+	clientIDScheme, ok := params[clientIDSchemeParam]
+	if !ok || clientIDScheme != didScheme {
+		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id_scheme parameter"), responseURI)
+	}
 	verifierID, ok := params[clientIDParam]
 	if !ok {
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing client_id parameter"), responseURI)
@@ -193,10 +200,6 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	verifierDID, err := did.ParseDID(verifierID)
 	if err != nil || verifierDID.Method != "web" {
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), responseURI)
-	}
-	clientIDScheme, ok := params[clientIDSchemeParam]
-	if !ok || clientIDScheme != didScheme {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id_scheme parameter"), responseURI)
 	}
 	nonce, ok := params[nonceParam]
 	if !ok {
@@ -217,7 +220,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	if !ok {
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing presentation_definition_uri parameter"), responseURI)
 	}
-	presentationDefinition, err := r.auth.RelyingParty().PresentationDefinition(ctx, presentationDefinitionURI)
+	presentationDefinition, err := r.auth.Holder().PresentationDefinition(ctx, presentationDefinitionURI)
 	if err != nil {
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidPresentationDefinitionURI, fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI)), responseURI)
 	}
@@ -225,7 +228,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	// at this point in the flow it would be possible to ask the user to confirm the credentials to use
 
 	// all params checked, delegate responsibility to the holder
-	vp, submission, err := r.auth.Holder().BuildPresentation(ctx, walletDID, *presentationDefinition, *metadata, nonce)
+	vp, submission, err := r.auth.Holder().BuildPresentation(ctx, walletDID, *presentationDefinition, metadata.VPFormats, nonce)
 	if err != nil {
 		if errors.Is(err, oauth2.ErrNoCredentials) {
 			return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "no credentials available"), responseURI)

@@ -104,8 +104,8 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	responseURI := "https://example.com/iam/verifier/response"
-	metadata := oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint: "https://example.com/holder/authorize",
+	clientMetadata := oauth.OAuthClientMetadata{
+		VPFormats: oauth.DefaultOpenIDSupportedFormats(),
 	}
 	defaultParams := func() map[string]string {
 		return map[string]string{
@@ -114,6 +114,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
 			nonceParam:              "nonce",
 			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
+			responseModeParam:       responseModeDirectPost,
 			responseURIParam:        responseURI,
 			responseTypeParam:       responseTypeVPToken,
 			scopeParam:              "test",
@@ -179,7 +180,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
 		delete(params, presentationDefUriParam)
-		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&metadata, nil)
+		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		expectPostError(t, ctx, oauth.InvalidRequest, "missing presentation_definition_uri parameter", responseURI)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
@@ -197,6 +198,15 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 
 		require.NoError(t, err)
 	})
+	t.Run("missing response_mode", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, responseModeParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+
+		assert.EqualError(t, err, "invalid_request - invalid response_mode parameter")
+	})
 	t.Run("missing response_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
@@ -204,7 +214,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
 
-		assert.EqualError(t, err, "invalid_request - missing response_uri param")
+		assert.EqualError(t, err, "invalid_request - missing response_uri parameter")
 	})
 	t.Run("missing state and missing response_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -218,8 +228,8 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("invalid presentation_definition_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&metadata, nil)
-		ctx.relyingParty.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(nil, assert.AnError)
+		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
+		ctx.holderRole.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.InvalidPresentationDefinitionURI, "failed to retrieve presentation definition on https://example.com/iam/verifier/presentation_definition?scope=test", responseURI)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
@@ -229,9 +239,9 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("failed to create verifiable presentation", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&metadata, nil)
-		ctx.relyingParty.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(&pe.PresentationDefinition{}, nil)
-		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, metadata, "nonce").Return(nil, nil, assert.AnError)
+		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
+		ctx.holderRole.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(&pe.PresentationDefinition{}, nil)
+		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, "nonce").Return(nil, nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, assert.AnError.Error(), responseURI)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
@@ -241,9 +251,9 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("missing credentials in wallet", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&metadata, nil)
-		ctx.relyingParty.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(&pe.PresentationDefinition{}, nil)
-		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, metadata, "nonce").Return(nil, nil, oauth2.ErrNoCredentials)
+		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
+		ctx.holderRole.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(&pe.PresentationDefinition{}, nil)
+		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, "nonce").Return(nil, nil, oauth2.ErrNoCredentials)
 		expectPostError(t, ctx, oauth.InvalidRequest, "no credentials available", responseURI)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
@@ -267,16 +277,9 @@ func TestWrapper_sendAndHandleDirectPost(t *testing.T) {
 	t.Run("failed to post response", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.holderRole.EXPECT().PostAuthorizationResponse(gomock.Any(), gomock.Any(), gomock.Any(), "response").Return("", assert.AnError)
-		expected := HandleAuthorizeRequest302Response{
-			Headers: HandleAuthorizeRequest302ResponseHeaders{
-				Location: "https://example.com/redirect?error=server_error&error_description=failed+to+post+authorization+response+to+verifier+%40+response",
-			},
-		}
+		_, err := ctx.client.sendAndHandleDirectPost(context.Background(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response")
 
-		redirect, err := ctx.client.sendAndHandleDirectPost(context.Background(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response")
-
-		require.NoError(t, err)
-		assert.Equal(t, expected, redirect)
+		require.Error(t, err)
 	})
 }
 

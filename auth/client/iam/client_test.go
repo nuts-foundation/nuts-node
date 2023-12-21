@@ -20,6 +20,7 @@ package iam
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -112,67 +113,31 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: definition}
 		tlsServer, client := testServerAndClient(t, &handler)
+		pdUrl := test.MustParseURL(tlsServer.URL)
 
-		response, err := client.PresentationDefinition(ctx, tlsServer.URL, "test")
-
-		require.NoError(t, err)
-		require.NotNil(t, definition)
-		assert.Equal(t, definition, *response)
-		require.NotNil(t, handler.Request)
-	})
-	t.Run("ok - multiple scopes", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: definition}
-		tlsServer, client := testServerAndClient(t, &handler)
-
-		response, err := client.PresentationDefinition(ctx, tlsServer.URL, "first second")
+		response, err := client.PresentationDefinition(ctx, *pdUrl)
 
 		require.NoError(t, err)
 		require.NotNil(t, definition)
 		assert.Equal(t, definition, *response)
 		require.NotNil(t, handler.Request)
-		assert.Equal(t, url.Values{"scope": []string{"first second"}}, handler.Request.URL.Query())
-	})
-	t.Run("error - invalid_scope", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidScope}}
-		tlsServer, client := testServerAndClient(t, &handler)
-
-		_, err := client.PresentationDefinition(ctx, tlsServer.URL, "test")
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "invalid_scope")
 	})
 	t.Run("error - not found", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusNotFound}
 		tlsServer, client := testServerAndClient(t, &handler)
+		pdUrl := test.MustParseURL(tlsServer.URL)
 
-		_, err := client.PresentationDefinition(ctx, tlsServer.URL, "test")
+		_, err := client.PresentationDefinition(ctx, *pdUrl)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "server returned HTTP 404 (expected: 200)")
 	})
-	t.Run("error - invalid URL", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusNotFound}
-		_, client := testServerAndClient(t, &handler)
-
-		_, err := client.PresentationDefinition(ctx, ":", "test")
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
-	})
-	t.Run("error - unknown host", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusNotFound}
-		_, client := testServerAndClient(t, &handler)
-
-		_, err := client.PresentationDefinition(ctx, "http://localhost", "test")
-
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "connection refused")
-	})
 	t.Run("error - invalid response", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
 		tlsServer, client := testServerAndClient(t, &handler)
+		pdUrl := test.MustParseURL(tlsServer.URL)
 
-		_, err := client.PresentationDefinition(ctx, tlsServer.URL, "test")
+		_, err := client.PresentationDefinition(ctx, *pdUrl)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value")
@@ -181,8 +146,8 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 
 func TestHTTPClient_ClientMetadata(t *testing.T) {
 	ctx := context.Background()
-	metadata := oauth.AuthorizationServerMetadata{
-		TokenEndpoint: "http://test.test",
+	metadata := oauth.OAuthClientMetadata{
+		SoftwareID: "id",
 	}
 
 	t.Run("ok", func(t *testing.T) {

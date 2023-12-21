@@ -38,6 +38,8 @@ type TokenResponse struct {
 const (
 	// AuthzServerWellKnown is the well-known base path for the oauth authorization server metadata as defined in RFC8414
 	AuthzServerWellKnown = "/.well-known/oauth-authorization-server"
+	// ClientMetadataPath is the path to the client metadata relative to the complete did:web URL
+	ClientMetadataPath = "/oauth-client"
 	// openidCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in OpenID4VCI specification
 	openidCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
 	// openidCredWalletWellKnown is the well-known path element we created for openid4vci to retrieve the oauth client metadata
@@ -138,6 +140,77 @@ type AuthorizationServerMetadata struct {
 	// ClientIdSchemesSupported defines the `client_id_schemes` currently supported.
 	// If omitted, the default value is `pre-registered` (referring to the client), which is currently not supported.
 	ClientIdSchemesSupported []string `json:"client_id_schemes_supported,omitempty"`
+}
+
+// OAuthClientMetadata defines the OAuth Client metadata.
+// Specified by https://www.rfc-editor.org/rfc/rfc7591.html and elsewhere.
+type OAuthClientMetadata struct {
+	// RedirectURIs lists all URIs that the client may use in any redirect-based flow.
+	// From https://www.rfc-editor.org/rfc/rfc7591.html
+	RedirectURIs []string `json:"redirect_uris,omitempty"`
+
+	// TODO: What do we use? Must provide a value if its not "client_secret_basic"
+	// TokenEndpointAuthMethod indicator of the requested authentication method for the token endpoint.
+	// If unspecified or omitted, the default is "client_secret_basic", denoting the HTTP Basic authentication scheme as specified in Section 2.3.1 of OAuth 2.0.
+	// Examples are: none, client_secret_post, client_secret_basic, tls_client_auth.
+	// From https://www.rfc-editor.org/rfc/rfc7591.html
+	// TODO: Can "tls_client_auth" replace /n2n/ for pre-authorized_code flow? https://www.rfc-editor.org/rfc/rfc8705.html
+	TokenEndpointAuthMethod string `json:"token_endpoint_auth_method,omitempty"`
+
+	// GrantTypes lists all supported grant_types. Defaults to "authorization_code" if omitted.
+	// From https://www.rfc-editor.org/rfc/rfc7591.html
+	GrantTypes []string `json:"grant_types,omitempty"`
+
+	// ResponseTypes lists all supported response_types. Defaults to "code". Must contain the values corresponding to listed GrantTypes.
+	// From https://www.rfc-editor.org/rfc/rfc7591.html
+	ResponseTypes []string `json:"response_types,omitempty"`
+
+	// Scope contains a space-separated list of scopes the client can request.
+	// From https://www.rfc-editor.org/rfc/rfc7591.html
+	// TODO: I don't see the use for this. The idea is that an AS does not assign scopes to a client that it does not support (or wants to request at any time), but seems like unnecessary complexity for minimal safety.
+	Scope string `json:"scope,omitempty"`
+
+	// Contacts contains an array of strings representing ways to contact people responsible for this client, typically email addresses.
+	// From https://www.rfc-editor.org/rfc/rfc7591.html
+	// TODO: remove? Can plug DID docs contact info.
+	Contacts []string `json:"contacts,omitempty"`
+
+	// JwksURI URL string referencing the client's JSON Web Key (JWK) Set [RFC7517] document, which contains the client's public keys.
+	// From https://www.rfc-editor.org/rfc/rfc7591.html
+	// TODO: remove? Can list the DID's keys. Could be useful if authorization without DIDs/VCs is needed.
+	// TODO: In EBSI it is a required field for the Service Wallet Metadata https://api-conformance.ebsi.eu/docs/ct/providers-and-wallets-metadata#service-wallet-metadata
+	JwksURI string `json:"jwks_uri,omitempty"`
+	// Jwks includes the JWK Set of a client. Mutually exclusive with JwksURI.
+	// From https://www.rfc-editor.org/rfc/rfc7591.html
+	Jwks any `json:"jwks,omitempty"`
+
+	// SoftwareID is a unique identifier string (e.g., a Universally Unique Identifier (UUID)) assigned by the client developer.
+	// From https://www.rfc-editor.org/rfc/rfc7591.html
+	SoftwareID string `json:"software_id,omitempty"`
+	// SoftwareVersion is a version identifier string for the client software identified by "software_id".
+	// From https://www.rfc-editor.org/rfc/rfc7591.html
+	// TODO: Including a software_id + software_version could provide us with some upgrade paths in the future.
+	SoftwareVersion string `json:"software_version,omitempty"`
+
+	// TODO: ignored values: client_name, client_uri, logo_uri, tos_uri, policy_uri.
+	// TODO: Things like client_name and logo may enhance the user experience when asking to accept authorization requests, but this should probably be added on the server size for that?
+
+	/*********** OpenID4VCI ***********/
+
+	// CredentialOfferEndpoint contains a URL where the pre-authorized_code flow offers a credential.
+	// https://openid.bitbucket.io/connect/openid-4-verifiable-credential-issuance-1_0.html#name-client-metadata
+	// TODO: openid4vci duplicate. Also defined on /.well-known/openid-credential-wallet to be /n2n/identity/{did}/openid4vci/credential_offer
+	CredentialOfferEndpoint string `json:"credential_offer_endpoint,omitempty"`
+
+	/*********** OpenID4VP ***********/
+	// VPFormats lists the vp_formats supported by the client. See additional comments on vpFormatsSupported.
+	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-verifier-metadata-client-me
+	VPFormats map[string]map[string][]string `json:"vp_formats,omitempty"`
+
+	// ClientIdScheme is a string identifying the Client Identifier scheme. The value range defined by this specification is
+	// pre-registered, redirect_uri, entity_id, did. If omitted, the default value is pre-registered.
+	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-verifier-metadata-client-me
+	ClientIdScheme string `json:"client_id_scheme,omitempty"`
 }
 
 // Redirect is the response from the verifier on the direct_post authorization response.

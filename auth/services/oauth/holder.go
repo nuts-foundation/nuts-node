@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
@@ -55,7 +56,7 @@ func NewHolder(wallet holder.Wallet, strictMode bool, httpClientTimeout time.Dur
 	}
 }
 
-func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, verifierMetadata oauth.AuthorizationServerMetadata, nonce string) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// get VCs from own wallet
 	credentials, err := v.wallet.List(ctx, walletDID)
 	if err != nil {
@@ -66,7 +67,7 @@ func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID
 	// build VP
 	submissionBuilder := presentationDefinition.PresentationSubmissionBuilder()
 	submissionBuilder.AddWallet(walletDID, credentials)
-	format := pe.ChooseVPFormat(verifierMetadata.VPFormats)
+	format := pe.ChooseVPFormat(acceptedFormats)
 	presentationSubmission, signInstructions, err := submissionBuilder.Build(format)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to build presentation submission: %w", err)
@@ -90,7 +91,7 @@ func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID
 	return vp, &presentationSubmission, nil
 }
 
-func (v *HolderService) ClientMetadata(ctx context.Context, endpoint string) (*oauth.AuthorizationServerMetadata, error) {
+func (v *HolderService) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
 	iamClient := iam.NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
 	// The verifier has become the client
 
@@ -121,4 +122,18 @@ func (v *HolderService) PostAuthorizationResponse(ctx context.Context, vp vc.Ver
 	}
 
 	return "", fmt.Errorf("failed to post authorization response to verifier: %w", err)
+}
+
+func (s *HolderService) PresentationDefinition(ctx context.Context, presentationDefinitionParam string) (*pe.PresentationDefinition, error) {
+	presentationDefinitionURL, err := core.ParsePublicURL(presentationDefinitionParam, s.strictMode)
+	if err != nil {
+		return nil, err
+	}
+
+	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
+	presentationDefinition, err := iamClient.PresentationDefinition(ctx, *presentationDefinitionURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
+	}
+	return presentationDefinition, nil
 }
