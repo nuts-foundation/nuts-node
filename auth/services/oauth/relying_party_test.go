@@ -540,6 +540,11 @@ func createOAuthRPContext(t *testing.T) *rpOAuthTestContext {
 			}
 		case "/presentation_definition":
 			if ctx.presentationDefinition != nil {
+				scopes := request.URL.Query().Get("scope")
+				if scopes == "" {
+					writer.WriteHeader(http.StatusBadRequest)
+					return
+				}
 				ctx.presentationDefinition(writer)
 				return
 			}

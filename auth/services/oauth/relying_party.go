@@ -260,7 +260,7 @@ func chooseVPFormat(formats map[string]map[string][]string) string {
 
 func (s *relyingParty) presentationDefinition(ctx context.Context, presentationDefinitionURL string, scopes string) (*pe.PresentationDefinition, error) {
 	parsedURL, err := url.Parse(presentationDefinitionURL)
-	parsedURL.Query().Add("scope", scopes)
+	parsedURL.RawQuery = url.Values{"scope": []string{scopes}}.Encode()
 	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
 	presentationDefinition, err := iamClient.PresentationDefinition(ctx, *parsedURL)
 	if err != nil {
