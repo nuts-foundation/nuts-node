@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vcr/types/mock.go -package=types -source=vcr/types/interface.go
 //
+
 // Package types is a generated GoMock package.
 package types
 

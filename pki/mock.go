@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=pki/mock.go -package=pki -source=pki/interface.go
 //
+
 // Package pki is a generated GoMock package.
 package pki
 

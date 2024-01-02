@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=discovery/mock.go -package=discovery -source=discovery/interface.go
 //
+
 // Package discovery is a generated GoMock package.
 package discovery
 

@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=network/transport/grpc/interface_mock.go -package=grpc -source=network/transport/grpc/interface.go
 //
+
 // Package grpc is a generated GoMock package.
 package grpc
 

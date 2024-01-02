@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
 //
+
 // Package contract is a generated GoMock package.
 package contract
 

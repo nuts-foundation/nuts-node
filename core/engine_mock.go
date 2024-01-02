@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=core/engine_mock.go -package=core -source=core/engine.go
 //
+
 // Package core is a generated GoMock package.
 package core
 

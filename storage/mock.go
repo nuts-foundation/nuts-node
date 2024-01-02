@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=storage/mock.go -package=storage -source=storage/interface.go
 //
+
 // Package storage is a generated GoMock package.
 package storage
 

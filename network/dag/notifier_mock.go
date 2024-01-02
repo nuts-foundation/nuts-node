@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=network/dag/notifier_mock.go -package=dag -source=network/dag/notifier.go Notifier
 //
+
 // Package dag is a generated GoMock package.
 package dag
 

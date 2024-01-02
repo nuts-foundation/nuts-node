@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=network/transport/v2/gossip/mock.go -package=gossip -source=network/transport/v2/gossip/manager.go
 //
+
 // Package gossip is a generated GoMock package.
 package gossip
 

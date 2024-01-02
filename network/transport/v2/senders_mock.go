@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=network/transport/v2/senders_mock.go -package=v2 -source=network/transport/v2/senders.go
 //
+
 // Package v2 is a generated GoMock package.
 package v2
 
