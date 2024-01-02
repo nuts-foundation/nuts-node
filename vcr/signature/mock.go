@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vcr/signature/mock.go -package=signature -source=vcr/signature/signature.go
 //
+
 // Package signature is a generated GoMock package.
 package signature
 

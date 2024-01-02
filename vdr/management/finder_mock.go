@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vdr/management/finder_mock.go -package=management -source=vdr/management/finder.go
 //
+
 // Package management is a generated GoMock package.
 package management
 

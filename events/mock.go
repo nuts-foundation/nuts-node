@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=events/mock.go -package=events -source=events/conn.go Conn ConnectionPool
 //
+
 // Package events is a generated GoMock package.
 package events
 

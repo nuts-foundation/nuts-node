@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=events/events_mock.go -package=events -source=events/interface.go Event
 //
+
 // Package events is a generated GoMock package.
 package events
 

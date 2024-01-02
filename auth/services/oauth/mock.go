@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=auth/services/oauth/mock.go -package=oauth -source=auth/services/oauth/interface.go
 //
+
 // Package oauth is a generated GoMock package.
 package oauth
 

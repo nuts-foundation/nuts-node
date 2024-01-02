@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=http/echo_mock.go -package=http -source=http/echo.go -imports echo=github.com/labstack/echo/v4
 //
+
 // Package http is a generated GoMock package.
 package http
 

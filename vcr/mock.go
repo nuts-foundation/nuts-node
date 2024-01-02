@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
 //
+
 // Package vcr is a generated GoMock package.
 package vcr
 

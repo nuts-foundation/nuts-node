@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=network/mock.go -package=network -source=network/interface.go
 //
+
 // Package network is a generated GoMock package.
 package network
 

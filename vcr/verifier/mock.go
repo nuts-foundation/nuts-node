@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vcr/verifier/mock.go -package=verifier -source=vcr/verifier/interface.go
 //
+
 // Package verifier is a generated GoMock package.
 package verifier
 
