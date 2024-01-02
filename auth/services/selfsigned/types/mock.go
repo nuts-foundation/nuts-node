@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=auth/services/selfsigned/types/mock.go -package=types -source=auth/services/selfsigned/types/types.go
 //
+
 // Package types is a generated GoMock package.
 package types
 

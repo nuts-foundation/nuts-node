@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=network/transport/protocol_mock.go -package=transport -source=network/transport/protocol.go Protocol
 //
+
 // Package transport is a generated GoMock package.
 package transport
 

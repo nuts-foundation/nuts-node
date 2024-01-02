@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vdr/didnuts/didstore/mock.go -package=didstore -source=vdr/didnuts/didstore/interface.go
 //
+
 // Package didstore is a generated GoMock package.
 package didstore
 

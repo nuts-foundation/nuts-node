@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vcr/openid4vci/issuer_client_mock.go -package=openid4vci -source=vcr/openid4vci/issuer_client.go
 //
+
 // Package openid4vci is a generated GoMock package.
 package openid4vci
 

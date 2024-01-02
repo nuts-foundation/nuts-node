@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=crypto/storage/spi/mock.go -package spi -source=crypto/storage/spi/interface.go
 //
+
 // Package spi is a generated GoMock package.
 package spi
 

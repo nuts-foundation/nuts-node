@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vcr/issuer/mock.go -package=issuer -source=vcr/issuer/interface.go
 //
+
 // Package issuer is a generated GoMock package.
 package issuer
 

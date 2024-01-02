@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go State
 //
+
 // Package dag is a generated GoMock package.
 package dag
 

@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=core/echo_mock.go -package=core -source=core/echo.go -imports echo=github.com/labstack/echo/v4
 //
+
 // Package core is a generated GoMock package.
 package core
 

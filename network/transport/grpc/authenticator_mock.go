@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=network/transport/grpc/authenticator_mock.go -package=grpc -source=network/transport/grpc/authenticator.go
 //
+
 // Package grpc is a generated GoMock package.
 package grpc
 
