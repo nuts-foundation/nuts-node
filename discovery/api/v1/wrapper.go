@@ -22,6 +22,8 @@ import (
 	"context"
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"net/http"
@@ -56,6 +58,9 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 				return f(ctx, request)
 			}
 		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return audit.StrictMiddleware(f, discovery.ModuleName, operationID)
+		},
 	}))
 }
 
@@ -82,4 +87,35 @@ func (w *Wrapper) RegisterPresentation(_ context.Context, request RegisterPresen
 		return nil, err
 	}
 	return RegisterPresentation201Response{}, nil
+}
+
+func (w *Wrapper) StartRegisteringPresentation(ctx context.Context, request StartRegisteringPresentationRequestObject) (StartRegisteringPresentationResponseObject, error) {
+	subjectDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	err = w.Client.StartRegistration(ctx, request.ServiceID, *subjectDID)
+	if errors.Is(err, discovery.ErrRegistrationFailed) {
+		// registration failed, but will be retried
+		return StartRegisteringPresentation202JSONResponse{
+			Reason: err.Error(),
+		}, nil
+	}
+	if err != nil {
+		// other error
+		return nil, err
+	}
+	return StartRegisteringPresentation200Response{}, nil
+}
+
+func (w *Wrapper) StopRegisteringPresentation(ctx context.Context, request StopRegisteringPresentationRequestObject) (StopRegisteringPresentationResponseObject, error) {
+	subjectDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	err = w.Client.StopRegistration(ctx, request.ServiceID, *subjectDID)
+	if err != nil {
+		return nil, err
+	}
+	return StopRegisteringPresentation200Response{}, nil
 }

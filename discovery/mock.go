@@ -10,8 +10,10 @@
 package discovery
 
 import (
+	context "context"
 	reflect "reflect"
 
+	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -105,4 +107,32 @@ func (m *MockClient) Search(serviceID string, query map[string]string) ([]vc.Ver
 func (mr *MockClientMockRecorder) Search(serviceID, query any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockClient)(nil).Search), serviceID, query)
+}
+
+// StartRegistration mocks base method.
+func (m *MockClient) StartRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StartRegistration", ctx, serviceID, subjectDID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StartRegistration indicates an expected call of StartRegistration.
+func (mr *MockClientMockRecorder) StartRegistration(ctx, serviceID, subjectDID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartRegistration", reflect.TypeOf((*MockClient)(nil).StartRegistration), ctx, serviceID, subjectDID)
+}
+
+// StopRegistration mocks base method.
+func (m *MockClient) StopRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StopRegistration", ctx, serviceID, subjectDID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StopRegistration indicates an expected call of StopRegistration.
+func (mr *MockClientMockRecorder) StopRegistration(ctx, serviceID, subjectDID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopRegistration", reflect.TypeOf((*MockClient)(nil).StopRegistration), ctx, serviceID, subjectDID)
 }

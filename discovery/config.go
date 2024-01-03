@@ -18,9 +18,12 @@
 
 package discovery
 
+import "time"
+
 // Config holds the config of the module
 type Config struct {
 	Server      ServerConfig             `koanf:"server"`
+	Client      ClientConfig             `koanf:"client"`
 	Definitions ServiceDefinitionsConfig `koanf:"definitions"`
 }
 
@@ -35,14 +38,18 @@ type ServerConfig struct {
 	DefinitionIDs []string `koanf:"definition_ids"`
 }
 
+// ClientConfig holds the config for the client
+type ClientConfig struct {
+	// RegistrationRefreshInterval specifies how often the client should refresh its registrations on Discovery Services.
+	RegistrationRefreshInterval time.Duration `koanf:"registration_refresh_interval"`
+}
+
 // DefaultConfig returns the default configuration.
 func DefaultConfig() Config {
 	return Config{
 		Server: ServerConfig{},
+		Client: ClientConfig{
+			RegistrationRefreshInterval: 10 * time.Minute,
+		},
 	}
-}
-
-// IsServer returns true if the node act as Discovery Server.
-func (c Config) IsServer() bool {
-	return len(c.Server.DefinitionIDs) > 0
 }

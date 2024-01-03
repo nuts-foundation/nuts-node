@@ -71,6 +71,87 @@ paths:
           $ref: "../common/error_response.yaml"
         default:
           $ref: "../common/error_response.yaml"
+  /internal/discovery/v1/{serviceID}/{did}:
+    parameters:
+      - name: serviceID
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: did
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      summary: Client API to start registering the given DID on the discovery service.
+      description: |
+        An API provided by the discovery client that will cause the given DID to be registered on the specified discovery service.
+        Registration will be attempted immediately, and it will be automatically refreshed.
+        Application only need to call this API once for every service/DID combination, until the registration is explicitly deleted through this API.
+      
+        For successful registration on the discovery service, the DID's credential wallet must contain the credentials specified by the discovery service definition.
+        If initial registration fails this API returns the error indicating what failed, but will retry at a later moment.
+        Applications can force a retry by calling this API again.
+      
+        error returns:
+        * 400 - incorrect input: invalid/unknown service or DID.
+      operationId: startRegisteringPresentation
+      tags:
+        - discovery
+      responses:
+        "200":
+          description: Registration at discovery service was successful.
+        "202":
+          description: Registration at discovery service failed, but will be re-attempted later.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - reason
+                properties:
+                  reason:
+                    type: string
+                    description: Description of why registration failed.
+        "400":
+          $ref: "../common/error_response.yaml"
+        default:
+          $ref: "../common/error_response.yaml"
+    delete:
+      summary: Client API to stop registering the given DID on the discovery service.
+      description: |
+        An API provided by the discovery client that will cause the given DID to be not to be registered any more on the specified discovery service.
+        It will try to delete the existing registration at the discovery service, if any.
+      
+        error returns:
+        * 400 - incorrect input: invalid/unknown service or DID.
+      operationId: stopRegisteringPresentation
+      tags:
+        - discovery
+      responses:
+        "200":
+          description: |
+            Registration at discovery service was successfully stopped, and registration at discovery service was deleted
+            (if applicable).
+        "202":
+          description: |
+            Registration at discovery service was successfully stopped, but failed to delete registration at discovery service.
+            Applications might want to retry this API call later, or simply let the presentation expire.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - reason
+                properties:
+                  reason:
+                    type: string
+                    description: Description of why registration deletion failed.
+        "400":
+          $ref: "../common/error_response.yaml"
+        default:
+          $ref: "../common/error_response.yaml"
 components:
   schemas:
     VerifiablePresentation:

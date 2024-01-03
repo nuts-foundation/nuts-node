@@ -1,0 +1,52 @@
+{
+  "id": "dev:eOverdracht2023",
+  "endpoint": "http://nodeA:1323/discovery/dev:eOverdracht2023",
+  "presentation_max_validity": 2764800,
+  "presentation_definition": {
+    "id": "dev:eOverdracht2023",
+    "format": {
+      "ldp_vc": {
+        "proof_type": [
+          "JsonWebSignature2020"
+        ]
+      },
+      "jwt_vp": {
+        "alg": ["ES256"]
+      }
+    },
+    "input_descriptors": [
+      {
+        "id": "SelfIssued_NutsOrganizationCredential",
+        "constraints": {
+          "fields": [
+            {
+              "path": [
+                "$.type"
+              ],
+              "filter": {
+                "type": "string",
+                "const": "NutsOrganizationCredential"
+              }
+            },
+            {
+              "path": [
+                "$.credentialSubject.organization.name"
+              ],
+              "filter": {
+                "type": "string"
+              }
+            },
+            {
+              "path": [
+                "$.credentialSubject.organization.city"
+              ],
+              "filter": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

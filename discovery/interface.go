@@ -19,7 +19,9 @@
 package discovery
 
 import (
+	"context"
 	"errors"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"math"
 	"strconv"
@@ -83,6 +85,9 @@ var ErrServiceNotFound = errors.New("discovery service not found")
 // but a presentation with this ID already exists.
 var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 
+// ErrRegistrationFailed indicates registration of a presentation on a remote Discovery Service failed.
+var ErrRegistrationFailed = errors.New("registration failed")
+
 // Server defines the API for Discovery Servers.
 type Server interface {
 	// Add registers a presentation on the given Discovery Service.
@@ -95,4 +100,16 @@ type Server interface {
 // Client defines the API for Discovery Clients.
 type Client interface {
 	Search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error)
+
+	// StartRegistration starts registration of presentations on a Discovery Service for the specified DID.
+	// Registration will be attempted immediately, and automatically refreshed.
+	// If initial registration failed, it will return ErrRegistrationFailed, but it will keep retrying.
+	// If the function is called again for the same service/DID combination, it will try to refresh the registration.
+	// It returns an error if the service or DID is invalid/unknown.
+	StartRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error
+
+	// StopRegistration stops (automatic) registration of presentations on a Discovery Service for the specified DID.
+	// It will also try to delete the existing registration on the Discovery Service, if any.
+	// It returns an error if the service or DID is invalid/unknown.
+	StopRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error
 }

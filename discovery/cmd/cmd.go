@@ -33,5 +33,8 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.StringSlice("discovery.server.definition_ids", defs.Server.DefinitionIDs,
 		"IDs of the Discovery Service Definitions for which to act as server. "+
 			"If an ID does not map to a loaded service definition, the node will fail to start.")
+	flagSet.Duration("discovery.client.registration_refresh_interval", defs.Client.RegistrationRefreshInterval,
+		"Interval at which the client should refresh its registrations on Discovery Services. "+
+			"Note that it only refreshes registrations that expire soon.")
 	return flagSet
 }

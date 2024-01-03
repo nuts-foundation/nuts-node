@@ -224,7 +224,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance, policyInstance))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
-	system.RegisterRoutes(&discoveryAPI.Wrapper{Server: discoveryInstance})
+	system.RegisterRoutes(&discoveryAPI.Wrapper{Server: discoveryInstance, Client: discoveryInstance})
 
 	// Register engines
 	// without dependencies

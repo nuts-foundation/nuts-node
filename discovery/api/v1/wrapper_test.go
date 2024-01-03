@@ -20,6 +20,7 @@ package v1
 
 import (
 	"errors"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/stretchr/testify/assert"
@@ -99,6 +100,75 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, discovery.ErrInvalidPresentation)
+	})
+}
+
+func TestWrapper_StartRegisteringPresentation(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedDID := "did:web:example.com"
+		test.client.EXPECT().StartRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
+
+		response, err := test.wrapper.StartRegisteringPresentation(nil, StartRegisteringPresentationRequestObject{
+			ServiceID: serviceID,
+			Did:       expectedDID,
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, StartRegisteringPresentation200Response{}, response)
+	})
+	t.Run("ok, but registration failed", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedDID := "did:web:example.com"
+		test.client.EXPECT().StartRegistration(gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrRegistrationFailed)
+
+		response, err := test.wrapper.StartRegisteringPresentation(nil, StartRegisteringPresentationRequestObject{
+			ServiceID: serviceID,
+			Did:       expectedDID,
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, StartRegisteringPresentation202JSONResponse{}, response)
+	})
+	t.Run("other error", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedDID := "did:web:example.com"
+		test.client.EXPECT().StartRegistration(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("foo"))
+
+		_, err := test.wrapper.StartRegisteringPresentation(nil, StartRegisteringPresentationRequestObject{
+			ServiceID: serviceID,
+			Did:       expectedDID,
+		})
+
+		assert.Error(t, err)
+	})
+}
+
+func TestWrapper_StopRegisteringPresentation(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedDID := "did:web:example.com"
+		test.client.EXPECT().StopRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
+
+		response, err := test.wrapper.StopRegisteringPresentation(nil, StopRegisteringPresentationRequestObject{
+			ServiceID: serviceID,
+			Did:       expectedDID,
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, StopRegisteringPresentation200Response{}, response)
+	})
+	t.Run("error", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedDID := "did:web:example.com"
+		test.client.EXPECT().StopRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(errors.New("foo"))
+
+		_, err := test.wrapper.StopRegisteringPresentation(nil, StopRegisteringPresentationRequestObject{
+			ServiceID: serviceID,
+			Did:       expectedDID,
+		})
+
+		assert.Error(t, err)
 	})
 }
 

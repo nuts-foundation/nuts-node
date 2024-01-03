@@ -110,6 +110,12 @@ type ClientInterface interface {
 	RegisterPresentationWithBody(ctx context.Context, serviceID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	RegisterPresentation(ctx context.Context, serviceID string, body RegisterPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StopRegisteringPresentation request
+	StopRegisteringPresentation(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartRegisteringPresentation request
+	StartRegisteringPresentation(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) GetPresentations(ctx context.Context, serviceID string, params *GetPresentationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -138,6 +144,30 @@ func (c *Client) RegisterPresentationWithBody(ctx context.Context, serviceID str
 
 func (c *Client) RegisterPresentation(ctx context.Context, serviceID string, body RegisterPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRegisterPresentationRequest(c.Server, serviceID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) StopRegisteringPresentation(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStopRegisteringPresentationRequest(c.Server, serviceID, did)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) StartRegisteringPresentation(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartRegisteringPresentationRequest(c.Server, serviceID, did)
 	if err != nil {
 		return nil, err
 	}
@@ -251,6 +281,88 @@ func NewRegisterPresentationRequestWithBody(server string, serviceID string, con
 	return req, nil
 }
 
+// NewStopRegisteringPresentationRequest generates requests for StopRegisteringPresentation
+func NewStopRegisteringPresentationRequest(server string, serviceID string, did string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "serviceID", runtime.ParamLocationPath, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/discovery/v1/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewStartRegisteringPresentationRequest generates requests for StartRegisteringPresentation
+func NewStartRegisteringPresentationRequest(server string, serviceID string, did string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "serviceID", runtime.ParamLocationPath, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/discovery/v1/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -301,6 +413,12 @@ type ClientWithResponsesInterface interface {
 	RegisterPresentationWithBodyWithResponse(ctx context.Context, serviceID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterPresentationResponse, error)
 
 	RegisterPresentationWithResponse(ctx context.Context, serviceID string, body RegisterPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterPresentationResponse, error)
+
+	// StopRegisteringPresentationWithResponse request
+	StopRegisteringPresentationWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*StopRegisteringPresentationResponse, error)
+
+	// StartRegisteringPresentationWithResponse request
+	StartRegisteringPresentationWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*StartRegisteringPresentationResponse, error)
 }
 
 type GetPresentationsResponse struct {
@@ -376,6 +494,96 @@ func (r RegisterPresentationResponse) StatusCode() int {
 	return 0
 }
 
+type StopRegisteringPresentationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *struct {
+		// Reason Description of why registration deletion failed.
+		Reason string `json:"reason"`
+	}
+	ApplicationproblemJSON400 *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r StopRegisteringPresentationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StopRegisteringPresentationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type StartRegisteringPresentationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *struct {
+		// Reason Description of why registration failed.
+		Reason string `json:"reason"`
+	}
+	ApplicationproblemJSON400 *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r StartRegisteringPresentationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartRegisteringPresentationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // GetPresentationsWithResponse request returning *GetPresentationsResponse
 func (c *ClientWithResponses) GetPresentationsWithResponse(ctx context.Context, serviceID string, params *GetPresentationsParams, reqEditors ...RequestEditorFn) (*GetPresentationsResponse, error) {
 	rsp, err := c.GetPresentations(ctx, serviceID, params, reqEditors...)
@@ -400,6 +608,24 @@ func (c *ClientWithResponses) RegisterPresentationWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseRegisterPresentationResponse(rsp)
+}
+
+// StopRegisteringPresentationWithResponse request returning *StopRegisteringPresentationResponse
+func (c *ClientWithResponses) StopRegisteringPresentationWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*StopRegisteringPresentationResponse, error) {
+	rsp, err := c.StopRegisteringPresentation(ctx, serviceID, did, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStopRegisteringPresentationResponse(rsp)
+}
+
+// StartRegisteringPresentationWithResponse request returning *StartRegisteringPresentationResponse
+func (c *ClientWithResponses) StartRegisteringPresentationWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*StartRegisteringPresentationResponse, error) {
+	rsp, err := c.StartRegisteringPresentation(ctx, serviceID, did, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartRegisteringPresentationResponse(rsp)
 }
 
 // ParseGetPresentationsResponse parses an HTTP response from a GetPresentationsWithResponse call
@@ -495,6 +721,128 @@ func ParseRegisterPresentationResponse(rsp *http.Response) (*RegisterPresentatio
 	return response, nil
 }
 
+// ParseStopRegisteringPresentationResponse parses an HTTP response from a StopRegisteringPresentationWithResponse call
+func ParseStopRegisteringPresentationResponse(rsp *http.Response) (*StopRegisteringPresentationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StopRegisteringPresentationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest struct {
+			// Reason Description of why registration deletion failed.
+			Reason string `json:"reason"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartRegisteringPresentationResponse parses an HTTP response from a StartRegisteringPresentationWithResponse call
+func ParseStartRegisteringPresentationResponse(rsp *http.Response) (*StartRegisteringPresentationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartRegisteringPresentationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest struct {
+			// Reason Description of why registration failed.
+			Reason string `json:"reason"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Retrieves the presentations of a discovery service.
@@ -503,6 +851,12 @@ type ServerInterface interface {
 	// Register a presentation on the discovery service.
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx echo.Context, serviceID string) error
+	// Client API to stop registering the given DID on the discovery service.
+	// (DELETE /internal/discovery/v1/{serviceID}/{did})
+	StopRegisteringPresentation(ctx echo.Context, serviceID string, did string) error
+	// Client API to start registering the given DID on the discovery service.
+	// (POST /internal/discovery/v1/{serviceID}/{did})
+	StartRegisteringPresentation(ctx echo.Context, serviceID string, did string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -555,6 +909,58 @@ func (w *ServerInterfaceWrapper) RegisterPresentation(ctx echo.Context) error {
 	return err
 }
 
+// StopRegisteringPresentation converts echo context to params.
+func (w *ServerInterfaceWrapper) StopRegisteringPresentation(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "serviceID" -------------
+	var serviceID string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "serviceID", runtime.ParamLocationPath, ctx.Param("serviceID"), &serviceID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceID: %s", err))
+	}
+
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.StopRegisteringPresentation(ctx, serviceID, did)
+	return err
+}
+
+// StartRegisteringPresentation converts echo context to params.
+func (w *ServerInterfaceWrapper) StartRegisteringPresentation(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "serviceID" -------------
+	var serviceID string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "serviceID", runtime.ParamLocationPath, ctx.Param("serviceID"), &serviceID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceID: %s", err))
+	}
+
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.StartRegisteringPresentation(ctx, serviceID, did)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -585,6 +991,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/discovery/:serviceID", wrapper.GetPresentations)
 	router.POST(baseURL+"/discovery/:serviceID", wrapper.RegisterPresentation)
+	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.StopRegisteringPresentation)
+	router.POST(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.StartRegisteringPresentation)
 
 }
 
@@ -683,6 +1091,142 @@ func (response RegisterPresentationdefaultApplicationProblemPlusJSONResponse) Vi
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type StopRegisteringPresentationRequestObject struct {
+	ServiceID string `json:"serviceID"`
+	Did       string `json:"did"`
+}
+
+type StopRegisteringPresentationResponseObject interface {
+	VisitStopRegisteringPresentationResponse(w http.ResponseWriter) error
+}
+
+type StopRegisteringPresentation200Response struct {
+}
+
+func (response StopRegisteringPresentation200Response) VisitStopRegisteringPresentationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(200)
+	return nil
+}
+
+type StopRegisteringPresentation202JSONResponse struct {
+	// Reason Description of why registration deletion failed.
+	Reason string `json:"reason"`
+}
+
+func (response StopRegisteringPresentation202JSONResponse) VisitStopRegisteringPresentationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StopRegisteringPresentation400ApplicationProblemPlusJSONResponse struct {
+	// Detail A human-readable explanation specific to this occurrence of the problem.
+	Detail string `json:"detail"`
+
+	// Status HTTP statuscode
+	Status float32 `json:"status"`
+
+	// Title A short, human-readable summary of the problem type.
+	Title string `json:"title"`
+}
+
+func (response StopRegisteringPresentation400ApplicationProblemPlusJSONResponse) VisitStopRegisteringPresentationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StopRegisteringPresentationdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response StopRegisteringPresentationdefaultApplicationProblemPlusJSONResponse) VisitStopRegisteringPresentationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type StartRegisteringPresentationRequestObject struct {
+	ServiceID string `json:"serviceID"`
+	Did       string `json:"did"`
+}
+
+type StartRegisteringPresentationResponseObject interface {
+	VisitStartRegisteringPresentationResponse(w http.ResponseWriter) error
+}
+
+type StartRegisteringPresentation200Response struct {
+}
+
+func (response StartRegisteringPresentation200Response) VisitStartRegisteringPresentationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(200)
+	return nil
+}
+
+type StartRegisteringPresentation202JSONResponse struct {
+	// Reason Description of why registration failed.
+	Reason string `json:"reason"`
+}
+
+func (response StartRegisteringPresentation202JSONResponse) VisitStartRegisteringPresentationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StartRegisteringPresentation400ApplicationProblemPlusJSONResponse struct {
+	// Detail A human-readable explanation specific to this occurrence of the problem.
+	Detail string `json:"detail"`
+
+	// Status HTTP statuscode
+	Status float32 `json:"status"`
+
+	// Title A short, human-readable summary of the problem type.
+	Title string `json:"title"`
+}
+
+func (response StartRegisteringPresentation400ApplicationProblemPlusJSONResponse) VisitStartRegisteringPresentationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StartRegisteringPresentationdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response StartRegisteringPresentationdefaultApplicationProblemPlusJSONResponse) VisitStartRegisteringPresentationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Retrieves the presentations of a discovery service.
@@ -691,6 +1235,12 @@ type StrictServerInterface interface {
 	// Register a presentation on the discovery service.
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error)
+	// Client API to stop registering the given DID on the discovery service.
+	// (DELETE /internal/discovery/v1/{serviceID}/{did})
+	StopRegisteringPresentation(ctx context.Context, request StopRegisteringPresentationRequestObject) (StopRegisteringPresentationResponseObject, error)
+	// Client API to start registering the given DID on the discovery service.
+	// (POST /internal/discovery/v1/{serviceID}/{did})
+	StartRegisteringPresentation(ctx context.Context, request StartRegisteringPresentationRequestObject) (StartRegisteringPresentationResponseObject, error)
 }
 
 type StrictHandlerFunc = strictecho.StrictEchoHandlerFunc
@@ -756,6 +1306,58 @@ func (sh *strictHandler) RegisterPresentation(ctx echo.Context, serviceID string
 		return err
 	} else if validResponse, ok := response.(RegisterPresentationResponseObject); ok {
 		return validResponse.VisitRegisterPresentationResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// StopRegisteringPresentation operation middleware
+func (sh *strictHandler) StopRegisteringPresentation(ctx echo.Context, serviceID string, did string) error {
+	var request StopRegisteringPresentationRequestObject
+
+	request.ServiceID = serviceID
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.StopRegisteringPresentation(ctx.Request().Context(), request.(StopRegisteringPresentationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StopRegisteringPresentation")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(StopRegisteringPresentationResponseObject); ok {
+		return validResponse.VisitStopRegisteringPresentationResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// StartRegisteringPresentation operation middleware
+func (sh *strictHandler) StartRegisteringPresentation(ctx echo.Context, serviceID string, did string) error {
+	var request StartRegisteringPresentationRequestObject
+
+	request.ServiceID = serviceID
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.StartRegisteringPresentation(ctx.Request().Context(), request.(StartRegisteringPresentationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartRegisteringPresentation")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(StartRegisteringPresentationResponseObject); ok {
+		return validResponse.VisitStartRegisteringPresentationResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

@@ -38,7 +38,8 @@ func TestModule_Name(t *testing.T) {
 }
 
 func TestModule_Shutdown(t *testing.T) {
-	assert.NoError(t, (&Module{}).Shutdown())
+	module, _ := setupModule(t, storage.NewTestStorageEngine(t))
+	require.NoError(t, module.Shutdown())
 }
 
 func Test_Module_Add(t *testing.T) {
@@ -238,6 +239,7 @@ func setupModule(t *testing.T, storageInstance storage.Engine) (*Module, *verifi
 	mockVCR := vcr.NewMockVCR(ctrl)
 	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 	m := New(storageInstance, mockVCR)
+	m.config = DefaultConfig()
 	require.NoError(t, m.Configure(core.ServerConfig{}))
 	m.services = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{

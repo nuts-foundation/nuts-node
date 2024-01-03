@@ -19,17 +19,22 @@
 package discovery
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/discovery/api/v1/client"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -57,28 +62,37 @@ var _ core.Injectable = &Module{}
 var _ core.Runnable = &Module{}
 var _ core.Configurable = &Module{}
 var _ Server = &Module{}
+var _ Client = &Module{}
 
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
 // New creates a new Module.
 func New(storageInstance storage.Engine, vcrInstance vcr.VCR) *Module {
-	return &Module{
+	m := &Module{
 		storageInstance: storageInstance,
 		vcrInstance:     vcrInstance,
 	}
+	m.ctx, m.cancel = context.WithCancel(context.Background())
+	m.routines = new(sync.WaitGroup)
+	return m
 }
 
 // Module is the main entry point for discovery services.
 type Module struct {
-	config            Config
-	storageInstance   storage.Engine
-	store             *sqlStore
-	serverDefinitions map[string]ServiceDefinition
-	services          map[string]ServiceDefinition
-	vcrInstance       vcr.VCR
+	config              Config
+	httpClient          client.HTTPClient
+	storageInstance     storage.Engine
+	store               *sqlStore
+	registrationManager registrationManager
+	serverDefinitions   map[string]ServiceDefinition
+	services            map[string]ServiceDefinition
+	vcrInstance         vcr.VCR
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	routines            *sync.WaitGroup
 }
 
-func (m *Module) Configure(_ core.ServerConfig) error {
+func (m *Module) Configure(serverConfig core.ServerConfig) error {
 	if m.config.Definitions.Directory == "" {
 		return nil
 	}
@@ -99,6 +113,7 @@ func (m *Module) Configure(_ core.ServerConfig) error {
 		}
 		m.serverDefinitions = serverDefinitions
 	}
+	m.httpClient = client.New(serverConfig.Strictmode, 10*time.Second, nil)
 	return nil
 }
 
@@ -108,10 +123,18 @@ func (m *Module) Start() error {
 	if err != nil {
 		return err
 	}
+	m.registrationManager = newRegistrationManager(m.services, m.store, m.httpClient, m.vcrInstance)
+	m.routines.Add(1)
+	go func() {
+		defer m.routines.Done()
+		m.registrationManager.refreshRegistrations(m.ctx, m.config.Client.RegistrationRefreshInterval)
+	}()
 	return nil
 }
 
 func (m *Module) Shutdown() error {
+	m.cancel()
+	m.routines.Wait()
 	return nil
 }
 
@@ -229,6 +252,26 @@ func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *
 		return nil, nil, ErrServerModeDisabled
 	}
 	return m.store.get(serviceID, tag)
+}
+
+func (m *Module) Search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error) {
+	panic("implement me")
+}
+
+func (m *Module) StartRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	log.Logger().Debugf("Registering on Discovery Service (did=%s, service=%s)", subjectDID, serviceID)
+	err := m.registrationManager.register(ctx, serviceID, subjectDID)
+	if errors.Is(err, ErrRegistrationFailed) {
+		log.Logger().WithError(err).Warnf("Discovery Service registration failed, will be retried later (did=%s,service=%s)", subjectDID, serviceID)
+	} else {
+		log.Logger().Infof("Successfully registered Discovery Service (did=%s,service=%s)", subjectDID, serviceID)
+	}
+	return err
+}
+
+func (m *Module) StopRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	log.Logger().Infof("Unregistering from Discovery Service (did=%s, service=%s)", subjectDID, serviceID)
+	return m.registrationManager.unregister(ctx, serviceID, subjectDID)
 }
 
 func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
