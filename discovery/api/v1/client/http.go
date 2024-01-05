@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/discovery"
 	v1 "github.com/nuts-foundation/nuts-node/discovery/api/v1"
 	"io"
 	"net/http"
@@ -64,10 +63,10 @@ func (h HTTPInvoker) Register(ctx context.Context, serviceEndpointURL string, pr
 	return nil
 }
 
-func (h HTTPInvoker) Get(ctx context.Context, serviceEndpointURL string, tag *discovery.Tag) ([]vc.VerifiablePresentation, *discovery.Tag, error) {
+func (h HTTPInvoker) Get(ctx context.Context, serviceEndpointURL string, tag *string) ([]vc.VerifiablePresentation, *string, error) {
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, serviceEndpointURL, nil)
 	if tag != nil {
-		httpRequest.URL.RawQuery = url.Values{"tag": []string{string(*tag)}}.Encode()
+		httpRequest.URL.RawQuery = url.Values{"tag": []string{*tag}}.Encode()
 	}
 	if err != nil {
 		return nil, nil, err
@@ -88,6 +87,5 @@ func (h HTTPInvoker) Get(ctx context.Context, serviceEndpointURL string, tag *di
 	if err := json.Unmarshal(responseData, &result); err != nil {
 		return nil, nil, fmt.Errorf("failed to unmarshal response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
-	resultTag := discovery.Tag(result.Tag)
-	return result.Entries, &resultTag, nil
+	return result.Entries, &result.Tag, nil
 }

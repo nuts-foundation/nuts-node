@@ -21,7 +21,6 @@ package client
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/discovery"
 )
 
 // Invoker is the interface for the client that invokes the remote Discovery Service.
@@ -31,5 +30,5 @@ type Invoker interface {
 
 	// Get retrieves Verifiable Presentations from the remote Discovery Service, that were added since the given tag.
 	// If tag is nil, all Verifiable Presentations are retrieved.
-	Get(ctx context.Context, serviceEndpointURL string, tag *discovery.Tag) ([]vc.VerifiablePresentation, *discovery.Tag, error)
+	Get(ctx context.Context, serviceEndpointURL string, tag *string) ([]vc.VerifiablePresentation, *string, error)
 }

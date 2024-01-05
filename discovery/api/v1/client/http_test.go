@@ -4,7 +4,6 @@ import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/discovery"
 	testHTTP "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -59,7 +58,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, presentations, 1)
 		assert.Empty(t, handler.RequestQuery.Get("tag"))
-		assert.Equal(t, discovery.Tag(serverTag), *tag)
+		assert.Equal(t, serverTag, *tag)
 	})
 	t.Run("tag provided by client", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}
@@ -70,13 +69,13 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		server := httptest.NewServer(handler)
 		client := New(server.Client())
 
-		inputTag := discovery.Tag(clientTag)
+		inputTag := clientTag
 		presentations, tag, err := client.Get(context.Background(), server.URL, &inputTag)
 
 		assert.NoError(t, err)
 		assert.Len(t, presentations, 1)
 		assert.Equal(t, clientTag, handler.RequestQuery.Get("tag"))
-		assert.Equal(t, discovery.Tag(serverTag), *tag)
+		assert.Equal(t, serverTag, *tag)
 	})
 	t.Run("server returns invalid status code", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusInternalServerError}
