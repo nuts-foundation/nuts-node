@@ -18,7 +18,13 @@
 
 package v1
 
-import "github.com/nuts-foundation/go-did/vc"
+import (
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/discovery/api/v1/model"
+)
 
 // VerifiablePresentation is a type alias for the VerifiablePresentation from the go-did library.
 type VerifiablePresentation = vc.VerifiablePresentation
+
+// PresentationsResponse is a type alias
+type PresentationsResponse = model.PresentationsResponse

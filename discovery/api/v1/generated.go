@@ -304,12 +304,9 @@ type ClientWithResponsesInterface interface {
 }
 
 type GetPresentationsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *struct {
-		Entries []VerifiablePresentation `json:"entries"`
-		Tag     string                   `json:"tag"`
-	}
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *PresentationsResponse
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -420,10 +417,7 @@ func ParseGetPresentationsResponse(rsp *http.Response) (*GetPresentationsRespons
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest struct {
-			Entries []VerifiablePresentation `json:"entries"`
-			Tag     string                   `json:"tag"`
-		}
+		var dest PresentationsResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -603,10 +597,7 @@ type GetPresentationsResponseObject interface {
 	VisitGetPresentationsResponse(w http.ResponseWriter) error
 }
 
-type GetPresentations200JSONResponse struct {
-	Entries []VerifiablePresentation `json:"entries"`
-	Tag     string                   `json:"tag"`
-}
+type GetPresentations200JSONResponse PresentationsResponse
 
 func (response GetPresentations200JSONResponse) VisitGetPresentationsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
