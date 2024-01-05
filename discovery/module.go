@@ -19,11 +19,13 @@
 package discovery
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/discovery/api/v1/client"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -31,6 +33,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -64,23 +67,31 @@ var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentati
 
 // New creates a new Module.
 func New(storageInstance storage.Engine, vcrInstance vcr.VCR) *Module {
-	return &Module{
+	m := &Module{
 		storageInstance: storageInstance,
 		vcrInstance:     vcrInstance,
 	}
+	m.ctx, m.cancel = context.WithCancel(context.Background())
+	m.routines = new(sync.WaitGroup)
+	return m
 }
 
 // Module is the main entry point for discovery services.
 type Module struct {
 	config            Config
+	httpClient        client.HTTPClient
 	storageInstance   storage.Engine
 	store             *sqlStore
 	serverDefinitions map[string]ServiceDefinition
 	allDefinitions    map[string]ServiceDefinition
 	vcrInstance       vcr.VCR
+	clientUpdater     *clientUpdater
+	ctx               context.Context
+	cancel            context.CancelFunc
+	routines          *sync.WaitGroup
 }
 
-func (m *Module) Configure(_ core.ServerConfig) error {
+func (m *Module) Configure(serverConfig core.ServerConfig) error {
 	if m.config.Definitions.Directory == "" {
 		return nil
 	}
@@ -101,6 +112,7 @@ func (m *Module) Configure(_ core.ServerConfig) error {
 		}
 		m.serverDefinitions = serverDefinitions
 	}
+	m.httpClient = client.New(serverConfig.Strictmode, 10*time.Second, nil)
 	return nil
 }
 
@@ -110,6 +122,12 @@ func (m *Module) Start() error {
 	if err != nil {
 		return err
 	}
+	m.clientUpdater = newClientUpdater(m.serverDefinitions, m.store, m, m.httpClient)
+	m.routines.Add(1)
+	go func() {
+		defer m.routines.Done()
+		m.clientUpdater.update(m.ctx, m.config.Client.UpdateInterval)
+	}()
 	return nil
 }
 
@@ -128,11 +146,18 @@ func (m *Module) Config() interface{} {
 // Add registers a presentation on the given Discovery Service.
 // See interface.go for more information.
 func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) error {
-	// First, simple sanity checks
 	definition, isServer := m.serverDefinitions[serviceID]
 	if !isServer {
 		return ErrServerModeDisabled
 	}
+	if err := m.verifyRegistration(definition, presentation); err != nil {
+		return err
+	}
+	return m.store.add(definition.ID, presentation, nil)
+}
+
+func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
+	// First, simple sanity checks
 	if presentation.Format() != vc.JWTPresentationProofFormat {
 		return errors.Join(ErrInvalidPresentation, errUnsupportedPresentationFormat)
 	}
@@ -156,7 +181,7 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 	if err != nil {
 		return err
 	}
-	exists, err := m.store.exists(serviceID, credentialSubjectID.String(), presentation.ID.String())
+	exists, err := m.store.exists(definition.ID, credentialSubjectID.String(), presentation.ID.String())
 	if err != nil {
 		return err
 	}
@@ -177,7 +202,7 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 	if err != nil {
 		return errors.Join(ErrInvalidPresentation, fmt.Errorf("presentation verification failed: %w", err))
 	}
-	return m.store.add(definition.ID, presentation, nil)
+	return nil
 }
 
 func (m *Module) validateRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {

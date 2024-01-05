@@ -18,9 +18,12 @@
 
 package discovery
 
+import "time"
+
 // Config holds the config of the module
 type Config struct {
 	Server      ServerConfig             `koanf:"server"`
+	Client      ClientConfig             `koanf:"client"`
 	Definitions ServiceDefinitionsConfig `koanf:"definitions"`
 }
 
@@ -35,10 +38,19 @@ type ServerConfig struct {
 	DefinitionIDs []string `koanf:"definition_ids"`
 }
 
+// ClientConfig holds the config for the client
+type ClientConfig struct {
+	// UpdateInterval specifies how often the client should update the Discovery Services.
+	UpdateInterval time.Duration `koanf:"update_interval"`
+}
+
 // DefaultConfig returns the default configuration.
 func DefaultConfig() Config {
 	return Config{
 		Server: ServerConfig{},
+		Client: ClientConfig{
+			UpdateInterval: 1 * time.Minute,
+		},
 	}
 }
 

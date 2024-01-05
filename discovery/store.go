@@ -402,6 +402,20 @@ func (s *sqlStore) removeExpired() (int, error) {
 	return int(result.RowsAffected), nil
 }
 
+func (s *sqlStore) getTag(serviceID string) (Tag, error) {
+	var service serviceRecord
+	err := s.db.Find(&service, "id = ?", serviceID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", nil
+	} else if err != nil {
+		return "", fmt.Errorf("query service '%s': %w", serviceID, err)
+	}
+	if service.LastTag.Empty() {
+		return "", nil
+	}
+	return service.LastTag, nil
+}
+
 // indexJSONObject indexes a JSON object, resulting in a slice of JSON paths and corresponding string values.
 // It only traverses JSON objects and only adds string values to the result.
 func indexJSONObject(target map[string]interface{}, jsonPaths []string, stringValues []string, currentPath string) ([]string, []string) {

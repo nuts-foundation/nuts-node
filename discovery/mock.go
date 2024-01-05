@@ -106,3 +106,40 @@ func (mr *MockClientMockRecorder) Search(serviceID, query any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockClient)(nil).Search), serviceID, query)
 }
+
+// MockregistrationVerifier is a mock of registrationVerifier interface.
+type MockregistrationVerifier struct {
+	ctrl     *gomock.Controller
+	recorder *MockregistrationVerifierMockRecorder
+}
+
+// MockregistrationVerifierMockRecorder is the mock recorder for MockregistrationVerifier.
+type MockregistrationVerifierMockRecorder struct {
+	mock *MockregistrationVerifier
+}
+
+// NewMockregistrationVerifier creates a new mock instance.
+func NewMockregistrationVerifier(ctrl *gomock.Controller) *MockregistrationVerifier {
+	mock := &MockregistrationVerifier{ctrl: ctrl}
+	mock.recorder = &MockregistrationVerifierMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockregistrationVerifier) EXPECT() *MockregistrationVerifierMockRecorder {
+	return m.recorder
+}
+
+// verifyRegistration mocks base method.
+func (m *MockregistrationVerifier) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "verifyRegistration", definition, presentation)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// verifyRegistration indicates an expected call of verifyRegistration.
+func (mr *MockregistrationVerifierMockRecorder) verifyRegistration(definition, presentation any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "verifyRegistration", reflect.TypeOf((*MockregistrationVerifier)(nil).verifyRegistration), definition, presentation)
+}
