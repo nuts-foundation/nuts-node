@@ -37,6 +37,7 @@ import (
 
 var _ Holder = (*HolderService)(nil)
 
+// ErrNoCredentials is returned when no matching credentials are found in the wallet based on a PresentationDefinition
 var ErrNoCredentials = errors.New("no matching credentials")
 
 type HolderService struct {
@@ -60,7 +61,7 @@ func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID
 	// get VCs from own wallet
 	credentials, err := v.wallet.List(ctx, walletDID)
 	if err != nil {
-		return nil, nil, errors.New("failed to retrieve wallet credentials")
+		return nil, nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
 	}
 
 	expires := time.Now().Add(time.Minute * 15) //todo
@@ -93,7 +94,6 @@ func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID
 
 func (v *HolderService) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
 	iamClient := iam.NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
-	// The verifier has become the client
 
 	metadata, err := iamClient.ClientMetadata(ctx, endpoint)
 	if err != nil {

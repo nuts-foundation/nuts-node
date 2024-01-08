@@ -34,7 +34,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	oauth2 "github.com/nuts-foundation/nuts-node/auth/services/oauth"
+	oauthServices "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	httpNuts "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -47,18 +47,20 @@ import (
 
 var oauthNonceKey = []string{"oauth", "nonce"}
 
+// handleAuthorizeRequestFromHolder handles an Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
+// we expect a generic OAuth2 request like this:
+// GET /iam/123/authorize?response_type=token&client_id=did:web:example.com:iam:456&state=xyz
+//
+//	    &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
+//	Host: server.com
+//
+// The following parameters are expected
+// response_type, REQUIRED.  Value MUST be set to "token".
+// client_id, REQUIRED. This must be a did:web
+// redirect_uri, REQUIRED. This must be the client or other node url (client for regular flow, node for popup)
+// scope, OPTIONAL. The scope that maps to a presentation definition, if not set we just want an empty VP
+// state, RECOMMENDED.  Opaque value used to maintain state between the request and the callback.
 func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier did.DID, params map[string]string) (HandleAuthorizeRequestResponseObject, error) {
-	// we expect a generic OAuth2 request like this:
-	// GET /iam/123/authorize?response_type=token&client_id=did:web:example.com:iam:456&state=xyz
-	//        &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
-	//    Host: server.com
-	// The following parameters are expected
-	// response_type, REQUIRED.  Value MUST be set to "token".
-	// client_id, REQUIRED. This must be a did:web
-	// redirect_uri, REQUIRED. This must be the client or other node url (client for regular flow, node for popup)
-	// scope, OPTIONAL. The scope that maps to a presentation definition, if not set we just want an empty VP
-	// state, RECOMMENDED.  Opaque value used to maintain state between the request and the callback.
-
 	// first we check the redirect URL because later errors will redirect to this URL
 	// from RFC6749:
 	// If the request fails due to a missing, invalid, or mismatching
@@ -79,10 +81,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	// now we have a valid redirectURL, so all future errors will redirect to this URL using the Oauth2ErrorWriter
 
 	// GET authorization server metadata for wallet
-	walletID, ok := params[clientIDParam]
-	if !ok {
-		return nil, oauthError(oauth.InvalidRequest, "missing client_id parameter")
-	}
+	walletID := params[clientIDParam]
 	// the walletDID must be a did:web
 	walletDID, err := did.ParseDID(walletID)
 	if err != nil || walletDID.Method != "web" {
@@ -179,8 +178,8 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	// missing or invalid parameters are all mapped to invalid_request
 	// any operation that fails is mapped to server_error, this includes unreachable or broken backends.
 
-	responseMode, ok := params[responseModeParam]
-	if !ok || responseMode != responseModeDirectPost {
+	responseMode := params[responseModeParam]
+	if responseMode != responseModeDirectPost {
 		return nil, oauthError(oauth.InvalidRequest, "invalid response_mode parameter")
 	}
 	// check the response URL because later errors will redirect to this URL
@@ -188,14 +187,11 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	if !responseOK {
 		return nil, oauthError(oauth.InvalidRequest, "missing response_uri parameter")
 	}
-	clientIDScheme, ok := params[clientIDSchemeParam]
-	if !ok || clientIDScheme != didScheme {
+	clientIDScheme := params[clientIDSchemeParam]
+	if clientIDScheme != didScheme {
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "invalid client_id_scheme parameter"), responseURI)
 	}
-	verifierID, ok := params[clientIDParam]
-	if !ok {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing client_id parameter"), responseURI)
-	}
+	verifierID := params[clientIDParam]
 	// the verifier must be a did:web
 	verifierDID, err := did.ParseDID(verifierID)
 	if err != nil || verifierDID.Method != "web" {
@@ -206,20 +202,14 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing nonce parameter"), responseURI)
 	}
 	// get verifier metadata
-	clientMetadataURI, ok := params[clientMetadataURIParam]
-	if !ok {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing client_metadata_uri parameter"), responseURI)
-	}
+	clientMetadataURI := params[clientMetadataURIParam]
 	// we ignore any client_metadata, but officially an error must be returned when that param is present.
 	metadata, err := r.auth.Holder().ClientMetadata(ctx, clientMetadataURI)
 	if err != nil {
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.ServerError, "failed to get client metadata (verifier)"), responseURI)
 	}
 	// get presentation_definition from presentation_definition_uri
-	presentationDefinitionURI, ok := params[presentationDefUriParam]
-	if !ok {
-		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "missing presentation_definition_uri parameter"), responseURI)
-	}
+	presentationDefinitionURI := params[presentationDefUriParam]
 	presentationDefinition, err := r.auth.Holder().PresentationDefinition(ctx, presentationDefinitionURI)
 	if err != nil {
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidPresentationDefinitionURI, fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI)), responseURI)
@@ -230,7 +220,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	// all params checked, delegate responsibility to the holder
 	vp, submission, err := r.auth.Holder().BuildPresentation(ctx, walletDID, *presentationDefinition, metadata.VPFormats, nonce)
 	if err != nil {
-		if errors.Is(err, oauth2.ErrNoCredentials) {
+		if errors.Is(err, oauthServices.ErrNoCredentials) {
 			return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.InvalidRequest, "no credentials available"), responseURI)
 		}
 		return r.sendAndHandleDirectPostError(ctx, oauthError(oauth.ServerError, err.Error()), responseURI)

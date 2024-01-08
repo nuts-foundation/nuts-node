@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -194,7 +193,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	if presentationDefinition.Format != nil {
 		formatCandidates = formatCandidates.Match(credential.DIFClaimFormats(*presentationDefinition.Format))
 	}
-	format := chooseVPFormat(formatCandidates.Map)
+	format := pe.ChooseVPFormat(formatCandidates.Map)
 	if format == "" {
 		return nil, errors.New("requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")
 	}
@@ -244,22 +243,11 @@ func (s *relyingParty) authorizationServerMetadata(ctx context.Context, webdid d
 	return metadata, nil
 }
 
-func chooseVPFormat(formats map[string]map[string][]string) string {
-	// They are in preferred order
-	if _, ok := formats[vc.JWTPresentationProofFormat]; ok {
-		return vc.JWTPresentationProofFormat
-	}
-	if _, ok := formats["jwt_vp_json"]; ok {
-		return vc.JWTPresentationProofFormat
-	}
-	if _, ok := formats[vc.JSONLDPresentationProofFormat]; ok {
-		return vc.JSONLDPresentationProofFormat
-	}
-	return ""
-}
-
 func (s *relyingParty) presentationDefinition(ctx context.Context, presentationDefinitionURL string, scopes string) (*pe.PresentationDefinition, error) {
 	parsedURL, err := url.Parse(presentationDefinitionURL)
+	if err != nil {
+		return nil, err
+	}
 	parsedURL.RawQuery = url.Values{"scope": []string{scopes}}.Encode()
 	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
 	presentationDefinition, err := iamClient.PresentationDefinition(ctx, *parsedURL)

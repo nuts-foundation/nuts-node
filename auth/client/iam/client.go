@@ -176,11 +176,11 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp v
 }
 
 // PostError posts an OAuth error to the redirect URL and returns the redirect URL with the error as query parameter.
-func (hb HTTPClient) PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierCallbackURL string) (string, error) {
+func (hb HTTPClient) PostError(ctx context.Context, err oauth.OAuth2Error, verifierCallbackURL string) (string, error) {
 	// initiate http client, create a POST request with x-www-form-urlencoded body and send it to the redirect URL
 	data := url.Values{}
-	data.Set(oauth.ErrorParam, string(auth2Error.Code))
-	data.Set(oauth.ErrorDescriptionParam, auth2Error.Description)
+	data.Set(oauth.ErrorParam, string(err.Code))
+	data.Set(oauth.ErrorDescriptionParam, err.Description)
 
 	return hb.postFormExpectRedirect(ctx, data, verifierCallbackURL)
 }
