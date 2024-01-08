@@ -11,7 +11,7 @@ require (
 	github.com/chromedp/chromedp v0.9.3
 	github.com/dlclark/regexp2 v1.10.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/goodsign/monday v1.0.1
+	github.com/goodsign/monday v1.0.2
 	github.com/google/uuid v1.5.0
 	github.com/hashicorp/vault/api v1.10.0
 	github.com/jinzhu/now v1.1.5 // indirect
