@@ -56,6 +56,11 @@ func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
 	return false
 }
 
+func AddSupportedAlgorithm(alg jwa.SignatureAlgorithm) bool {
+	supportedAlgorithms = append(supportedAlgorithms, alg)
+	return true
+}
+
 // SignJWT creates a JWT from the given claims and signs it with the given key.
 func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
 	privateKey, kid, err := client.getPrivateKey(ctx, key)
