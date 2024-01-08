@@ -33,22 +33,22 @@ import (
 	"time"
 )
 
-// New creates a new HTTPInvoker.
-func New(strictMode bool, timeout time.Duration, tlsConfig *tls.Config) *HTTPInvoker {
-	return &HTTPInvoker{
+// New creates a new DefaultHTTPClient.
+func New(strictMode bool, timeout time.Duration, tlsConfig *tls.Config) *DefaultHTTPClient {
+	return &DefaultHTTPClient{
 		client: core.NewStrictHTTPClient(strictMode, timeout, tlsConfig),
 	}
 }
 
-var _ Invoker = &HTTPInvoker{}
+var _ HTTPClient = &DefaultHTTPClient{}
 
-// HTTPInvoker implements Invoker using HTTP.
-type HTTPInvoker struct {
+// DefaultHTTPClient implements HTTPClient using HTTP.
+type DefaultHTTPClient struct {
 	client core.HTTPRequestDoer
 }
 
-func (h HTTPInvoker) Register(ctx context.Context, serviceEndpointURL string, presentation vc.VerifiablePresentation) error {
-	requestBody, _ := presentation.MarshalJSON()
+func (h DefaultHTTPClient) Register(ctx context.Context, serviceEndpointURL string, presentation vc.VerifiablePresentation) error {
+	requestBody, _ := json.Marshal(presentation)
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, serviceEndpointURL, bytes.NewReader(requestBody))
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (h HTTPInvoker) Register(ctx context.Context, serviceEndpointURL string, pr
 	return nil
 }
 
-func (h HTTPInvoker) Get(ctx context.Context, serviceEndpointURL string, tag *string) ([]vc.VerifiablePresentation, *string, error) {
+func (h DefaultHTTPClient) Get(ctx context.Context, serviceEndpointURL string, tag *string) ([]vc.VerifiablePresentation, *string, error) {
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, serviceEndpointURL, nil)
 	if tag != nil {
 		httpRequest.URL.RawQuery = url.Values{"tag": []string{*tag}}.Encode()

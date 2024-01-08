@@ -23,12 +23,13 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 )
 
-// Invoker is the interface for the client that invokes the remote Discovery Service.
-type Invoker interface {
+// HTTPClient is the interface for the client that invokes the remote Discovery Service.
+type HTTPClient interface {
 	// Register registers a Verifiable Presentation on the remote Discovery Service.
 	Register(ctx context.Context, serviceEndpointURL string, presentation vc.VerifiablePresentation) error
 
 	// Get retrieves Verifiable Presentations from the remote Discovery Service, that were added since the given tag.
+	// If the call succeeds it returns the Verifiable Presentations and the tag that was returned by the server.
 	// If tag is nil, all Verifiable Presentations are retrieved.
 	Get(ctx context.Context, serviceEndpointURL string, tag *string) ([]vc.VerifiablePresentation, *string, error)
 }

@@ -17,31 +17,31 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockInvoker is a mock of Invoker interface.
-type MockInvoker struct {
+// MockHTTPClient is a mock of HTTPClient interface.
+type MockHTTPClient struct {
 	ctrl     *gomock.Controller
-	recorder *MockInvokerMockRecorder
+	recorder *MockHTTPClientMockRecorder
 }
 
-// MockInvokerMockRecorder is the mock recorder for MockInvoker.
-type MockInvokerMockRecorder struct {
-	mock *MockInvoker
+// MockHTTPClientMockRecorder is the mock recorder for MockHTTPClient.
+type MockHTTPClientMockRecorder struct {
+	mock *MockHTTPClient
 }
 
-// NewMockInvoker creates a new mock instance.
-func NewMockInvoker(ctrl *gomock.Controller) *MockInvoker {
-	mock := &MockInvoker{ctrl: ctrl}
-	mock.recorder = &MockInvokerMockRecorder{mock}
+// NewMockHTTPClient creates a new mock instance.
+func NewMockHTTPClient(ctrl *gomock.Controller) *MockHTTPClient {
+	mock := &MockHTTPClient{ctrl: ctrl}
+	mock.recorder = &MockHTTPClientMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockInvoker) EXPECT() *MockInvokerMockRecorder {
+func (m *MockHTTPClient) EXPECT() *MockHTTPClientMockRecorder {
 	return m.recorder
 }
 
 // Get mocks base method.
-func (m *MockInvoker) Get(ctx context.Context, serviceEndpointURL string, tag *string) ([]vc.VerifiablePresentation, *string, error) {
+func (m *MockHTTPClient) Get(ctx context.Context, serviceEndpointURL string, tag *string) ([]vc.VerifiablePresentation, *string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, serviceEndpointURL, tag)
 	ret0, _ := ret[0].([]vc.VerifiablePresentation)
@@ -51,13 +51,13 @@ func (m *MockInvoker) Get(ctx context.Context, serviceEndpointURL string, tag *s
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockInvokerMockRecorder) Get(ctx, serviceEndpointURL, tag any) *gomock.Call {
+func (mr *MockHTTPClientMockRecorder) Get(ctx, serviceEndpointURL, tag any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockInvoker)(nil).Get), ctx, serviceEndpointURL, tag)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockHTTPClient)(nil).Get), ctx, serviceEndpointURL, tag)
 }
 
 // Register mocks base method.
-func (m *MockInvoker) Register(ctx context.Context, serviceEndpointURL string, presentation vc.VerifiablePresentation) error {
+func (m *MockHTTPClient) Register(ctx context.Context, serviceEndpointURL string, presentation vc.VerifiablePresentation) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Register", ctx, serviceEndpointURL, presentation)
 	ret0, _ := ret[0].(error)
@@ -65,7 +65,7 @@ func (m *MockInvoker) Register(ctx context.Context, serviceEndpointURL string, p
 }
 
 // Register indicates an expected call of Register.
-func (mr *MockInvokerMockRecorder) Register(ctx, serviceEndpointURL, presentation any) *gomock.Call {
+func (mr *MockHTTPClientMockRecorder) Register(ctx, serviceEndpointURL, presentation any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockInvoker)(nil).Register), ctx, serviceEndpointURL, presentation)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockHTTPClient)(nil).Register), ctx, serviceEndpointURL, presentation)
 }
