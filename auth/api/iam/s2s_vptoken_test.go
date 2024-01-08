@@ -19,11 +19,13 @@
 package iam
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"go.uber.org/mock/gomock"
 	"net/http"
 	"testing"
@@ -94,6 +96,36 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	require.NoError(t, err)
 	issuerDIDDocument.AddAssertionMethod(verificationMethod)
 
+	var definition pe.PresentationDefinition
+	require.NoError(t, json.Unmarshal([]byte(`
+{
+	"format": {
+		"ldp_vc": {
+			"proof_type": [
+				"JsonWebSignature2020"
+			]
+		}
+	},
+	"input_descriptors": [
+		{
+			"id": "1",
+			"constraints": {
+				"fields": [
+					{
+						"path": [
+							"$.type"
+						],
+						"filter": {
+				  			"type": "string",
+				  			"const": "NutsOrganizationCredential"
+						}
+			  		}
+				]
+		  	}
+		}
+	]
+}`), &definition))
+
 	var submission pe.PresentationSubmission
 	require.NoError(t, json.Unmarshal([]byte(`
 {
@@ -117,8 +149,9 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("JSON-LD VP", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.NoError(t, err)
 		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
@@ -134,7 +167,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			require.NoError(t, token.Remove(jwt.ExpirationKey))
 		}, verifiableCredential)
 
-		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+		_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.EqualError(t, err, "invalid_request - presentation is missing creation or expiration date")
 	})
@@ -144,7 +177,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			require.NoError(t, token.Remove(jwt.NotBeforeKey))
 		}, verifiableCredential)
 
-		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+		_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.EqualError(t, err, "invalid_request - presentation is missing creation or expiration date")
 	})
@@ -154,7 +187,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			require.NoError(t, token.Set(jwt.ExpirationKey, time.Now().Add(time.Hour)))
 		}, verifiableCredential)
 
-		_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+		_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.EqualError(t, err, "invalid_request - presentation is valid for too long (max 5s)")
 	})
@@ -163,9 +196,10 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 			require.NoError(t, token.Set(jwt.AudienceKey, issuerDID.String()))
 		}, verifiableCredential)
+		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.NoError(t, err)
 		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
@@ -177,7 +211,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("VP is not valid JSON", func(t *testing.T) {
 		ctx := newTestClient(t)
-		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, "[true, false]")
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, "[true, false]")
 
 		assert.EqualError(t, err, "invalid_request - assertion parameter is invalid: unable to parse PEX envelope as verifiable presentation: invalid JWT")
 		assert.Nil(t, resp)
@@ -189,7 +223,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		secondPresentation := test.CreateJSONLDPresentation(t, secondSubjectID, proofVisitor, credential.JWTNutsOrganizationCredential(t, secondSubjectID))
 		assertionJSON, _ := json.Marshal([]VerifiablePresentation{presentation, secondPresentation})
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, string(assertionJSON))
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, string(assertionJSON))
 		assert.EqualError(t, err, "invalid_request - not all presentations have the same credential subject ID")
 		assert.Nil(t, resp)
 	})
@@ -197,70 +231,74 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		t.Run("replay attack (nonce is reused)", func(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil).Times(2)
 
-			_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 			require.NoError(t, err)
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 			assert.EqualError(t, err, "invalid_request - presentation nonce has already been used")
 			assert.Nil(t, resp)
 		})
 		t.Run("JSON-LD VP is missing nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
-
+			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
 			proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
 				proof.Domain = &issuerDIDStr
 				proof.Nonce = nil
 			})
 			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 			assert.EqualError(t, err, "invalid_request - presentation has invalid proof or nonce")
 			assert.Nil(t, resp)
 		})
 		t.Run("JSON-LD VP has empty nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
-
+			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
 			proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
 				proof.Domain = &issuerDIDStr
 				proof.Nonce = new(string)
 			})
 			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 			assert.EqualError(t, err, "invalid_request - presentation has invalid proof or nonce")
 			assert.Nil(t, resp)
 		})
 		t.Run("JWT VP is missing nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
+			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
 			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerDID.String())
 				_ = token.Remove("nonce")
 			}, verifiableCredential)
 
-			_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 			require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
 		})
 		t.Run("JWT VP has empty nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
+			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
 			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerDID.String())
 				_ = token.Set("nonce", "")
 			}, verifiableCredential)
 
-			_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 			require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
 		})
 		t.Run("JWT VP nonce is not a string", func(t *testing.T) {
 			ctx := newTestClient(t)
+			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
 			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerDID.String())
 				_ = token.Set("nonce", true)
 			}, verifiableCredential)
 
-			_, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 			require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
 		})
@@ -270,7 +308,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ctx := newTestClient(t)
 			presentation := test.CreateJWTPresentation(t, *subjectDID, nil, verifiableCredential)
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 			assert.EqualError(t, err, "invalid_request - expected: did:web:example.com:iam:123, got: [] - presentation audience/domain is missing or does not match")
 			assert.Nil(t, resp)
@@ -281,7 +319,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 				require.NoError(t, token.Set(jwt.AudienceKey, "did:example:other"))
 			}, verifiableCredential)
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 			assert.EqualError(t, err, "invalid_request - expected: did:web:example.com:iam:123, got: [did:example:other] - presentation audience/domain is missing or does not match")
 			assert.Nil(t, resp)
@@ -290,8 +328,9 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("VP verification fails", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(nil, errors.New("invalid"))
+		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 		assert.EqualError(t, err, "invalid_request - invalid - presentation(s) or contained credential(s) are invalid")
 		assert.Nil(t, resp)
@@ -303,7 +342,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 				CredentialSubject: []interface{}{map[string]string{}},
 			})
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 			assert.EqualError(t, err, `invalid_request - unable to get subject DID from VC: credential subjects have no ID`)
 			assert.Nil(t, resp)
@@ -318,7 +357,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			}
 			verifiablePresentationJSON, _ := verifiablePresentation.MarshalJSON()
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, string(verifiablePresentationJSON))
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, string(verifiablePresentationJSON))
 
 			assert.EqualError(t, err, `invalid_request - presentation signer is not credential subject`)
 			assert.Nil(t, resp)
@@ -327,17 +366,18 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("submission is not valid JSON", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, "not-a-valid-submission", presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, "not-a-valid-submission", presentation.Raw())
 
 		assert.EqualError(t, err, `invalid_request - invalid presentation submission: invalid character 'o' in literal null (expecting 'u')`)
 		assert.Nil(t, resp)
 	})
 	t.Run("unsupported scope", func(t *testing.T) {
 		ctx := newTestClient(t)
+		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, "everything").Return(nil, policy.ErrNotFound)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, "everything", submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, "everything", submissionJSON, presentation.Raw())
 
-		assert.EqualError(t, err, `invalid_scope - unsupported scope for presentation exchange: everything`)
+		assert.EqualError(t, err, `invalid_scope - not found - unsupported scope (everything) for presentation exchange: not found`)
 		assert.Nil(t, resp)
 	})
 	t.Run("re-evaluation of presentation definition yields different credentials", func(t *testing.T) {
@@ -355,8 +395,9 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, otherVerifiableCredential)
 
 		ctx := newTestClient(t)
+		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(issuerDID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 		assert.EqualError(t, err, "invalid_request - presentation submission doesn't match presentation definition - presentation submission does not conform to Presentation Definition")
 		assert.Nil(t, resp)
 	})

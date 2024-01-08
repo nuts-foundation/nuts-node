@@ -24,15 +24,15 @@ import (
 	"net/url"
 )
 
-// OAuthSession is the session object for an OAuth2.0 flow (request/authorize/token).
 type OAuthSession struct {
-	ClientID     string
-	Scope        string
-	OwnDID       did.DID
-	ClientState  string
-	RedirectURI  string
-	ServerState  map[string]interface{}
-	ResponseType string
+	ClientID               string
+	Scope                  string
+	OwnDID                 did.DID
+	ClientState            string
+	RedirectURI            string
+	ServerState            map[string]interface{}
+	ResponseType           string
+	PresentationDefinition PresentationDefinition
 }
 
 // UserSession is the session object for handling the user browser session.

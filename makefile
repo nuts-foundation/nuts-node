@@ -35,6 +35,7 @@ gen-mocks:
 	mockgen -destination=network/transport/v2/senders_mock.go -package=v2 -source=network/transport/v2/senders.go
 	mockgen -destination=network/transport/v2/gossip/mock.go -package=gossip -source=network/transport/v2/gossip/manager.go
 	mockgen -destination=pki/mock.go -package=pki -source=pki/interface.go
+	mockgen -destination=policy/mock.go -package=policy -source=policy/interface.go
 	mockgen -destination=storage/mock.go -package=storage -source=storage/interface.go
 	mockgen -destination=vcr/types/mock.go -package=types -source=vcr/types/interface.go
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go

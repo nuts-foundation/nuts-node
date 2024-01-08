@@ -44,8 +44,6 @@ const ConfAccessTokenLifeSpan = "auth.accesstokenlifespan"
 // ConfV2APIEnabled enables experimental v2 API endpoints
 const ConfV2APIEnabled = "auth.v2apienabled"
 
-const ConfPresentationExchangeMappingFile = "auth.presentationexchangemappingfile"
-
 // FlagSet returns the configuration flags supported by this module.
 func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("auth", pflag.ContinueOnError)
@@ -58,9 +56,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.Int(ConfAccessTokenLifeSpan, defs.AccessTokenLifeSpan, "defines how long (in seconds) an access token is valid. Uses default in strict mode.")
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
 	flags.Bool(ConfV2APIEnabled, defs.V2APIEnabled, "enables experimental v2 API endpoints")
-	flags.String(ConfPresentationExchangeMappingFile, defs.PresentationExchangeMappingFile, "sets the path to the presentation exchange mapping file")
 	_ = flags.MarkHidden(ConfV2APIEnabled)
-	_ = flags.MarkHidden(ConfPresentationExchangeMappingFile)
 
 	return flags
 }

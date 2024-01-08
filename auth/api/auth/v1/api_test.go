@@ -35,7 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,10 +90,6 @@ func (m *mockAuthClient) ContractNotary() services.ContractNotary {
 
 func (m *mockAuthClient) PublicURL() *url.URL {
 	return nil
-}
-
-func (m *mockAuthClient) PresentationDefinitions() *pe.DefinitionResolver {
-	return &pe.DefinitionResolver{}
 }
 
 func createContext(t *testing.T) *TestContext {

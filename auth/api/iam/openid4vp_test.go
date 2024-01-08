@@ -26,11 +26,11 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -101,7 +101,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 }
 
 func TestWrapper_sendPresentationRequest(t *testing.T) {
-	instance := New(nil, nil, nil, nil)
+	instance := New(nil, nil, nil, nil, nil)
 
 	redirectURI, _ := url.Parse("https://example.com/redirect")
 	verifierID, _ := url.Parse("https://example.com/verifier")
@@ -153,21 +153,22 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		mockVDR := vdr.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockWallet := holder.NewMockWallet(ctrl)
+		mockPolicy := policy.NewMockBackend(ctrl)
 		mockVCR.EXPECT().Wallet().Return(mockWallet)
 		mockAuth := auth.NewMockAuthenticationServices(ctrl)
-		mockAuth.EXPECT().PresentationDefinitions().Return(pe.TestDefinitionResolver(t))
 		mockWallet.EXPECT().List(gomock.Any(), holderDID).Return(walletCredentials, nil)
 		mockVDR.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
-		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t))
+		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t), mockPolicy)
 
 		params := map[string]string{
-			"scope":               "eOverdracht-overdrachtsbericht",
-			"response_type":       "code",
-			"response_mode":       "direct_post",
-			"client_metadata_uri": "https://example.com/client_metadata.xml",
+			"scope":                   "eOverdracht-overdrachtsbericht",
+			"response_type":           "code",
+			"response_mode":           "direct_post",
+			"client_metadata_uri":     "https://example.com/client_metadata.xml",
+			"presentation_definition": `{"id":"1","input_descriptors":[]}`,
 		}
 
-		response, err := instance.handlePresentationRequest(params, createSession(params, holderDID))
+		response, err := instance.handlePresentationRequest(context.Background(), params, createSession(params, holderDID))
 
 		require.NoError(t, err)
 		httpResponse := &stubResponseWriter{}
@@ -175,36 +176,17 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		require.Equal(t, http.StatusOK, httpResponse.statusCode)
 		assert.Contains(t, httpResponse.body.String(), "</html>")
 	})
-	t.Run("unsupported scope", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		peStore := &pe.DefinitionResolver{}
-		_ = peStore.LoadFromFile("test/presentation_definition_mapping.json")
-		mockAuth := auth.NewMockAuthenticationServices(ctrl)
-		mockAuth.EXPECT().PresentationDefinitions().Return(peStore)
-		instance := New(mockAuth, nil, nil, nil)
-
-		params := map[string]string{
-			"scope":               "unsupported",
-			"response_type":       "code",
-			"response_mode":       "direct_post",
-			"client_metadata_uri": "https://example.com/client_metadata.xml",
-		}
-
-		response, err := instance.handlePresentationRequest(params, createSession(params, holderDID))
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "unsupported scope for presentation exchange: unsupported")
-		assert.Nil(t, response)
-	})
 	t.Run("invalid response_mode", func(t *testing.T) {
-		instance := New(nil, nil, nil, nil)
+		instance := New(nil, nil, nil, nil, nil)
 		params := map[string]string{
-			"scope":               "eOverdracht-overdrachtsbericht",
-			"response_type":       "code",
-			"response_mode":       "invalid",
-			"client_metadata_uri": "https://example.com/client_metadata.xml",
+			"scope":                   "eOverdracht-overdrachtsbericht",
+			"response_type":           "code",
+			"response_mode":           "invalid",
+			"client_metadata_uri":     "https://example.com/client_metadata.xml",
+			"presentation_definition": "{}",
 		}
 
-		response, err := instance.handlePresentationRequest(params, createSession(params, holderDID))
+		response, err := instance.handlePresentationRequest(context.Background(), params, createSession(params, holderDID))
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "response_mode must be direct_post")
 		assert.Nil(t, response)

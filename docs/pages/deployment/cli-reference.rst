@@ -60,6 +60,8 @@ The following options apply to the server commands below:
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
       --pki.maxupdatefailhours int                    Maximum number of hours that a denylist update can fail (default 4)
       --pki.softfail                                  Do not reject certificates if their revocation status cannot be established when softfail is true (default true)
+      --policy.address string                         The address of a remote policy server. Mutual exclusive with policy.directory.
+      --policy.directory string                       Directory to read policy files from. Policy files are JSON files that contain a scope to PresentationDefinition mapping. Mutual exclusive with policy.address.
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
       --storage.bbolt.backup.interval duration        Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
       --storage.redis.address string                  Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.

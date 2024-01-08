@@ -45,7 +45,7 @@ const s2sMaxClockSkew = 5 * time.Second
 
 // handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
-func (r Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
 	pexEnvelope, err := pe.ParseEnvelope([]byte(assertionJSON))
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -76,7 +76,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(issuer did.DID, scope string, submi
 			return nil, err
 		}
 	}
-	credentialMap, definition, err := r.validatePresentationSubmission(scope, submission, pexEnvelope)
+	credentialMap, definition, err := r.validatePresentationSubmission(ctx, issuer, scope, submission, pexEnvelope)
 	if err != nil {
 		return nil, err
 	}
@@ -161,12 +161,13 @@ func (r Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, prese
 // validatePresentationSubmission checks if the presentation submission is valid for the given scope:
 //  1. Resolve presentation definition for the requested scope
 //  2. Check submission against presentation and definition
-func (r Wrapper) validatePresentationSubmission(scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (map[string]vc.VerifiableCredential, *PresentationDefinition, error) {
-	definition := r.auth.PresentationDefinitions().ByScope(scope)
-	if definition == nil {
+func (r Wrapper) validatePresentationSubmission(ctx context.Context, authorizer did.DID, scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (map[string]vc.VerifiableCredential, *PresentationDefinition, error) {
+	definition, err := r.policyBackend.PresentationDefinition(ctx, authorizer, scope)
+	if err != nil {
 		return nil, nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidScope,
-			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", scope),
+			Code:          oauth.InvalidScope,
+			InternalError: err,
+			Description:   fmt.Sprintf("unsupported scope (%s) for presentation exchange: %s", scope, err.Error()),
 		}
 	}
 

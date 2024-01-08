@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
+	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"strings"
 
 	"github.com/PaesslerAG/jsonpath"
@@ -33,6 +34,20 @@ import (
 
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 var ErrUnsupportedFilter = errors.New("unsupported filter")
+
+// ParsePresentationDefinition validates the given JSON and parses it into a PresentationDefinition.
+// It returns an error if the JSON is invalid or doesn't match the JSON schema for a PresentationDefinition.
+func ParsePresentationDefinition(raw []byte) (*PresentationDefinition, error) {
+	if err := v2.Validate(raw, v2.PresentationDefinition); err != nil {
+		return nil, err
+	}
+	var result PresentationDefinition
+	err := json.Unmarshal(raw, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
 
 // Candidate is a struct that holds the result of a match between an input descriptor and a VC
 // A non-matching VC also leads to a Candidate, but without a VC.

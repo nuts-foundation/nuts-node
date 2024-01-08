@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -62,11 +63,12 @@ type Wrapper struct {
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 	auth          auth.AuthenticationServices
+	policyBackend policy.PDPBackend
 	templates     *template.Template
 	storageEngine storage.Engine
 }
 
-func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine) *Wrapper {
+func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assets, "assets/*.html")
 	if err != nil {
@@ -75,6 +77,7 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 	return &Wrapper{
 		storageEngine: storageEngine,
 		auth:          authInstance,
+		policyBackend: policyBackend,
 		vcr:           vcrInstance,
 		vdr:           vdrInstance,
 		templates:     templates,
@@ -156,7 +159,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 				Description: "missing required parameters",
 			}
 		}
-		return r.handleS2SAccessTokenRequest(*ownDID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
+		return r.handleS2SAccessTokenRequest(ctx, *ownDID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 	default:
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
@@ -306,7 +309,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	case responseTypeVPIDToken:
 		// Options:
 		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
-		return r.handlePresentationRequest(params, session)
+		return r.handlePresentationRequest(ctx, params, session)
 	default:
 		// TODO: This should be a redirect?
 		redirectURI, _ := url.Parse(session.RedirectURI)
@@ -350,18 +353,21 @@ func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMet
 
 	return OAuthClientMetadata200JSONResponse(clientMetadata(*r.identityURL(request.Id))), nil
 }
-func (r Wrapper) PresentationDefinition(_ context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error) {
+func (r Wrapper) PresentationDefinition(ctx context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error) {
 	if len(request.Params.Scope) == 0 {
 		return PresentationDefinition200JSONResponse(PresentationDefinition{}), nil
 	}
 
-	// todo: only const scopes supported, scopes with variable arguments not supported yet
-	// todo: we only take the first scope as main scope, when backends are introduced we need to use all scopes and send them as one to the backend.
-	scopes := strings.Split(request.Params.Scope, " ")
-	presentationDefinition := r.auth.PresentationDefinitions().ByScope(scopes[0])
-	if presentationDefinition == nil {
+	authorizer, err := r.idToOwnedDID(ctx, request.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	presentationDefinition, err := r.policyBackend.PresentationDefinition(ctx, *authorizer, request.Params.Scope)
+	if err != nil {
 		return nil, oauth.OAuth2Error{
-			Code: oauth.InvalidScope,
+			Code:        oauth.InvalidScope,
+			Description: err.Error(),
 		}
 	}
 

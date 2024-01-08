@@ -16,34 +16,6 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
-// AuthorizedRequest The request contains all params involved with the request.
-// It might be the case that the caller mapped credential fields to additional params.
-type AuthorizedRequest struct {
-	// Audience The audience of the access token. This is the identifier (DID) of the authorizer and issuer of the access token.
-	Audience string `json:"audience"`
-
-	// ClientId The client ID of the client that requested the resource (DID).
-	ClientId string `json:"client_id"`
-
-	// PresentationSubmission A presentation submission is a JSON object that maps requirements from the Presentation Definition to the verifiable presentations that were used to request an access token.
-	// Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
-	// A JSON schema is available at https://identity.foundation/presentation-exchange/#json-schema
-	PresentationSubmission PresentationSubmission `json:"presentation_submission"`
-
-	// RequestMethod The method of the resource request.
-	RequestMethod string `json:"request_method"`
-
-	// RequestUrl The URL of the resource request.
-	RequestUrl string `json:"request_url"`
-
-	// Scope The scope used in the authorization request.
-	Scope string `json:"scope"`
-
-	// Vps The verifiable presentations that were used to request the access token.
-	// The verifiable presentations could be in JWT format or in JSON format.
-	Vps []interface{} `json:"vps"`
-}
-
 // AuthorizedResponse The response indicates if the access token grants access to the requested resource.
 // If the access token grants access, the response will be 200 with a boolean value set to true.
 // If the access token does not grant access, the response will be 200 with a boolean value set to false.
