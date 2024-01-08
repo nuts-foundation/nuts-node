@@ -177,8 +177,9 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
 		test.policy.EXPECT().PresentationDefinition(gomock.Any(), webDID, "eOverdracht-overdrachtsbericht").Return(&presentationDefinition, nil)
+		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "eOverdracht-overdrachtsbericht"}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Id: "123", Params: PresentationDefinitionParams{Scope: "eOverdracht-overdrachtsbericht"}})
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -189,7 +190,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 	t.Run("ok - missing scope", func(t *testing.T) {
 		test := newTestClient(t)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Id: "123", Params: PresentationDefinitionParams{}})
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -199,23 +200,25 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("error - unknown scope", func(t *testing.T) {
 		test := newTestClient(t)
+		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		test.policy.EXPECT().PresentationDefinition(gomock.Any(), webDID, "unknown").Return(nil, policy.ErrNotFound)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "unknown"}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Id: "123", Params: PresentationDefinitionParams{Scope: "unknown"}})
 
 		require.Error(t, err)
 		assert.Nil(t, response)
 		assert.Equal(t, "invalid_scope - not found", err.Error())
 	})
 
-	t.Run("error - incorrect DID", func(t *testing.T) {
+	t.Run("error - unknown ID", func(t *testing.T) {
 		test := newTestClient(t)
+		test.vdr.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: "notdid", Params: PresentationDefinitionParams{Scope: "eOverdracht-overdrachtsbericht"}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Id: "notdid", Params: PresentationDefinitionParams{Scope: "eOverdracht-overdrachtsbericht"}})
 
 		require.Error(t, err)
 		assert.Nil(t, response)
-		assert.Equal(t, "invalid_request - invalid DID", err.Error())
+		assert.Equal(t, "invalid_request - issuer DID not owned by the server", err.Error())
 	})
 }
 

@@ -27,13 +27,12 @@ import (
 
 // Config holds all the configuration params
 type Config struct {
-	Irma                            IrmaConfig `koanf:"irma"`
-	HTTPTimeout                     int        `koanf:"http.timeout"`
-	ClockSkew                       int        `koanf:"clockskew"`
-	ContractValidators              []string   `koanf:"contractvalidators"`
-	AccessTokenLifeSpan             int        `koanf:"accesstokenlifespan"`
-	V2APIEnabled                    bool       `koanf:"v2apienabled"`
-	PresentationExchangeMappingFile string     `koanf:"presentationexchangemappingfile"`
+	Irma                IrmaConfig `koanf:"irma"`
+	HTTPTimeout         int        `koanf:"http.timeout"`
+	ClockSkew           int        `koanf:"clockskew"`
+	ContractValidators  []string   `koanf:"contractvalidators"`
+	AccessTokenLifeSpan int        `koanf:"accesstokenlifespan"`
+	V2APIEnabled        bool       `koanf:"v2apienabled"`
 }
 
 type IrmaConfig struct {

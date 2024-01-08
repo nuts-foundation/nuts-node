@@ -358,12 +358,9 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		return PresentationDefinition200JSONResponse(PresentationDefinition{}), nil
 	}
 
-	authorizer, err := did.ParseDID(request.Did)
+	authorizer, err := r.idToOwnedDID(ctx, request.Id)
 	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: err.Error(),
-		}
+		return nil, err
 	}
 
 	presentationDefinition, err := r.policyBackend.PresentationDefinition(ctx, *authorizer, request.Params.Scope)
