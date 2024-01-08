@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2024 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package client
 
 import (
@@ -9,6 +27,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestHTTPInvoker_Register(t *testing.T) {
@@ -19,7 +38,7 @@ func TestHTTPInvoker_Register(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusCreated}
 		server := httptest.NewServer(handler)
-		client := New(server.Client())
+		client := New(false, time.Minute, server.TLS)
 
 		err := client.Register(context.Background(), server.URL, vp)
 
@@ -30,7 +49,7 @@ func TestHTTPInvoker_Register(t *testing.T) {
 	})
 	t.Run("non-ok", func(t *testing.T) {
 		server := httptest.NewServer(&testHTTP.Handler{StatusCode: http.StatusInternalServerError})
-		client := New(server.Client())
+		client := New(false, time.Minute, server.TLS)
 
 		err := client.Register(context.Background(), server.URL, vp)
 
@@ -51,7 +70,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 			"tag":     serverTag,
 		}
 		server := httptest.NewServer(handler)
-		client := New(server.Client())
+		client := New(false, time.Minute, server.TLS)
 
 		presentations, tag, err := client.Get(context.Background(), server.URL, nil)
 
@@ -67,7 +86,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 			"tag":     serverTag,
 		}
 		server := httptest.NewServer(handler)
-		client := New(server.Client())
+		client := New(false, time.Minute, server.TLS)
 
 		inputTag := clientTag
 		presentations, tag, err := client.Get(context.Background(), server.URL, &inputTag)
@@ -80,7 +99,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 	t.Run("server returns invalid status code", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusInternalServerError}
 		server := httptest.NewServer(handler)
-		client := New(server.Client())
+		client := New(false, time.Minute, server.TLS)
 
 		_, _, err := client.Get(context.Background(), server.URL, nil)
 
@@ -90,7 +109,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}
 		handler.ResponseData = "not json"
 		server := httptest.NewServer(handler)
-		client := New(server.Client())
+		client := New(false, time.Minute, server.TLS)
 
 		_, _, err := client.Get(context.Background(), server.URL, nil)
 

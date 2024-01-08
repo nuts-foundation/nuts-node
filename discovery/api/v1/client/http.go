@@ -21,6 +21,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
@@ -29,12 +30,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 // New creates a new HTTPInvoker.
-func New(client core.HTTPRequestDoer) *HTTPInvoker {
+func New(strictMode bool, timeout time.Duration, tlsConfig *tls.Config) *HTTPInvoker {
 	return &HTTPInvoker{
-		client: client,
+		client: core.NewStrictHTTPClient(strictMode, timeout, tlsConfig),
 	}
 }
 
