@@ -344,7 +344,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		mockVDR := vdr.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockWallet := holder.NewMockWallet(ctrl)
-		mockPolicy := policy.NewMockPDPBackend(ctrl)
+		mockPolicy := policy.NewMockBackend(ctrl)
 		mockVCR.EXPECT().Wallet().Return(mockWallet)
 		mockAuth := auth.NewMockAuthenticationServices(ctrl)
 		mockWallet.EXPECT().List(gomock.Any(), holderDID).Return(walletCredentials, nil)

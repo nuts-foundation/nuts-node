@@ -450,7 +450,7 @@ type testCtx struct {
 	client        *Wrapper
 	authnServices *auth.MockAuthenticationServices
 	vdr           *vdr.MockVDR
-	policy        *policy.MockPDPBackend
+	policy        *policy.MockBackend
 	resolver      *resolver.MockDIDResolver
 	relyingParty  *oauthServices.MockRelyingParty
 	vcVerifier    *verifier.MockVerifier
@@ -466,7 +466,7 @@ func newTestClient(t testing.TB) *testCtx {
 	storageEngine := storage.NewTestStorageEngine(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
-	policyInstance := policy.NewMockPDPBackend(ctrl)
+	policyInstance := policy.NewMockBackend(ctrl)
 	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
 	vcVerifier := verifier.NewMockVerifier(ctrl)

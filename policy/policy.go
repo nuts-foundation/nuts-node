@@ -39,7 +39,7 @@ func NewRouter(pkiInstance pki.Provider) *Router {
 }
 
 type Router struct {
-	backend     PDPBackend
+	backend     Backend
 	config      Config
 	pkiInstance pki.Provider
 }
