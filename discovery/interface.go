@@ -27,6 +27,7 @@ import (
 )
 
 // Tag is value that references a point in the list.
+// It is used by clients to request new entries since their last query.
 // It is opaque for clients: they should not try to interpret it.
 // The server who issued the tag can interpret it as Lamport timestamp.
 type Tag string
