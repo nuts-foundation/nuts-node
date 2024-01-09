@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   title: Nuts Discovery Service API spec
-  description: API specification for discovery services available within Nuts node
+  description: API specification for Discovery Services available within Nuts node
   version: 1.0.0
   license:
     name: GPLv3
@@ -16,9 +16,9 @@ paths:
         schema:
           type: string
     get:
-      summary: Retrieves the presentations of a discovery service.
+      summary: Retrieves the presentations of a Discovery Service.
       description: |
-        An API provided by the discovery server to retrieve the presentations of a discovery service, starting at the given tag.
+        An API provided by the discovery server to retrieve the presentations of a Discovery Service, starting at the given tag.
         The client should provide the tag it was returned in the last response.
         If no tag is given, it will return all presentations.
 
@@ -42,7 +42,7 @@ paths:
         default:
           $ref: "../common/error_response.yaml"
     post:
-      summary: Register a presentation on the discovery service.
+      summary: Register a presentation on the Discovery Service.
       description: |
         An API provided by the discovery server that adds a presentation to the service.
         The presentation must be signed by subject of the credentials it contains.
@@ -58,7 +58,7 @@ paths:
       tags:
         - discovery
       requestBody:
-        description: The presentation to register to the discovery service.
+        description: The presentation to register to the Discovery Service.
         required: true
         content:
           application/json:
@@ -66,7 +66,7 @@ paths:
               $ref: "#/components/schemas/VerifiablePresentation"
       responses:
         "201":
-          description: Presentation was registered on the discovery service.
+          description: Presentation was registered on the Discovery Service.
         "400":
           $ref: "../common/error_response.yaml"
         default:
@@ -90,9 +90,9 @@ paths:
         style: form
         explode: true
     get:
-      summary: Searches for presentations registered on the discovery service.
+      summary: Searches for presentations registered on the Discovery Service.
       description: |
-        An API of the discovery client that searches for presentations on the discovery service,
+        An API of the discovery client that searches for presentations on the Discovery Service,
         whose credentials match the given query parameter.
         It queries the client's local copy of the Discovery Service which is periodically synchronized with the Discovery Server.
         This means new registrations might not immediately show up, depending on the client refresh interval. 
@@ -140,26 +140,26 @@ paths:
         schema:
           type: string
     post:
-      summary: Client API to start registering the given DID on the discovery service.
+      summary: Client API to register the given DID on the Discovery Service.
       description: |
-        An API provided by the discovery client that will cause the given DID to be registered on the specified discovery service.
-        Registration will be attempted immediately, and it will be automatically refreshed.
+        An API provided by the discovery client that will cause the given DID to be registered on the specified Discovery Service.
+        Registration of a Verifiable Presentation will be attempted immediately, and it will be automatically refreshed.
         Application only need to call this API once for every service/DID combination, until the registration is explicitly deleted through this API.
         
-        For successful registration on the discovery service, the DID's credential wallet must contain the credentials specified by the discovery service definition.
+        For successful registration on the Discovery Server, the DID's credential wallet must contain the credentials specified by the Discovery Service definition.
         If initial registration fails this API returns the error indicating what failed, but will retry at a later moment.
         Applications can force a retry by calling this API again.
         
         error returns:
         * 400 - incorrect input: invalid/unknown service or DID.
-      operationId: startRegisteringPresentation
+      operationId: registerDID
       tags:
         - discovery
       responses:
         "200":
-          description: Registration at discovery service was successful.
+          description: Registration at Discovery Service was successful.
         "202":
-          description: Registration at discovery service failed, but will be re-attempted later.
+          description: Registration at Discovery Service failed, but will be re-attempted later.
           content:
             application/json:
               schema:
@@ -175,24 +175,24 @@ paths:
         default:
           $ref: "../common/error_response.yaml"
     delete:
-      summary: Client API to stop registering the given DID on the discovery service.
+      summary: Client API to unregister the given DID from the Discovery Service.
       description: |
-        An API provided by the discovery client that will cause the given DID to be not to be registered any more on the specified discovery service.
-        It will try to delete the existing registration at the discovery service, if any.
+        An API provided by the discovery client that will cause the given DID to be not to be registered any more on the specified Discovery Service.
+        It will try to delete the existing registration at the Discovery Service, if any.
         
         error returns:
         * 400 - incorrect input: invalid/unknown service or DID.
-      operationId: stopRegisteringPresentation
+      operationId: unregisterDID
       tags:
         - discovery
       responses:
         "200":
           description: |
-            Registration at discovery service was successfully stopped, and registration at discovery service was deleted
-            (if applicable).
+            DID was successfully unregistered from the Discovery Service.
+            Active Verifiable Presentation was removed from the remote Discovery Server (if applicable).
         "202":
           description: |
-            Registration at discovery service was successfully stopped, but failed to delete registration at discovery service.
+            DID was successfully unregistered from the Discovery Service, but failed to remove the active Verifiable Presentation registration from the remote Discovery Server.
             Applications might want to retry this API call later, or simply let the presentation expire.
           content:
             application/json:
@@ -203,7 +203,7 @@ paths:
                 properties:
                   reason:
                     type: string
-                    description: Description of why registration deletion failed.
+                    description: Description of why removal of the registration failed.
         "400":
           $ref: "../common/error_response.yaml"
         default:

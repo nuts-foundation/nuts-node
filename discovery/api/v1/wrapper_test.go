@@ -105,39 +105,39 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 	})
 }
 
-func TestWrapper_StartRegisteringPresentation(t *testing.T) {
+func TestWrapper_RegisterDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
 		test.client.EXPECT().StartRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
 
-		response, err := test.wrapper.StartRegisteringPresentation(nil, StartRegisteringPresentationRequestObject{
+		response, err := test.wrapper.RegisterDID(nil, RegisterDIDRequestObject{
 			ServiceID: serviceID,
 			Did:       expectedDID,
 		})
 
 		assert.NoError(t, err)
-		assert.IsType(t, StartRegisteringPresentation200Response{}, response)
+		assert.IsType(t, RegisterDID200Response{}, response)
 	})
 	t.Run("ok, but registration failed", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
 		test.client.EXPECT().StartRegistration(gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrRegistrationFailed)
 
-		response, err := test.wrapper.StartRegisteringPresentation(nil, StartRegisteringPresentationRequestObject{
+		response, err := test.wrapper.RegisterDID(nil, RegisterDIDRequestObject{
 			ServiceID: serviceID,
 			Did:       expectedDID,
 		})
 
 		assert.NoError(t, err)
-		assert.IsType(t, StartRegisteringPresentation202JSONResponse{}, response)
+		assert.IsType(t, RegisterDID202JSONResponse{}, response)
 	})
 	t.Run("other error", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
 		test.client.EXPECT().StartRegistration(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
-		_, err := test.wrapper.StartRegisteringPresentation(nil, StartRegisteringPresentationRequestObject{
+		_, err := test.wrapper.RegisterDID(nil, RegisterDIDRequestObject{
 			ServiceID: serviceID,
 			Did:       expectedDID,
 		})
@@ -146,26 +146,26 @@ func TestWrapper_StartRegisteringPresentation(t *testing.T) {
 	})
 }
 
-func TestWrapper_StopRegisteringPresentation(t *testing.T) {
+func TestWrapper_UnregisterDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
 		test.client.EXPECT().StopRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
 
-		response, err := test.wrapper.StopRegisteringPresentation(nil, StopRegisteringPresentationRequestObject{
+		response, err := test.wrapper.UnregisterDID(nil, UnregisterDIDRequestObject{
 			ServiceID: serviceID,
 			Did:       expectedDID,
 		})
 
 		assert.NoError(t, err)
-		assert.IsType(t, StopRegisteringPresentation200Response{}, response)
+		assert.IsType(t, UnregisterDID200Response{}, response)
 	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
 		test.client.EXPECT().StopRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(errors.New("foo"))
 
-		_, err := test.wrapper.StopRegisteringPresentation(nil, StopRegisteringPresentationRequestObject{
+		_, err := test.wrapper.UnregisterDID(nil, UnregisterDIDRequestObject{
 			ServiceID: serviceID,
 			Did:       expectedDID,
 		})

@@ -145,11 +145,11 @@ func Test_scheduledRegistrationManager_doRefreshRegistrations(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
 
-		err := manager.doRefreshRegistrations(audit.TestContext(), time.Now())
+		err := manager.doRefreshVerifiablePresentations(audit.TestContext(), time.Now())
 
 		require.NoError(t, err)
 	})
-	t.Run("2 registrations to renew, first one fails, second one succeeds", func(t *testing.T) {
+	t.Run("2 VPs to refresh, first one fails, second one succeeds", func(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		invoker := client.NewMockHTTPClient(ctrl)
@@ -170,7 +170,7 @@ func Test_scheduledRegistrationManager_doRefreshRegistrations(t *testing.T) {
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &bobDID, false).Return(&vpBob, nil)
 		wallet.EXPECT().List(gomock.Any(), bobDID).Return([]vc.VerifiableCredential{vcBob}, nil)
 
-		err := manager.doRefreshRegistrations(audit.TestContext(), time.Now())
+		err := manager.doRefreshVerifiablePresentations(audit.TestContext(), time.Now())
 
 		require.NoError(t, err)
 	})
@@ -194,7 +194,7 @@ func Test_scheduledRegistrationManager_refreshRegistrations(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			manager.refreshRegistrations(ctx, time.Millisecond)
+			manager.refreshVerifiablePresentations(ctx, time.Millisecond)
 		}()
 		// make sure the loop has at least once
 		time.Sleep(5 * time.Millisecond)

@@ -110,9 +110,9 @@ func (mr *MockClientMockRecorder) Search(serviceID, query any) *gomock.Call {
 }
 
 // StartRegistration mocks base method.
-func (m *MockClient) StartRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (m *MockClient) Register(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartRegistration", ctx, serviceID, subjectDID)
+	ret := m.ctrl.Call(m, "Register", ctx, serviceID, subjectDID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -120,13 +120,13 @@ func (m *MockClient) StartRegistration(ctx context.Context, serviceID string, su
 // StartRegistration indicates an expected call of StartRegistration.
 func (mr *MockClientMockRecorder) StartRegistration(ctx, serviceID, subjectDID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartRegistration", reflect.TypeOf((*MockClient)(nil).StartRegistration), ctx, serviceID, subjectDID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockClient)(nil).Register), ctx, serviceID, subjectDID)
 }
 
 // StopRegistration mocks base method.
-func (m *MockClient) StopRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (m *MockClient) Unregister(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StopRegistration", ctx, serviceID, subjectDID)
+	ret := m.ctrl.Call(m, "Unregister", ctx, serviceID, subjectDID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -134,5 +134,5 @@ func (m *MockClient) StopRegistration(ctx context.Context, serviceID string, sub
 // StopRegistration indicates an expected call of StopRegistration.
 func (mr *MockClientMockRecorder) StopRegistration(ctx, serviceID, subjectDID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopRegistration", reflect.TypeOf((*MockClient)(nil).StopRegistration), ctx, serviceID, subjectDID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unregister", reflect.TypeOf((*MockClient)(nil).Unregister), ctx, serviceID, subjectDID)
 }

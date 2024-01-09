@@ -103,17 +103,16 @@ type Client interface {
 	// Query parameters are formatted as simple JSON paths, e.g. "issuer" or "credentialSubject.name".
 	Search(serviceID string, query map[string]string) ([]SearchResult, error)
 
-	// StartRegistration starts registration of presentations on a Discovery Service for the specified DID.
+	// Register causes a DID, in the form of a Verifiable Presentation, to be registered on a Discovery Service.
 	// Registration will be attempted immediately, and automatically refreshed.
 	// If initial registration failed, it will return ErrRegistrationFailed, but it will keep retrying.
 	// If the function is called again for the same service/DID combination, it will try to refresh the registration.
 	// It returns an error if the service or DID is invalid/unknown.
-	StartRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error
+	Register(ctx context.Context, serviceID string, subjectDID did.DID) error
 
-	// StopRegistration stops (automatic) registration of presentations on a Discovery Service for the specified DID.
-	// It will also try to delete the existing registration on the Discovery Service, if any.
+	// Unregister removes the registration of a DID on a Discovery Service.
 	// It returns an error if the service or DID is invalid/unknown.
-	StopRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error
+	Unregister(ctx context.Context, serviceID string, subjectDID did.DID) error
 }
 
 // SearchResult is a single result of a search operation.

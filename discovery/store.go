@@ -431,7 +431,7 @@ func (s *sqlStore) updateDIDRegistrationTime(serviceID string, subjectDID did.DI
 	})
 }
 
-// getStaleDIDRegistrations returns all DID discovery service registrations that are due for renewal.
+// getStaleDIDRegistrations returns all DID discovery service registrations that are due for refreshing.
 // It returns a slice of service IDs and associated DIDs.
 func (s *sqlStore) getStaleDIDRegistrations(now time.Time) ([]string, []did.DID, error) {
 	var rows []didRegistrationRecord

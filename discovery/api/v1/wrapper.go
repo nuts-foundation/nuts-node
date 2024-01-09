@@ -105,15 +105,15 @@ func (w *Wrapper) SearchPresentations(_ context.Context, request SearchPresentat
 	return SearchPresentations200JSONResponse(result), nil
 }
 
-func (w *Wrapper) StartRegisteringPresentation(ctx context.Context, request StartRegisteringPresentationRequestObject) (StartRegisteringPresentationResponseObject, error) {
+func (w *Wrapper) RegisterDID(ctx context.Context, request RegisterDIDRequestObject) (RegisterDIDResponseObject, error) {
 	subjectDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
 	}
-	err = w.Client.StartRegistration(ctx, request.ServiceID, *subjectDID)
+	err = w.Client.Register(ctx, request.ServiceID, *subjectDID)
 	if errors.Is(err, discovery.ErrRegistrationFailed) {
 		// registration failed, but will be retried
-		return StartRegisteringPresentation202JSONResponse{
+		return RegisterDID202JSONResponse{
 			Reason: err.Error(),
 		}, nil
 	}
@@ -121,17 +121,17 @@ func (w *Wrapper) StartRegisteringPresentation(ctx context.Context, request Star
 		// other error
 		return nil, err
 	}
-	return StartRegisteringPresentation200Response{}, nil
+	return RegisterDID200Response{}, nil
 }
 
-func (w *Wrapper) StopRegisteringPresentation(ctx context.Context, request StopRegisteringPresentationRequestObject) (StopRegisteringPresentationResponseObject, error) {
+func (w *Wrapper) UnregisterDID(ctx context.Context, request UnregisterDIDRequestObject) (UnregisterDIDResponseObject, error) {
 	subjectDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
 	}
-	err = w.Client.StopRegistration(ctx, request.ServiceID, *subjectDID)
+	err = w.Client.Unregister(ctx, request.ServiceID, *subjectDID)
 	if err != nil {
 		return nil, err
 	}
-	return StopRegisteringPresentation200Response{}, nil
+	return UnregisterDID200Response{}, nil
 }

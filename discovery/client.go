@@ -35,14 +35,14 @@ import (
 )
 
 // registrationManager is responsible for managing registrations on a Discovery Service.
-// It automatically refreshes registrations when they are about to expire.
+// It automatically refreshes registered Verifiable Presentations when they are about to expire.
 type registrationManager interface {
 	register(ctx context.Context, serviceID string, subjectDID did.DID) error
 	unregister(ctx context.Context, serviceID string, subjectDID did.DID) error
 	// refreshRegistrations is a blocking call to periodically refresh registrations.
 	// It checks for registrations to be refreshed at the specified interval.
 	// It will exit when the given context is cancelled.
-	refreshRegistrations(ctx context.Context, interval time.Duration)
+	refreshVerifiablePresentations(ctx context.Context, interval time.Duration)
 }
 
 var _ registrationManager = &scheduledRegistrationManager{}
@@ -70,9 +70,9 @@ func (r *scheduledRegistrationManager) register(ctx context.Context, serviceID s
 		return ErrServiceNotFound
 	}
 	// TODO: When to refresh? For now, we refresh when the registration is about to expire (75% of max age)
-	registrationRenewal := time.Now().Add(time.Duration(float64(service.PresentationMaxValidity)*0.75) * time.Second)
-	log.Logger().Debugf("Refreshing registration DID on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
-	if err := r.store.updateDIDRegistrationTime(serviceID, subjectDID, &registrationRenewal); err != nil {
+	refreshVPAfter := time.Now().Add(time.Duration(float64(service.PresentationMaxValidity)*0.75) * time.Second)
+	log.Logger().Debugf("Refreshing Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
+	if err := r.store.updateDIDRegistrationTime(serviceID, subjectDID, &refreshVPAfter); err != nil {
 		return fmt.Errorf("unable to update DID registration: %w", err)
 	}
 	err := r.registerPresentation(ctx, subjectDID, service)
@@ -82,7 +82,7 @@ func (r *scheduledRegistrationManager) register(ctx context.Context, serviceID s
 		_ = r.store.updateDIDRegistrationTime(serviceID, subjectDID, &next)
 		return errors.Join(ErrRegistrationFailed, err)
 	}
-	log.Logger().Debugf("Successfully refreshed registration DID on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
+	log.Logger().Debugf("Successfully refreshed Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
 	return nil
 }
 
@@ -159,27 +159,27 @@ func (r *scheduledRegistrationManager) buildPresentation(ctx context.Context, su
 	}, &subjectDID, false)
 }
 
-func (r *scheduledRegistrationManager) doRefreshRegistrations(ctx context.Context, now time.Time) error {
-	log.Logger().Debug("Renewing DID registrations on Discovery Services")
+func (r *scheduledRegistrationManager) doRefreshVerifiablePresentations(ctx context.Context, now time.Time) error {
+	log.Logger().Debug("Refreshing Verifiable Presentations on Discovery Services")
 	serviceIDs, dids, err := r.store.getStaleDIDRegistrations(now)
 	if err != nil {
 		return err
 	}
 	for i, serviceID := range serviceIDs {
 		if err := r.register(ctx, serviceID, dids[i]); err != nil {
-			log.Logger().WithError(err).Warnf("Failed to renew DID registration (service=%s, did=%s)", serviceID, dids[i])
+			log.Logger().WithError(err).Warnf("Failed to refresh Verifiable Presentation (service=%s, did=%s)", serviceID, dids[i])
 		}
 	}
 	return nil
 }
 
-func (r *scheduledRegistrationManager) refreshRegistrations(ctx context.Context, interval time.Duration) {
+func (r *scheduledRegistrationManager) refreshVerifiablePresentations(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	// do the first refresh immediately
 	do := func() {
-		if err := r.doRefreshRegistrations(audit.Context(ctx, "app", ModuleName, "RefreshRegistration"), time.Now()); err != nil {
-			log.Logger().WithError(err).Errorf("Failed to renew DID registrations")
+		if err := r.doRefreshVerifiablePresentations(audit.Context(ctx, "app", ModuleName, "RefreshVerifiablePresentations"), time.Now()); err != nil {
+			log.Logger().WithError(err).Errorf("Failed to refresh Verifiable Presentations")
 		}
 	}
 	do()

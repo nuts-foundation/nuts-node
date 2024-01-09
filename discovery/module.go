@@ -127,7 +127,7 @@ func (m *Module) Start() error {
 	m.routines.Add(1)
 	go func() {
 		defer m.routines.Done()
-		m.registrationManager.refreshRegistrations(m.ctx, m.config.Client.RegistrationRefreshInterval)
+		m.registrationManager.refreshVerifiablePresentations(m.ctx, m.config.Client.RegistrationRefreshInterval)
 	}()
 	return nil
 }
@@ -254,7 +254,7 @@ func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *
 	return m.store.get(serviceID, tag)
 }
 
-func (m *Module) StartRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (m *Module) Register(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	log.Logger().Debugf("Registering on Discovery Service (did=%s, service=%s)", subjectDID, serviceID)
 	err := m.registrationManager.register(ctx, serviceID, subjectDID)
 	if errors.Is(err, ErrRegistrationFailed) {
@@ -265,7 +265,7 @@ func (m *Module) StartRegistration(ctx context.Context, serviceID string, subjec
 	return err
 }
 
-func (m *Module) StopRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (m *Module) Unregister(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	log.Logger().Infof("Unregistering from Discovery Service (did=%s, service=%s)", subjectDID, serviceID)
 	return m.registrationManager.unregister(ctx, serviceID, subjectDID)
 }
