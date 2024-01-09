@@ -62,6 +62,7 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 func (w *Wrapper) GetPresentations(_ context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error) {
 	var tag *discovery.Tag
 	if request.Params.Tag != nil {
+		// *string to *Tag
 		tag = new(discovery.Tag)
 		*tag = discovery.Tag(*request.Params.Tag)
 	}

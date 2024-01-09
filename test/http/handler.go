@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 // Handler is a custom http handler useful in testing.
@@ -31,6 +32,7 @@ import (
 type Handler struct {
 	Request        *http.Request
 	RequestHeaders http.Header
+	RequestQuery   url.Values
 	StatusCode     int
 	RequestData    []byte
 	ResponseData   interface{}
@@ -41,6 +43,7 @@ func (h *Handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	h.Request = req
 	h.RequestData, _ = io.ReadAll(req.Body)
 	h.RequestHeaders = req.Header.Clone()
+	h.RequestQuery = req.URL.Query()
 
 	var bytes []byte
 	if s, ok := h.ResponseData.(string); ok {

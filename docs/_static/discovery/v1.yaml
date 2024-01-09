@@ -38,17 +38,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - tag
-                  - entries
-                properties:
-                  tag:
-                    type: string
-                  entries:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/VerifiablePresentation"
+                $ref: "#/components/schemas/PresentationsResponse"
         default:
           $ref: "../common/error_response.yaml"
     post:
@@ -85,6 +75,18 @@ components:
   schemas:
     VerifiablePresentation:
       $ref: "../common/ssi_types.yaml#/components/schemas/VerifiablePresentation"
+    PresentationsResponse:
+      type: object
+      required:
+        - tag
+        - entries
+      properties:
+        tag:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/VerifiablePresentation"
   securitySchemes:
     jwtBearerAuth:
       type: http

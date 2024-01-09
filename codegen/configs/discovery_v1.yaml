@@ -8,3 +8,4 @@ output-options:
   skip-prune: true
   exclude-schemas:
     - VerifiablePresentation
+    - PresentationsResponse
