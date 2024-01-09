@@ -94,6 +94,8 @@ paths:
       description: |
         An API of the discovery client that searches for presentations on the discovery service,
         whose credentials match the given query parameter.
+        It queries the client's local copy of the Discovery Service which is periodically synchronized with the Discovery Server.
+        This means new registrations might not immediately show up, depending on the client refresh interval. 
         The query parameters are interpreted as JSON path expressions, evaluated on the verifiable credentials.
         The following features and limitations apply:
         - only simple child-selectors are supported (so no arrays selectors, script expressions etc).
