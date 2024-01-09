@@ -71,6 +71,62 @@ paths:
           $ref: "../common/error_response.yaml"
         default:
           $ref: "../common/error_response.yaml"
+  /discovery/{serviceID}/search:
+    parameters:
+      - name: serviceID
+        in: path
+        required: true
+        schema:
+          type: string
+      # Way to specify dynamic query parameters
+      # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
+      - in: query
+        name: query
+        required: true
+        schema:
+          type: object
+          additionalProperties:
+            type: string
+        style: form
+        explode: true
+    get:
+      summary: Searches for presentations registered on the discovery service.
+      description: |
+        An API of the discovery client that searches for presentations on the discovery service,
+        whose credentials match the given query parameter.
+        It queries the client's local copy of the Discovery Service which is periodically synchronized with the Discovery Server.
+        This means new registrations might not immediately show up, depending on the client refresh interval. 
+        The query parameters are interpreted as JSON path expressions, evaluated on the verifiable credentials.
+        The following features and limitations apply:
+        - only simple child-selectors are supported (so no arrays selectors, script expressions etc).
+        - only JSON string values can be matched, no numbers, booleans, etc.
+        - wildcard (*) are supported at the start and end of the value
+        - a single wildcard (*) means: match any (non-nil) value
+        - matching is case-insensitive
+        - expressions must not include the '$.' prefix, which is added by the API.
+        - all expressions must match a single credential, for the credential to be included in the result.
+        - if there are multiple credentials in the presentation, the presentation is included in the result if any of the credentials match.
+        
+        Valid examples:
+        - `credentialSubject.givenName=John`
+        - `credentialSubject.organization.city=Arnhem`
+        - `credentialSubject.organization.name=Hospital*`
+        - `credentialSubject.organization.name=*clinic`
+        - `issuer=did:web:example.com`
+      operationId: searchPresentations
+      tags:
+        - discovery
+      responses:
+        "200":
+          description: Search results are returned, if any.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SearchResult"
+        default:
+          $ref: "../common/error_response.yaml"
 components:
   schemas:
     VerifiablePresentation:
@@ -87,6 +143,21 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/VerifiablePresentation"
+    SearchResult:
+      type: object
+      required:
+        - id
+        - vp
+        - fields
+      properties:
+        id:
+          type: string
+          description: The ID of the Verifiable Presentation.
+        vp:
+          $ref: "#/components/schemas/VerifiablePresentation"
+        fields:
+          type: object
+          description: Input descriptor IDs and their mapped values that from the Verifiable Credential.
   securitySchemes:
     jwtBearerAuth:
       type: http

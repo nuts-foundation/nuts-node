@@ -50,6 +50,7 @@ var testServiceID = "usecase_v1"
 
 func testDefinitions() map[string]ServiceDefinition {
 	issuerPattern := "did:example:*"
+	issuerFieldID := "issuer_field"
 	return map[string]ServiceDefinition{
 		testServiceID: {
 			ID:       testServiceID,
@@ -61,6 +62,7 @@ func testDefinitions() map[string]ServiceDefinition {
 						Constraints: &pe.Constraints{
 							Fields: []pe.Field{
 								{
+									Id:   &issuerFieldID,
 									Path: []string{"$.issuer"},
 									Filter: &pe.Filter{
 										Type:    "string",
