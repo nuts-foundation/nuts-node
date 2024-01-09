@@ -279,18 +279,18 @@ func (mr *MockHolderMockRecorder) ClientMetadata(ctx, endpoint any) *gomock.Call
 }
 
 // PostAuthorizationResponse mocks base method.
-func (m *MockHolder) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (string, error) {
+func (m *MockHolder) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI, state string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PostAuthorizationResponse", ctx, vp, presentationSubmission, verifierResponseURI)
+	ret := m.ctrl.Call(m, "PostAuthorizationResponse", ctx, vp, presentationSubmission, verifierResponseURI, state)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PostAuthorizationResponse indicates an expected call of PostAuthorizationResponse.
-func (mr *MockHolderMockRecorder) PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI any) *gomock.Call {
+func (mr *MockHolderMockRecorder) PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI, state any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostAuthorizationResponse", reflect.TypeOf((*MockHolder)(nil).PostAuthorizationResponse), ctx, vp, presentationSubmission, verifierResponseURI)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostAuthorizationResponse", reflect.TypeOf((*MockHolder)(nil).PostAuthorizationResponse), ctx, vp, presentationSubmission, verifierResponseURI, state)
 }
 
 // PostError mocks base method.
@@ -309,16 +309,16 @@ func (mr *MockHolderMockRecorder) PostError(ctx, auth2Error, verifierResponseURI
 }
 
 // PresentationDefinition mocks base method.
-func (m *MockHolder) PresentationDefinition(ctx context.Context, presentationDefinitionParam string) (*pe.PresentationDefinition, error) {
+func (m *MockHolder) PresentationDefinition(ctx context.Context, presentationDefinitionURI string) (*pe.PresentationDefinition, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PresentationDefinition", ctx, presentationDefinitionParam)
+	ret := m.ctrl.Call(m, "PresentationDefinition", ctx, presentationDefinitionURI)
 	ret0, _ := ret[0].(*pe.PresentationDefinition)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PresentationDefinition indicates an expected call of PresentationDefinition.
-func (mr *MockHolderMockRecorder) PresentationDefinition(ctx, presentationDefinitionParam any) *gomock.Call {
+func (mr *MockHolderMockRecorder) PresentationDefinition(ctx, presentationDefinitionURI any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockHolder)(nil).PresentationDefinition), ctx, presentationDefinitionParam)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockHolder)(nil).PresentationDefinition), ctx, presentationDefinitionURI)
 }

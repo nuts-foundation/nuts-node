@@ -105,6 +105,7 @@ func TestHolderService_PostResponse(t *testing.T) {
 			vp,
 			pe.PresentationSubmission{Id: "id"},
 			endpoint,
+			"state",
 		)
 
 		require.NoError(t, err)
@@ -115,7 +116,7 @@ func TestHolderService_PostResponse(t *testing.T) {
 		endpoint := fmt.Sprintf("%s/response", ctx.tlsServer.URL)
 		ctx.response = nil
 
-		redirect, err := ctx.holder.PostAuthorizationResponse(ctx.audit, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, endpoint)
+		redirect, err := ctx.holder.PostAuthorizationResponse(ctx.audit, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, endpoint, "")
 
 		assert.Error(t, err)
 		assert.Empty(t, redirect)
@@ -295,6 +296,7 @@ func createOAuthHolderContext(t *testing.T) *holderOAuthTestContext {
 			if ctx.response != nil {
 				assert.NotEmpty(t, request.FormValue(oauth.VpTokenParam))
 				assert.NotEmpty(t, request.FormValue(oauth.PresentationSubmissionParam))
+				assert.NotEmpty(t, request.FormValue(oauth.StateParam))
 				ctx.errorResponse(writer)
 				return
 			}

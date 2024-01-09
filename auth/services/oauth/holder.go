@@ -105,7 +105,11 @@ func (v *HolderService) ClientMetadata(ctx context.Context, endpoint string) (*o
 func (v *HolderService) PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string) (string, error) {
 	iamClient := iam.NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
 
-	redirectURL, err := iamClient.PostError(ctx, auth2Error, verifierResponseURI)
+	responseURL, err := core.ParsePublicURL(verifierResponseURI, v.strictMode)
+	if err != nil {
+		return "", fmt.Errorf("failed to post error to verifier: %w", err)
+	}
+	redirectURL, err := iamClient.PostError(ctx, auth2Error, *responseURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to post error to verifier: %w", err)
 	}
@@ -113,10 +117,14 @@ func (v *HolderService) PostError(ctx context.Context, auth2Error oauth.OAuth2Er
 	return redirectURL, nil
 }
 
-func (v *HolderService) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (string, error) {
+func (v *HolderService) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error) {
 	iamClient := iam.NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
 
-	redirectURL, err := iamClient.PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI)
+	responseURL, err := core.ParsePublicURL(verifierResponseURI, v.strictMode)
+	if err != nil {
+		return "", fmt.Errorf("failed to post error to verifier: %w", err)
+	}
+	redirectURL, err := iamClient.PostAuthorizationResponse(ctx, vp, presentationSubmission, *responseURL, state)
 	if err == nil {
 		return redirectURL, nil
 	}

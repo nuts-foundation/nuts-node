@@ -50,6 +50,8 @@ const (
 	AssertionParam = "assertion"
 	// ScopeParam is the parameter name for the scope parameter
 	ScopeParam = "scope"
+	// StateParam is the parameter name for the state parameter
+	StateParam = "state"
 	// PresentationSubmissionParam is the parameter name for the presentation_submission parameter
 	PresentationSubmissionParam = "presentation_submission"
 	// VpTokenParam is the parameter name for the vp_token parameter

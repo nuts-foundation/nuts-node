@@ -69,7 +69,7 @@ type Holder interface {
 	// PostError posts an error to the verifier. If it fails, an error is returned.
 	PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string) (string, error)
 	// PostAuthorizationResponse posts the authorization response to the verifier. If it fails, an error is returned.
-	PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (string, error)
+	PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error)
 	// PresentationDefinition returns the presentation definition from the given endpoint.
 	PresentationDefinition(ctx context.Context, presentationDefinitionURI string) (*pe.PresentationDefinition, error)
 }

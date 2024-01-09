@@ -176,7 +176,7 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp v
 }
 
 // PostError posts an OAuth error to the redirect URL and returns the redirect URL with the error as query parameter.
-func (hb HTTPClient) PostError(ctx context.Context, err oauth.OAuth2Error, verifierCallbackURL string) (string, error) {
+func (hb HTTPClient) PostError(ctx context.Context, err oauth.OAuth2Error, verifierCallbackURL url.URL) (string, error) {
 	// initiate http client, create a POST request with x-www-form-urlencoded body and send it to the redirect URL
 	data := url.Values{}
 	data.Set(oauth.ErrorParam, string(err.Code))
@@ -186,18 +186,19 @@ func (hb HTTPClient) PostError(ctx context.Context, err oauth.OAuth2Error, verif
 }
 
 // PostAuthorizationResponse posts the authorization response to the verifier response URL and returns the callback URL.
-func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (string, error) {
+func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI url.URL, state string) (string, error) {
 	// initiate http client, create a POST request with x-www-form-urlencoded body and send it to the redirect URL
 	psBytes, _ := json.Marshal(presentationSubmission)
 	data := url.Values{}
 	data.Set(oauth.VpTokenParam, vp.Raw())
 	data.Set(oauth.PresentationSubmissionParam, string(psBytes))
+	data.Set(oauth.StateParam, state)
 
 	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
 }
 
-func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL string) (string, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL, strings.NewReader(form.Encode()))
+func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL.String(), strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", err
 	}

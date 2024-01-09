@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -55,7 +56,7 @@ var oauthNonceKey = []string{"oauth", "nonce"}
 //	Host: server.com
 //
 // The following parameters are expected
-// response_type, REQUIRED.  Value MUST be set to "token".
+// response_type, REQUIRED.  Value MUST be set to "code". (Already checked by caller)
 // client_id, REQUIRED. This must be a did:web
 // redirect_uri, REQUIRED. This must be the client or other node url (client for regular flow, node for popup)
 // scope, OPTIONAL. The scope that maps to a presentation definition, if not set we just want an empty VP
@@ -131,6 +132,11 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		return nil, oauthError(oauth.ServerError, "failed to construct metadata URL")
 	}
 
+	// check metadata for supported client_id_schemes
+	if !slices.Contains(metadata.ClientIdSchemesSupported, didScheme) {
+		return nil, oauthError(oauth.InvalidRequest, "wallet metadata does not contain did in client_id_schemes_supported")
+	}
+
 	// todo: because of the did scheme, the request needs to be signed using JAR according to §5.7 of the openid4vp spec
 
 	authServerURL := httpNuts.AddQueryParams(*walletURL, map[string]string{
@@ -162,22 +168,22 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	}, nil
 }
 
+// handleAuthorizeRequestFromVerifier handles an Authorization Request for a wallet from a verifier as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
+// we expect an OpenID4VP request like this
+// GET /iam/456/authorize?response_type=vp_token&client_id=did:web:example.com:iam:123&nonce=xyz
+//        &response_mode=direct_post&response_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb&presentation_definition_uri=example.com%2Fiam%2F123%2Fpresentation_definition?scope=a+b HTTP/1.1
+//    Host: server.com
+// The following parameters are expected
+// response_type, REQUIRED.  Value MUST be set to "vp_token".
+// client_id, REQUIRED. This must be a did:web
+// response_uri, REQUIRED. This must be the verifier node url
+// response_mode, REQUIRED. Value MUST be "direct_post"
+// presentation_definition_uri, REQUIRED. For getting the presentation definition
+
+// there are way more error conditions that listed at: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-error-response
+// missing or invalid parameters are all mapped to invalid_request
+// any operation that fails is mapped to server_error, this includes unreachable or broken backends.
 func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletDID did.DID, params map[string]string) (HandleAuthorizeRequestResponseObject, error) {
-	// we expect an OpenID4VP request like this
-	// GET /iam/456/authorize?response_type=vp_token&client_id=did:web:example.com:iam:123&nonce=xyz
-	//        &response_mode=direct_post&response_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb&presentation_definition_uri=example.com%2Fiam%2F123%2Fpresentation_definition?scope=a+b HTTP/1.1
-	//    Host: server.com
-	// The following parameters are expected
-	// response_type, REQUIRED.  Value MUST be set to "vp_token".
-	// client_id, REQUIRED. This must be a did:web
-	// response_uri, REQUIRED. This must be the verifier node url
-	// response_mode, REQUIRED. Value MUST be "direct_post"
-	// presentation_definition_uri, REQUIRED. For getting the presentation definition
-
-	// there are way more error conditions that listed at: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-error-response
-	// missing or invalid parameters are all mapped to invalid_request
-	// any operation that fails is mapped to server_error, this includes unreachable or broken backends.
-
 	responseMode := params[responseModeParam]
 	if responseMode != responseModeDirectPost {
 		return nil, oauthError(oauth.InvalidRequest, "invalid response_mode parameter")
@@ -227,13 +233,13 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	}
 
 	// any error here is a server error, might need a fixup to prevent exposing to a user
-	return r.sendAndHandleDirectPost(ctx, *vp, *submission, responseURI)
+	return r.sendAndHandleDirectPost(ctx, *vp, *submission, responseURI, params[stateParam])
 }
 
 // sendAndHandleDirectPost sends OpenID4VP direct_post to the verifier. The verifier responds with a redirect to the client (including error fields if needed).
 // If the direct post fails, the user-agent will be redirected back to the client with an error. (Original redirect_uri).
-func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string) (HandleAuthorizeRequestResponseObject, error) {
-	redirectURI, err := r.auth.Holder().PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI)
+func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (HandleAuthorizeRequestResponseObject, error) {
+	redirectURI, err := r.auth.Holder().PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI, state)
 	if err != nil {
 		return nil, err
 	}
