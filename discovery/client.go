@@ -35,9 +35,13 @@ import (
 )
 
 // registrationManager is responsible for managing registrations on a Discovery Service.
+// It automatically refreshes registrations when they are about to expire.
 type registrationManager interface {
 	register(ctx context.Context, serviceID string, subjectDID did.DID) error
 	unregister(ctx context.Context, serviceID string, subjectDID did.DID) error
+	// refreshRegistrations is a blocking call to periodically refresh registrations.
+	// It checks for registrations to be refreshed at the specified interval.
+	// It will exit when the given context is cancelled.
 	refreshRegistrations(ctx context.Context, interval time.Duration)
 }
 
@@ -97,8 +101,10 @@ func (r *scheduledRegistrationManager) unregister(ctx context.Context, serviceID
 		return errors.Join(ErrRegistrationFailed, err)
 	}
 	if len(presentations) == 0 {
+		// no registration, nothing to do
 		return nil
 	}
+	// found an active registration, try to delete it from the discovery server
 	service := r.services[serviceID]
 	presentation, err := r.buildPresentation(ctx, subjectDID, service, nil, map[string]interface{}{
 		"retract_jti": presentations[0].ID.String(),
@@ -139,6 +145,7 @@ func (r *scheduledRegistrationManager) findCredentialsAndBuildPresentation(ctx c
 func (r *scheduledRegistrationManager) buildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition,
 	credentials []vc.VerifiableCredential, additionalProperties map[string]interface{}) (*vc.VerifiablePresentation, error) {
 	nonce := nutsCrypto.GenerateNonce()
+	// Make sure the presentation is not valid for longer than the max validity as defined by the Service Definitio.
 	expires := time.Now().Add(time.Duration(service.PresentationMaxValidity-1) * time.Second).Truncate(time.Second)
 	return r.vcr.Wallet().BuildPresentation(ctx, credentials, holder.PresentationOptions{
 		ProofOptions: proof.ProofOptions{
