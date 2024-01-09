@@ -104,11 +104,11 @@ func TestRouterForwarding(t *testing.T) {
 	testDID := did.MustParseDID("did:web:example.com:test")
 	presentationDefinition := pe.PresentationDefinition{}
 	router := Router{
-		backend: NewMockBackend(ctrl),
+		backend: NewMockPDPBackend(ctrl),
 	}
 
 	t.Run("Authorized", func(t *testing.T) {
-		router.backend.(*MockBackend).EXPECT().Authorized(ctx, gomock.Any()).Return(true, nil)
+		router.backend.(*MockPDPBackend).EXPECT().Authorized(ctx, gomock.Any()).Return(true, nil)
 
 		result, err := router.Authorized(ctx, client.AuthorizedRequest{})
 
@@ -117,7 +117,7 @@ func TestRouterForwarding(t *testing.T) {
 	})
 
 	t.Run("PresentationDefinition", func(t *testing.T) {
-		router.backend.(*MockBackend).EXPECT().PresentationDefinition(ctx, testDID, "test").Return(&presentationDefinition, nil)
+		router.backend.(*MockPDPBackend).EXPECT().PresentationDefinition(ctx, testDID, "test").Return(&presentationDefinition, nil)
 
 		result, err := router.PresentationDefinition(ctx, testDID, "test")
 

@@ -239,8 +239,9 @@ func TestHTTPClient_PostError(t *testing.T) {
 		ctx := context.Background()
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: redirectReturn}
 		tlsServer, client := testServerAndClient(t, &handler)
+		tlsServerURL := test.MustParseURL(tlsServer.URL)
 
-		redirectURI, err := client.PostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "test"}, tlsServer.URL)
+		redirectURI, err := client.PostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "test"}, *tlsServerURL)
 
 		require.NoError(t, err)
 		assert.Equal(t, redirectReturn.RedirectURI, redirectURI)
@@ -257,8 +258,9 @@ func TestHTTPClient_PostAuthorizationResponse(t *testing.T) {
 		ctx := context.Background()
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: redirectReturn}
 		tlsServer, client := testServerAndClient(t, &handler)
+		tlsServerURL := test.MustParseURL(tlsServer.URL)
 
-		redirectURI, err := client.PostAuthorizationResponse(ctx, presentation, submission, tlsServer.URL)
+		redirectURI, err := client.PostAuthorizationResponse(ctx, presentation, submission, *tlsServerURL, "")
 
 		require.NoError(t, err)
 		assert.Equal(t, redirectReturn.RedirectURI, redirectURI)
@@ -272,23 +274,13 @@ func TestHTTPClient_postFormExpectRedirect(t *testing.T) {
 	data := url.Values{}
 	data.Set("test", "test")
 
-	t.Run("error - invalid URL", func(t *testing.T) {
-		ctx := context.Background()
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: redirectReturn}
-		_, client := testServerAndClient(t, &handler)
-
-		redirectURI, err := client.postFormExpectRedirect(ctx, data, ":")
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
-		assert.Empty(t, redirectURI)
-	})
 	t.Run("error - unknown host", func(t *testing.T) {
 		ctx := context.Background()
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: redirectReturn}
 		_, client := testServerAndClient(t, &handler)
+		tlsServerURL := test.MustParseURL("http://localhost")
 
-		redirectURI, err := client.postFormExpectRedirect(ctx, data, "http://localhost")
+		redirectURI, err := client.postFormExpectRedirect(ctx, data, *tlsServerURL)
 
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "connection refused")
@@ -298,8 +290,9 @@ func TestHTTPClient_postFormExpectRedirect(t *testing.T) {
 		ctx := context.Background()
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
 		tlsServer, client := testServerAndClient(t, &handler)
+		tlsServerURL := test.MustParseURL(tlsServer.URL)
 
-		redirectURI, err := client.postFormExpectRedirect(ctx, data, tlsServer.URL)
+		redirectURI, err := client.postFormExpectRedirect(ctx, data, *tlsServerURL)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value")
@@ -309,8 +302,9 @@ func TestHTTPClient_postFormExpectRedirect(t *testing.T) {
 		ctx := context.Background()
 		handler := http2.Handler{StatusCode: http.StatusBadGateway, ResponseData: "offline"}
 		tlsServer, client := testServerAndClient(t, &handler)
+		tlsServerURL := test.MustParseURL(tlsServer.URL)
 
-		redirectURI, err := client.postFormExpectRedirect(ctx, data, tlsServer.URL)
+		redirectURI, err := client.postFormExpectRedirect(ctx, data, *tlsServerURL)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "server returned HTTP 502 (expected: 200)")
