@@ -31,9 +31,9 @@ const ModuleName = "policy"
 
 var ErrNotFound = errors.New("not found")
 
-// Backend is the interface for the policy backend
+// PDPBackend is the interface for the policy backend
 // Both the remote and local policy backend implement this interface
-type Backend interface {
+type PDPBackend interface {
 	// PresentationDefinition returns the PresentationDefinition for the given scope
 	// scopes are space delimited. It's up to the backend to decide how to handle this
 	PresentationDefinition(ctx context.Context, authorizer did.DID, scope string) (*pe.PresentationDefinition, error)
