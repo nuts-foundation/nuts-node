@@ -265,9 +265,9 @@ func (m *Module) Register(ctx context.Context, serviceID string, subjectDID did.
 	return err
 }
 
-func (m *Module) Unregister(ctx context.Context, serviceID string, subjectDID did.DID) error {
-	log.Logger().Infof("Unregistering from Discovery Service (did=%s, service=%s)", subjectDID, serviceID)
-	return m.registrationManager.unregister(ctx, serviceID, subjectDID)
+func (m *Module) Deregister(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	log.Logger().Infof("Deregistering from Discovery Service (did=%s, service=%s)", subjectDID, serviceID)
+	return m.registrationManager.deregister(ctx, serviceID, subjectDID)
 }
 
 func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {

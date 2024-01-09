@@ -131,8 +131,8 @@ type ClientInterface interface {
 	// SearchPresentations request
 	SearchPresentations(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UnregisterDID request
-	UnregisterDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// DeregisterDID request
+	DeregisterDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RegisterDID request
 	RegisterDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -186,8 +186,8 @@ func (c *Client) SearchPresentations(ctx context.Context, serviceID string, para
 	return c.Client.Do(req)
 }
 
-func (c *Client) UnregisterDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUnregisterDIDRequest(c.Server, serviceID, did)
+func (c *Client) DeregisterDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeregisterDIDRequest(c.Server, serviceID, did)
 	if err != nil {
 		return nil, err
 	}
@@ -365,8 +365,8 @@ func NewSearchPresentationsRequest(server string, serviceID string, params *Sear
 	return req, nil
 }
 
-// NewUnregisterDIDRequest generates requests for UnregisterDID
-func NewUnregisterDIDRequest(server string, serviceID string, did string) (*http.Request, error) {
+// NewDeregisterDIDRequest generates requests for DeregisterDID
+func NewDeregisterDIDRequest(server string, serviceID string, did string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -501,8 +501,8 @@ type ClientWithResponsesInterface interface {
 	// SearchPresentationsWithResponse request
 	SearchPresentationsWithResponse(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*SearchPresentationsResponse, error)
 
-	// UnregisterDIDWithResponse request
-	UnregisterDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*UnregisterDIDResponse, error)
+	// DeregisterDIDWithResponse request
+	DeregisterDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*DeregisterDIDResponse, error)
 
 	// RegisterDIDWithResponse request
 	RegisterDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*RegisterDIDResponse, error)
@@ -613,7 +613,7 @@ func (r SearchPresentationsResponse) StatusCode() int {
 	return 0
 }
 
-type UnregisterDIDResponse struct {
+type DeregisterDIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON202      *struct {
@@ -643,7 +643,7 @@ type UnregisterDIDResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r UnregisterDIDResponse) Status() string {
+func (r DeregisterDIDResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -651,7 +651,7 @@ func (r UnregisterDIDResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r UnregisterDIDResponse) StatusCode() int {
+func (r DeregisterDIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -738,13 +738,13 @@ func (c *ClientWithResponses) SearchPresentationsWithResponse(ctx context.Contex
 	return ParseSearchPresentationsResponse(rsp)
 }
 
-// UnregisterDIDWithResponse request returning *UnregisterDIDResponse
-func (c *ClientWithResponses) UnregisterDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*UnregisterDIDResponse, error) {
-	rsp, err := c.UnregisterDID(ctx, serviceID, did, reqEditors...)
+// DeregisterDIDWithResponse request returning *DeregisterDIDResponse
+func (c *ClientWithResponses) DeregisterDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*DeregisterDIDResponse, error) {
+	rsp, err := c.DeregisterDID(ctx, serviceID, did, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseUnregisterDIDResponse(rsp)
+	return ParseDeregisterDIDResponse(rsp)
 }
 
 // RegisterDIDWithResponse request returning *RegisterDIDResponse
@@ -891,15 +891,15 @@ func ParseSearchPresentationsResponse(rsp *http.Response) (*SearchPresentationsR
 	return response, nil
 }
 
-// ParseUnregisterDIDResponse parses an HTTP response from a UnregisterDIDWithResponse call
-func ParseUnregisterDIDResponse(rsp *http.Response) (*UnregisterDIDResponse, error) {
+// ParseDeregisterDIDResponse parses an HTTP response from a DeregisterDIDWithResponse call
+func ParseDeregisterDIDResponse(rsp *http.Response) (*DeregisterDIDResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &UnregisterDIDResponse{
+	response := &DeregisterDIDResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1026,7 +1026,7 @@ type ServerInterface interface {
 	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
 	// Client API to stop registering the given DID on the discovery service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{did})
-	UnregisterDID(ctx echo.Context, serviceID string, did string) error
+	DeregisterDID(ctx echo.Context, serviceID string, did string) error
 	// Client API to start registering the given DID on the discovery service.
 	// (POST /internal/discovery/v1/{serviceID}/{did})
 	RegisterDID(ctx echo.Context, serviceID string, did string) error
@@ -1109,8 +1109,8 @@ func (w *ServerInterfaceWrapper) SearchPresentations(ctx echo.Context) error {
 	return err
 }
 
-// UnregisterDID converts echo context to params.
-func (w *ServerInterfaceWrapper) UnregisterDID(ctx echo.Context) error {
+// DeregisterDID converts echo context to params.
+func (w *ServerInterfaceWrapper) DeregisterDID(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "serviceID" -------------
 	var serviceID string
@@ -1131,7 +1131,7 @@ func (w *ServerInterfaceWrapper) UnregisterDID(ctx echo.Context) error {
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.UnregisterDID(ctx, serviceID, did)
+	err = w.Handler.DeregisterDID(ctx, serviceID, did)
 	return err
 }
 
@@ -1192,7 +1192,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/discovery/:serviceID", wrapper.GetPresentations)
 	router.POST(baseURL+"/discovery/:serviceID", wrapper.RegisterPresentation)
 	router.GET(baseURL+"/discovery/:serviceID/search", wrapper.SearchPresentations)
-	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.UnregisterDID)
+	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.DeregisterDID)
 	router.POST(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.RegisterDID)
 
 }
@@ -1331,36 +1331,36 @@ func (response SearchPresentationsdefaultApplicationProblemPlusJSONResponse) Vis
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type UnregisterDIDRequestObject struct {
+type DeregisterDIDRequestObject struct {
 	ServiceID string `json:"serviceID"`
 	Did       string `json:"did"`
 }
 
-type UnregisterDIDResponseObject interface {
-	VisitUnregisterDIDResponse(w http.ResponseWriter) error
+type DeregisterDIDResponseObject interface {
+	VisitDeregisterDIDResponse(w http.ResponseWriter) error
 }
 
-type UnregisterDID200Response struct {
+type DeregisterDID200Response struct {
 }
 
-func (response UnregisterDID200Response) VisitUnregisterDIDResponse(w http.ResponseWriter) error {
+func (response DeregisterDID200Response) VisitDeregisterDIDResponse(w http.ResponseWriter) error {
 	w.WriteHeader(200)
 	return nil
 }
 
-type UnregisterDID202JSONResponse struct {
+type DeregisterDID202JSONResponse struct {
 	// Reason Description of why registration deletion failed.
 	Reason string `json:"reason"`
 }
 
-func (response UnregisterDID202JSONResponse) VisitUnregisterDIDResponse(w http.ResponseWriter) error {
+func (response DeregisterDID202JSONResponse) VisitDeregisterDIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(202)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type UnregisterDID400ApplicationProblemPlusJSONResponse struct {
+type DeregisterDID400ApplicationProblemPlusJSONResponse struct {
 	// Detail A human-readable explanation specific to this occurrence of the problem.
 	Detail string `json:"detail"`
 
@@ -1371,14 +1371,14 @@ type UnregisterDID400ApplicationProblemPlusJSONResponse struct {
 	Title string `json:"title"`
 }
 
-func (response UnregisterDID400ApplicationProblemPlusJSONResponse) VisitUnregisterDIDResponse(w http.ResponseWriter) error {
+func (response DeregisterDID400ApplicationProblemPlusJSONResponse) VisitDeregisterDIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type UnregisterDIDdefaultApplicationProblemPlusJSONResponse struct {
+type DeregisterDIDdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1392,7 +1392,7 @@ type UnregisterDIDdefaultApplicationProblemPlusJSONResponse struct {
 	StatusCode int
 }
 
-func (response UnregisterDIDdefaultApplicationProblemPlusJSONResponse) VisitUnregisterDIDResponse(w http.ResponseWriter) error {
+func (response DeregisterDIDdefaultApplicationProblemPlusJSONResponse) VisitDeregisterDIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -1480,7 +1480,7 @@ type StrictServerInterface interface {
 	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
 	// Client API to stop registering the given DID on the discovery service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{did})
-	UnregisterDID(ctx context.Context, request UnregisterDIDRequestObject) (UnregisterDIDResponseObject, error)
+	DeregisterDID(ctx context.Context, request DeregisterDIDRequestObject) (DeregisterDIDResponseObject, error)
 	// Client API to start registering the given DID on the discovery service.
 	// (POST /internal/discovery/v1/{serviceID}/{did})
 	RegisterDID(ctx context.Context, request RegisterDIDRequestObject) (RegisterDIDResponseObject, error)
@@ -1581,26 +1581,26 @@ func (sh *strictHandler) SearchPresentations(ctx echo.Context, serviceID string,
 	return nil
 }
 
-// UnregisterDID operation middleware
-func (sh *strictHandler) UnregisterDID(ctx echo.Context, serviceID string, did string) error {
-	var request UnregisterDIDRequestObject
+// DeregisterDID operation middleware
+func (sh *strictHandler) DeregisterDID(ctx echo.Context, serviceID string, did string) error {
+	var request DeregisterDIDRequestObject
 
 	request.ServiceID = serviceID
 	request.Did = did
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.UnregisterDID(ctx.Request().Context(), request.(UnregisterDIDRequestObject))
+		return sh.ssi.DeregisterDID(ctx.Request().Context(), request.(DeregisterDIDRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "UnregisterDID")
+		handler = middleware(handler, "DeregisterDID")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(UnregisterDIDResponseObject); ok {
-		return validResponse.VisitUnregisterDIDResponse(ctx.Response())
+	} else if validResponse, ok := response.(DeregisterDIDResponseObject); ok {
+		return validResponse.VisitDeregisterDIDResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

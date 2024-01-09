@@ -110,9 +110,9 @@ type Client interface {
 	// It returns an error if the service or DID is invalid/unknown.
 	Register(ctx context.Context, serviceID string, subjectDID did.DID) error
 
-	// Unregister removes the registration of a DID on a Discovery Service.
+	// Deregister removes the registration of a DID on a Discovery Service.
 	// It returns an error if the service or DID is invalid/unknown.
-	Unregister(ctx context.Context, serviceID string, subjectDID did.DID) error
+	Deregister(ctx context.Context, serviceID string, subjectDID did.DID) error
 }
 
 // SearchResult is a single result of a search operation.

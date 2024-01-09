@@ -124,14 +124,14 @@ func (w *Wrapper) RegisterDID(ctx context.Context, request RegisterDIDRequestObj
 	return RegisterDID200Response{}, nil
 }
 
-func (w *Wrapper) UnregisterDID(ctx context.Context, request UnregisterDIDRequestObject) (UnregisterDIDResponseObject, error) {
+func (w *Wrapper) DeregisterDID(ctx context.Context, request DeregisterDIDRequestObject) (DeregisterDIDResponseObject, error) {
 	subjectDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
 	}
-	err = w.Client.Unregister(ctx, request.ServiceID, *subjectDID)
+	err = w.Client.Deregister(ctx, request.ServiceID, *subjectDID)
 	if err != nil {
 		return nil, err
 	}
-	return UnregisterDID200Response{}, nil
+	return DeregisterDID200Response{}, nil
 }

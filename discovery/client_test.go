@@ -82,7 +82,7 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 	})
 }
 
-func Test_scheduledRegistrationManager_unregister(t *testing.T) {
+func Test_scheduledRegistrationManager_deregister(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 
@@ -93,7 +93,7 @@ func Test_scheduledRegistrationManager_unregister(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
 
-		err := manager.unregister(audit.TestContext(), testServiceID, aliceDID)
+		err := manager.deregister(audit.TestContext(), testServiceID, aliceDID)
 
 		assert.NoError(t, err)
 	})
@@ -110,11 +110,11 @@ func Test_scheduledRegistrationManager_unregister(t *testing.T) {
 		tag := Tag("taggy")
 		require.NoError(t, store.add(testServiceID, vpAlice, &tag))
 
-		err := manager.unregister(audit.TestContext(), testServiceID, aliceDID)
+		err := manager.deregister(audit.TestContext(), testServiceID, aliceDID)
 
 		assert.NoError(t, err)
 	})
-	t.Run("unregistering from Discovery Service fails", func(t *testing.T) {
+	t.Run("deregistering from Discovery Service fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		invoker := client.NewMockHTTPClient(ctrl)
 		invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("remote error"))
@@ -127,7 +127,7 @@ func Test_scheduledRegistrationManager_unregister(t *testing.T) {
 		tag := Tag("taggy")
 		require.NoError(t, store.add(testServiceID, vpAlice, &tag))
 
-		err := manager.unregister(audit.TestContext(), testServiceID, aliceDID)
+		err := manager.deregister(audit.TestContext(), testServiceID, aliceDID)
 
 		require.ErrorIs(t, err, ErrRegistrationFailed)
 		require.ErrorContains(t, err, "remote error")

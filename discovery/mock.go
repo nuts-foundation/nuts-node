@@ -94,6 +94,34 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
 }
 
+// Deregister mocks base method.
+func (m *MockClient) Deregister(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Deregister", ctx, serviceID, subjectDID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Deregister indicates an expected call of Deregister.
+func (mr *MockClientMockRecorder) Deregister(ctx, serviceID, subjectDID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deregister", reflect.TypeOf((*MockClient)(nil).Deregister), ctx, serviceID, subjectDID)
+}
+
+// Register mocks base method.
+func (m *MockClient) Register(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Register", ctx, serviceID, subjectDID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Register indicates an expected call of Register.
+func (mr *MockClientMockRecorder) Register(ctx, serviceID, subjectDID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockClient)(nil).Register), ctx, serviceID, subjectDID)
+}
+
 // Search mocks base method.
 func (m *MockClient) Search(serviceID string, query map[string]string) ([]SearchResult, error) {
 	m.ctrl.T.Helper()
@@ -107,32 +135,4 @@ func (m *MockClient) Search(serviceID string, query map[string]string) ([]Search
 func (mr *MockClientMockRecorder) Search(serviceID, query any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockClient)(nil).Search), serviceID, query)
-}
-
-// StartRegistration mocks base method.
-func (m *MockClient) Register(ctx context.Context, serviceID string, subjectDID did.DID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Register", ctx, serviceID, subjectDID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StartRegistration indicates an expected call of StartRegistration.
-func (mr *MockClientMockRecorder) StartRegistration(ctx, serviceID, subjectDID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockClient)(nil).Register), ctx, serviceID, subjectDID)
-}
-
-// StopRegistration mocks base method.
-func (m *MockClient) Unregister(ctx context.Context, serviceID string, subjectDID did.DID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Unregister", ctx, serviceID, subjectDID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StopRegistration indicates an expected call of StopRegistration.
-func (mr *MockClientMockRecorder) StopRegistration(ctx, serviceID, subjectDID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unregister", reflect.TypeOf((*MockClient)(nil).Unregister), ctx, serviceID, subjectDID)
 }

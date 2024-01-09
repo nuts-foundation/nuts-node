@@ -146,26 +146,26 @@ func TestWrapper_RegisterDID(t *testing.T) {
 	})
 }
 
-func TestWrapper_UnregisterDID(t *testing.T) {
+func TestWrapper_DeregisterDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
 		test.client.EXPECT().StopRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
 
-		response, err := test.wrapper.UnregisterDID(nil, UnregisterDIDRequestObject{
+		response, err := test.wrapper.DeregisterDID(nil, DeregisterDIDRequestObject{
 			ServiceID: serviceID,
 			Did:       expectedDID,
 		})
 
 		assert.NoError(t, err)
-		assert.IsType(t, UnregisterDID200Response{}, response)
+		assert.IsType(t, DeregisterDID200Response{}, response)
 	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
 		test.client.EXPECT().StopRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(errors.New("foo"))
 
-		_, err := test.wrapper.UnregisterDID(nil, UnregisterDIDRequestObject{
+		_, err := test.wrapper.DeregisterDID(nil, DeregisterDIDRequestObject{
 			ServiceID: serviceID,
 			Did:       expectedDID,
 		})

@@ -38,7 +38,7 @@ import (
 // It automatically refreshes registered Verifiable Presentations when they are about to expire.
 type registrationManager interface {
 	register(ctx context.Context, serviceID string, subjectDID did.DID) error
-	unregister(ctx context.Context, serviceID string, subjectDID did.DID) error
+	deregister(ctx context.Context, serviceID string, subjectDID did.DID) error
 	// refreshRegistrations is a blocking call to periodically refresh registrations.
 	// It checks for registrations to be refreshed at the specified interval.
 	// It will exit when the given context is cancelled.
@@ -86,7 +86,7 @@ func (r *scheduledRegistrationManager) register(ctx context.Context, serviceID s
 	return nil
 }
 
-func (r *scheduledRegistrationManager) unregister(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (r *scheduledRegistrationManager) deregister(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	// delete DID/service combination from DB, so it won't be registered again
 	err := r.store.updateDIDRegistrationTime(serviceID, subjectDID, nil)
 	if err != nil {
