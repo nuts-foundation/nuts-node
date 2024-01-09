@@ -80,15 +80,27 @@ func Compress(bitstring []byte) (string, error) {
 	}
 
 	// encode to base64 string
-	// the examples contain '-' from which I took that is uses URLEncoding over StdEncoding
+	// The StatusList2021 spec examples contain '-' from which I took that it uses URLEncoding over StdEncoding (with padding)
 	return base64.URLEncoding.EncodeToString(buf.Bytes()), nil
 }
 
 // Expand a compressed StatusList2021 bitstring. It first applies base64 decoding followed by gzip decompression.
 func Expand(encodedList string) (Bitstring, error) {
 	// base64 decode
-	// the examples contain '-' from which I took that is uses URLEncoding over StdEncoding
-	compressed, err := base64.URLEncoding.DecodeString(encodedList)
+	// The StatusList2021 spec examples contain '-' from which I took that it uses URLEncoding over StdEncoding.
+	// Usage of padding is still unclear. RFC4648 section 3.2 says use padding:
+	//		Implementations MUST include appropriate pad characters at the end of
+	//		encoded data unless the specification referring to this document
+	//		explicitly states otherwise.
+	// However, other implementations use no padding, so we accept both.
+	enc := base64.URLEncoding
+	if len(encodedList)%4 != 0 {
+		// base64 encodes 24 bit using 4 base64 chars
+		// any multiple of 4 is either padded or does not require padding, the rest requires RawURLEncoding
+		enc = base64.RawURLEncoding
+	}
+
+	compressed, err := enc.DecodeString(encodedList)
 	if err != nil {
 		return nil, err
 	}

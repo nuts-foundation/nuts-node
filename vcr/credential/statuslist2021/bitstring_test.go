@@ -85,7 +85,7 @@ func Test_CompressExpand(t *testing.T) {
 		assert.Len(t, *bs, len(expanded), "comparison invalid if these are not the same (16kB)")
 		assert.Equal(t, *bs, expanded)
 	})
-	t.Run("ok - input>>Compress>>Expand == input", func(t *testing.T) {
+	t.Run("ok - input >> Compress >> Expand == input", func(t *testing.T) {
 		// make bitstring with random flags
 		bs := *NewBitstring()
 		assert.Equal(t, bs, *NewBitstring())
@@ -107,5 +107,19 @@ func Test_CompressExpand(t *testing.T) {
 		expanded, err := Expand(compressed)
 		assert.NoError(t, err)
 		assert.Equal(t, bs, expanded)
+	})
+	t.Run("ok - Expand is padding agnostic", func(t *testing.T) {
+		// accepts padding
+		padded := "H4sIAAAAAAAA_-zaMQ6FIBAE0P-NhaVH9ugm9lBJhpX3WpoJFcPuj1dc6QAwypkOAAAAAMBKts6Zr6qHa4By_ukAANUd6QAszDIIAMBUms8zrQG-z3SkQXGlpD0dgFJ6KwQAjKBjwzTuAAAA___vXAvwAEAAAA=="
+		padExpanded, err := Expand(padded)
+		require.NoError(t, err)
+
+		// accepts no padding
+		notPadded := "H4sIAAAAAAAA_-zaMQ6FIBAE0P-NhaVH9ugm9lBJhpX3WpoJFcPuj1dc6QAwypkOAAAAAMBKts6Zr6qHa4By_ukAANUd6QAszDIIAMBUms8zrQG-z3SkQXGlpD0dgFJ6KwQAjKBjwzTuAAAA___vXAvwAEAAAA"
+		nopadExpanded, err := Expand(notPadded)
+		require.NoError(t, err)
+
+		// results are the same
+		assert.Equal(t, padExpanded, nopadExpanded)
 	})
 }
