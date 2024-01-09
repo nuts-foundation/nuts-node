@@ -28,8 +28,10 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
@@ -55,6 +57,7 @@ type verifier struct {
 	store         Store
 	trustConfig   *trust.Config
 	signatureVerifier
+	credentialStatus *credentialStatus
 }
 
 // VerificationError is used to describe a VC/VP verification failure.
@@ -82,11 +85,17 @@ func (e VerificationError) Error() string {
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver resolver.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Verifier {
-	return &verifier{store: store, didResolver: didResolver, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig, signatureVerifier: signatureVerifier{
+func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver resolver.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config, client core.HTTPRequestDoer) Verifier {
+	v := &verifier{store: store, didResolver: didResolver, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig}
+	v.signatureVerifier = signatureVerifier{
 		keyResolver:   keyResolver,
 		jsonldManager: jsonldManager,
-	}}
+	}
+	v.credentialStatus = &credentialStatus{
+		client:          client,
+		verifySignature: v.signatureVerifier.VerifySignature,
+	}
+	return v
 }
 
 // Verify implements the verify interface.
@@ -114,6 +123,19 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 			return types.ErrRevoked
 		}
 
+	}
+
+	// Check the credentialStatus if the credential is revoked
+	err := v.credentialStatus.verify(credentialToVerify)
+	if err != nil {
+		// soft fail, only return an error when revocation is confirmed and log everything else
+		if errors.Is(err, types.ErrRevoked) {
+			return err
+		} else {
+			// TODO: what log level
+			bs, _ := json.Marshal(credentialToVerify)
+			log.Logger().WithError(err).WithField("credential", string(bs)).Info("CredentialStatus verification failed")
+		}
 	}
 
 	// Check trust status
