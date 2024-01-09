@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vdr/resolver/key_mock.go -package=resolver -source=vdr/resolver/key.go
 //
+
 // Package resolver is a generated GoMock package.
 package resolver
 

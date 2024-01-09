@@ -13,7 +13,7 @@ echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
 docker compose up -d
-docker compose up --wait nodeA-backend nodeB
+docker compose up --wait nodeA nodeA-backend nodeB nodeB-backend
 
 echo "------------------------------------"
 echo "Registering vendors..."
@@ -66,14 +66,14 @@ fi
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
-#RESPONSE=$(docker compose exec nodeB curl --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/ping -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
-#if echo $RESPONSE | grep -q "pong"; then
-#  echo "success!"
-#else
-#  echo "FAILED: Could not ping node-A" 1>&2
-#  echo $RESPONSE
-#  exitWithDockerLogs 1
-#fi
+RESPONSE=$(docker compose exec nodeB curl --http1.1 --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/resource -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
+if echo $RESPONSE | grep -q "OK"; then
+  echo "success!"
+else
+  echo "FAILED: Could not get resource from node-A" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."

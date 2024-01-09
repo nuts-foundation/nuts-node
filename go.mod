@@ -4,20 +4,20 @@ go 1.21
 
 require (
 	github.com/PaesslerAG/jsonpath v0.1.2-0.20230323094847-3484786d6f97
-	github.com/alicebob/miniredis/v2 v2.31.0
-	github.com/amacneil/dbmate/v2 v2.9.0
+	github.com/alicebob/miniredis/v2 v2.31.1
+	github.com/amacneil/dbmate/v2 v2.10.0
 	github.com/avast/retry-go/v4 v4.5.1
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.9.3
 	github.com/dlclark/regexp2 v1.10.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/goodsign/monday v1.0.1
-	github.com/google/uuid v1.4.0
+	github.com/goodsign/monday v1.0.2
+	github.com/google/uuid v1.5.0
 	github.com/hashicorp/vault/api v1.10.0
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/knadh/koanf v1.5.0
-	github.com/labstack/echo/v4 v4.11.3
-	github.com/lestrrat-go/jwx/v2 v2.0.18
+	github.com/labstack/echo/v4 v4.11.4
+	github.com/lestrrat-go/jwx/v2 v2.0.19
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.2.0
 	github.com/mr-tron/base58 v1.2.0
@@ -29,12 +29,12 @@ require (
 	github.com/nuts-foundation/go-leia/v4 v4.0.1
 	github.com/nuts-foundation/go-stoabs v1.9.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
-	github.com/oapi-codegen/runtime v1.1.0
+	github.com/oapi-codegen/runtime v1.1.1
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
 	github.com/privacybydesign/irmago v0.12.6
-	github.com/prometheus/client_golang v1.17.0
+	github.com/prometheus/client_golang v1.18.0
 	github.com/prometheus/client_model v0.5.0
-	github.com/redis/go-redis/v9 v9.3.0
+	github.com/redis/go-redis/v9 v9.4.0
 	github.com/santhosh-tekuri/jsonschema v1.2.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
@@ -44,11 +44,11 @@ require (
 	go.etcd.io/bbolt v1.3.8
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
-	go.uber.org/mock v0.3.0
-	golang.org/x/crypto v0.16.0
+	go.uber.org/mock v0.4.0
+	golang.org/x/crypto v0.17.0
 	golang.org/x/time v0.5.0
-	google.golang.org/grpc v1.59.0
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/grpc v1.60.1
+	google.golang.org/protobuf v1.32.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
 	schneider.vip/problem v1.9.0
@@ -112,7 +112,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/labstack/gommon v0.4.0 // indirect
+	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.2 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc v1.0.4 // indirect
@@ -123,7 +123,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v2.0.1+incompatible // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
@@ -143,7 +142,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
 	github.com/privacybydesign/gabi v0.0.0-20221012093643-8e978bfbb252 // indirect
-	github.com/prometheus/common v0.44.0 // indirect
+	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
@@ -183,4 +182,5 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/pgx/v5 v5.4.3 // indirect
+	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 )

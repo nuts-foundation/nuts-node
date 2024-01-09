@@ -103,6 +103,7 @@ type vcr struct {
 	localWalletResolver openid4vci.IdentifierResolver
 	issuerHttpClient    core.HTTPRequestDoer
 	walletHttpClient    core.HTTPRequestDoer
+	verifierHttpClient  core.HTTPRequestDoer
 	pkiProvider         pki.Provider
 	vdrInstance         vdr.VDR
 }
@@ -241,11 +242,11 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.serviceResolver = resolver.DIDServiceResolver{Resolver: didResolver}
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, didResolver, c.keyStore)
+	tlsConfig, err := c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
+	if err != nil {
+		return err
+	}
 	if c.config.OpenID4VCI.Enabled {
-		tlsConfig, err := c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
-		if err != nil {
-			return err
-		}
 		c.localWalletResolver = openid4vci.NewTLSIdentifierResolver(
 			openid4vci.DIDIdentifierResolver{ServiceResolver: c.serviceResolver},
 			tlsConfig,
@@ -262,7 +263,8 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		c.openidSessionStore = c.storageClient.GetSessionDatabase()
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
+	c.verifierHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
+	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, c.verifierHttpClient)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 

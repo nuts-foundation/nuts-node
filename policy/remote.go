@@ -16,10 +16,24 @@
  *
  */
 
-package iam
+package policy
 
-// authzResponse is the response to an Authorization Code flow request.
-type authzResponse struct {
-	// html is the HTML page to be rendered to the user.
-	html []byte
+import (
+	"context"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/policy/api/v1/client"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
+)
+
+type remote struct {
+	address string
+	client  client.HTTPClient
+}
+
+func (b remote) PresentationDefinition(ctx context.Context, authorizer did.DID, scope string) (*pe.PresentationDefinition, error) {
+	return b.client.PresentationDefinition(ctx, b.address, authorizer, scope)
+}
+
+func (b remote) Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error) {
+	return b.client.Authorized(ctx, b.address, requestInfo)
 }

@@ -19,6 +19,7 @@
 package discovery
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/vc"
@@ -56,7 +57,7 @@ func Test_Module_Add(t *testing.T) {
 		presentationVerifier.EXPECT().VerifyVP(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := m.Add(testServiceID, vpAlice)
-		require.EqualError(t, err, "presentation verification failed: failed")
+		require.EqualError(t, err, "presentation is invalid for registration\npresentation verification failed: failed")
 
 		_, tag, err := m.Get(testServiceID, nil)
 		require.NoError(t, err)
@@ -70,17 +71,17 @@ func Test_Module_Add(t *testing.T) {
 		err := m.Add(testServiceID, vpAlice)
 		assert.NoError(t, err)
 		err = m.Add(testServiceID, vpAlice)
-		assert.EqualError(t, err, "presentation already exists")
+		assert.ErrorIs(t, err, ErrPresentationAlreadyExists)
 	})
 	t.Run("valid for too long", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
-		def := m.services[testServiceID]
+		def := m.allDefinitions[testServiceID]
 		def.PresentationMaxValidity = 1
-		m.services[testServiceID] = def
+		m.allDefinitions[testServiceID] = def
 		m.serverDefinitions[testServiceID] = def
 
 		err := m.Add(testServiceID, vpAlice)
-		assert.EqualError(t, err, "presentation is valid for too long (max 1s)")
+		assert.EqualError(t, err, "presentation is invalid for registration\npresentation is valid for too long (max 1s)")
 	})
 	t.Run("no expiration", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
@@ -88,7 +89,7 @@ func Test_Module_Add(t *testing.T) {
 			claims[jwt.AudienceKey] = []string{testServiceID}
 			delete(claims, "exp")
 		}))
-		assert.EqualError(t, err, "presentation does not have an expiration")
+		assert.ErrorIs(t, err, errPresentationWithoutExpiration)
 	})
 	t.Run("presentation does not contain an ID", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
@@ -98,12 +99,12 @@ func Test_Module_Add(t *testing.T) {
 			delete(claims, "jti")
 		}, vcAlice)
 		err := m.Add(testServiceID, vpWithoutID)
-		assert.EqualError(t, err, "presentation does not have an ID")
+		assert.ErrorIs(t, err, errPresentationWithoutID)
 	})
 	t.Run("not a JWT", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 		err := m.Add(testServiceID, vc.VerifiablePresentation{})
-		assert.EqualError(t, err, "only JWT presentations are supported")
+		assert.ErrorIs(t, err, errUnsupportedPresentationFormat)
 	})
 
 	t.Run("registration", func(t *testing.T) {
@@ -129,7 +130,7 @@ func Test_Module_Add(t *testing.T) {
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			}, vcAlice)
 			err := m.Add(testServiceID, vpAlice)
-			assert.EqualError(t, err, "presentation is valid longer than the credential(s) it contains")
+			assert.ErrorIs(t, err, errPresentationValidityExceedsCredentials)
 		})
 		t.Run("not conform to Presentation Definition", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
@@ -163,7 +164,7 @@ func Test_Module_Add(t *testing.T) {
 		t.Run("non-existent presentation", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
 			err := m.Add(testServiceID, vpAliceRetract)
-			assert.EqualError(t, err, "retraction presentation refers to a non-existing presentation")
+			assert.ErrorIs(t, err, errRetractionReferencesUnknownPresentation)
 		})
 		t.Run("must not contain credentials", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
@@ -172,7 +173,7 @@ func Test_Module_Add(t *testing.T) {
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			}, vcAlice)
 			err := m.Add(testServiceID, vp)
-			assert.EqualError(t, err, "retraction presentation must not contain credentials")
+			assert.ErrorIs(t, err, errRetractionContainsCredentials)
 		})
 		t.Run("missing 'retract_jti' claim", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
@@ -181,9 +182,9 @@ func Test_Module_Add(t *testing.T) {
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			})
 			err := m.Add(testServiceID, vp)
-			assert.EqualError(t, err, "retraction presentation does not contain 'retract_jti' claim")
+			assert.ErrorIs(t, err, errInvalidRetractionJTIClaim)
 		})
-		t.Run("'retract_jti' claim in not a string", func(t *testing.T) {
+		t.Run("'retract_jti' claim is not a string", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
@@ -191,7 +192,17 @@ func Test_Module_Add(t *testing.T) {
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			})
 			err := m.Add(testServiceID, vp)
-			assert.EqualError(t, err, "retraction presentation 'retract_jti' claim is not a string")
+			assert.ErrorIs(t, err, errInvalidRetractionJTIClaim)
+		})
+		t.Run("'retract_jti' claim is an empty string", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine)
+			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+				vp.Type = append(vp.Type, retractionPresentationType)
+				claims["retract_jti"] = ""
+				claims[jwt.AudienceKey] = []string{testServiceID}
+			})
+			err := m.Add(testServiceID, vp)
+			assert.ErrorIs(t, err, errInvalidRetractionJTIClaim)
 		})
 	})
 }
@@ -229,9 +240,9 @@ func setupModule(t *testing.T, storageInstance storage.Engine) (*Module, *verifi
 	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 	m := New(storageInstance, mockVCR)
 	require.NoError(t, m.Configure(core.ServerConfig{}))
-	m.services = testDefinitions()
+	m.allDefinitions = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{
-		testServiceID: m.services[testServiceID],
+		testServiceID: m.allDefinitions[testServiceID],
 	}
 	require.NoError(t, m.Start())
 	return m, mockVerifier
@@ -274,5 +285,31 @@ func TestModule_Configure(t *testing.T) {
 		}
 		err := (&Module{config: config}).Configure(serverConfig)
 		assert.ErrorContains(t, err, "unable to read definitions directory 'test/non_existent'")
+	})
+}
+
+func TestModule_Search(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Run("ok", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		require.NoError(t, m.store.add(testServiceID, vpAlice, nil))
+		results, err := m.Search(testServiceID, map[string]string{
+			"credentialSubject.id": aliceDID.String(),
+		})
+		assert.NoError(t, err)
+		expectedJSON, _ := json.Marshal([]SearchResult{
+			{
+				Presentation: vpAlice,
+				Fields:       map[string]interface{}{"issuer_field": authorityDID},
+			},
+		})
+		actualJSON, _ := json.Marshal(results)
+		assert.JSONEq(t, string(expectedJSON), string(actualJSON))
+	})
+	t.Run("unknown service ID", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		_, err := m.Search("unknown", nil)
+		assert.ErrorIs(t, err, ErrServiceNotFound)
 	})
 }

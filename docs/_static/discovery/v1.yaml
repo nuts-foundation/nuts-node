@@ -38,17 +38,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - tag
-                  - entries
-                properties:
-                  tag:
-                    type: string
-                  entries:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/VerifiablePresentation"
+                $ref: "#/components/schemas/PresentationsResponse"
         default:
           $ref: "../common/error_response.yaml"
     post:
@@ -92,6 +82,7 @@ paths:
       # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
       - in: query
         name: query
+        required: true
         schema:
           type: object
           additionalProperties:
@@ -103,6 +94,8 @@ paths:
       description: |
         An API of the discovery client that searches for presentations on the discovery service,
         whose credentials match the given query parameter.
+        It queries the client's local copy of the Discovery Service which is periodically synchronized with the Discovery Server.
+        This means new registrations might not immediately show up, depending on the client refresh interval. 
         The query parameters are interpreted as JSON path expressions, evaluated on the verifiable credentials.
         The following features and limitations apply:
         - only simple child-selectors are supported (so no arrays selectors, script expressions etc).
@@ -131,23 +124,40 @@ paths:
               schema:
                 type: array
                 items:
-                  type: object
-                  required:
-                    - id
-                    - credential
-                  properties:
-                    id:
-                      type: string
-                      description: The ID of the Verifiable Presentation.
-                    credential:
-                      type: object
-                      description: The Verifiable Credential that matched the query.
+                  $ref: "#/components/schemas/SearchResult"
         default:
           $ref: "../common/error_response.yaml"
 components:
   schemas:
     VerifiablePresentation:
       $ref: "../common/ssi_types.yaml#/components/schemas/VerifiablePresentation"
+    PresentationsResponse:
+      type: object
+      required:
+        - tag
+        - entries
+      properties:
+        tag:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/VerifiablePresentation"
+    SearchResult:
+      type: object
+      required:
+        - id
+        - vp
+        - fields
+      properties:
+        id:
+          type: string
+          description: The ID of the Verifiable Presentation.
+        vp:
+          $ref: "#/components/schemas/VerifiablePresentation"
+        fields:
+          type: object
+          description: Input descriptor IDs and their mapped values that from the Verifiable Credential.
   securitySchemes:
     jwtBearerAuth:
       type: http

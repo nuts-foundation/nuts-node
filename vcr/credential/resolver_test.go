@@ -24,6 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
@@ -38,23 +39,19 @@ import (
 
 func TestFindValidator(t *testing.T) {
 	t.Run("an unknown type returns the default validator", func(t *testing.T) {
-		v := FindValidator(vc.VerifiableCredential{})
-
-		assert.NotNil(t, t, v)
+		assert.IsType(t, defaultCredentialValidator{}, FindValidator(vc.VerifiableCredential{}))
 	})
 
 	t.Run("validator and builder found for NutsOrganizationCredential", func(t *testing.T) {
-		vc := ValidNutsOrganizationCredential(t)
-		v := FindValidator(vc)
-
-		assert.NotNil(t, v)
+		assert.IsType(t, nutsOrganizationCredentialValidator{}, FindValidator(ValidNutsOrganizationCredential(t)))
 	})
 
 	t.Run("validator and builder found for NutsAuthorizationCredential", func(t *testing.T) {
-		vc := ValidNutsAuthorizationCredential()
-		v := FindValidator(*vc)
+		assert.IsType(t, nutsAuthorizationCredentialValidator{}, FindValidator(*ValidNutsAuthorizationCredential()))
+	})
 
-		assert.NotNil(t, v)
+	t.Run("validator and builder found for StatusList2021Credential", func(t *testing.T) {
+		assert.IsType(t, statusList2021CredentialValidator{}, FindValidator(ValidStatusList2021Credential(t)))
 	})
 }
 
@@ -74,9 +71,9 @@ func TestPresentationSigner(t *testing.T) {
 	t.Run("JWT", func(t *testing.T) {
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		t.Run("ok", func(t *testing.T) {
-			token := jwt.New()
-			require.NoError(t, token.Set(jwt.IssuerKey, keyID.DID.String()))
-			signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+			headers := jws.NewHeaders()
+			headers.Set(jws.KeyIDKey, keyID.String())
+			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
 			require.NoError(t, err)
 			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
 			require.NoError(t, err)
@@ -85,15 +82,28 @@ func TestPresentationSigner(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, keyID.DID, *actual)
 		})
-		t.Run("missing 'iss' claim", func(t *testing.T) {
-			token := jwt.New()
-			signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+		t.Run("no kid header", func(t *testing.T) {
+			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256, privateKey))
 			require.NoError(t, err)
 			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
 			require.NoError(t, err)
 
 			actual, err := PresentationSigner(*presentation)
-			assert.EqualError(t, err, "JWT presentation does not have 'iss' claim")
+
+			assert.EqualError(t, err, "no kid header in JWT")
+			assert.Nil(t, actual)
+		})
+		t.Run("kid is not a did", func(t *testing.T) {
+			headers := jws.NewHeaders()
+			require.NoError(t, headers.Set(jws.KeyIDKey, "not a did"))
+			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
+			require.NoError(t, err)
+			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
+			require.NoError(t, err)
+
+			actual, err := PresentationSigner(*presentation)
+
+			assert.EqualError(t, err, "cannot parse kid as did: invalid DID")
 			assert.Nil(t, actual)
 		})
 	})

@@ -89,7 +89,7 @@ func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.Verifiab
 
 	if validateVC {
 		for _, cred := range credentials {
-			err := h.verifier.Validate(cred, &options.ProofOptions.Created)
+			err := h.verifier.VerifySignature(cred, &options.ProofOptions.Created)
 			if err != nil {
 				return nil, core.InvalidInputError("invalid credential (id=%s): %w", cred.ID, err)
 			}
@@ -116,7 +116,6 @@ func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, cr
 	id := did.DIDURL{DID: subjectDID}
 	id.Fragment = strings.ToLower(uuid.NewString())
 	claims := map[string]interface{}{
-		jwt.IssuerKey:  subjectDID.String(),
 		jwt.SubjectKey: subjectDID.String(),
 		jwt.JwtIDKey:   id.String(),
 		"vp": vc.VerifiablePresentation{

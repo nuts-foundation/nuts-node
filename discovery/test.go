@@ -50,6 +50,7 @@ var testServiceID = "usecase_v1"
 
 func testDefinitions() map[string]ServiceDefinition {
 	issuerPattern := "did:example:*"
+	issuerFieldID := "issuer_field"
 	return map[string]ServiceDefinition{
 		testServiceID: {
 			ID:       testServiceID,
@@ -61,6 +62,7 @@ func testDefinitions() map[string]ServiceDefinition {
 						Constraints: &pe.Constraints{
 							Fields: []pe.Field{
 								{
+									Id:   &issuerFieldID,
 									Path: []string{"$.issuer"},
 									Filter: &pe.Filter{
 										Type:    "string",
@@ -224,6 +226,6 @@ func signJWT(subjectDID did.DID, claims map[string]interface{}, headers map[stri
 			return "", err
 		}
 	}
-	bytes, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, signingKey, jws.WithProtectedHeaders(hdr)))
+	bytes, err := jwt.Sign(token, jwt.WithKey(subjectKeyJWK.Algorithm(), subjectKeyJWK, jws.WithProtectedHeaders(hdr)))
 	return string(bytes), err
 }

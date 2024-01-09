@@ -44,6 +44,7 @@ import (
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
 	didmanCmd "github.com/nuts-foundation/nuts-node/didman/cmd"
 	"github.com/nuts-foundation/nuts-node/discovery"
+	discoveryAPI "github.com/nuts-foundation/nuts-node/discovery/api/v1"
 	discoveryCmd "github.com/nuts-foundation/nuts-node/discovery/cmd"
 	"github.com/nuts-foundation/nuts-node/events"
 	eventsCmd "github.com/nuts-foundation/nuts-node/events/cmd"
@@ -56,6 +57,7 @@ import (
 	networkAPI "github.com/nuts-foundation/nuts-node/network/api/v1"
 	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
 	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	storageCmd "github.com/nuts-foundation/nuts-node/storage/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -199,6 +201,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	goldenHammer := golden_hammer.New(vdrInstance, didmanInstance)
+	policyInstance := policy.NewRouter(pkiInstance)
 
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})
@@ -218,9 +221,10 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPIv1.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
-	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance))
+	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance, policyInstance))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
+	system.RegisterRoutes(&discoveryAPI.Wrapper{Server: discoveryInstance})
 
 	// Register engines
 	// without dependencies
@@ -240,6 +244,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterEngine(discoveryInstance)
 	system.RegisterEngine(didmanInstance)
 	system.RegisterEngine(goldenHammer)
+	system.RegisterEngine(policyInstance)
 	// HTTP engine MUST be registered last, because when started it dispatches HTTP calls to the registered routes.
 	// Registering is last makes sure all engines are started and ready to accept requests.
 	system.RegisterEngine(httpServerInstance)
@@ -339,6 +344,7 @@ func serverConfigFlags() *pflag.FlagSet {
 	set.AddFlagSet(pki.FlagSet())
 	set.AddFlagSet(goldenHammerCmd.FlagSet())
 	set.AddFlagSet(discoveryCmd.FlagSet())
+	set.AddFlagSet(policy.FlagSet())
 
 	return set
 }

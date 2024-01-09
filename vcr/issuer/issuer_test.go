@@ -86,11 +86,11 @@ func Test_issuer_buildVC(t *testing.T) {
 			jsonldManager := jsonld.NewTestJSONLDManager(t)
 			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
 
-			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: JSONLDCredentialFormat})
+			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: vc.JSONLDCredentialProofFormat})
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
-			assert.Equal(t, JSONLDCredentialFormat, result.Format())
+			assert.Equal(t, vc.JSONLDCredentialProofFormat, result.Format())
 			assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
 			assert.Contains(t, result.Context, schemaOrgContext)
 			assert.Contains(t, result.Context, vc.VCContextV1URI())
@@ -110,7 +110,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			result, err := sut.buildVC(ctx, template, CredentialOptions{})
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			assert.Equal(t, JSONLDCredentialFormat, result.Format())
+			assert.Equal(t, vc.JSONLDCredentialProofFormat, result.Format())
 		})
 	})
 	t.Run("JWT", func(t *testing.T) {
@@ -121,11 +121,11 @@ func Test_issuer_buildVC(t *testing.T) {
 			jsonldManager := jsonld.NewTestJSONLDManager(t)
 			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
 
-			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: JWTCredentialFormat})
+			result, err := sut.buildVC(ctx, template, CredentialOptions{Format: vc.JWTCredentialProofFormat})
 
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			assert.Equal(t, JWTCredentialFormat, result.Format())
+			assert.Equal(t, vc.JWTCredentialProofFormat, result.Format())
 			assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 			assert.Contains(t, result.Context, schemaOrgContext)
 			assert.Contains(t, result.Context, vc.VCContextV1URI())
@@ -291,7 +291,7 @@ func Test_issuer_Issue(t *testing.T) {
 		result, err := sut.Issue(ctx, template, CredentialOptions{
 			Publish: true,
 			Public:  true,
-			Format:  JWTCredentialFormat,
+			Format:  vc.JWTCredentialProofFormat,
 		})
 		require.EqualError(t, err, "publishing VC JWTs is not supported")
 		assert.Nil(t, result)

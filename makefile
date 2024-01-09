@@ -4,8 +4,8 @@ run-generators: gen-mocks gen-api gen-protobuf
 
 install-tools:
 	go install github.com/deepmap/oapi-codegen/v2/cmd/oapi-codegen@v2.0.0
-	go install go.uber.org/mock/mockgen@v0.3.0
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.32.0
+	go install go.uber.org/mock/mockgen@v0.4.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 
 gen-mocks:
@@ -20,6 +20,7 @@ gen-mocks:
 	mockgen -destination=crypto/storage/spi/mock.go -package spi -source=crypto/storage/spi/interface.go
 	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
 	mockgen -destination=discovery/mock.go -package=discovery -source=discovery/interface.go
+	mockgen -destination=discovery/api/v1/client/mock.go -package=client -source=discovery/api/v1/client/interface.go
 	mockgen -destination=events/events_mock.go -package=events -source=events/interface.go Event
 	mockgen -destination=events/mock.go -package=events -source=events/conn.go Conn ConnectionPool
 	mockgen -destination=http/echo_mock.go -package=http -source=http/echo.go -imports echo=github.com/labstack/echo/v4
@@ -35,6 +36,7 @@ gen-mocks:
 	mockgen -destination=network/transport/v2/senders_mock.go -package=v2 -source=network/transport/v2/senders.go
 	mockgen -destination=network/transport/v2/gossip/mock.go -package=gossip -source=network/transport/v2/gossip/manager.go
 	mockgen -destination=pki/mock.go -package=pki -source=pki/interface.go
+	mockgen -destination=policy/mock.go -package=policy -source=policy/interface.go
 	mockgen -destination=storage/mock.go -package=storage -source=storage/interface.go
 	mockgen -destination=vcr/types/mock.go -package=types -source=vcr/types/interface.go
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
@@ -70,6 +72,7 @@ gen-api:
 	oapi-codegen --config codegen/configs/auth_employeeid.yaml auth/services/selfsigned/web/spec.yaml | gofmt > auth/services/selfsigned/web/generated.go
 	oapi-codegen --config codegen/configs/auth_iam.yaml docs/_static/auth/iam.yaml | gofmt > auth/api/iam/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
+	oapi-codegen --config codegen/configs/discovery_v1.yaml docs/_static/discovery/v1.yaml | gofmt > discovery/api/v1/generated.go
 	oapi-codegen --config codegen/configs/crypto_store_client.yaml https://raw.githubusercontent.com/nuts-foundation/secret-store-api/main/nuts-storage-api-v1.yaml | gofmt > crypto/storage/external/generated.go
 	oapi-codegen --config codegen/configs/policy_client_v1.yaml docs/_static/policy/v1.yaml | gofmt > policy/api/v1/client/generated.go
 

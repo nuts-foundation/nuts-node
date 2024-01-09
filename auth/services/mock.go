@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
 //
+
 // Package services is a generated GoMock package.
 package services
 

@@ -32,7 +32,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -687,44 +686,6 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 			assert.Contains(t, output.String(), "HTTP request body: {}")
 			assert.Contains(t, output.String(), `HTTP response body: \"hello, world\"`)
 		})
-	})
-}
-
-func TestDecodeURIPath(t *testing.T) {
-	rawParam := "urn:oid:2.16.840.1.113883.2.4.6.1:87654321"
-	encodedParam := "urn%3Aoid%3A2.16.840.1.113883.2.4.6.1%3A87654321"
-
-	t.Run("without middleware, it returns the encoded param", func(t *testing.T) {
-		e := echo.New()
-		r := e.Router()
-		r.Add(http.MethodGet, "/api/:someparam", func(context echo.Context) error {
-			param := context.Param("someparam")
-			return context.Blob(200, "text/plain", []byte(param))
-		})
-
-		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/%v", encodedParam), nil)
-		rec := httptest.NewRecorder()
-		e.ServeHTTP(rec, req)
-		defer rec.Result().Body.Close()
-		bodyBytes, _ := io.ReadAll(rec.Result().Body)
-		assert.Equal(t, encodedParam, string(bodyBytes))
-	})
-
-	t.Run("with middleware, it return the decoded param", func(t *testing.T) {
-		e := echo.New()
-		r := e.Router()
-		e.Use(decodeURIPath)
-		r.Add(http.MethodGet, "/api/:someparam", func(context echo.Context) error {
-			param := context.Param("someparam")
-			return context.Blob(200, "text/plain", []byte(param))
-		})
-
-		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/%v", encodedParam), nil)
-		rec := httptest.NewRecorder()
-		e.ServeHTTP(rec, req)
-		defer rec.Result().Body.Close()
-		bodyBytes, _ := io.ReadAll(rec.Result().Body)
-		assert.Equal(t, rawParam, string(bodyBytes))
 	})
 }
 

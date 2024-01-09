@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -34,6 +35,9 @@ var ErrNotFound = errors.New("entry not found")
 
 // ErrKeyAlreadyExists indicates that a private key for this keyID already exists.
 var ErrKeyAlreadyExists = errors.New("key already exists")
+
+// KidPattern is the regexp for acceptable kids
+var KidPattern = regexp.MustCompile(`^(?:(?:[\da-zA-Z_\- :#.])|(?:%[0-9a-fA-F]{2}))+$`)
 
 // Storage interface containing functions for storing and retrieving keys.
 type Storage interface {

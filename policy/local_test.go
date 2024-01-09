@@ -16,20 +16,22 @@
  *
  */
 
-package pe
+package policy
 
 import (
+	"context"
 	"testing"
 
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStore_LoadFromFile(t *testing.T) {
 	t.Run("loads the mapping from the file", func(t *testing.T) {
-		store := DefinitionResolver{}
+		store := localPDP{}
 
-		err := store.LoadFromFile("test/definition_mapping.json")
+		err := store.loadFromFile("test/definition_mapping.json")
 
 		require.NoError(t, err)
 		assert.Len(t, store.mapping, 1)
@@ -37,38 +39,39 @@ func TestStore_LoadFromFile(t *testing.T) {
 	})
 
 	t.Run("returns an error if the file doesn't exist", func(t *testing.T) {
-		store := DefinitionResolver{}
+		store := localPDP{}
 
-		err := store.LoadFromFile("test/doesntexist.json")
+		err := store.loadFromFile("test/doesntexist.json")
 
 		assert.Error(t, err)
 	})
 
 	t.Run("returns an error if a presentation definition is invalid", func(t *testing.T) {
-		store := DefinitionResolver{}
+		store := localPDP{}
 
-		err := store.LoadFromFile("test/invalid_definition_mapping.json")
+		err := store.loadFromFile("test/invalid/invalid_definition_mapping.json")
 
 		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
 	})
 }
 
 func TestStore_ByScope(t *testing.T) {
-	t.Run("returns nil if the scope doesn't exist", func(t *testing.T) {
-		store := DefinitionResolver{}
+	t.Run("err - not found", func(t *testing.T) {
+		store := localPDP{}
 
-		result := store.ByScope("eOverdracht-overdrachtsbericht2")
+		_, err := store.PresentationDefinition(context.Background(), did.DID{}, "eOverdracht-overdrachtsbericht2")
 
-		assert.Nil(t, result)
+		assert.Equal(t, ErrNotFound, err)
 	})
 
 	t.Run("returns the presentation definition if the scope exists", func(t *testing.T) {
-		store := DefinitionResolver{}
-		err := store.LoadFromFile("test/definition_mapping.json")
+		store := localPDP{}
+		err := store.loadFromFile("test/definition_mapping.json")
 		require.NoError(t, err)
 
-		result := store.ByScope("eOverdracht-overdrachtsbericht")
+		result, err := store.PresentationDefinition(context.Background(), did.DID{}, "eOverdracht-overdrachtsbericht")
 
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
 }

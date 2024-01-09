@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vcr/holder/openid_mock.go -package=holder -source=vcr/holder/openid.go
 //
+
 // Package holder is a generated GoMock package.
 package holder
 

@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vdr/didnuts/ambassador_mock.go -package=didnuts -source=vdr/didnuts/ambassador.go
 //
+
 // Package didnuts is a generated GoMock package.
 package didnuts
 

@@ -16,25 +16,75 @@
  *
  */
 
-package pe
+package policy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/policy/api/v1/client"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"io"
 	"os"
+	"strings"
 )
 
-// DefinitionResolver is a store for presentation definitions
-// It loads a file with the mapping from oauth scope to presentation definition
-type DefinitionResolver struct {
+// localPDP is a backend for presentation definitions
+// It loads a file with the mapping from oauth scope to presentation definition.
+// It allows access when the requester can present a submission according to the Presentation Definition. It does not do any additional authorization checks.
+type localPDP struct {
 	// mapping holds the oauth scope to presentation definition mapping
 	mapping map[string]validatingPresentationDefinition
 }
 
+func (b *localPDP) PresentationDefinition(_ context.Context, _ did.DID, scope string) (*pe.PresentationDefinition, error) {
+	mapping, ok := b.mapping[scope]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	result := pe.PresentationDefinition(mapping)
+	return &result, nil
+}
+
+func (b *localPDP) Authorized(_ context.Context, _ client.AuthorizedRequest) (bool, error) {
+	return true, nil
+}
+
+// loadFromDirectory traverses all .json files in the given directory and loads them
+func (s *localPDP) loadFromDirectory(directory string) error {
+	// open the directory
+	dir, err := os.Open(directory)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+
+	// read all the files in the directory
+	files, err := dir.Readdir(0)
+	if err != nil {
+		return err
+	}
+
+	// load all the files
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		if !strings.HasSuffix(file.Name(), ".json") {
+			continue
+		}
+		err := s.loadFromFile(fmt.Sprintf("%s/%s", directory, file.Name()))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // LoadFromFile loads the mapping from the given file
-func (s *DefinitionResolver) LoadFromFile(filename string) error {
+func (s *localPDP) loadFromFile(filename string) error {
 	// read the bytes from the file
 	reader, err := os.Open(filename)
 	if err != nil {
@@ -56,23 +106,12 @@ func (s *DefinitionResolver) LoadFromFile(filename string) error {
 	return nil
 }
 
-// ByScope returns the presentation definition for the given scope.
-// Returns nil if it doesn't exist or if no mappings are loaded.
-func (s *DefinitionResolver) ByScope(scope string) *PresentationDefinition {
-	mapping, ok := s.mapping[scope]
-	if !ok {
-		return nil
-	}
-	result := PresentationDefinition(mapping)
-	return &result
-}
-
 // validatingPresentationDefinition is an alias for PresentationDefinition that validates the JSON on unmarshal.
-type validatingPresentationDefinition PresentationDefinition
+type validatingPresentationDefinition pe.PresentationDefinition
 
 func (v *validatingPresentationDefinition) UnmarshalJSON(data []byte) error {
 	if err := v2.Validate(data, v2.PresentationDefinition); err != nil {
 		return err
 	}
-	return json.Unmarshal(data, (*PresentationDefinition)(v))
+	return json.Unmarshal(data, (*pe.PresentationDefinition)(v))
 }

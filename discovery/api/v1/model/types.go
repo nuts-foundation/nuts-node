@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Nuts community
+ * Copyright (C) 2024 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,15 +16,12 @@
  *
  */
 
-package pe
+package model
 
-import (
-	"github.com/stretchr/testify/require"
-	"testing"
-)
+import "github.com/nuts-foundation/go-did/vc"
 
-func TestDefinitionResolver(t testing.TB) *DefinitionResolver {
-	peStore := &DefinitionResolver{}
-	require.NoError(t, peStore.LoadFromFile("test/presentation_definition_mapping.json"))
-	return peStore
+// PresentationsResponse is the response for the GetPresentations endpoint.
+type PresentationsResponse struct {
+	Entries []vc.VerifiablePresentation `json:"entries"`
+	Tag     string                      `json:"tag"`
 }

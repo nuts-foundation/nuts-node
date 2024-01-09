@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=vdr/mock.go -package=vdr -source=vdr/interface.go
 //
+
 // Package vdr is a generated GoMock package.
 package vdr
 

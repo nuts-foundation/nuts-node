@@ -32,12 +32,12 @@ import (
 // Verifier defines the interface for verifying verifiable credentials.
 type Verifier interface {
 	// Verify checks credential on full correctness. It checks:
-	// validity of the signature
+	// validity of the signature (optional)
 	// if it has been revoked
-	// if the issuer is registered as trusted
+	// if the issuer is registered as trusted (optional)
 	Verify(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error
-	// Validate checks the verifiable credential technical correctness
-	Validate(credentialToVerify vc.VerifiableCredential, at *time.Time) error
+	// VerifySignature checks that the signature on the verifiable credential is correct and valid at the given time and nothing else
+	VerifySignature(credentialToVerify vc.VerifiableCredential, at *time.Time) error
 	// IsRevoked checks if the credential is revoked
 	IsRevoked(credentialID ssi.URI) (bool, error)
 	// GetRevocation returns the first revocation by credential ID

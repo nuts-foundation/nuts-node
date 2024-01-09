@@ -309,11 +309,12 @@ func (r Wrapper) sendPresentationRequest(ctx context.Context, response http.Resp
 
 // handlePresentationRequest handles an Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is handled by a wallet, called by a verifier who wants the wallet to present one or more verifiable credentials.
-func (r Wrapper) handlePresentationRequest(params map[string]string, session *OAuthSession) (HandleAuthorizeRequestResponseObject, error) {
-	ctx := context.TODO()
-	// Presentation definition is always derived from the scope.
-	// Later on, we might support presentation_definition and/or presentation_definition_uri parameters instead of scope as well.
-	if err := assertParamNotPresent(params, presentationDefParam, presentationDefUriParam); err != nil {
+func (r *Wrapper) handlePresentationRequest(ctx context.Context, params map[string]string, session *OAuthSession) (HandleAuthorizeRequestResponseObject, error) {
+	// Todo: for compatibility, we probably need to support presentation_definition and/or presentation_definition_uri.
+	if err := assertParamNotPresent(params, presentationDefUriParam); err != nil {
+		return nil, err
+	}
+	if err := assertParamPresent(params, presentationDefParam); err != nil {
 		return nil, err
 	}
 	if err := assertParamPresent(params, scopeParam); err != nil {
@@ -339,16 +340,15 @@ func (r Wrapper) handlePresentationRequest(params map[string]string, session *OA
 		}
 	}
 
-	// TODO: This is the easiest for now, but is this the way?
-	// For compatibility, we probably need to support presentation_definition and/or presentation_definition_uri.
-	presentationDefinition := r.auth.PresentationDefinitions().ByScope(params[scopeParam])
-	if presentationDefinition == nil {
+	presentationDefinition, err := pe.ParsePresentationDefinition([]byte(params[presentationDefParam]))
+	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", params[scopeParam]),
 			RedirectURI: session.redirectURI(),
 		}
 	}
+	session.PresentationDefinition = *presentationDefinition
 
 	// Render HTML
 	templateParams := struct {
@@ -362,8 +362,6 @@ func (r Wrapper) handlePresentationRequest(params map[string]string, session *OA
 		RequiresUserIdentity: strings.Contains(session.ResponseType, "id_token"),
 	}
 
-	// TODO: https://github.com/nuts-foundation/nuts-node/issues/2357
-	// TODO: Retrieve presentation definition
 	credentials, err := r.vcr.Wallet().List(ctx, session.OwnDID)
 	if err != nil {
 		return nil, err
@@ -432,27 +430,11 @@ func (r Wrapper) handlePresentationRequestAccept(c echo.Context) error {
 		return fmt.Errorf("invalid session: %w", err)
 	}
 
-	// TODO: Change to loading from wallet
-	credentialIDs, ok := session.ServerState["openid4vp_credentials"].([]string)
-	if !ok {
-		return errors.New("invalid session (missing credentials in session)")
+	credentials, err := r.vcr.Wallet().List(c.Request().Context(), session.OwnDID)
+	if err != nil {
+		return err
 	}
-	var credentials []vc.VerifiableCredential
-	for _, id := range credentialIDs {
-		credentialID, _ := ssi.ParseURI(id)
-		if credentialID == nil {
-			continue // should be impossible
-		}
-		cred, err := r.vcr.Resolve(*credentialID, nil)
-		if err != nil {
-			return err
-		}
-		credentials = append(credentials, *cred)
-	}
-	presentationDefinition := r.auth.PresentationDefinitions().ByScope(session.Scope)
-	if presentationDefinition == nil {
-		return fmt.Errorf("unsupported scope for presentation exchange: %s", session.Scope)
-	}
+	presentationDefinition := session.PresentationDefinition
 	// TODO: Options (including format)
 	resultParams := map[string]string{}
 	submissionBuilder := presentationDefinition.PresentationSubmissionBuilder()

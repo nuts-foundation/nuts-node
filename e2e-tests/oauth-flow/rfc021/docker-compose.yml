@@ -15,7 +15,7 @@ services:
       # So we need to mount that file to the OS CA bundle location, otherwise did:web resolving will fail due to untrusted certs.
       - "../../tls-certs/truststore.pem:/etc/ssl/certs/Nuts_RootCA.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/ssl/certs/truststore.pem:ro"
-      - "./node-A/presentationexchangemapping.json:/opt/nuts/presentationexchangemapping.json:ro"
+      - "./node-A/presentationexchangemapping.json:/opt/nuts/policies/presentationexchangemapping.json:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeA:
@@ -28,6 +28,7 @@ services:
       - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
       - "./node-A/html:/etc/nginx/html:ro"
+      - "./node-A/oauth2.js:/etc/nginx/oauth2.js:ro"
   nodeB-backend:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     ports:

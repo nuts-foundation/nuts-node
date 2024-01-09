@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
 //
+
 // Package didman is a generated GoMock package.
 package didman
 

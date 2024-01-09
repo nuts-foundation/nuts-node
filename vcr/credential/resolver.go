@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
@@ -37,6 +38,9 @@ func FindValidator(credential vc.VerifiableCredential) Validator {
 				return nutsOrganizationCredentialValidator{}
 			case NutsAuthorizationCredentialType:
 				return nutsAuthorizationCredentialValidator{}
+			case StatusList2021CredentialType:
+				// TODO: is this needed? The only place where should be receiving StatusList2021Credentials is in the StatusList2021 caching layer, where we know what credential we should be receiving.
+				return statusList2021CredentialValidator{}
 			}
 		}
 	}
@@ -59,17 +63,23 @@ func ExtractTypes(credential vc.VerifiableCredential) []string {
 
 // PresentationSigner returns the DID of the signer of the presentation.
 // It does not do any signature validation.
-// For JWTs it returns the issuer (iss) of the JWT.
+// For JWTs it returns the did in the kid header of the JWT.
 // For JSON-LD it returns the verification method of the proof.
 func PresentationSigner(presentation vc.VerifiablePresentation) (*did.DID, error) {
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		token := presentation.JWT()
-		issuer := token.Issuer()
-		if issuer == "" {
-			return nil, errors.New("JWT presentation does not have 'iss' claim")
+		kid, _, err := crypto.JWTKidAlg(presentation.Raw())
+		if err != nil {
+			return nil, err
 		}
-		return did.ParseDID(issuer)
+		if kid == "" {
+			return nil, errors.New("no kid header in JWT")
+		}
+		kidURL, err := did.ParseDIDURL(kid)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse kid as did: %w", err)
+		}
+		return &kidURL.DID, nil
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := ParseLDProof(presentation)
 		if err != nil {
