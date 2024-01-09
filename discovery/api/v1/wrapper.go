@@ -89,6 +89,22 @@ func (w *Wrapper) RegisterPresentation(_ context.Context, request RegisterPresen
 	return RegisterPresentation201Response{}, nil
 }
 
+func (w *Wrapper) SearchPresentations(_ context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error) {
+	searchResults, err := w.Client.Search(request.ServiceID, request.Params.Query)
+	if err != nil {
+		return nil, err
+	}
+	var result []SearchResult
+	for _, searchResult := range searchResults {
+		result = append(result, SearchResult{
+			Vp:     searchResult.Presentation,
+			Id:     searchResult.Presentation.ID.String(),
+			Fields: searchResult.Fields,
+		})
+	}
+	return SearchPresentations200JSONResponse(result), nil
+}
+
 func (w *Wrapper) StartRegisteringPresentation(ctx context.Context, request StartRegisteringPresentationRequestObject) (StartRegisteringPresentationResponseObject, error) {
 	subjectDID, err := did.ParseDID(request.Did)
 	if err != nil {

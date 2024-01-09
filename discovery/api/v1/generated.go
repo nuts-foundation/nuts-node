@@ -22,9 +22,26 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// SearchResult defines model for SearchResult.
+type SearchResult struct {
+	// Fields Input descriptor IDs and their mapped values that from the Verifiable Credential.
+	Fields map[string]interface{} `json:"fields"`
+
+	// Id The ID of the Verifiable Presentation.
+	Id string `json:"id"`
+
+	// Vp Verifiable Presentation
+	Vp VerifiablePresentation `json:"vp"`
+}
+
 // GetPresentationsParams defines parameters for GetPresentations.
 type GetPresentationsParams struct {
 	Tag *string `form:"tag,omitempty" json:"tag,omitempty"`
+}
+
+// SearchPresentationsParams defines parameters for SearchPresentations.
+type SearchPresentationsParams struct {
+	Query map[string]string `form:"query" json:"query"`
 }
 
 // RegisterPresentationJSONRequestBody defines body for RegisterPresentation for application/json ContentType.
@@ -111,6 +128,9 @@ type ClientInterface interface {
 
 	RegisterPresentation(ctx context.Context, serviceID string, body RegisterPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SearchPresentations request
+	SearchPresentations(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// StopRegisteringPresentation request
 	StopRegisteringPresentation(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -144,6 +164,18 @@ func (c *Client) RegisterPresentationWithBody(ctx context.Context, serviceID str
 
 func (c *Client) RegisterPresentation(ctx context.Context, serviceID string, body RegisterPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRegisterPresentationRequest(c.Server, serviceID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SearchPresentations(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchPresentationsRequest(c.Server, serviceID, params)
 	if err != nil {
 		return nil, err
 	}
@@ -281,6 +313,58 @@ func NewRegisterPresentationRequestWithBody(server string, serviceID string, con
 	return req, nil
 }
 
+// NewSearchPresentationsRequest generates requests for SearchPresentations
+func NewSearchPresentationsRequest(server string, serviceID string, params *SearchPresentationsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "serviceID", runtime.ParamLocationPath, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/discovery/%s/search", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "query", runtime.ParamLocationQuery, params.Query); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewStopRegisteringPresentationRequest generates requests for StopRegisteringPresentation
 func NewStopRegisteringPresentationRequest(server string, serviceID string, did string) (*http.Request, error) {
 	var err error
@@ -414,6 +498,9 @@ type ClientWithResponsesInterface interface {
 
 	RegisterPresentationWithResponse(ctx context.Context, serviceID string, body RegisterPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterPresentationResponse, error)
 
+	// SearchPresentationsWithResponse request
+	SearchPresentationsWithResponse(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*SearchPresentationsResponse, error)
+
 	// StopRegisteringPresentationWithResponse request
 	StopRegisteringPresentationWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*StopRegisteringPresentationResponse, error)
 
@@ -488,6 +575,38 @@ func (r RegisterPresentationResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r RegisterPresentationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SearchPresentationsResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *[]SearchResult
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchPresentationsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchPresentationsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -610,6 +729,15 @@ func (c *ClientWithResponses) RegisterPresentationWithResponse(ctx context.Conte
 	return ParseRegisterPresentationResponse(rsp)
 }
 
+// SearchPresentationsWithResponse request returning *SearchPresentationsResponse
+func (c *ClientWithResponses) SearchPresentationsWithResponse(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*SearchPresentationsResponse, error) {
+	rsp, err := c.SearchPresentations(ctx, serviceID, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchPresentationsResponse(rsp)
+}
+
 // StopRegisteringPresentationWithResponse request returning *StopRegisteringPresentationResponse
 func (c *ClientWithResponses) StopRegisteringPresentationWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*StopRegisteringPresentationResponse, error) {
 	rsp, err := c.StopRegisteringPresentation(ctx, serviceID, did, reqEditors...)
@@ -699,6 +827,48 @@ func ParseRegisterPresentationResponse(rsp *http.Response) (*RegisterPresentatio
 			return nil, err
 		}
 		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSearchPresentationsResponse parses an HTTP response from a SearchPresentationsWithResponse call
+func ParseSearchPresentationsResponse(rsp *http.Response) (*SearchPresentationsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchPresentationsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []SearchResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
@@ -851,6 +1021,9 @@ type ServerInterface interface {
 	// Register a presentation on the discovery service.
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx echo.Context, serviceID string) error
+	// Searches for presentations registered on the discovery service.
+	// (GET /discovery/{serviceID}/search)
+	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
 	// Client API to stop registering the given DID on the discovery service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{did})
 	StopRegisteringPresentation(ctx echo.Context, serviceID string, did string) error
@@ -906,6 +1079,33 @@ func (w *ServerInterfaceWrapper) RegisterPresentation(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.RegisterPresentation(ctx, serviceID)
+	return err
+}
+
+// SearchPresentations converts echo context to params.
+func (w *ServerInterfaceWrapper) SearchPresentations(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "serviceID" -------------
+	var serviceID string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "serviceID", runtime.ParamLocationPath, ctx.Param("serviceID"), &serviceID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceID: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchPresentationsParams
+	// ------------- Required query parameter "query" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "query", ctx.QueryParams(), &params.Query)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter query: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.SearchPresentations(ctx, serviceID, params)
 	return err
 }
 
@@ -991,6 +1191,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/discovery/:serviceID", wrapper.GetPresentations)
 	router.POST(baseURL+"/discovery/:serviceID", wrapper.RegisterPresentation)
+	router.GET(baseURL+"/discovery/:serviceID/search", wrapper.SearchPresentations)
 	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.StopRegisteringPresentation)
 	router.POST(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.StartRegisteringPresentation)
 
@@ -1085,6 +1286,45 @@ type RegisterPresentationdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response RegisterPresentationdefaultApplicationProblemPlusJSONResponse) VisitRegisterPresentationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type SearchPresentationsRequestObject struct {
+	ServiceID string `json:"serviceID"`
+	Params    SearchPresentationsParams
+}
+
+type SearchPresentationsResponseObject interface {
+	VisitSearchPresentationsResponse(w http.ResponseWriter) error
+}
+
+type SearchPresentations200JSONResponse []SearchResult
+
+func (response SearchPresentations200JSONResponse) VisitSearchPresentationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchPresentationsdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response SearchPresentationsdefaultApplicationProblemPlusJSONResponse) VisitSearchPresentationsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -1235,6 +1475,9 @@ type StrictServerInterface interface {
 	// Register a presentation on the discovery service.
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error)
+	// Searches for presentations registered on the discovery service.
+	// (GET /discovery/{serviceID}/search)
+	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
 	// Client API to stop registering the given DID on the discovery service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{did})
 	StopRegisteringPresentation(ctx context.Context, request StopRegisteringPresentationRequestObject) (StopRegisteringPresentationResponseObject, error)
@@ -1306,6 +1549,32 @@ func (sh *strictHandler) RegisterPresentation(ctx echo.Context, serviceID string
 		return err
 	} else if validResponse, ok := response.(RegisterPresentationResponseObject); ok {
 		return validResponse.VisitRegisterPresentationResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SearchPresentations operation middleware
+func (sh *strictHandler) SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error {
+	var request SearchPresentationsRequestObject
+
+	request.ServiceID = serviceID
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchPresentations(ctx.Request().Context(), request.(SearchPresentationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchPresentations")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SearchPresentationsResponseObject); ok {
+		return validResponse.VisitSearchPresentationsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

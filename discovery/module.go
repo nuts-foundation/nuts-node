@@ -27,10 +27,10 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery/api/v1/client"
+	"github.com/nuts-foundation/nuts-node/discovery/log"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"os"
 	"path"
 	"strings"
@@ -85,7 +85,7 @@ type Module struct {
 	store               *sqlStore
 	registrationManager registrationManager
 	serverDefinitions   map[string]ServiceDefinition
-	services            map[string]ServiceDefinition
+	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR
 	ctx                 context.Context
 	cancel              context.CancelFunc
@@ -97,7 +97,7 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 		return nil
 	}
 	var err error
-	m.services, err = loadDefinitions(m.config.Definitions.Directory)
+	m.allDefinitions, err = loadDefinitions(m.config.Definitions.Directory)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 		// Get the definitions that are enabled for this server
 		serverDefinitions := make(map[string]ServiceDefinition)
 		for _, definitionID := range m.config.Server.DefinitionIDs {
-			if definition, exists := m.services[definitionID]; !exists {
+			if definition, exists := m.allDefinitions[definitionID]; !exists {
 				return fmt.Errorf("service definition '%s' not found", definitionID)
 			} else {
 				serverDefinitions[definitionID] = definition
@@ -119,11 +119,11 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 
 func (m *Module) Start() error {
 	var err error
-	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.services, m.serverDefinitions)
+	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.allDefinitions, m.serverDefinitions)
 	if err != nil {
 		return err
 	}
-	m.registrationManager = newRegistrationManager(m.services, m.store, m.httpClient, m.vcrInstance)
+	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance)
 	m.routines.Add(1)
 	go func() {
 		defer m.routines.Done()
@@ -254,10 +254,6 @@ func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *
 	return m.store.get(serviceID, tag)
 }
 
-func (m *Module) Search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error) {
-	panic("implement me")
-}
-
 func (m *Module) StartRegistration(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	log.Logger().Debugf("Registering on Discovery Service (did=%s, service=%s)", subjectDID, serviceID)
 	err := m.registrationManager.register(ctx, serviceID, subjectDID)
@@ -297,6 +293,41 @@ func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 			return nil, fmt.Errorf("duplicate service definition ID '%s' in file '%s'", definition.ID, filePath)
 		}
 		result[definition.ID] = *definition
+	}
+	return result, nil
+}
+
+func (m *Module) Search(serviceID string, query map[string]string) ([]SearchResult, error) {
+	service, exists := m.allDefinitions[serviceID]
+	if !exists {
+		return nil, ErrServiceNotFound
+	}
+	matchingVPs, err := m.store.search(serviceID, query)
+	if err != nil {
+		return nil, err
+	}
+	var result []SearchResult
+	for _, matchingVP := range matchingVPs {
+		// Match credentials to Presentation Definition, to resolve map with InputDescriptorId -> CredentialValue
+		submissionVCs, inputDescriptorMappingObjects, err := service.PresentationDefinition.Match(matchingVP.VerifiableCredential)
+		var fields map[string]interface{}
+		if err != nil {
+			log.Logger().Infof("Search() is unable to build submission for VP '%s': %s", matchingVP.ID, err)
+		} else {
+			credentialMap := make(map[string]vc.VerifiableCredential)
+			for i := 0; i < len(inputDescriptorMappingObjects); i++ {
+				credentialMap[inputDescriptorMappingObjects[i].Id] = submissionVCs[i]
+			}
+			fields, err = service.PresentationDefinition.ResolveConstraintsFields(credentialMap)
+			if err != nil {
+				log.Logger().Infof("Search() is unable to resolve Input Descriptor Constraints Fields map for VP '%s': %s", matchingVP.ID, err)
+			}
+		}
+
+		result = append(result, SearchResult{
+			Presentation: matchingVP,
+			Fields:       fields,
+		})
 	}
 	return result, nil
 }
