@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"os"
 	"path"
 	"strings"
@@ -67,10 +68,11 @@ var _ Client = &Module{}
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
 // New creates a new Module.
-func New(storageInstance storage.Engine, vcrInstance vcr.VCR) *Module {
+func New(storageInstance storage.Engine, vcrInstance vcr.VCR, documentOwner management.DocumentOwner) *Module {
 	m := &Module{
 		storageInstance: storageInstance,
 		vcrInstance:     vcrInstance,
+		documentOwner:   documentOwner,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
@@ -87,6 +89,7 @@ type Module struct {
 	serverDefinitions   map[string]ServiceDefinition
 	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR
+	documentOwner       management.DocumentOwner
 	ctx                 context.Context
 	cancel              context.CancelFunc
 	routines            *sync.WaitGroup
@@ -256,10 +259,17 @@ func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *
 
 func (m *Module) Register(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	log.Logger().Debugf("Registering on Discovery Service (did=%s, service=%s)", subjectDID, serviceID)
-	err := m.registrationManager.register(ctx, serviceID, subjectDID)
+	isOwner, err := m.documentOwner.IsOwner(ctx, subjectDID)
+	if err != nil {
+		return err
+	}
+	if !isOwner {
+		return errors.New("not owner of DID")
+	}
+	err = m.registrationManager.register(ctx, serviceID, subjectDID)
 	if errors.Is(err, ErrRegistrationFailed) {
 		log.Logger().WithError(err).Warnf("Discovery Service registration failed, will be retried later (did=%s,service=%s)", subjectDID, serviceID)
-	} else {
+	} else if err == nil {
 		log.Logger().Infof("Successfully registered Discovery Service (did=%s,service=%s)", subjectDID, serviceID)
 	}
 	return err
