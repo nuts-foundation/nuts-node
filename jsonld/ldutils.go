@@ -151,6 +151,9 @@ const SchemaOrgContext = "https://schema.org"
 // W3cVcContext contains the w3c VerifiableCredential type context
 const W3cVcContext = "https://www.w3.org/2018/credentials/v1"
 
+// W3cStatusList2021Context contains the StatusList2021 related context
+const W3cStatusList2021Context = "https://w3id.org/vc/status-list/2021/v1"
+
 // Jws2020Context contains the JsonWebToken2020 Proof type context
 const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 
@@ -161,6 +164,7 @@ func DefaultContextConfig() ContextsConfig {
 		LocalFileMapping: map[string]string{
 			"https://nuts.nl/credentials/v1": "assets/contexts/nuts.ldjson",
 			W3cVcContext:                     "assets/contexts/w3c-credentials-v1.ldjson",
+			W3cStatusList2021Context:         "assets/contexts/w3c-statuslist2021.ldjson",
 			Jws2020Context:                   "assets/contexts/lds-jws2020-v1.ldjson",
 			SchemaOrgContext:                 "assets/contexts/schema-org-v13.ldjson",
 		},
@@ -169,7 +173,7 @@ func DefaultContextConfig() ContextsConfig {
 
 // DefaultAllowList returns the default allow list for external contexts
 func DefaultAllowList() []string {
-	return []string{SchemaOrgContext, W3cVcContext, Jws2020Context}
+	return []string{SchemaOrgContext, W3cVcContext, Jws2020Context, W3cStatusList2021Context}
 }
 
 // NewContextLoader creates a new JSON-LD context loader with the embedded FS as first loader.

@@ -22,14 +22,15 @@ import (
 	crypt "crypto"
 	"encoding/json"
 	"errors"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"github.com/stretchr/testify/require"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -41,7 +42,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -125,6 +128,79 @@ func TestVerifier_Verify(t *testing.T) {
 		sut := ctx.verifier
 		validationErr := sut.Verify(vc, true, false, nil)
 		assert.EqualError(t, validationErr, "credential is revoked")
+	})
+
+	t.Run("validate credentialStatus", func(t *testing.T) {
+		// make StatusList2021Credential with a revocation bit set
+		statusListCred := credential.ValidStatusList2021Credential(t)
+		statusListCredBytes, err := json.Marshal(statusListCred)
+		require.NoError(t, err)
+		statusListIndex := 1 // bit 1 is set in slCred
+
+		// Test server
+		ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.Write(statusListCredBytes)
+		}))
+
+		// statusListEntry for credentialToValidate without statusListIndex
+		slEntry := credential.StatusList2021Entry{
+			ID:                   "https://example-com/credentials/status/3#statusListIndex",
+			Type:                 credential.StatusList2021EntryType,
+			StatusPurpose:        "revocation",
+			StatusListCredential: ts.URL,
+		}
+
+		// mock context
+		http.DefaultClient = ts.Client() // newMockContext sets credentialStatus.client to http.DefaultClient
+		ctx := newMockContext(t)
+		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
+		ctx.verifier.credentialStatus.verifySignature = func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
+
+		cred := credential.ValidNutsOrganizationCredential(t)
+		cred.Context = append(cred.Context, ssi.MustParseURI(jsonld.W3cStatusList2021Context))
+
+		t.Run("not revoked", func(t *testing.T) {
+			slEntry.StatusListIndex = strconv.Itoa(statusListIndex + 1)
+			cred.CredentialStatus = []any{slEntry}
+
+			validationErr := ctx.verifier.Verify(cred, true, false, nil)
+
+			assert.NoError(t, validationErr)
+		})
+		t.Run("is revoked", func(t *testing.T) {
+			slEntry.StatusListIndex = strconv.Itoa(statusListIndex)
+			cred.CredentialStatus = []any{slEntry}
+
+			validationErr := ctx.verifier.Verify(cred, true, false, nil)
+
+			assert.ErrorIs(t, validationErr, types.ErrRevoked)
+		})
+		t.Run("ignore other purpose", func(t *testing.T) {
+			slEntry.StatusListIndex = strconv.Itoa(statusListIndex)
+			slEntry.StatusPurpose = "suspension"
+			cred.CredentialStatus = []any{slEntry}
+
+			validationErr := ctx.verifier.Verify(cred, true, false, nil)
+
+			assert.NoError(t, validationErr)
+		})
+		t.Run("don't fail if error is other than types.ErrRevoked", func(t *testing.T) {
+			ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				writer.WriteHeader(400)
+			}))
+			slEntry := credential.StatusList2021Entry{
+				ID:                   "not relevant",
+				Type:                 credential.StatusList2021EntryType,
+				StatusPurpose:        "revocation",
+				StatusListIndex:      "1",
+				StatusListCredential: ts.URL, //
+			}
+			cred.CredentialStatus = []any{slEntry}
+
+			validationErr := ctx.verifier.Verify(cred, true, false, nil)
+
+			assert.NoError(t, validationErr)
+		})
 	})
 
 	t.Run("trust check", func(t *testing.T) {
@@ -333,7 +409,6 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			assert.EqualError(t, err, "unable to validate JWT signature: \"exp\" not satisfied")
 			assert.Empty(t, vcs)
 		})
-
 		t.Run("VP signer != VC credentialSubject.id", func(t *testing.T) {
 			// This VP was produced by a Sphereon Wallet, using did:key. The signer of the VP is a did:key,
 			// but the holder of the contained credential is a did:jwt. So the presenter is not the holder. Weird?
@@ -615,12 +690,7 @@ func newMockContext(t *testing.T) mockContext {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
-	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig).(*verifier)
-	sv := signatureVerifier{
-		keyResolver:   keyResolver,
-		jsonldManager: jsonldManager,
-	}
-	verifier.signatureVerifier = sv
+	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, http.DefaultClient).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,
