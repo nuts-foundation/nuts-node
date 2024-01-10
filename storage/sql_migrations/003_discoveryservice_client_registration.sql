@@ -6,7 +6,7 @@ create table discovery_did_registration
     -- It comes from the service definition.
     service_id        varchar(200) not null,
     -- did is the DID that should be registered on the Discovery Service.
-    did               varchar      not null,
+    did               varchar(500)      not null,
     -- next_registration is the timestamp (seconds since Unix epoch) when the registration on the
     -- Discovery Service should be refreshed.
     next_registration integer      not null,
