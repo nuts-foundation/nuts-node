@@ -69,6 +69,20 @@ func (mr *MockAuthenticationServicesMockRecorder) ContractNotary() *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContractNotary", reflect.TypeOf((*MockAuthenticationServices)(nil).ContractNotary))
 }
 
+// Holder mocks base method.
+func (m *MockAuthenticationServices) Holder() oauth.Holder {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Holder")
+	ret0, _ := ret[0].(oauth.Holder)
+	return ret0
+}
+
+// Holder indicates an expected call of Holder.
+func (mr *MockAuthenticationServicesMockRecorder) Holder() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Holder", reflect.TypeOf((*MockAuthenticationServices)(nil).Holder))
+}
+
 // PublicURL mocks base method.
 func (m *MockAuthenticationServices) PublicURL() *url.URL {
 	m.ctrl.T.Helper()

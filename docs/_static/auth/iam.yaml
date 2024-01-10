@@ -303,7 +303,7 @@ paths:
                   example: did:web:example.com
                 scope:
                   type: string
-                  description: The scope that will be The service for which this access token can be used.
+                  description: The scope that will be the service for which this access token can be used.
                   example: eOverdracht-sender
                 userID:
                   type: string

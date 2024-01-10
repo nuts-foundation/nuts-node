@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -34,8 +35,10 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	oauthServices "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	httpNuts "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -45,18 +48,20 @@ import (
 
 var oauthNonceKey = []string{"oauth", "nonce"}
 
+// handleAuthorizeRequestFromHolder handles an Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
+// we expect a generic OAuth2 request like this:
+// GET /iam/123/authorize?response_type=token&client_id=did:web:example.com:iam:456&state=xyz
+//
+//	    &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
+//	Host: server.com
+//
+// The following parameters are expected
+// response_type, REQUIRED.  Value MUST be set to "code". (Already checked by caller)
+// client_id, REQUIRED. This must be a did:web
+// redirect_uri, REQUIRED. This must be the client or other node url (client for regular flow, node for popup)
+// scope, OPTIONAL. The scope that maps to a presentation definition, if not set we just want an empty VP
+// state, RECOMMENDED.  Opaque value used to maintain state between the request and the callback.
 func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier did.DID, params map[string]string) (HandleAuthorizeRequestResponseObject, error) {
-	// we expect a generic OAuth2 request like this:
-	// GET /iam/123/authorize?response_type=token&client_id=did:web:example.com:iam:456&state=xyz
-	//        &redirect_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb HTTP/1.1
-	//    Host: server.com
-	// The following parameters are expected
-	// response_type, REQUIRED.  Value MUST be set to "token".
-	// client_id, REQUIRED. This must be a did:web
-	// redirect_uri, REQUIRED. This must be the client or other node url (client for regular flow, node for popup)
-	// scope, OPTIONAL. The scope that maps to a presentation definition, if not set we just want an empty VP
-	// state, RECOMMENDED.  Opaque value used to maintain state between the request and the callback.
-
 	// first we check the redirect URL because later errors will redirect to this URL
 	// from RFC6749:
 	// If the request fails due to a missing, invalid, or mismatching
@@ -71,16 +76,13 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	}
 	redirectURL, err := url.Parse(redirectURI)
 	if err != nil {
-		// todo render error page instead of technical error
+		// todo render error page instead of technical error (via errorWriter)
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid redirect_uri parameter"}
 	}
 	// now we have a valid redirectURL, so all future errors will redirect to this URL using the Oauth2ErrorWriter
 
 	// GET authorization server metadata for wallet
-	walletID, ok := params[clientIDParam]
-	if !ok {
-		return nil, oauthError(oauth.InvalidRequest, "missing client_id parameter", redirectURL)
-	}
+	walletID := params[clientIDParam]
 	// the walletDID must be a did:web
 	walletDID, err := did.ParseDID(walletID)
 	if err != nil || walletDID.Method != "web" {
@@ -105,6 +107,8 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	// like this:
 	// GET /authorize?
 	//    response_type=vp_token
+	//    &client_id_scheme=did
+	//    &client_metadata_uri=https%3A%2F%2Fexample.com%2Fiam%2F123%2F%2Fclient_metadata
 	//    &client_id=did:web:example.com:iam:123
 	//    &client_id_scheme=did
 	//    &client_metadata_uri=https%3A%2F%2Fexample.com%2F.well-known%2Fauthorization-server%2Fiam%2F123%2F%2F
@@ -128,12 +132,17 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		return nil, oauthError(oauth.ServerError, "failed to construct metadata URL", redirectURL)
 	}
 
+	// check metadata for supported client_id_schemes
+	if !slices.Contains(metadata.ClientIdSchemesSupported, didScheme) {
+		return nil, oauthError(oauth.InvalidRequest, "wallet metadata does not contain did in client_id_schemes_supported", redirectURL)
+	}
+
 	// todo: because of the did scheme, the request needs to be signed using JAR according to §5.7 of the openid4vp spec
 
 	authServerURL := httpNuts.AddQueryParams(*walletURL, map[string]string{
 		responseTypeParam:       responseTypeVPToken,
-		clientIDParam:           verifier.String(),
 		clientIDSchemeParam:     didScheme,
+		clientIDParam:           verifier.String(),
 		responseURIParam:        callbackURL.String(),
 		presentationDefUriParam: presentationDefinitionURI.String(),
 		clientMetadataURIParam:  metadataURL.String(),
@@ -155,6 +164,124 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	return HandleAuthorizeRequest302Response{
 		Headers: HandleAuthorizeRequest302ResponseHeaders{
 			Location: authServerURL.String(),
+		},
+	}, nil
+}
+
+// handleAuthorizeRequestFromVerifier handles an Authorization Request for a wallet from a verifier as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
+// we expect an OpenID4VP request like this
+// GET /iam/456/authorize?response_type=vp_token&client_id=did:web:example.com:iam:123&nonce=xyz
+//        &response_mode=direct_post&response_uri=https%3A%2F%2Fclient%2Eexample%2Ecom%2Fcb&presentation_definition_uri=example.com%2Fiam%2F123%2Fpresentation_definition?scope=a+b HTTP/1.1
+//    Host: server.com
+// The following parameters are expected
+// response_type, REQUIRED.  Value MUST be set to "vp_token".
+// client_id, REQUIRED. This must be a did:web
+// response_uri, REQUIRED. This must be the verifier node url
+// response_mode, REQUIRED. Value MUST be "direct_post"
+// presentation_definition_uri, REQUIRED. For getting the presentation definition
+
+// there are way more error conditions that listed at: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-error-response
+// missing or invalid parameters are all mapped to invalid_request
+// any operation that fails is mapped to server_error, this includes unreachable or broken backends.
+func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletDID did.DID, params map[string]string) (HandleAuthorizeRequestResponseObject, error) {
+	responseMode := params[responseModeParam]
+	if responseMode != responseModeDirectPost {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid response_mode parameter"}
+	}
+	// check the response URL because later errors will redirect to this URL
+	responseURI, responseOK := params[responseURIParam]
+	if !responseOK {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing response_uri parameter"}
+	}
+	clientIDScheme := params[clientIDSchemeParam]
+	if clientIDScheme != didScheme {
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id_scheme parameter"}, responseURI)
+	}
+	verifierID := params[clientIDParam]
+	// the verifier must be a did:web
+	verifierDID, err := did.ParseDID(verifierID)
+	if err != nil || verifierDID.Method != "web" {
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id parameter (only did:web is supported)"}, responseURI)
+	}
+	nonce, ok := params[nonceParam]
+	if !ok {
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing nonce parameter"}, responseURI)
+	}
+	// get verifier metadata
+	clientMetadataURI := params[clientMetadataURIParam]
+	// we ignore any client_metadata, but officially an error must be returned when that param is present.
+	metadata, err := r.auth.Holder().ClientMetadata(ctx, clientMetadataURI)
+	if err != nil {
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: "failed to get client metadata (verifier)"}, responseURI)
+	}
+	// get presentation_definition from presentation_definition_uri
+	presentationDefinitionURI := params[presentationDefUriParam]
+	presentationDefinition, err := r.auth.Holder().PresentationDefinition(ctx, presentationDefinitionURI)
+	if err != nil {
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidPresentationDefinitionURI, Description: fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI)}, responseURI)
+	}
+
+	// at this point in the flow it would be possible to ask the user to confirm the credentials to use
+
+	// all params checked, delegate responsibility to the holder
+	vp, submission, err := r.auth.Holder().BuildPresentation(ctx, walletDID, *presentationDefinition, metadata.VPFormats, nonce)
+	if err != nil {
+		if errors.Is(err, oauthServices.ErrNoCredentials) {
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "no credentials available"}, responseURI)
+		}
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: err.Error()}, responseURI)
+	}
+
+	// any error here is a server error, might need a fixup to prevent exposing to a user
+	return r.sendAndHandleDirectPost(ctx, *vp, *submission, responseURI, params[stateParam])
+}
+
+// sendAndHandleDirectPost sends OpenID4VP direct_post to the verifier. The verifier responds with a redirect to the client (including error fields if needed).
+// If the direct post fails, the user-agent will be redirected back to the client with an error. (Original redirect_uri).
+func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (HandleAuthorizeRequestResponseObject, error) {
+	redirectURI, err := r.auth.Holder().PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI, state)
+	if err != nil {
+		return nil, err
+	}
+
+	return HandleAuthorizeRequest302Response{
+		HandleAuthorizeRequest302ResponseHeaders{
+			Location: redirectURI,
+		},
+	}, nil
+}
+
+// sendAndHandleDirectPostError sends errors from handleAuthorizeRequestFromVerifier as direct_post to the verifier. The verifier responds with a redirect to the client (including error fields).
+// If the direct post fails, the user-agent will be redirected back to the client with an error. (Original redirect_uri).
+// If no redirect_uri is present, the user-agent will be redirected to the error page.
+func (r Wrapper) sendAndHandleDirectPostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string) (HandleAuthorizeRequestResponseObject, error) {
+	redirectURI, err := r.auth.Holder().PostError(ctx, auth2Error, verifierResponseURI)
+	if err == nil {
+		return HandleAuthorizeRequest302Response{
+			HandleAuthorizeRequest302ResponseHeaders{
+				Location: redirectURI,
+			},
+		}, nil
+	}
+
+	msg := fmt.Sprintf("failed to post error to verifier @ %s", verifierResponseURI)
+	log.Logger().WithError(err).Error(msg)
+
+	if auth2Error.RedirectURI == nil {
+		// render error page because all else failed, in a correct flow this should never happen
+		// it could be the case that the client state has just expired, so no redirectURI is present and the verifier is not responding
+		log.Logger().WithError(err).Error("failed to post error to verifier and no clientRedirectURI present")
+		return nil, oauth.OAuth2Error{Code: oauth.ServerError, Description: "something went wrong"}
+	}
+
+	// clientRedirectURL has been checked earlier in te process.
+	clientRedirectURL := httpNuts.AddQueryParams(*auth2Error.RedirectURI, map[string]string{
+		oauth.ErrorParam:            string(oauth.ServerError),
+		oauth.ErrorDescriptionParam: msg,
+	})
+	return HandleAuthorizeRequest302Response{
+		HandleAuthorizeRequest302ResponseHeaders{
+			Location: clientRedirectURL.String(),
 		},
 	}, nil
 }

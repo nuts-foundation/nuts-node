@@ -48,7 +48,7 @@ var oauthClientStateKey = []string{"oauth", "client_state"}
 var userRedirectSessionKey = []string{"user", "redirect"}
 var userSessionKey = []string{"user", "session"}
 
-func (r *Wrapper) requestUserAccessToken(_ context.Context, requester did.DID, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
+func (r Wrapper) requestUserAccessToken(_ context.Context, requester did.DID, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
 	// generate a redirect token valid for 5 seconds
 	token := crypto.GenerateNonce()
 	store := r.userRedirectStore()
@@ -78,7 +78,7 @@ func (r *Wrapper) requestUserAccessToken(_ context.Context, requester did.DID, r
 
 // handleUserLanding is the handler for the landing page of the user.
 // It renders the page with the correct context based on the token.
-func (r *Wrapper) handleUserLanding(echoCtx echo.Context) error {
+func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	// todo: user authentication is currently not implemented, user consent is not implemented
 	// This means that this handler succeeds if the token is valid
 	// It only checks for an existing RequestAccessTokenRequestObject in the store
@@ -136,14 +136,14 @@ func (r *Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	return echoCtx.Redirect(http.StatusFound, redirectURL.String())
 }
 
-func (r *Wrapper) userRedirectStore() storage.SessionStore {
+func (r Wrapper) userRedirectStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(userRedirectTimeout, userRedirectSessionKey...)
 }
 
-func (r *Wrapper) userSessionStore() storage.SessionStore {
+func (r Wrapper) userSessionStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(userSessionTimeout, userSessionKey...)
 }
 
-func (r *Wrapper) oauthClientStateStore() storage.SessionStore {
+func (r Wrapper) oauthClientStateStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...)
 }

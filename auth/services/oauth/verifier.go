@@ -66,6 +66,5 @@ func (v *VerifierServiceProvider) ClientMetadataURL(webdid did.DID) (*url.URL, e
 	}
 	// we use the authorization server endpoint as the client metadata endpoint, contents are the same
 	// coming from a did:web, it's impossible to get a false URL
-	metadataURL, _ := oauth.IssuerIdToWellKnown(didURL.String(), oauth.AuthzServerWellKnown, v.strictMode)
-	return metadataURL, nil
+	return didURL.JoinPath(oauth.ClientMetadataPath), nil
 }

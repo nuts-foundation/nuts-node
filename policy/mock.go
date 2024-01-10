@@ -5,6 +5,7 @@
 //
 //	mockgen -destination=policy/mock.go -package=policy -source=policy/interface.go
 //
+
 // Package policy is a generated GoMock package.
 package policy
 
@@ -18,31 +19,31 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockBackend is a mock of PDPBackend interface.
-type MockBackend struct {
+// MockPDPBackend is a mock of PDPBackend interface.
+type MockPDPBackend struct {
 	ctrl     *gomock.Controller
-	recorder *MockBackendMockRecorder
+	recorder *MockPDPBackendMockRecorder
 }
 
-// MockBackendMockRecorder is the mock recorder for MockBackend.
-type MockBackendMockRecorder struct {
-	mock *MockBackend
+// MockPDPBackendMockRecorder is the mock recorder for MockPDPBackend.
+type MockPDPBackendMockRecorder struct {
+	mock *MockPDPBackend
 }
 
-// NewMockBackend creates a new mock instance.
-func NewMockBackend(ctrl *gomock.Controller) *MockBackend {
-	mock := &MockBackend{ctrl: ctrl}
-	mock.recorder = &MockBackendMockRecorder{mock}
+// NewMockPDPBackend creates a new mock instance.
+func NewMockPDPBackend(ctrl *gomock.Controller) *MockPDPBackend {
+	mock := &MockPDPBackend{ctrl: ctrl}
+	mock.recorder = &MockPDPBackendMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockBackend) EXPECT() *MockBackendMockRecorder {
+func (m *MockPDPBackend) EXPECT() *MockPDPBackendMockRecorder {
 	return m.recorder
 }
 
 // Authorized mocks base method.
-func (m *MockBackend) Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error) {
+func (m *MockPDPBackend) Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Authorized", ctx, requestInfo)
 	ret0, _ := ret[0].(bool)
@@ -51,13 +52,13 @@ func (m *MockBackend) Authorized(ctx context.Context, requestInfo client.Authori
 }
 
 // Authorized indicates an expected call of Authorized.
-func (mr *MockBackendMockRecorder) Authorized(ctx, requestInfo any) *gomock.Call {
+func (mr *MockPDPBackendMockRecorder) Authorized(ctx, requestInfo any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authorized", reflect.TypeOf((*MockBackend)(nil).Authorized), ctx, requestInfo)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authorized", reflect.TypeOf((*MockPDPBackend)(nil).Authorized), ctx, requestInfo)
 }
 
 // PresentationDefinition mocks base method.
-func (m *MockBackend) PresentationDefinition(ctx context.Context, authorizer did.DID, scope string) (*pe.PresentationDefinition, error) {
+func (m *MockPDPBackend) PresentationDefinition(ctx context.Context, authorizer did.DID, scope string) (*pe.PresentationDefinition, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PresentationDefinition", ctx, authorizer, scope)
 	ret0, _ := ret[0].(*pe.PresentationDefinition)
@@ -66,7 +67,7 @@ func (m *MockBackend) PresentationDefinition(ctx context.Context, authorizer did
 }
 
 // PresentationDefinition indicates an expected call of PresentationDefinition.
-func (mr *MockBackendMockRecorder) PresentationDefinition(ctx, authorizer, scope any) *gomock.Call {
+func (mr *MockPDPBackendMockRecorder) PresentationDefinition(ctx, authorizer, scope any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockBackend)(nil).PresentationDefinition), ctx, authorizer, scope)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockPDPBackend)(nil).PresentationDefinition), ctx, authorizer, scope)
 }

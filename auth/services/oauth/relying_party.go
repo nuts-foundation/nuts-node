@@ -23,14 +23,13 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -41,6 +40,7 @@ import (
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
@@ -165,7 +165,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	}
 
 	// get the presentation definition from the verifier
-	presentationDefinition, err := iamClient.PresentationDefinition(ctx, metadata.PresentationDefinitionEndpoint, scopes)
+	presentationDefinition, err := s.presentationDefinition(ctx, metadata.PresentationDefinitionEndpoint, scopes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
 	}
@@ -193,7 +193,7 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	if presentationDefinition.Format != nil {
 		formatCandidates = formatCandidates.Match(credential.DIFClaimFormats(*presentationDefinition.Format))
 	}
-	format := chooseVPFormat(formatCandidates.Map)
+	format := pe.ChooseVPFormat(formatCandidates.Map)
 	if format == "" {
 		return nil, errors.New("requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")
 	}
@@ -243,18 +243,18 @@ func (s *relyingParty) authorizationServerMetadata(ctx context.Context, webdid d
 	return metadata, nil
 }
 
-func chooseVPFormat(formats map[string]map[string][]string) string {
-	// They are in preferred order
-	if _, ok := formats[vc.JWTPresentationProofFormat]; ok {
-		return vc.JWTPresentationProofFormat
+func (s *relyingParty) presentationDefinition(ctx context.Context, presentationDefinitionURL string, scopes string) (*pe.PresentationDefinition, error) {
+	parsedURL, err := url.Parse(presentationDefinitionURL)
+	if err != nil {
+		return nil, err
 	}
-	if _, ok := formats["jwt_vp_json"]; ok {
-		return vc.JWTPresentationProofFormat
+	parsedURL.RawQuery = url.Values{"scope": []string{scopes}}.Encode()
+	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
+	presentationDefinition, err := iamClient.PresentationDefinition(ctx, *parsedURL)
+	if err != nil {
+		return nil, err
 	}
-	if _, ok := formats[vc.JSONLDPresentationProofFormat]; ok {
-		return vc.JSONLDPresentationProofFormat
-	}
-	return ""
+	return presentationDefinition, nil
 }
 
 var timeFunc = time.Now

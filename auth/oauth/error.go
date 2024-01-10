@@ -44,6 +44,8 @@ const (
 	ServerError ErrorCode = "server_error"
 	// InvalidScope is returned when the requested scope is invalid, unknown or malformed.
 	InvalidScope = ErrorCode("invalid_scope")
+	// InvalidPresentationDefinitionURI is returned when the requested presentation definition URI is invalid or can't be reached.
+	InvalidPresentationDefinitionURI = ErrorCode("invalid_presentation_definition_uri")
 )
 
 // Make sure the error implements core.HTTPStatusCodeError, so the HTTP request logger can log the correct status code.
