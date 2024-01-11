@@ -109,7 +109,7 @@ func TestWrapper_RegisterDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
-		test.client.EXPECT().StartRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
+		test.client.EXPECT().Register(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
 
 		response, err := test.wrapper.RegisterDID(nil, RegisterDIDRequestObject{
 			ServiceID: serviceID,
@@ -122,7 +122,7 @@ func TestWrapper_RegisterDID(t *testing.T) {
 	t.Run("ok, but registration failed", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
-		test.client.EXPECT().StartRegistration(gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrRegistrationFailed)
+		test.client.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrPresentationRegistrationFailed)
 
 		response, err := test.wrapper.RegisterDID(nil, RegisterDIDRequestObject{
 			ServiceID: serviceID,
@@ -135,7 +135,7 @@ func TestWrapper_RegisterDID(t *testing.T) {
 	t.Run("other error", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
-		test.client.EXPECT().StartRegistration(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("foo"))
+		test.client.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
 		_, err := test.wrapper.RegisterDID(nil, RegisterDIDRequestObject{
 			ServiceID: serviceID,
@@ -150,7 +150,7 @@ func TestWrapper_DeregisterDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
-		test.client.EXPECT().StopRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
+		test.client.EXPECT().Deregister(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
 
 		response, err := test.wrapper.DeregisterDID(nil, DeregisterDIDRequestObject{
 			ServiceID: serviceID,
@@ -163,7 +163,7 @@ func TestWrapper_DeregisterDID(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
 		expectedDID := "did:web:example.com"
-		test.client.EXPECT().StopRegistration(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(errors.New("foo"))
+		test.client.EXPECT().Deregister(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(errors.New("foo"))
 
 		_, err := test.wrapper.DeregisterDID(nil, DeregisterDIDRequestObject{
 			ServiceID: serviceID,

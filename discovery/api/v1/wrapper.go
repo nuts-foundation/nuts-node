@@ -111,7 +111,7 @@ func (w *Wrapper) RegisterDID(ctx context.Context, request RegisterDIDRequestObj
 		return nil, err
 	}
 	err = w.Client.Register(ctx, request.ServiceID, *subjectDID)
-	if errors.Is(err, discovery.ErrRegistrationFailed) {
+	if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
 		// registration failed, but will be retried
 		return RegisterDID202JSONResponse{
 			Reason: err.Error(),

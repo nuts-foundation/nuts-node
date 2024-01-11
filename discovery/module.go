@@ -267,7 +267,7 @@ func (m *Module) Register(ctx context.Context, serviceID string, subjectDID did.
 		return errors.New("not owner of DID")
 	}
 	err = m.registrationManager.register(ctx, serviceID, subjectDID)
-	if errors.Is(err, ErrRegistrationFailed) {
+	if errors.Is(err, ErrPresentationRegistrationFailed) {
 		log.Logger().WithError(err).Warnf("Discovery Service registration failed, will be retried later (did=%s,service=%s)", subjectDID, serviceID)
 	} else if err == nil {
 		log.Logger().Infof("Successfully registered Discovery Service (did=%s,service=%s)", subjectDID, serviceID)

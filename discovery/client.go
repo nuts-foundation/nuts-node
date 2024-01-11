@@ -80,7 +80,7 @@ func (r *scheduledRegistrationManager) register(ctx context.Context, serviceID s
 		// retry registration asap
 		var next time.Time
 		_ = r.store.updateDIDRegistrationTime(serviceID, subjectDID, &next)
-		return errors.Join(ErrRegistrationFailed, err)
+		return errors.Join(ErrPresentationRegistrationFailed, err)
 	}
 	log.Logger().Debugf("Successfully refreshed Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
 	return nil
@@ -98,7 +98,7 @@ func (r *scheduledRegistrationManager) deregister(ctx context.Context, serviceID
 		"credentialSubject.id": subjectDID.String(),
 	})
 	if err != nil {
-		return errors.Join(ErrRegistrationFailed, err)
+		return errors.Join(ErrPresentationRegistrationFailed, err)
 	}
 	if len(presentations) == 0 {
 		// no registration, nothing to do
@@ -110,11 +110,11 @@ func (r *scheduledRegistrationManager) deregister(ctx context.Context, serviceID
 		"retract_jti": presentations[0].ID.String(),
 	})
 	if err != nil {
-		return errors.Join(ErrRegistrationFailed, err)
+		return errors.Join(ErrPresentationRegistrationFailed, err)
 	}
 	err = r.client.Register(ctx, service.Endpoint, *presentation)
 	if err != nil {
-		return errors.Join(ErrRegistrationFailed, err)
+		return errors.Join(ErrPresentationRegistrationFailed, err)
 	}
 	return nil
 }

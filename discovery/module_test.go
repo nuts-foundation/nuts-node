@@ -342,6 +342,6 @@ func TestModule_Register(t *testing.T) {
 
 		err := m.Register(context.Background(), testServiceID, aliceDID)
 
-		require.ErrorIs(t, err, ErrRegistrationFailed)
+		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 	})
 }

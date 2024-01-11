@@ -51,7 +51,7 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 
 		err := manager.register(audit.TestContext(), testServiceID, aliceDID)
 
-		require.ErrorIs(t, err, ErrRegistrationFailed)
+		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		require.ErrorContains(t, err, "invoker error")
 	})
 	t.Run("no matching credentials", func(t *testing.T) {
@@ -66,7 +66,7 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 
 		err := manager.register(audit.TestContext(), testServiceID, aliceDID)
 
-		require.ErrorIs(t, err, ErrRegistrationFailed)
+		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		require.ErrorContains(t, err, "DID wallet does not have credentials required for registration on Discovery Service (service=usecase_v1, did=did:example:alice)")
 	})
 	t.Run("unknown service", func(t *testing.T) {
@@ -129,7 +129,7 @@ func Test_scheduledRegistrationManager_deregister(t *testing.T) {
 
 		err := manager.deregister(audit.TestContext(), testServiceID, aliceDID)
 
-		require.ErrorIs(t, err, ErrRegistrationFailed)
+		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		require.ErrorContains(t, err, "remote error")
 	})
 }
