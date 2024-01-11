@@ -105,7 +105,7 @@ type Client interface {
 
 	// Register causes a DID, in the form of a Verifiable Presentation, to be registered on a Discovery Service.
 	// Registration will be attempted immediately, and automatically refreshed.
-	// If initial registration failed, it will return ErrRegistrationFailed, but it will keep retrying.
+	// If the initial registration fails with ErrRegistrationFailed, registration will be retried.
 	// If the function is called again for the same service/DID combination, it will try to refresh the registration.
 	// It returns an error if the service or DID is invalid/unknown.
 	Register(ctx context.Context, serviceID string, subjectDID did.DID) error
