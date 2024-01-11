@@ -41,6 +41,7 @@ type ServerConfig struct {
 // ClientConfig holds the config for the client
 type ClientConfig struct {
 	// RegistrationRefreshInterval specifies how often the client should refresh its registrations on Discovery Services.
+	// At the same interval, failed registrations are refreshed.
 	RegistrationRefreshInterval time.Duration `koanf:"registration_refresh_interval"`
 }
 
