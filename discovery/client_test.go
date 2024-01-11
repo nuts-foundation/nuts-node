@@ -136,3 +136,20 @@ func Test_clientUpdater_update(t *testing.T) {
 		wg.Wait()
 	})
 }
+
+func Test_clientUpdater_doUpdate(t *testing.T) {
+	t.Run("proceeds when service update fails", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		require.NoError(t, storageEngine.Start())
+		store := setupStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		verifier := NewMockregistrationVerifier(ctrl)
+		httpClient := client.NewMockHTTPClient(ctrl)
+		newTag := "test"
+		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiablePresentation{}, &newTag, nil)
+		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil, errors.New("test"))
+		updater := newClientUpdater(testDefinitions(), store, verifier, httpClient)
+
+		updater.doUpdate(context.Background())
+	})
+}
