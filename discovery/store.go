@@ -129,10 +129,10 @@ func newSQLStore(db *gorm.DB, clientDefinitions map[string]ServiceDefinition, se
 }
 
 // Add adds a presentation to the list of presentations.
-// Tag should be passed if the presentation was received from a remote Discovery Server, then it is stored alongside the presentation.
+// A non-empty Tag should be passed if the presentation was received from a remote Discovery Server, then it is stored alongside the presentation.
 // If the local node is the Discovery Server and thus is responsible for the timestamping,
-// nil should be passed to let the store determine the right value.
-func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, tag *Tag) error {
+// an empty Tag should be passed to let the store determine the right value.
+func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, tag Tag) error {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
 		return err
@@ -332,9 +332,8 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 
 // updateTag updates the tag of the given service.
 // Clients should pass the tag they received from the server (which simply sets it).
-// Servers should pass nil (since they "own" the tag), which causes it to be incremented.
-// It returns
-func (s *sqlStore) updateTag(tx *gorm.DB, serviceID string, newTimestamp *Tag) (*Timestamp, error) {
+// Servers should pass an empty tag (since they "own" the tag), which causes it to be incremented.
+func (s *sqlStore) updateTag(tx *gorm.DB, serviceID string, newTimestamp Tag) (*Timestamp, error) {
 	var service serviceRecord
 	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the lamport timestamp.
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -345,7 +344,7 @@ func (s *sqlStore) updateTag(tx *gorm.DB, serviceID string, newTimestamp *Tag) (
 	}
 	service.ID = serviceID
 	var result *Timestamp
-	if newTimestamp == nil {
+	if newTimestamp.Empty() {
 		// Update tag: decode current timestamp, increment it, encode it again.
 		currTimestamp := Timestamp(0)
 		if service.LastTag != "" {
@@ -362,7 +361,7 @@ func (s *sqlStore) updateTag(tx *gorm.DB, serviceID string, newTimestamp *Tag) (
 		service.LastTag = ts.Tag(service.TagPrefix)
 	} else {
 		// Set tag: just store it
-		service.LastTag = *newTimestamp
+		service.LastTag = newTimestamp
 	}
 	if err := tx.Save(service).Error; err != nil {
 		return nil, err

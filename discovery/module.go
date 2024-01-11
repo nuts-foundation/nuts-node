@@ -153,7 +153,7 @@ func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) e
 	if err := m.verifyRegistration(definition, presentation); err != nil {
 		return err
 	}
-	return m.store.add(definition.ID, presentation, nil)
+	return m.store.add(definition.ID, presentation, "")
 }
 
 func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {

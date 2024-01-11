@@ -73,25 +73,16 @@ func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefini
 	if err != nil {
 		return err
 	}
-	// convert *Tag to *string
-	var currentTagStr *string
-	if !currentTag.Empty() {
-		currentTagStr = new(string)
-		*currentTagStr = string(currentTag)
-	}
-	presentations, newTag, err := u.client.Get(ctx, service.Endpoint, currentTagStr)
+	presentations, tag, err := u.client.Get(ctx, service.Endpoint, string(currentTag))
 	if err != nil {
 		return fmt.Errorf("failed to get presentations from discovery service (id=%s): %w", service.ID, err)
 	}
-	// *string back to *Tag
-	newTagStr := new(Tag)
-	*newTagStr = Tag(*newTag)
 	for _, presentation := range presentations {
 		if err := u.verifier.verifyRegistration(service, presentation); err != nil {
 			log.Logger().WithError(err).Warnf("Presentation verification failed, not adding it (service=%s, id=%s)", service.ID, presentation.ID)
 			continue
 		}
-		if err := u.store.add(service.ID, presentation, newTagStr); err != nil {
+		if err := u.store.add(service.ID, presentation, Tag(tag)); err != nil {
 			return fmt.Errorf("failed to store presentation (service=%s, id=%s): %w", service.ID, presentation.ID, err)
 		}
 	}

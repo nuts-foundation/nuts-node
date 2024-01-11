@@ -41,11 +41,11 @@ func (m *MockHTTPClient) EXPECT() *MockHTTPClientMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockHTTPClient) Get(ctx context.Context, serviceEndpointURL string, tag *string) ([]vc.VerifiablePresentation, *string, error) {
+func (m *MockHTTPClient) Get(ctx context.Context, serviceEndpointURL, tag string) ([]vc.VerifiablePresentation, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, serviceEndpointURL, tag)
 	ret0, _ := ret[0].([]vc.VerifiablePresentation)
-	ret1, _ := ret[1].(*string)
+	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
