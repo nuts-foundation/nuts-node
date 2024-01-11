@@ -66,7 +66,7 @@ func TestVerifierServiceProvider_ClientMetadataURL(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, url)
-		assert.Equal(t, "https://example.com/.well-known/oauth-authorization-server/iam/holder", url.String())
+		assert.Equal(t, "https://example.com/iam/holder/oauth-client", url.String())
 	})
 	t.Run("error - invalid DID", func(t *testing.T) {
 		_, err := verifier.ClientMetadataURL(did.DID{})

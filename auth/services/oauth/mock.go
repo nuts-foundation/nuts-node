@@ -15,8 +15,10 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
+	vc "github.com/nuts-foundation/go-did/vc"
 	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
 	services "github.com/nuts-foundation/nuts-node/auth/services"
+	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -221,4 +223,103 @@ func (m *MockVerifier) ClientMetadataURL(webdid did.DID) (*url.URL, error) {
 func (mr *MockVerifierMockRecorder) ClientMetadataURL(webdid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClientMetadataURL", reflect.TypeOf((*MockVerifier)(nil).ClientMetadataURL), webdid)
+}
+
+// MockHolder is a mock of Holder interface.
+type MockHolder struct {
+	ctrl     *gomock.Controller
+	recorder *MockHolderMockRecorder
+}
+
+// MockHolderMockRecorder is the mock recorder for MockHolder.
+type MockHolderMockRecorder struct {
+	mock *MockHolder
+}
+
+// NewMockHolder creates a new mock instance.
+func NewMockHolder(ctrl *gomock.Controller) *MockHolder {
+	mock := &MockHolder{ctrl: ctrl}
+	mock.recorder = &MockHolderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockHolder) EXPECT() *MockHolderMockRecorder {
+	return m.recorder
+}
+
+// BuildPresentation mocks base method.
+func (m *MockHolder) BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BuildPresentation", ctx, walletDID, presentationDefinition, acceptedFormats, nonce)
+	ret0, _ := ret[0].(*vc.VerifiablePresentation)
+	ret1, _ := ret[1].(*pe.PresentationSubmission)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// BuildPresentation indicates an expected call of BuildPresentation.
+func (mr *MockHolderMockRecorder) BuildPresentation(ctx, walletDID, presentationDefinition, acceptedFormats, nonce any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPresentation", reflect.TypeOf((*MockHolder)(nil).BuildPresentation), ctx, walletDID, presentationDefinition, acceptedFormats, nonce)
+}
+
+// ClientMetadata mocks base method.
+func (m *MockHolder) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClientMetadata", ctx, endpoint)
+	ret0, _ := ret[0].(*oauth.OAuthClientMetadata)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ClientMetadata indicates an expected call of ClientMetadata.
+func (mr *MockHolderMockRecorder) ClientMetadata(ctx, endpoint any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClientMetadata", reflect.TypeOf((*MockHolder)(nil).ClientMetadata), ctx, endpoint)
+}
+
+// PostAuthorizationResponse mocks base method.
+func (m *MockHolder) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI, state string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PostAuthorizationResponse", ctx, vp, presentationSubmission, verifierResponseURI, state)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PostAuthorizationResponse indicates an expected call of PostAuthorizationResponse.
+func (mr *MockHolderMockRecorder) PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI, state any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostAuthorizationResponse", reflect.TypeOf((*MockHolder)(nil).PostAuthorizationResponse), ctx, vp, presentationSubmission, verifierResponseURI, state)
+}
+
+// PostError mocks base method.
+func (m *MockHolder) PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PostError", ctx, auth2Error, verifierResponseURI)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PostError indicates an expected call of PostError.
+func (mr *MockHolderMockRecorder) PostError(ctx, auth2Error, verifierResponseURI any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PostError", reflect.TypeOf((*MockHolder)(nil).PostError), ctx, auth2Error, verifierResponseURI)
+}
+
+// PresentationDefinition mocks base method.
+func (m *MockHolder) PresentationDefinition(ctx context.Context, presentationDefinitionURI string) (*pe.PresentationDefinition, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PresentationDefinition", ctx, presentationDefinitionURI)
+	ret0, _ := ret[0].(*pe.PresentationDefinition)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PresentationDefinition indicates an expected call of PresentationDefinition.
+func (mr *MockHolderMockRecorder) PresentationDefinition(ctx, presentationDefinitionURI any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockHolder)(nil).PresentationDefinition), ctx, presentationDefinitionURI)
 }

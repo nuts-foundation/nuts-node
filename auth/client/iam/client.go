@@ -90,43 +90,32 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 	return &metadata, nil
 }
 
-// PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
-func (hb HTTPClient) PresentationDefinition(ctx context.Context, definitionEndpoint string, scopes string) (*pe.PresentationDefinition, error) {
-	presentationDefinitionURL, err := core.ParsePublicURL(definitionEndpoint, hb.strictMode)
-
+// ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.
+// We use the AuthorizationServerMetadata struct since it overlaps greatly with the client metadata.
+func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
+	_, err := core.ParsePublicURL(endpoint, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}
-	presentationDefinitionURL.RawQuery = url.Values{"scope": []string{scopes}}.Encode()
 
+	// create a GET request
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	var metadata oauth.OAuthClientMetadata
+	return &metadata, hb.doRequest(request, &metadata)
+}
+
+// PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
+func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDefinitionURL url.URL) (*pe.PresentationDefinition, error) {
 	// create a GET request with scope query param
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, presentationDefinitionURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call endpoint: %w", err)
-	}
-	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
-		rse := httpErr.(core.HttpError)
-		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidScope); ok {
-			return nil, oauthErr
-		}
-		return nil, httpErr
-	}
-
 	var presentationDefinition pe.PresentationDefinition
-	var data []byte
-
-	if data, err = io.ReadAll(response.Body); err != nil {
-		return nil, fmt.Errorf("unable to read response: %w", err)
-	}
-	if err = json.Unmarshal(data, &presentationDefinition); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
-	}
-
-	return &presentationDefinition, nil
+	return &presentationDefinition, hb.doRequest(request, &presentationDefinition)
 }
 
 func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp vc.VerifiablePresentation, submission pe.PresentationSubmission, scopes string) (oauth.TokenResponse, error) {
@@ -184,4 +173,65 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp v
 		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
 	}
 	return token, nil
+}
+
+// PostError posts an OAuth error to the redirect URL and returns the redirect URL with the error as query parameter.
+func (hb HTTPClient) PostError(ctx context.Context, err oauth.OAuth2Error, verifierCallbackURL url.URL) (string, error) {
+	// initiate http client, create a POST request with x-www-form-urlencoded body and send it to the redirect URL
+	data := url.Values{}
+	data.Set(oauth.ErrorParam, string(err.Code))
+	data.Set(oauth.ErrorDescriptionParam, err.Description)
+
+	return hb.postFormExpectRedirect(ctx, data, verifierCallbackURL)
+}
+
+// PostAuthorizationResponse posts the authorization response to the verifier response URL and returns the callback URL.
+func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI url.URL, state string) (string, error) {
+	// initiate http client, create a POST request with x-www-form-urlencoded body and send it to the redirect URL
+	psBytes, _ := json.Marshal(presentationSubmission)
+	data := url.Values{}
+	data.Set(oauth.VpTokenParam, vp.Raw())
+	data.Set(oauth.PresentationSubmissionParam, string(psBytes))
+	data.Set(oauth.StateParam, state)
+
+	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
+}
+
+func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL.String(), strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", err
+	}
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	var redirect oauth.Redirect
+	if err := hb.doRequest(request, &redirect); err != nil {
+		return "", err
+	}
+	return redirect.RedirectURI, nil
+}
+
+func (hb HTTPClient) doRequest(request *http.Request, target interface{}) error {
+	response, err := hb.httpClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
+		rse := httpErr.(core.HttpError)
+		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidScope); ok {
+			return oauthErr
+		}
+		return httpErr
+	}
+
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &target); err != nil {
+		return fmt.Errorf("unable to unmarshal response: %w", err)
+	}
+
+	return nil
 }
