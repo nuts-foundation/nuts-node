@@ -140,7 +140,7 @@ paths:
         schema:
           type: string
     post:
-      summary: Client API to register the given DID on the Discovery Service.
+      summary: Client API to activate a DID on the specified Discovery Service.
       description: |
         An API provided by the discovery client that will cause the given DID to be registered on the specified Discovery Service.
         Registration of a Verifiable Presentation will be attempted immediately, and it will be automatically refreshed.
@@ -152,14 +152,14 @@ paths:
         
         error returns:
         * 400 - incorrect input: invalid/unknown service or DID.
-      operationId: registerDID
+      operationId: activateServiceForDID
       tags:
         - discovery
       responses:
         "200":
-          description: Registration at Discovery Service was successful.
+          description: Activation was successful.
         "202":
-          description: Registration at Discovery Service failed, but will be re-attempted later.
+          description: Activation was successful, but registration of the Verifiable Presentation failed (but will be automatically re-attempted later).
           content:
             application/json:
               schema:
@@ -182,17 +182,17 @@ paths:
         
         error returns:
         * 400 - incorrect input: invalid/unknown service or DID.
-      operationId: unregisterDID
+      operationId: deactivateServiceForDID
       tags:
         - discovery
       responses:
         "200":
           description: |
-            DID was successfully unregistered from the Discovery Service.
-            Active Verifiable Presentation was removed from the remote Discovery Server (if applicable).
+            DID was successfully deactivated from the Discovery Service.
+            The active Verifiable Presentation was removed from the remote Discovery Server (if applicable).
         "202":
           description: |
-            DID was successfully unregistered from the Discovery Service, but failed to remove the active Verifiable Presentation registration from the remote Discovery Server.
+            DID was successfully deactivated from the Discovery Service, but failed to remove the active Verifiable Presentation registration from the remote Discovery Server.
             Applications might want to retry this API call later, or simply let the presentation expire.
           content:
             application/json:

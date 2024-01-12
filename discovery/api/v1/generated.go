@@ -131,11 +131,11 @@ type ClientInterface interface {
 	// SearchPresentations request
 	SearchPresentations(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DeregisterDID request
-	DeregisterDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// DeactivateServiceForDID request
+	DeactivateServiceForDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RegisterDID request
-	RegisterDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// ActivateServiceForDID request
+	ActivateServiceForDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) GetPresentations(ctx context.Context, serviceID string, params *GetPresentationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -186,8 +186,8 @@ func (c *Client) SearchPresentations(ctx context.Context, serviceID string, para
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeregisterDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeregisterDIDRequest(c.Server, serviceID, did)
+func (c *Client) DeactivateServiceForDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeactivateServiceForDIDRequest(c.Server, serviceID, did)
 	if err != nil {
 		return nil, err
 	}
@@ -198,8 +198,8 @@ func (c *Client) DeregisterDID(ctx context.Context, serviceID string, did string
 	return c.Client.Do(req)
 }
 
-func (c *Client) RegisterDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRegisterDIDRequest(c.Server, serviceID, did)
+func (c *Client) ActivateServiceForDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewActivateServiceForDIDRequest(c.Server, serviceID, did)
 	if err != nil {
 		return nil, err
 	}
@@ -365,8 +365,8 @@ func NewSearchPresentationsRequest(server string, serviceID string, params *Sear
 	return req, nil
 }
 
-// NewDeregisterDIDRequest generates requests for DeregisterDID
-func NewDeregisterDIDRequest(server string, serviceID string, did string) (*http.Request, error) {
+// NewDeactivateServiceForDIDRequest generates requests for DeactivateServiceForDID
+func NewDeactivateServiceForDIDRequest(server string, serviceID string, did string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -406,8 +406,8 @@ func NewDeregisterDIDRequest(server string, serviceID string, did string) (*http
 	return req, nil
 }
 
-// NewRegisterDIDRequest generates requests for RegisterDID
-func NewRegisterDIDRequest(server string, serviceID string, did string) (*http.Request, error) {
+// NewActivateServiceForDIDRequest generates requests for ActivateServiceForDID
+func NewActivateServiceForDIDRequest(server string, serviceID string, did string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -501,11 +501,11 @@ type ClientWithResponsesInterface interface {
 	// SearchPresentationsWithResponse request
 	SearchPresentationsWithResponse(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*SearchPresentationsResponse, error)
 
-	// DeregisterDIDWithResponse request
-	DeregisterDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*DeregisterDIDResponse, error)
+	// DeactivateServiceForDIDWithResponse request
+	DeactivateServiceForDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*DeactivateServiceForDIDResponse, error)
 
-	// RegisterDIDWithResponse request
-	RegisterDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*RegisterDIDResponse, error)
+	// ActivateServiceForDIDWithResponse request
+	ActivateServiceForDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*ActivateServiceForDIDResponse, error)
 }
 
 type GetPresentationsResponse struct {
@@ -613,11 +613,11 @@ func (r SearchPresentationsResponse) StatusCode() int {
 	return 0
 }
 
-type DeregisterDIDResponse struct {
+type DeactivateServiceForDIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON202      *struct {
-		// Reason Description of why registration deletion failed.
+		// Reason Description of why removal of the registration failed.
 		Reason string `json:"reason"`
 	}
 	ApplicationproblemJSON400 *struct {
@@ -643,7 +643,7 @@ type DeregisterDIDResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r DeregisterDIDResponse) Status() string {
+func (r DeactivateServiceForDIDResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -651,14 +651,14 @@ func (r DeregisterDIDResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r DeregisterDIDResponse) StatusCode() int {
+func (r DeactivateServiceForDIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type RegisterDIDResponse struct {
+type ActivateServiceForDIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON202      *struct {
@@ -688,7 +688,7 @@ type RegisterDIDResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r RegisterDIDResponse) Status() string {
+func (r ActivateServiceForDIDResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -696,7 +696,7 @@ func (r RegisterDIDResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r RegisterDIDResponse) StatusCode() int {
+func (r ActivateServiceForDIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -738,22 +738,22 @@ func (c *ClientWithResponses) SearchPresentationsWithResponse(ctx context.Contex
 	return ParseSearchPresentationsResponse(rsp)
 }
 
-// DeregisterDIDWithResponse request returning *DeregisterDIDResponse
-func (c *ClientWithResponses) DeregisterDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*DeregisterDIDResponse, error) {
-	rsp, err := c.DeregisterDID(ctx, serviceID, did, reqEditors...)
+// DeactivateServiceForDIDWithResponse request returning *DeactivateServiceForDIDResponse
+func (c *ClientWithResponses) DeactivateServiceForDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*DeactivateServiceForDIDResponse, error) {
+	rsp, err := c.DeactivateServiceForDID(ctx, serviceID, did, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseDeregisterDIDResponse(rsp)
+	return ParseDeactivateServiceForDIDResponse(rsp)
 }
 
-// RegisterDIDWithResponse request returning *RegisterDIDResponse
-func (c *ClientWithResponses) RegisterDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*RegisterDIDResponse, error) {
-	rsp, err := c.RegisterDID(ctx, serviceID, did, reqEditors...)
+// ActivateServiceForDIDWithResponse request returning *ActivateServiceForDIDResponse
+func (c *ClientWithResponses) ActivateServiceForDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*ActivateServiceForDIDResponse, error) {
+	rsp, err := c.ActivateServiceForDID(ctx, serviceID, did, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseRegisterDIDResponse(rsp)
+	return ParseActivateServiceForDIDResponse(rsp)
 }
 
 // ParseGetPresentationsResponse parses an HTTP response from a GetPresentationsWithResponse call
@@ -891,15 +891,15 @@ func ParseSearchPresentationsResponse(rsp *http.Response) (*SearchPresentationsR
 	return response, nil
 }
 
-// ParseDeregisterDIDResponse parses an HTTP response from a DeregisterDIDWithResponse call
-func ParseDeregisterDIDResponse(rsp *http.Response) (*DeregisterDIDResponse, error) {
+// ParseDeactivateServiceForDIDResponse parses an HTTP response from a DeactivateServiceForDIDWithResponse call
+func ParseDeactivateServiceForDIDResponse(rsp *http.Response) (*DeactivateServiceForDIDResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &DeregisterDIDResponse{
+	response := &DeactivateServiceForDIDResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -907,7 +907,7 @@ func ParseDeregisterDIDResponse(rsp *http.Response) (*DeregisterDIDResponse, err
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
 		var dest struct {
-			// Reason Description of why registration deletion failed.
+			// Reason Description of why removal of the registration failed.
 			Reason string `json:"reason"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -952,15 +952,15 @@ func ParseDeregisterDIDResponse(rsp *http.Response) (*DeregisterDIDResponse, err
 	return response, nil
 }
 
-// ParseRegisterDIDResponse parses an HTTP response from a RegisterDIDWithResponse call
-func ParseRegisterDIDResponse(rsp *http.Response) (*RegisterDIDResponse, error) {
+// ParseActivateServiceForDIDResponse parses an HTTP response from a ActivateServiceForDIDWithResponse call
+func ParseActivateServiceForDIDResponse(rsp *http.Response) (*ActivateServiceForDIDResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &RegisterDIDResponse{
+	response := &ActivateServiceForDIDResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1015,21 +1015,21 @@ func ParseRegisterDIDResponse(rsp *http.Response) (*RegisterDIDResponse, error) 
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Retrieves the presentations of a discovery service.
+	// Retrieves the presentations of a Discovery Service.
 	// (GET /discovery/{serviceID})
 	GetPresentations(ctx echo.Context, serviceID string, params GetPresentationsParams) error
-	// Register a presentation on the discovery service.
+	// Register a presentation on the Discovery Service.
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx echo.Context, serviceID string) error
-	// Searches for presentations registered on the discovery service.
+	// Searches for presentations registered on the Discovery Service.
 	// (GET /discovery/{serviceID}/search)
 	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
-	// Client API to stop registering the given DID on the discovery service.
+	// Client API to unregister the given DID from the Discovery Service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{did})
-	DeregisterDID(ctx echo.Context, serviceID string, did string) error
-	// Client API to start registering the given DID on the discovery service.
+	DeactivateServiceForDID(ctx echo.Context, serviceID string, did string) error
+	// Client API to activate a DID on the specified Discovery Service.
 	// (POST /internal/discovery/v1/{serviceID}/{did})
-	RegisterDID(ctx echo.Context, serviceID string, did string) error
+	ActivateServiceForDID(ctx echo.Context, serviceID string, did string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -1109,8 +1109,8 @@ func (w *ServerInterfaceWrapper) SearchPresentations(ctx echo.Context) error {
 	return err
 }
 
-// DeregisterDID converts echo context to params.
-func (w *ServerInterfaceWrapper) DeregisterDID(ctx echo.Context) error {
+// DeactivateServiceForDID converts echo context to params.
+func (w *ServerInterfaceWrapper) DeactivateServiceForDID(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "serviceID" -------------
 	var serviceID string
@@ -1131,12 +1131,12 @@ func (w *ServerInterfaceWrapper) DeregisterDID(ctx echo.Context) error {
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.DeregisterDID(ctx, serviceID, did)
+	err = w.Handler.DeactivateServiceForDID(ctx, serviceID, did)
 	return err
 }
 
-// RegisterDID converts echo context to params.
-func (w *ServerInterfaceWrapper) RegisterDID(ctx echo.Context) error {
+// ActivateServiceForDID converts echo context to params.
+func (w *ServerInterfaceWrapper) ActivateServiceForDID(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "serviceID" -------------
 	var serviceID string
@@ -1157,7 +1157,7 @@ func (w *ServerInterfaceWrapper) RegisterDID(ctx echo.Context) error {
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RegisterDID(ctx, serviceID, did)
+	err = w.Handler.ActivateServiceForDID(ctx, serviceID, did)
 	return err
 }
 
@@ -1192,8 +1192,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/discovery/:serviceID", wrapper.GetPresentations)
 	router.POST(baseURL+"/discovery/:serviceID", wrapper.RegisterPresentation)
 	router.GET(baseURL+"/discovery/:serviceID/search", wrapper.SearchPresentations)
-	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.DeregisterDID)
-	router.POST(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.RegisterDID)
+	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.DeactivateServiceForDID)
+	router.POST(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.ActivateServiceForDID)
 
 }
 
@@ -1331,36 +1331,36 @@ func (response SearchPresentationsdefaultApplicationProblemPlusJSONResponse) Vis
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type DeregisterDIDRequestObject struct {
+type DeactivateServiceForDIDRequestObject struct {
 	ServiceID string `json:"serviceID"`
 	Did       string `json:"did"`
 }
 
-type DeregisterDIDResponseObject interface {
-	VisitDeregisterDIDResponse(w http.ResponseWriter) error
+type DeactivateServiceForDIDResponseObject interface {
+	VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error
 }
 
-type DeregisterDID200Response struct {
+type DeactivateServiceForDID200Response struct {
 }
 
-func (response DeregisterDID200Response) VisitDeregisterDIDResponse(w http.ResponseWriter) error {
+func (response DeactivateServiceForDID200Response) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
 	w.WriteHeader(200)
 	return nil
 }
 
-type DeregisterDID202JSONResponse struct {
-	// Reason Description of why registration deletion failed.
+type DeactivateServiceForDID202JSONResponse struct {
+	// Reason Description of why removal of the registration failed.
 	Reason string `json:"reason"`
 }
 
-func (response DeregisterDID202JSONResponse) VisitDeregisterDIDResponse(w http.ResponseWriter) error {
+func (response DeactivateServiceForDID202JSONResponse) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(202)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeregisterDID400ApplicationProblemPlusJSONResponse struct {
+type DeactivateServiceForDID400ApplicationProblemPlusJSONResponse struct {
 	// Detail A human-readable explanation specific to this occurrence of the problem.
 	Detail string `json:"detail"`
 
@@ -1371,14 +1371,14 @@ type DeregisterDID400ApplicationProblemPlusJSONResponse struct {
 	Title string `json:"title"`
 }
 
-func (response DeregisterDID400ApplicationProblemPlusJSONResponse) VisitDeregisterDIDResponse(w http.ResponseWriter) error {
+func (response DeactivateServiceForDID400ApplicationProblemPlusJSONResponse) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeregisterDIDdefaultApplicationProblemPlusJSONResponse struct {
+type DeactivateServiceForDIDdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1392,43 +1392,43 @@ type DeregisterDIDdefaultApplicationProblemPlusJSONResponse struct {
 	StatusCode int
 }
 
-func (response DeregisterDIDdefaultApplicationProblemPlusJSONResponse) VisitDeregisterDIDResponse(w http.ResponseWriter) error {
+func (response DeactivateServiceForDIDdefaultApplicationProblemPlusJSONResponse) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type RegisterDIDRequestObject struct {
+type ActivateServiceForDIDRequestObject struct {
 	ServiceID string `json:"serviceID"`
 	Did       string `json:"did"`
 }
 
-type RegisterDIDResponseObject interface {
-	VisitRegisterDIDResponse(w http.ResponseWriter) error
+type ActivateServiceForDIDResponseObject interface {
+	VisitActivateServiceForDIDResponse(w http.ResponseWriter) error
 }
 
-type RegisterDID200Response struct {
+type ActivateServiceForDID200Response struct {
 }
 
-func (response RegisterDID200Response) VisitRegisterDIDResponse(w http.ResponseWriter) error {
+func (response ActivateServiceForDID200Response) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
 	w.WriteHeader(200)
 	return nil
 }
 
-type RegisterDID202JSONResponse struct {
+type ActivateServiceForDID202JSONResponse struct {
 	// Reason Description of why registration failed.
 	Reason string `json:"reason"`
 }
 
-func (response RegisterDID202JSONResponse) VisitRegisterDIDResponse(w http.ResponseWriter) error {
+func (response ActivateServiceForDID202JSONResponse) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(202)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type RegisterDID400ApplicationProblemPlusJSONResponse struct {
+type ActivateServiceForDID400ApplicationProblemPlusJSONResponse struct {
 	// Detail A human-readable explanation specific to this occurrence of the problem.
 	Detail string `json:"detail"`
 
@@ -1439,14 +1439,14 @@ type RegisterDID400ApplicationProblemPlusJSONResponse struct {
 	Title string `json:"title"`
 }
 
-func (response RegisterDID400ApplicationProblemPlusJSONResponse) VisitRegisterDIDResponse(w http.ResponseWriter) error {
+func (response ActivateServiceForDID400ApplicationProblemPlusJSONResponse) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type RegisterDIDdefaultApplicationProblemPlusJSONResponse struct {
+type ActivateServiceForDIDdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1460,7 +1460,7 @@ type RegisterDIDdefaultApplicationProblemPlusJSONResponse struct {
 	StatusCode int
 }
 
-func (response RegisterDIDdefaultApplicationProblemPlusJSONResponse) VisitRegisterDIDResponse(w http.ResponseWriter) error {
+func (response ActivateServiceForDIDdefaultApplicationProblemPlusJSONResponse) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -1469,21 +1469,21 @@ func (response RegisterDIDdefaultApplicationProblemPlusJSONResponse) VisitRegist
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Retrieves the presentations of a discovery service.
+	// Retrieves the presentations of a Discovery Service.
 	// (GET /discovery/{serviceID})
 	GetPresentations(ctx context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error)
-	// Register a presentation on the discovery service.
+	// Register a presentation on the Discovery Service.
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error)
-	// Searches for presentations registered on the discovery service.
+	// Searches for presentations registered on the Discovery Service.
 	// (GET /discovery/{serviceID}/search)
 	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
-	// Client API to stop registering the given DID on the discovery service.
+	// Client API to unregister the given DID from the Discovery Service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{did})
-	DeregisterDID(ctx context.Context, request DeregisterDIDRequestObject) (DeregisterDIDResponseObject, error)
-	// Client API to start registering the given DID on the discovery service.
+	DeactivateServiceForDID(ctx context.Context, request DeactivateServiceForDIDRequestObject) (DeactivateServiceForDIDResponseObject, error)
+	// Client API to activate a DID on the specified Discovery Service.
 	// (POST /internal/discovery/v1/{serviceID}/{did})
-	RegisterDID(ctx context.Context, request RegisterDIDRequestObject) (RegisterDIDResponseObject, error)
+	ActivateServiceForDID(ctx context.Context, request ActivateServiceForDIDRequestObject) (ActivateServiceForDIDResponseObject, error)
 }
 
 type StrictHandlerFunc = strictecho.StrictEchoHandlerFunc
@@ -1581,52 +1581,52 @@ func (sh *strictHandler) SearchPresentations(ctx echo.Context, serviceID string,
 	return nil
 }
 
-// DeregisterDID operation middleware
-func (sh *strictHandler) DeregisterDID(ctx echo.Context, serviceID string, did string) error {
-	var request DeregisterDIDRequestObject
+// DeactivateServiceForDID operation middleware
+func (sh *strictHandler) DeactivateServiceForDID(ctx echo.Context, serviceID string, did string) error {
+	var request DeactivateServiceForDIDRequestObject
 
 	request.ServiceID = serviceID
 	request.Did = did
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.DeregisterDID(ctx.Request().Context(), request.(DeregisterDIDRequestObject))
+		return sh.ssi.DeactivateServiceForDID(ctx.Request().Context(), request.(DeactivateServiceForDIDRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeregisterDID")
+		handler = middleware(handler, "DeactivateServiceForDID")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(DeregisterDIDResponseObject); ok {
-		return validResponse.VisitDeregisterDIDResponse(ctx.Response())
+	} else if validResponse, ok := response.(DeactivateServiceForDIDResponseObject); ok {
+		return validResponse.VisitDeactivateServiceForDIDResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
 	return nil
 }
 
-// RegisterDID operation middleware
-func (sh *strictHandler) RegisterDID(ctx echo.Context, serviceID string, did string) error {
-	var request RegisterDIDRequestObject
+// ActivateServiceForDID operation middleware
+func (sh *strictHandler) ActivateServiceForDID(ctx echo.Context, serviceID string, did string) error {
+	var request ActivateServiceForDIDRequestObject
 
 	request.ServiceID = serviceID
 	request.Did = did
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.RegisterDID(ctx.Request().Context(), request.(RegisterDIDRequestObject))
+		return sh.ssi.ActivateServiceForDID(ctx.Request().Context(), request.(ActivateServiceForDIDRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "RegisterDID")
+		handler = middleware(handler, "ActivateServiceForDID")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(RegisterDIDResponseObject); ok {
-		return validResponse.VisitRegisterDIDResponse(ctx.Response())
+	} else if validResponse, ok := response.(ActivateServiceForDIDResponseObject); ok {
+		return validResponse.VisitActivateServiceForDIDResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

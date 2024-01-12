@@ -41,7 +41,7 @@ import (
 
 const ModuleName = "Discovery"
 
-// ErrServerModeDisabled is returned when a client invokes a Discovery Server (Add or Get) operation on the node,
+// ErrServerModeDisabled is returned when a client invokes a Discovery Server (Register or Get) operation on the node,
 // for a Discovery Service which it doesn't serve.
 var ErrServerModeDisabled = errors.New("node is not a discovery server for this service")
 
@@ -85,7 +85,7 @@ type Module struct {
 	httpClient          client.HTTPClient
 	storageInstance     storage.Engine
 	store               *sqlStore
-	registrationManager registrationManager
+	registrationManager clientRegistrationManager
 	serverDefinitions   map[string]ServiceDefinition
 	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR
@@ -130,7 +130,7 @@ func (m *Module) Start() error {
 	m.routines.Add(1)
 	go func() {
 		defer m.routines.Done()
-		m.registrationManager.refreshVerifiablePresentations(m.ctx, m.config.Client.RegistrationRefreshInterval)
+		m.registrationManager.refresh(m.ctx, m.config.Client.RegistrationRefreshInterval)
 	}()
 	return nil
 }
@@ -149,9 +149,9 @@ func (m *Module) Config() interface{} {
 	return &m.config
 }
 
-// Add registers a presentation on the given Discovery Service.
+// Register is a Discovery Server function that registers a presentation on the given Discovery Service.
 // See interface.go for more information.
-func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) error {
+func (m *Module) Register(serviceID string, presentation vc.VerifiablePresentation) error {
 	// First, simple sanity checks
 	definition, isServer := m.serverDefinitions[serviceID]
 	if !isServer {
@@ -248,7 +248,7 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	return nil
 }
 
-// Get retrieves the presentations for the given service, starting at the given tag.
+// Get is a Discovery Server function that retrieves the presentations for the given service, starting at the given tag.
 // See interface.go for more information.
 func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
 	if _, exists := m.serverDefinitions[serviceID]; !exists {
@@ -257,8 +257,10 @@ func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *
 	return m.store.get(serviceID, tag)
 }
 
-func (m *Module) Register(ctx context.Context, serviceID string, subjectDID did.DID) error {
-	log.Logger().Debugf("Registering on Discovery Service (did=%s, service=%s)", subjectDID, serviceID)
+// ActivateServiceForDID is a Discovery Client function that activates a service for a DID.
+// See interface.go for more information.
+func (m *Module) ActivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	log.Logger().Debugf("Activating service for DID (did=%s, service=%s)", subjectDID, serviceID)
 	isOwner, err := m.documentOwner.IsOwner(ctx, subjectDID)
 	if err != nil {
 		return err
@@ -266,18 +268,20 @@ func (m *Module) Register(ctx context.Context, serviceID string, subjectDID did.
 	if !isOwner {
 		return errors.New("not owner of DID")
 	}
-	err = m.registrationManager.register(ctx, serviceID, subjectDID)
+	err = m.registrationManager.activate(ctx, serviceID, subjectDID)
 	if errors.Is(err, ErrPresentationRegistrationFailed) {
-		log.Logger().WithError(err).Warnf("Discovery Service registration failed, will be retried later (did=%s,service=%s)", subjectDID, serviceID)
+		log.Logger().WithError(err).Warnf("Presentation registration failed, will be retried later (did=%s,service=%s)", subjectDID, serviceID)
 	} else if err == nil {
-		log.Logger().Infof("Successfully registered Discovery Service (did=%s,service=%s)", subjectDID, serviceID)
+		log.Logger().Infof("Successfully activated service for DID (did=%s,service=%s)", subjectDID, serviceID)
 	}
 	return err
 }
 
-func (m *Module) Deregister(ctx context.Context, serviceID string, subjectDID did.DID) error {
-	log.Logger().Infof("Deregistering from Discovery Service (did=%s, service=%s)", subjectDID, serviceID)
-	return m.registrationManager.deregister(ctx, serviceID, subjectDID)
+// DeactivateServiceForDID is a Discovery Client function that deactivates a service for a DID.
+// See interface.go for more information.
+func (m *Module) DeactivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	log.Logger().Infof("Deactivating service for DID (did=%s, service=%s)", subjectDID, serviceID)
+	return m.registrationManager.deactivate(ctx, serviceID, subjectDID)
 }
 
 func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
@@ -307,6 +311,8 @@ func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 	return result, nil
 }
 
+// Search is a Discovery Client function that searches for presentations which credential(s) match the given query.
+// See interface.go for more information.
 func (m *Module) Search(serviceID string, query map[string]string) ([]SearchResult, error) {
 	service, exists := m.allDefinitions[serviceID]
 	if !exists {

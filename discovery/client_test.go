@@ -33,7 +33,7 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
 
-		err := manager.register(audit.TestContext(), testServiceID, aliceDID)
+		err := manager.activate(audit.TestContext(), testServiceID, aliceDID)
 
 		require.NoError(t, err)
 	})
@@ -49,7 +49,7 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
 
-		err := manager.register(audit.TestContext(), testServiceID, aliceDID)
+		err := manager.activate(audit.TestContext(), testServiceID, aliceDID)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		require.ErrorContains(t, err, "invoker error")
@@ -64,7 +64,7 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
 
-		err := manager.register(audit.TestContext(), testServiceID, aliceDID)
+		err := manager.activate(audit.TestContext(), testServiceID, aliceDID)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		require.ErrorContains(t, err, "DID wallet does not have credentials required for registration on Discovery Service (service=usecase_v1, did=did:example:alice)")
@@ -76,7 +76,7 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
 
-		err := manager.register(audit.TestContext(), "unknown", aliceDID)
+		err := manager.activate(audit.TestContext(), "unknown", aliceDID)
 
 		require.EqualError(t, err, "discovery service not found")
 	})
@@ -93,7 +93,7 @@ func Test_scheduledRegistrationManager_deregister(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
 
-		err := manager.deregister(audit.TestContext(), testServiceID, aliceDID)
+		err := manager.deactivate(audit.TestContext(), testServiceID, aliceDID)
 
 		assert.NoError(t, err)
 	})
@@ -110,7 +110,7 @@ func Test_scheduledRegistrationManager_deregister(t *testing.T) {
 		tag := Tag("taggy")
 		require.NoError(t, store.add(testServiceID, vpAlice, &tag))
 
-		err := manager.deregister(audit.TestContext(), testServiceID, aliceDID)
+		err := manager.deactivate(audit.TestContext(), testServiceID, aliceDID)
 
 		assert.NoError(t, err)
 	})
@@ -127,7 +127,7 @@ func Test_scheduledRegistrationManager_deregister(t *testing.T) {
 		tag := Tag("taggy")
 		require.NoError(t, store.add(testServiceID, vpAlice, &tag))
 
-		err := manager.deregister(audit.TestContext(), testServiceID, aliceDID)
+		err := manager.deactivate(audit.TestContext(), testServiceID, aliceDID)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		require.ErrorContains(t, err, "remote error")
@@ -162,11 +162,11 @@ func Test_scheduledRegistrationManager_doRefreshRegistrations(t *testing.T) {
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
 		// Alice
-		_ = store.updateDIDRegistrationTime(testServiceID, aliceDID, &time.Time{})
+		_ = store.updatePresentationRefreshTime(testServiceID, aliceDID, &time.Time{})
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &aliceDID, false).Return(&vpAlice, nil)
 		wallet.EXPECT().List(gomock.Any(), aliceDID).Return([]vc.VerifiableCredential{vcAlice}, nil)
 		// Bob
-		_ = store.updateDIDRegistrationTime(testServiceID, bobDID, &time.Time{})
+		_ = store.updatePresentationRefreshTime(testServiceID, bobDID, &time.Time{})
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &bobDID, false).Return(&vpBob, nil)
 		wallet.EXPECT().List(gomock.Any(), bobDID).Return([]vc.VerifiableCredential{vcBob}, nil)
 
@@ -194,7 +194,7 @@ func Test_scheduledRegistrationManager_refreshRegistrations(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			manager.refreshVerifiablePresentations(ctx, time.Millisecond)
+			manager.refresh(ctx, time.Millisecond)
 		}()
 		// make sure the loop has at least once
 		time.Sleep(5 * time.Millisecond)

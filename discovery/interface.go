@@ -90,9 +90,9 @@ var ErrPresentationRegistrationFailed = errors.New("registration of Verifiable P
 
 // Server defines the API for Discovery Servers.
 type Server interface {
-	// Add registers a presentation on the given Discovery Service.
+	// Register registers a presentation on the given Discovery Service.
 	// If the presentation is not valid, or it does not conform to the Service ServiceDefinition, it returns an error.
-	Add(serviceID string, presentation vc.VerifiablePresentation) error
+	Register(serviceID string, presentation vc.VerifiablePresentation) error
 	// Get retrieves the presentations for the given service, starting at the given timestamp.
 	Get(serviceID string, startAt *Tag) ([]vc.VerifiablePresentation, *Tag, error)
 }
@@ -103,16 +103,16 @@ type Client interface {
 	// Query parameters are formatted as simple JSON paths, e.g. "issuer" or "credentialSubject.name".
 	Search(serviceID string, query map[string]string) ([]SearchResult, error)
 
-	// Register causes a DID, in the form of a Verifiable Presentation, to be registered on a Discovery Service.
+	// ActivateServiceForDID causes a DID, in the form of a Verifiable Presentation, to be registered on a Discovery Service.
 	// Registration will be attempted immediately, and automatically refreshed.
 	// If the initial registration fails with ErrPresentationRegistrationFailed, registration will be retried.
 	// If the function is called again for the same service/DID combination, it will try to refresh the registration.
 	// It returns an error if the service or DID is invalid/unknown.
-	Register(ctx context.Context, serviceID string, subjectDID did.DID) error
+	ActivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error
 
-	// Deregister removes the registration of a DID on a Discovery Service.
+	// DeactivateServiceForDID removes the registration of a DID on a Discovery Service.
 	// It returns an error if the service or DID is invalid/unknown.
-	Deregister(ctx context.Context, serviceID string, subjectDID did.DID) error
+	DeactivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error
 }
 
 // SearchResult is a single result of a search operation.

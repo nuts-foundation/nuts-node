@@ -34,18 +34,18 @@ import (
 	"time"
 )
 
-// registrationManager is responsible for managing registrations on a Discovery Service.
+// clientRegistrationManager is a client component, responsible for managing registrations on a Discovery Service.
 // It automatically refreshes registered Verifiable Presentations when they are about to expire.
-type registrationManager interface {
-	register(ctx context.Context, serviceID string, subjectDID did.DID) error
-	deregister(ctx context.Context, serviceID string, subjectDID did.DID) error
-	// refreshRegistrations is a blocking call to periodically refresh registrations.
-	// It checks for registrations to be refreshed at the specified interval.
+type clientRegistrationManager interface {
+	activate(ctx context.Context, serviceID string, subjectDID did.DID) error
+	deactivate(ctx context.Context, serviceID string, subjectDID did.DID) error
+	// refresh is a blocking call to periodically refresh registrations.
+	// It checks for Verifiable Presentations that are about to expire, and should be refreshed on the Discovery Service.
 	// It will exit when the given context is cancelled.
-	refreshVerifiablePresentations(ctx context.Context, interval time.Duration)
+	refresh(ctx context.Context, interval time.Duration)
 }
 
-var _ registrationManager = &scheduledRegistrationManager{}
+var _ clientRegistrationManager = &scheduledRegistrationManager{}
 
 type scheduledRegistrationManager struct {
 	services map[string]ServiceDefinition
@@ -64,31 +64,31 @@ func newRegistrationManager(services map[string]ServiceDefinition, store *sqlSto
 	return instance
 }
 
-func (r *scheduledRegistrationManager) register(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (r *scheduledRegistrationManager) activate(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	service, serviceExists := r.services[serviceID]
 	if !serviceExists {
 		return ErrServiceNotFound
 	}
 	// TODO: When to refresh? For now, we refresh when the registration is about to expire (75% of max age)
 	refreshVPAfter := time.Now().Add(time.Duration(float64(service.PresentationMaxValidity)*0.75) * time.Second)
-	log.Logger().Debugf("Refreshing Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
-	if err := r.store.updateDIDRegistrationTime(serviceID, subjectDID, &refreshVPAfter); err != nil {
-		return fmt.Errorf("unable to update DID registration: %w", err)
+	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
+	if err := r.store.updatePresentationRefreshTime(serviceID, subjectDID, &refreshVPAfter); err != nil {
+		return fmt.Errorf("unable to update DID registration time: %w", err)
 	}
 	err := r.registerPresentation(ctx, subjectDID, service)
 	if err != nil {
 		// retry registration asap
 		var next time.Time
-		_ = r.store.updateDIDRegistrationTime(serviceID, subjectDID, &next)
+		_ = r.store.updatePresentationRefreshTime(serviceID, subjectDID, &next)
 		return errors.Join(ErrPresentationRegistrationFailed, err)
 	}
 	log.Logger().Debugf("Successfully refreshed Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
 	return nil
 }
 
-func (r *scheduledRegistrationManager) deregister(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (r *scheduledRegistrationManager) deactivate(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	// delete DID/service combination from DB, so it won't be registered again
-	err := r.store.updateDIDRegistrationTime(serviceID, subjectDID, nil)
+	err := r.store.updatePresentationRefreshTime(serviceID, subjectDID, nil)
 	if err != nil {
 		return err
 	}
@@ -161,19 +161,19 @@ func (r *scheduledRegistrationManager) buildPresentation(ctx context.Context, su
 
 func (r *scheduledRegistrationManager) doRefreshVerifiablePresentations(ctx context.Context, now time.Time) error {
 	log.Logger().Debug("Refreshing Verifiable Presentations on Discovery Services")
-	serviceIDs, dids, err := r.store.getStaleDIDRegistrations(now)
+	serviceIDs, dids, err := r.store.getPresentationsToBeRefreshed(now)
 	if err != nil {
 		return err
 	}
 	for i, serviceID := range serviceIDs {
-		if err := r.register(ctx, serviceID, dids[i]); err != nil {
+		if err := r.activate(ctx, serviceID, dids[i]); err != nil {
 			log.Logger().WithError(err).Warnf("Failed to refresh Verifiable Presentation (service=%s, did=%s)", serviceID, dids[i])
 		}
 	}
 	return nil
 }
 
-func (r *scheduledRegistrationManager) refreshVerifiablePresentations(ctx context.Context, interval time.Duration) {
+func (r *scheduledRegistrationManager) refresh(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	// do the first refresh immediately
