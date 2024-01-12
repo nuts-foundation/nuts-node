@@ -192,7 +192,7 @@ paths:
             The active Verifiable Presentation was removed from the remote Discovery Server (if applicable).
         "202":
           description: |
-            DID was successfully deactivated from the Discovery Service, but failed to remove the active Verifiable Presentation registration from the remote Discovery Server.
+            DID was successfully deactivated from the Discovery Service, but failed to remove the active Verifiable Presentation registration from the remote Discovery Server. The registration will be removed by the Discovery Server when the active Verifiable Presentation expires.
             Applications might want to retry this API call later, or simply let the presentation expire.
           content:
             application/json:
