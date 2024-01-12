@@ -109,6 +109,4 @@ type SearchResult struct {
 	Fields map[string]interface{} `json:"fields"`
 }
 
-type registrationVerifier interface {
-	verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error
-}
+type presentationVerifier func(definition ServiceDefinition, presentation vc.VerifiablePresentation) error

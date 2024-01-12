@@ -49,7 +49,7 @@ func DefaultConfig() Config {
 	return Config{
 		Server: ServerConfig{},
 		Client: ClientConfig{
-			UpdateInterval: 1 * time.Minute,
+			UpdateInterval: 10 * time.Minute,
 		},
 	}
 }
