@@ -45,17 +45,17 @@ type clientRegistrationManager interface {
 	refresh(ctx context.Context, interval time.Duration)
 }
 
-var _ clientRegistrationManager = &scheduledRegistrationManager{}
+var _ clientRegistrationManager = &defaultClientRegistrationManager{}
 
-type scheduledRegistrationManager struct {
+type defaultClientRegistrationManager struct {
 	services map[string]ServiceDefinition
 	store    *sqlStore
 	client   client.HTTPClient
 	vcr      vcr.VCR
 }
 
-func newRegistrationManager(services map[string]ServiceDefinition, store *sqlStore, client client.HTTPClient, vcr vcr.VCR) *scheduledRegistrationManager {
-	instance := &scheduledRegistrationManager{
+func newRegistrationManager(services map[string]ServiceDefinition, store *sqlStore, client client.HTTPClient, vcr vcr.VCR) *defaultClientRegistrationManager {
+	instance := &defaultClientRegistrationManager{
 		services: services,
 		store:    store,
 		client:   client,
@@ -64,7 +64,7 @@ func newRegistrationManager(services map[string]ServiceDefinition, store *sqlSto
 	return instance
 }
 
-func (r *scheduledRegistrationManager) activate(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (r *defaultClientRegistrationManager) activate(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	service, serviceExists := r.services[serviceID]
 	if !serviceExists {
 		return ErrServiceNotFound
@@ -86,7 +86,7 @@ func (r *scheduledRegistrationManager) activate(ctx context.Context, serviceID s
 	return nil
 }
 
-func (r *scheduledRegistrationManager) deactivate(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	// delete DID/service combination from DB, so it won't be registered again
 	err := r.store.updatePresentationRefreshTime(serviceID, subjectDID, nil)
 	if err != nil {
@@ -119,7 +119,7 @@ func (r *scheduledRegistrationManager) deactivate(ctx context.Context, serviceID
 	return nil
 }
 
-func (r *scheduledRegistrationManager) registerPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition) error {
+func (r *defaultClientRegistrationManager) registerPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition) error {
 	presentation, err := r.findCredentialsAndBuildPresentation(ctx, subjectDID, service)
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func (r *scheduledRegistrationManager) registerPresentation(ctx context.Context,
 	return r.client.Register(ctx, service.Endpoint, *presentation)
 }
 
-func (r *scheduledRegistrationManager) findCredentialsAndBuildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition) (*vc.VerifiablePresentation, error) {
+func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition) (*vc.VerifiablePresentation, error) {
 	credentials, err := r.vcr.Wallet().List(ctx, subjectDID)
 	if err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func (r *scheduledRegistrationManager) findCredentialsAndBuildPresentation(ctx c
 	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil)
 }
 
-func (r *scheduledRegistrationManager) buildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition,
+func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition,
 	credentials []vc.VerifiableCredential, additionalProperties map[string]interface{}) (*vc.VerifiablePresentation, error) {
 	nonce := nutsCrypto.GenerateNonce()
 	// Make sure the presentation is not valid for longer than the max validity as defined by the Service Definitio.
@@ -159,7 +159,7 @@ func (r *scheduledRegistrationManager) buildPresentation(ctx context.Context, su
 	}, &subjectDID, false)
 }
 
-func (r *scheduledRegistrationManager) doRefreshVerifiablePresentations(ctx context.Context, now time.Time) error {
+func (r *defaultClientRegistrationManager) doRefresh(ctx context.Context, now time.Time) error {
 	log.Logger().Debug("Refreshing Verifiable Presentations on Discovery Services")
 	serviceIDs, dids, err := r.store.getPresentationsToBeRefreshed(now)
 	if err != nil {
@@ -173,12 +173,12 @@ func (r *scheduledRegistrationManager) doRefreshVerifiablePresentations(ctx cont
 	return nil
 }
 
-func (r *scheduledRegistrationManager) refresh(ctx context.Context, interval time.Duration) {
+func (r *defaultClientRegistrationManager) refresh(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	// do the first refresh immediately
 	do := func() {
-		if err := r.doRefreshVerifiablePresentations(audit.Context(ctx, "app", ModuleName, "RefreshVerifiablePresentations"), time.Now()); err != nil {
+		if err := r.doRefresh(audit.Context(ctx, "app", ModuleName, "RefreshVerifiablePresentations"), time.Now()); err != nil {
 			log.Logger().WithError(err).Errorf("Failed to refresh Verifiable Presentations")
 		}
 	}
