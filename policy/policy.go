@@ -85,9 +85,15 @@ func (b *Router) Config() interface{} {
 }
 
 func (b *Router) PresentationDefinition(ctx context.Context, authorizer did.DID, scope string) (*pe.PresentationDefinition, error) {
+	if b.backend == nil {
+		return nil, errors.New("no policy backend configured")
+	}
 	return b.backend.PresentationDefinition(ctx, authorizer, scope)
 }
 
 func (b *Router) Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error) {
+	if b.backend == nil {
+		return false, errors.New("no policy backend configured")
+	}
 	return b.backend.Authorized(ctx, requestInfo)
 }

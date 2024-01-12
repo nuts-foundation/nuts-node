@@ -108,20 +108,36 @@ func TestRouterForwarding(t *testing.T) {
 	}
 
 	t.Run("Authorized", func(t *testing.T) {
-		router.backend.(*MockPDPBackend).EXPECT().Authorized(ctx, gomock.Any()).Return(true, nil)
+		t.Run("ok", func(t *testing.T) {
+			router.backend.(*MockPDPBackend).EXPECT().Authorized(ctx, gomock.Any()).Return(true, nil)
 
-		result, err := router.Authorized(ctx, client.AuthorizedRequest{})
+			result, err := router.Authorized(ctx, client.AuthorizedRequest{})
 
-		require.NoError(t, err)
-		assert.True(t, result)
+			require.NoError(t, err)
+			assert.True(t, result)
+		})
+		t.Run("no backend configured", func(t *testing.T) {
+			result, err := (&Router{}).Authorized(ctx, client.AuthorizedRequest{})
+
+			require.EqualError(t, err, "no policy backend configured")
+			assert.False(t, result)
+		})
 	})
 
 	t.Run("PresentationDefinition", func(t *testing.T) {
-		router.backend.(*MockPDPBackend).EXPECT().PresentationDefinition(ctx, testDID, "test").Return(&presentationDefinition, nil)
+		t.Run("ok", func(t *testing.T) {
+			router.backend.(*MockPDPBackend).EXPECT().PresentationDefinition(ctx, testDID, "test").Return(&presentationDefinition, nil)
 
-		result, err := router.PresentationDefinition(ctx, testDID, "test")
+			result, err := router.PresentationDefinition(ctx, testDID, "test")
 
-		require.NoError(t, err)
-		assert.Equal(t, presentationDefinition, *result)
+			require.NoError(t, err)
+			assert.Equal(t, presentationDefinition, *result)
+		})
+		t.Run("no backend configured", func(t *testing.T) {
+			result, err := (&Router{}).PresentationDefinition(ctx, testDID, "test")
+
+			require.EqualError(t, err, "no policy backend configured")
+			assert.Nil(t, result)
+		})
 	})
 }
