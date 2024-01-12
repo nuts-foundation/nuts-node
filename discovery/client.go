@@ -69,20 +69,24 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	if !serviceExists {
 		return ErrServiceNotFound
 	}
-	// TODO: When to refresh? For now, we refresh when the registration is about to expire (75% of max age)
-	refreshVPAfter := time.Now().Add(time.Duration(float64(service.PresentationMaxValidity)*0.75) * time.Second)
-	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
-	if err := r.store.updatePresentationRefreshTime(serviceID, subjectDID, &refreshVPAfter); err != nil {
-		return fmt.Errorf("unable to update DID registration time: %w", err)
+	var asSoonAsPossible time.Time
+	if err := r.store.updatePresentationRefreshTime(serviceID, subjectDID, &asSoonAsPossible); err != nil {
+		return err
 	}
+	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, did=%s)", service.ID, subjectDID)
 	err := r.registerPresentation(ctx, subjectDID, service)
 	if err != nil {
-		// retry registration asap
-		var next time.Time
-		_ = r.store.updatePresentationRefreshTime(serviceID, subjectDID, &next)
+		// failed, will be retried on next scheduled refresh
 		return errors.Join(ErrPresentationRegistrationFailed, err)
 	}
-	log.Logger().Debugf("Successfully refreshed Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
+	log.Logger().Debugf("Successfully registered Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
+
+	// Set presentation to be refreshed before it expires
+	// TODO: When to refresh? For now, we refresh when the registration is about to expire (75% of max age)
+	refreshVPAfter := time.Now().Add(time.Duration(float64(service.PresentationMaxValidity)*0.75) * time.Second)
+	if err := r.store.updatePresentationRefreshTime(serviceID, subjectDID, &refreshVPAfter); err != nil {
+		return fmt.Errorf("unable to update Verifiable Presentation refresh time: %w", err)
+	}
 	return nil
 }
 
