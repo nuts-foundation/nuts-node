@@ -52,7 +52,10 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 		storage.NewTestStorageEngine(t).GetProvider(ModuleName),
 		pkiMock,
 	)
-	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
+	if err := newInstance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Strictmode = false
+		config.Datadir = testDirectory
+	})); err != nil {
 		logrus.Fatal(err)
 	}
 	return newInstance

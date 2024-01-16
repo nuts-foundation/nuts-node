@@ -55,9 +55,7 @@ func TestNewJSONLDInstance(t *testing.T) {
 			configurable := instance.(core.Configurable)
 
 			t.Run("it can be configured", func(t *testing.T) {
-				cfg := *core.NewServerConfig()
-				cfg.Strictmode = true
-				assert.NoError(t, configurable.Configure(cfg))
+				assert.NoError(t, configurable.Configure(*core.NewServerConfig()))
 				assert.NotNil(t, instance.DocumentLoader())
 			})
 		})

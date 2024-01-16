@@ -207,7 +207,7 @@ func TestEngine_Configure(t *testing.T) {
 				engine := New(noop, nil)
 				engine.config.InterfaceConfig.CORS.Origin = []string{"*"}
 
-				err := engine.Configure(core.TestServerConfig(core.ServerConfig{Strictmode: true}))
+				err := engine.Configure(*core.NewServerConfig())
 
 				assert.EqualError(t, err, "wildcard CORS origin is not allowed in strict mode")
 			})
@@ -215,7 +215,9 @@ func TestEngine_Configure(t *testing.T) {
 				engine := New(noop, nil)
 				engine.config.InterfaceConfig.CORS.Origin = []string{"*"}
 
-				err := engine.Configure(*core.NewServerConfig())
+				err := engine.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+					config.Strictmode = false
+				}))
 
 				assert.NoError(t, err)
 			})

@@ -62,7 +62,9 @@ func TestVCR_Configure(t *testing.T) {
 	t.Run("error - creating issuer store", func(t *testing.T) {
 		instance := NewVCRInstance(nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pki.New()).(*vcr)
 
-		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
+		err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = "test"
+		}))
 		assert.EqualError(t, err, "failed to create leiaIssuerStore: mkdir test/vcr: not a directory")
 	})
 	t.Run("openid4vci", func(t *testing.T) {
@@ -75,7 +77,9 @@ func TestVCR_Configure(t *testing.T) {
 		instance := NewVCRInstance(nil, vdrInstance, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
 		instance.config.OpenID4VCI.Enabled = true
 
-		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory}))
+		err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = testDirectory
+		}))
 
 		require.NoError(t, err)
 	})
@@ -95,7 +99,9 @@ func TestVCR_Configure(t *testing.T) {
 		instance := NewVCRInstance(nil, vdrInstance, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
 		instance.config.OpenID4VCI.Enabled = true
 
-		err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, Strictmode: true}))
+		err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = testDirectory
+		}))
 		require.NoError(t, err)
 		instance.localWalletResolver = localWalletResolver
 		// test simulates an offer call which will not be executed since the target wallet does not have an HTTPS endpoint
@@ -130,7 +136,9 @@ func TestVCR_Start(t *testing.T) {
 			storage.NewTestStorageEngine(t),
 			pki.New(),
 		).(*vcr)
-		if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
+		if err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = testDirectory
+		})); err != nil {
 			t.Fatal(err)
 		}
 		if err := instance.Start(); err != nil {
@@ -181,7 +189,9 @@ func TestVCR_Diagnostics(t *testing.T) {
 		pki.New(),
 	).(*vcr)
 	instance.config.OpenID4VCI.Enabled = false
-	if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
+	if err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Datadir = testDirectory
+	})); err != nil {
 		t.Fatal(err)
 	}
 	if err := instance.Start(); err != nil {

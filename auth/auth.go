@@ -156,7 +156,13 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	clientTimeout := time.Duration(auth.config.HTTPTimeout) * time.Second
+	var clientTimeout time.Duration
+	if auth.config.HTTPTimeout >= 0 {
+		clientTimeout = time.Duration(auth.config.HTTPTimeout) * time.Second
+	} else {
+		// auth.http.config got deprecated in favor of httpclient.timeout
+		clientTimeout = config.HTTPClient.Timeout
+	}
 	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second
 	auth.authzServer = oauth.NewAuthorizationServer(auth.vdrInstance.Resolver(), auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
 		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenLifeSpan)
