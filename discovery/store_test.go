@@ -19,6 +19,7 @@
 package discovery
 
 import (
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/assert"
@@ -26,6 +27,7 @@ import (
 	"gorm.io/gorm"
 	"sync"
 	"testing"
+	"time"
 )
 
 func Test_sqlStore_exists(t *testing.T) {
@@ -40,21 +42,21 @@ func Test_sqlStore_exists(t *testing.T) {
 	})
 	t.Run("non-empty list, no match (other subject and ID)", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpBob, nil))
+		require.NoError(t, m.add(testServiceID, vpBob, ""))
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
 	t.Run("non-empty list, no match (other list)", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, nil))
+		require.NoError(t, m.add(testServiceID, vpAlice, ""))
 		exists, err := m.exists("other", aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
 	t.Run("non-empty list, match", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, nil))
+		require.NoError(t, m.add(testServiceID, vpAlice, ""))
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.True(t, exists)
@@ -67,7 +69,7 @@ func Test_sqlStore_add(t *testing.T) {
 
 	t.Run("no credentials in presentation", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		err := m.add(testServiceID, createPresentation(aliceDID), nil)
+		err := m.add(testServiceID, createPresentation(aliceDID), "")
 		assert.NoError(t, err)
 	})
 	t.Run("with indexable properties in credential", func(t *testing.T) {
@@ -75,7 +77,7 @@ func Test_sqlStore_add(t *testing.T) {
 		err := m.add(testServiceID, createPresentation(aliceDID, createCredential(authorityDID, aliceDID, map[string]interface{}{
 			"name":         "Alice",
 			"placeOfBirth": "Bristol",
-		}, nil)), nil)
+		}, nil)), "")
 		assert.NoError(t, err)
 
 		var actual []credentialPropertyRecord
@@ -89,7 +91,7 @@ func Test_sqlStore_add(t *testing.T) {
 		err := m.add(testServiceID, createPresentation(aliceDID, createCredential(authorityDID, aliceDID, map[string]interface{}{
 			"name": "Alice",
 			"age":  35,
-		}, nil)), nil)
+		}, nil)), "")
 		assert.NoError(t, err)
 
 		var actual []credentialPropertyRecord
@@ -100,7 +102,7 @@ func Test_sqlStore_add(t *testing.T) {
 	t.Run("without indexable properties in credential", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 		presentation := createCredential(authorityDID, aliceDID, map[string]interface{}{}, nil)
-		err := m.add(testServiceID, createPresentation(aliceDID, presentation), nil)
+		err := m.add(testServiceID, createPresentation(aliceDID, presentation), "")
 		assert.NoError(t, err)
 
 		var actual []credentialPropertyRecord
@@ -111,8 +113,8 @@ func Test_sqlStore_add(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 
 		secondVP := createPresentation(aliceDID, vcAlice)
-		require.NoError(t, m.add(testServiceID, vpAlice, nil))
-		require.NoError(t, m.add(testServiceID, secondVP, nil))
+		require.NoError(t, m.add(testServiceID, vpAlice, ""))
+		require.NoError(t, m.add(testServiceID, secondVP, ""))
 
 		// First VP should not exist
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
@@ -140,7 +142,7 @@ func Test_sqlStore_get(t *testing.T) {
 	})
 	t.Run("1 entry, empty tag", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, nil))
+		require.NoError(t, m.add(testServiceID, vpAlice, ""))
 		presentations, tag, err := m.get(testServiceID, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{vpAlice}, presentations)
@@ -149,8 +151,8 @@ func Test_sqlStore_get(t *testing.T) {
 	})
 	t.Run("2 entries, empty tag", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, nil))
-		require.NoError(t, m.add(testServiceID, vpBob, nil))
+		require.NoError(t, m.add(testServiceID, vpAlice, ""))
+		require.NoError(t, m.add(testServiceID, vpBob, ""))
 		presentations, tag, err := m.get(testServiceID, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{vpAlice, vpBob}, presentations)
@@ -159,8 +161,8 @@ func Test_sqlStore_get(t *testing.T) {
 	})
 	t.Run("2 entries, start after first", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, nil))
-		require.NoError(t, m.add(testServiceID, vpBob, nil))
+		require.NoError(t, m.add(testServiceID, vpAlice, ""))
+		require.NoError(t, m.add(testServiceID, vpBob, ""))
 		ts := tagForTimestamp(t, m, testServiceID, 1)
 		presentations, tag, err := m.get(testServiceID, &ts)
 		assert.NoError(t, err)
@@ -170,8 +172,8 @@ func Test_sqlStore_get(t *testing.T) {
 	})
 	t.Run("2 entries, start at end", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, nil))
-		require.NoError(t, m.add(testServiceID, vpBob, nil))
+		require.NoError(t, m.add(testServiceID, vpAlice, ""))
+		require.NoError(t, m.add(testServiceID, vpBob, ""))
 		expectedTag := tagForTimestamp(t, m, testServiceID, 2)
 		presentations, tag, err := m.get(testServiceID, &expectedTag)
 		assert.NoError(t, err)
@@ -321,7 +323,7 @@ func Test_sqlStore_search(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			c := setupStore(t, storageEngine.GetSQLDatabase())
 			for _, vp := range tc.inputVPs {
-				err := c.add(testServiceID, vp, nil)
+				err := c.add(testServiceID, vp, "")
 				require.NoError(t, err)
 			}
 			actualVPs, err := c.search(testServiceID, tc.query)
@@ -347,11 +349,61 @@ func Test_sqlStore_search(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				err := c.add(testServiceID, createPresentation(aliceDID, vcAlice), nil)
+				err := c.add(testServiceID, createPresentation(aliceDID, vcAlice), "")
 				require.NoError(t, err)
 			}()
 		}
 		wg.Wait()
+	})
+}
+
+func Test_sqlStore_getStaleDIDRegistrations(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Cleanup(func() {
+		_ = storageEngine.Shutdown()
+	})
+
+	now := time.Now()
+	t.Run("empty list", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		serviceIDs, dids, err := c.getPresentationsToBeRefreshed(now)
+		require.NoError(t, err)
+		assert.Empty(t, serviceIDs)
+		assert.Empty(t, dids)
+	})
+	t.Run("1 entry, not stale", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceDID, &now))
+		serviceIDs, dids, err := c.getPresentationsToBeRefreshed(time.Now().Add(-1 * time.Hour))
+		require.NoError(t, err)
+		assert.Empty(t, serviceIDs)
+		assert.Empty(t, dids)
+	})
+	t.Run("1 entry, stale", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceDID, &now))
+		serviceIDs, dids, err := c.getPresentationsToBeRefreshed(time.Now().Add(time.Hour))
+		require.NoError(t, err)
+		assert.Equal(t, []string{testServiceID}, serviceIDs)
+		assert.Equal(t, []did.DID{aliceDID}, dids)
+	})
+	t.Run("does not return removed entry", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceDID, &now))
+
+		// Assert it's there
+		serviceIDs, dids, err := c.getPresentationsToBeRefreshed(time.Now().Add(time.Hour))
+		require.NoError(t, err)
+		assert.Equal(t, []string{testServiceID}, serviceIDs)
+		assert.Equal(t, []did.DID{aliceDID}, dids)
+
+		// Remove it
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceDID, nil))
+		serviceIDs, dids, err = c.getPresentationsToBeRefreshed(time.Now().Add(time.Hour))
+		require.NoError(t, err)
+		assert.Empty(t, serviceIDs)
+		assert.Empty(t, dids)
 	})
 }
 

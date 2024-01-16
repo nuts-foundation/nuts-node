@@ -10,8 +10,10 @@
 package discovery
 
 import (
+	context "context"
 	reflect "reflect"
 
+	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -39,20 +41,6 @@ func (m *MockServer) EXPECT() *MockServerMockRecorder {
 	return m.recorder
 }
 
-// Add mocks base method.
-func (m *MockServer) Add(serviceID string, presentation vc.VerifiablePresentation) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Add", serviceID, presentation)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Add indicates an expected call of Add.
-func (mr *MockServerMockRecorder) Add(serviceID, presentation any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockServer)(nil).Add), serviceID, presentation)
-}
-
 // Get mocks base method.
 func (m *MockServer) Get(serviceID string, startAt *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
 	m.ctrl.T.Helper()
@@ -67,6 +55,20 @@ func (m *MockServer) Get(serviceID string, startAt *Tag) ([]vc.VerifiablePresent
 func (mr *MockServerMockRecorder) Get(serviceID, startAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockServer)(nil).Get), serviceID, startAt)
+}
+
+// Register mocks base method.
+func (m *MockServer) Register(serviceID string, presentation vc.VerifiablePresentation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Register", serviceID, presentation)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Register indicates an expected call of Register.
+func (mr *MockServerMockRecorder) Register(serviceID, presentation any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockServer)(nil).Register), serviceID, presentation)
 }
 
 // MockClient is a mock of Client interface.
@@ -92,6 +94,34 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
 }
 
+// ActivateServiceForDID mocks base method.
+func (m *MockClient) ActivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ActivateServiceForDID", ctx, serviceID, subjectDID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ActivateServiceForDID indicates an expected call of ActivateServiceForDID.
+func (mr *MockClientMockRecorder) ActivateServiceForDID(ctx, serviceID, subjectDID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateServiceForDID", reflect.TypeOf((*MockClient)(nil).ActivateServiceForDID), ctx, serviceID, subjectDID)
+}
+
+// DeactivateServiceForDID mocks base method.
+func (m *MockClient) DeactivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeactivateServiceForDID", ctx, serviceID, subjectDID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeactivateServiceForDID indicates an expected call of DeactivateServiceForDID.
+func (mr *MockClientMockRecorder) DeactivateServiceForDID(ctx, serviceID, subjectDID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeactivateServiceForDID", reflect.TypeOf((*MockClient)(nil).DeactivateServiceForDID), ctx, serviceID, subjectDID)
+}
+
 // Search mocks base method.
 func (m *MockClient) Search(serviceID string, query map[string]string) ([]SearchResult, error) {
 	m.ctrl.T.Helper()
@@ -105,41 +135,4 @@ func (m *MockClient) Search(serviceID string, query map[string]string) ([]Search
 func (mr *MockClientMockRecorder) Search(serviceID, query any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockClient)(nil).Search), serviceID, query)
-}
-
-// MockregistrationVerifier is a mock of registrationVerifier interface.
-type MockregistrationVerifier struct {
-	ctrl     *gomock.Controller
-	recorder *MockregistrationVerifierMockRecorder
-}
-
-// MockregistrationVerifierMockRecorder is the mock recorder for MockregistrationVerifier.
-type MockregistrationVerifierMockRecorder struct {
-	mock *MockregistrationVerifier
-}
-
-// NewMockregistrationVerifier creates a new mock instance.
-func NewMockregistrationVerifier(ctrl *gomock.Controller) *MockregistrationVerifier {
-	mock := &MockregistrationVerifier{ctrl: ctrl}
-	mock.recorder = &MockregistrationVerifierMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockregistrationVerifier) EXPECT() *MockregistrationVerifierMockRecorder {
-	return m.recorder
-}
-
-// verifyRegistration mocks base method.
-func (m *MockregistrationVerifier) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "verifyRegistration", definition, presentation)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// verifyRegistration indicates an expected call of verifyRegistration.
-func (mr *MockregistrationVerifierMockRecorder) verifyRegistration(definition, presentation any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "verifyRegistration", reflect.TypeOf((*MockregistrationVerifier)(nil).verifyRegistration), definition, presentation)
 }

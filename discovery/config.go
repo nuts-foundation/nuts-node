@@ -42,6 +42,9 @@ type ServerConfig struct {
 type ClientConfig struct {
 	// UpdateInterval specifies how often the client should update the Discovery Services.
 	UpdateInterval time.Duration `koanf:"update_interval"`
+	// RegistrationRefreshInterval specifies how often the client should refresh its registrations on Discovery Services.
+	// At the same interval, failed registrations are refreshed.
+	RegistrationRefreshInterval time.Duration `koanf:"registration_refresh_interval"`
 }
 
 // DefaultConfig returns the default configuration.
@@ -50,11 +53,7 @@ func DefaultConfig() Config {
 		Server: ServerConfig{},
 		Client: ClientConfig{
 			UpdateInterval: 10 * time.Minute,
+			RegistrationRefreshInterval: 10 * time.Minute,
 		},
 	}
-}
-
-// IsServer returns true if the node act as Discovery Server.
-func (c Config) IsServer() bool {
-	return len(c.Server.DefinitionIDs) > 0
 }

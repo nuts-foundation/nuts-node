@@ -138,6 +138,9 @@ func (h wallet) buildJWTPresentation(ctx context.Context, subjectDID did.DID, cr
 	if options.ProofOptions.Expires != nil {
 		claims[jwt.ExpirationKey] = int(options.ProofOptions.Expires.Unix())
 	}
+	for claimName, value := range options.ProofOptions.AdditionalProperties {
+		claims[claimName] = value
+	}
 	token, err := h.keyStore.SignJWT(ctx, claims, headers, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign JWT presentation: %w", err)

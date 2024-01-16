@@ -52,12 +52,29 @@ func TestAuth_Configure(t *testing.T) {
 
 		require.NoError(t, i.Configure(tlsServerConfig))
 	})
+	t.Run("use legacy auth.http.timeout config", func(t *testing.T) {
+		config := DefaultConfig()
+		config.HTTPTimeout = 10
+		config.ContractValidators = []string{"uzi"}
+		ctrl := gomock.NewController(t)
+		pkiMock := pki.NewMockProvider(ctrl)
+		pkiMock.EXPECT().AddTruststore(gomock.Any())   // uzi
+		pkiMock.EXPECT().CreateTLSConfig(gomock.Any()) // tlsConfig
+		vdrInstance := vdr.NewMockVDR(ctrl)
+		vdrInstance.EXPECT().Resolver().AnyTimes()
+
+		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
+
+		require.NoError(t, i.Configure(tlsServerConfig))
+	})
 
 	t.Run("error - IRMA config failure", func(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.Irma.SchemeManager = "non-existing"
+		serverConfig := tlsServerConfig
+		serverConfig.Strictmode = false
 		i := testInstance(t, authCfg)
-		err := i.Configure(tlsServerConfig)
+		err := i.Configure(serverConfig)
 		require.NoError(t, err)
 	})
 
@@ -73,19 +90,14 @@ func TestAuth_Configure(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.Irma.SchemeManager = "demo"
 		i := testInstance(t, authCfg)
-		serverConfig := core.NewServerConfig()
-		serverConfig.Strictmode = true
-		err := i.Configure(*serverConfig)
+		err := i.Configure(tlsServerConfig)
 		assert.EqualError(t, err, "in strictmode the only valid irma-scheme-manager is 'pbdf'")
 	})
 
 	t.Run("error - TLS required in strict mode", func(t *testing.T) {
 		authCfg := TestConfig()
 		i := testInstance(t, authCfg)
-		serverConfig := core.NewServerConfig()
-		serverConfig.Strictmode = true
-		serverConfig.URL = "https://nuts.nl"
-		err := i.Configure(*serverConfig)
+		err := i.Configure(core.TestServerConfig())
 		assert.EqualError(t, err, "in strictmode TLS must be enabled")
 	})
 

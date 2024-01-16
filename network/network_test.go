@@ -182,7 +182,9 @@ func TestNetwork_Configure(t *testing.T) {
 		})
 		test.protocol.EXPECT().Configure(gomock.Any())
 
-		err := test.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
+		err := test.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = io.TestDirectory(t)
+		}))
 
 		require.NoError(t, err)
 		assert.Equal(t, "did:nuts:test", test.network.nodeDID.String())
@@ -193,7 +195,9 @@ func TestNetwork_Configure(t *testing.T) {
 		test := createNetwork(t, ctrl)
 		test.protocol.EXPECT().Configure(gomock.Any())
 
-		err := test.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true}))
+		err := test.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = io.TestDirectory(t)
+		}))
 		require.NoError(t, err)
 		assert.Empty(t, test.network.nodeDID)
 	})
@@ -204,7 +208,9 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.network.config.NodeDID = "invalid"
 
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
+		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = io.TestDirectory(t)
+		}))
 		assert.EqualError(t, err, "configured NodeDID is invalid: invalid DID")
 	})
 
@@ -236,7 +242,10 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
+		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Strictmode = false
+			config.Datadir = io.TestDirectory(t)
+		}))
 
 		require.NoError(t, err)
 	})
@@ -247,7 +256,9 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true}))
+		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = io.TestDirectory(t)
+		}))
 
 		assert.EqualError(t, err, "disabling TLS in strict mode is not allowed")
 	})
@@ -281,7 +292,9 @@ func TestNetwork_Configure(t *testing.T) {
 		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
+		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = io.TestDirectory(t)
+		}))
 
 		require.NoError(t, err)
 	})
@@ -292,7 +305,9 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any()).Return(errors.New("failed"))
 
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
+		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = io.TestDirectory(t)
+		}))
 		assert.EqualError(t, err, "error while configuring protocol *transport.MockProtocol: failed")
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
@@ -304,7 +319,9 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.network.connectionManager = nil
 		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "network_test.go"}))
+		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = "network_test.go"
+		}))
 		assert.Error(t, err)
 	})
 	t.Run("ok - protocol not enabled", func(t *testing.T) {
@@ -314,7 +331,9 @@ func TestNetwork_Configure(t *testing.T) {
 			config.Protocols = []int{2} // do not enable TestProtocol with version math.MaxInt
 		})
 
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
+		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = io.TestDirectory(t)
+		}))
 
 		assert.NoError(t, err)
 		assert.Empty(t, ctx.network.protocols)
@@ -331,7 +350,10 @@ func TestNetwork_Configure(t *testing.T) {
 		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any())
 		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
+		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Strictmode = false
+			config.Datadir = io.TestDirectory(t)
+		}))
 
 		assert.EqualError(t, err, "failed to open connections store: failed")
 	})
@@ -789,7 +811,9 @@ func TestNetwork_Shutdown(t *testing.T) {
 		ctx.protocol.EXPECT().Stop()
 		ctx.connectionManager.EXPECT().Stop()
 
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
+		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = io.TestDirectory(t)
+		}))
 
 		require.NoError(t, err)
 		err = ctx.network.Shutdown()

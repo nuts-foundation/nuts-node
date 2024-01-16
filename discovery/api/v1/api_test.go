@@ -21,6 +21,7 @@ package v1
 import (
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -80,7 +81,7 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
 		presentation := vc.VerifiablePresentation{}
-		test.server.EXPECT().Add(serviceID, presentation).Return(nil)
+		test.server.EXPECT().Register(serviceID, presentation).Return(nil)
 
 		response, err := test.wrapper.RegisterPresentation(nil, RegisterPresentationRequestObject{
 			ServiceID: serviceID,
@@ -93,7 +94,7 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
 		presentation := vc.VerifiablePresentation{}
-		test.server.EXPECT().Add(serviceID, presentation).Return(discovery.ErrInvalidPresentation)
+		test.server.EXPECT().Register(serviceID, presentation).Return(discovery.ErrInvalidPresentation)
 
 		_, err := test.wrapper.RegisterPresentation(nil, RegisterPresentationRequestObject{
 			ServiceID: serviceID,
@@ -101,6 +102,75 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, discovery.ErrInvalidPresentation)
+	})
+}
+
+func TestWrapper_ActivateServiceForDID(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedDID := "did:web:example.com"
+		test.client.EXPECT().ActivateServiceForDID(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
+
+		response, err := test.wrapper.ActivateServiceForDID(nil, ActivateServiceForDIDRequestObject{
+			ServiceID: serviceID,
+			Did:       expectedDID,
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, ActivateServiceForDID200Response{}, response)
+	})
+	t.Run("ok, but registration failed", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedDID := "did:web:example.com"
+		test.client.EXPECT().ActivateServiceForDID(gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrPresentationRegistrationFailed)
+
+		response, err := test.wrapper.ActivateServiceForDID(nil, ActivateServiceForDIDRequestObject{
+			ServiceID: serviceID,
+			Did:       expectedDID,
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, ActivateServiceForDID202JSONResponse{}, response)
+	})
+	t.Run("other error", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedDID := "did:web:example.com"
+		test.client.EXPECT().ActivateServiceForDID(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("foo"))
+
+		_, err := test.wrapper.ActivateServiceForDID(nil, ActivateServiceForDIDRequestObject{
+			ServiceID: serviceID,
+			Did:       expectedDID,
+		})
+
+		assert.Error(t, err)
+	})
+}
+
+func TestWrapper_DeactivateServiceForDID(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedDID := "did:web:example.com"
+		test.client.EXPECT().DeactivateServiceForDID(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
+
+		response, err := test.wrapper.DeactivateServiceForDID(nil, DeactivateServiceForDIDRequestObject{
+			ServiceID: serviceID,
+			Did:       expectedDID,
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, DeactivateServiceForDID200Response{}, response)
+	})
+	t.Run("error", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedDID := "did:web:example.com"
+		test.client.EXPECT().DeactivateServiceForDID(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(errors.New("foo"))
+
+		_, err := test.wrapper.DeactivateServiceForDID(nil, DeactivateServiceForDIDRequestObject{
+			ServiceID: serviceID,
+			Did:       expectedDID,
+		})
+
+		assert.Error(t, err)
 	})
 }
 

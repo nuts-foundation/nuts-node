@@ -64,6 +64,9 @@ type ProofOptions struct {
 	ProofPurpose string `json:"proofPurpose"`
 	// Nonce contains a value that is used to prevent replay attacks
 	Nonce *string `json:"nonce,omitempty"`
+	// AdditionalProperties is used to specify additional, non-standard properties.
+	// They are included as JWT claims in jwt_vp proof format, all other formats ignore them (for now).
+	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
 // ValidAt checks if the proof is valid at a certain given time.

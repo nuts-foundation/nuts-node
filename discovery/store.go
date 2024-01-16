@@ -21,6 +21,7 @@ package discovery
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -101,6 +102,21 @@ type credentialPropertyRecord struct {
 // TableName returns the table name for this DTO.
 func (l credentialPropertyRecord) TableName() string {
 	return "discovery_credential_prop"
+}
+
+// presentationRefreshRecord is a tab-keeping record for clients to keep track of which DIDs should be registered on which Discovery Services.
+type presentationRefreshRecord struct {
+	// ServiceID refers to the entry record in discovery_service
+	ServiceID string `gorm:"primaryKey"`
+	// Did is Did that should be registered on the service.
+	Did string `gorm:"primaryKey"`
+	// NextRefresh is the timestamp (seconds since Unix epoch) when the registration on the Discovery Service should be refreshed.
+	NextRefresh int64
+}
+
+// TableName returns the table name for this DTO.
+func (l presentationRefreshRecord) TableName() string {
+	return "discovery_presentation_refresh"
 }
 
 type sqlStore struct {
@@ -399,6 +415,40 @@ func (s *sqlStore) removeExpired() (int, error) {
 		return 0, fmt.Errorf("prune presentations: %w", result.Error)
 	}
 	return int(result.RowsAffected), nil
+}
+
+// updatePresentationRefreshTime creates/updates the next refresh time for a Verifiable Presentation on a Discovery Service.
+// If nextRegistration is nil, the entry will be removed from the database.
+func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectDID did.DID, nextRefresh *time.Time) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if nextRefresh == nil {
+			// Delete registration
+			return tx.Delete(&presentationRefreshRecord{}, "service_id = ? AND did = ?", serviceID, subjectDID.String()).Error
+		}
+		// Create or update it
+		return tx.Save(presentationRefreshRecord{Did: subjectDID.String(), ServiceID: serviceID, NextRefresh: nextRefresh.Unix()}).Error
+	})
+}
+
+// getPresentationsToBeRefreshed returns all DID discovery service registrations that are due for refreshing.
+// It returns a slice of service IDs and associated DIDs.
+func (s *sqlStore) getPresentationsToBeRefreshed(now time.Time) ([]string, []did.DID, error) {
+	var rows []presentationRefreshRecord
+	if err := s.db.Find(&rows, "next_refresh < ?", now.Unix()).Error; err != nil {
+		return nil, nil, err
+	}
+	var dids []did.DID
+	var serviceIDs []string
+	for _, row := range rows {
+		parsedDID, err := did.ParseDID(row.Did)
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Invalid DID in discovery presentation refresh table: %s", row.Did)
+			continue
+		}
+		dids = append(dids, *parsedDID)
+		serviceIDs = append(serviceIDs, row.ServiceID)
+	}
+	return serviceIDs, dids, nil
 }
 
 func (s *sqlStore) getTag(serviceID string) (Tag, error) {
