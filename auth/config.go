@@ -47,8 +47,7 @@ func DefaultConfig() Config {
 			SchemeManager:     "pbdf",
 			AutoUpdateSchemas: true,
 		},
-		HTTPTimeout: 30,
-		ClockSkew:   5000,
+		ClockSkew: 5000,
 		ContractValidators: []string{
 			string(services.IrmaFormat),
 			uzi.ContractFormat,
