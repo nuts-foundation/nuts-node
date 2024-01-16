@@ -73,7 +73,9 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 		pki.New(),
 	).(*vcr)
 
-	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
+	if err := newInstance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Datadir = testDirectory
+	})); err != nil {
 		t.Fatal(err)
 	}
 	if err := newInstance.Start(); err != nil {
@@ -93,7 +95,10 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 	keyStore := crypto.NewMemoryCryptoInstance()
 	eventManager := events.NewTestManager(t)
 	networkInstance := network.NewNetworkInstance(network.TestNetworkConfig(), didStore, keyStore, eventManager, storageEngine.GetProvider("network"), nil)
-	serverCfg := core.TestServerConfig(core.ServerConfig{Datadir: testDirectory, URL: "http://nuts.test"})
+	serverCfg := core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Datadir = testDirectory
+		config.URL = "http://nuts.test"
+	})
 	_ = networkInstance.Configure(serverCfg)
 	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager, storageEngine)
 	err := vdrInstance.Configure(serverCfg)
@@ -139,7 +144,9 @@ func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 		pki.New(),
 	).(*vcr)
 
-	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
+	if err := newInstance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Datadir = testDirectory
+	})); err != nil {
 		t.Fatal(err)
 	}
 	if err := newInstance.Start(); err != nil {
@@ -175,7 +182,9 @@ func newMockContext(t *testing.T) mockContext {
 	vcr := NewVCRInstance(cryptoInstance, vdrInstance, tx, jsonldManager, eventManager, storageClient, pki.New()).(*vcr)
 	vcr.pkiProvider = pki.New()
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
-	if err := vcr.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDir})); err != nil {
+	if err := vcr.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Datadir = testDir
+	})); err != nil {
 		t.Fatal(err)
 	}
 	if err := vcr.Start(); err != nil {

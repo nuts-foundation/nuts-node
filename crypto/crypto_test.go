@@ -180,17 +180,18 @@ func TestCrypto_setupBackend(t *testing.T) {
 
 func TestCrypto_Configure(t *testing.T) {
 	directory := io.TestDirectory(t)
-	cfg := *core.NewServerConfig()
-	cfg.Datadir = directory
-	t.Run("ok", func(t *testing.T) {
+	cfg := core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Datadir = directory
+	})
+	t.Run("default backend (fs) can be used in non-strictmode", func(t *testing.T) {
 		e := createCrypto(t)
+		cfg := cfg
+		cfg.Strictmode = false
 		err := e.Configure(cfg)
 		assert.NoError(t, err)
 	})
 	t.Run("error - no backend in strict mode is now allowed", func(t *testing.T) {
 		client := createCrypto(t)
-		cfg := cfg
-		cfg.Strictmode = true
 		err := client.Configure(cfg)
 		assert.EqualError(t, err, "backend must be explicitly set in strict mode", "expected error")
 	})

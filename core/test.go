@@ -34,13 +34,12 @@ type TestEngineConfig struct {
 }
 
 // TestServerConfig returns a new ServerConfig with the given template applied.
-func TestServerConfig(template ServerConfig) ServerConfig {
+func TestServerConfig(visitors ...func(*ServerConfig)) ServerConfig {
 	config := NewServerConfig()
-	// Most commonly used properties
-	config.Datadir = template.Datadir
-	config.Strictmode = template.Strictmode
-	config.InternalRateLimiter = template.InternalRateLimiter
-	config.URL = template.URL
+	config.URL = "https://nuts.nl"
+	for _, visitor := range visitors {
+		visitor(config)
+	}
 	return *config
 }
 

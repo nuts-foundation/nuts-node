@@ -239,6 +239,7 @@ func setup(t *testing.T) testContext {
 	// === Setup ===
 	testDir := io.TestDirectory(t)
 	nutsConfig := *core.NewServerConfig()
+	nutsConfig.Strictmode = false
 	nutsConfig.Verbosity = "debug"
 	nutsConfig.Datadir = testDir
 

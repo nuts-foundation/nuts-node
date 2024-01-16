@@ -55,7 +55,6 @@ func TestFlagSet(t *testing.T) {
 func TestIrmaConfigInjection(t *testing.T) {
 	serverCfg := core.NewServerConfig()
 	serverCfg.Verbosity = "debug"
-	serverCfg.LoggerFormat = "text"
 	t.Setenv("NUTS_AUTH_IRMA_SCHEMEMANAGER", "irma-demo")
 	t.Setenv("NUTS_AUTH_IRMA_AUTOUPDATESCHEMES", "true")
 	err := serverCfg.Load(FlagSet())
