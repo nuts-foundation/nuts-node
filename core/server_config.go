@@ -33,6 +33,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"time"
 )
 
 const defaultConfigFile = "nuts.yaml"
@@ -58,11 +59,18 @@ type ServerConfig struct {
 	Strictmode          bool              `koanf:"strictmode"`
 	InternalRateLimiter bool              `koanf:"internalratelimiter"`
 	Datadir             string            `koanf:"datadir"`
+	HTTPClient          HTTPClientConfig  `koanf:"httpclient"`
 	TLS                 TLSConfig         `koanf:"tls"`
 	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
 	// URL contains the base URL for public-facing HTTP services.
 	URL       string `koanf:"url"`
 	configMap *koanf.Koanf
+}
+
+// HTTPClientConfig contains settings for HTTP clients.
+type HTTPClientConfig struct {
+	// Timeout specifies the timeout for HTTP requests.
+	Timeout time.Duration `koanf:"timeout"`
 }
 
 // TLSConfig specifies how TLS should be configured for connections.
@@ -177,10 +185,20 @@ const (
 func NewServerConfig() *ServerConfig {
 	legacyTLS := &NetworkTLSConfig{}
 	return &ServerConfig{
-		configMap: koanf.New(defaultDelimiter),
-		LegacyTLS: legacyTLS,
+		configMap:           koanf.New(defaultDelimiter),
+		LegacyTLS:           legacyTLS,
+		LoggerFormat:        "text",
+		Verbosity:           "info",
+		Strictmode:          true,
+		InternalRateLimiter: true,
+		Datadir:             "./data",
 		TLS: TLSConfig{
-			legacyTLS: legacyTLS,
+			legacyTLS:      legacyTLS,
+			TrustStoreFile: "truststore.pem",
+			Offload:        NoOffloading,
+		},
+		HTTPClient: HTTPClientConfig{
+			Timeout: 30 * time.Second,
 		},
 	}
 }
@@ -258,20 +276,23 @@ func resolveConfigFilePath(flags *pflag.FlagSet) string {
 // FlagSet returns the default server flags
 func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("server", pflag.ContinueOnError)
+	defaultCfg := NewServerConfig()
+
 	flagSet.String(configFileFlag, defaultConfigFile, "Nuts config file")
 	flagSet.String("cpuprofile", "", "When set, a CPU profile is written to the given path. Ignored when strictmode is set.")
-	flagSet.String("verbosity", "info", "Log level (trace, debug, info, warn, error)")
-	flagSet.String("loggerformat", "text", "Log format (text, json)")
-	flagSet.Bool("strictmode", true, "When set, insecure settings are forbidden.")
-	flagSet.Bool("internalratelimiter", true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
-	flagSet.String("datadir", "./data", "Directory where the node stores its files.")
-	flagSet.String("url", "", "Public facing URL of the server (required). Must be HTTPS when strictmode is set.")
-	flagSet.String("tls.certfile", "", "PEM file containing the certificate for the server (also used as client certificate).")
-	flagSet.String("tls.certkeyfile", "", "PEM file containing the private key of the server certificate.")
-	flagSet.String("tls.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote servers.")
-	flagSet.String("tls.offload", string(NoOffloading), fmt.Sprintf("Whether to enable TLS offloading for incoming connections. "+
+	flagSet.String("verbosity", defaultCfg.Verbosity, "Log level (trace, debug, info, warn, error)")
+	flagSet.String("loggerformat", defaultCfg.LoggerFormat, "Log format (text, json)")
+	flagSet.Bool("strictmode", defaultCfg.Strictmode, "When set, insecure settings are forbidden.")
+	flagSet.Bool("internalratelimiter", defaultCfg.InternalRateLimiter, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
+	flagSet.String("datadir", defaultCfg.Datadir, "Directory where the node stores its files.")
+	flagSet.String("url", defaultCfg.URL, "Public facing URL of the server (required). Must be HTTPS when strictmode is set.")
+	flagSet.Duration("httpclient.timeout", defaultCfg.HTTPClient.Timeout, "Request time-out for HTTP clients, such as '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
+	flagSet.String("tls.certfile", defaultCfg.TLS.CertFile, "PEM file containing the certificate for the server (also used as client certificate).")
+	flagSet.String("tls.certkeyfile", defaultCfg.TLS.CertKeyFile, "PEM file containing the private key of the server certificate.")
+	flagSet.String("tls.truststorefile", defaultCfg.TLS.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote servers.")
+	flagSet.String("tls.offload", string(defaultCfg.TLS.Offload), fmt.Sprintf("Whether to enable TLS offloading for incoming connections. "+
 		"Enable by setting it to '%s'. If enabled 'tls.certheader' must be configured as well.", OffloadIncomingTLS))
-	flagSet.String("tls.certheader", "", "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
+	flagSet.String("tls.certheader", defaultCfg.TLS.ClientCertHeaderName, "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
 
 	// Maxvaliditydays has been deprecated in v5.x
 	flagSet.Int("tls.crl.maxvaliditydays", 0, "The number of days a CRL can be outdated, after that it will hard-fail.")

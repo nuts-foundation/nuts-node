@@ -112,7 +112,7 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 		}
 		m.serverDefinitions = serverDefinitions
 	}
-	m.httpClient = client.New(serverConfig.Strictmode, 10*time.Second, nil)
+	m.httpClient = client.New(serverConfig.Strictmode, serverConfig.HTTPClient.Timeout, nil)
 	return nil
 }
 
@@ -122,7 +122,7 @@ func (m *Module) Start() error {
 	if err != nil {
 		return err
 	}
-	m.clientUpdater = newClientUpdater(m.serverDefinitions, m.store, m, m.httpClient)
+	m.clientUpdater = newClientUpdater(m.serverDefinitions, m.store, m.verifyRegistration, m.httpClient)
 	m.routines.Add(1)
 	go func() {
 		defer m.routines.Done()

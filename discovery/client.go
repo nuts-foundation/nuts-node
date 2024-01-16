@@ -32,10 +32,10 @@ type clientUpdater struct {
 	services map[string]ServiceDefinition
 	store    *sqlStore
 	client   client.HTTPClient
-	verifier registrationVerifier
+	verifier presentationVerifier
 }
 
-func newClientUpdater(services map[string]ServiceDefinition, store *sqlStore, verifier registrationVerifier, client client.HTTPClient) *clientUpdater {
+func newClientUpdater(services map[string]ServiceDefinition, store *sqlStore, verifier presentationVerifier, client client.HTTPClient) *clientUpdater {
 	return &clientUpdater{
 		services: services,
 		store:    store,
@@ -78,7 +78,7 @@ func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefini
 		return fmt.Errorf("failed to get presentations from discovery service (id=%s): %w", service.ID, err)
 	}
 	for _, presentation := range presentations {
-		if err := u.verifier.verifyRegistration(service, presentation); err != nil {
+		if err := u.verifier(service, presentation); err != nil {
 			log.Logger().WithError(err).Warnf("Presentation verification failed, not adding it (service=%s, id=%s)", service.ID, presentation.ID)
 			continue
 		}
