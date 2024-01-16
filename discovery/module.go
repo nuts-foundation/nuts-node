@@ -116,7 +116,7 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 		}
 		m.serverDefinitions = serverDefinitions
 	}
-	m.httpClient = client.New(serverConfig.Strictmode, 10*time.Second, nil)
+	m.httpClient = client.New(serverConfig.Strictmode, serverConfig.HTTPClient.Timeout, nil)
 	return nil
 }
 
