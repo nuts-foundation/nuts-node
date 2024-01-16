@@ -52,7 +52,7 @@ func DefaultConfig() Config {
 	return Config{
 		Server: ServerConfig{},
 		Client: ClientConfig{
-			UpdateInterval: 10 * time.Minute,
+			UpdateInterval:              10 * time.Minute,
 			RegistrationRefreshInterval: 10 * time.Minute,
 		},
 	}

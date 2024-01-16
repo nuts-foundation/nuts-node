@@ -72,7 +72,7 @@ func New(storageInstance storage.Engine, vcrInstance vcr.VCR, documentOwner mana
 	m := &Module{
 		storageInstance: storageInstance,
 		vcrInstance:     vcrInstance,
-		documentOwner: documentOwner,
+		documentOwner:   documentOwner,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
@@ -90,7 +90,7 @@ type Module struct {
 	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR
 	documentOwner       management.DocumentOwner
-	clientUpdater     *clientUpdater
+	clientUpdater       *clientUpdater
 	ctx                 context.Context
 	cancel              context.CancelFunc
 	routines            *sync.WaitGroup

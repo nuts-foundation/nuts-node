@@ -197,7 +197,6 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, interval
 	}
 }
 
-
 // clientUpdater is responsible for updating the presentations for the given services, at the given interval.
 // Callers should only call update().
 type clientUpdater struct {
