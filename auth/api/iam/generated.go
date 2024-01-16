@@ -119,7 +119,7 @@ type RequestAccessTokenJSONBody struct {
 	// RedirectURL The URL to which the user-agent will be redirected after the authorization request.
 	RedirectURL *string `json:"redirectURL,omitempty"`
 
-	// Scope The scope that will be The service for which this access token can be used.
+	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 
 	// UserID The ID of the user for which this access token is requested.

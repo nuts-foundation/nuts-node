@@ -130,6 +130,12 @@ type ClientInterface interface {
 
 	// SearchPresentations request
 	SearchPresentations(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeactivateServiceForDID request
+	DeactivateServiceForDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ActivateServiceForDID request
+	ActivateServiceForDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) GetPresentations(ctx context.Context, serviceID string, params *GetPresentationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -170,6 +176,30 @@ func (c *Client) RegisterPresentation(ctx context.Context, serviceID string, bod
 
 func (c *Client) SearchPresentations(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSearchPresentationsRequest(c.Server, serviceID, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeactivateServiceForDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeactivateServiceForDIDRequest(c.Server, serviceID, did)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ActivateServiceForDID(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewActivateServiceForDIDRequest(c.Server, serviceID, did)
 	if err != nil {
 		return nil, err
 	}
@@ -335,6 +365,88 @@ func NewSearchPresentationsRequest(server string, serviceID string, params *Sear
 	return req, nil
 }
 
+// NewDeactivateServiceForDIDRequest generates requests for DeactivateServiceForDID
+func NewDeactivateServiceForDIDRequest(server string, serviceID string, did string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "serviceID", runtime.ParamLocationPath, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/discovery/v1/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewActivateServiceForDIDRequest generates requests for ActivateServiceForDID
+func NewActivateServiceForDIDRequest(server string, serviceID string, did string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "serviceID", runtime.ParamLocationPath, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/discovery/v1/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -388,6 +500,12 @@ type ClientWithResponsesInterface interface {
 
 	// SearchPresentationsWithResponse request
 	SearchPresentationsWithResponse(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*SearchPresentationsResponse, error)
+
+	// DeactivateServiceForDIDWithResponse request
+	DeactivateServiceForDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*DeactivateServiceForDIDResponse, error)
+
+	// ActivateServiceForDIDWithResponse request
+	ActivateServiceForDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*ActivateServiceForDIDResponse, error)
 }
 
 type GetPresentationsResponse struct {
@@ -495,6 +613,96 @@ func (r SearchPresentationsResponse) StatusCode() int {
 	return 0
 }
 
+type DeactivateServiceForDIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *struct {
+		// Reason Description of why removal of the registration failed.
+		Reason string `json:"reason"`
+	}
+	ApplicationproblemJSON400 *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r DeactivateServiceForDIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeactivateServiceForDIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ActivateServiceForDIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *struct {
+		// Reason Description of why registration failed.
+		Reason string `json:"reason"`
+	}
+	ApplicationproblemJSON400 *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ActivateServiceForDIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ActivateServiceForDIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // GetPresentationsWithResponse request returning *GetPresentationsResponse
 func (c *ClientWithResponses) GetPresentationsWithResponse(ctx context.Context, serviceID string, params *GetPresentationsParams, reqEditors ...RequestEditorFn) (*GetPresentationsResponse, error) {
 	rsp, err := c.GetPresentations(ctx, serviceID, params, reqEditors...)
@@ -528,6 +736,24 @@ func (c *ClientWithResponses) SearchPresentationsWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseSearchPresentationsResponse(rsp)
+}
+
+// DeactivateServiceForDIDWithResponse request returning *DeactivateServiceForDIDResponse
+func (c *ClientWithResponses) DeactivateServiceForDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*DeactivateServiceForDIDResponse, error) {
+	rsp, err := c.DeactivateServiceForDID(ctx, serviceID, did, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeactivateServiceForDIDResponse(rsp)
+}
+
+// ActivateServiceForDIDWithResponse request returning *ActivateServiceForDIDResponse
+func (c *ClientWithResponses) ActivateServiceForDIDWithResponse(ctx context.Context, serviceID string, did string, reqEditors ...RequestEditorFn) (*ActivateServiceForDIDResponse, error) {
+	rsp, err := c.ActivateServiceForDID(ctx, serviceID, did, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseActivateServiceForDIDResponse(rsp)
 }
 
 // ParseGetPresentationsResponse parses an HTTP response from a GetPresentationsWithResponse call
@@ -665,17 +891,145 @@ func ParseSearchPresentationsResponse(rsp *http.Response) (*SearchPresentationsR
 	return response, nil
 }
 
+// ParseDeactivateServiceForDIDResponse parses an HTTP response from a DeactivateServiceForDIDWithResponse call
+func ParseDeactivateServiceForDIDResponse(rsp *http.Response) (*DeactivateServiceForDIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeactivateServiceForDIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest struct {
+			// Reason Description of why removal of the registration failed.
+			Reason string `json:"reason"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseActivateServiceForDIDResponse parses an HTTP response from a ActivateServiceForDIDWithResponse call
+func ParseActivateServiceForDIDResponse(rsp *http.Response) (*ActivateServiceForDIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ActivateServiceForDIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest struct {
+			// Reason Description of why registration failed.
+			Reason string `json:"reason"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Retrieves the presentations of a discovery service.
+	// Retrieves the presentations of a Discovery Service.
 	// (GET /discovery/{serviceID})
 	GetPresentations(ctx echo.Context, serviceID string, params GetPresentationsParams) error
-	// Register a presentation on the discovery service.
+	// Register a presentation on the Discovery Service.
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx echo.Context, serviceID string) error
-	// Searches for presentations registered on the discovery service.
+	// Searches for presentations registered on the Discovery Service.
 	// (GET /discovery/{serviceID}/search)
 	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
+	// Client API to unregister the given DID from the Discovery Service.
+	// (DELETE /internal/discovery/v1/{serviceID}/{did})
+	DeactivateServiceForDID(ctx echo.Context, serviceID string, did string) error
+	// Client API to activate a DID on the specified Discovery Service.
+	// (POST /internal/discovery/v1/{serviceID}/{did})
+	ActivateServiceForDID(ctx echo.Context, serviceID string, did string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -755,6 +1109,58 @@ func (w *ServerInterfaceWrapper) SearchPresentations(ctx echo.Context) error {
 	return err
 }
 
+// DeactivateServiceForDID converts echo context to params.
+func (w *ServerInterfaceWrapper) DeactivateServiceForDID(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "serviceID" -------------
+	var serviceID string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "serviceID", runtime.ParamLocationPath, ctx.Param("serviceID"), &serviceID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceID: %s", err))
+	}
+
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeactivateServiceForDID(ctx, serviceID, did)
+	return err
+}
+
+// ActivateServiceForDID converts echo context to params.
+func (w *ServerInterfaceWrapper) ActivateServiceForDID(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "serviceID" -------------
+	var serviceID string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "serviceID", runtime.ParamLocationPath, ctx.Param("serviceID"), &serviceID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceID: %s", err))
+	}
+
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ActivateServiceForDID(ctx, serviceID, did)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -786,6 +1192,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/discovery/:serviceID", wrapper.GetPresentations)
 	router.POST(baseURL+"/discovery/:serviceID", wrapper.RegisterPresentation)
 	router.GET(baseURL+"/discovery/:serviceID/search", wrapper.SearchPresentations)
+	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.DeactivateServiceForDID)
+	router.POST(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.ActivateServiceForDID)
 
 }
 
@@ -923,17 +1331,159 @@ func (response SearchPresentationsdefaultApplicationProblemPlusJSONResponse) Vis
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type DeactivateServiceForDIDRequestObject struct {
+	ServiceID string `json:"serviceID"`
+	Did       string `json:"did"`
+}
+
+type DeactivateServiceForDIDResponseObject interface {
+	VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error
+}
+
+type DeactivateServiceForDID200Response struct {
+}
+
+func (response DeactivateServiceForDID200Response) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
+	w.WriteHeader(200)
+	return nil
+}
+
+type DeactivateServiceForDID202JSONResponse struct {
+	// Reason Description of why removal of the registration failed.
+	Reason string `json:"reason"`
+}
+
+func (response DeactivateServiceForDID202JSONResponse) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeactivateServiceForDID400ApplicationProblemPlusJSONResponse struct {
+	// Detail A human-readable explanation specific to this occurrence of the problem.
+	Detail string `json:"detail"`
+
+	// Status HTTP statuscode
+	Status float32 `json:"status"`
+
+	// Title A short, human-readable summary of the problem type.
+	Title string `json:"title"`
+}
+
+func (response DeactivateServiceForDID400ApplicationProblemPlusJSONResponse) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeactivateServiceForDIDdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response DeactivateServiceForDIDdefaultApplicationProblemPlusJSONResponse) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ActivateServiceForDIDRequestObject struct {
+	ServiceID string `json:"serviceID"`
+	Did       string `json:"did"`
+}
+
+type ActivateServiceForDIDResponseObject interface {
+	VisitActivateServiceForDIDResponse(w http.ResponseWriter) error
+}
+
+type ActivateServiceForDID200Response struct {
+}
+
+func (response ActivateServiceForDID200Response) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
+	w.WriteHeader(200)
+	return nil
+}
+
+type ActivateServiceForDID202JSONResponse struct {
+	// Reason Description of why registration failed.
+	Reason string `json:"reason"`
+}
+
+func (response ActivateServiceForDID202JSONResponse) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ActivateServiceForDID400ApplicationProblemPlusJSONResponse struct {
+	// Detail A human-readable explanation specific to this occurrence of the problem.
+	Detail string `json:"detail"`
+
+	// Status HTTP statuscode
+	Status float32 `json:"status"`
+
+	// Title A short, human-readable summary of the problem type.
+	Title string `json:"title"`
+}
+
+func (response ActivateServiceForDID400ApplicationProblemPlusJSONResponse) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ActivateServiceForDIDdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response ActivateServiceForDIDdefaultApplicationProblemPlusJSONResponse) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Retrieves the presentations of a discovery service.
+	// Retrieves the presentations of a Discovery Service.
 	// (GET /discovery/{serviceID})
 	GetPresentations(ctx context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error)
-	// Register a presentation on the discovery service.
+	// Register a presentation on the Discovery Service.
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error)
-	// Searches for presentations registered on the discovery service.
+	// Searches for presentations registered on the Discovery Service.
 	// (GET /discovery/{serviceID}/search)
 	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
+	// Client API to unregister the given DID from the Discovery Service.
+	// (DELETE /internal/discovery/v1/{serviceID}/{did})
+	DeactivateServiceForDID(ctx context.Context, request DeactivateServiceForDIDRequestObject) (DeactivateServiceForDIDResponseObject, error)
+	// Client API to activate a DID on the specified Discovery Service.
+	// (POST /internal/discovery/v1/{serviceID}/{did})
+	ActivateServiceForDID(ctx context.Context, request ActivateServiceForDIDRequestObject) (ActivateServiceForDIDResponseObject, error)
 }
 
 type StrictHandlerFunc = strictecho.StrictEchoHandlerFunc
@@ -1025,6 +1575,58 @@ func (sh *strictHandler) SearchPresentations(ctx echo.Context, serviceID string,
 		return err
 	} else if validResponse, ok := response.(SearchPresentationsResponseObject); ok {
 		return validResponse.VisitSearchPresentationsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeactivateServiceForDID operation middleware
+func (sh *strictHandler) DeactivateServiceForDID(ctx echo.Context, serviceID string, did string) error {
+	var request DeactivateServiceForDIDRequestObject
+
+	request.ServiceID = serviceID
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeactivateServiceForDID(ctx.Request().Context(), request.(DeactivateServiceForDIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeactivateServiceForDID")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeactivateServiceForDIDResponseObject); ok {
+		return validResponse.VisitDeactivateServiceForDIDResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ActivateServiceForDID operation middleware
+func (sh *strictHandler) ActivateServiceForDID(ctx echo.Context, serviceID string, did string) error {
+	var request ActivateServiceForDIDRequestObject
+
+	request.ServiceID = serviceID
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ActivateServiceForDID(ctx.Request().Context(), request.(ActivateServiceForDIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ActivateServiceForDID")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ActivateServiceForDIDResponseObject); ok {
+		return validResponse.VisitActivateServiceForDIDResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

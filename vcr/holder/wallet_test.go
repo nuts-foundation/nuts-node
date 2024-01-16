@@ -192,6 +192,9 @@ func TestWallet_BuildPresentation(t *testing.T) {
 					Created: exp.Add(-1 * time.Hour),
 					Domain:  &domain,
 					Nonce:   &nonce,
+					AdditionalProperties: map[string]interface{}{
+						"custom": "claim",
+					},
 				},
 			}
 
@@ -213,6 +216,8 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			assert.Equal(t, []string{domain}, result.JWT().Audience())
 			actualNonce, _ := result.JWT().Get("nonce")
 			assert.Equal(t, nonce, actualNonce)
+			actualCustomClaim, _ := result.JWT().Get("custom")
+			assert.Equal(t, "claim", actualCustomClaim)
 		})
 	})
 	t.Run("validation", func(t *testing.T) {

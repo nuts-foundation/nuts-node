@@ -19,24 +19,29 @@
 package discovery
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/discovery/api/v1/client"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 )
 
 const ModuleName = "Discovery"
 
-// ErrServerModeDisabled is returned when a client invokes a Discovery Server (Add or Get) operation on the node,
+// ErrServerModeDisabled is returned when a client invokes a Discovery Server (Register or Get) operation on the node,
 // for a Discovery Service which it doesn't serve.
 var ErrServerModeDisabled = errors.New("node is not a discovery server for this service")
 
@@ -63,24 +68,34 @@ var _ Client = &Module{}
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
 // New creates a new Module.
-func New(storageInstance storage.Engine, vcrInstance vcr.VCR) *Module {
-	return &Module{
+func New(storageInstance storage.Engine, vcrInstance vcr.VCR, documentOwner management.DocumentOwner) *Module {
+	m := &Module{
 		storageInstance: storageInstance,
 		vcrInstance:     vcrInstance,
+		documentOwner:   documentOwner,
 	}
+	m.ctx, m.cancel = context.WithCancel(context.Background())
+	m.routines = new(sync.WaitGroup)
+	return m
 }
 
 // Module is the main entry point for discovery services.
 type Module struct {
-	config            Config
-	storageInstance   storage.Engine
-	store             *sqlStore
-	serverDefinitions map[string]ServiceDefinition
-	allDefinitions    map[string]ServiceDefinition
-	vcrInstance       vcr.VCR
+	config              Config
+	httpClient          client.HTTPClient
+	storageInstance     storage.Engine
+	store               *sqlStore
+	registrationManager clientRegistrationManager
+	serverDefinitions   map[string]ServiceDefinition
+	allDefinitions      map[string]ServiceDefinition
+	vcrInstance         vcr.VCR
+	documentOwner       management.DocumentOwner
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	routines            *sync.WaitGroup
 }
 
-func (m *Module) Configure(_ core.ServerConfig) error {
+func (m *Module) Configure(serverConfig core.ServerConfig) error {
 	if m.config.Definitions.Directory == "" {
 		return nil
 	}
@@ -101,6 +116,7 @@ func (m *Module) Configure(_ core.ServerConfig) error {
 		}
 		m.serverDefinitions = serverDefinitions
 	}
+	m.httpClient = client.New(serverConfig.Strictmode, serverConfig.HTTPClient.Timeout, nil)
 	return nil
 }
 
@@ -110,10 +126,18 @@ func (m *Module) Start() error {
 	if err != nil {
 		return err
 	}
+	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance)
+	m.routines.Add(1)
+	go func() {
+		defer m.routines.Done()
+		m.registrationManager.refresh(m.ctx, m.config.Client.RegistrationRefreshInterval)
+	}()
 	return nil
 }
 
 func (m *Module) Shutdown() error {
+	m.cancel()
+	m.routines.Wait()
 	return nil
 }
 
@@ -125,9 +149,9 @@ func (m *Module) Config() interface{} {
 	return &m.config
 }
 
-// Add registers a presentation on the given Discovery Service.
+// Register is a Discovery Server function that registers a presentation on the given Discovery Service.
 // See interface.go for more information.
-func (m *Module) Add(serviceID string, presentation vc.VerifiablePresentation) error {
+func (m *Module) Register(serviceID string, presentation vc.VerifiablePresentation) error {
 	// First, simple sanity checks
 	definition, isServer := m.serverDefinitions[serviceID]
 	if !isServer {
@@ -224,13 +248,40 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	return nil
 }
 
-// Get retrieves the presentations for the given service, starting at the given tag.
+// Get is a Discovery Server function that retrieves the presentations for the given service, starting at the given tag.
 // See interface.go for more information.
 func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
 	if _, exists := m.serverDefinitions[serviceID]; !exists {
 		return nil, nil, ErrServerModeDisabled
 	}
 	return m.store.get(serviceID, tag)
+}
+
+// ActivateServiceForDID is a Discovery Client function that activates a service for a DID.
+// See interface.go for more information.
+func (m *Module) ActivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	log.Logger().Debugf("Activating service for DID (did=%s, service=%s)", subjectDID, serviceID)
+	isOwner, err := m.documentOwner.IsOwner(ctx, subjectDID)
+	if err != nil {
+		return err
+	}
+	if !isOwner {
+		return errors.New("not owner of DID")
+	}
+	err = m.registrationManager.activate(ctx, serviceID, subjectDID)
+	if errors.Is(err, ErrPresentationRegistrationFailed) {
+		log.Logger().WithError(err).Warnf("Presentation registration failed, will be retried later (did=%s,service=%s)", subjectDID, serviceID)
+	} else if err == nil {
+		log.Logger().Infof("Successfully activated service for DID (did=%s,service=%s)", subjectDID, serviceID)
+	}
+	return err
+}
+
+// DeactivateServiceForDID is a Discovery Client function that deactivates a service for a DID.
+// See interface.go for more information.
+func (m *Module) DeactivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
+	log.Logger().Infof("Deactivating service for DID (did=%s, service=%s)", subjectDID, serviceID)
+	return m.registrationManager.deactivate(ctx, serviceID, subjectDID)
 }
 
 func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
@@ -260,6 +311,8 @@ func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 	return result, nil
 }
 
+// Search is a Discovery Client function that searches for presentations which credential(s) match the given query.
+// See interface.go for more information.
 func (m *Module) Search(serviceID string, query map[string]string) ([]SearchResult, error) {
 	service, exists := m.allDefinitions[serviceID]
 	if !exists {

@@ -1,0 +1,23 @@
+url: http://nodeA
+verbosity: debug
+strictmode: false
+internalratelimiter: false
+datadir: /opt/nuts/data
+http:
+  default:
+    address: :1323
+discovery:
+  definitions:
+    directory: /opt/nuts/definitions
+  server:
+    definition_ids:
+      - dev:eOverdracht2023
+auth:
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+tls:
+  truststorefile: /opt/nuts/truststore.pem
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem

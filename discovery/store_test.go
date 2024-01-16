@@ -19,6 +19,7 @@
 package discovery
 
 import (
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/assert"
@@ -26,6 +27,7 @@ import (
 	"gorm.io/gorm"
 	"sync"
 	"testing"
+	"time"
 )
 
 func Test_sqlStore_exists(t *testing.T) {
@@ -352,6 +354,56 @@ func Test_sqlStore_search(t *testing.T) {
 			}()
 		}
 		wg.Wait()
+	})
+}
+
+func Test_sqlStore_getStaleDIDRegistrations(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Cleanup(func() {
+		_ = storageEngine.Shutdown()
+	})
+
+	now := time.Now()
+	t.Run("empty list", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		serviceIDs, dids, err := c.getPresentationsToBeRefreshed(now)
+		require.NoError(t, err)
+		assert.Empty(t, serviceIDs)
+		assert.Empty(t, dids)
+	})
+	t.Run("1 entry, not stale", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceDID, &now))
+		serviceIDs, dids, err := c.getPresentationsToBeRefreshed(time.Now().Add(-1 * time.Hour))
+		require.NoError(t, err)
+		assert.Empty(t, serviceIDs)
+		assert.Empty(t, dids)
+	})
+	t.Run("1 entry, stale", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceDID, &now))
+		serviceIDs, dids, err := c.getPresentationsToBeRefreshed(time.Now().Add(time.Hour))
+		require.NoError(t, err)
+		assert.Equal(t, []string{testServiceID}, serviceIDs)
+		assert.Equal(t, []did.DID{aliceDID}, dids)
+	})
+	t.Run("does not return removed entry", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceDID, &now))
+
+		// Assert it's there
+		serviceIDs, dids, err := c.getPresentationsToBeRefreshed(time.Now().Add(time.Hour))
+		require.NoError(t, err)
+		assert.Equal(t, []string{testServiceID}, serviceIDs)
+		assert.Equal(t, []did.DID{aliceDID}, dids)
+
+		// Remove it
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceDID, nil))
+		serviceIDs, dids, err = c.getPresentationsToBeRefreshed(time.Now().Add(time.Hour))
+		require.NoError(t, err)
+		assert.Empty(t, serviceIDs)
+		assert.Empty(t, dids)
 	})
 }
 

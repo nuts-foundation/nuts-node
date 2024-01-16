@@ -196,7 +196,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	vdrInstance := vdr.NewVDR(cryptoInstance, networkInstance, didStore, eventManager, storageInstance)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, vdrInstance, networkInstance, jsonld, eventManager, storageInstance, pkiInstance)
 	didmanInstance := didman.NewDidmanInstance(vdrInstance, credentialInstance, jsonld)
-	discoveryInstance := discovery.New(storageInstance, credentialInstance)
+	discoveryInstance := discovery.New(storageInstance, credentialInstance, vdrInstance)
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
@@ -224,7 +224,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance, policyInstance))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
-	system.RegisterRoutes(&discoveryAPI.Wrapper{Server: discoveryInstance})
+	system.RegisterRoutes(&discoveryAPI.Wrapper{Server: discoveryInstance, Client: discoveryInstance})
 
 	// Register engines
 	// without dependencies

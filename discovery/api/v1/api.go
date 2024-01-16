@@ -22,6 +22,8 @@ import (
 	"context"
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"net/http"
@@ -56,6 +58,9 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 				return f(ctx, request)
 			}
 		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return audit.StrictMiddleware(f, discovery.ModuleName, operationID)
+		},
 	}))
 }
 
@@ -77,7 +82,7 @@ func (w *Wrapper) GetPresentations(_ context.Context, request GetPresentationsRe
 }
 
 func (w *Wrapper) RegisterPresentation(_ context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error) {
-	err := w.Server.Add(request.ServiceID, *request.Body)
+	err := w.Server.Register(request.ServiceID, *request.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -98,4 +103,41 @@ func (w *Wrapper) SearchPresentations(_ context.Context, request SearchPresentat
 		})
 	}
 	return SearchPresentations200JSONResponse(result), nil
+}
+
+func (w *Wrapper) ActivateServiceForDID(ctx context.Context, request ActivateServiceForDIDRequestObject) (ActivateServiceForDIDResponseObject, error) {
+	subjectDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	err = w.Client.ActivateServiceForDID(ctx, request.ServiceID, *subjectDID)
+	if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
+		// registration failed, but will be retried
+		return ActivateServiceForDID202JSONResponse{
+			Reason: err.Error(),
+		}, nil
+	}
+	if err != nil {
+		// other error
+		return nil, err
+	}
+	return ActivateServiceForDID200Response{}, nil
+}
+
+func (w *Wrapper) DeactivateServiceForDID(ctx context.Context, request DeactivateServiceForDIDRequestObject) (DeactivateServiceForDIDResponseObject, error) {
+	subjectDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	err = w.Client.DeactivateServiceForDID(ctx, request.ServiceID, *subjectDID)
+	if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
+		// deactivation succeeded, but Verifiable Presentation couldn't be removed from remote Discovery Server.
+		return DeactivateServiceForDID202JSONResponse{
+			Reason: err.Error(),
+		}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return DeactivateServiceForDID200Response{}, nil
 }
