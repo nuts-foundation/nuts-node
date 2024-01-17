@@ -79,12 +79,12 @@ func Test_Module_Register(t *testing.T) {
 		assert.ErrorIs(t, err, ErrPresentationAlreadyExists)
 	})
 	t.Run("valid for too long", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
-		def := m.allDefinitions[testServiceID]
-		def.PresentationMaxValidity = 1
-		m.allDefinitions[testServiceID] = def
-		m.serverDefinitions[testServiceID] = def
-
+		m, _, _ := setupModule(t, storageEngine, func(module *Module) {
+			def := module.allDefinitions[testServiceID]
+			def.PresentationMaxValidity = 1
+			module.allDefinitions[testServiceID] = def
+			module.serverDefinitions[testServiceID] = def
+		})
 		err := m.Register(testServiceID, vpAlice)
 		assert.EqualError(t, err, "presentation is invalid for registration\npresentation is valid for too long (max 1s)")
 	})
@@ -237,7 +237,7 @@ func Test_Module_Get(t *testing.T) {
 	})
 }
 
-func setupModule(t *testing.T, storageInstance storage.Engine) (*Module, *verifier.MockVerifier, *management.MockDocumentOwner) {
+func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(*Module)) (*Module, *verifier.MockVerifier, *management.MockDocumentOwner) {
 	resetStore(t, storageInstance.GetSQLDatabase())
 	ctrl := gomock.NewController(t)
 	mockVerifier := verifier.NewMockVerifier(ctrl)
@@ -253,6 +253,9 @@ func setupModule(t *testing.T, storageInstance storage.Engine) (*Module, *verifi
 	m.allDefinitions = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{
 		testServiceID: m.allDefinitions[testServiceID],
+	}
+	for _, visitor := range visitors {
+		visitor(m)
 	}
 	require.NoError(t, m.Start())
 	return m, mockVerifier, documentOwner
