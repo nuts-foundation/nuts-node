@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/PaesslerAG/jsonpath v0.1.2-0.20230323094847-3484786d6f97
 	github.com/alicebob/miniredis/v2 v2.31.1
-	github.com/amacneil/dbmate/v2 v2.10.0
+	github.com/amacneil/dbmate/v2 v2.11.0
 	github.com/avast/retry-go/v4 v4.5.1
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.9.3
@@ -165,7 +165,7 @@ require (
 	github.com/yuin/gopher-lua v1.1.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sync v0.5.0 // indirect
+	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
