@@ -40,8 +40,8 @@ type ServerConfig struct {
 
 // ClientConfig holds the config for the client
 type ClientConfig struct {
-	// UpdateInterval specifies how often the client should update the Discovery Services.
-	UpdateInterval time.Duration `koanf:"update_interval"`
+	// RefreshInterval specifies how often the client should refresh the Discovery Services.
+	RefreshInterval time.Duration `koanf:"refresh_interval"`
 	// RegistrationRefreshInterval specifies how often the client should refresh its registrations on Discovery Services.
 	// At the same interval, failed registrations are refreshed.
 	RegistrationRefreshInterval time.Duration `koanf:"registration_refresh_interval"`
@@ -52,7 +52,7 @@ func DefaultConfig() Config {
 	return Config{
 		Server: ServerConfig{},
 		Client: ClientConfig{
-			UpdateInterval:              10 * time.Minute,
+			RefreshInterval:             10 * time.Minute,
 			RegistrationRefreshInterval: 10 * time.Minute,
 		},
 	}

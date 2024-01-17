@@ -131,7 +131,7 @@ func (m *Module) Start() error {
 	m.routines.Add(1)
 	go func() {
 		defer m.routines.Done()
-		m.clientUpdater.update(m.ctx, m.config.Client.UpdateInterval)
+		m.clientUpdater.update(m.ctx, m.config.Client.RefreshInterval)
 	}()
 	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance)
 	m.routines.Add(1)
