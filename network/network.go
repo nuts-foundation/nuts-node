@@ -70,6 +70,9 @@ const (
 // defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
 var defaultBBoltOptions = bbolt.DefaultOptions
 
+// ErrNetworkIsDisabled is returned when the network is disabled.
+var ErrNetworkIsDisabled = errors.New("network is disabled")
+
 // Network implements Transactions interface and Engine functions.
 type Network struct {
 	config            Config
@@ -98,13 +101,14 @@ type Network struct {
 // CheckHealth performs health checks for the network engine.
 func (n *Network) CheckHealth() map[string]core.Health {
 	results := make(map[string]core.Health)
-	if n.certificate.Leaf != nil {
-		results[healthTLS] = n.checkNodeTLSHealth()
+	if n.config.Enabled {
+		if n.certificate.Leaf != nil {
+			results[healthTLS] = n.checkNodeTLSHealth()
+		}
+
+		// healthAuthConfig checks that the node is correctly configured to be authenticated by others
+		results[healthAuthConfig] = n.checkNodeDIDHealth(context.TODO(), n.nodeDID)
 	}
-
-	// healthAuthConfig checks that the node is correctly configured to be authenticated by others
-	results[healthAuthConfig] = n.checkNodeDIDHealth(context.TODO(), n.nodeDID)
-
 	return results
 }
 
@@ -135,7 +139,10 @@ func (n *Network) checkNodeTLSHealth() core.Health {
 }
 
 func (n *Network) Migrate() error {
-	return n.state.Migrate()
+	if n.state != nil {
+		return n.state.Migrate()
+	}
+	return nil
 }
 
 // NewNetworkInstance creates a new Network engine instance.
@@ -168,6 +175,9 @@ func NewNetworkInstance(
 
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
+	if !n.config.Enabled {
+		return nil
+	}
 	var err error
 	dagStore, err := n.storeProvider.GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
@@ -348,6 +358,9 @@ func (n *Network) Config() interface{} {
 
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
+	if !n.config.Enabled {
+		return nil
+	}
 	startTime := time.Now()
 	n.startTime.Store(&startTime)
 
@@ -542,6 +555,9 @@ func (n *Network) selfTestNutsCommAddress(nutsComm transport.NutsCommURL) error 
 // The receiver is called when a transaction is added to the DAG.
 // It's only called if the given dag.NotificationFilter's match.
 func (n *Network) Subscribe(name string, subscriber dag.ReceiverFn, options ...SubscriberOption) error {
+	if !n.config.Enabled {
+		return nil
+	}
 	notifierOptions := make([]dag.NotifierOption, len(options))
 	for i, o := range options {
 		notifierOptions[i] = o()
@@ -560,6 +576,9 @@ func (n *Network) Subscribers() []dag.Notifier {
 }
 
 func (n *Network) CleanupSubscriberEvents(subscriberName, errorPrefix string) error {
+	if !n.config.Enabled {
+		return nil
+	}
 	for _, subscriber := range n.Subscribers() {
 		if subscriber.Name() == subscriberName {
 			events, err := subscriber.GetFailedEvents()
@@ -580,12 +599,18 @@ func (n *Network) CleanupSubscriberEvents(subscriberName, errorPrefix string) er
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
 func (n *Network) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
+	if !n.config.Enabled {
+		return nil, ErrNetworkIsDisabled
+	}
 	return n.state.GetTransaction(context.Background(), transactionRef)
 }
 
 // GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 // nil is returned.
 func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
+	if !n.config.Enabled {
+		return nil, ErrNetworkIsDisabled
+	}
 	transaction, err := n.state.GetTransaction(context.Background(), transactionRef)
 	if err != nil {
 		if errors.Is(err, dag.ErrTransactionNotFound) {
@@ -599,11 +624,17 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 
 // ListTransactionsInRange returns all transactions known to this Network instance with lamport clock value between startInclusive and endExclusive.
 func (n *Network) ListTransactionsInRange(startInclusive uint32, endExclusive uint32) ([]dag.Transaction, error) {
+	if !n.config.Enabled {
+		return nil, ErrNetworkIsDisabled
+	}
 	return n.state.FindBetweenLC(context.Background(), startInclusive, endExclusive)
 }
 
 // CreateTransaction creates a new transaction from the given template.
 func (n *Network) CreateTransaction(ctx context.Context, template Template) (dag.Transaction, error) {
+	if !n.config.Enabled {
+		return nil, ErrNetworkIsDisabled
+	}
 	payloadHash := hash.SHA256Sum(template.Payload)
 	log.Logger().
 		WithField(core.LogFieldTransactionType, template.Type).
@@ -714,6 +745,9 @@ func (n *Network) calculateLamportClock(ctx context.Context, prevs []hash.SHA256
 
 // Shutdown cleans up any leftover go routines
 func (n *Network) Shutdown() error {
+	if !n.config.Enabled {
+		return nil
+	}
 	// Stop protocols and connection manager
 	for _, prot := range n.protocols {
 		prot.Stop()
@@ -730,6 +764,9 @@ func (n *Network) Shutdown() error {
 // Diagnostics collects and returns diagnostics for the Network engine.
 func (n *Network) Diagnostics() []core.DiagnosticResult {
 	var results = make([]core.DiagnosticResult, 0)
+	if !n.config.Enabled {
+		return results
+	}
 	// Connection manager and protocols
 	results = append(results, core.DiagnosticResultMap{Title: "connections", Items: n.connectionManager.Diagnostics()})
 	for _, prot := range n.protocols {
@@ -750,6 +787,9 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 // PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	result := make(map[transport.PeerID]transport.Diagnostics, 0)
+	if !n.config.Enabled {
+		return result
+	}
 	// We assume higher protocol versions (later in the slice) have better/more accurate diagnostics,
 	// so for now they're copied over diagnostics of earlier versions, unless the entry is empty for that peer.
 	// We assume the diagnostic result is empty when it lists no peers (since it has at least 1 peer: the local node).
@@ -764,6 +804,9 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 }
 
 func (n *Network) AddressBook() []transport.Contact {
+	if !n.config.Enabled {
+		return nil
+	}
 	return n.connectionManager.Contacts()
 }
 
@@ -773,6 +816,9 @@ type ReprocessReport struct {
 }
 
 func (n *Network) Reprocess(ctx context.Context, contentType string) (*ReprocessReport, error) {
+	if !n.config.Enabled {
+		return nil, ErrNetworkIsDisabled
+	}
 	log.Logger().Infof("Starting reprocess of %s", contentType)
 
 	_, js, err := n.eventPublisher.Pool().Acquire(ctx)

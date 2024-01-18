@@ -44,6 +44,9 @@ type Config struct {
 
 	// ProtocolV2 specifies config for protocol v2
 	ProtocolV2 v2.Config `koanf:"v2"`
+
+	// Enabled specifies whether the network is enabled
+	Enabled bool
 }
 
 // IsProtocolEnabled returns true if the protocol is enabled, otherwise false.
@@ -67,5 +70,6 @@ func DefaultConfig() Config {
 		MaxBackoff:        24 * time.Hour,
 		ProtocolV2:        v2.DefaultConfig(),
 		EnableDiscovery:   true,
+		Enabled:           true,
 	}
 }

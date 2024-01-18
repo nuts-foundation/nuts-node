@@ -41,6 +41,7 @@ import (
 func FlagSet() *pflag.FlagSet {
 	defs := network.DefaultConfig()
 	flagSet := pflag.NewFlagSet("network", pflag.ContinueOnError)
+	flagSet.Bool("network.enabled", defs.Enabled, "Whether to enable to Nuts gRPC network.")
 	flagSet.String("network.grpcaddr", defs.GrpcAddr, "Local address for gRPC to listen on. "+
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
 		"(outbound connections can still be made).")

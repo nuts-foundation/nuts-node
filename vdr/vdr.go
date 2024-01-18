@@ -152,6 +152,10 @@ func (r *Module) Start() error {
 	if count == 0 {
 		// remove after v6 release
 		_, err = r.network.Reprocess(context.Background(), "application/did+json")
+		if errors.Is(err, network.ErrNetworkIsDisabled) {
+			// this is ok
+			err = nil
+		}
 	}
 
 	return err
