@@ -1240,6 +1240,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 				trustStore:   trustStore,
 				certificate:  certificate,
 				pkiValidator: mockPKIValidator,
+				config:       DefaultConfig(),
 			}
 
 			result := n.CheckHealth()
@@ -1253,6 +1254,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 				trustStore:   trustStore,
 				certificate:  certificate,
 				pkiValidator: mockPKIValidator,
+				config:       DefaultConfig(),
 			}
 
 			result := n.CheckHealth()
@@ -1266,6 +1268,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			n := Network{
 				trustStore:  trustStore,
 				certificate: certificate,
+				config:      DefaultConfig(),
 			}
 
 			result := n.CheckHealth()

@@ -1075,6 +1075,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	// Create Network instance
 	config := Config{
 		GrpcAddr: fmt.Sprintf("localhost:%d", nameToPort(t, name)),
+		Enabled:  true,
 		ProtocolV2: v2.Config{
 			GossipInterval:      50,
 			PayloadRetryDelay:   50 * time.Millisecond,
