@@ -71,7 +71,7 @@ paths:
           $ref: "../common/error_response.yaml"
         default:
           $ref: "../common/error_response.yaml"
-  /discovery/{serviceID}/search:
+  /internal/discovery/v1/{serviceID}:
     parameters:
       - name: serviceID
         in: path
@@ -82,7 +82,7 @@ paths:
       # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
       - in: query
         name: query
-        required: true
+        required: false
         schema:
           type: object
           additionalProperties:

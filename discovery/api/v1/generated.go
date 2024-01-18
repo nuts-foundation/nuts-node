@@ -41,7 +41,7 @@ type GetPresentationsParams struct {
 
 // SearchPresentationsParams defines parameters for SearchPresentations.
 type SearchPresentationsParams struct {
-	Query map[string]string `form:"query" json:"query"`
+	Query *map[string]string `form:"query,omitempty" json:"query,omitempty"`
 }
 
 // RegisterPresentationJSONRequestBody defines body for RegisterPresentation for application/json ContentType.
@@ -329,7 +329,7 @@ func NewSearchPresentationsRequest(server string, serviceID string, params *Sear
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/discovery/%s/search", pathParam0)
+	operationPath := fmt.Sprintf("/internal/discovery/v1/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -342,16 +342,20 @@ func NewSearchPresentationsRequest(server string, serviceID string, params *Sear
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "query", runtime.ParamLocationQuery, params.Query); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Query != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "query", runtime.ParamLocationQuery, *params.Query); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -1022,7 +1026,7 @@ type ServerInterface interface {
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx echo.Context, serviceID string) error
 	// Searches for presentations registered on the Discovery Service.
-	// (GET /discovery/{serviceID}/search)
+	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
 	// Client API to unregister the given DID from the Discovery Service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{did})
@@ -1097,9 +1101,9 @@ func (w *ServerInterfaceWrapper) SearchPresentations(ctx echo.Context) error {
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params SearchPresentationsParams
-	// ------------- Required query parameter "query" -------------
+	// ------------- Optional query parameter "query" -------------
 
-	err = runtime.BindQueryParameter("form", true, true, "query", ctx.QueryParams(), &params.Query)
+	err = runtime.BindQueryParameter("form", true, false, "query", ctx.QueryParams(), &params.Query)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter query: %s", err))
 	}
@@ -1191,7 +1195,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/discovery/:serviceID", wrapper.GetPresentations)
 	router.POST(baseURL+"/discovery/:serviceID", wrapper.RegisterPresentation)
-	router.GET(baseURL+"/discovery/:serviceID/search", wrapper.SearchPresentations)
+	router.GET(baseURL+"/internal/discovery/v1/:serviceID", wrapper.SearchPresentations)
 	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.DeactivateServiceForDID)
 	router.POST(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.ActivateServiceForDID)
 
@@ -1476,7 +1480,7 @@ type StrictServerInterface interface {
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error)
 	// Searches for presentations registered on the Discovery Service.
-	// (GET /discovery/{serviceID}/search)
+	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
 	// Client API to unregister the given DID from the Discovery Service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{did})
