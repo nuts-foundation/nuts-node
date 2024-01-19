@@ -33,7 +33,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -273,50 +272,13 @@ func (r *Module) Create(ctx context.Context, options management.DIDCreationOptio
 	if manager == nil {
 		return nil, nil, fmt.Errorf("unsupported method: %s", options.Method)
 	}
-
-	// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
-	// holder for all metadata of the controllers
-	controllerMetadata := make([]resolver.DocumentMetadata, len(options.Controllers))
-
-	// if any controllers have been added, check if they exist through the didResolver
-	if len(options.Controllers) > 0 {
-		for _, controller := range options.Controllers {
-			_, meta, err := r.didResolver.Resolve(controller, nil)
-			if err != nil {
-				return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
-			}
-			controllerMetadata = append(controllerMetadata, *meta)
-		}
-	}
-
 	doc, key, err := manager.Create(ctx, options)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create DID document (method %s): %w", options.Method, err)
 	}
-
-	if options.Method == didnuts.MethodName {
-		payload, err := json.Marshal(doc)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// extract the transaction refs from the controller metadata
-		refs := make([]hash.SHA256Hash, 0)
-		for _, meta := range controllerMetadata {
-			refs = append(refs, meta.SourceTransactions...)
-		}
-
-		tx := network.TransactionTemplate(didnuts.DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
-		_, err = r.network.CreateTransaction(ctx, tx)
-		if err != nil {
-			return nil, nil, fmt.Errorf("could not store DID document in network: %w", err)
-		}
-	}
-
 	log.Logger().
 		WithField(core.LogFieldDID, doc.ID).
 		Info("New DID Document created")
-
 	return doc, key, nil
 }
 
