@@ -34,8 +34,7 @@ import (
 	"net/url"
 )
 
-var _ management.DocCreator = (*Manager)(nil)
-var _ resolver.DIDResolver = (*Manager)(nil)
+var _ management.DocumentManager = (*Manager)(nil)
 
 // NewManager creates a new Manager to create and update did:web DID documents.
 func NewManager(baseURL url.URL, keyStore crypto.KeyStore, db *gorm.DB) *Manager {

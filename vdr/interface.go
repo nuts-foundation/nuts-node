@@ -19,20 +19,16 @@
 package vdr
 
 import (
-	"context"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // VDR defines the public end facing methods for the Verifiable Data Registry.
 type VDR interface {
-	management.DocumentOwner
 	management.DocUpdater
+	management.DocumentManager
 
-	// Create creates a new DID document according to the given DID method and returns it.
-	Create(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, crypto.Key, error)
 	// ResolveManaged resolves a DID document that is managed by the local node.
 	ResolveManaged(id did.DID) (*did.Document, error)
 	// Resolver returns the resolver for getting the DID document for a DID.

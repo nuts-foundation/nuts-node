@@ -60,9 +60,9 @@ func (mr *MockVDRMockRecorder) ConflictedDocuments() *gomock.Call {
 }
 
 // Create mocks base method.
-func (m *MockVDR) Create(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (m *MockVDR) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, method, options)
+	ret := m.ctrl.Call(m, "Create", ctx, options)
 	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(crypto.Key)
 	ret2, _ := ret[2].(error)
@@ -70,9 +70,9 @@ func (m *MockVDR) Create(ctx context.Context, method string, options management.
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockVDRMockRecorder) Create(ctx, method, options any) *gomock.Call {
+func (mr *MockVDRMockRecorder) Create(ctx, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), ctx, method, options)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), ctx, options)
 }
 
 // IsOwner mocks base method.
@@ -103,6 +103,22 @@ func (m *MockVDR) ListOwned(ctx context.Context) ([]did.DID, error) {
 func (mr *MockVDRMockRecorder) ListOwned(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOwned", reflect.TypeOf((*MockVDR)(nil).ListOwned), ctx)
+}
+
+// Resolve mocks base method.
+func (m *MockVDR) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Resolve", id, metadata)
+	ret0, _ := ret[0].(*did.Document)
+	ret1, _ := ret[1].(*resolver.DocumentMetadata)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// Resolve indicates an expected call of Resolve.
+func (mr *MockVDRMockRecorder) Resolve(id, metadata any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVDR)(nil).Resolve), id, metadata)
 }
 
 // ResolveManaged mocks base method.
