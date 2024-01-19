@@ -164,7 +164,7 @@ func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context
 }
 
 func (r *defaultClientRegistrationManager) doRefresh(ctx context.Context, now time.Time) error {
-	log.Logger().Debug("Refreshing Verifiable Presentations on Discovery Services")
+	log.Logger().Debug("Refreshing own registered Verifiable Presentations on Discovery Services")
 	serviceIDs, dids, err := r.store.getPresentationsToBeRefreshed(now)
 	if err != nil {
 		return err
@@ -232,6 +232,7 @@ func (u *clientUpdater) update(ctx context.Context, interval time.Duration) {
 }
 
 func (u *clientUpdater) doUpdate(ctx context.Context) {
+	log.Logger().Debug("Checking for new Verifiable Presentations from Discovery Services")
 	for _, service := range u.services {
 		if err := u.updateService(ctx, service); err != nil {
 			log.Logger().Errorf("Failed to update service (id=%s): %s", service.ID, err)
@@ -244,6 +245,9 @@ func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefini
 	if err != nil {
 		return err
 	}
+	log.Logger().
+		WithField("discoveryService", service.ID).
+		Tracef("Checking for new Verifiable Presentations from Discovery Service (tag: %s)", currentTag)
 	presentations, tag, err := u.client.Get(ctx, service.Endpoint, string(currentTag))
 	if err != nil {
 		return fmt.Errorf("failed to get presentations from discovery service (id=%s): %w", service.ID, err)
@@ -256,6 +260,10 @@ func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefini
 		if err := u.store.add(service.ID, presentation, Tag(tag)); err != nil {
 			return fmt.Errorf("failed to store presentation (service=%s, id=%s): %w", service.ID, presentation.ID, err)
 		}
+		log.Logger().
+			WithField("discoveryService", service.ID).
+			WithField("presentationID", presentation.ID).
+			Trace("Loaded new Verifiable Presentation from Discovery Service")
 	}
 	return nil
 }

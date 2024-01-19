@@ -127,7 +127,7 @@ func (m *Module) Start() error {
 	if err != nil {
 		return err
 	}
-	m.clientUpdater = newClientUpdater(m.serverDefinitions, m.store, m.verifyRegistration, m.httpClient)
+	m.clientUpdater = newClientUpdater(m.allDefinitions, m.store, m.verifyRegistration, m.httpClient)
 	m.routines.Add(1)
 	go func() {
 		defer m.routines.Done()
