@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
 	"net/url"
 	"strings"
@@ -227,7 +228,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		putState(ctx, "state")
 		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.holderRole.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(&pe.PresentationDefinition{}, nil)
-		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, "nonce", verifierDID).Return(nil, nil, assert.AnError)
+		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, "nonce", verifierDID.URI()).Return(nil, nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, assert.AnError.Error(), responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
@@ -240,7 +241,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		putState(ctx, "state")
 		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.holderRole.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(&pe.PresentationDefinition{}, nil)
-		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, "nonce", verifierDID).Return(nil, nil, oauth2.ErrNoCredentials)
+		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, "nonce", verifierDID.URI()).Return(nil, nil, oauth2.ErrNoCredentials)
 		expectPostError(t, ctx, oauth.InvalidRequest, "no credentials available", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
@@ -570,7 +571,9 @@ func expectPostError(t *testing.T, ctx *testCtx, errorCode oauth.ErrorCode, desc
 		assert.Equal(t, description, err.Description)
 		assert.Equal(t, expectedResponseURI, responseURI)
 		assert.Equal(t, verifierClientState, state)
-		return "redirect", nil
+		holderURL, _ := didweb.DIDToURL(holderDID)
+		require.NotNil(t, holderURL)
+		return holderURL.JoinPath("callback").String(), nil
 	})
 }
 
@@ -596,7 +599,7 @@ func TestWrapper_sendAndHandleDirectPostError(t *testing.T) {
 			},
 		}
 
-		redirect, err := ctx.client.sendAndHandleDirectPostError(context.Background(), oauth.OAuth2Error{RedirectURI: redirectURI}, "response", "state")
+		redirect, err := ctx.client.sendAndHandleDirectPostError(context.Background(), oauth.OAuth2Error{RedirectURI: redirectURI}, holderDID, "response", "state")
 
 		require.NoError(t, err)
 		assert.Equal(t, expected, redirect)
@@ -605,7 +608,16 @@ func TestWrapper_sendAndHandleDirectPostError(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.holderRole.EXPECT().PostError(gomock.Any(), gomock.Any(), "response", "state").Return("", assert.AnError)
 
-		_, err := ctx.client.sendAndHandleDirectPostError(context.Background(), oauth.OAuth2Error{}, "response", "state")
+		_, err := ctx.client.sendAndHandleDirectPostError(context.Background(), oauth.OAuth2Error{}, holderDID, "response", "state")
+
+		require.Error(t, err)
+		require.Equal(t, "server_error - something went wrong", err.Error())
+	})
+	t.Run("invalid redirect_uri from verifier", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.holderRole.EXPECT().PostError(gomock.Any(), gomock.Any(), "response", "state").Return("https://example.com", nil)
+
+		_, err := ctx.client.sendAndHandleDirectPostError(context.Background(), oauth.OAuth2Error{}, holderDID, "response", "state")
 
 		require.Error(t, err)
 		require.Equal(t, "server_error - something went wrong", err.Error())

@@ -1,15 +1,16 @@
 version: "3.7"
 services:
-  nodeA-backend:
+  nodeA:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
+      - "10443:443"
       - "11323:1323"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "./node-A/data:/opt/nuts/data:rw"
-      - "../../tls-certs/nodeA-backend-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
       # did:web resolver uses the OS CA bundle, but e2e tests use a self-signed CA which can be found in truststore.pem
       # So we need to mount that file to the OS CA bundle location, otherwise did:web resolving will fail due to untrusted certs.
@@ -18,18 +19,10 @@ services:
       - "./node-A/presentationexchangemapping.json:/opt/nuts/policies/presentationexchangemapping.json:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
-  nodeA:
-    image: nginx:1.25.1
-    ports:
-      - "10443:443"
-    volumes:
-      - "./node-A/nginx.conf:/etc/nginx/nginx.conf:ro"
-      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
-      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
-      - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
-  nodeB-backend:
+  nodeB:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     ports:
+      - "20443:443"
       - "21323:1323"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
@@ -45,12 +38,3 @@ services:
       - "./node-B/presentationexchangemapping.json:/opt/nuts/policies/presentationexchangemapping.json:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
-  nodeB:
-    image: nginx:1.25.1
-    ports:
-      - "20443:443"
-    volumes:
-      - "./node-B/nginx.conf:/etc/nginx/nginx.conf:ro"
-      - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/server.pem:ro"
-      - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/key.pem:ro"
-      - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"

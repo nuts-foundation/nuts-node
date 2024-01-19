@@ -24,6 +24,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
@@ -58,7 +59,7 @@ func NewHolder(wallet holder.Wallet, strictMode bool, httpClientTimeout time.Dur
 	}
 }
 
-func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience did.DID) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience ssi.URI) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// get VCs from own wallet
 	credentials, err := v.wallet.List(ctx, walletDID)
 	if err != nil {

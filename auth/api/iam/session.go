@@ -75,10 +75,8 @@ func (s ServerState) PresentationSubmission() pe.PresentationSubmission {
 
 // CredentialMap returns the credential map from the server state.
 func (s ServerState) CredentialMap() map[string]vc.VerifiableCredential {
-	if val, ok := s[credentialMapStateKey]; ok {
-		if mapped, ok := val.(map[string]vc.VerifiableCredential); ok {
-			return mapped
-		}
+	if mapped, ok := s[credentialMapStateKey].(map[string]vc.VerifiableCredential); ok {
+		return mapped
 	}
 	return map[string]vc.VerifiableCredential{}
 }

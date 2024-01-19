@@ -14,6 +14,7 @@ import (
 	url "net/url"
 	reflect "reflect"
 
+	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -249,7 +250,7 @@ func (m *MockHolder) EXPECT() *MockHolderMockRecorder {
 }
 
 // BuildPresentation mocks base method.
-func (m *MockHolder) BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience did.DID) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+func (m *MockHolder) BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience ssi.URI) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BuildPresentation", ctx, walletDID, presentationDefinition, acceptedFormats, nonce, audience)
 	ret0, _ := ret[0].(*vc.VerifiablePresentation)

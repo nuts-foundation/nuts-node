@@ -7,6 +7,15 @@ http:
   default:
     address: :1323
     log: metadata-and-body
+  alt:
+    iam:
+      address: :443
+      log: metadata-and-body
+      tls: server
+    .well-known:
+      address: :443
+      log: metadata-and-body
+      tls: server
 auth:
   v2apienabled: true
   contractvalidators:

@@ -20,6 +20,7 @@ package oauth
 
 import (
 	"context"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"net/url"
 
@@ -62,7 +63,7 @@ type Verifier interface {
 // Holder implements the OpenID4VP Holder role which acts as Authorization server in the OpenID4VP flow.
 type Holder interface {
 	// BuildPresentation builds a Verifiable Presentation based on the given presentation definition.
-	BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience did.DID) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
+	BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience ssi.URI) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
 	// ClientMetadata returns the metadata of the remote verifier.
 	ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error)
 	// PostError posts an error to the verifier. If it fails, an error is returned.

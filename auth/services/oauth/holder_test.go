@@ -135,7 +135,7 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), credentials, gomock.Any(), &walletDID, false).Return(&vc.VerifiablePresentation{}, nil)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID)
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID.URI())
 
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
@@ -147,7 +147,7 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		ctx := createHolderContext(t, nil)
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(nil, assert.AnError)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID)
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID.URI())
 
 		assert.Error(t, err)
 		assert.Nil(t, vp)
@@ -158,7 +158,7 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), credentials, gomock.Any(), &walletDID, false).Return(nil, assert.AnError)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID)
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID.URI())
 
 		assert.Error(t, err)
 		assert.Nil(t, vp)
@@ -168,7 +168,7 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		ctx := createHolderContext(t, nil)
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, pe.PresentationDefinition{}, vpFormats, "", verifierDID)
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, pe.PresentationDefinition{}, vpFormats, "", verifierDID.URI())
 
 		assert.Equal(t, ErrNoCredentials, err)
 		assert.Nil(t, vp)
