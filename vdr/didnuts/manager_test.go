@@ -19,6 +19,7 @@
 package didnuts
 
 import (
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/stretchr/testify/assert"
@@ -123,4 +124,19 @@ func TestManager_ListOwned(t *testing.T) {
 func TestManager_Resolve(t *testing.T) {
 	_, _, err := Manager{}.Resolve(did.DID{}, nil)
 	assert.EqualError(t, err, "Resolve() is not supported for did:nuts")
+}
+
+func TestManager_AddService(t *testing.T) {
+	_, err := Manager{}.AddService(nil, did.DID{}, did.Service{})
+	assert.EqualError(t, err, "AddService() is not supported for did:nuts")
+}
+
+func TestManager_DeleteService(t *testing.T) {
+	err := Manager{}.DeleteService(nil, did.DID{}, ssi.MustParseURI("https://example.com"))
+	assert.EqualError(t, err, "DeleteService() is not supported for did:nuts")
+}
+
+func TestManager_UpdateService(t *testing.T) {
+	_, err := Manager{}.UpdateService(nil, did.DID{}, ssi.MustParseURI("https://example.com"), did.Service{})
+	assert.EqualError(t, err, "UpdateService() is not supported for did:nuts")
 }

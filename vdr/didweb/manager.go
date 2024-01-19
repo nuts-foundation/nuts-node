@@ -114,6 +114,21 @@ func (m Manager) ListOwned(_ context.Context) ([]did.DID, error) {
 	return m.store.list()
 }
 
+func (m Manager) AddService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m Manager) UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m Manager) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func buildDocument(subject did.DID, verificationMethods []did.VerificationMethod) did.Document {
 	var vms []*did.VerificationMethod
 	for _, verificationMethod := range verificationMethods {

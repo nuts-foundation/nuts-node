@@ -20,6 +20,7 @@ package management
 
 import (
 	"context"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -30,6 +31,17 @@ type DocumentManager interface {
 	DocCreator
 	DocumentOwner
 	resolver.DIDResolver
+
+	// AddService creates a new service in the DID document identified by subjectDID.
+	// If the service DID is not provided, it will be generated.
+	AddService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error)
+
+	// UpdateService updates a service in the DID document identified by subjectDID.
+	UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error)
+
+	// DeleteService deletes a service in the DID document identified by subjectDID.
+	// It returns an error if the DID or service isn't found.
+	DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error
 }
 
 // DocCreator is the interface that wraps the Create method
