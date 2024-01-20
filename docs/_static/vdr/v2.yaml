@@ -123,7 +123,7 @@ paths:
         * 400 - Returned in case of malformed DID or service
         * 404 - Corresponding DID document could not be found
         * 500 - An error occurred while processing the request
-      operationId: addService
+      operationId: createService
       tags:
         - DID
       requestBody:

@@ -105,7 +105,7 @@ func (a *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDI
 	return ListDIDs200JSONResponse(result), nil
 }
 
-func (w Wrapper) AddService(ctx context.Context, request AddServiceRequestObject) (AddServiceResponseObject, error) {
+func (w Wrapper) CreateService(ctx context.Context, request CreateServiceRequestObject) (CreateServiceResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func (w Wrapper) AddService(ctx context.Context, request AddServiceRequestObject
 	if err != nil {
 		return nil, err
 	}
-	return AddService200JSONResponse(*createdService), nil
+	return CreateService200JSONResponse(*createdService), nil
 }
 
 func (w Wrapper) DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error) {

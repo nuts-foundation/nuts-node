@@ -208,7 +208,7 @@ func TestManager_Resolve(t *testing.T) {
 	})
 }
 
-func TestManager_AddService(t *testing.T) {
+func TestManager_CreateService(t *testing.T) {
 	t.Run("with ID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockstore(ctrl)

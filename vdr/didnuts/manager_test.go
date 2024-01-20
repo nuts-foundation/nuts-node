@@ -126,7 +126,7 @@ func TestManager_Resolve(t *testing.T) {
 	assert.EqualError(t, err, "Resolve() is not supported for did:nuts")
 }
 
-func TestManager_AddService(t *testing.T) {
+func TestManager_CreateService(t *testing.T) {
 	_, err := Manager{}.CreateService(nil, did.DID{}, did.Service{})
 	assert.EqualError(t, err, "CreateService() is not supported for did:nuts")
 }
