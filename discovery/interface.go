@@ -113,6 +113,9 @@ type Client interface {
 	// DeactivateServiceForDID removes the registration of a DID on a Discovery Service.
 	// It returns an error if the service or DID is invalid/unknown.
 	DeactivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error
+
+	// Services returns the list of services that are registered on this client.
+	Services() []ServiceDefinition
 }
 
 // SearchResult is a single result of a search operation.

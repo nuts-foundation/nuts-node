@@ -20,6 +20,7 @@ package v1
 
 import (
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/nuts-foundation/nuts-node/discovery/api/v1/model"
 )
 
@@ -28,3 +29,6 @@ type VerifiablePresentation = vc.VerifiablePresentation
 
 // PresentationsResponse is a type alias
 type PresentationsResponse = model.PresentationsResponse
+
+// ServiceDefinition is a type alias
+type ServiceDefinition = discovery.ServiceDefinition

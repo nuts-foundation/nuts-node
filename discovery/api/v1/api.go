@@ -156,3 +156,8 @@ func (w *Wrapper) DeactivateServiceForDID(ctx context.Context, request Deactivat
 	}
 	return DeactivateServiceForDID200Response{}, nil
 }
+
+func (w *Wrapper) GetServices(_ context.Context, _ GetServicesRequestObject) (GetServicesResponseObject, error) {
+	result := GetServices200JSONResponse(w.Client.Services())
+	return &result, nil
+}
