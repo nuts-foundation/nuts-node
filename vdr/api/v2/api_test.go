@@ -21,6 +21,7 @@ package v2
 
 import (
 	"context"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"testing"
@@ -34,12 +35,13 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestWrapper_CreateDID(t *testing.T) {
-	id := did.MustParseDID("did:web:example.com:iam:1")
-	didDoc := &did.Document{
-		ID: id,
-	}
+var id = did.MustParseDID("did:web:example.com:iam:1")
 
+var didDoc = did.Document{
+	ID: id,
+}
+
+func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
 		opts := management.DIDCreationOptions{
@@ -47,7 +49,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 			KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
 			SelfControl: true,
 		}
-		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(didDoc, nil, nil)
+		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(&didDoc, nil, nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{})
 
@@ -60,6 +62,102 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, assert.AnError)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{})
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_CreateService(t *testing.T) {
+	service := did.Service{
+		Type:            "api",
+		ServiceEndpoint: "https://example.com",
+	}
+	t.Run("ok - defaults", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().CreateService(gomock.Any(), id, gomock.Any()).Return(&service, nil)
+
+		response, err := ctx.client.CreateService(nil, CreateServiceRequestObject{
+			Did:  id.String(),
+			Body: &service,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, service, Service(response.(CreateService200JSONResponse)))
+	})
+
+	t.Run("error - create fails", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().CreateService(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
+
+		response, err := ctx.client.CreateService(nil, CreateServiceRequestObject{
+			Did:  id.String(),
+			Body: &service,
+		})
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_DeleteService(t *testing.T) {
+	t.Run("ok - defaults", func(t *testing.T) {
+		serviceID := ssi.MustParseURI("api")
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().DeleteService(gomock.Any(), id, serviceID).Return(nil)
+
+		response, err := ctx.client.DeleteService(nil, DeleteServiceRequestObject{
+			Did:       id.String(),
+			ServiceId: serviceID.String(),
+		})
+
+		require.NoError(t, err)
+		assert.IsType(t, DeleteService204Response{}, response)
+	})
+
+	t.Run("error - delete fails", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().DeleteService(gomock.Any(), gomock.Any(), gomock.Any()).Return(assert.AnError)
+
+		response, err := ctx.client.DeleteService(nil, DeleteServiceRequestObject{
+			Did:       id.String(),
+			ServiceId: "1",
+		})
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_UpdateService(t *testing.T) {
+	service := did.Service{
+		Type:            "api",
+		ServiceEndpoint: "https://example.com",
+	}
+	updatedService := service
+	updatedService.ID = ssi.MustParseURI("1")
+	t.Run("ok - defaults", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().UpdateService(gomock.Any(), id, updatedService.ID, service).Return(&updatedService, nil)
+
+		response, err := ctx.client.UpdateService(nil, UpdateServiceRequestObject{
+			Did:       id.String(),
+			ServiceId: "1",
+			Body:      &service,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, updatedService.ID, response.(UpdateService200JSONResponse).ID)
+	})
+	t.Run("error - update fails", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().UpdateService(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
+
+		response, err := ctx.client.UpdateService(nil, UpdateServiceRequestObject{
+			Did:       id.String(),
+			ServiceId: "1",
+			Body:      &service,
+		})
 
 		assert.Error(t, err)
 		assert.Nil(t, response)
