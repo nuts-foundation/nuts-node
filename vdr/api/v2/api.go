@@ -92,6 +92,18 @@ func (w Wrapper) ResolveDID(ctx context.Context, request ResolveDIDRequestObject
 	panic("implement me")
 }
 
+func (a *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDIDsResponseObject, error) {
+	list, err := a.VDR.ListOwned(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, len(list))
+	for i, curr := range list {
+		result[i] = curr.String()
+	}
+	return ListDIDs200JSONResponse(result), nil
+}
+
 func (w Wrapper) AddService(ctx context.Context, request AddServiceRequestObject) (AddServiceResponseObject, error) {
 	//TODO implement me
 	panic("implement me")

@@ -66,6 +66,28 @@ func TestWrapper_CreateDID(t *testing.T) {
 	})
 }
 
+func TestWrapper_ListDIDs(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{did.MustParseDID("did:web:example.com:iam:1")}, nil)
+
+		response, err := ctx.client.ListDIDs(context.Background(), ListDIDsRequestObject{})
+
+		require.NoError(t, err)
+		assert.Len(t, response.(ListDIDs200JSONResponse), 1)
+	})
+
+	t.Run("error - list fails", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().ListOwned(gomock.Any()).Return(nil, assert.AnError)
+
+		response, err := ctx.client.ListDIDs(context.Background(), ListDIDsRequestObject{})
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+	})
+}
+
 type mockContext struct {
 	ctrl        *gomock.Controller
 	vdr         *vdr.MockVDR
