@@ -28,6 +28,7 @@ The following options apply to the server commands below:
       --crypto.vault.timeout duration                             Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s). (default 5s)
       --crypto.vault.token string                                 The Vault token. If set it overwrites the VAULT_TOKEN env var.
       --datadir string                                            Directory where the node stores its files. (default "./data")
+      --discovery.client.refresh_interval duration                How often to check for new Verifiable Presentations on the Discovery Services to update the local copy. Specified as Golang duration (e.g. 1m, 1h30m). (default 10m0s)
       --discovery.client.registration_refresh_interval duration   Interval at which the client should refresh checks for registrations to refresh on the configured Discovery Services,in Golang time.Duration string format (e.g. 1s). Note that it only will actually refresh registrations that about to expire (less than 1/4th of their lifetime left). (default 10m0s)
       --discovery.definitions.directory string                    Directory to load Discovery Service Definitions from. If not set, the discovery service will be disabled. If the directory contains JSON files that can't be parsed as service definition, the node will fail to start.
       --discovery.server.definition_ids strings                   IDs of the Discovery Service Definitions for which to act as server. If an ID does not map to a loaded service definition, the node will fail to start.

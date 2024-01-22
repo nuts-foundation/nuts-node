@@ -164,7 +164,7 @@ func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context
 }
 
 func (r *defaultClientRegistrationManager) doRefresh(ctx context.Context, now time.Time) error {
-	log.Logger().Debug("Refreshing Verifiable Presentations on Discovery Services")
+	log.Logger().Debug("Refreshing own registered Verifiable Presentations on Discovery Services")
 	serviceIDs, dids, err := r.store.getPresentationsToBeRefreshed(now)
 	if err != nil {
 		return err
@@ -195,4 +195,75 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, interval
 			do()
 		}
 	}
+}
+
+// clientUpdater is responsible for updating the presentations for the given services, at the given interval.
+// Callers should only call update().
+type clientUpdater struct {
+	services map[string]ServiceDefinition
+	store    *sqlStore
+	client   client.HTTPClient
+	verifier presentationVerifier
+}
+
+func newClientUpdater(services map[string]ServiceDefinition, store *sqlStore, verifier presentationVerifier, client client.HTTPClient) *clientUpdater {
+	return &clientUpdater{
+		services: services,
+		store:    store,
+		client:   client,
+		verifier: verifier,
+	}
+}
+
+// update starts a blocking loop that updates the presentations for the given services, at the given interval.
+// It returns when the context is cancelled.
+func (u *clientUpdater) update(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	u.doUpdate(ctx)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			u.doUpdate(ctx)
+		}
+	}
+}
+
+func (u *clientUpdater) doUpdate(ctx context.Context) {
+	log.Logger().Debug("Checking for new Verifiable Presentations from Discovery Services")
+	for _, service := range u.services {
+		if err := u.updateService(ctx, service); err != nil {
+			log.Logger().Errorf("Failed to update service (id=%s): %s", service.ID, err)
+		}
+	}
+}
+
+func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefinition) error {
+	currentTag, err := u.store.getTag(service.ID)
+	if err != nil {
+		return err
+	}
+	log.Logger().
+		WithField("discoveryService", service.ID).
+		Tracef("Checking for new Verifiable Presentations from Discovery Service (tag: %s)", currentTag)
+	presentations, tag, err := u.client.Get(ctx, service.Endpoint, string(currentTag))
+	if err != nil {
+		return fmt.Errorf("failed to get presentations from discovery service (id=%s): %w", service.ID, err)
+	}
+	for _, presentation := range presentations {
+		if err := u.verifier(service, presentation); err != nil {
+			log.Logger().WithError(err).Warnf("Presentation verification failed, not adding it (service=%s, id=%s)", service.ID, presentation.ID)
+			continue
+		}
+		if err := u.store.add(service.ID, presentation, Tag(tag)); err != nil {
+			return fmt.Errorf("failed to store presentation (service=%s, id=%s): %w", service.ID, presentation.ID, err)
+		}
+		log.Logger().
+			WithField("discoveryService", service.ID).
+			WithField("presentationID", presentation.ID).
+			Trace("Loaded new Verifiable Presentation from Discovery Service")
+	}
+	return nil
 }

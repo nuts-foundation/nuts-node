@@ -125,8 +125,7 @@ func Test_scheduledRegistrationManager_deregister(t *testing.T) {
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
-		tag := Tag("taggy")
-		require.NoError(t, store.add(testServiceID, vpAlice, &tag))
+		require.NoError(t, store.add(testServiceID, vpAlice, "taggy"))
 
 		err := manager.deactivate(audit.TestContext(), testServiceID, aliceDID)
 
@@ -142,8 +141,7 @@ func Test_scheduledRegistrationManager_deregister(t *testing.T) {
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
-		tag := Tag("taggy")
-		require.NoError(t, store.add(testServiceID, vpAlice, &tag))
+		require.NoError(t, store.add(testServiceID, vpAlice, "taggy"))
 
 		err := manager.deactivate(audit.TestContext(), testServiceID, aliceDID)
 
@@ -220,4 +218,121 @@ func Test_scheduledRegistrationManager_refreshRegistrations(t *testing.T) {
 		cancel()
 		wg.Wait()
 	})
+}
+
+func Test_clientUpdater_updateService(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	store, err := newSQLStore(storageEngine.GetSQLDatabase(), testDefinitions(), nil)
+	require.NoError(t, err)
+	ctx := context.Background()
+	newTag := "test"
+	serviceDefinition := testDefinitions()[testServiceID]
+
+	t.Run("no updates", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		httpClient := client.NewMockHTTPClient(ctrl)
+		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
+
+		httpClient.EXPECT().Get(ctx, testDefinitions()[testServiceID].Endpoint, "").Return([]vc.VerifiablePresentation{}, newTag, nil)
+
+		err := updater.updateService(ctx, testDefinitions()[testServiceID])
+
+		require.NoError(t, err)
+	})
+	t.Run("updates", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		httpClient := client.NewMockHTTPClient(ctrl)
+		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
+
+		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, "").Return([]vc.VerifiablePresentation{vpAlice}, newTag, nil)
+
+		err := updater.updateService(ctx, testDefinitions()[testServiceID])
+
+		require.NoError(t, err)
+	})
+	t.Run("ignores invalid presentations", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		httpClient := client.NewMockHTTPClient(ctrl)
+		updater := newClientUpdater(testDefinitions(), store, func(_ ServiceDefinition, vp vc.VerifiablePresentation) error {
+			if *vp.ID == *vpAlice.ID {
+				return errors.New("invalid presentation")
+			}
+			return nil
+		}, httpClient)
+
+		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, "").Return([]vc.VerifiablePresentation{vpAlice, vpBob}, newTag, nil)
+
+		err := updater.updateService(ctx, testDefinitions()[testServiceID])
+
+		require.NoError(t, err)
+		// Bob's VP should exist, Alice's not
+		exists, err := store.exists(testServiceID, bobDID.String(), vpBob.ID.String())
+		require.NoError(t, err)
+		require.True(t, exists)
+		exists, err = store.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
+		require.NoError(t, err)
+		require.False(t, exists)
+	})
+	t.Run("pass tag", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		httpClient := client.NewMockHTTPClient(ctrl)
+		_, err := store.updateTag(store.db, testServiceID, "test")
+		require.NoError(t, err)
+		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
+
+		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, "test").Return([]vc.VerifiablePresentation{vpAlice}, newTag, nil)
+
+		err = updater.updateService(ctx, testDefinitions()[testServiceID])
+
+		require.NoError(t, err)
+	})
+}
+
+func Test_clientUpdater_update(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Run("context cancel stops the loop", func(t *testing.T) {
+		store := setupStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		httpClient := client.NewMockHTTPClient(ctrl)
+		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiablePresentation{}, "test", nil).MinTimes(1)
+		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			updater.update(ctx, time.Millisecond)
+		}()
+		// make sure the loop has at least once
+		time.Sleep(5 * time.Millisecond)
+		// Make sure the function exits when the context is cancelled
+		cancel()
+		wg.Wait()
+	})
+}
+
+func Test_clientUpdater_doUpdate(t *testing.T) {
+	t.Run("proceeds when service update fails", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		require.NoError(t, storageEngine.Start())
+		store := setupStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		httpClient := client.NewMockHTTPClient(ctrl)
+		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiablePresentation{}, "test", nil)
+		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", errors.New("test"))
+		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
+
+		updater.doUpdate(context.Background())
+	})
+}
+
+func alwaysOkVerifier(_ ServiceDefinition, _ vc.VerifiablePresentation) error {
+	return nil
 }

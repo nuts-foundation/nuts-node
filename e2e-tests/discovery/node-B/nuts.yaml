@@ -13,6 +13,9 @@ http:
 discovery:
   definitions:
     directory: /opt/nuts/definitions
+  client:
+    refresh_interval: 500ms
+    registration_refresh_interval: 500ms
 auth:
   v2apienabled: true
   contractvalidators:

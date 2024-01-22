@@ -50,18 +50,36 @@ echo "---------------------------------------"
 echo "Registering care organization on Discovery Service..."
 echo "---------------------------------------"
 curl --insecure -s -X POST http://localhost:21323/internal/discovery/v1/dev:eOverdracht2023/${DID}
-
-echo "---------------------------------------"
-echo "Restarting to force registration on Discovery Service..."
-echo "---------------------------------------"
+# Start Discovery Server
 docker compose up --wait nodeA
-docker compose down nodeB
-docker compose up --wait nodeB
+# Registration refresh interval is 500ms, wait some to make sure the registration is refreshed
+sleep 2
 
 echo "---------------------------------------"
-echo "Searching for care organization registration..."
+echo "Searching for care organization registration on Discovery Server..."
 echo "---------------------------------------"
-echo "TODO: Requires clients updating discovery service and search API (https://github.com/nuts-foundation/nuts-node/pull/2672)"
+RESPONSE=$(curl -s --insecure "http://localhost:11323/internal/discovery/v1/dev:eOverdracht2023?credentialSubject.organization.name=Care*")
+NUM_ITEMS=$(echo $RESPONSE | jq length)
+if [ $NUM_ITEMS -eq 1 ]; then
+  echo "Registration found"
+else
+  echo "FAILED: Could not find registration" 1>&2
+  exitWithDockerLogs 1
+fi
+
+echo "---------------------------------------"
+echo "Searching for care organization registration on Discovery Client..."
+echo "---------------------------------------"
+# Service refresh interval is 500ms, wait some to make sure the presentations are loaded
+sleep 2
+RESPONSE=$(curl -s --insecure "http://localhost:21323/internal/discovery/v1/dev:eOverdracht2023?credentialSubject.organization.name=Care*")
+NUM_ITEMS=$(echo $RESPONSE | jq length)
+if [ $NUM_ITEMS -eq 1 ]; then
+  echo "Registration found"
+else
+  echo "FAILED: Could not find registration" 1>&2
+  exitWithDockerLogs 1
+fi
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."

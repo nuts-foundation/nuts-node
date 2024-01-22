@@ -30,6 +30,6 @@ type HTTPClient interface {
 
 	// Get retrieves Verifiable Presentations from the remote Discovery Service, that were added since the given tag.
 	// If the call succeeds it returns the Verifiable Presentations and the tag that was returned by the server.
-	// If tag is nil, all Verifiable Presentations are retrieved.
-	Get(ctx context.Context, serviceEndpointURL string, tag *string) ([]vc.VerifiablePresentation, *string, error)
+	// If tag is empty, all Verifiable Presentations are retrieved.
+	Get(ctx context.Context, serviceEndpointURL string, tag string) ([]vc.VerifiablePresentation, string, error)
 }

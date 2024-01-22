@@ -90,6 +90,7 @@ type Module struct {
 	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR
 	documentOwner       management.DocumentOwner
+	clientUpdater       *clientUpdater
 	ctx                 context.Context
 	cancel              context.CancelFunc
 	routines            *sync.WaitGroup
@@ -126,6 +127,12 @@ func (m *Module) Start() error {
 	if err != nil {
 		return err
 	}
+	m.clientUpdater = newClientUpdater(m.allDefinitions, m.store, m.verifyRegistration, m.httpClient)
+	m.routines.Add(1)
+	go func() {
+		defer m.routines.Done()
+		m.clientUpdater.update(m.ctx, m.config.Client.RefreshInterval)
+	}()
 	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance)
 	m.routines.Add(1)
 	go func() {
@@ -157,6 +164,14 @@ func (m *Module) Register(serviceID string, presentation vc.VerifiablePresentati
 	if !isServer {
 		return ErrServerModeDisabled
 	}
+	if err := m.verifyRegistration(definition, presentation); err != nil {
+		return err
+	}
+	return m.store.add(definition.ID, presentation, "")
+}
+
+func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
+	// First, simple sanity checks
 	if presentation.Format() != vc.JWTPresentationProofFormat {
 		return errors.Join(ErrInvalidPresentation, errUnsupportedPresentationFormat)
 	}
@@ -180,7 +195,7 @@ func (m *Module) Register(serviceID string, presentation vc.VerifiablePresentati
 	if err != nil {
 		return err
 	}
-	exists, err := m.store.exists(serviceID, credentialSubjectID.String(), presentation.ID.String())
+	exists, err := m.store.exists(definition.ID, credentialSubjectID.String(), presentation.ID.String())
 	if err != nil {
 		return err
 	}
@@ -201,7 +216,7 @@ func (m *Module) Register(serviceID string, presentation vc.VerifiablePresentati
 	if err != nil {
 		return errors.Join(ErrInvalidPresentation, fmt.Errorf("presentation verification failed: %w", err))
 	}
-	return m.store.add(definition.ID, presentation, nil)
+	return nil
 }
 
 func (m *Module) validateRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {

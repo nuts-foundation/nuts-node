@@ -72,12 +72,12 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
-		presentations, tag, err := client.Get(context.Background(), server.URL, nil)
+		presentations, tag, err := client.Get(context.Background(), server.URL, "")
 
 		assert.NoError(t, err)
 		assert.Len(t, presentations, 1)
 		assert.Empty(t, handler.RequestQuery.Get("tag"))
-		assert.Equal(t, serverTag, *tag)
+		assert.Equal(t, serverTag, tag)
 	})
 	t.Run("tag provided by client", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}
@@ -88,20 +88,19 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
-		inputTag := clientTag
-		presentations, tag, err := client.Get(context.Background(), server.URL, &inputTag)
+		presentations, tag, err := client.Get(context.Background(), server.URL, clientTag)
 
 		assert.NoError(t, err)
 		assert.Len(t, presentations, 1)
 		assert.Equal(t, clientTag, handler.RequestQuery.Get("tag"))
-		assert.Equal(t, serverTag, *tag)
+		assert.Equal(t, serverTag, tag)
 	})
 	t.Run("server returns invalid status code", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusInternalServerError}
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
-		_, _, err := client.Get(context.Background(), server.URL, nil)
+		_, _, err := client.Get(context.Background(), server.URL, "")
 
 		assert.ErrorContains(t, err, "non-OK response from remote Discovery Service")
 	})
@@ -111,7 +110,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
-		_, _, err := client.Get(context.Background(), server.URL, nil)
+		_, _, err := client.Get(context.Background(), server.URL, "")
 
 		assert.ErrorContains(t, err, "failed to unmarshal response from remote Discovery Service")
 	})

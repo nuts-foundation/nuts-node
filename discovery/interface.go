@@ -124,3 +124,5 @@ type SearchResult struct {
 	// It only includes constraint fields that have an ID.
 	Fields map[string]interface{} `json:"fields"`
 }
+
+type presentationVerifier func(definition ServiceDefinition, presentation vc.VerifiablePresentation) error

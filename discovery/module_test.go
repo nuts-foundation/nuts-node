@@ -25,6 +25,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/discovery/api/v1/client"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -78,12 +79,12 @@ func Test_Module_Register(t *testing.T) {
 		assert.ErrorIs(t, err, ErrPresentationAlreadyExists)
 	})
 	t.Run("valid for too long", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
-		def := m.allDefinitions[testServiceID]
-		def.PresentationMaxValidity = 1
-		m.allDefinitions[testServiceID] = def
-		m.serverDefinitions[testServiceID] = def
-
+		m, _, _ := setupModule(t, storageEngine, func(module *Module) {
+			def := module.allDefinitions[testServiceID]
+			def.PresentationMaxValidity = 1
+			module.allDefinitions[testServiceID] = def
+			module.serverDefinitions[testServiceID] = def
+		})
 		err := m.Register(testServiceID, vpAlice)
 		assert.EqualError(t, err, "presentation is invalid for registration\npresentation is valid for too long (max 1s)")
 	})
@@ -216,7 +217,7 @@ func Test_Module_Get(t *testing.T) {
 	require.NoError(t, storageEngine.Start())
 	t.Run("ok", func(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, nil))
+		require.NoError(t, m.store.add(testServiceID, vpAlice, ""))
 		presentations, tag, err := m.Get(testServiceID, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, []vc.VerifiablePresentation{vpAlice}, presentations)
@@ -224,7 +225,7 @@ func Test_Module_Get(t *testing.T) {
 	})
 	t.Run("ok - retrieve delta", func(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, nil))
+		require.NoError(t, m.store.add(testServiceID, vpAlice, ""))
 		presentations, _, err := m.Get(testServiceID, nil)
 		require.NoError(t, err)
 		require.Len(t, presentations, 1)
@@ -236,7 +237,7 @@ func Test_Module_Get(t *testing.T) {
 	})
 }
 
-func setupModule(t *testing.T, storageInstance storage.Engine) (*Module, *verifier.MockVerifier, *management.MockDocumentOwner) {
+func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(*Module)) (*Module, *verifier.MockVerifier, *management.MockDocumentOwner) {
 	resetStore(t, storageInstance.GetSQLDatabase())
 	ctrl := gomock.NewController(t)
 	mockVerifier := verifier.NewMockVerifier(ctrl)
@@ -245,10 +246,16 @@ func setupModule(t *testing.T, storageInstance storage.Engine) (*Module, *verifi
 	documentOwner := management.NewMockDocumentOwner(ctrl)
 	m := New(storageInstance, mockVCR, documentOwner)
 	m.config = DefaultConfig()
-	require.NoError(t, m.Configure(core.ServerConfig{}))
+	require.NoError(t, m.Configure(core.TestServerConfig()))
+	httpClient := client.NewMockHTTPClient(ctrl)
+	httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil).AnyTimes()
+	m.httpClient = httpClient
 	m.allDefinitions = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{
 		testServiceID: m.allDefinitions[testServiceID],
+	}
+	for _, visitor := range visitors {
+		visitor(m)
 	}
 	require.NoError(t, m.Start())
 	return m, mockVerifier, documentOwner
@@ -299,7 +306,7 @@ func TestModule_Search(t *testing.T) {
 	require.NoError(t, storageEngine.Start())
 	t.Run("ok", func(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, nil))
+		require.NoError(t, m.store.add(testServiceID, vpAlice, ""))
 		results, err := m.Search(testServiceID, map[string]string{
 			"credentialSubject.id": aliceDID.String(),
 		})
