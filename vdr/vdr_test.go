@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -295,7 +296,6 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			require.NoError(t, err)
 			didDocOrg.AddCapabilityInvocation(orgVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocOrg, keyOrg, nil)
-			test.mockStore.EXPECT().Resolve(didDocVendor.ID, nil).Return(didDocVendor, &resolver.DocumentMetadata{}, nil)
 			didDocOrg, keyOrg, err = test.vdr.Create(test.ctx, management.DIDCreationOptions{
 				Controllers: []did.DID{didDocVendor.ID},
 				KeyFlags:    management.AssertionMethodUsage | management.KeyAgreementUsage,

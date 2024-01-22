@@ -122,7 +122,11 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	// did:nuts
 	r.documentManagers = map[string]management.DocumentManager{
 		didnuts.MethodName: didnuts.NewManager(
-			didnuts.Creator{KeyStore: r.keyStore},
+			didnuts.Creator{
+				KeyStore:      r.keyStore,
+				NetworkClient: r.network,
+				DIDResolver:   r.store,
+			},
 			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
 		),
 	}
