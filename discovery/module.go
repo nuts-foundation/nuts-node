@@ -299,6 +299,14 @@ func (m *Module) DeactivateServiceForDID(ctx context.Context, serviceID string, 
 	return m.registrationManager.deactivate(ctx, serviceID, subjectDID)
 }
 
+func (m *Module) Services() []ServiceDefinition {
+	result := make([]ServiceDefinition, 0, len(m.allDefinitions))
+	for _, definition := range m.allDefinitions {
+		result = append(result, definition)
+	}
+	return result
+}
+
 func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 	entries, err := os.ReadDir(directory)
 	if err != nil {

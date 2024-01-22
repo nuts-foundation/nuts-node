@@ -128,6 +128,9 @@ type ClientInterface interface {
 
 	RegisterPresentation(ctx context.Context, serviceID string, body RegisterPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetServices request
+	GetServices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SearchPresentations request
 	SearchPresentations(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -164,6 +167,18 @@ func (c *Client) RegisterPresentationWithBody(ctx context.Context, serviceID str
 
 func (c *Client) RegisterPresentation(ctx context.Context, serviceID string, body RegisterPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRegisterPresentationRequest(c.Server, serviceID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetServices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetServicesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -309,6 +324,33 @@ func NewRegisterPresentationRequestWithBody(server string, serviceID string, con
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetServicesRequest generates requests for GetServices
+func NewGetServicesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/discovery/v1")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -502,6 +544,9 @@ type ClientWithResponsesInterface interface {
 
 	RegisterPresentationWithResponse(ctx context.Context, serviceID string, body RegisterPresentationJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterPresentationResponse, error)
 
+	// GetServicesWithResponse request
+	GetServicesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetServicesResponse, error)
+
 	// SearchPresentationsWithResponse request
 	SearchPresentationsWithResponse(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*SearchPresentationsResponse, error)
 
@@ -579,6 +624,38 @@ func (r RegisterPresentationResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r RegisterPresentationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetServicesResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *[]ServiceDefinition
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetServicesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetServicesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -733,6 +810,15 @@ func (c *ClientWithResponses) RegisterPresentationWithResponse(ctx context.Conte
 	return ParseRegisterPresentationResponse(rsp)
 }
 
+// GetServicesWithResponse request returning *GetServicesResponse
+func (c *ClientWithResponses) GetServicesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetServicesResponse, error) {
+	rsp, err := c.GetServices(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetServicesResponse(rsp)
+}
+
 // SearchPresentationsWithResponse request returning *SearchPresentationsResponse
 func (c *ClientWithResponses) SearchPresentationsWithResponse(ctx context.Context, serviceID string, params *SearchPresentationsParams, reqEditors ...RequestEditorFn) (*SearchPresentationsResponse, error) {
 	rsp, err := c.SearchPresentations(ctx, serviceID, params, reqEditors...)
@@ -831,6 +917,48 @@ func ParseRegisterPresentationResponse(rsp *http.Response) (*RegisterPresentatio
 			return nil, err
 		}
 		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetServicesResponse parses an HTTP response from a GetServicesWithResponse call
+func ParseGetServicesResponse(rsp *http.Response) (*GetServicesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetServicesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ServiceDefinition
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
@@ -1025,6 +1153,9 @@ type ServerInterface interface {
 	// Register a presentation on the Discovery Service.
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx echo.Context, serviceID string) error
+	// Retrieves the list of Discovery Services.
+	// (GET /internal/discovery/v1)
+	GetServices(ctx echo.Context) error
 	// Searches for presentations registered on the Discovery Service.
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
@@ -1083,6 +1214,17 @@ func (w *ServerInterfaceWrapper) RegisterPresentation(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.RegisterPresentation(ctx, serviceID)
+	return err
+}
+
+// GetServices converts echo context to params.
+func (w *ServerInterfaceWrapper) GetServices(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetServices(ctx)
 	return err
 }
 
@@ -1195,6 +1337,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/discovery/:serviceID", wrapper.GetPresentations)
 	router.POST(baseURL+"/discovery/:serviceID", wrapper.RegisterPresentation)
+	router.GET(baseURL+"/internal/discovery/v1", wrapper.GetServices)
 	router.GET(baseURL+"/internal/discovery/v1/:serviceID", wrapper.SearchPresentations)
 	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.DeactivateServiceForDID)
 	router.POST(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.ActivateServiceForDID)
@@ -1290,6 +1433,43 @@ type RegisterPresentationdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response RegisterPresentationdefaultApplicationProblemPlusJSONResponse) VisitRegisterPresentationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetServicesRequestObject struct {
+}
+
+type GetServicesResponseObject interface {
+	VisitGetServicesResponse(w http.ResponseWriter) error
+}
+
+type GetServices200JSONResponse []ServiceDefinition
+
+func (response GetServices200JSONResponse) VisitGetServicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetServicesdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetServicesdefaultApplicationProblemPlusJSONResponse) VisitGetServicesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -1479,6 +1659,9 @@ type StrictServerInterface interface {
 	// Register a presentation on the Discovery Service.
 	// (POST /discovery/{serviceID})
 	RegisterPresentation(ctx context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error)
+	// Retrieves the list of Discovery Services.
+	// (GET /internal/discovery/v1)
+	GetServices(ctx context.Context, request GetServicesRequestObject) (GetServicesResponseObject, error)
 	// Searches for presentations registered on the Discovery Service.
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
@@ -1553,6 +1736,29 @@ func (sh *strictHandler) RegisterPresentation(ctx echo.Context, serviceID string
 		return err
 	} else if validResponse, ok := response.(RegisterPresentationResponseObject); ok {
 		return validResponse.VisitRegisterPresentationResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetServices operation middleware
+func (sh *strictHandler) GetServices(ctx echo.Context) error {
+	var request GetServicesRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetServices(ctx.Request().Context(), request.(GetServicesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetServices")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetServicesResponseObject); ok {
+		return validResponse.VisitGetServicesResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

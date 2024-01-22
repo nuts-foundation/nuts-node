@@ -71,6 +71,25 @@ paths:
           $ref: "../common/error_response.yaml"
         default:
           $ref: "../common/error_response.yaml"
+  /internal/discovery/v1:
+    get:
+      summary: Retrieves the list of Discovery Services.
+      description: |
+        An API provided by the Discovery Client that retrieves the list of configured Discovery Services.
+      operationId: getServices
+      tags:
+        - discovery
+      responses:
+        "200":
+          description:
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceDefinition"
+        default:
+          $ref: "../common/error_response.yaml"
   /internal/discovery/v1/{serviceID}:
     parameters:
       - name: serviceID
@@ -239,6 +258,26 @@ components:
         fields:
           type: object
           description: Input descriptor IDs and their mapped values that from the Verifiable Credential.
+    ServiceDefinition:
+      type: object
+      required:
+          - id
+          - endpoint
+          - presentation_definition
+          - presentation_max_validity
+      properties:
+        id:
+          type: string
+          description: The ID of the Discovery Service.
+        endpoint:
+          type: string
+          description: The endpoint of the Discovery Service.
+        presentation_definition:
+          type: object
+          description: The Presentation Definition of the Discovery Service.
+        presentation_max_validity:
+          type: integer
+          description: The maximum validity (in seconds) of a Verifiable Presentation of the Discovery Service.
   securitySchemes:
     jwtBearerAuth:
       type: http

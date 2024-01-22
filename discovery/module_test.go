@@ -352,3 +352,14 @@ func TestModule_ActivateServiceForDID(t *testing.T) {
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 	})
 }
+
+func TestModule_Services(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Run("ok", func(t *testing.T) {
+		services := (&Module{
+			allDefinitions: testDefinitions(),
+		}).Services()
+		assert.Len(t, services, 2)
+	})
+}
