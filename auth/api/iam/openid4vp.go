@@ -272,19 +272,11 @@ func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePr
 func (r Wrapper) sendAndHandleDirectPostError(ctx context.Context, auth2Error oauth.OAuth2Error, walletDID did.DID, verifierResponseURI string, verifierClientState string) (HandleAuthorizeRequestResponseObject, error) {
 	redirectURI, err := r.auth.Holder().PostError(ctx, auth2Error, verifierResponseURI, verifierClientState)
 	if err == nil {
-		// check redirectURI against registered callbackURI
-		registeredURL, err := didweb.DIDToURL(walletDID)
-		if err != nil {
-			return nil, err
-		}
-		if strings.HasPrefix(redirectURI, registeredURL.String()) {
-			return HandleAuthorizeRequest302Response{
-				HandleAuthorizeRequest302ResponseHeaders{
-					Location: redirectURI,
-				},
-			}, nil
-		}
-		log.Logger().Errorf("verifier responded with incorrect callbackURI: \"%s\" for wallet: %s", redirectURI, walletDID.String())
+		return HandleAuthorizeRequest302Response{
+			HandleAuthorizeRequest302ResponseHeaders{
+				Location: redirectURI,
+			},
+		}, nil
 	}
 
 	msg := fmt.Sprintf("failed to post error to verifier @ %s", verifierResponseURI)
@@ -488,7 +480,6 @@ func (r Wrapper) validatePresentationNonce(presentations []vc.VerifiablePresenta
 	var returnErr error
 	for _, presentation := range presentations {
 		nextNonce, err := extractChallenge(presentation)
-		_ = r.oauthNonceStore().Delete(nextNonce)
 		if nextNonce == "" {
 			// fallback on nonce instead of challenge, todo: should be uniform, check vc data model specs for JWT/JSON-LD
 			nextNonce, err = extractNonce(presentation)
@@ -501,6 +492,7 @@ func (r Wrapper) validatePresentationNonce(presentations []vc.VerifiablePresenta
 				}
 			}
 		}
+		_ = r.oauthNonceStore().Delete(nextNonce)
 		if nonce != "" && nonce != nextNonce {
 			returnErr = oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
@@ -527,7 +519,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, verifier did.DID,
 	var oauthSession OAuthSession
 	err = r.oauthCodeStore().Get(*authorizationCode, &oauthSession)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid authorization code"), callbackURI)
+		return nil, oauthError(oauth.InvalidRequest, "invalid authorization code")
 	}
 
 	// check if the redirectURI matches the one from the authorization request
@@ -549,7 +541,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, verifier did.DID,
 	credentialMap := oauthSession.ServerState.CredentialMap()
 	subject, _ := did.ParseDID(oauthSession.ClientID)
 
-	response, err := r.createS2SAccessToken(verifier, time.Now(), presentations, submission, *definition, oauthSession.Scope, *subject, credentialMap)
+	response, err := r.createAccessToken(verifier, time.Now(), presentations, submission, *definition, oauthSession.Scope, *subject, credentialMap)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error())), callbackURI)
 	}

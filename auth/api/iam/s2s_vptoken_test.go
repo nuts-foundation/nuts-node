@@ -388,7 +388,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		ctx := newTestClient(t)
 
 		vps := []VerifiablePresentation{test.ParsePresentation(t, presentation)}
-		accessToken, err := ctx.client.createS2SAccessToken(issuerDID, time.Now(), vps, submission, definition, "everything", credentialSubjectID, nil)
+		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), vps, &submission, definition, "everything", credentialSubjectID, nil)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)

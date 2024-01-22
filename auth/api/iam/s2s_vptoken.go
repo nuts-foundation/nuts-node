@@ -97,14 +97,14 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	}
 
 	// All OK, allow access
-	response, err := r.createS2SAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope, credentialSubjectID, credentialMap)
+	response, err := r.createAccessToken(issuer, time.Now(), pexEnvelope.Presentations, submission, *definition, scope, credentialSubjectID, credentialMap)
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submission pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submission *pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	fieldsMap, err := definition.ResolveConstraintsFields(credentialMap)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve Presentation Definition Constraints Fields: %w", err)
@@ -118,7 +118,7 @@ func (r Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, prese
 		Scope:                          scope,
 		VPToken:                        presentations,
 		PresentationDefinition:         &definition,
-		PresentationSubmission:         &submission,
+		PresentationSubmission:         submission,
 		InputDescriptorConstraintIdMap: fieldsMap,
 	}
 	err = r.accessTokenServerStore().Put(accessToken.Token, accessToken)
@@ -188,6 +188,7 @@ func (r Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresenta
 
 // extractNonce extracts the nonce from the presentation.
 // it uses the nonce from the JWT if available, otherwise it uses the nonce from the LD proof.
+// returns empty string when no nonce is found.
 func extractNonce(presentation vc.VerifiablePresentation) (string, error) {
 	var nonce string
 	switch presentation.Format() {

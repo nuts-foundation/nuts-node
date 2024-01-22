@@ -67,13 +67,11 @@ func (s ServerState) VerifiablePresentations() []vc.VerifiablePresentation {
 }
 
 // PresentationSubmission returns the Presentation Submission from the server state.
-func (s ServerState) PresentationSubmission() pe.PresentationSubmission {
-	if val, ok := s[submissionStateKey]; ok {
-		if pd, ok := val.(pe.PresentationSubmission); ok {
-			return pd
-		}
+func (s ServerState) PresentationSubmission() *pe.PresentationSubmission {
+	if val, ok := s[submissionStateKey].(pe.PresentationSubmission); ok {
+		return &val
 	}
-	return pe.PresentationSubmission{}
+	return nil
 }
 
 // CredentialMap returns the credential map from the server state.

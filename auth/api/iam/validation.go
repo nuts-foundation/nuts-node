@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
@@ -81,10 +82,17 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 func (r Wrapper) validatePresentationSubmission(ctx context.Context, authorizer did.DID, scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (map[string]vc.VerifiableCredential, *PresentationDefinition, error) {
 	definition, err := r.policyBackend.PresentationDefinition(ctx, authorizer, scope)
 	if err != nil {
+		if errors.Is(err, policy.ErrNotFound) {
+			return nil, nil, oauth.OAuth2Error{
+				Code:          oauth.InvalidScope,
+				InternalError: err,
+				Description:   fmt.Sprintf("unsupported scope (%s) for presentation exchange: %s", scope, err.Error()),
+			}
+		}
 		return nil, nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidScope,
+			Code:          oauth.ServerError,
 			InternalError: err,
-			Description:   fmt.Sprintf("unsupported scope (%s) for presentation exchange: %s", scope, err.Error()),
+			Description:   fmt.Sprintf("failed to retrieve presentation definition for scope (%s): %s", scope, err.Error()),
 		}
 	}
 

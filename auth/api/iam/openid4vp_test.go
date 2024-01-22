@@ -673,15 +673,6 @@ func TestWrapper_sendAndHandleDirectPostError(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, "server_error - something went wrong", err.Error())
 	})
-	t.Run("invalid redirect_uri from verifier", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.holderRole.EXPECT().PostError(gomock.Any(), gomock.Any(), "response", "state").Return("https://example.com", nil)
-
-		_, err := ctx.client.sendAndHandleDirectPostError(context.Background(), oauth.OAuth2Error{}, holderDID, "response", "state")
-
-		require.Error(t, err)
-		require.Equal(t, "server_error - something went wrong", err.Error())
-	})
 }
 
 func TestWrapper_sendPresentationRequest(t *testing.T) {
