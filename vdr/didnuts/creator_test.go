@@ -23,8 +23,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -55,9 +59,17 @@ func TestCreator_Create(t *testing.T) {
 	defaultOptions := DefaultCreationOptions()
 
 	t.Run("ok", func(t *testing.T) {
-		kc := &mockKeyCreator{}
-		creator := Creator{KeyStore: kc}
 		t.Run("defaults", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			networkClient := network.NewMockTransactions(ctrl)
+			var txTemplate network.Template
+			networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, tx network.Template) (hash.SHA256Hash, error) {
+				txTemplate = tx
+				return hash.EmptyHash(), nil
+			})
+			kc := &mockKeyCreator{}
+			creator := Creator{KeyStore: kc, NetworkClient: networkClient}
+
 			doc, key, err := creator.Create(nil, defaultOptions)
 			assert.NoError(t, err, "create should not return an error")
 			assert.NotNil(t, doc, "create should return a document")
@@ -69,9 +81,20 @@ func TestCreator_Create(t *testing.T) {
 			assert.Len(t, doc.CapabilityInvocation, 1, "it should have 1 CapabilityInvocation")
 			assert.Equal(t, doc.CapabilityInvocation[0].VerificationMethod, doc.VerificationMethod[0], "the assertionMethod should be a pointer to the verificationMethod")
 			assert.Len(t, doc.AssertionMethod, 1, "it should have 1 AssertionMethod")
+			assert.Equal(t, DIDDocumentType, txTemplate.Type)
+			payload, _ := json.Marshal(doc)
+			assert.Equal(t, payload, txTemplate.Payload)
+			assert.Equal(t, key, txTemplate.Key)
+			assert.Empty(t, txTemplate.AdditionalPrevs)
 		})
 
 		t.Run("all keys", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			networkClient := network.NewMockTransactions(ctrl)
+			networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(nil, nil)
+			kc := &mockKeyCreator{}
+			creator := Creator{KeyStore: kc, NetworkClient: networkClient}
+
 			ops := management.DIDCreationOptions{
 				KeyFlags: management.AssertionMethodUsage |
 					management.AuthenticationUsage |
@@ -98,11 +121,50 @@ func TestCreator_Create(t *testing.T) {
 				SelfControl: true,
 				Controllers: []did.DID{*c},
 			}
+			controllerDoc := CreateDocument()
+			controllerDoc.ID = *c
+
+			ctrl := gomock.NewController(t)
+			networkClient := network.NewMockTransactions(ctrl)
+			var txTemplate network.Template
+			networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, tx network.Template) (hash.SHA256Hash, error) {
+				txTemplate = tx
+				return hash.EmptyHash(), nil
+			})
+			didResolver := resolver.NewMockDIDResolver(ctrl)
+			refs := []hash.SHA256Hash{hash.EmptyHash()}
+			didResolver.EXPECT().Resolve(*c, gomock.Any()).Return(&controllerDoc, &resolver.DocumentMetadata{SourceTransactions: refs}, nil)
+			kc := &mockKeyCreator{}
+			creator := Creator{KeyStore: kc, NetworkClient: networkClient, DIDResolver: didResolver}
+
 			doc, _, err := creator.Create(nil, ops)
 
 			require.NoError(t, err)
 
 			assert.Len(t, doc.Controller, 2)
+			assert.Equal(t, refs, txTemplate.AdditionalPrevs)
+		})
+
+		t.Run("error - unknown controllers", func(t *testing.T) {
+			c, _ := did.ParseDID("did:nuts:controller")
+			ops := management.DIDCreationOptions{
+				KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage,
+				SelfControl: true,
+				Controllers: []did.DID{*c},
+			}
+			controllerDoc := CreateDocument()
+			controllerDoc.ID = *c
+
+			ctrl := gomock.NewController(t)
+			networkClient := network.NewMockTransactions(ctrl)
+			didResolver := resolver.NewMockDIDResolver(ctrl)
+			didResolver.EXPECT().Resolve(*c, gomock.Any()).Return(nil, nil, resolver.ErrNotFound)
+			kc := &mockKeyCreator{}
+			creator := Creator{KeyStore: kc, NetworkClient: networkClient, DIDResolver: didResolver}
+
+			_, _, err := creator.Create(nil, ops)
+
+			assert.EqualError(t, err, "could not create DID document: could not resolve a controller: unable to find the DID document")
 		})
 
 		t.Run("using ephemeral key creates different keys for assertion and DID", func(t *testing.T) {

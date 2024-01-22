@@ -20,8 +20,11 @@ package didnuts
 import (
 	"context"
 	"crypto"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
@@ -63,6 +66,12 @@ func CreateDocument() did.Document {
 type Creator struct {
 	// KeyStore is used for getting a fresh key and use it to generate the Nuts DID
 	KeyStore nutsCrypto.KeyCreator
+
+	// NetworkClient is used for publishing the newly created DID Document
+	NetworkClient network.Transactions
+
+	// DIDResolver is used for resolving the controllers of the newly created DID Document
+	DIDResolver resolver.DIDResolver
 }
 
 // DefaultCreationOptions returns the default DIDCreationOptions when creating DID Documents.
@@ -127,19 +136,45 @@ var ErrInvalidOptions = errors.New("create request has invalid combination of op
 
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
+// It also publishes the DID Document to the network.
 func (n Creator) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
-	var key nutsCrypto.Key
-	var err error
+	// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
+	// holder for all metadata of the controllers
+	controllerMetadata := make([]resolver.DocumentMetadata, len(options.Controllers))
+
+	// if any controllers have been added, check if they exist through the didResolver
+	if len(options.Controllers) > 0 {
+		for _, controller := range options.Controllers {
+			_, meta, err := n.DIDResolver.Resolve(controller, nil)
+			if err != nil {
+				return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
+			}
+			controllerMetadata = append(controllerMetadata, *meta)
+		}
+	}
 
 	if options.SelfControl && !options.KeyFlags.Is(management.CapabilityInvocationUsage) {
 		return nil, nil, ErrInvalidOptions
 	}
 
+	doc, key, err := n.create(ctx, options)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := n.publish(ctx, *doc, key, controllerMetadata); err != nil {
+		return nil, nil, err
+	}
+
+	// return the doc and the keyCreator that created the private key
+	return doc, key, nil
+}
+
+func (n Creator) create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
 	// First, generate a new keyPair with the correct kid
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
 	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err = n.KeyStore.New(ctx, didKIDNamingFunc)
+	key, err := n.KeyStore.New(ctx, didKIDNamingFunc)
 	// } else {
 	// 	key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
 	// }
@@ -186,9 +221,27 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 	}
 
 	applyKeyUsage(&doc, verificationMethod, options.KeyFlags)
-
-	// return the doc and the keyCreator that created the private key
 	return &doc, key, nil
+}
+
+func (n Creator) publish(ctx context.Context, doc did.Document, key nutsCrypto.Key, controllerMetadata []resolver.DocumentMetadata) error {
+	payload, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+
+	// extract the transaction refs from the controller metadata
+	refs := make([]hash.SHA256Hash, 0)
+	for _, meta := range controllerMetadata {
+		refs = append(refs, meta.SourceTransactions...)
+	}
+
+	tx := network.TransactionTemplate(DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
+	_, err = n.NetworkClient.CreateTransaction(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("could not store DID document in network: %w", err)
+	}
+	return nil
 }
 
 // applyKeyUsage checks intendedKeyUsage and adds the given verificationMethod to every relationship specified as key usage.
