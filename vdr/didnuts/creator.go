@@ -136,10 +136,8 @@ var ErrInvalidOptions = errors.New("create request has invalid combination of op
 
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
+// It also publishes the DID Document to the network.
 func (n Creator) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
-	var key nutsCrypto.Key
-	var err error
-
 	// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
 	// holder for all metadata of the controllers
 	controllerMetadata := make([]resolver.DocumentMetadata, len(options.Controllers))
@@ -159,11 +157,24 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 		return nil, nil, ErrInvalidOptions
 	}
 
+	doc, key, err := n.create(ctx, options)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := n.publish(ctx, *doc, key, controllerMetadata); err != nil {
+		return nil, nil, err
+	}
+
+	// return the doc and the keyCreator that created the private key
+	return doc, key, nil
+}
+
+func (n Creator) create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
 	// First, generate a new keyPair with the correct kid
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
 	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err = n.KeyStore.New(ctx, didKIDNamingFunc)
+	key, err := n.KeyStore.New(ctx, didKIDNamingFunc)
 	// } else {
 	// 	key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
 	// }
@@ -210,12 +221,6 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 	}
 
 	applyKeyUsage(&doc, verificationMethod, options.KeyFlags)
-
-	if err := n.publish(ctx, doc, key, controllerMetadata); err != nil {
-		return nil, nil, err
-	}
-
-	// return the doc and the keyCreator that created the private key
 	return &doc, key, nil
 }
 
