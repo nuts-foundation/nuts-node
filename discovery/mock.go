@@ -136,3 +136,17 @@ func (mr *MockClientMockRecorder) Search(serviceID, query any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockClient)(nil).Search), serviceID, query)
 }
+
+// Services mocks base method.
+func (m *MockClient) Services() []ServiceDefinition {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Services")
+	ret0, _ := ret[0].([]ServiceDefinition)
+	return ret0
+}
+
+// Services indicates an expected call of Services.
+func (mr *MockClientMockRecorder) Services() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Services", reflect.TypeOf((*MockClient)(nil).Services))
+}
