@@ -407,6 +407,26 @@ func Test_sqlStore_getStaleDIDRegistrations(t *testing.T) {
 	})
 }
 
+func Test_sqlStore_getPresentationRefreshTime(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+
+	t.Run("no entry", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		ts, err := c.getPresentationRefreshTime(testServiceID, aliceDID)
+		require.NoError(t, err)
+		assert.Nil(t, ts)
+	})
+	t.Run("entry exists", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		now := time.Now().Truncate(time.Second)
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceDID, &now))
+		ts, err := c.getPresentationRefreshTime(testServiceID, aliceDID)
+		require.NoError(t, err)
+		assert.Equal(t, now, *ts)
+	})
+}
+
 func setupStore(t *testing.T, db *gorm.DB) *sqlStore {
 	resetStore(t, db)
 	defs := testDefinitions()

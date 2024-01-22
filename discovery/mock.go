@@ -122,6 +122,22 @@ func (mr *MockClientMockRecorder) DeactivateServiceForDID(ctx, serviceID, subjec
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeactivateServiceForDID", reflect.TypeOf((*MockClient)(nil).DeactivateServiceForDID), ctx, serviceID, subjectDID)
 }
 
+// GetServiceActivation mocks base method.
+func (m *MockClient) GetServiceActivation(ctx context.Context, serviceID string, subjectDID did.DID) (bool, *vc.VerifiablePresentation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetServiceActivation", ctx, serviceID, subjectDID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(*vc.VerifiablePresentation)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetServiceActivation indicates an expected call of GetServiceActivation.
+func (mr *MockClientMockRecorder) GetServiceActivation(ctx, serviceID, subjectDID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceActivation", reflect.TypeOf((*MockClient)(nil).GetServiceActivation), ctx, serviceID, subjectDID)
+}
+
 // Search mocks base method.
 func (m *MockClient) Search(serviceID string, query map[string]string) ([]SearchResult, error) {
 	m.ctrl.T.Helper()

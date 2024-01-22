@@ -158,6 +158,31 @@ paths:
         required: true
         schema:
           type: string
+    get:
+      summary: Retrieves the activation status a DID on a Discovery Service.
+      description: |
+        An API provided by the Discovery Client that returns whether the DID is activated on the Discovery Service.
+        It also returns the active Verifiable Presentation, if any.
+      operationId: getServiceActivation
+      tags:
+        - discovery
+      responses:
+        "200":
+          description: Success result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - activated
+                properties:
+                  activated:
+                    type: boolean
+                    description: Whether the DID is activated on the Discovery Service.
+                  vp:
+                    $ref: "#/components/schemas/VerifiablePresentation"
+        default:
+          $ref: "../common/error_response.yaml"
     post:
       summary: Client API to activate a DID on the specified Discovery Service.
       description: |

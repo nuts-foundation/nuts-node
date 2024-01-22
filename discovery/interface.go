@@ -116,6 +116,11 @@ type Client interface {
 
 	// Services returns the list of services that are registered on this client.
 	Services() []ServiceDefinition
+
+	// GetServiceActivation returns the activation status of a DID on a Discovery Service.
+	// The boolean indicates whether the DID is acitvated on the Discovery Service (ActivateServiceForDID() has been called).
+	// It also returns the Verifiable Presentation that is registered on the Discovery Service, if any.
+	GetServiceActivation(ctx context.Context, serviceID string, subjectDID did.DID) (bool, *vc.VerifiablePresentation, error)
 }
 
 // SearchResult is a single result of a search operation.

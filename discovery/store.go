@@ -430,6 +430,18 @@ func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectDID di
 	})
 }
 
+func (s *sqlStore) getPresentationRefreshTime(serviceID string, subjectDID did.DID) (*time.Time, error) {
+	var row presentationRefreshRecord
+	if err := s.db.Find(&row, "service_id = ? AND did = ?", serviceID, subjectDID.String()).Error; err != nil {
+		return nil, err
+	}
+	if row.NextRefresh == 0 {
+		return nil, nil
+	}
+	result := time.Unix(row.NextRefresh, 0)
+	return &result, nil
+}
+
 // getPresentationsToBeRefreshed returns all DID discovery service registrations that are due for refreshing.
 // It returns a slice of service IDs and associated DIDs.
 func (s *sqlStore) getPresentationsToBeRefreshed(now time.Time) ([]string, []did.DID, error) {

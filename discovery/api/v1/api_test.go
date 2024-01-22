@@ -37,6 +37,8 @@ import (
 
 const serviceID = "wonderland"
 
+var subjectDID = did.MustParseDID("did:web:example.com")
+
 func TestWrapper_GetPresentations(t *testing.T) {
 	t.Run("no tag", func(t *testing.T) {
 		latestTag := discovery.Tag("latest")
@@ -111,12 +113,11 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 func TestWrapper_ActivateServiceForDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
-		expectedDID := "did:web:example.com"
-		test.client.EXPECT().ActivateServiceForDID(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
+		test.client.EXPECT().ActivateServiceForDID(gomock.Any(), serviceID, subjectDID).Return(nil)
 
 		response, err := test.wrapper.ActivateServiceForDID(nil, ActivateServiceForDIDRequestObject{
 			ServiceID: serviceID,
-			Did:       expectedDID,
+			Did:       subjectDID.String(),
 		})
 
 		assert.NoError(t, err)
@@ -233,6 +234,32 @@ func TestWrapper_SearchPresentations(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, discovery.ErrServiceNotFound)
+	})
+}
+
+func TestWrapper_GetServiceActivation(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		test := newMockContext(t)
+		test.client.EXPECT().GetServiceActivation(gomock.Any(), serviceID, subjectDID).Return(true, nil, nil)
+
+		response, err := test.wrapper.GetServiceActivation(nil, GetServiceActivationRequestObject{
+			ServiceID: serviceID,
+		})
+
+		assert.NoError(t, err)
+		require.IsType(t, GetServiceActivation200JSONResponse{}, response)
+		assert.True(t, response.(GetServiceActivation200JSONResponse).Activated)
+		assert.Nil(t, response.(GetServiceActivation200JSONResponse).Vp)
+	})
+	t.Run("error", func(t *testing.T) {
+		test := newMockContext(t)
+		test.client.EXPECT().GetServiceActivation(gomock.Any(), serviceID, subjectDID).Return(false, nil, assert.AnError)
+
+		_, err := test.wrapper.GetServiceActivation(nil, GetServiceActivationRequestObject{
+			ServiceID: serviceID,
+		})
+
+		assert.Error(t, err)
 	})
 }
 
