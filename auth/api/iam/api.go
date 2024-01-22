@@ -473,6 +473,9 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, core.InvalidInputError("missing request body")
 	}
 	requestHolder, err := r.extractWallet(ctx, request.Did)
+	if err != nil {
+		return nil, err
+	}
 
 	if request.Body.UserID == "" {
 		return nil, echo.NewHTTPError(http.StatusBadRequest, "missing userID")

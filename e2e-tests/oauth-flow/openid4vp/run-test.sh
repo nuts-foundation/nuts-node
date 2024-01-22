@@ -129,7 +129,7 @@ echo "--------------------------------------"
 echo "Use flow token to get access token ..."
 echo "--------------------------------------"
 
-RESPONSE=$(curl http://localhost:21323/internal/auth/v2/${PARTY_B_DID}/accesstoken/$TOKEN -v -k)
+RESPONSE=$(curl http://localhost:21323/internal/auth/v2/accesstoken/$TOKEN -v -k)
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
   echo "access token stored in ./node-B/data/accesstoken.txt"
