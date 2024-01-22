@@ -243,6 +243,7 @@ func TestWrapper_GetServiceActivation(t *testing.T) {
 		test.client.EXPECT().GetServiceActivation(gomock.Any(), serviceID, subjectDID).Return(true, nil, nil)
 
 		response, err := test.wrapper.GetServiceActivation(nil, GetServiceActivationRequestObject{
+			Did:       subjectDID.String(),
 			ServiceID: serviceID,
 		})
 
@@ -256,6 +257,7 @@ func TestWrapper_GetServiceActivation(t *testing.T) {
 		test.client.EXPECT().GetServiceActivation(gomock.Any(), serviceID, subjectDID).Return(false, nil, assert.AnError)
 
 		_, err := test.wrapper.GetServiceActivation(nil, GetServiceActivationRequestObject{
+			Did:       subjectDID.String(),
 			ServiceID: serviceID,
 		})
 
