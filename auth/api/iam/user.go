@@ -45,6 +45,7 @@ const (
 )
 
 var oauthClientStateKey = []string{"oauth", "client_state"}
+var oauthCodeKey = []string{"oauth", "code"}
 var userRedirectSessionKey = []string{"user", "redirect"}
 var userSessionKey = []string{"user", "session"}
 
@@ -146,4 +147,8 @@ func (r Wrapper) userSessionStore() storage.SessionStore {
 
 func (r Wrapper) oauthClientStateStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...)
+}
+
+func (r Wrapper) oauthCodeStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthCodeKey...)
 }

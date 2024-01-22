@@ -53,8 +53,10 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 	vc2 := credentialToJSONLD(vc.VerifiableCredential{ID: &id2})
 	vc3 := credentialToJSONLD(vc.VerifiableCredential{ID: &id3})
 
-	t.Run("1 presentation with 1 credential", func(t *testing.T) {
-		expectedJSON := `
+	t.Run("ldp_vp", func(t *testing.T) {
+
+		t.Run("1 presentation with 1 credential", func(t *testing.T) {
+			expectedJSON := `
 		{
 		 "id": "for-test",
 		 "definition_id": "",
@@ -66,26 +68,26 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 		   }
 		 ]
 		}`
-		presentationDefinition := PresentationDefinition{}
-		_ = json.Unmarshal([]byte(test.PickOne), &presentationDefinition)
-		builder := presentationDefinition.PresentationSubmissionBuilder()
-		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.PickOne), &presentationDefinition)
+			builder := presentationDefinition.PresentationSubmissionBuilder()
+			builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
 
-		submission, signInstructions, err := builder.Build("ldp_vp")
+			submission, signInstructions, err := builder.Build("ldp_vp")
 
-		require.NoError(t, err)
-		require.NotNil(t, signInstructions)
-		assert.Len(t, signInstructions, 1)
-		require.Len(t, submission.DescriptorMap, 1)
-		assert.Equal(t, "$.verifiableCredential", submission.DescriptorMap[0].Path)
+			require.NoError(t, err)
+			require.NotNil(t, signInstructions)
+			assert.Len(t, signInstructions, 1)
+			require.Len(t, submission.DescriptorMap, 1)
+			assert.Equal(t, "$.verifiableCredential", submission.DescriptorMap[0].Path)
 
-		submission.Id = "for-test" // easier assertion
-		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
-		println(string(actualJSON))
-		assert.JSONEq(t, expectedJSON, string(actualJSON))
-	})
-	t.Run("1 presentation with 2 credentials", func(t *testing.T) {
-		expectedJSON := `
+			submission.Id = "for-test" // easier assertion
+			actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+			println(string(actualJSON))
+			assert.JSONEq(t, expectedJSON, string(actualJSON))
+		})
+		t.Run("1 presentation with 2 credentials", func(t *testing.T) {
+			expectedJSON := `
 		{
 		 "id": "for-test",
 		 "definition_id": "",
@@ -102,25 +104,25 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 		   }
 		 ]
 		}`
-		presentationDefinition := PresentationDefinition{}
-		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
-		builder := presentationDefinition.PresentationSubmissionBuilder()
-		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
+			builder := presentationDefinition.PresentationSubmissionBuilder()
+			builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
 
-		submission, signInstructions, err := builder.Build("ldp_vp")
+			submission, signInstructions, err := builder.Build("ldp_vp")
 
-		require.NoError(t, err)
-		require.NotNil(t, signInstructions)
-		assert.Len(t, signInstructions, 1)
-		require.Len(t, submission.DescriptorMap, 2)
+			require.NoError(t, err)
+			require.NotNil(t, signInstructions)
+			assert.Len(t, signInstructions, 1)
+			require.Len(t, submission.DescriptorMap, 2)
 
-		submission.Id = "for-test" // easier assertion
-		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
-		println(string(actualJSON))
-		assert.JSONEq(t, expectedJSON, string(actualJSON))
-	})
-	t.Run("2 presentations", func(t *testing.T) {
-		expectedJSON := `
+			submission.Id = "for-test" // easier assertion
+			actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+			println(string(actualJSON))
+			assert.JSONEq(t, expectedJSON, string(actualJSON))
+		})
+		t.Run("2 presentations", func(t *testing.T) {
+			expectedJSON := `
 {
   "id": "for-test",
   "definition_id": "",
@@ -148,25 +150,25 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
   ]
 }
 `
-		presentationDefinition := PresentationDefinition{}
-		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
-		builder := presentationDefinition.PresentationSubmissionBuilder()
-		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1})
-		builder.AddWallet(holder2, []vc.VerifiableCredential{vc2})
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
+			builder := presentationDefinition.PresentationSubmissionBuilder()
+			builder.AddWallet(holder1, []vc.VerifiableCredential{vc1})
+			builder.AddWallet(holder2, []vc.VerifiableCredential{vc2})
 
-		submission, signInstructions, err := builder.Build("ldp_vp")
+			submission, signInstructions, err := builder.Build("ldp_vp")
 
-		require.NoError(t, err)
-		require.NotNil(t, signInstructions)
-		assert.Len(t, signInstructions, 2)
-		assert.Len(t, submission.DescriptorMap, 2)
+			require.NoError(t, err)
+			require.NotNil(t, signInstructions)
+			assert.Len(t, signInstructions, 2)
+			assert.Len(t, submission.DescriptorMap, 2)
 
-		submission.Id = "for-test" // easier assertion
-		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
-		assert.JSONEq(t, expectedJSON, string(actualJSON))
-	})
-	t.Run("2 wallets, but 1 VP", func(t *testing.T) {
-		expectedJSON := `
+			submission.Id = "for-test" // easier assertion
+			actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+			assert.JSONEq(t, expectedJSON, string(actualJSON))
+		})
+		t.Run("2 wallets, but 1 VP", func(t *testing.T) {
+			expectedJSON := `
 		{
 		 "id": "for-test",
 		 "definition_id": "",
@@ -183,22 +185,39 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 		   }
 		 ]
 		}`
-		presentationDefinition := PresentationDefinition{}
-		_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
-		builder := presentationDefinition.PresentationSubmissionBuilder()
-		builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
-		builder.AddWallet(holder2, []vc.VerifiableCredential{vc3})
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
+			builder := presentationDefinition.PresentationSubmissionBuilder()
+			builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
+			builder.AddWallet(holder2, []vc.VerifiableCredential{vc3})
 
-		submission, signInstructions, err := builder.Build("ldp_vp")
+			submission, signInstructions, err := builder.Build("ldp_vp")
 
-		require.NoError(t, err)
-		require.NotNil(t, signInstructions)
-		assert.Len(t, signInstructions, 1)
-		assert.Len(t, submission.DescriptorMap, 2)
+			require.NoError(t, err)
+			require.NotNil(t, signInstructions)
+			assert.Len(t, signInstructions, 1)
+			assert.Len(t, submission.DescriptorMap, 2)
 
-		submission.Id = "for-test" // easier assertion
-		actualJSON, _ := json.MarshalIndent(submission, "", "  ")
-		assert.JSONEq(t, expectedJSON, string(actualJSON))
+			submission.Id = "for-test" // easier assertion
+			actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+			assert.JSONEq(t, expectedJSON, string(actualJSON))
+		})
+	})
+	t.Run("jwt_vp", func(t *testing.T) {
+		t.Run("1 presentation with 1 credential", func(t *testing.T) {
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.PickOne), &presentationDefinition)
+			builder := presentationDefinition.PresentationSubmissionBuilder()
+			builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
+
+			submission, signInstructions, err := builder.Build("jwt_vp")
+
+			require.NoError(t, err)
+			require.NotNil(t, signInstructions)
+			assert.Len(t, signInstructions, 1)
+			require.Len(t, submission.DescriptorMap, 1)
+			assert.Equal(t, "$.verifiableCredential", submission.DescriptorMap[0].Path)
+		})
 	})
 }
 

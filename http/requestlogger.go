@@ -71,16 +71,15 @@ func bodyLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) echo
 			requestBody := "(not loggable: " + requestContentType + ")"
 			if isLoggableContentType(requestContentType) {
 				requestBody = string(request)
+				logger.Infof("HTTP request body: %s", requestBody)
 			}
 
 			responseContentType := e.Response().Header().Get("Content-Type")
 			responseBody := "(not loggable: " + responseContentType + ")"
 			if isLoggableContentType(responseContentType) {
 				responseBody = string(response)
+				logger.Infof("HTTP response body: %s", responseBody)
 			}
-
-			logger.Infof("HTTP request body: %s", requestBody)
-			logger.Infof("HTTP response body: %s", responseBody)
 		},
 		Skipper: skipper,
 	})

@@ -250,7 +250,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
-			assert.EqualError(t, err, "invalid_request - presentation has invalid proof or nonce")
+			assert.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
 			assert.Nil(t, resp)
 		})
 		t.Run("JSON-LD VP has empty nonce", func(t *testing.T) {
@@ -263,7 +263,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
-			assert.EqualError(t, err, "invalid_request - presentation has invalid proof or nonce")
+			assert.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
 			assert.Nil(t, resp)
 		})
 		t.Run("JWT VP is missing nonce", func(t *testing.T) {

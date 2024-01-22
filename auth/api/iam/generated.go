@@ -105,12 +105,30 @@ type PresentationDefinitionParams struct {
 	Scope string `form:"scope" json:"scope"`
 }
 
+// HandleAuthorizeResponseFormdataBody defines parameters for HandleAuthorizeResponse.
+type HandleAuthorizeResponseFormdataBody struct {
+	// Error error code as defined by the OAuth2 specification
+	Error *string `form:"error,omitempty" json:"error,omitempty"`
+
+	// ErrorDescription error description as defined by the OAuth2 specification
+	ErrorDescription       *string `form:"error_description,omitempty" json:"error_description,omitempty"`
+	PresentationSubmission *string `form:"presentation_submission,omitempty" json:"presentation_submission,omitempty"`
+
+	// State the client state for the verifier
+	State *string `form:"state,omitempty" json:"state,omitempty"`
+
+	// VpToken A Verifiable Presentation in either JSON-LD or JWT format.
+	VpToken *string `form:"vp_token,omitempty" json:"vp_token,omitempty"`
+}
+
 // HandleTokenRequestFormdataBody defines parameters for HandleTokenRequest.
 type HandleTokenRequestFormdataBody struct {
 	Assertion              *string `form:"assertion,omitempty" json:"assertion,omitempty"`
+	ClientId               *string `form:"client_id,omitempty" json:"client_id,omitempty"`
 	Code                   *string `form:"code,omitempty" json:"code,omitempty"`
 	GrantType              string  `form:"grant_type" json:"grant_type"`
 	PresentationSubmission *string `form:"presentation_submission,omitempty" json:"presentation_submission,omitempty"`
+	RedirectUri            *string `form:"redirect_uri,omitempty" json:"redirect_uri,omitempty"`
 	Scope                  *string `form:"scope,omitempty" json:"scope,omitempty"`
 }
 
@@ -126,6 +144,9 @@ type RequestAccessTokenJSONBody struct {
 	UserID   *string `json:"userID,omitempty"`
 	Verifier string  `json:"verifier"`
 }
+
+// HandleAuthorizeResponseFormdataRequestBody defines body for HandleAuthorizeResponse for application/x-www-form-urlencoded ContentType.
+type HandleAuthorizeResponseFormdataRequestBody HandleAuthorizeResponseFormdataBody
 
 // HandleTokenRequestFormdataRequestBody defines body for HandleTokenRequest for application/x-www-form-urlencoded ContentType.
 type HandleTokenRequestFormdataRequestBody HandleTokenRequestFormdataBody
@@ -153,6 +174,9 @@ type ServerInterface interface {
 	// Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
 	// (GET /iam/{id}/presentation_definition)
 	PresentationDefinition(ctx echo.Context, id string, params PresentationDefinitionParams) error
+	// Used by wallets to post the authorization response or error to.
+	// (POST /iam/{id}/response)
+	HandleAuthorizeResponse(ctx echo.Context, id string) error
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{id}/token)
 	HandleTokenRequest(ctx echo.Context, id string) error
@@ -277,6 +301,24 @@ func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error 
 	return err
 }
 
+// HandleAuthorizeResponse converts echo context to params.
+func (w *ServerInterfaceWrapper) HandleAuthorizeResponse(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.HandleAuthorizeResponse(ctx, id)
+	return err
+}
+
 // HandleTokenRequest converts echo context to params.
 func (w *ServerInterfaceWrapper) HandleTokenRequest(ctx echo.Context) error {
 	var err error
@@ -357,6 +399,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetWebDID)
 	router.GET(baseURL+"/iam/:id/oauth-client", wrapper.OAuthClientMetadata)
 	router.GET(baseURL+"/iam/:id/presentation_definition", wrapper.PresentationDefinition)
+	router.POST(baseURL+"/iam/:id/response", wrapper.HandleAuthorizeResponse)
 	router.POST(baseURL+"/iam/:id/token", wrapper.HandleTokenRequest)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-access-token", wrapper.RequestAccessToken)
@@ -545,6 +588,24 @@ func (response PresentationDefinitiondefaultApplicationProblemPlusJSONResponse) 
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type HandleAuthorizeResponseRequestObject struct {
+	Id   string `json:"id"`
+	Body *HandleAuthorizeResponseFormdataRequestBody
+}
+
+type HandleAuthorizeResponseResponseObject interface {
+	VisitHandleAuthorizeResponseResponse(w http.ResponseWriter) error
+}
+
+type HandleAuthorizeResponse200JSONResponse RedirectResponse
+
+func (response HandleAuthorizeResponse200JSONResponse) VisitHandleAuthorizeResponseResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type HandleTokenRequestRequestObject struct {
 	Id   string `json:"id"`
 	Body *HandleTokenRequestFormdataRequestBody
@@ -679,6 +740,9 @@ type StrictServerInterface interface {
 	// Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
 	// (GET /iam/{id}/presentation_definition)
 	PresentationDefinition(ctx context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error)
+	// Used by wallets to post the authorization response or error to.
+	// (POST /iam/{id}/response)
+	HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error)
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{id}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
@@ -823,6 +887,41 @@ func (sh *strictHandler) PresentationDefinition(ctx echo.Context, id string, par
 		return err
 	} else if validResponse, ok := response.(PresentationDefinitionResponseObject); ok {
 		return validResponse.VisitPresentationDefinitionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// HandleAuthorizeResponse operation middleware
+func (sh *strictHandler) HandleAuthorizeResponse(ctx echo.Context, id string) error {
+	var request HandleAuthorizeResponseRequestObject
+
+	request.Id = id
+
+	if form, err := ctx.FormParams(); err == nil {
+		var body HandleAuthorizeResponseFormdataRequestBody
+		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
+			return err
+		}
+		request.Body = &body
+	} else {
+		return err
+	}
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.HandleAuthorizeResponse(ctx.Request().Context(), request.(HandleAuthorizeResponseRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "HandleAuthorizeResponse")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(HandleAuthorizeResponseResponseObject); ok {
+		return validResponse.VisitHandleAuthorizeResponseResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

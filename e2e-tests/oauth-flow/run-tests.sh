@@ -15,3 +15,10 @@ echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 pushd rfc021
 ./run-test.sh
 popd
+
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+echo "!! Running test: OpenID4VP flow !!"
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+pushd openid4vp
+./run-test.sh
+popd

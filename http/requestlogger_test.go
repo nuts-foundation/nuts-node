@@ -27,6 +27,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"net/http"
 	"net/http/httptest"
@@ -173,9 +174,7 @@ func Test_bodyLoggerMiddleware(t *testing.T) {
 			return context.NoContent(http.StatusNoContent)
 		})(echoMock)
 
-		assert.NoError(t, err)
-		assert.Len(t, hook.Entries, 2)
-		assert.Equal(t, `HTTP request body: (not loggable: application/binary)`, hook.AllEntries()[0].Message)
-		assert.Equal(t, `HTTP response body: (not loggable: application/binary)`, hook.AllEntries()[1].Message)
+		require.NoError(t, err)
+		assert.Len(t, hook.Entries, 0)
 	})
 }

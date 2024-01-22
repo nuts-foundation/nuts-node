@@ -74,7 +74,7 @@ func TestHolderService_PostError(t *testing.T) {
 			Description: "missing required parameter",
 		}
 
-		redirect, err := ctx.holder.PostError(ctx.audit, oauthError, endpoint)
+		redirect, err := ctx.holder.PostError(ctx.audit, oauthError, endpoint, "state")
 
 		require.NoError(t, err)
 		assert.Equal(t, "redirect", redirect)
@@ -84,7 +84,7 @@ func TestHolderService_PostError(t *testing.T) {
 		endpoint := fmt.Sprintf("%s/error", ctx.tlsServer.URL)
 		ctx.errorResponse = nil
 
-		redirect, err := ctx.holder.PostError(ctx.audit, oauth.OAuth2Error{}, endpoint)
+		redirect, err := ctx.holder.PostError(ctx.audit, oauth.OAuth2Error{}, endpoint, "state")
 
 		assert.Error(t, err)
 		assert.Empty(t, redirect)
@@ -126,6 +126,7 @@ func TestHolderService_PostResponse(t *testing.T) {
 func TestHolderService_BuildPresentation(t *testing.T) {
 	credentials := []vcr.VerifiableCredential{credential.ValidNutsOrganizationCredential(t)}
 	walletDID := did.MustParseDID("did:web:example.com:iam:wallet")
+	verifierDID := did.MustParseDID("did:web:example.com:iam:verifier")
 	presentationDefinition := pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{{Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}}}}
 	vpFormats := oauth.DefaultOpenIDSupportedFormats()
 
@@ -134,18 +135,19 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), credentials, gomock.Any(), &walletDID, false).Return(&vc.VerifiablePresentation{}, nil)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "")
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID.URI())
 
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
 		require.NotNil(t, submission)
+
 	})
 	// wallet failure, build failure, no credentials
 	t.Run("error - wallet failure", func(t *testing.T) {
 		ctx := createHolderContext(t, nil)
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(nil, assert.AnError)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "")
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID.URI())
 
 		assert.Error(t, err)
 		assert.Nil(t, vp)
@@ -156,7 +158,7 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), credentials, gomock.Any(), &walletDID, false).Return(nil, assert.AnError)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "")
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, presentationDefinition, vpFormats, "", verifierDID.URI())
 
 		assert.Error(t, err)
 		assert.Nil(t, vp)
@@ -166,7 +168,7 @@ func TestHolderService_BuildPresentation(t *testing.T) {
 		ctx := createHolderContext(t, nil)
 		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
 
-		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, pe.PresentationDefinition{}, vpFormats, "")
+		vp, submission, err := ctx.holder.BuildPresentation(context.Background(), walletDID, pe.PresentationDefinition{}, vpFormats, "", verifierDID.URI())
 
 		assert.Equal(t, ErrNoCredentials, err)
 		assert.Nil(t, vp)

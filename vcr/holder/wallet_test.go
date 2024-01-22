@@ -44,8 +44,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-var testDID = vdr.TestDIDA
-
 func TestWallet_BuildPresentation(t *testing.T) {
 	var kid = vdr.TestMethodDIDA.String()
 	testCredential := createCredential(kid)

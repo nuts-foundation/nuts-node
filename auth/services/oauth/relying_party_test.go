@@ -223,7 +223,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 }
 
 func TestRelyingParty_AuthorizationRequest(t *testing.T) {
-	walletDID := did.MustParseDID("did:test:123")
+	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	scopes := "first second"
 	clientState := crypto.GenerateNonce()
 
@@ -238,6 +238,7 @@ func TestRelyingParty_AuthorizationRequest(t *testing.T) {
 		assert.Equal(t, "code", redirectURL.Query().Get("response_type"))
 		assert.Equal(t, "first second", redirectURL.Query().Get("scope"))
 		assert.NotEmpty(t, redirectURL.Query().Get("state"))
+		assert.Equal(t, "https://test.test/iam/123/callback", redirectURL.Query().Get("redirect_uri"))
 	})
 	t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
 		ctx := createOAuthRPContext(t)

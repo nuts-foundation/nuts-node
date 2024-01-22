@@ -24,11 +24,13 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
@@ -57,7 +59,7 @@ func NewHolder(wallet holder.Wallet, strictMode bool, httpClientTimeout time.Dur
 	}
 }
 
-func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience ssi.URI) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// get VCs from own wallet
 	credentials, err := v.wallet.List(ctx, walletDID)
 	if err != nil {
@@ -78,12 +80,15 @@ func (v *HolderService) BuildPresentation(ctx context.Context, walletDID did.DID
 	}
 
 	// todo: support multiple wallets
+	audienceStr := audience.String()
 	vp, err := v.wallet.BuildPresentation(ctx, signInstructions[0].VerifiableCredentials, holder.PresentationOptions{
 		Format: format,
 		ProofOptions: proof.ProofOptions{
 			Created:   time.Now(),
 			Challenge: &nonce,
+			Domain:    &audienceStr,
 			Expires:   &expires,
+			Nonce:     &nonce,
 		},
 	}, &walletDID, false)
 	if err != nil {
@@ -102,14 +107,20 @@ func (v *HolderService) ClientMetadata(ctx context.Context, endpoint string) (*o
 	return metadata, nil
 }
 
-func (v *HolderService) PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string) (string, error) {
+func (v *HolderService) PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (string, error) {
 	iamClient := iam.NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
 
 	responseURL, err := core.ParsePublicURL(verifierResponseURI, v.strictMode)
 	if err != nil {
 		return "", fmt.Errorf("failed to post error to verifier: %w", err)
 	}
-	redirectURL, err := iamClient.PostError(ctx, auth2Error, *responseURL)
+	validURL := *responseURL
+	if verifierClientState != "" {
+		validURL = http.AddQueryParams(*responseURL, map[string]string{
+			oauth.StateParam: verifierClientState,
+		})
+	}
+	redirectURL, err := iamClient.PostError(ctx, auth2Error, validURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to post error to verifier: %w", err)
 	}

@@ -20,7 +20,9 @@ package iam
 
 import (
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"net/url"
 )
 
@@ -30,9 +32,53 @@ type OAuthSession struct {
 	OwnDID                 did.DID
 	ClientState            string
 	RedirectURI            string
-	ServerState            map[string]interface{}
+	ServerState            ServerState
 	ResponseType           string
 	PresentationDefinition PresentationDefinition
+}
+
+// ServerState is a convenience type for extracting different types of data from the session.
+type ServerState map[string]interface{}
+
+const (
+	credentialMapStateKey = "credentialMap"
+	presentationsStateKey = "presentations"
+	submissionStateKey    = "presentationSubmission"
+)
+
+// VerifiablePresentations returns the verifiable presentations from the server state.
+// If the server state does not contain a verifiable presentation, an empty slice is returned.
+func (s ServerState) VerifiablePresentations() []vc.VerifiablePresentation {
+	presentations := make([]vc.VerifiablePresentation, 0)
+	if val, ok := s[presentationsStateKey]; ok {
+		// each entry should be castable to a VerifiablePresentation
+		if arr, ok := val.([]interface{}); ok {
+			for _, v := range arr {
+				if vp, ok := v.(vc.VerifiablePresentation); ok {
+					presentations = append(presentations, vp)
+				}
+			}
+		}
+	}
+	return presentations
+}
+
+// PresentationSubmission returns the Presentation Submission from the server state.
+func (s ServerState) PresentationSubmission() pe.PresentationSubmission {
+	if val, ok := s[submissionStateKey]; ok {
+		if pd, ok := val.(pe.PresentationSubmission); ok {
+			return pd
+		}
+	}
+	return pe.PresentationSubmission{}
+}
+
+// CredentialMap returns the credential map from the server state.
+func (s ServerState) CredentialMap() map[string]vc.VerifiableCredential {
+	if mapped, ok := s[credentialMapStateKey].(map[string]vc.VerifiableCredential); ok {
+		return mapped
+	}
+	return map[string]vc.VerifiableCredential{}
 }
 
 // UserSession is the session object for handling the user browser session.
