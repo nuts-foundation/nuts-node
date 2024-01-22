@@ -391,7 +391,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceDID, &next)
-		_ = m.store.add(testServiceID, vpAlice, nil)
+		_ = m.store.add(testServiceID, vpAlice, "")
 
 		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
 
