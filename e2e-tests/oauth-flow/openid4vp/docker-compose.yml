@@ -42,4 +42,4 @@ services:
     image: nginx:1.25.1
     volumes:
       - "./resource/nginx.conf:/etc/nginx/nginx.conf:ro"
-      - "./resource/oauth2.js:/etc/nginx/oauth2.js:ro"
+      - "../scripts/oauth2.js:/etc/nginx/oauth2.js:ro"
