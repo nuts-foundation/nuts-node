@@ -22,7 +22,15 @@ import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
+
+// DocumentManager is the interface that groups several higher level methods to create and update DID documents.
+type DocumentManager interface {
+	DocCreator
+	DocumentOwner
+	resolver.DIDResolver
+}
 
 // DocCreator is the interface that wraps the Create method
 type DocCreator interface {
@@ -34,6 +42,7 @@ type DocCreator interface {
 }
 
 // DocUpdater is the interface that defines functions that alter the state of a DID document
+// Deprecated: only did:nuts implements it, new methods should implement DocumentManager
 type DocUpdater interface {
 	// Update replaces the DID document identified by DID with the nextVersion
 	// If the DID Document is not found, ErrNotFound is returned
@@ -70,6 +79,9 @@ type DocManipulator interface {
 
 // DIDCreationOptions defines options for creating a DID Document.
 type DIDCreationOptions struct {
+	// Method specifies the DID method the new DID should use
+	Method string
+
 	// Controllers lists the DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
 	// the newly generated DID will be added to the list of controllers.
 	Controllers []did.DID

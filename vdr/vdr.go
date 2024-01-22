@@ -62,9 +62,7 @@ type Module struct {
 	store             didnutsStore.Store
 	network           network.Transactions
 	networkAmbassador didnuts.Ambassador
-	creators          map[string]management.DocCreator
-	managedResolvers  map[string]resolver.DIDResolver
-	documentOwners    map[string]management.DocumentOwner
+	documentManagers  map[string]management.DocumentManager
 	didResolver       *resolver.DIDResolverRouter
 	serviceResolver   resolver.ServiceResolver
 	keyStore          crypto.KeyStore
@@ -74,12 +72,18 @@ type Module struct {
 
 // ResolveManaged resolves a DID document that is managed by the local node.
 func (r *Module) ResolveManaged(id did.DID) (*did.Document, error) {
-	managedResolver := r.managedResolvers[id.Method]
-	if managedResolver == nil {
+	manager := r.documentManagers[id.Method]
+	if manager == nil {
 		return nil, fmt.Errorf("unsupported method: %s", id.Method)
 	}
-	document, _, err := managedResolver.Resolve(id, nil)
+	document, _, err := manager.Resolve(id, nil)
 	return document, err
+}
+
+// Resolve resolves any DID document which DID method is supported.
+// To only resolve DID documents managed by the local node, use ResolveManaged().
+func (r *Module) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
+	return r.didResolver.Resolve(id, metadata)
 }
 
 func (r *Module) Resolver() resolver.DIDResolver {
@@ -109,28 +113,24 @@ func (r *Module) Name() string {
 func (r *Module) Configure(config core.ServerConfig) error {
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
 
-	// Register DID methods
+	// Register DID methods we can resolve
 	r.didResolver.Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
 	r.didResolver.Register(didweb.MethodName, didweb.NewResolver())
 	r.didResolver.Register(didjwk.MethodName, didjwk.NewResolver())
 	r.didResolver.Register(didkey.MethodName, didkey.NewResolver())
 
-	r.creators = map[string]management.DocCreator{
-		didnuts.MethodName: didnuts.Creator{KeyStore: r.keyStore},
-	}
-	r.documentOwners = map[string]management.DocumentOwner{
-		didnuts.MethodName: newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
-	}
-
 	// Methods we can produce from the Nuts node
+	// did:nuts
+	r.documentManagers = map[string]management.DocumentManager{
+		didnuts.MethodName: didnuts.NewManager(
+			didnuts.Creator{KeyStore: r.keyStore},
+			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
+		),
+	}
+	// did:web
 	publicURL, err := config.ServerURL()
 	if err == nil {
-		didwebManager := didweb.NewManager(*publicURL.JoinPath("iam"), r.keyStore, r.storageInstance.GetSQLDatabase())
-		r.creators[didweb.MethodName] = didwebManager
-		r.documentOwners[didweb.MethodName] = didwebManager
-		r.managedResolvers = map[string]resolver.DIDResolver{
-			didweb.MethodName: didwebManager,
-		}
+		r.documentManagers[didweb.MethodName] = didweb.NewManager(*publicURL.JoinPath("iam"), r.keyStore, r.storageInstance.GetSQLDatabase())
 	}
 
 	// Initiate the routines for auto-updating the data.
@@ -174,16 +174,16 @@ func (r *Module) ConflictedDocuments() ([]did.Document, []resolver.DocumentMetad
 }
 
 func (r *Module) IsOwner(ctx context.Context, id did.DID) (bool, error) {
-	owner := r.documentOwners[id.Method]
-	if owner == nil {
+	manager := r.documentManagers[id.Method]
+	if manager == nil {
 		return false, fmt.Errorf("unsupported method: %s", id.Method)
 	}
-	return owner.IsOwner(ctx, id)
+	return manager.IsOwner(ctx, id)
 }
 
 func (r *Module) ListOwned(ctx context.Context) ([]did.DID, error) {
 	var results []did.DID
-	for _, owner := range r.documentOwners {
+	for _, owner := range r.documentManagers {
 		owned, err := owner.ListOwned(ctx)
 		if err != nil {
 			return nil, err
@@ -267,8 +267,12 @@ func (r *Module) Diagnostics() []core.DiagnosticResult {
 }
 
 // Create generates a new DID Document
-func (r *Module) Create(ctx context.Context, method string, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (r *Module) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	log.Logger().Debug("Creating new DID Document.")
+	manager := r.documentManagers[options.Method]
+	if manager == nil {
+		return nil, nil, fmt.Errorf("unsupported method: %s", options.Method)
+	}
 
 	// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
 	// holder for all metadata of the controllers
@@ -285,16 +289,12 @@ func (r *Module) Create(ctx context.Context, method string, options management.D
 		}
 	}
 
-	creator := r.creators[method]
-	if creator == nil {
-		return nil, nil, fmt.Errorf("unsupported method: %s", method)
-	}
-	doc, key, err := creator.Create(ctx, options)
+	doc, key, err := manager.Create(ctx, options)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not create DID document (method %s): %w", method, err)
+		return nil, nil, fmt.Errorf("could not create DID document (method %s): %w", options.Method, err)
 	}
 
-	if method == didnuts.MethodName {
+	if options.Method == didnuts.MethodName {
 		payload, err := json.Marshal(doc)
 		if err != nil {
 			return nil, nil, err

@@ -48,7 +48,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
 		request := DIDCreateRequest{}
-		ctx.vdr.EXPECT().Create(gomock.Any(), didnuts.MethodName, gomock.Any()).Return(didDoc, nil, nil)
+		ctx.vdr.EXPECT().Create(gomock.Any(), didnuts.DefaultCreationOptions()).Return(didDoc, nil, nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
 
@@ -71,7 +71,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 			SelfControl: new(bool),
 			Controllers: &controllers,
 		}
-		ctx.vdr.EXPECT().Create(gomock.Any(), didnuts.MethodName, gomock.Any()).Return(didDoc, nil, nil)
+		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDoc, nil, nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
 
@@ -96,7 +96,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		request := DIDCreateRequest{}
-		ctx.vdr.EXPECT().Create(gomock.Any(), didnuts.MethodName, gomock.Any()).Return(nil, nil, errors.New("b00m!"))
+		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, errors.New("b00m!"))
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
 

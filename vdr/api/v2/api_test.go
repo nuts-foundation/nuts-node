@@ -22,6 +22,7 @@ package v2
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -41,7 +42,12 @@ func TestWrapper_CreateDID(t *testing.T) {
 
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Create(gomock.Any(), didweb.MethodName, gomock.Any()).Return(didDoc, nil, nil)
+		opts := management.DIDCreationOptions{
+			Method:      didweb.MethodName,
+			KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
+			SelfControl: true,
+		}
+		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(didDoc, nil, nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{})
 
@@ -51,7 +57,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 
 	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Create(gomock.Any(), didweb.MethodName, gomock.Any()).Return(nil, nil, assert.AnError)
+		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, assert.AnError)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{})
 

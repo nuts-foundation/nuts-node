@@ -68,11 +68,12 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 
 func (w Wrapper) CreateDID(ctx context.Context, _ CreateDIDRequestObject) (CreateDIDResponseObject, error) {
 	options := management.DIDCreationOptions{
+		Method:      didweb.MethodName,
 		KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
 		SelfControl: true,
 	}
 
-	doc, _, err := w.VDR.Create(ctx, didweb.MethodName, options)
+	doc, _, err := w.VDR.Create(ctx, options)
 	// if this operation leads to an error, it may return a 500
 	if err != nil {
 		return nil, err

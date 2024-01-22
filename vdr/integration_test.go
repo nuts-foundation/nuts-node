@@ -54,7 +54,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := ctx.vdr.Create(ctx.audit, didnuts.MethodName, didnuts.DefaultCreationOptions())
+	docA, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, docA)
 
@@ -89,7 +89,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := ctx.vdr.Create(ctx.audit, didnuts.MethodName, didnuts.DefaultCreationOptions())
+	docB, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
 	require.NoError(t, err, "unexpected error while creating DocumentB")
 	assert.NotNil(t, docB,
 		"a new document should have been created")
@@ -160,7 +160,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	initialDoc, _, err := ctx.vdr.Create(ctx.audit, didnuts.MethodName, didnuts.DefaultCreationOptions())
+	initialDoc, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, initialDoc)
 
@@ -301,7 +301,7 @@ func setup(t *testing.T) testContext {
 	return testContext{
 		vdr:             vdr,
 		eventPublisher:  eventPublisher,
-		docCreator:      vdr.creators[didnuts.MethodName],
+		docCreator:      vdr.documentManagers[didnuts.MethodName],
 		didStore:        didStore,
 		cryptoInstance:  cryptoInstance,
 		audit:           audit.TestContext(),
