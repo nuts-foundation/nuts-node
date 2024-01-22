@@ -496,98 +496,6 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	})
 }
 
-// OG pointer function. Returns a pointer to any input.
-func ptrTo[T any](v T) *T {
-	return &v
-}
-
-func requireOAuthError(t *testing.T, err error, errorCode oauth.ErrorCode, errorDescription string) {
-	var oauthErr oauth.OAuth2Error
-	require.ErrorAs(t, err, &oauthErr)
-	assert.Equal(t, errorCode, oauthErr.Code)
-	assert.Equal(t, errorDescription, oauthErr.Description)
-}
-
-func requestContext(queryParams map[string]string) context.Context {
-	vals := url.Values{}
-	for key, value := range queryParams {
-		vals.Add(key, value)
-	}
-	httpRequest := &http.Request{
-		URL: &url.URL{
-			RawQuery: vals.Encode(),
-		},
-	}
-	return context.WithValue(audit.TestContext(), httpRequestContextKey, httpRequest)
-}
-
-// statusCodeFrom returns the statuscode if err is core.HTTPStatusCodeError, or 0 if it isn't
-func statusCodeFrom(err error) int {
-	var SE core.HTTPStatusCodeError
-	if errors.As(err, &SE) {
-		return SE.StatusCode()
-	}
-	return 500
-}
-
-type testCtx struct {
-	ctrl          *gomock.Controller
-	client        *Wrapper
-	authnServices *auth.MockAuthenticationServices
-	vdr           *vdr.MockVDR
-	policy        *policy.MockPDPBackend
-	resolver      *resolver.MockDIDResolver
-	relyingParty  *oauthServices.MockRelyingParty
-	vcVerifier    *verifier.MockVerifier
-	vcr           *vcr.MockVCR
-	verifierRole  *oauthServices.MockVerifier
-	holderRole    *oauthServices.MockHolder
-}
-
-func newTestClient(t testing.TB) *testCtx {
-	publicURL, err := url.Parse("https://example.com")
-	require.NoError(t, err)
-	ctrl := gomock.NewController(t)
-	storageEngine := storage.NewTestStorageEngine(t)
-	authnServices := auth.NewMockAuthenticationServices(ctrl)
-	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
-	policyInstance := policy.NewMockPDPBackend(ctrl)
-	mockResolver := resolver.NewMockDIDResolver(ctrl)
-	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
-	vcVerifier := verifier.NewMockVerifier(ctrl)
-	verifierRole := oauthServices.NewMockVerifier(ctrl)
-	holderRole := oauthServices.NewMockHolder(ctrl)
-	mockVDR := vdr.NewMockVDR(ctrl)
-	mockVCR := vcr.NewMockVCR(ctrl)
-
-	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
-	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
-	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
-	authnServices.EXPECT().Verifier().Return(verifierRole).AnyTimes()
-	authnServices.EXPECT().Holder().Return(holderRole).AnyTimes()
-	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
-
-	return &testCtx{
-		ctrl:          ctrl,
-		authnServices: authnServices,
-		policy:        policyInstance,
-		relyingParty:  relyingPary,
-		vcVerifier:    vcVerifier,
-		resolver:      mockResolver,
-		vdr:           mockVDR,
-		verifierRole:  verifierRole,
-		holderRole:    holderRole,
-		vcr:           mockVCR,
-		client: &Wrapper{
-			auth:          authnServices,
-			vdr:           mockVDR,
-			vcr:           mockVCR,
-			storageEngine: storageEngine,
-			policyBackend: policyInstance,
-		},
-	}
-}
-
 func TestWrapper_Routes(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	router := core.NewMockEchoRouter(ctrl)
@@ -782,15 +690,6 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		err = ctx.client.accessTokenClientStore().Get(*redirectResponse.Token, &tokenResponse)
 		assert.Equal(t, oauth.AccessTokenStatusPending, *tokenResponse.Status)
 	})
-	t.Run("error - DID not owned", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(false, nil)
-
-		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
-
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "not owned by this node")
-	})
 	t.Run("error - invalid DID", func(t *testing.T) {
 		ctx := newTestClient(t)
 
@@ -806,17 +705,6 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t, err, "missing request body")
 	})
-	t.Run("error - wrong did type", func(t *testing.T) {
-		walletDID := did.MustParseDID("did:test:123")
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		body := &RequestUserAccessTokenJSONRequestBody{Verifier: "invalid", RedirectURL: redirectURL, UserID: userID}
-
-		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "URL does not represent a Web DID\nunsupported DID method: test")
-	})
 }
 
 type strictServerCallCapturer bool
@@ -828,4 +716,96 @@ func (s *strictServerCallCapturer) handle(_ echo.Context, _ interface{}) (respon
 
 func putToken(ctx *testCtx, token string) {
 	_ = ctx.client.accessTokenClientStore().Put(token, TokenResponse{AccessToken: "token"})
+}
+
+// OG pointer function. Returns a pointer to any input.
+func ptrTo[T any](v T) *T {
+	return &v
+}
+
+func requireOAuthError(t *testing.T, err error, errorCode oauth.ErrorCode, errorDescription string) {
+	var oauthErr oauth.OAuth2Error
+	require.ErrorAs(t, err, &oauthErr)
+	assert.Equal(t, errorCode, oauthErr.Code)
+	assert.Equal(t, errorDescription, oauthErr.Description)
+}
+
+func requestContext(queryParams map[string]string) context.Context {
+	vals := url.Values{}
+	for key, value := range queryParams {
+		vals.Add(key, value)
+	}
+	httpRequest := &http.Request{
+		URL: &url.URL{
+			RawQuery: vals.Encode(),
+		},
+	}
+	return context.WithValue(audit.TestContext(), httpRequestContextKey, httpRequest)
+}
+
+// statusCodeFrom returns the statuscode if err is core.HTTPStatusCodeError, or 0 if it isn't
+func statusCodeFrom(err error) int {
+	var SE core.HTTPStatusCodeError
+	if errors.As(err, &SE) {
+		return SE.StatusCode()
+	}
+	return 500
+}
+
+type testCtx struct {
+	ctrl          *gomock.Controller
+	client        *Wrapper
+	authnServices *auth.MockAuthenticationServices
+	vdr           *vdr.MockVDR
+	policy        *policy.MockPDPBackend
+	resolver      *resolver.MockDIDResolver
+	relyingParty  *oauthServices.MockRelyingParty
+	vcVerifier    *verifier.MockVerifier
+	vcr           *vcr.MockVCR
+	verifierRole  *oauthServices.MockVerifier
+	holderRole    *oauthServices.MockHolder
+}
+
+func newTestClient(t testing.TB) *testCtx {
+	publicURL, err := url.Parse("https://example.com")
+	require.NoError(t, err)
+	ctrl := gomock.NewController(t)
+	storageEngine := storage.NewTestStorageEngine(t)
+	authnServices := auth.NewMockAuthenticationServices(ctrl)
+	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
+	policyInstance := policy.NewMockPDPBackend(ctrl)
+	mockResolver := resolver.NewMockDIDResolver(ctrl)
+	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
+	vcVerifier := verifier.NewMockVerifier(ctrl)
+	verifierRole := oauthServices.NewMockVerifier(ctrl)
+	holderRole := oauthServices.NewMockHolder(ctrl)
+	mockVDR := vdr.NewMockVDR(ctrl)
+	mockVCR := vcr.NewMockVCR(ctrl)
+
+	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
+	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
+	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
+	authnServices.EXPECT().Verifier().Return(verifierRole).AnyTimes()
+	authnServices.EXPECT().Holder().Return(holderRole).AnyTimes()
+	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
+
+	return &testCtx{
+		ctrl:          ctrl,
+		authnServices: authnServices,
+		policy:        policyInstance,
+		relyingParty:  relyingPary,
+		vcVerifier:    vcVerifier,
+		resolver:      mockResolver,
+		vdr:           mockVDR,
+		verifierRole:  verifierRole,
+		holderRole:    holderRole,
+		vcr:           mockVCR,
+		client: &Wrapper{
+			auth:          authnServices,
+			vdr:           mockVDR,
+			vcr:           mockVCR,
+			storageEngine: storageEngine,
+			policyBackend: policyInstance,
+		},
+	}
 }

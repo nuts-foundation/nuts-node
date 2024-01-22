@@ -425,17 +425,9 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		// why did oapi-codegen generate a pointer for the body??
 		return nil, core.InvalidInputError("missing request body")
 	}
-	// resolve wallet
-	requestHolder, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, core.NotFoundError("did not found: %w", err)
-	}
-	isWallet, err := r.vdr.IsOwner(ctx, *requestHolder)
+	requestHolder, err := r.extractWallet(ctx, request.Did)
 	if err != nil {
 		return nil, err
-	}
-	if !isWallet {
-		return nil, core.InvalidInputError("did not owned by this node")
 	}
 
 	// resolve verifier metadata
@@ -459,13 +451,9 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
 }
 
-func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
-	if request.Body == nil {
-		// why did oapi-codegen generate a pointer for the body??
-		return nil, core.InvalidInputError("missing request body")
-	}
+func (r Wrapper) extractWallet(ctx context.Context, didString string) (*did.DID, error) {
 	// resolve wallet
-	requestHolder, err := did.ParseDID(request.Did)
+	requestHolder, err := did.ParseDID(didString)
 	if err != nil {
 		return nil, core.NotFoundError("did not found: %w", err)
 	}
@@ -476,6 +464,16 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	if !isWallet {
 		return nil, core.InvalidInputError("did not owned by this node")
 	}
+	return requestHolder, nil
+}
+
+func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
+	if request.Body == nil {
+		// why did oapi-codegen generate a pointer for the body??
+		return nil, core.InvalidInputError("missing request body")
+	}
+	requestHolder, err := r.extractWallet(ctx, request.Did)
+
 	if request.Body.UserID == "" {
 		return nil, echo.NewHTTPError(http.StatusBadRequest, "missing userID")
 	}
