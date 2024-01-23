@@ -47,11 +47,32 @@ func (m Manager) Create(ctx context.Context, options management.DIDCreationOptio
 }
 
 func (m Manager) IsOwner(ctx context.Context, did did.DID) (bool, error) {
+	// did:nuts DocumentManager uses injected DocumentOwner to check ownership,
+	// which lists the private key storage to check if the DID is owned by this node.
+	// As did:web stores its private keys in the same way, this leads to duplicates.
+	// This manager should only work on did:nuts
+	if did.Method != MethodName {
+		return false, nil
+	}
 	return m.DocumentOwner.IsOwner(ctx, did)
 }
 
 func (m Manager) ListOwned(ctx context.Context) ([]did.DID, error) {
-	return m.DocumentOwner.ListOwned(ctx)
+	// did:nuts DocumentManager uses injected DocumentOwner to check ownership,
+	// which lists the private key storage to check if the DID is owned by this node.
+	// As did:web stores its private keys in the same way, this leads to duplicates.
+	// This manager should only work on did:nuts
+	all, err := m.DocumentOwner.ListOwned(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var result []did.DID
+	for _, curr := range all {
+		if curr.Method == MethodName {
+			result = append(result, curr)
+		}
+	}
+	return result, err
 }
 
 func (m Manager) Resolve(_ did.DID, _ *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
