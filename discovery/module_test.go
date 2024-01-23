@@ -258,6 +258,9 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 		visitor(m)
 	}
 	require.NoError(t, m.Start())
+	t.Cleanup(func() {
+		_ = m.Shutdown()
+	})
 	return m, mockVerifier, documentOwner
 }
 

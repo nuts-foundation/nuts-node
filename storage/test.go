@@ -28,13 +28,16 @@ import (
 	"testing"
 )
 
-func NewTestStorageEngineInDir(dir string) Engine {
+func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
 	result := New().(*engine)
 
 	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
 	_ = result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 		config.Datadir = dir + "/data"
 	}))
+	t.Cleanup(func() {
+		_ = result.Shutdown()
+	})
 	return result
 }
 
@@ -44,7 +47,7 @@ func NewTestStorageEngine(t testing.TB) Engine {
 		DefaultBBoltOptions = oldOpts
 	})
 	DefaultBBoltOptions = append(DefaultBBoltOptions, stoabs.WithNoSync())
-	return NewTestStorageEngineInDir(io.TestDirectory(t))
+	return NewTestStorageEngineInDir(t, io.TestDirectory(t))
 }
 
 // CreateTestBBoltStore creates an in-memory bbolt store

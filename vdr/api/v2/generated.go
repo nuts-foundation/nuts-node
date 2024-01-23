@@ -119,6 +119,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// ListDIDs request
+	ListDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CreateDIDWithBody request with any body
 	CreateDIDWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -148,6 +151,18 @@ type ClientInterface interface {
 
 	// DeleteVerificationMethod request
 	DeleteVerificationMethod(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) ListDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDIDsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) CreateDIDWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -280,6 +295,33 @@ func (c *Client) DeleteVerificationMethod(ctx context.Context, did string, id st
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewListDIDsRequest generates requests for ListDIDs
+func NewListDIDsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vdr/v2/did")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewCreateDIDRequest calls the generic CreateDID builder with application/json body
@@ -650,6 +692,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// ListDIDsWithResponse request
+	ListDIDsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDIDsResponse, error)
+
 	// CreateDIDWithBodyWithResponse request with any body
 	CreateDIDWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error)
 
@@ -679,6 +724,38 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteVerificationMethodWithResponse request
 	DeleteVerificationMethodWithResponse(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*DeleteVerificationMethodResponse, error)
+}
+
+type ListDIDsResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *[]string
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDIDsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDIDsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type CreateDIDResponse struct {
@@ -934,6 +1011,15 @@ func (r DeleteVerificationMethodResponse) StatusCode() int {
 	return 0
 }
 
+// ListDIDsWithResponse request returning *ListDIDsResponse
+func (c *ClientWithResponses) ListDIDsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDIDsResponse, error) {
+	rsp, err := c.ListDIDs(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDIDsResponse(rsp)
+}
+
 // CreateDIDWithBodyWithResponse request with arbitrary body returning *CreateDIDResponse
 func (c *ClientWithResponses) CreateDIDWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error) {
 	rsp, err := c.CreateDIDWithBody(ctx, contentType, body, reqEditors...)
@@ -1028,6 +1114,48 @@ func (c *ClientWithResponses) DeleteVerificationMethodWithResponse(ctx context.C
 		return nil, err
 	}
 	return ParseDeleteVerificationMethodResponse(rsp)
+}
+
+// ParseListDIDsResponse parses an HTTP response from a ListDIDsWithResponse call
+func ParseListDIDsResponse(rsp *http.Response) (*ListDIDsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDIDsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []string
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseCreateDIDResponse parses an HTTP response from a CreateDIDWithResponse call
@@ -1347,6 +1475,9 @@ func ParseDeleteVerificationMethodResponse(rsp *http.Response) (*DeleteVerificat
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Lists all locally managed DIDs
+	// (GET /internal/vdr/v2/did)
+	ListDIDs(ctx echo.Context) error
 	// Creates a new Web DID
 	// (POST /internal/vdr/v2/did)
 	CreateDID(ctx echo.Context) error
@@ -1376,6 +1507,17 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// ListDIDs converts echo context to params.
+func (w *ServerInterfaceWrapper) ListDIDs(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListDIDs(ctx)
+	return err
 }
 
 // CreateDID converts echo context to params.
@@ -1567,6 +1709,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.GET(baseURL+"/internal/vdr/v2/did", wrapper.ListDIDs)
 	router.POST(baseURL+"/internal/vdr/v2/did", wrapper.CreateDID)
 	router.DELETE(baseURL+"/internal/vdr/v2/did/:did", wrapper.DeleteDID)
 	router.GET(baseURL+"/internal/vdr/v2/did/:did", wrapper.ResolveDID)
@@ -1576,6 +1719,43 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/internal/vdr/v2/did/:did/verificationmethod", wrapper.AddVerificationMethod)
 	router.DELETE(baseURL+"/internal/vdr/v2/did/:did/verificationmethod/:id", wrapper.DeleteVerificationMethod)
 
+}
+
+type ListDIDsRequestObject struct {
+}
+
+type ListDIDsResponseObject interface {
+	VisitListDIDsResponse(w http.ResponseWriter) error
+}
+
+type ListDIDs200JSONResponse []string
+
+func (response ListDIDs200JSONResponse) VisitListDIDsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDIDsdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response ListDIDsdefaultApplicationProblemPlusJSONResponse) VisitListDIDsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type CreateDIDRequestObject struct {
@@ -1886,6 +2066,9 @@ func (response DeleteVerificationMethoddefaultApplicationProblemPlusJSONResponse
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Lists all locally managed DIDs
+	// (GET /internal/vdr/v2/did)
+	ListDIDs(ctx context.Context, request ListDIDsRequestObject) (ListDIDsResponseObject, error)
 	// Creates a new Web DID
 	// (POST /internal/vdr/v2/did)
 	CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error)
@@ -1922,6 +2105,29 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// ListDIDs operation middleware
+func (sh *strictHandler) ListDIDs(ctx echo.Context) error {
+	var request ListDIDsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListDIDs(ctx.Request().Context(), request.(ListDIDsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListDIDs")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListDIDsResponseObject); ok {
+		return validResponse.VisitListDIDsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // CreateDID operation middleware
