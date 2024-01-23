@@ -126,7 +126,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 
 func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 	didStore := didstore.NewTestStore(t)
-	storageEngine := storage.NewTestStorageEngineInDir(testDirectory)
+	storageEngine := storage.NewTestStorageEngineInDir(nil, testDirectory)
 	networkInstance := network.NewTestNetworkInstance(t)
 	eventManager := events.NewTestManager(t)
 	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager, storageEngine)
