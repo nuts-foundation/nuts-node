@@ -602,7 +602,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callback URL: %w", err)
 	}
-	checkURL = checkURL.JoinPath("callback")
+	checkURL = checkURL.JoinPath(oauth.CallbackPath)
 	// use code to request access token from remote token endpoint
 	tokenResponse, err := r.auth.RelyingParty().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID)
 	if err != nil {

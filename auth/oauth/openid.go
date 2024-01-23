@@ -41,3 +41,7 @@ func DefaultOpenIDSupportedFormats() map[string]map[string][]string {
 		"ldp_vp":      {"proof_type_values_supported": proofTypeValuesSupported},
 	}
 }
+
+// CallbackPath is the node specific callback for an OAuth flow. The full callback URL is constructed as
+// <node_url>/iam/{id}/callback
+const CallbackPath = "callback"

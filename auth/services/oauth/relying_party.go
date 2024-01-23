@@ -156,7 +156,7 @@ func (s *relyingParty) CreateAuthorizationRequest(ctx context.Context, requestHo
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callback URL: %w", err)
 	}
-	callbackURL = callbackURL.JoinPath("callback")
+	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
 	redirectURL := nutsHttp.AddQueryParams(*endpoint, map[string]string{
 		"client_id":     requestHolder.String(),
 		"response_type": "code",
