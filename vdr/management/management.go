@@ -82,16 +82,14 @@ type DIDCreationOptions struct {
 	// Method specifies the DID method the new DID should use
 	Method string
 
-	// Controllers lists the DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
-	// the newly generated DID will be added to the list of controllers.
-	Controllers []did.DID
-
 	// KeyFlags specifies for what purposes the generated key can be used
 	KeyFlags DIDKeyFlags
 
-	// SelfControl indicates whether the generated DID Document can be altered with its own capabilityInvocation key.
-	// Defaults to true when not given.
-	SelfControl bool
+	// MethodSpecificOptions contains creation options specific to the DID method.
+	MethodSpecificOptions []DIDCreationOption
+}
+
+type DIDCreationOption interface {
 }
 
 // DIDKeyFlags is a bitmask used for specifying for what purposes a key in a DID document can be used (a.k.a. Verification Method relationships).

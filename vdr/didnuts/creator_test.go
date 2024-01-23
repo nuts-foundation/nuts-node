@@ -51,8 +51,7 @@ func TestDefaultCreationOptions(t *testing.T) {
 	assert.False(t, usage.Is(management.CapabilityDelegationUsage))
 	assert.True(t, usage.Is(management.CapabilityInvocationUsage))
 	assert.True(t, usage.Is(management.KeyAgreementUsage))
-	assert.True(t, ops.SelfControl)
-	assert.Empty(t, ops.Controllers)
+	assert.Contains(t, ops.MethodSpecificOptions, SelfControl(true))
 }
 
 func TestCreator_Create(t *testing.T) {
@@ -101,7 +100,9 @@ func TestCreator_Create(t *testing.T) {
 					management.CapabilityDelegationUsage |
 					management.CapabilityInvocationUsage |
 					management.KeyAgreementUsage,
-				SelfControl: true,
+				MethodSpecificOptions: []management.DIDCreationOption{
+					SelfControl(true),
+				},
 			}
 			doc, _, err := creator.Create(nil, ops)
 
@@ -117,9 +118,11 @@ func TestCreator_Create(t *testing.T) {
 		t.Run("extra controller", func(t *testing.T) {
 			c, _ := did.ParseDID("did:nuts:controller")
 			ops := management.DIDCreationOptions{
-				KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage,
-				SelfControl: true,
-				Controllers: []did.DID{*c},
+				KeyFlags: management.AssertionMethodUsage | management.CapabilityInvocationUsage,
+				MethodSpecificOptions: []management.DIDCreationOption{
+					SelfControl(true),
+					Controllers(*c),
+				},
 			}
 			controllerDoc := CreateDocument()
 			controllerDoc.ID = *c
@@ -148,9 +151,11 @@ func TestCreator_Create(t *testing.T) {
 		t.Run("error - unknown controllers", func(t *testing.T) {
 			c, _ := did.ParseDID("did:nuts:controller")
 			ops := management.DIDCreationOptions{
-				KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage,
-				SelfControl: true,
-				Controllers: []did.DID{*c},
+				KeyFlags: management.AssertionMethodUsage | management.CapabilityInvocationUsage,
+				MethodSpecificOptions: []management.DIDCreationOption{
+					SelfControl(true),
+					Controllers(*c),
+				},
 			}
 			controllerDoc := CreateDocument()
 			controllerDoc.ID = *c
@@ -184,8 +189,7 @@ func TestCreator_Create(t *testing.T) {
 			})
 
 			ops := management.DIDCreationOptions{
-				KeyFlags:    management.AssertionMethodUsage,
-				SelfControl: false,
+				KeyFlags: management.AssertionMethodUsage,
 			}
 			doc, docCreationKey, err := creator.Create(nil, ops)
 
@@ -210,7 +214,9 @@ func TestCreator_Create(t *testing.T) {
 	t.Run("error - invalid combination", func(t *testing.T) {
 		ops := management.DIDCreationOptions{
 			// CapabilityInvocation is not enabled, required when SelfControl = true
-			SelfControl: true,
+			MethodSpecificOptions: []management.DIDCreationOption{
+				SelfControl(true),
+			},
 		}
 		kc := &mockKeyCreator{}
 		creator := Creator{KeyStore: kc}
@@ -235,8 +241,7 @@ func TestCreator_Create(t *testing.T) {
 		mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
 		creator := Creator{KeyStore: mockKeyStore}
 		ops := management.DIDCreationOptions{
-			KeyFlags:    management.AssertionMethodUsage,
-			SelfControl: false,
+			KeyFlags: management.AssertionMethodUsage,
 		}
 		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
