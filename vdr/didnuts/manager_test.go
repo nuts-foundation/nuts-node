@@ -39,27 +39,85 @@ func TestManager_Create(t *testing.T) {
 }
 
 func TestManager_IsOwner(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	creator := management.NewMockDocCreator(ctrl)
-	owner := management.NewMockDocumentOwner(ctrl)
-	manager := NewManager(creator, owner)
-	owner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
+	t.Run("not owned", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		creator := management.NewMockDocCreator(ctrl)
+		owner := management.NewMockDocumentOwner(ctrl)
+		manager := NewManager(creator, owner)
+		owner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 
-	_, err := manager.IsOwner(nil, did.MustParseDID("did:nuts:example.com"))
+		actual, err := manager.IsOwner(nil, did.MustParseDID("did:nuts:example.com"))
 
-	assert.NoError(t, err)
+		assert.NoError(t, err)
+		assert.False(t, actual)
+	})
+	t.Run("owned", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		creator := management.NewMockDocCreator(ctrl)
+		owner := management.NewMockDocumentOwner(ctrl)
+		manager := NewManager(creator, owner)
+		owner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
+
+		actual, err := manager.IsOwner(nil, did.MustParseDID("did:nuts:example.com"))
+
+		assert.NoError(t, err)
+		assert.True(t, actual)
+	})
+	t.Run("does not check DIDs other than did:nuts", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		creator := management.NewMockDocCreator(ctrl)
+		owner := management.NewMockDocumentOwner(ctrl)
+		manager := NewManager(creator, owner)
+
+		actual, err := manager.IsOwner(nil, did.MustParseDID("did:web:example.com"))
+
+		assert.NoError(t, err)
+		assert.False(t, actual)
+	})
 }
 
 func TestManager_ListOwned(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	creator := management.NewMockDocCreator(ctrl)
-	owner := management.NewMockDocumentOwner(ctrl)
-	manager := NewManager(creator, owner)
-	owner.EXPECT().ListOwned(gomock.Any()).Return(nil, nil)
+	t.Run("no owned dids", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		creator := management.NewMockDocCreator(ctrl)
+		owner := management.NewMockDocumentOwner(ctrl)
+		manager := NewManager(creator, owner)
+		owner.EXPECT().ListOwned(gomock.Any()).Return(nil, nil)
 
-	_, err := manager.ListOwned(nil)
+		actual, err := manager.ListOwned(nil)
 
-	assert.NoError(t, err)
+		assert.NoError(t, err)
+		assert.Empty(t, actual)
+	})
+	expectedDID := did.MustParseDID("did:nuts:example.com")
+	t.Run("some owned dids", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		creator := management.NewMockDocCreator(ctrl)
+		owner := management.NewMockDocumentOwner(ctrl)
+		manager := NewManager(creator, owner)
+		owner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{expectedDID}, nil)
+
+		actual, err := manager.ListOwned(nil)
+
+		assert.NoError(t, err)
+		assert.Len(t, actual, 1)
+	})
+	t.Run("filters DIDs other than did:nuts", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		creator := management.NewMockDocCreator(ctrl)
+		owner := management.NewMockDocumentOwner(ctrl)
+		manager := NewManager(creator, owner)
+		owner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{
+			expectedDID,
+			did.MustParseDID("did:web:example.com"),
+		}, nil)
+
+		actual, err := manager.ListOwned(nil)
+
+		assert.NoError(t, err)
+		assert.Len(t, actual, 1)
+		assert.Equal(t, expectedDID, actual[0])
+	})
 }
 
 func TestManager_Resolve(t *testing.T) {
