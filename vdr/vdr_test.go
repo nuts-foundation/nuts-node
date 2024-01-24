@@ -297,10 +297,12 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			didDocOrg.AddCapabilityInvocation(orgVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocOrg, keyOrg, nil)
 			didDocOrg, keyOrg, err = test.vdr.Create(test.ctx, management.DIDCreationOptions{
-				Controllers: []did.DID{didDocVendor.ID},
-				KeyFlags:    management.AssertionMethodUsage | management.KeyAgreementUsage,
-				SelfControl: false,
-				Method:      didnuts.MethodName,
+				KeyFlags: management.AssertionMethodUsage | management.KeyAgreementUsage,
+				Method:   didnuts.MethodName,
+				MethodSpecificOptions: []management.DIDCreationOption{
+					didnuts.Controllers(didDocVendor.ID),
+					didnuts.SelfControl(false),
+				},
 			})
 			require.NoError(t, err)
 

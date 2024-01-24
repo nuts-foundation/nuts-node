@@ -166,7 +166,7 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 		case controllersCreationOption:
 			controllers = append(controllers, o.controllers...)
 		default:
-			return nil, nil, fmt.Errorf("unknown option type: %T", opt)
+			return nil, nil, fmt.Errorf("unknown option: %T", opt)
 		}
 	}
 

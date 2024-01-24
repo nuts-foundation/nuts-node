@@ -87,6 +87,15 @@ func TestCreator_Create(t *testing.T) {
 			assert.Empty(t, txTemplate.AdditionalPrevs)
 		})
 
+		t.Run("unknown option", func(t *testing.T) {
+			_, _, err := (&Creator{}).Create(nil, management.DIDCreationOptions{
+				MethodSpecificOptions: []management.DIDCreationOption{
+					"",
+				},
+			})
+			assert.EqualError(t, err, "unknown option: string")
+		})
+
 		t.Run("all keys", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			networkClient := network.NewMockTransactions(ctrl)

@@ -117,7 +117,7 @@ func createCmd() *cobra.Command {
 	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", defs.KeyFlags.Is(management.CapabilityDelegationUsage), setUsage(defs.KeyFlags.Is(management.CapabilityDelegationUsage), "Pass '%t' to %s capabilityDelegation capabilities."))
 	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.KeyFlags.Is(management.CapabilityInvocationUsage), setUsage(defs.KeyFlags.Is(management.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
 	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.KeyFlags.Is(management.KeyAgreementUsage), setUsage(defs.KeyFlags.Is(management.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
-	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", defs.SelfControl, setUsage(defs.SelfControl, "Pass '%t' to %s DID Document control."))
+	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", true, setUsage(true, "Pass '%t' to %s DID Document control."))
 	result.Flags().BoolVar(&useV2, "v2", false, "Pass 'true' to use the V2 API and create a did:web DID.")
 	result.Flags().StringSliceVar(createRequest.Controllers, "controllers", []string{}, "Comma-separated list of DIDs that can control the generated DID Document.")
 

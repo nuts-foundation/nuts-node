@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -103,6 +104,38 @@ func TestManager_Create(t *testing.T) {
 }`
 		actual, _ := json.Marshal(document)
 		assert.JSONEq(t, expected, string(actual))
+	})
+	t.Run("with UserPart option", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
+			PublicKey: publicKey,
+		}, nil)
+		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+
+		document, key, err := m.Create(audit.TestContext(), management.DIDCreationOptions{
+			MethodSpecificOptions: []management.DIDCreationOption{
+				UserPath("test"),
+			},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, document)
+		require.NotNil(t, key)
+		assert.True(t, strings.HasSuffix(document.ID.String(), ":test"))
+	})
+	t.Run("with unknown option", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+
+		_, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{
+			MethodSpecificOptions: []management.DIDCreationOption{
+				"",
+			},
+		})
+		require.EqualError(t, err, "unknown option: string")
 	})
 }
 

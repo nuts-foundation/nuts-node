@@ -122,12 +122,12 @@ func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject)
 			if err != nil {
 				return nil, core.InvalidInputError("controller entry (%s) could not be parsed: %w", c, err)
 			}
-			options.Controllers = append(options.Controllers, *id)
+			options.MethodSpecificOptions = append(options.MethodSpecificOptions, didnuts.Controllers(*id))
 		}
 	}
 	options.KeyFlags = request.Body.VerificationMethodRelationship.ToFlags(options.KeyFlags)
 	if request.Body.SelfControl != nil {
-		options.SelfControl = *request.Body.SelfControl
+		options.MethodSpecificOptions = append(options.MethodSpecificOptions, didnuts.SelfControl(*request.Body.SelfControl))
 	}
 
 	doc, _, err := a.VDR.Create(ctx, options)

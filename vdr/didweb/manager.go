@@ -52,9 +52,29 @@ type Manager struct {
 	keyStore crypto.KeyStore
 }
 
+type userPathOption struct {
+	path string
+}
+
+// UserPath is an option to set a user for the did:web document.
+// It will be used as last path part of the DID.
+// If not set, a random UUID will be used.
+func UserPath(path string) management.DIDCreationOption {
+	return userPathOption{path: path}
+}
+
 // Create creates a new did:web document.
-func (m Manager) Create(ctx context.Context, _ management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
-	return m.create(ctx, uuid.NewString())
+func (m Manager) Create(ctx context.Context, opts management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+	pathPart := uuid.NewString()
+	for _, opt := range opts.MethodSpecificOptions {
+		switch option := opt.(type) {
+		case userPathOption:
+			pathPart = option.path
+		default:
+			return nil, nil, fmt.Errorf("unknown option: %T", option)
+		}
+	}
+	return m.create(ctx, pathPart)
 }
 
 func (m Manager) create(ctx context.Context, mostSignificantBits string) (*did.Document, crypto.Key, error) {

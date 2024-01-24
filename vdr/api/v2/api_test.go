@@ -43,9 +43,8 @@ func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
 		opts := management.DIDCreationOptions{
-			Method:      didweb.MethodName,
-			KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
-			SelfControl: true,
+			Method:   didweb.MethodName,
+			KeyFlags: management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
 		}
 		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(didDoc, nil, nil)
 
@@ -54,7 +53,27 @@ func TestWrapper_CreateDID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, id, response.(CreateDID200JSONResponse).ID)
 	})
+	t.Run("with user ID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		opts := management.DIDCreationOptions{
+			Method:   didweb.MethodName,
+			KeyFlags: management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
+			MethodSpecificOptions: []management.DIDCreationOption{
+				didweb.UserPath("1"),
+			},
+		}
+		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(didDoc, nil, nil)
 
+		var userId = "1"
+		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
+			Body: &CreateDIDJSONRequestBody{
+				Id: &userId,
+			},
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, id, response.(CreateDID200JSONResponse).ID)
+	})
 	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, assert.AnError)
