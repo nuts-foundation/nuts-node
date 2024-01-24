@@ -48,7 +48,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		}
 		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(didDoc, nil, nil)
 
-		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{})
+		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &CreateDIDJSONRequestBody{}})
 
 		require.NoError(t, err)
 		assert.Equal(t, id, response.(CreateDID200JSONResponse).ID)
@@ -78,7 +78,9 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, assert.AnError)
 
-		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{})
+		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
+			Body: &CreateDIDJSONRequestBody{},
+		})
 
 		assert.Error(t, err)
 		assert.Nil(t, response)

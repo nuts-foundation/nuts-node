@@ -20,6 +20,7 @@ package management
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -53,4 +54,12 @@ func TestKeyUsage_Is(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestDIDCreationOptions_AddOption(t *testing.T) {
+	o := DIDCreationOptions{}
+	result := o.AddOption("test")
+	require.NotNil(t, result)
+	assert.Contains(t, o.MethodSpecificOptions, "test")
+	assert.Same(t, result, &o)
 }

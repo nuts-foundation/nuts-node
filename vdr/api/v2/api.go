@@ -72,7 +72,7 @@ func (w Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) 
 		KeyFlags: management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
 	}
 	if request.Body.Id != nil && *request.Body.Id != "" {
-		options.MethodSpecificOptions = append(options.MethodSpecificOptions, didweb.UserPath(*request.Body.Id))
+		options.AddOption(didweb.UserPath(*request.Body.Id))
 	}
 
 	doc, _, err := w.VDR.Create(ctx, options)

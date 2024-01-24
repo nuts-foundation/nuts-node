@@ -89,6 +89,12 @@ type DIDCreationOptions struct {
 	MethodSpecificOptions []DIDCreationOption
 }
 
+// AddOption adds a method-specific DID creation option.
+func (o *DIDCreationOptions) AddOption(opt DIDCreationOption) *DIDCreationOptions {
+	o.MethodSpecificOptions = append(o.MethodSpecificOptions, opt)
+	return o
+}
+
 type DIDCreationOption interface {
 }
 
