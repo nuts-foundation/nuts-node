@@ -161,3 +161,18 @@ func (w *Wrapper) GetServices(_ context.Context, _ GetServicesRequestObject) (Ge
 	result := GetServices200JSONResponse(w.Client.Services())
 	return &result, nil
 }
+
+func (w *Wrapper) GetServiceActivation(ctx context.Context, request GetServiceActivationRequestObject) (GetServiceActivationResponseObject, error) {
+	subjectDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	activated, presentation, err := w.Client.GetServiceActivation(ctx, request.ServiceID, *subjectDID)
+	if err != nil {
+		return nil, err
+	}
+	return GetServiceActivation200JSONResponse{
+		Activated: activated,
+		Vp:        presentation,
+	}, nil
+}

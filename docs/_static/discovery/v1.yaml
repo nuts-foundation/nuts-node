@@ -147,6 +147,9 @@ paths:
         default:
           $ref: "../common/error_response.yaml"
   /internal/discovery/v1/{serviceID}/{did}:
+    description: |
+      APIs to manage the activation of a DID on a Discovery Service.
+      When a service has been activated for a DID, the Discovery Client will automatically register the DID on the Discovery Service.
     parameters:
       - name: serviceID
         in: path
@@ -158,6 +161,33 @@ paths:
         required: true
         schema:
           type: string
+    get:
+      summary: Retrieves the activation status a DID on a Discovery Service.
+      description: |
+        An API provided by the Discovery Client,
+        used to check whether the client is managing the given DID on the specified Discovery Service (service has been activated for the DID).
+        It will return true after successfully calling the activateServiceForDID API, and false after calling the deactivateServiceForDID API.
+        It also returns the active Verifiable Presentation, if any.
+      operationId: getServiceActivation
+      tags:
+        - discovery
+      responses:
+        "200":
+          description: Success result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - activated
+                properties:
+                  activated:
+                    type: boolean
+                    description: Whether the DID is activated on the Discovery Service.
+                  vp:
+                    $ref: "#/components/schemas/VerifiablePresentation"
+        default:
+          $ref: "../common/error_response.yaml"
     post:
       summary: Client API to activate a DID on the specified Discovery Service.
       description: |
@@ -194,7 +224,7 @@ paths:
         default:
           $ref: "../common/error_response.yaml"
     delete:
-      summary: Client API to unregister the given DID from the Discovery Service.
+      summary: Client API to deactivate the given DID from the Discovery Service.
       description: |
         An API provided by the discovery client that will cause the given DID to be not to be registered any more on the specified Discovery Service.
         It will try to delete the existing registration at the Discovery Service, if any.

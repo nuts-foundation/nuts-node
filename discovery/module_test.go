@@ -366,3 +366,40 @@ func TestModule_Services(t *testing.T) {
 		assert.Len(t, services, 2)
 	})
 }
+
+func TestModule_GetServiceActivation(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Run("not activated", func(t *testing.T) {
+		m, _, _ := setupModule(t, storageEngine)
+
+		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
+
+		require.NoError(t, err)
+		assert.False(t, activated)
+		assert.Nil(t, presentation)
+	})
+	t.Run("activated, no VP", func(t *testing.T) {
+		m, _, _ := setupModule(t, storageEngine)
+		next := time.Now()
+		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceDID, &next)
+
+		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
+
+		require.NoError(t, err)
+		assert.True(t, activated)
+		assert.Nil(t, presentation)
+	})
+	t.Run("activated, with VP", func(t *testing.T) {
+		m, _, _ := setupModule(t, storageEngine)
+		next := time.Now()
+		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceDID, &next)
+		_ = m.store.add(testServiceID, vpAlice, "")
+
+		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
+
+		require.NoError(t, err)
+		assert.True(t, activated)
+		assert.NotNil(t, presentation)
+	})
+}
