@@ -129,6 +129,14 @@ type IssueVCRequest struct {
 	// Visibility When publishToNetwork is true, the credential can be published publicly or privately to the holder.
 	// This field is mandatory if publishToNetwork is true to prevent accidents. It defaults to "private".
 	Visibility *IssueVCRequestVisibility `json:"visibility,omitempty"`
+
+	// WithStatusList2021Revocation Add a credentialStatus with statusPurpose 'revocation' to the issued credential. This allows a credential to
+	// be revoked using the referenced StatusList2021Credential. StatusPurpose 'suspension' is not supported (yet).
+	// See https://www.w3.org/TR/2023/WD-vc-status-list-20230427/
+	//
+	// Credentials with a short lifespan (expiry) are preferred over adding a credentialStatus.
+	// A credentialStatus can only be added if publishToNetwork is false, and the issuer is not a did:nuts.
+	WithStatusList2021Revocation *bool `json:"withStatusList2021Revocation,omitempty"`
 }
 
 // IssueVCRequestFormat Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
@@ -3037,6 +3045,14 @@ func (response RevokeVC200JSONResponse) VisitRevokeVCResponse(w http.ResponseWri
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type RevokeVC204Response struct {
+}
+
+func (response RevokeVC204Response) VisitRevokeVCResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
 }
 
 type RevokeVCdefaultApplicationProblemPlusJSONResponse struct {

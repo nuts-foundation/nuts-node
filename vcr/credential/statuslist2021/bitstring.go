@@ -27,7 +27,8 @@ import (
 
 var ErrIndexNotInBitstring = errors.New("index not in status list")
 
-var defaultBitstringLengthInBytes = 16 * 1024 // *8 = herd privacy of 16kB or 131072 bit
+const defaultBitstringLengthInBytes = 16 * 1024 // *8 = herd privacy of 16kB or 131072 bit
+const MaxBitstringIndex = defaultBitstringLengthInBytes*8 - 1
 
 // Bitstring is not thread-safe
 type Bitstring []byte

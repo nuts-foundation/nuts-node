@@ -26,6 +26,9 @@ import (
 // ErrNotFound is returned when a credential can not be found based on its ID.
 var ErrNotFound = errors.New("credential not found")
 
+// ErrStatusNotFound is returned when the credential does not contain the desired credential status
+var ErrStatusNotFound = errors.New("credential contains no (relevant) status")
+
 // ErrMultipleFound is returned when multiple credentials or revocations are found for the same ID.
 var ErrMultipleFound = errors.New("multiple found")
 

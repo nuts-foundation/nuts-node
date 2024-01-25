@@ -20,12 +20,12 @@ package issuer
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
@@ -48,11 +48,13 @@ type keyResolver interface {
 type Issuer interface {
 	// Issue issues a credential by signing an unsigned credential.
 	Issue(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error)
-	// Revoke revokes a credential by the provided type.
-	// It requires access to the private key of the issuer which will be used to sign the revocation.
-	// It returns an error when the credential is not issued by this node or is already revoked.
-	// The revocation will be published to the network by the issuers Publisher.
+	// Revoke credential with credentialID.
+	// It returns types.ErrNotFound if the credential is not issued by this node, or types.ErrRevoked if already revoked.
+	// The revocation will be published to the network by the issuers Publisher if issuer by did:nuts.
 	Revoke(ctx context.Context, credentialID ssi.URI) (*credential.Revocation, error)
+	// StatusList returns the StatusList2021Credential tracking status list revocations for this issuer at /iam/issuerID/status/page.
+	// Returns types.ErrNotFound when no credential statuses have been published using the issuer and page combination.
+	StatusList(ctx context.Context, issuer did.DID, page int) (*vc.VerifiableCredential, error)
 	CredentialSearcher
 }
 
@@ -61,14 +63,14 @@ type Issuer interface {
 type Store interface {
 	core.Diagnosable
 	// GetCredential retrieves an issued credential by ID
-	// Returns an ErrNotFound when the credential is not in the store
-	// Returns an ErrMultipleFound when there are multiple credentials with this ID in the store
+	// Returns a types.ErrNotFound when the credential is not in the store
+	// Returns a types.ErrMultipleFound when there are multiple credentials with this ID in the store
 	GetCredential(id ssi.URI) (*vc.VerifiableCredential, error)
 	// StoreCredential writes a VC to storage.
 	StoreCredential(vc vc.VerifiableCredential) error
 	// GetRevocation returns a revocation for a credential ID
-	// Returns an ErrNotFound when the revocation is not in the store
-	// Returns an ErrMultipleFound when there are multiple revocations for this credential ID in the store
+	// Returns a types.ErrNotFound when the revocation is not in the store
+	// Returns a types.ErrMultipleFound when there are multiple revocations for this credential ID in the store
 	GetRevocation(id ssi.URI) (*credential.Revocation, error)
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
@@ -94,4 +96,6 @@ type CredentialOptions struct {
 	Publish bool
 	// Public param instructs the Publisher to publish the param with a certain visibility.
 	Public bool
+	// WithStatusListRevocation adds a 'revocation' entry to the credential. Requires Publish to be False.
+	WithStatusListRevocation bool
 }

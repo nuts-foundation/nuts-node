@@ -218,6 +218,9 @@ type ServerInterface interface {
 	// Used by wallets to post the authorization response or error to.
 	// (POST /iam/{id}/response)
 	HandleAuthorizeResponse(ctx echo.Context, id string) error
+	// Get the StatusList2021Credential for the given DID and page
+	// (GET /iam/{id}/statuslist/{page})
+	StatusList(ctx echo.Context, id string, page int) error
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{id}/token)
 	HandleTokenRequest(ctx echo.Context, id string) error
@@ -414,6 +417,32 @@ func (w *ServerInterfaceWrapper) HandleAuthorizeResponse(ctx echo.Context) error
 	return err
 }
 
+// StatusList converts echo context to params.
+func (w *ServerInterfaceWrapper) StatusList(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "page" -------------
+	var page int
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "page", runtime.ParamLocationPath, ctx.Param("page"), &page)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter page: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.StatusList(ctx, id, page)
+	return err
+}
+
 // HandleTokenRequest converts echo context to params.
 func (w *ServerInterfaceWrapper) HandleTokenRequest(ctx echo.Context) error {
 	var err error
@@ -532,6 +561,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/iam/:id/oauth-client", wrapper.OAuthClientMetadata)
 	router.GET(baseURL+"/iam/:id/presentation_definition", wrapper.PresentationDefinition)
 	router.POST(baseURL+"/iam/:id/response", wrapper.HandleAuthorizeResponse)
+	router.GET(baseURL+"/iam/:id/statuslist/:page", wrapper.StatusList)
 	router.POST(baseURL+"/iam/:id/token", wrapper.HandleTokenRequest)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
@@ -784,6 +814,45 @@ func (response HandleAuthorizeResponse200JSONResponse) VisitHandleAuthorizeRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type StatusListRequestObject struct {
+	Id   string `json:"id"`
+	Page int    `json:"page"`
+}
+
+type StatusListResponseObject interface {
+	VisitStatusListResponse(w http.ResponseWriter) error
+}
+
+type StatusList200JSONResponse VerifiableCredential
+
+func (response StatusList200JSONResponse) VisitStatusListResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StatusListdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response StatusListdefaultApplicationProblemPlusJSONResponse) VisitStatusListResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 type HandleTokenRequestRequestObject struct {
 	Id   string `json:"id"`
 	Body *HandleTokenRequestFormdataRequestBody
@@ -987,6 +1056,9 @@ type StrictServerInterface interface {
 	// Used by wallets to post the authorization response or error to.
 	// (POST /iam/{id}/response)
 	HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error)
+	// Get the StatusList2021Credential for the given DID and page
+	// (GET /iam/{id}/statuslist/{page})
+	StatusList(ctx context.Context, request StatusListRequestObject) (StatusListResponseObject, error)
 	// Used by to request access- or refresh tokens.
 	// (POST /iam/{id}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
@@ -1198,6 +1270,32 @@ func (sh *strictHandler) HandleAuthorizeResponse(ctx echo.Context, id string) er
 		return err
 	} else if validResponse, ok := response.(HandleAuthorizeResponseResponseObject); ok {
 		return validResponse.VisitHandleAuthorizeResponseResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// StatusList operation middleware
+func (sh *strictHandler) StatusList(ctx echo.Context, id string, page int) error {
+	var request StatusListRequestObject
+
+	request.Id = id
+	request.Page = page
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.StatusList(ctx.Request().Context(), request.(StatusListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StatusList")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(StatusListResponseObject); ok {
+		return validResponse.VisitStatusListResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
