@@ -51,7 +51,7 @@ import (
 	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
 )
 
-func Test_issuer_buildVC(t *testing.T) {
+func Test_issuer_buildAndSignVC(t *testing.T) {
 	credentialType := ssi.MustParseURI("TestCredential")
 	issuerID := ssi.MustParseURI("did:nuts:123")
 	issuerDID, _ := did.ParseDID(issuerID.String())
