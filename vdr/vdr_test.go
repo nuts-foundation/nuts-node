@@ -498,6 +498,19 @@ func TestVDR_Configure(t *testing.T) {
 	})
 }
 
+func TestModule_ListOwned(t *testing.T) {
+	t.Run("empty slice when no DIDs", func(t *testing.T) {
+		test := newVDRTestCtx(t)
+		test.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return(nil, nil)
+
+		docs, err := test.vdr.ListOwned(context.Background())
+
+		require.NoError(t, err)
+		assert.Empty(t, docs)
+		assert.NotNil(t, docs)
+	})
+}
+
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
