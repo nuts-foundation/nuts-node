@@ -415,10 +415,10 @@ paths:
   /internal/auth/v2/{did}/request-user-access-token:
     post:
       operationId: requestUserAccessToken
-      summary: Start the authorization flow to get an access token from a remote authorization server when user context is required.
+      summary: Start the authorization code flow to get an access token from a remote authorization server when user context is required.
       description: |
         Initiates an OAuth2 flow to request an access token from a remote authorization server.
-        A userID must be given. This call will initiate an OpenID4VP flow.
+        A user_id must be given, it's used to select the right ID Wallet. This call will initiate an OpenID4VP flow.
 
         error returns:
         * 400 - one of the parameters has the wrong format or an OAuth error occurred
@@ -430,7 +430,7 @@ paths:
         - name: did
           in: path
           required: true
-          description: The DID of the requester, a Wallet owner at this node.
+          description: The DID of the requester, a wallet owner at this node.
           schema:
             type: string
             example: did:web:example.com
@@ -440,54 +440,55 @@ paths:
           application/json:
             schema:
               required:
-                - redirectURL
+                - redirect_uri
                 - scope
-                - userID
+                - user_id
                 - verifier
               properties:
                 verifier:
                   type: string
+                  description: The DID of the verifier, the relying party for which this access token is requested.
                   example: did:web:example.com
                 scope:
                   type: string
                   description: The scope that will be the service for which this access token can be used.
                   example: eOverdracht-sender
-                userID:
+                user_id:
                   type: string
-                  description: |
-                    The ID of the user for which this access token is requested.
-                redirectURL:
+                  description: The ID of the user for which this access token is requested.
+                redirect_uri:
                   type: string
                   description: |
                     The URL to which the user-agent will be redirected after the authorization request.
+                    This is the URL of the calling application. 
+                    The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
       responses:
         '200':
           description: | 
-            Successful request. Responds with a redirectURL for the user and a token for the calling application.
-            The token can be used by the calling application to get the status of the flow.
+            Successful request. Responds with a redirect_uri for the user and a token for the calling application.
+            The token can be used by the calling application to get the status of the session.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RedirectResponseWithToken'
+                $ref: '#/components/schemas/RedirectResponseWithID'
         default:
           $ref: '../common/error_response.yaml'
-  /internal/auth/v2/accesstoken/{token}:
+  /internal/auth/v2/accesstoken/{sessionID}:
     get:
       operationId: retrieveAccessToken
-      summary: Get the access-token from the Nuts node that was request by /request-user-access-token.
+      summary: Get the access token from the Nuts node that was requested through /request-user-access-token.
       description: |
         If the OAuth2 flow has completed, this call will return the access token. 
         After returning the access token, the token used to retrieve the access token is no longer valid.
         If the flow hasn't completed yet, the response will contain the 'pending' status value.
         Therefore this API can be used to poll for the status of the OAuth2 flow.
-        When the
       tags:
         - auth
       parameters:
-        - name: token
+        - name: sessionID
           in: path
           required: true
-          description: This token is given to the calling application as response to the request-user-access-token call.
+          description: This ID is given to the calling application as response to the request-user-access-token call.
           schema:
             type: string
             example: eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp
@@ -543,20 +544,18 @@ components:
           description: |
             The URL to which the user-agent will be redirected after the authorization request.
           example: "https://example.com/callback"
-    RedirectResponseWithToken:
+    RedirectResponseWithID:
       type: object
       required:
         - redirect_uri
       properties:
         redirect_uri:
           type: string
-          description: |
-            The URL to which the user-agent will be redirected after the authorization request.
+          description: The URL to which the user-agent will be redirected after the authorization request.
           example: "https://example.com/callback"
-        token:
+        sessionID:
           type: string
-          description: |
-            The token that can be used to retrieve the access token by the calling application.
+          description: The session ID that can be used to retrieve the access token by the calling application.
           example: "eyJhbGciOiJSUzI1NiIsI"
     TokenResponse:
       type: object

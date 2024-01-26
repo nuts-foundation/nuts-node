@@ -375,7 +375,7 @@ func TestWrapper_Callback(t *testing.T) {
 		var tokenResponse TokenResponse
 		err = ctx.client.accessTokenClientStore().Get(token, &tokenResponse)
 		require.NoError(t, err)
-		assert.Equal(t, oauth.AccessTokenStatusActive, *tokenResponse.Status)
+		assert.Equal(t, oauth.AccessTokenRequestStatusActive, *tokenResponse.Status)
 		assert.Equal(t, "access", tokenResponse.AccessToken)
 	})
 	t.Run("unknown did", func(t *testing.T) {
@@ -393,18 +393,18 @@ func TestWrapper_Callback(t *testing.T) {
 
 func TestWrapper_RetrieveAccessToken(t *testing.T) {
 	request := RetrieveAccessTokenRequestObject{
-		Token: "token",
+		SessionID: "id",
 	}
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putToken(ctx, "token")
+		putToken(ctx, "id")
 
 		res, err := ctx.client.RetrieveAccessToken(nil, request)
 
 		require.NoError(t, err)
 		assert.IsType(t, RetrieveAccessToken200JSONResponse{}, res)
 	})
-	t.Run("error - unknown token", func(t *testing.T) {
+	t.Run("error - unknown sessionID", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		res, err := ctx.client.RetrieveAccessToken(nil, request)
@@ -644,7 +644,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "verifier not found: unable to find the DID document")
+		assert.EqualError(t, err, "verifier DID can't be resolved")
 	})
 	t.Run("error - verifier error", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -663,8 +663,8 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
 	userID := "test"
-	redirectURL := "https://test.test/iam/123/cb"
-	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", UserID: userID, RedirectURL: redirectURL}
+	redirectURI := "https://test.test/iam/123/cb"
+	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", UserId: userID, RedirectUri: redirectURI}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -686,9 +686,9 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 
 		// assert flow
 		var tokenResponse TokenResponse
-		require.NotNil(t, redirectResponse.Token)
-		err = ctx.client.accessTokenClientStore().Get(*redirectResponse.Token, &tokenResponse)
-		assert.Equal(t, oauth.AccessTokenStatusPending, *tokenResponse.Status)
+		require.NotNil(t, redirectResponse.SessionID)
+		err = ctx.client.accessTokenClientStore().Get(*redirectResponse.SessionID, &tokenResponse)
+		assert.Equal(t, oauth.AccessTokenRequestStatusPending, *tokenResponse.Status)
 	})
 	t.Run("error - invalid DID", func(t *testing.T) {
 		ctx := newTestClient(t)

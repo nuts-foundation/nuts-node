@@ -53,7 +53,7 @@ echo "---------------------------------------"
 echo "Request access token call"
 echo "---------------------------------------"
 # Request access token
-REQUEST="{\"verifier\":\"${PARTY_A_DID}\",\"scope\":\"test\", \"userID\":\"1\", \"redirectURL\":\"http://callback\"}"
+REQUEST="{\"verifier\":\"${PARTY_A_DID}\",\"scope\":\"test\", \"user_id\":\"1\", \"redirect_uri\":\"http://callback\"}"
 RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:21323/internal/auth/v2/${PARTY_B_DID}/request-user-access-token -H "Content-Type:application/json" -v)
 if echo $RESPONSE | grep -q "redirect_uri"; then
   LOCATION=$(echo $RESPONSE | sed -E 's/.*"redirect_uri":"([^"]*).*/\1/')
@@ -62,7 +62,7 @@ if echo $RESPONSE | grep -q "redirect_uri"; then
   echo "FLOWTOKEN: $TOKEN"
 else
   echo $RESPONSE
-  echo "FAILED: Could not get redirectURL from node-B" 1>&2
+  echo "FAILED: Could not get redirect_uri from node-B" 1>&2
   exitWithDockerLogs 1
 fi
 

@@ -608,10 +608,10 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), callbackURI)
 	}
-	// update TokenResponse using session.FlowToken
-	statusActive := oauth.AccessTokenStatusActive
+	// update TokenResponse using session.SessionID
+	statusActive := oauth.AccessTokenRequestStatusActive
 	tokenResponse.Status = &statusActive
-	if err = r.accessTokenClientStore().Put(oauthSession.FlowToken, tokenResponse); err != nil {
+	if err = r.accessTokenClientStore().Put(oauthSession.SessionID, tokenResponse); err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to store access token: %s", err.Error())), callbackURI)
 	}
 	return Callback302Response{

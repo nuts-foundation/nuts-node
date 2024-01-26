@@ -186,17 +186,17 @@ func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (C
 func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error) {
 	// get access token from store
 	var token TokenResponse
-	err := r.accessTokenClientStore().Get(request.Token, &token)
+	err := r.accessTokenClientStore().Get(request.SessionID, &token)
 	if err != nil {
 		return nil, err
 	}
-	if token.Status != nil && *token.Status == oauth.AccessTokenStatusPending {
+	if token.Status != nil && *token.Status == oauth.AccessTokenRequestStatusPending {
 		// return pending status
 		return RetrieveAccessToken200JSONResponse(token), nil
 	}
 	// delete access token from store
 	// change this when tokens can be cached
-	err = r.accessTokenClientStore().Delete(request.Token)
+	err = r.accessTokenClientStore().Delete(request.SessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +425,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		// why did oapi-codegen generate a pointer for the body??
 		return nil, core.InvalidInputError("missing request body")
 	}
-	requestHolder, err := r.extractWallet(ctx, request.Did)
+	requestHolder, err := r.getWalletDID(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +438,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	_, _, err = r.vdr.Resolver().Resolve(*requestVerifier, nil)
 	if err != nil {
 		if errors.Is(err, resolver.ErrNotFound) {
-			return nil, core.InvalidInputError("verifier not found: %w", err)
+			return nil, core.InvalidInputError("verifier DID can't be resolved")
 		}
 		return nil, err
 	}
@@ -451,7 +451,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
 }
 
-func (r Wrapper) extractWallet(ctx context.Context, didString string) (*did.DID, error) {
+func (r Wrapper) getWalletDID(ctx context.Context, didString string) (*did.DID, error) {
 	// resolve wallet
 	requestHolder, err := did.ParseDID(didString)
 	if err != nil {
@@ -469,37 +469,38 @@ func (r Wrapper) extractWallet(ctx context.Context, didString string) (*did.DID,
 
 func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
 	if request.Body == nil {
-		// why did oapi-codegen generate a pointer for the body??
+		// OAPI codegen generated a pointer for the body, but always fills it.
+		// We don't want to be surprised by a panic during runtime when logic changes in a codegen version update.
 		return nil, core.InvalidInputError("missing request body")
 	}
-	requestHolder, err := r.extractWallet(ctx, request.Did)
+	requestHolder, err := r.getWalletDID(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
 
-	if request.Body.UserID == "" {
-		return nil, echo.NewHTTPError(http.StatusBadRequest, "missing userID")
+	if request.Body.UserId == "" {
+		return nil, core.InvalidInputError("missing userID")
 	}
 	// require RedirectURL
-	if request.Body.RedirectURL == "" {
-		return nil, echo.NewHTTPError(http.StatusBadRequest, "missing redirect url")
+	if request.Body.RedirectUri == "" {
+		return nil, core.InvalidInputError("missing redirect_uri")
 	}
 
-	// polling token for calling app
-	flowToken := crypto.GenerateNonce()
+	// session ID for calling app (supports polling for token)
+	sessionID := crypto.GenerateNonce()
 
 	// generate a redirect token valid for 5 seconds
 	token := crypto.GenerateNonce()
 	err = r.userRedirectStore().Put(token, RedirectSession{
 		AccessTokenRequest: request,
-		FlowToken:          flowToken,
+		SessionID:          sessionID,
 		OwnDID:             *requestHolder,
 	})
 	if err != nil {
 		return nil, err
 	}
-	status := oauth.AccessTokenStatusPending
-	err = r.accessTokenClientStore().Put(flowToken, TokenResponse{
+	status := oauth.AccessTokenRequestStatusPending
+	err = r.accessTokenClientStore().Put(sessionID, TokenResponse{
 		Status: &status,
 	})
 
@@ -514,7 +515,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	})
 	return RequestUserAccessToken200JSONResponse{
 		RedirectUri: redirectURL.String(),
-		Token:       &flowToken,
+		SessionID:   &sessionID,
 	}, nil
 }
 

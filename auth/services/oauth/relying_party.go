@@ -82,7 +82,7 @@ func (s *relyingParty) AccessToken(ctx context.Context, code string, verifier di
 		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 	}
 	if len(metadata.TokenEndpoint) == 0 {
-		return nil, fmt.Errorf("no token endpoint found in metadata for %s", verifier)
+		return nil, fmt.Errorf("no token endpoint found in Authorization Server metadata: %s", verifier)
 	}
 	// call token endpoint
 	data := url.Values{}

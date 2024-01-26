@@ -26,13 +26,13 @@ const (
 	Substantial TokenIntrospectionResponseAssuranceLevel = "substantial"
 )
 
-// RedirectResponseWithToken defines model for RedirectResponseWithToken.
-type RedirectResponseWithToken struct {
+// RedirectResponseWithID defines model for RedirectResponseWithID.
+type RedirectResponseWithID struct {
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
 	RedirectUri string `json:"redirect_uri"`
 
-	// Token The token that can be used to retrieve the access token by the calling application.
-	Token *string `json:"token,omitempty"`
+	// SessionID The session ID that can be used to retrieve the access token by the calling application.
+	SessionID *string `json:"sessionID,omitempty"`
 }
 
 // TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
@@ -165,14 +165,18 @@ type RequestServiceAccessTokenJSONBody struct {
 
 // RequestUserAccessTokenJSONBody defines parameters for RequestUserAccessToken.
 type RequestUserAccessTokenJSONBody struct {
-	// RedirectURL The URL to which the user-agent will be redirected after the authorization request.
-	RedirectURL string `json:"redirectURL"`
+	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
+	// This is the URL of the calling application.
+	// The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
+	RedirectUri string `json:"redirect_uri"`
 
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 
-	// UserID The ID of the user for which this access token is requested.
-	UserID   string `json:"userID"`
+	// UserId The ID of the user for which this access token is requested.
+	UserId string `json:"user_id"`
+
+	// Verifier The DID of the verifier, the relying party for which this access token is requested.
 	Verifier string `json:"verifier"`
 }
 
@@ -220,13 +224,13 @@ type ServerInterface interface {
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
-	// Get the access-token from the Nuts node that was request by /request-user-access-token.
-	// (GET /internal/auth/v2/accesstoken/{token})
-	RetrieveAccessToken(ctx echo.Context, token string) error
+	// Get the access token from the Nuts node that was requested through /request-user-access-token.
+	// (GET /internal/auth/v2/accesstoken/{sessionID})
+	RetrieveAccessToken(ctx echo.Context, sessionID string) error
 	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{did}/request-service-access-token)
 	RequestServiceAccessToken(ctx echo.Context, did string) error
-	// Start the authorization flow to get an access token from a remote authorization server when user context is required.
+	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{did}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, did string) error
 }
@@ -442,18 +446,18 @@ func (w *ServerInterfaceWrapper) IntrospectAccessToken(ctx echo.Context) error {
 // RetrieveAccessToken converts echo context to params.
 func (w *ServerInterfaceWrapper) RetrieveAccessToken(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "token" -------------
-	var token string
+	// ------------- Path parameter "sessionID" -------------
+	var sessionID string
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "token", runtime.ParamLocationPath, ctx.Param("token"), &token)
+	err = runtime.BindStyledParameterWithLocation("simple", false, "sessionID", runtime.ParamLocationPath, ctx.Param("sessionID"), &sessionID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter token: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter sessionID: %s", err))
 	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RetrieveAccessToken(ctx, token)
+	err = w.Handler.RetrieveAccessToken(ctx, sessionID)
 	return err
 }
 
@@ -530,7 +534,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/iam/:id/response", wrapper.HandleAuthorizeResponse)
 	router.POST(baseURL+"/iam/:id/token", wrapper.HandleTokenRequest)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
-	router.GET(baseURL+"/internal/auth/v2/accesstoken/:token", wrapper.RetrieveAccessToken)
+	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-service-access-token", wrapper.RequestServiceAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-user-access-token", wrapper.RequestUserAccessToken)
 
@@ -845,7 +849,7 @@ func (response IntrospectAccessToken401Response) VisitIntrospectAccessTokenRespo
 }
 
 type RetrieveAccessTokenRequestObject struct {
-	Token string `json:"token"`
+	SessionID string `json:"sessionID"`
 }
 
 type RetrieveAccessTokenResponseObject interface {
@@ -930,7 +934,7 @@ type RequestUserAccessTokenResponseObject interface {
 	VisitRequestUserAccessTokenResponse(w http.ResponseWriter) error
 }
 
-type RequestUserAccessToken200JSONResponse RedirectResponseWithToken
+type RequestUserAccessToken200JSONResponse RedirectResponseWithID
 
 func (response RequestUserAccessToken200JSONResponse) VisitRequestUserAccessTokenResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -989,13 +993,13 @@ type StrictServerInterface interface {
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
-	// Get the access-token from the Nuts node that was request by /request-user-access-token.
-	// (GET /internal/auth/v2/accesstoken/{token})
+	// Get the access token from the Nuts node that was requested through /request-user-access-token.
+	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
 	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{did}/request-service-access-token)
 	RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error)
-	// Start the authorization flow to get an access token from a remote authorization server when user context is required.
+	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{did}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
 }
@@ -1269,10 +1273,10 @@ func (sh *strictHandler) IntrospectAccessToken(ctx echo.Context) error {
 }
 
 // RetrieveAccessToken operation middleware
-func (sh *strictHandler) RetrieveAccessToken(ctx echo.Context, token string) error {
+func (sh *strictHandler) RetrieveAccessToken(ctx echo.Context, sessionID string) error {
 	var request RetrieveAccessTokenRequestObject
 
-	request.Token = token
+	request.SessionID = sessionID
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.RetrieveAccessToken(ctx.Request().Context(), request.(RetrieveAccessTokenRequestObject))

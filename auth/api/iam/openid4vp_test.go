@@ -842,7 +842,7 @@ func (s *stubResponseWriter) WriteHeader(statusCode int) {
 
 func putState(ctx *testCtx, state string) {
 	_ = ctx.client.oauthClientStateStore().Put(state, OAuthSession{
-		FlowToken:   "token",
+		SessionID:   "token",
 		OwnDID:      &holderDID,
 		RedirectURI: "https://example.com/iam/holder/cb",
 		VerifierDID: &verifierDID,

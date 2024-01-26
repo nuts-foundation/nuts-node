@@ -37,10 +37,10 @@ type TokenResponse struct {
 }
 
 const (
-	// AccessTokenStatusPending is the status for a pending access token
-	AccessTokenStatusPending = "pending"
-	// AccessTokenStatusActive is the status for an active access token
-	AccessTokenStatusActive = "active"
+	// AccessTokenRequestStatusPending is the status for a pending access token
+	AccessTokenRequestStatusPending = "pending"
+	// AccessTokenRequestStatusActive is the status for an active access token
+	AccessTokenRequestStatusActive = "active"
 )
 
 const (
@@ -54,6 +54,8 @@ const (
 	openidCredWalletWellKnown = "/.well-known/openid-credential-wallet"
 	// AssertionParam is the parameter name for the assertion parameter
 	AssertionParam = "assertion"
+	// AuthorizationCodeGrantType is the grant_type for the authorization_code grant type
+	AuthorizationCodeGrantType = "authorization_code"
 	// ClientIDParam is the parameter name for the client_id parameter
 	ClientIDParam = "client_id"
 	// CodeParam is the parameter name for the code parameter
@@ -79,11 +81,6 @@ const (
 	ErrorParam = "error"
 	// ErrorDescriptionParam is the parameter name for the error_description parameter
 	ErrorDescriptionParam = "error_description"
-)
-
-const (
-	// AuthorizationCodeGrantType is the grant_type for the authorization_code grant type
-	AuthorizationCodeGrantType = "authorization_code"
 )
 
 // IssuerIdToWellKnown converts the OAuth2 Issuer identity to the specified well-known endpoint by inserting the well-known at the root of the path.

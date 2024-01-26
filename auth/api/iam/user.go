@@ -89,9 +89,9 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		ClientState: crypto.GenerateNonce(),
 		OwnDID:      &redirectSession.OwnDID,
 		VerifierDID: verifier,
-		FlowToken:   redirectSession.FlowToken,
-		RedirectURI: accessTokenRequest.Body.RedirectURL,
-		UserID:      accessTokenRequest.Body.UserID,
+		SessionID:   redirectSession.SessionID,
+		RedirectURI: accessTokenRequest.Body.RedirectUri,
+		UserID:      accessTokenRequest.Body.UserId,
 	}
 	// todo double use of access token store? (client vs server)
 	// store user session in session store under sessionID and clientState

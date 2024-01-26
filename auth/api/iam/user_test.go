@@ -40,7 +40,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		AccessTokenRequest: RequestUserAccessTokenRequestObject{
 			Body: &RequestUserAccessTokenJSONRequestBody{
 				Scope:    "first second",
-				UserID:   userID,
+				UserId:   userID,
 				Verifier: verifierDID.String(),
 			},
 			Did: walletDID.String(),
@@ -96,7 +96,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			AccessTokenRequest: RequestUserAccessTokenRequestObject{
 				Body: &RequestUserAccessTokenJSONRequestBody{
 					Scope:    "first second",
-					UserID:   userID,
+					UserId:   userID,
 					Verifier: "invalid",
 				},
 				Did: walletDID.String(),

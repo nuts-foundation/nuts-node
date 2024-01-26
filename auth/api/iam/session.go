@@ -31,7 +31,7 @@ type OAuthSession struct {
 	Scope                  string
 	OwnDID                 *did.DID
 	ClientState            string
-	FlowToken              string
+	SessionID              string
 	RedirectURI            string
 	ServerState            ServerState
 	ResponseType           string
@@ -87,8 +87,8 @@ func (s ServerState) CredentialMap() map[string]vc.VerifiableCredential {
 // The key to this session is passed to the user via a 302 redirect.
 type RedirectSession struct {
 	AccessTokenRequest RequestUserAccessTokenRequestObject
-	// FlowToken is used by the calling app to get the access token later on
-	FlowToken string
+	// SessionID is used by the calling app to get the access token later on
+	SessionID string
 	OwnDID    did.DID
 }
 
