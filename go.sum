@@ -852,6 +852,6 @@ honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWh
 honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 rsc.io/qr v0.2.0 h1:6vBLea5/NRMVTz8V66gipeLycZMl/+UlFmk8DvqQ6WY=
 rsc.io/qr v0.2.0/go.mod h1:IF+uZjkb9fqyeF/4tlBoynqmQxUoPfWEKh921coOuXs=
-schneider.vip/problem v1.9.0 h1:oqg9k40H30FbQYeg5jjmo/u8Qy47Y5MBgm2JHFZajsc=
-schneider.vip/problem v1.9.0/go.mod h1:6hLRfO1e1MQWdG23Kl5b3Yp5FSexE+YiGVqCkAp3HUQ=
+schneider.vip/problem v1.9.1 h1:HYdGPzbTHnNziF7cC4ftbn/eTrjSIXhKfricAMaLIMk=
+schneider.vip/problem v1.9.1/go.mod h1:6hLRfO1e1MQWdG23Kl5b3Yp5FSexE+YiGVqCkAp3HUQ=
 sigs.k8s.io/yaml v1.2.0/go.mod h1:yfXDCHCao9+ENCvLSE62v9VSji2MKu5jeNfTrofGhJc=
