@@ -9,7 +9,9 @@ metadata:
     "helm.sh/resource-policy": keep
 spec:
   persistentVolumeReclaimPolicy: Retain
+  {{ if .Values.nuts.data.persistedVolume.storageClassName }}
   storageClassName: {{ .Values.nuts.data.persistedVolume.storageClassName | default "" }}
+  {{ end }}
   capacity:
     storage: {{ .Values.nuts.data.persistedVolume.capacity | default "100Mi" }}
   accessModes: {{ required "Please define `nuts.data.persistedVolume.accessModes` in `values.yaml`" .Values.nuts.data.persistedVolume.accessModes }}
@@ -25,7 +27,9 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 spec:
+  {{ if .Values.nuts.data.persistedVolume.storageClassName }}
   storageClassName: {{ .Values.nuts.data.persistedVolumeClaim.storageClassName | default "" }}
+  {{ end }}
   accessModes: {{ required "Please define `nuts.data.persistedVolumeClaim.accessModes` in `values.yaml`" .Values.nuts.data.persistedVolumeClaim.accessModes }}
   resources:
     requests:
