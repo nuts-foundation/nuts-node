@@ -185,7 +185,7 @@ func (r *Module) IsOwner(ctx context.Context, id did.DID) (bool, error) {
 }
 
 func (r *Module) ListOwned(ctx context.Context) ([]did.DID, error) {
-	var results []did.DID
+	results := make([]did.DID, 0)
 	for _, owner := range r.documentManagers {
 		owned, err := owner.ListOwned(ctx)
 		if err != nil {
