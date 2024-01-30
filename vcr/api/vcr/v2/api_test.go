@@ -45,6 +45,10 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+var holderDID = did.MustParseDID("did:web:example.com:iam:123")
+var credentialID = ssi.MustParseURI("did:web:example.com:iam:456#1")
+var testVC = vc.VerifiableCredential{ID: &credentialID}
+
 func TestWrapper_IssueVC(t *testing.T) {
 
 	issuerURI := ssi.MustParseURI("did:nuts:123")
@@ -506,17 +510,12 @@ func parsedTimeStr(t time.Time) (time.Time, string) {
 }
 
 func TestWrapper_LoadVC(t *testing.T) {
-	holderDID := "did:web:example.com:iam:123"
-	credentialID := "did:web:example.com:iam:456#1"
-	credentialURI := ssi.MustParseURI(credentialID)
-	expectedVC := vc.VerifiableCredential{ID: &credentialURI}
-
 	t.Run("test integration with vcr", func(t *testing.T) {
 		t.Run("successful load", func(t *testing.T) {
 			testContext := newMockContext(t)
-			testContext.mockWallet.EXPECT().Put(gomock.Any(), expectedVC).Return(nil)
+			testContext.mockWallet.EXPECT().Put(gomock.Any(), testVC).Return(nil)
 
-			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: holderDID, Body: &expectedVC})
+			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: holderDID.String(), Body: &testVC})
 
 			assert.NoError(t, err)
 			assert.IsType(t, response, LoadVC204Response{})
@@ -524,9 +523,9 @@ func TestWrapper_LoadVC(t *testing.T) {
 
 		t.Run("vcr returns an error", func(t *testing.T) {
 			testContext := newMockContext(t)
-			testContext.mockWallet.EXPECT().Put(gomock.Any(), expectedVC).Return(assert.AnError)
+			testContext.mockWallet.EXPECT().Put(gomock.Any(), testVC).Return(assert.AnError)
 
-			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: holderDID, Body: &expectedVC})
+			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: holderDID.String(), Body: &testVC})
 
 			assert.Empty(t, response)
 			assert.EqualError(t, err, assert.AnError.Error())
@@ -540,8 +539,32 @@ func TestWrapper_LoadVC(t *testing.T) {
 			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: "%%"})
 
 			assert.Empty(t, response)
-			assert.EqualError(t, err, "invalid holder did: invalid DID")
+			assert.EqualError(t, err, "invalid holder DID: invalid DID")
 		})
+	})
+}
+
+func TestWrapper_GetCredentialsInWallet(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockWallet.EXPECT().List(testContext.requestCtx, holderDID).Return([]vc.VerifiableCredential{testVC}, nil)
+
+		response, err := testContext.client.GetCredentialsInWallet(testContext.requestCtx, GetCredentialsInWalletRequestObject{
+			Did: holderDID.String(),
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetCredentialsInWallet200JSONResponse([]vc.VerifiableCredential{testVC}), response)
+	})
+	t.Run("invalid DID", func(t *testing.T) {
+		testContext := newMockContext(t)
+
+		response, err := testContext.client.GetCredentialsInWallet(testContext.requestCtx, GetCredentialsInWalletRequestObject{
+			Did: "%%",
+		})
+
+		assert.Empty(t, response)
+		assert.EqualError(t, err, "invalid holder DID: invalid DID")
 	})
 }
 
