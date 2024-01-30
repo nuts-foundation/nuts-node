@@ -205,7 +205,12 @@ func (e *engine) initSQLDatabase() error {
 
 	// Open connection and migrate
 	var err error
-	e.sqlDB, err = gorm.Open(adapter.connector(adapter.gormConnectionString(trimmedConnectionString)), &gorm.Config{})
+	e.sqlDB, err = gorm.Open(adapter.connector(adapter.gormConnectionString(trimmedConnectionString)), &gorm.Config{
+		Logger: gormLogrusLogger{
+			underlying:    log.Logger(),
+			slowThreshold: 200 * time.Millisecond,
+		},
+	})
 	if err != nil {
 		return err
 	}
