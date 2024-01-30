@@ -56,10 +56,11 @@ func TestKeyUsage_Is(t *testing.T) {
 	})
 }
 
-func TestDIDCreationOptions_AddOption(t *testing.T) {
-	o := DIDCreationOptions{}
-	result := o.AddOption("test")
+func TestCreationOptions_With(t *testing.T) {
+	// make sure With() returns a mutated copy
+	o := defaultDIDCreationOptions{}
+	result := o.With("test")
 	require.NotNil(t, result)
-	assert.Contains(t, o.MethodSpecificOptions, "test")
-	assert.Same(t, result, &o)
+	assert.Contains(t, result.All(), "test")
+	assert.NotContains(t, o.All(), "test")
 }

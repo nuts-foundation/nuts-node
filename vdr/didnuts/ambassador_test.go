@@ -797,7 +797,7 @@ func Test_uniqueTransactions(t *testing.T) {
 func newDidDocWithOptions(selfControl bool, controllers ...did.DID) (did.Document, jwk.Key, error) {
 	kc := &mockKeyCreator{}
 	docCreator := Creator{KeyStore: kc}
-	didDocument, key, err := docCreator.create(audit.TestContext(), DefaultCreationOptions().KeyFlags, selfControl, controllers)
+	didDocument, key, err := docCreator.create(audit.TestContext(), DefaultKeyFlags(), selfControl, controllers)
 	signingKey, _ := jwk.FromRaw(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)
 	didDocument.ID = did.MustParseDID(fmt.Sprintf("did:nuts:%s", thumbStr))

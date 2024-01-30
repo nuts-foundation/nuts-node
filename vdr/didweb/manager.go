@@ -34,6 +34,10 @@ import (
 	"net/url"
 )
 
+func DefaultCreationOptions() management.CreationOptions {
+	return management.Create(MethodName)
+}
+
 var _ management.DocumentManager = (*Manager)(nil)
 
 // NewManager creates a new Manager to create and update did:web DID documents.
@@ -59,14 +63,14 @@ type userPathOption struct {
 // UserPath is an option to set a user for the did:web document.
 // It will be used as last path part of the DID.
 // If not set, a random UUID will be used.
-func UserPath(path string) management.DIDCreationOption {
+func UserPath(path string) management.CreationOption {
 	return userPathOption{path: path}
 }
 
 // Create creates a new did:web document.
-func (m Manager) Create(ctx context.Context, opts management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*did.Document, crypto.Key, error) {
 	pathPart := uuid.NewString()
-	for _, opt := range opts.MethodSpecificOptions {
+	for _, opt := range opts.All() {
 		switch option := opt.(type) {
 		case userPathOption:
 			pathPart = option.path

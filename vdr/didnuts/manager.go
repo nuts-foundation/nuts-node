@@ -42,7 +42,7 @@ type Manager struct {
 	DocumentOwner management.DocumentOwner
 }
 
-func (m Manager) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (m Manager) Create(ctx context.Context, options management.CreationOptions) (*did.Document, crypto.Key, error) {
 	return m.Creator.Create(ctx, options)
 }
 

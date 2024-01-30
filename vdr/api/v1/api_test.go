@@ -376,7 +376,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - without key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, didnuts.DefaultCreationOptions().KeyFlags).Return(newMethod, nil)
+		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, didnuts.DefaultKeyFlags()).Return(newMethod, nil)
 
 		response, err := ctx.client.AddNewVerificationMethod(ctx.requestCtx, AddNewVerificationMethodRequestObject{Did: did123.String()})
 
@@ -386,7 +386,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - with key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		expectedKeyUsage := didnuts.DefaultCreationOptions().KeyFlags | management.AuthenticationUsage | management.CapabilityDelegationUsage
+		expectedKeyUsage := didnuts.DefaultKeyFlags() | management.AuthenticationUsage | management.CapabilityDelegationUsage
 		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, expectedKeyUsage).Return(newMethod, nil)
 		trueBool := true
 		request := AddNewVerificationMethodJSONRequestBody{

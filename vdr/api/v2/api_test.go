@@ -22,7 +22,6 @@ package v2
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -42,11 +41,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
-		opts := management.DIDCreationOptions{
-			Method:   didweb.MethodName,
-			KeyFlags: management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
-		}
-		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(didDoc, nil, nil)
+		ctx.vdr.EXPECT().Create(gomock.Any(), didweb.DefaultCreationOptions()).Return(didDoc, nil, nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &CreateDIDJSONRequestBody{}})
 
@@ -55,13 +50,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 	})
 	t.Run("with user ID", func(t *testing.T) {
 		ctx := newMockContext(t)
-		opts := management.DIDCreationOptions{
-			Method:   didweb.MethodName,
-			KeyFlags: management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
-			MethodSpecificOptions: []management.DIDCreationOption{
-				didweb.UserPath("1"),
-			},
-		}
+		opts := didweb.DefaultCreationOptions().With(didweb.UserPath("1"))
 		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(didDoc, nil, nil)
 
 		var userId = "1"

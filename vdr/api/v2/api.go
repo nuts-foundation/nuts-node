@@ -67,12 +67,9 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 }
 
 func (w Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
-	options := management.DIDCreationOptions{
-		Method:   didweb.MethodName,
-		KeyFlags: management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
-	}
+	options := management.Create(didweb.MethodName)
 	if request.Body.Id != nil && *request.Body.Id != "" {
-		options.AddOption(didweb.UserPath(*request.Body.Id))
+		options = options.With(didweb.UserPath(*request.Body.Id))
 	}
 
 	doc, _, err := w.VDR.Create(ctx, options)

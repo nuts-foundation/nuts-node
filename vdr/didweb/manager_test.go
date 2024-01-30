@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,11 +113,7 @@ func TestManager_Create(t *testing.T) {
 		}, nil)
 		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
 
-		document, key, err := m.Create(audit.TestContext(), management.DIDCreationOptions{
-			MethodSpecificOptions: []management.DIDCreationOption{
-				UserPath("test"),
-			},
-		})
+		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(UserPath("test")))
 		require.NoError(t, err)
 		require.NotNil(t, document)
 		require.NotNil(t, key)
@@ -130,11 +125,7 @@ func TestManager_Create(t *testing.T) {
 		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
 		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
 
-		_, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{
-			MethodSpecificOptions: []management.DIDCreationOption{
-				"",
-			},
-		})
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(""))
 		require.EqualError(t, err, "unknown option: string")
 	})
 }
@@ -156,7 +147,7 @@ func TestManager_IsOwner(t *testing.T) {
 	t.Run("not owned (other DID)", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
-		_, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
 		owned, err := m.IsOwner(audit.TestContext(), id)
@@ -166,7 +157,7 @@ func TestManager_IsOwner(t *testing.T) {
 	t.Run("owned", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
-		document, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		document, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
 		owned, err := m.IsOwner(audit.TestContext(), document.ID)
@@ -191,7 +182,7 @@ func TestManager_ListOwned(t *testing.T) {
 	t.Run("single DID", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
-		document, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		document, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
 		dids, err := m.ListOwned(audit.TestContext())
@@ -201,9 +192,9 @@ func TestManager_ListOwned(t *testing.T) {
 	t.Run("multiple DIDs", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
-		document1, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		document1, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
-		document2, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		document2, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
 		dids, err := m.ListOwned(audit.TestContext())
@@ -228,7 +219,7 @@ func TestManager_Resolve(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
-		document, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		document, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 		expected, _ := document.MarshalJSON()
 

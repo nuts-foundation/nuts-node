@@ -104,7 +104,7 @@ func createCmd() *cobra.Command {
 		},
 	}
 
-	defs := didnuts.DefaultCreationOptions()
+	defs := didnuts.DefaultKeyFlags()
 	setUsage := func(def bool, usage string) string {
 		opposite := "enable"
 		if def {
@@ -112,11 +112,11 @@ func createCmd() *cobra.Command {
 		}
 		return fmt.Sprintf(usage, !def, opposite)
 	}
-	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", defs.KeyFlags.Is(management.AssertionMethodUsage), setUsage(defs.KeyFlags.Is(management.AssertionMethodUsage), "Pass '%t' to %s assertionMethod capabilities."))
-	result.Flags().BoolVar(createRequest.Authentication, "authentication", defs.KeyFlags.Is(management.AuthenticationUsage), setUsage(defs.KeyFlags.Is(management.AuthenticationUsage), "Pass '%t' to %s authentication capabilities."))
-	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", defs.KeyFlags.Is(management.CapabilityDelegationUsage), setUsage(defs.KeyFlags.Is(management.CapabilityDelegationUsage), "Pass '%t' to %s capabilityDelegation capabilities."))
-	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.KeyFlags.Is(management.CapabilityInvocationUsage), setUsage(defs.KeyFlags.Is(management.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
-	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.KeyFlags.Is(management.KeyAgreementUsage), setUsage(defs.KeyFlags.Is(management.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
+	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", defs.Is(management.AssertionMethodUsage), setUsage(defs.Is(management.AssertionMethodUsage), "Pass '%t' to %s assertionMethod capabilities."))
+	result.Flags().BoolVar(createRequest.Authentication, "authentication", defs.Is(management.AuthenticationUsage), setUsage(defs.Is(management.AuthenticationUsage), "Pass '%t' to %s authentication capabilities."))
+	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", defs.Is(management.CapabilityDelegationUsage), setUsage(defs.Is(management.CapabilityDelegationUsage), "Pass '%t' to %s capabilityDelegation capabilities."))
+	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.Is(management.CapabilityInvocationUsage), setUsage(defs.Is(management.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
+	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.Is(management.KeyAgreementUsage), setUsage(defs.Is(management.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
 	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", true, setUsage(true, "Pass '%t' to %s DID Document control."))
 	result.Flags().BoolVar(&useV2, "v2", false, "Pass 'true' to use the V2 API and create a did:web DID.")
 	result.Flags().StringSliceVar(createRequest.Controllers, "controllers", []string{}, "Comma-separated list of DIDs that can control the generated DID Document.")
