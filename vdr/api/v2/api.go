@@ -87,9 +87,19 @@ func (w Wrapper) DeleteDID(ctx context.Context, request DeleteDIDRequestObject) 
 	panic("implement me")
 }
 
-func (w Wrapper) ResolveDID(ctx context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error) {
-	//TODO implement me
-	panic("implement me")
+func (w Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error) {
+	targetDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	didDocument, metadata, err := w.VDR.Resolve(*targetDID, nil)
+	if err != nil {
+		return nil, err
+	}
+	return ResolveDID200JSONResponse{
+		Document:         *didDocument,
+		DocumentMetadata: *metadata,
+	}, nil
 }
 
 func (a *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDIDsResponseObject, error) {
