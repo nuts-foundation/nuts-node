@@ -417,6 +417,30 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/holder/{did}/vc:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example: "did:web:example.com:iam:123"
+        schema:
+          type: string
+    get:
+      summary: List all Verifiable Credentials in the holder's wallet.
+      operationId: getCredentialsInWallet
+      tags:
+        - credential
+      responses:
+        "200":
+          description: The list of credentials in the wallet is returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VerifiableCredential"
+        default:
+          $ref: '../common/error_response.yaml'
     post:
       summary: Load a VerifiableCredential into the holders wallet.
       description: |
@@ -430,14 +454,6 @@ paths:
       operationId: loadVC
       tags:
         - credential
-      parameters:
-        - name: did
-          in: path
-          description: URL encoded DID.
-          required: true
-          example: "did:web:example.com:iam:123"
-          schema:
-            type: string
       requestBody:
         required: true
         content:

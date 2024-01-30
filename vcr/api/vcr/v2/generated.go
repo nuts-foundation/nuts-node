@@ -325,6 +325,9 @@ type ClientInterface interface {
 
 	CreateVP(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetCredentialsInWallet request
+	GetCredentialsInWallet(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// LoadVCWithBody request with any body
 	LoadVCWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -390,6 +393,18 @@ func (c *Client) CreateVPWithBody(ctx context.Context, contentType string, body 
 
 func (c *Client) CreateVP(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateVPRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetCredentialsInWallet(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCredentialsInWalletRequest(c.Server, did)
 	if err != nil {
 		return nil, err
 	}
@@ -664,6 +679,40 @@ func NewCreateVPRequestWithBody(server string, contentType string, body io.Reade
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetCredentialsInWalletRequest generates requests for GetCredentialsInWallet
+func NewGetCredentialsInWalletRequest(server string, did string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/%s/vc", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -1212,6 +1261,9 @@ type ClientWithResponsesInterface interface {
 
 	CreateVPWithResponse(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateVPResponse, error)
 
+	// GetCredentialsInWalletWithResponse request
+	GetCredentialsInWalletWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error)
+
 	// LoadVCWithBodyWithResponse request with any body
 	LoadVCWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoadVCResponse, error)
 
@@ -1289,6 +1341,38 @@ func (r CreateVPResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateVPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetCredentialsInWalletResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *[]VerifiableCredential
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCredentialsInWalletResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCredentialsInWalletResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1693,6 +1777,15 @@ func (c *ClientWithResponses) CreateVPWithResponse(ctx context.Context, body Cre
 	return ParseCreateVPResponse(rsp)
 }
 
+// GetCredentialsInWalletWithResponse request returning *GetCredentialsInWalletResponse
+func (c *ClientWithResponses) GetCredentialsInWalletWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error) {
+	rsp, err := c.GetCredentialsInWallet(ctx, did, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCredentialsInWalletResponse(rsp)
+}
+
 // LoadVCWithBodyWithResponse request with arbitrary body returning *LoadVCResponse
 func (c *ClientWithResponses) LoadVCWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoadVCResponse, error) {
 	rsp, err := c.LoadVCWithBody(ctx, did, contentType, body, reqEditors...)
@@ -1873,6 +1966,48 @@ func ParseCreateVPResponse(rsp *http.Response) (*CreateVPResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest VerifiablePresentation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetCredentialsInWalletResponse parses an HTTP response from a GetCredentialsInWalletWithResponse call
+func ParseGetCredentialsInWalletResponse(rsp *http.Response) (*GetCredentialsInWalletResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCredentialsInWalletResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []VerifiableCredential
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2387,6 +2522,9 @@ type ServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
+	// List all Verifiable Credentials in the holder's wallet.
+	// (GET /internal/vcr/v2/holder/{did}/vc)
+	GetCredentialsInWallet(ctx echo.Context, did string) error
 	// Load a VerifiableCredential into the holders wallet.
 	// (POST /internal/vcr/v2/holder/{did}/vc)
 	LoadVC(ctx echo.Context, did string) error
@@ -2438,6 +2576,24 @@ func (w *ServerInterfaceWrapper) CreateVP(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.CreateVP(ctx)
+	return err
+}
+
+// GetCredentialsInWallet converts echo context to params.
+func (w *ServerInterfaceWrapper) GetCredentialsInWallet(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetCredentialsInWallet(ctx, did)
 	return err
 }
 
@@ -2660,6 +2816,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.POST(baseURL+"/internal/vcr/v2/holder/vp", wrapper.CreateVP)
+	router.GET(baseURL+"/internal/vcr/v2/holder/:did/vc", wrapper.GetCredentialsInWallet)
 	router.POST(baseURL+"/internal/vcr/v2/holder/:did/vc", wrapper.LoadVC)
 	router.POST(baseURL+"/internal/vcr/v2/issuer/vc", wrapper.IssueVC)
 	router.GET(baseURL+"/internal/vcr/v2/issuer/vc/search", wrapper.SearchIssuedVCs)
@@ -2707,6 +2864,44 @@ type CreateVPdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response CreateVPdefaultApplicationProblemPlusJSONResponse) VisitCreateVPResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetCredentialsInWalletRequestObject struct {
+	Did string `json:"did"`
+}
+
+type GetCredentialsInWalletResponseObject interface {
+	VisitGetCredentialsInWalletResponse(w http.ResponseWriter) error
+}
+
+type GetCredentialsInWallet200JSONResponse []VerifiableCredential
+
+func (response GetCredentialsInWallet200JSONResponse) VisitGetCredentialsInWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCredentialsInWalletdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetCredentialsInWalletdefaultApplicationProblemPlusJSONResponse) VisitGetCredentialsInWalletResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -3172,6 +3367,9 @@ type StrictServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
+	// List all Verifiable Credentials in the holder's wallet.
+	// (GET /internal/vcr/v2/holder/{did}/vc)
+	GetCredentialsInWallet(ctx context.Context, request GetCredentialsInWalletRequestObject) (GetCredentialsInWalletResponseObject, error)
 	// Load a VerifiableCredential into the holders wallet.
 	// (POST /internal/vcr/v2/holder/{did}/vc)
 	LoadVC(ctx context.Context, request LoadVCRequestObject) (LoadVCResponseObject, error)
@@ -3245,6 +3443,31 @@ func (sh *strictHandler) CreateVP(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(CreateVPResponseObject); ok {
 		return validResponse.VisitCreateVPResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetCredentialsInWallet operation middleware
+func (sh *strictHandler) GetCredentialsInWallet(ctx echo.Context, did string) error {
+	var request GetCredentialsInWalletRequestObject
+
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCredentialsInWallet(ctx.Request().Context(), request.(GetCredentialsInWalletRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCredentialsInWallet")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetCredentialsInWalletResponseObject); ok {
+		return validResponse.VisitGetCredentialsInWalletResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
