@@ -508,6 +508,24 @@ func TestModule_ListOwned(t *testing.T) {
 	})
 }
 
+func TestModule_Create(t *testing.T) {
+	t.Run("unsupported DID method", func(t *testing.T) {
+		test := newVDRTestCtx(t)
+
+		_, _, err := test.vdr.Create(context.Background(), management.Create("example"))
+
+		assert.EqualError(t, err, "unsupported DID method: example")
+	})
+	t.Run("manager returns error", func(t *testing.T) {
+		test := newVDRTestCtx(t)
+		test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, errors.New("test"))
+
+		_, _, err := test.vdr.Create(context.Background(), management.Create(didnuts.MethodName))
+
+		assert.EqualError(t, err, "could not create DID document (method nuts): test")
+	})
+}
+
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
