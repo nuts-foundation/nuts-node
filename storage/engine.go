@@ -45,6 +45,10 @@ import (
 
 const storeShutdownTimeout = 5 * time.Second
 
+// sqlSlowQueryThreshold specifies the threshold for logging slow SQL queries.
+// If SQL queries take longer than this threshold, they will be logged as warnings.
+const sqlSlowQueryThreshold = 200 * time.Millisecond
+
 //go:embed sql_migrations/*.sql
 var sqlMigrationsFS embed.FS
 
@@ -205,7 +209,13 @@ func (e *engine) initSQLDatabase() error {
 
 	// Open connection and migrate
 	var err error
-	e.sqlDB, err = gorm.Open(adapter.connector(adapter.gormConnectionString(trimmedConnectionString)), &gorm.Config{})
+
+	e.sqlDB, err = gorm.Open(adapter.connector(adapter.gormConnectionString(trimmedConnectionString)), &gorm.Config{
+		Logger: gormLogrusLogger{
+			underlying:    log.Logger(),
+			slowThreshold: sqlSlowQueryThreshold,
+		},
+	})
 	if err != nil {
 		return err
 	}
