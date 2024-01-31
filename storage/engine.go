@@ -211,6 +211,7 @@ func (e *engine) initSQLDatabase() error {
 	var err error
 
 	e.sqlDB, err = gorm.Open(adapter.connector(adapter.gormConnectionString(trimmedConnectionString)), &gorm.Config{
+		TranslateError: true,
 		Logger: gormLogrusLogger{
 			underlying:    log.Logger(),
 			slowThreshold: sqlSlowQueryThreshold,

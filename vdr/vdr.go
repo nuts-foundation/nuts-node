@@ -274,7 +274,7 @@ func (r *Module) Create(ctx context.Context, options management.CreationOptions)
 	log.Logger().Debug("Creating new DID Document.")
 	manager := r.documentManagers[options.Method()]
 	if manager == nil {
-		return nil, nil, fmt.Errorf("unsupported method: %s", options.Method())
+		return nil, nil, fmt.Errorf("%w: %s", management.ErrUnsupportedDIDMethod, options.Method())
 	}
 	doc, key, err := manager.Create(ctx, options)
 	if err != nil {

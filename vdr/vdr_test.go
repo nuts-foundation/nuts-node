@@ -49,8 +49,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-const expectedPayloadType = "application/did+json"
-
 // testCtx contains the controller and mocks needed fot testing the Manipulator
 type vdrTestCtx struct {
 	ctrl                *gomock.Controller

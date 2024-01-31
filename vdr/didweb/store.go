@@ -23,6 +23,7 @@ import (
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
@@ -37,7 +38,9 @@ type store interface {
 	deleteService(subjectDID did.DID, id ssi.URI) error
 }
 
-var errServiceNotFound = errors.New("service not found")
+var errServiceNotFound = errors.Join(management.ErrInvalidService, errors.New("not found"))
+var errDuplicateService = errors.Join(management.ErrInvalidService, errors.New("service ID already exists"))
+var errServiceDIDNotFound = errors.Join(management.ErrInvalidService, errors.New("unknown DID"))
 
 var _ schema.Tabler = (*sqlDID)(nil)
 
@@ -161,7 +164,14 @@ func (s *sqlStore) createService(subjectDID did.DID, service did.Service) error 
 		Did:  subjectDID.String(),
 		Data: data,
 	}
-	return s.db.Create(record).Error
+	err := s.db.Create(record).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return errDuplicateService
+	}
+	if errors.Is(err, gorm.ErrForeignKeyViolated) {
+		return errServiceDIDNotFound
+	}
+	return err
 }
 
 func (s *sqlStore) updateService(subjectDID did.DID, id ssi.URI, service did.Service) error {
@@ -172,8 +182,9 @@ func (s *sqlStore) updateService(subjectDID did.DID, id ssi.URI, service did.Ser
 		Data: data,
 	}
 	result := s.db.Model(&sqlService{}).Where("did = ? AND id = ?", subjectDID.String(), id.String()).Updates(record)
-	if result.Error != nil {
-		return result.Error
+	err := result.Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return errDuplicateService
 	}
 	if result.RowsAffected == 0 {
 		return errServiceNotFound

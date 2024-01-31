@@ -27,6 +27,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -128,13 +129,17 @@ func Test_sqlStore_createService(t *testing.T) {
 		require.NoError(t, err)
 
 		err = store.createService(testDID, testService)
-		require.Error(t, err)
+
+		require.ErrorIs(t, err, errDuplicateService)
+		require.ErrorIs(t, err, management.ErrInvalidService)
 	})
 	t.Run("DID does not exist", func(t *testing.T) {
 		resetStore(t, store.db)
 
 		err := store.createService(testDID, testService)
-		require.Error(t, err)
+
+		require.ErrorIs(t, err, errServiceDIDNotFound)
+		require.ErrorIs(t, err, management.ErrInvalidService)
 	})
 }
 
@@ -151,6 +156,7 @@ func Test_sqlStore_updateService(t *testing.T) {
 		err := store.updateService(testDID, testService.ID, testService)
 
 		require.ErrorIs(t, err, errServiceNotFound)
+		require.ErrorIs(t, err, management.ErrInvalidService)
 	})
 	t.Run("ok", func(t *testing.T) {
 		resetStore(t, store.db)
@@ -167,6 +173,16 @@ func Test_sqlStore_updateService(t *testing.T) {
 		require.Len(t, services, 1)
 		require.JSONEq(t, toJSON(updatedService), toJSON(services[0]))
 	})
+	t.Run("duplicate", func(t *testing.T) {
+		resetStore(t, store.db)
+		_ = store.create(testDID)
+		_ = store.createService(testDID, testService)
+		err := store.createService(testDID, testService)
+
+		require.ErrorIs(t, err, errDuplicateService)
+		require.ErrorIs(t, err, management.ErrInvalidService)
+
+	})
 }
 
 func Test_sqlStore_deleteService(t *testing.T) {
@@ -181,6 +197,7 @@ func Test_sqlStore_deleteService(t *testing.T) {
 		err := store.deleteService(testDID, testService.ID)
 
 		require.ErrorIs(t, err, errServiceNotFound)
+		require.ErrorIs(t, err, management.ErrInvalidService)
 	})
 	t.Run("ok", func(t *testing.T) {
 		resetStore(t, store.db)

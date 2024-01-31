@@ -46,8 +46,9 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		resolver.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusForbidden,
-		resolver.ErrDuplicateService:        http.StatusBadRequest,
 		did.ErrInvalidDID:                   http.StatusBadRequest,
+		management.ErrInvalidService:        http.StatusBadRequest,
+		management.ErrUnsupportedDIDMethod:  http.StatusBadRequest,
 	})
 }
 

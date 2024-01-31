@@ -43,7 +43,7 @@ var didDoc = did.Document{
 func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Create(gomock.Any(), didweb.DefaultCreationOptions()).Return(didDoc, nil, nil)
+		ctx.vdr.EXPECT().Create(gomock.Any(), didweb.DefaultCreationOptions()).Return(&didDoc, nil, nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &CreateDIDJSONRequestBody{}})
 
