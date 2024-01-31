@@ -548,12 +548,13 @@ components:
       type: object
       required:
         - redirect_uri
+        - session_id
       properties:
         redirect_uri:
           type: string
           description: The URL to which the user-agent will be redirected after the authorization request.
           example: "https://example.com/callback"
-        sessionID:
+        session_id:
           type: string
           description: The session ID that can be used to retrieve the access token by the calling application.
           example: "eyJhbGciOiJSUzI1NiIsI"
@@ -582,6 +583,7 @@ components:
           description: |
             The status of the access token request. Can be 'pending' or 'active'.
             If the status is 'pending', the access token is not yet available.
+            Only used when the access token is requested through /request-user-access-token.
           enum: [pending, active]
         expires_in:
           type: integer

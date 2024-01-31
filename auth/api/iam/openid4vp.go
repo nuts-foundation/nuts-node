@@ -559,18 +559,17 @@ func (r Wrapper) handleCallbackError(request CallbackRequestObject) (CallbackRes
 	// check if the state param is present and if we have a client state for it
 	var oauthSession OAuthSession
 	if request.Params.State != nil {
-		if err := r.oauthClientStateStore().Get(*request.Params.State, &oauthSession); err == nil {
-			// we use the redirectURI from the oauthSession to redirect the user back to its own error page
-			if oauthSession.redirectURI() != nil {
-				// add code and description
-				location := httpNuts.AddQueryParams(*oauthSession.redirectURI(), map[string]string{
-					oauth.ErrorParam:            code,
-					oauth.ErrorDescriptionParam: description,
-				})
-				return Callback302Response{
-					Headers: Callback302ResponseHeaders{Location: location.String()},
-				}, nil
-			}
+		_ = r.oauthClientStateStore().Get(*request.Params.State, &oauthSession)
+		// we use the redirectURI from the oauthSession to redirect the user back to its own error page
+		if oauthSession.redirectURI() != nil {
+			// add code and description
+			location := httpNuts.AddQueryParams(*oauthSession.redirectURI(), map[string]string{
+				oauth.ErrorParam:            code,
+				oauth.ErrorDescriptionParam: description,
+			})
+			return Callback302Response{
+				Headers: Callback302ResponseHeaders{Location: location.String()},
+			}, nil
 		}
 	}
 	// we don't have a client state, so we can't redirect to the holder redirectURI
@@ -589,7 +588,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	if err := r.oauthClientStateStore().Get(*request.Params.State, &oauthSession); err != nil {
 		return nil, oauthError(oauth.InvalidRequest, "invalid or expired state")
 	}
-	// extract RedirectURI from OAuthSession
+	// extract callback URI at calling app from OAuthSession
 	callbackURI := oauthSession.redirectURI()
 
 	// check if code is present
@@ -598,6 +597,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	}
 	// send callback URL to authorization server to check against earlier redirect_uri
 	requestHolder, _ := r.idToOwnedDID(ctx, request.Id) // already checked
+	// construct callback URL which must be passed along to the authorization server so it can check it against the redirect_uri
 	checkURL, err := didweb.DIDToURL(*requestHolder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callback URL: %w", err)

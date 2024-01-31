@@ -93,7 +93,6 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		RedirectURI: accessTokenRequest.Body.RedirectUri,
 		UserID:      accessTokenRequest.Body.UserId,
 	}
-	// todo double use of access token store? (client vs server)
 	// store user session in session store under sessionID and clientState
 	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession)
 	if err != nil {

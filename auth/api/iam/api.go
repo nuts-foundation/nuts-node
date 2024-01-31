@@ -421,10 +421,6 @@ func (r Wrapper) idToOwnedDID(ctx context.Context, id string) (*did.DID, error) 
 }
 
 func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error) {
-	if request.Body == nil {
-		// why did oapi-codegen generate a pointer for the body??
-		return nil, core.InvalidInputError("missing request body")
-	}
 	requestHolder, err := r.getWalletDID(ctx, request.Did)
 	if err != nil {
 		return nil, err
@@ -435,13 +431,6 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if err != nil {
 		return nil, core.InvalidInputError("invalid verifier: %w", err)
 	}
-	_, _, err = r.vdr.Resolver().Resolve(*requestVerifier, nil)
-	if err != nil {
-		if errors.Is(err, resolver.ErrNotFound) {
-			return nil, core.InvalidInputError("verifier DID can't be resolved")
-		}
-		return nil, err
-	}
 
 	tokenResult, err := r.auth.RelyingParty().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope)
 	if err != nil {
@@ -451,6 +440,8 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
 }
 
+// getWalletDID resolves a web did and checks if it's owned by this node
+// it differs from idToOwnedDID in that it does require the id to be a web did (and not a partial)
 func (r Wrapper) getWalletDID(ctx context.Context, didString string) (*did.DID, error) {
 	// resolve wallet
 	requestHolder, err := did.ParseDID(didString)
@@ -468,11 +459,6 @@ func (r Wrapper) getWalletDID(ctx context.Context, didString string) (*did.DID, 
 }
 
 func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
-	if request.Body == nil {
-		// OAPI codegen generated a pointer for the body, but always fills it.
-		// We don't want to be surprised by a panic during runtime when logic changes in a codegen version update.
-		return nil, core.InvalidInputError("missing request body")
-	}
 	requestHolder, err := r.getWalletDID(ctx, request.Did)
 	if err != nil {
 		return nil, err
@@ -515,7 +501,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	})
 	return RequestUserAccessToken200JSONResponse{
 		RedirectUri: redirectURL.String(),
-		SessionID:   &sessionID,
+		SessionId:   sessionID,
 	}, nil
 }
 

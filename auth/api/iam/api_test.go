@@ -595,7 +595,6 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	t.Run("ok - service flow", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
 		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
@@ -618,14 +617,6 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 		require.EqualError(t, err, "did not found: invalid DID")
 	})
-	t.Run("error - missing request body", func(t *testing.T) {
-		ctx := newTestClient(t)
-
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String()})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "missing request body")
-	})
 	t.Run("error - invalid verifier did", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
@@ -636,20 +627,9 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t, err, "invalid verifier: invalid DID")
 	})
-	t.Run("error - verifier not found", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(nil, nil, resolver.ErrNotFound)
-
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "verifier DID can't be resolved")
-	})
 	t.Run("error - verifier error", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.resolver.EXPECT().Resolve(verifierDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
 		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
@@ -686,8 +666,8 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 
 		// assert flow
 		var tokenResponse TokenResponse
-		require.NotNil(t, redirectResponse.SessionID)
-		err = ctx.client.accessTokenClientStore().Get(*redirectResponse.SessionID, &tokenResponse)
+		require.NotNil(t, redirectResponse.SessionId)
+		err = ctx.client.accessTokenClientStore().Get(redirectResponse.SessionId, &tokenResponse)
 		assert.Equal(t, oauth.AccessTokenRequestStatusPending, *tokenResponse.Status)
 	})
 	t.Run("error - invalid DID", func(t *testing.T) {
@@ -696,14 +676,6 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: "invalid", Body: body})
 
 		require.EqualError(t, err, "did not found: invalid DID")
-	})
-	t.Run("error - missing request body", func(t *testing.T) {
-		ctx := newTestClient(t)
-
-		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String()})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "missing request body")
 	})
 }
 

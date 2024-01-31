@@ -31,8 +31,8 @@ type RedirectResponseWithID struct {
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
 	RedirectUri string `json:"redirect_uri"`
 
-	// SessionID The session ID that can be used to retrieve the access token by the calling application.
-	SessionID *string `json:"sessionID,omitempty"`
+	// SessionId The session ID that can be used to retrieve the access token by the calling application.
+	SessionId string `json:"session_id"`
 }
 
 // TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1

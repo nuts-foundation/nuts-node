@@ -26,6 +26,9 @@ import (
 	"net/url"
 )
 
+// OAuthSession is the session object that is used to store information about the OAuth request.
+// The client state (and nonce/redirectToken as well) is used to refer to this session.
+// Both the client and the server use this session to store information about the request.
 type OAuthSession struct {
 	ClientID               string
 	Scope                  string
