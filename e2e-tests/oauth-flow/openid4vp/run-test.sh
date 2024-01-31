@@ -57,9 +57,9 @@ REQUEST="{\"verifier\":\"${PARTY_A_DID}\",\"scope\":\"test\", \"user_id\":\"1\",
 RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:21323/internal/auth/v2/${PARTY_B_DID}/request-user-access-token -H "Content-Type:application/json" -v)
 if echo $RESPONSE | grep -q "redirect_uri"; then
   LOCATION=$(echo $RESPONSE | sed -E 's/.*"redirect_uri":"([^"]*).*/\1/')
-  TOKEN=$(echo $RESPONSE | sed -E 's/.*"token":"([^"]*).*/\1/')
+  SESSION=$(echo $RESPONSE | sed -E 's/.*"session_id":"([^"]*).*/\1/')
   echo "REDIRECTURL: $LOCATION"
-  echo "FLOWTOKEN: $TOKEN"
+  echo "SESSION: $SESSION"
 else
   echo $RESPONSE
   echo "FAILED: Could not get redirect_uri from node-B" 1>&2
@@ -129,7 +129,7 @@ echo "--------------------------------------"
 echo "Use flow token to get access token ..."
 echo "--------------------------------------"
 
-RESPONSE=$(curl http://localhost:21323/internal/auth/v2/accesstoken/$TOKEN -v -k)
+RESPONSE=$(curl http://localhost:21323/internal/auth/v2/accesstoken/$SESSION -v -k)
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
   echo "access token stored in ./node-B/data/accesstoken.txt"
