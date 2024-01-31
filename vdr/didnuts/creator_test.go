@@ -225,7 +225,9 @@ func TestCreator_Create(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
 		creator := Creator{KeyStore: mockKeyStore}
-		ops := DefaultCreationOptions().With(KeyFlag(management.AssertionMethodUsage))
+		ops := DefaultCreationOptions().
+			With(KeyFlag(management.AssertionMethodUsage)).
+			With(SelfControl(false))
 		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		_, _, err := creator.Create(nil, ops)
