@@ -74,14 +74,40 @@ type Creator struct {
 	DIDResolver resolver.DIDResolver
 }
 
-// DefaultCreationOptions returns the default DIDCreationOptions when creating DID Documents.
-func DefaultCreationOptions() management.DIDCreationOptions {
-	return management.DIDCreationOptions{
-		Method:      MethodName,
-		Controllers: []did.DID{},
-		KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage,
-		SelfControl: true,
-	}
+// DefaultCreationOptions returns the default CreationOptions when creating DID Documents.
+func DefaultCreationOptions() management.CreationOptions {
+	return management.Create(MethodName).
+		With(KeyFlag(DefaultKeyFlags())).
+		With(SelfControl(true))
+}
+
+// DefaultKeyFlags returns the default DIDKeyFlags when creating did:nuts DIDs.
+func DefaultKeyFlags() management.DIDKeyFlags {
+	return management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage
+}
+
+type keyFlagCreationOption management.DIDKeyFlags
+
+// KeyFlag specifies for what purposes the generated key can be used
+func KeyFlag(flags management.DIDKeyFlags) management.CreationOption {
+	return keyFlagCreationOption(flags)
+}
+
+type selfControlCreationOption bool
+
+// SelfControl is a DID document creation option that indicates whether the generated DID Document can be altered with its own capabilityInvocation key.
+func SelfControl(value bool) management.CreationOption {
+	return selfControlCreationOption(value)
+}
+
+type controllersCreationOption struct {
+	controllers []did.DID
+}
+
+// Controllers is a DID document creation option that indicates which DIDs can control the generated DID Document.
+// If selfControl = true and controllers is not empty, the newly generated DID will be added to the list of controllers.
+func Controllers(controllers ...did.DID) management.CreationOption {
+	return controllersCreationOption{controllers: controllers}
 }
 
 // didKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
@@ -137,14 +163,19 @@ var ErrInvalidOptions = errors.New("create request has invalid combination of op
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
 // It also publishes the DID Document to the network.
-func (n Creator) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
+func (n Creator) Create(ctx context.Context, options management.CreationOptions) (*did.Document, nutsCrypto.Key, error) {
+	selfControl, controllers, keyFlags, err := parseOptions(options)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
 	// holder for all metadata of the controllers
-	controllerMetadata := make([]resolver.DocumentMetadata, len(options.Controllers))
+	controllerMetadata := make([]resolver.DocumentMetadata, len(controllers))
 
 	// if any controllers have been added, check if they exist through the didResolver
-	if len(options.Controllers) > 0 {
-		for _, controller := range options.Controllers {
+	if len(controllers) > 0 {
+		for _, controller := range controllers {
 			_, meta, err := n.DIDResolver.Resolve(controller, nil)
 			if err != nil {
 				return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
@@ -153,11 +184,11 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 		}
 	}
 
-	if options.SelfControl && !options.KeyFlags.Is(management.CapabilityInvocationUsage) {
+	if selfControl && !keyFlags.Is(management.CapabilityInvocationUsage) {
 		return nil, nil, ErrInvalidOptions
 	}
 
-	doc, key, err := n.create(ctx, options)
+	doc, key, err := n.create(ctx, keyFlags, selfControl, controllers)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -169,7 +200,23 @@ func (n Creator) Create(ctx context.Context, options management.DIDCreationOptio
 	return doc, key, nil
 }
 
-func (n Creator) create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
+func parseOptions(options management.CreationOptions) (selfControl bool, controllers []did.DID, keyFlags management.DIDKeyFlags, err error) {
+	for _, opt := range options.All() {
+		switch o := opt.(type) {
+		case keyFlagCreationOption:
+			keyFlags = management.DIDKeyFlags(o)
+		case selfControlCreationOption:
+			selfControl = bool(o)
+		case controllersCreationOption:
+			controllers = o.controllers
+		default:
+			return false, nil, 0, fmt.Errorf("unknown option: %T", opt)
+		}
+	}
+	return
+}
+
+func (n Creator) create(ctx context.Context, flags management.DIDKeyFlags, selfControl bool, controllers []did.DID) (*did.Document, nutsCrypto.Key, error) {
 	// First, generate a new keyPair with the correct kid
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
@@ -191,16 +238,16 @@ func (n Creator) create(ctx context.Context, options management.DIDCreationOptio
 	didID, _ := resolver.GetDIDFromURL(key.KID())
 	doc := CreateDocument()
 	doc.ID = didID
-	doc.Controller = options.Controllers
+	doc.Controller = controllers
 
 	var verificationMethod *did.VerificationMethod
-	if options.SelfControl {
+	if selfControl {
 		// Add VerificationMethod using generated key
 		verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
 		if err != nil {
 			return nil, nil, err
 		}
-		if len(options.Controllers) > 0 {
+		if len(controllers) > 0 {
 			// also set as controller
 			doc.Controller = append(doc.Controller, didID)
 		}
@@ -220,7 +267,7 @@ func (n Creator) create(ctx context.Context, options management.DIDCreationOptio
 		}
 	}
 
-	applyKeyUsage(&doc, verificationMethod, options.KeyFlags)
+	applyKeyUsage(&doc, verificationMethod, flags)
 	return &doc, key, nil
 }
 

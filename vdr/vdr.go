@@ -270,15 +270,15 @@ func (r *Module) Diagnostics() []core.DiagnosticResult {
 }
 
 // Create generates a new DID Document
-func (r *Module) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (r *Module) Create(ctx context.Context, options management.CreationOptions) (*did.Document, crypto.Key, error) {
 	log.Logger().Debug("Creating new DID Document.")
-	manager := r.documentManagers[options.Method]
+	manager := r.documentManagers[options.Method()]
 	if manager == nil {
-		return nil, nil, fmt.Errorf("unsupported method: %s", options.Method)
+		return nil, nil, fmt.Errorf("unsupported method: %s", options.Method())
 	}
 	doc, key, err := manager.Create(ctx, options)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not create DID document (method %s): %w", options.Method, err)
+		return nil, nil, fmt.Errorf("could not create DID document (method %s): %w", options.Method(), err)
 	}
 	log.Logger().
 		WithField(core.LogFieldDID, doc.ID).

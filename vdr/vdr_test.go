@@ -296,12 +296,11 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			require.NoError(t, err)
 			didDocOrg.AddCapabilityInvocation(orgVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocOrg, keyOrg, nil)
-			didDocOrg, keyOrg, err = test.vdr.Create(test.ctx, management.DIDCreationOptions{
-				Controllers: []did.DID{didDocVendor.ID},
-				KeyFlags:    management.AssertionMethodUsage | management.KeyAgreementUsage,
-				SelfControl: false,
-				Method:      didnuts.MethodName,
-			})
+			didDocOrg, keyOrg, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions().
+				With(didnuts.KeyFlag(management.AssertionMethodUsage|management.KeyAgreementUsage)).
+				With(didnuts.Controllers(didDocVendor.ID)).
+				With(didnuts.SelfControl(false)),
+			)
 			require.NoError(t, err)
 
 			client := crypto.NewMemoryCryptoInstance()

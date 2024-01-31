@@ -20,6 +20,7 @@ package management
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -53,4 +54,13 @@ func TestKeyUsage_Is(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestCreationOptions_With(t *testing.T) {
+	// make sure With() returns a mutated copy
+	o := defaultDIDCreationOptions{}
+	result := o.With("test")
+	require.NotNil(t, result)
+	assert.Contains(t, result.All(), "test")
+	assert.NotContains(t, o.All(), "test")
 }
