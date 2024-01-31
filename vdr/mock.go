@@ -61,7 +61,7 @@ func (mr *MockVDRMockRecorder) ConflictedDocuments() *gomock.Call {
 }
 
 // Create mocks base method.
-func (m *MockVDR) Create(ctx context.Context, options management.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (m *MockVDR) Create(ctx context.Context, options management.CreationOptions) (*did.Document, crypto.Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, options)
 	ret0, _ := ret[0].(*did.Document)

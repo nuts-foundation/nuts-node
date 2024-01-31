@@ -90,7 +90,7 @@ func (a *Wrapper) AddNewVerificationMethod(ctx context.Context, request AddNewVe
 		opts = &VerificationMethodRelationship{}
 	}
 
-	vm, err := a.DocManipulator.AddVerificationMethod(ctx, *d, opts.ToFlags(didnuts.DefaultCreationOptions().KeyFlags))
+	vm, err := a.DocManipulator.AddVerificationMethod(ctx, *d, opts.ToFlags(didnuts.DefaultKeyFlags()))
 	if err != nil {
 		return nil, err
 	}
@@ -117,17 +117,23 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
 	options := didnuts.DefaultCreationOptions()
 	if request.Body.Controllers != nil {
+		var controllers []did.DID
 		for _, c := range *request.Body.Controllers {
 			id, err := did.ParseDID(c)
 			if err != nil {
 				return nil, core.InvalidInputError("controller entry (%s) could not be parsed: %w", c, err)
 			}
-			options.Controllers = append(options.Controllers, *id)
+			controllers = append(controllers, *id)
 		}
+		options = options.With(didnuts.Controllers(controllers...))
 	}
-	options.KeyFlags = request.Body.VerificationMethodRelationship.ToFlags(options.KeyFlags)
+	defaultKeyFlags := didnuts.DefaultKeyFlags()
+	keyFlags := request.Body.VerificationMethodRelationship.ToFlags(defaultKeyFlags)
+	if keyFlags != defaultKeyFlags {
+		options = options.With(keyFlags)
+	}
 	if request.Body.SelfControl != nil {
-		options.SelfControl = *request.Body.SelfControl
+		options = options.With(didnuts.SelfControl(*request.Body.SelfControl))
 	}
 
 	doc, _, err := a.VDR.Create(ctx, options)

@@ -1313,7 +1313,7 @@ type ServerInterface interface {
 	// Searches for presentations registered on the Discovery Service.
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
-	// Client API to unregister the given DID from the Discovery Service.
+	// Client API to deactivate the given DID from the Discovery Service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{did})
 	DeactivateServiceForDID(ctx echo.Context, serviceID string, did string) error
 	// Retrieves the activation status a DID on a Discovery Service.
@@ -1894,7 +1894,7 @@ type StrictServerInterface interface {
 	// Searches for presentations registered on the Discovery Service.
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
-	// Client API to unregister the given DID from the Discovery Service.
+	// Client API to deactivate the given DID from the Discovery Service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{did})
 	DeactivateServiceForDID(ctx context.Context, request DeactivateServiceForDIDRequestObject) (DeactivateServiceForDIDResponseObject, error)
 	// Retrieves the activation status a DID on a Discovery Service.

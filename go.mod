@@ -13,7 +13,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/goodsign/monday v1.0.2
 	github.com/google/uuid v1.6.0
-	github.com/hashicorp/vault/api v1.10.0
+	github.com/hashicorp/vault/api v1.11.0
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/knadh/koanf v1.5.0
 	github.com/labstack/echo/v4 v4.11.4
@@ -51,7 +51,7 @@ require (
 	google.golang.org/protobuf v1.32.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
-	schneider.vip/problem v1.9.0
+	schneider.vip/problem v1.9.1
 )
 
 require (
@@ -171,7 +171,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231106174013-bbf56f31fb17 // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
 	gorm.io/driver/sqlite v1.5.4
-	gorm.io/gorm v1.25.5
+	gorm.io/gorm v1.25.6
 	rsc.io/qr v0.2.0 // indirect
 )
 

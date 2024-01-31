@@ -34,7 +34,7 @@ func TestManager_Create(t *testing.T) {
 	manager := NewManager(creator, owner)
 	creator.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
 
-	_, _, err := manager.Create(nil, management.DIDCreationOptions{})
+	_, _, err := manager.Create(nil, DefaultCreationOptions())
 
 	assert.NoError(t, err)
 }

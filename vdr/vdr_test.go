@@ -296,12 +296,11 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			require.NoError(t, err)
 			didDocOrg.AddCapabilityInvocation(orgVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocOrg, keyOrg, nil)
-			didDocOrg, keyOrg, err = test.vdr.Create(test.ctx, management.DIDCreationOptions{
-				Controllers: []did.DID{didDocVendor.ID},
-				KeyFlags:    management.AssertionMethodUsage | management.KeyAgreementUsage,
-				SelfControl: false,
-				Method:      didnuts.MethodName,
-			})
+			didDocOrg, keyOrg, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions().
+				With(didnuts.KeyFlag(management.AssertionMethodUsage|management.KeyAgreementUsage)).
+				With(didnuts.Controllers(didDocVendor.ID)).
+				With(didnuts.SelfControl(false)),
+			)
 			require.NoError(t, err)
 
 			client := crypto.NewMemoryCryptoInstance()
@@ -495,6 +494,19 @@ func TestVDR_Configure(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, doc)
 		assert.NotNil(t, md)
+	})
+}
+
+func TestModule_ListOwned(t *testing.T) {
+	t.Run("empty slice when no DIDs", func(t *testing.T) {
+		test := newVDRTestCtx(t)
+		test.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return(nil, nil)
+
+		docs, err := test.vdr.ListOwned(context.Background())
+
+		require.NoError(t, err)
+		assert.Empty(t, docs)
+		assert.NotNil(t, docs)
 	})
 }
 

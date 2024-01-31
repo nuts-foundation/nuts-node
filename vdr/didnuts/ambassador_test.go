@@ -29,7 +29,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"
@@ -389,7 +388,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx := newMockContext(t)
 
 		controllerDoc, signingKey, _ := newDidDoc()
-		didDocument, _, _ := newDidDocWithOptions(management.DIDCreationOptions{Controllers: []did.DID{controllerDoc.ID}})
+		didDocument, _, _ := newDidDocWithOptions(false, controllerDoc.ID)
 
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
@@ -795,10 +794,10 @@ func Test_uniqueTransactions(t *testing.T) {
 	})
 }
 
-func newDidDocWithOptions(opts management.DIDCreationOptions) (did.Document, jwk.Key, error) {
+func newDidDocWithOptions(selfControl bool, controllers ...did.DID) (did.Document, jwk.Key, error) {
 	kc := &mockKeyCreator{}
 	docCreator := Creator{KeyStore: kc}
-	didDocument, key, err := docCreator.create(audit.TestContext(), opts)
+	didDocument, key, err := docCreator.create(audit.TestContext(), DefaultKeyFlags(), selfControl, controllers)
 	signingKey, _ := jwk.FromRaw(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)
 	didDocument.ID = did.MustParseDID(fmt.Sprintf("did:nuts:%s", thumbStr))
@@ -818,7 +817,7 @@ func newDidDocWithOptions(opts management.DIDCreationOptions) (did.Document, jwk
 }
 
 func newDidDoc() (did.Document, jwk.Key, error) {
-	return newDidDocWithOptions(DefaultCreationOptions())
+	return newDidDocWithOptions(true)
 }
 
 type mockContext struct {

@@ -67,11 +67,10 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 	}))
 }
 
-func (w Wrapper) CreateDID(ctx context.Context, _ CreateDIDRequestObject) (CreateDIDResponseObject, error) {
-	options := management.DIDCreationOptions{
-		Method:      didweb.MethodName,
-		KeyFlags:    management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage,
-		SelfControl: true,
+func (w Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
+	options := management.Create(didweb.MethodName)
+	if request.Body.Id != nil && *request.Body.Id != "" {
+		options = options.With(didweb.UserPath(*request.Body.Id))
 	}
 
 	doc, _, err := w.VDR.Create(ctx, options)
@@ -88,9 +87,19 @@ func (w Wrapper) DeleteDID(ctx context.Context, request DeleteDIDRequestObject) 
 	panic("implement me")
 }
 
-func (w Wrapper) ResolveDID(ctx context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error) {
-	//TODO implement me
-	panic("implement me")
+func (w Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error) {
+	targetDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	didDocument, metadata, err := w.VDR.Resolve(*targetDID, nil)
+	if err != nil {
+		return nil, err
+	}
+	return ResolveDID200JSONResponse{
+		Document:         *didDocument,
+		DocumentMetadata: *metadata,
+	}, nil
 }
 
 func (a *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDIDsResponseObject, error) {

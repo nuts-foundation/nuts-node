@@ -50,7 +50,7 @@ type DocCreator interface {
 	// The ID in the provided DID document will be ignored and a new one will be generated.
 	// If something goes wrong an error is returned.
 	// Implementors should generate private key and store it in a secure backend
-	Create(ctx context.Context, options DIDCreationOptions) (*did.Document, crypto.Key, error)
+	Create(ctx context.Context, options CreationOptions) (*did.Document, crypto.Key, error)
 }
 
 // DocUpdater is the interface that defines functions that alter the state of a DID document
@@ -100,21 +100,44 @@ type DocManipulator interface {
 	DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error
 }
 
-// DIDCreationOptions defines options for creating a DID Document.
-type DIDCreationOptions struct {
-	// Method specifies the DID method the new DID should use
-	Method string
+// Create returns empty CreationOptions with the given method set.
+func Create(method string) CreationOptions {
+	return defaultDIDCreationOptions{
+		method: method,
+	}
+}
 
-	// Controllers lists the DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
-	// the newly generated DID will be added to the list of controllers.
-	Controllers []did.DID
+// CreationOptions defines options for creating a DID Document.
+type CreationOptions interface {
+	// Method returns the DID method name.
+	Method() string
+	// With adds an option to the CreationOptions.
+	// It returns a new CreationOptions instance.
+	// If the same option is specified multiple times, the last instance will be used.
+	With(option CreationOption) CreationOptions
+	// All returns all the options.
+	All() []CreationOption
+}
 
-	// KeyFlags specifies for what purposes the generated key can be used
-	KeyFlags DIDKeyFlags
+type defaultDIDCreationOptions struct {
+	method string
+	opts   []CreationOption
+}
 
-	// SelfControl indicates whether the generated DID Document can be altered with its own capabilityInvocation key.
-	// Defaults to true when not given.
-	SelfControl bool
+func (d defaultDIDCreationOptions) All() []CreationOption {
+	return append([]CreationOption{}, d.opts...)
+}
+
+func (d defaultDIDCreationOptions) With(opt CreationOption) CreationOptions {
+	d.opts = append(d.opts, opt)
+	return &d
+}
+
+func (d defaultDIDCreationOptions) Method() string {
+	return d.method
+}
+
+type CreationOption interface {
 }
 
 // DIDKeyFlags is a bitmask used for specifying for what purposes a key in a DID document can be used (a.k.a. Verification Method relationships).

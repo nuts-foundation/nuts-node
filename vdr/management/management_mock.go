@@ -44,7 +44,7 @@ func (m *MockDocumentManager) EXPECT() *MockDocumentManagerMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockDocumentManager) Create(ctx context.Context, options DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (m *MockDocumentManager) Create(ctx context.Context, options CreationOptions) (*did.Document, crypto.Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, options)
 	ret0, _ := ret[0].(*did.Document)
@@ -173,7 +173,7 @@ func (m *MockDocCreator) EXPECT() *MockDocCreatorMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockDocCreator) Create(ctx context.Context, options DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (m *MockDocCreator) Create(ctx context.Context, options CreationOptions) (*did.Document, crypto.Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, options)
 	ret0, _ := ret[0].(*did.Document)

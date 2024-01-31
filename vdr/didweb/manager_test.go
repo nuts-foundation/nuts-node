@@ -29,7 +29,6 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -110,6 +109,30 @@ func TestManager_Create(t *testing.T) {
 		actual, _ := json.Marshal(document)
 		assert.JSONEq(t, expected, string(actual))
 	})
+	t.Run("with UserPart option", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
+			PublicKey: publicKey,
+		}, nil)
+		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+
+		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(UserPath("test")))
+		require.NoError(t, err)
+		require.NotNil(t, document)
+		require.NotNil(t, key)
+		assert.True(t, strings.HasSuffix(document.ID.String(), ":test"))
+	})
+	t.Run("with unknown option", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(""))
+		require.EqualError(t, err, "unknown option: string")
+	})
 }
 
 func TestManager_IsOwner(t *testing.T) {
@@ -127,7 +150,7 @@ func TestManager_IsOwner(t *testing.T) {
 	t.Run("not owned (other DID)", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
-		_, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
 		owned, err := m.IsOwner(audit.TestContext(), subjectDID)
@@ -137,7 +160,7 @@ func TestManager_IsOwner(t *testing.T) {
 	t.Run("owned", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
-		document, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		document, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
 		owned, err := m.IsOwner(audit.TestContext(), document.ID)
@@ -161,7 +184,7 @@ func TestManager_ListOwned(t *testing.T) {
 	t.Run("single DID", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
-		document, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		document, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
 		dids, err := m.ListOwned(audit.TestContext())
@@ -171,9 +194,9 @@ func TestManager_ListOwned(t *testing.T) {
 	t.Run("multiple DIDs", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
-		document1, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		document1, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
-		document2, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		document2, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
 		dids, err := m.ListOwned(audit.TestContext())
@@ -197,7 +220,7 @@ func TestManager_Resolve(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
-		document, _, err := m.Create(audit.TestContext(), management.DIDCreationOptions{})
+		document, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 		expected, _ := document.MarshalJSON()
 
