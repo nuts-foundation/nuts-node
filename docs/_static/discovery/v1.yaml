@@ -277,12 +277,16 @@ components:
       type: object
       required:
         - id
+        - subject_id
         - vp
         - fields
       properties:
         id:
           type: string
           description: The ID of the Verifiable Presentation.
+        subject_id:
+          type: string
+          description: The ID of the Verifiable Credential subject (holder), typically a DID.
         vp:
           $ref: "#/components/schemas/VerifiablePresentation"
         fields:
