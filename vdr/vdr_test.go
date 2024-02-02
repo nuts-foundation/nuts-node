@@ -49,8 +49,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-const expectedPayloadType = "application/did+json"
-
 // testCtx contains the controller and mocks needed fot testing the Manipulator
 type vdrTestCtx struct {
 	ctrl                *gomock.Controller
@@ -507,6 +505,24 @@ func TestModule_ListOwned(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, docs)
 		assert.NotNil(t, docs)
+	})
+}
+
+func TestModule_Create(t *testing.T) {
+	t.Run("unsupported DID method", func(t *testing.T) {
+		test := newVDRTestCtx(t)
+
+		_, _, err := test.vdr.Create(context.Background(), management.Create("example"))
+
+		assert.EqualError(t, err, "unsupported DID method: example")
+	})
+	t.Run("manager returns error", func(t *testing.T) {
+		test := newVDRTestCtx(t)
+		test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, errors.New("test"))
+
+		_, _, err := test.vdr.Create(context.Background(), management.Create(didnuts.MethodName))
+
+		assert.EqualError(t, err, "could not create DID document (method nuts): test")
 	})
 }
 

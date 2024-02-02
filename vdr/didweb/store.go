@@ -21,23 +21,33 @@ package didweb
 import (
 	"encoding/json"
 	"errors"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
 
 type store interface {
-	create(did did.DID, methods ...did.VerificationMethod) error
-	get(did did.DID) ([]did.VerificationMethod, error)
+	create(subjectDID did.DID, methods ...did.VerificationMethod) error
+	get(subjectDID did.DID) ([]did.VerificationMethod, []did.Service, error)
 	list() ([]did.DID, error)
+	createService(subjectDID did.DID, service did.Service) error
+	updateService(subjectDID did.DID, id ssi.URI, service did.Service) error
+	deleteService(subjectDID did.DID, id ssi.URI) error
 }
+
+var errServiceNotFound = errors.Join(management.ErrInvalidService, errors.New("not found"))
+var errDuplicateService = errors.Join(management.ErrInvalidService, errors.New("service ID already exists"))
+var errServiceDIDNotFound = errors.Join(management.ErrInvalidService, errors.New("unknown DID"))
 
 var _ schema.Tabler = (*sqlDID)(nil)
 
 type sqlDID struct {
 	Did                 string                  `gorm:"primaryKey"`
 	VerificationMethods []sqlVerificationMethod `gorm:"foreignKey:Did;references:Did"`
+	Services            []sqlService            `gorm:"foreignKey:Did;references:Did"`
 }
 
 func (d sqlDID) TableName() string {
@@ -54,6 +64,18 @@ type sqlVerificationMethod struct {
 
 func (v sqlVerificationMethod) TableName() string {
 	return "vdr_didweb_verificationmethod"
+}
+
+var _ schema.Tabler = (*sqlService)(nil)
+
+type sqlService struct {
+	ID   string `gorm:"primaryKey"`
+	Did  string `gorm:"primaryKey"`
+	Data []byte
+}
+
+func (v sqlService) TableName() string {
+	return "vdr_didweb_service"
 }
 
 var _ store = (*sqlStore)(nil)
@@ -75,32 +97,44 @@ func (s *sqlStore) create(did did.DID, methods ...did.VerificationMethod) error 
 	return s.db.Create(record).Error
 }
 
-func (s *sqlStore) get(id did.DID) ([]did.VerificationMethod, error) {
+func (s *sqlStore) get(id did.DID) ([]did.VerificationMethod, []did.Service, error) {
 	var record sqlDID
 	err := s.db.Model(&sqlDID{}).Where("did = ?", id.String()).
 		Preload("VerificationMethods").
+		Preload("Services").
 		First(&record).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, resolver.ErrNotFound
+		return nil, nil, resolver.ErrNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	var result []did.VerificationMethod
+
+	var verificationMethods []did.VerificationMethod
 	for _, curr := range record.VerificationMethods {
 		var method did.VerificationMethod
 		if err := json.Unmarshal(curr.Data, &method); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		result = append(result, method)
+		verificationMethods = append(verificationMethods, method)
 		vmID, err := did.ParseDIDURL(curr.ID)
 		if err != nil {
 			// weird
-			return nil, err
+			return nil, nil, err
 		}
 		method.ID = *vmID
 	}
-	return result, nil
+
+	var services []did.Service
+	for _, curr := range record.Services {
+		var service did.Service
+		if err := json.Unmarshal(curr.Data, &service); err != nil {
+			return nil, nil, err
+		}
+		services = append(services, service)
+	}
+
+	return verificationMethods, services, nil
 }
 
 // list returns all DIDs in the store.
@@ -119,4 +153,52 @@ func (s *sqlStore) list() ([]did.DID, error) {
 		result = append(result, *parsed)
 	}
 	return result, nil
+}
+
+// createService creates a new service in the DID document identified by subjectDID.
+// It does not validate the service.
+func (s *sqlStore) createService(subjectDID did.DID, service did.Service) error {
+	data, _ := json.Marshal(service)
+	record := &sqlService{
+		ID:   service.ID.String(),
+		Did:  subjectDID.String(),
+		Data: data,
+	}
+	err := s.db.Create(record).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return errDuplicateService
+	}
+	if errors.Is(err, gorm.ErrForeignKeyViolated) {
+		return errServiceDIDNotFound
+	}
+	return err
+}
+
+func (s *sqlStore) updateService(subjectDID did.DID, id ssi.URI, service did.Service) error {
+	data, _ := json.Marshal(service)
+	record := &sqlService{
+		ID:   service.ID.String(),
+		Did:  subjectDID.String(),
+		Data: data,
+	}
+	result := s.db.Model(&sqlService{}).Where("did = ? AND id = ?", subjectDID.String(), id.String()).Updates(record)
+	err := result.Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return errDuplicateService
+	}
+	if result.RowsAffected == 0 {
+		return errServiceNotFound
+	}
+	return nil
+}
+
+func (s *sqlStore) deleteService(subjectDID did.DID, id ssi.URI) error {
+	result := s.db.Model(&sqlService{}).Where("did = ? AND id = ?", subjectDID.String(), id.String()).Delete(&sqlService{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errServiceNotFound
+	}
+	return nil
 }

@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	resolver "github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -56,6 +57,35 @@ func (m *MockDocumentManager) Create(ctx context.Context, options CreationOption
 func (mr *MockDocumentManagerMockRecorder) Create(ctx, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockDocumentManager)(nil).Create), ctx, options)
+}
+
+// CreateService mocks base method.
+func (m *MockDocumentManager) CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateService", ctx, subjectDID, service)
+	ret0, _ := ret[0].(*did.Service)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateService indicates an expected call of CreateService.
+func (mr *MockDocumentManagerMockRecorder) CreateService(ctx, subjectDID, service any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateService", reflect.TypeOf((*MockDocumentManager)(nil).CreateService), ctx, subjectDID, service)
+}
+
+// DeleteService mocks base method.
+func (m *MockDocumentManager) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteService", ctx, subjectDID, serviceID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteService indicates an expected call of DeleteService.
+func (mr *MockDocumentManagerMockRecorder) DeleteService(ctx, subjectDID, serviceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockDocumentManager)(nil).DeleteService), ctx, subjectDID, serviceID)
 }
 
 // IsOwner mocks base method.
@@ -102,6 +132,21 @@ func (m *MockDocumentManager) Resolve(id did.DID, metadata *resolver.ResolveMeta
 func (mr *MockDocumentManagerMockRecorder) Resolve(id, metadata any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockDocumentManager)(nil).Resolve), id, metadata)
+}
+
+// UpdateService mocks base method.
+func (m *MockDocumentManager) UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateService", ctx, subjectDID, serviceID, service)
+	ret0, _ := ret[0].(*did.Service)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateService indicates an expected call of UpdateService.
+func (mr *MockDocumentManagerMockRecorder) UpdateService(ctx, subjectDID, serviceID, service any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateService", reflect.TypeOf((*MockDocumentManager)(nil).UpdateService), ctx, subjectDID, serviceID, service)
 }
 
 // MockDocCreator is a mock of DocCreator interface.
@@ -218,6 +263,21 @@ func (mr *MockDocManipulatorMockRecorder) AddVerificationMethod(ctx, id, keyUsag
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).AddVerificationMethod), ctx, id, keyUsage)
 }
 
+// CreateService mocks base method.
+func (m *MockDocManipulator) CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateService", ctx, subjectDID, service)
+	ret0, _ := ret[0].(*did.Service)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateService indicates an expected call of CreateService.
+func (mr *MockDocManipulatorMockRecorder) CreateService(ctx, subjectDID, service any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateService", reflect.TypeOf((*MockDocManipulator)(nil).CreateService), ctx, subjectDID, service)
+}
+
 // Deactivate mocks base method.
 func (m *MockDocManipulator) Deactivate(ctx context.Context, id did.DID) error {
 	m.ctrl.T.Helper()
@@ -232,6 +292,20 @@ func (mr *MockDocManipulatorMockRecorder) Deactivate(ctx, id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocManipulator)(nil).Deactivate), ctx, id)
 }
 
+// DeleteService mocks base method.
+func (m *MockDocManipulator) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteService", ctx, subjectDID, serviceID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteService indicates an expected call of DeleteService.
+func (mr *MockDocManipulatorMockRecorder) DeleteService(ctx, subjectDID, serviceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockDocManipulator)(nil).DeleteService), ctx, subjectDID, serviceID)
+}
+
 // RemoveVerificationMethod mocks base method.
 func (m *MockDocManipulator) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID did.DIDURL) error {
 	m.ctrl.T.Helper()
@@ -244,6 +318,21 @@ func (m *MockDocManipulator) RemoveVerificationMethod(ctx context.Context, id di
 func (mr *MockDocManipulatorMockRecorder) RemoveVerificationMethod(ctx, id, keyID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).RemoveVerificationMethod), ctx, id, keyID)
+}
+
+// UpdateService mocks base method.
+func (m *MockDocManipulator) UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateService", ctx, subjectDID, serviceID, service)
+	ret0, _ := ret[0].(*did.Service)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateService indicates an expected call of UpdateService.
+func (mr *MockDocManipulatorMockRecorder) UpdateService(ctx, subjectDID, serviceID, service any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateService", reflect.TypeOf((*MockDocManipulator)(nil).UpdateService), ctx, subjectDID, serviceID, service)
 }
 
 // MockDocumentOwner is a mock of DocumentOwner interface.

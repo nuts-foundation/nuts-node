@@ -27,13 +27,24 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 	"testing"
 )
 
-var testDID = did.MustParseDID("did:web:example.com")
+var (
+	testDID            = did.MustParseDID("did:web:example.com")
+	testServiceID      = ssi.MustParseURI("did:web:example.com#api")
+	testServiceType    = "API"
+	testServiceEnpoint = "https://example.com/api"
+	testService        = did.Service{
+		ID:              testServiceID,
+		Type:            testServiceType,
+		ServiceEndpoint: testServiceEnpoint,
+	}
+)
 
 func Test_sqlStore_create(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
@@ -49,7 +60,7 @@ func Test_sqlStore_create(t *testing.T) {
 		err := store.create(testDID, vm1, vm2)
 		require.NoError(t, err)
 
-		verificationMethods, err := store.get(testDID)
+		verificationMethods, _, err := store.get(testDID)
 		require.NoError(t, err)
 		require.Len(t, verificationMethods, 2)
 	})
@@ -59,7 +70,7 @@ func Test_sqlStore_create(t *testing.T) {
 		err := store.create(testDID, vm1)
 		require.NoError(t, err)
 
-		verificationMethods, err := store.get(testDID)
+		verificationMethods, _, err := store.get(testDID)
 		require.NoError(t, err)
 		require.Len(t, verificationMethods, 1)
 		require.JSONEq(t, toJSON(vm1), toJSON(verificationMethods[0]))
@@ -70,7 +81,7 @@ func Test_sqlStore_create(t *testing.T) {
 		err := store.create(testDID)
 		require.NoError(t, err)
 
-		verificationMethods, err := store.get(testDID)
+		verificationMethods, _, err := store.get(testDID)
 		require.NoError(t, err)
 		require.Len(t, verificationMethods, 0)
 	})
@@ -85,9 +96,120 @@ func Test_sqlStore_get(t *testing.T) {
 	t.Run("DID does not exist", func(t *testing.T) {
 		resetStore(t, store.db)
 
-		vms, err := store.get(testDID)
+		vms, services, err := store.get(testDID)
 		require.ErrorIs(t, err, resolver.ErrNotFound)
 		require.Nil(t, vms, 0)
+		require.Nil(t, services, 0)
+	})
+}
+
+func Test_sqlStore_createService(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+
+	store := &sqlStore{db: storageEngine.GetSQLDatabase()}
+
+	t.Run("service does not exist", func(t *testing.T) {
+		resetStore(t, store.db)
+		_ = store.create(testDID)
+
+		err := store.createService(testDID, testService)
+		require.NoError(t, err)
+
+		_, services, err := store.get(testDID)
+		require.NoError(t, err)
+		require.Len(t, services, 1)
+		require.JSONEq(t, toJSON(testService), toJSON(services[0]))
+	})
+	t.Run("service already exists", func(t *testing.T) {
+		resetStore(t, store.db)
+		_ = store.create(testDID)
+
+		err := store.createService(testDID, testService)
+		require.NoError(t, err)
+
+		err = store.createService(testDID, testService)
+
+		require.ErrorIs(t, err, errDuplicateService)
+		require.ErrorIs(t, err, management.ErrInvalidService)
+	})
+	t.Run("DID does not exist", func(t *testing.T) {
+		resetStore(t, store.db)
+
+		err := store.createService(testDID, testService)
+
+		require.ErrorIs(t, err, errServiceDIDNotFound)
+		require.ErrorIs(t, err, management.ErrInvalidService)
+	})
+}
+
+func Test_sqlStore_updateService(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+
+	store := &sqlStore{db: storageEngine.GetSQLDatabase()}
+
+	t.Run("service does not exist", func(t *testing.T) {
+		resetStore(t, store.db)
+		_ = store.create(testDID)
+
+		err := store.updateService(testDID, testService.ID, testService)
+
+		require.ErrorIs(t, err, errServiceNotFound)
+		require.ErrorIs(t, err, management.ErrInvalidService)
+	})
+	t.Run("ok", func(t *testing.T) {
+		resetStore(t, store.db)
+		_ = store.create(testDID)
+		_ = store.createService(testDID, testService)
+
+		updatedService := testService
+		updatedService.ServiceEndpoint = "https://example.com/api/v2"
+		err := store.updateService(testDID, updatedService.ID, updatedService)
+		require.NoError(t, err)
+
+		_, services, err := store.get(testDID)
+		require.NoError(t, err)
+		require.Len(t, services, 1)
+		require.JSONEq(t, toJSON(updatedService), toJSON(services[0]))
+	})
+	t.Run("duplicate", func(t *testing.T) {
+		resetStore(t, store.db)
+		_ = store.create(testDID)
+		_ = store.createService(testDID, testService)
+		err := store.createService(testDID, testService)
+
+		require.ErrorIs(t, err, errDuplicateService)
+		require.ErrorIs(t, err, management.ErrInvalidService)
+
+	})
+}
+
+func Test_sqlStore_deleteService(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	store := &sqlStore{db: storageEngine.GetSQLDatabase()}
+
+	t.Run("service does not exist", func(t *testing.T) {
+		resetStore(t, store.db)
+		_ = store.create(testDID)
+
+		err := store.deleteService(testDID, testService.ID)
+
+		require.ErrorIs(t, err, errServiceNotFound)
+		require.ErrorIs(t, err, management.ErrInvalidService)
+	})
+	t.Run("ok", func(t *testing.T) {
+		resetStore(t, store.db)
+		_ = store.create(testDID)
+		_ = store.createService(testDID, testService)
+
+		err := store.deleteService(testDID, testService.ID)
+		require.NoError(t, err)
+
+		_, services, err := store.get(testDID)
+		require.NoError(t, err)
+		require.Len(t, services, 0)
 	})
 }
 

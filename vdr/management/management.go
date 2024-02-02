@@ -20,16 +20,35 @@ package management
 
 import (
 	"context"
+	"errors"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
+
+// ErrInvalidService is returned when a service is invalid, e.g. invalid field values, duplicate ID, not found, etc.
+var ErrInvalidService = errors.New("invalid DID document service")
+
+// ErrUnsupportedDIDMethod is returned when a DID method is not supported.
+var ErrUnsupportedDIDMethod = errors.New("unsupported DID method")
 
 // DocumentManager is the interface that groups several higher level methods to create and update DID documents.
 type DocumentManager interface {
 	DocCreator
 	DocumentOwner
 	resolver.DIDResolver
+
+	// CreateService creates a new service in the DID document identified by subjectDID.
+	// If the service DID is not provided, it will be generated.
+	CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error)
+
+	// UpdateService updates a service in the DID document identified by subjectDID.
+	UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error)
+
+	// DeleteService deletes a service in the DID document identified by subjectDID.
+	// It returns an error if the DID or service isn't found.
+	DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error
 }
 
 // DocCreator is the interface that wraps the Create method
@@ -75,6 +94,17 @@ type DocManipulator interface {
 	// It returns an ErrDeactivated when the DID document has the deactivated state.
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
 	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
+
+	// CreateService creates a new service in the DID document identified by subjectDID.
+	// If the service DID is not provided, it will be generated.
+	CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error)
+
+	// UpdateService updates a service in the DID document identified by subjectDID.
+	UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error)
+
+	// DeleteService deletes a service in the DID document identified by subjectDID.
+	// It returns an error if the DID or service isn't found.
+	DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error
 }
 
 // Create returns empty CreationOptions with the given method set.

@@ -21,6 +21,7 @@ package didnuts
 import (
 	"context"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
@@ -77,4 +78,16 @@ func (m Manager) ListOwned(ctx context.Context) ([]did.DID, error) {
 
 func (m Manager) Resolve(_ did.DID, _ *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
 	return nil, nil, fmt.Errorf("Resolve() is not supported for did:%s", MethodName)
+}
+
+func (m Manager) CreateService(_ context.Context, _ did.DID, _ did.Service) (*did.Service, error) {
+	return nil, fmt.Errorf("CreateService() is not supported for did:%s", MethodName)
+}
+
+func (m Manager) UpdateService(_ context.Context, _ did.DID, _ ssi.URI, _ did.Service) (*did.Service, error) {
+	return nil, fmt.Errorf("UpdateService() is not supported for did:%s", MethodName)
+}
+
+func (m Manager) DeleteService(_ context.Context, _ did.DID, _ ssi.URI) error {
+	return fmt.Errorf("DeleteService() is not supported for did:%s", MethodName)
 }

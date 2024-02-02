@@ -22,6 +22,7 @@ package v2
 import (
 	"context"
 	"github.com/labstack/echo/v4"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -41,22 +42,23 @@ type Wrapper struct {
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
-func (a *Wrapper) ResolveStatusCode(err error) int {
+func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		resolver.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusForbidden,
-		resolver.ErrDuplicateService:        http.StatusBadRequest,
 		did.ErrInvalidDID:                   http.StatusBadRequest,
+		management.ErrInvalidService:        http.StatusBadRequest,
+		management.ErrUnsupportedDIDMethod:  http.StatusBadRequest,
 	})
 }
 
-func (a *Wrapper) Routes(router core.EchoRouter) {
-	RegisterHandlers(router, NewStrictHandler(a, []StrictMiddlewareFunc{
+func (w *Wrapper) Routes(router core.EchoRouter) {
+	RegisterHandlers(router, NewStrictHandler(w, []StrictMiddlewareFunc{
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
 				ctx.Set(core.OperationIDContextKey, operationID)
 				ctx.Set(core.ModuleNameContextKey, vdr.ModuleName)
-				ctx.Set(core.StatusCodeResolverContextKey, a)
+				ctx.Set(core.StatusCodeResolverContextKey, w)
 				return f(ctx, request)
 			}
 		},
@@ -113,19 +115,48 @@ func (a *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDI
 	return ListDIDs200JSONResponse(result), nil
 }
 
-func (w Wrapper) AddService(ctx context.Context, request AddServiceRequestObject) (AddServiceResponseObject, error) {
-	//TODO implement me
-	panic("implement me")
+func (w Wrapper) CreateService(ctx context.Context, request CreateServiceRequestObject) (CreateServiceResponseObject, error) {
+	targetDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	createdService, err := w.VDR.CreateService(ctx, *targetDID, *request.Body)
+	if err != nil {
+		return nil, err
+	}
+	return CreateService200JSONResponse(*createdService), nil
 }
 
 func (w Wrapper) DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error) {
-	//TODO implement me
-	panic("implement me")
+	targetDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	serviceID, err := ssi.ParseURI(request.ServiceId)
+	if err != nil {
+		return nil, err
+	}
+	err = w.VDR.DeleteService(ctx, *targetDID, *serviceID)
+	if err != nil {
+		return nil, err
+	}
+	return DeleteService204Response{}, nil
 }
 
 func (w Wrapper) UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error) {
-	//TODO implement me
-	panic("implement me")
+	targetDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	serviceID, err := ssi.ParseURI(request.ServiceId)
+	if err != nil {
+		return nil, err
+	}
+	newService, err := w.VDR.UpdateService(ctx, *targetDID, *serviceID, *request.Body)
+	if err != nil {
+		return nil, err
+	}
+	return UpdateService200JSONResponse(*newService), nil
 }
 
 func (w Wrapper) AddVerificationMethod(ctx context.Context, request AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error) {

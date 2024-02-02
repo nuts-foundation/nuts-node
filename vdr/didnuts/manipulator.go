@@ -19,12 +19,15 @@ package didnuts
 
 import (
 	"context"
+	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
+
+var _ management.DocManipulator = (*Manipulator)(nil)
 
 // Manipulator contains helper methods to update a Nuts DID document.
 type Manipulator struct {
@@ -107,4 +110,16 @@ func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreat
 		return nil, err
 	}
 	return method, nil
+}
+
+func (u Manipulator) CreateService(_ context.Context, _ did.DID, _ did.Service) (*did.Service, error) {
+	return nil, fmt.Errorf("CreateService() is not supported for did:%s", MethodName)
+}
+
+func (u Manipulator) UpdateService(_ context.Context, _ did.DID, _ ssi.URI, _ did.Service) (*did.Service, error) {
+	return nil, fmt.Errorf("UpdateService() is not supported for did:%s", MethodName)
+}
+
+func (u Manipulator) DeleteService(_ context.Context, _ did.DID, _ ssi.URI) error {
+	return fmt.Errorf("DeleteService() is not supported for did:%s", MethodName)
 }
