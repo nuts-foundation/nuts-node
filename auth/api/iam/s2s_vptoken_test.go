@@ -163,7 +163,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("missing presentation expiry date", func(t *testing.T) {
 		ctx := newTestClient(t)
-		presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+		presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 			require.NoError(t, token.Remove(jwt.ExpirationKey))
 		}, verifiableCredential)
 
@@ -173,7 +173,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("missing presentation not before date", func(t *testing.T) {
 		ctx := newTestClient(t)
-		presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+		presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 			require.NoError(t, token.Remove(jwt.NotBeforeKey))
 		}, verifiableCredential)
 
@@ -183,7 +183,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("missing presentation valid for too long", func(t *testing.T) {
 		ctx := newTestClient(t)
-		presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+		presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 			require.NoError(t, token.Set(jwt.ExpirationKey, time.Now().Add(time.Hour)))
 		}, verifiableCredential)
 
@@ -193,7 +193,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("JWT VP", func(t *testing.T) {
 		ctx := newTestClient(t)
-		presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+		presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 			require.NoError(t, token.Set(jwt.AudienceKey, issuerDID.String()))
 		}, verifiableCredential)
 		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
@@ -269,7 +269,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		t.Run("JWT VP is missing nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
-			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerDID.String())
 				_ = token.Remove("nonce")
 			}, verifiableCredential)
@@ -281,7 +281,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		t.Run("JWT VP has empty nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
-			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerDID.String())
 				_ = token.Set("nonce", "")
 			}, verifiableCredential)
@@ -293,7 +293,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		t.Run("JWT VP nonce is not a string", func(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
-			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerDID.String())
 				_ = token.Set("nonce", true)
 			}, verifiableCredential)
@@ -306,7 +306,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("audience", func(t *testing.T) {
 		t.Run("missing", func(t *testing.T) {
 			ctx := newTestClient(t)
-			presentation := test.CreateJWTPresentation(t, *subjectDID, nil, verifiableCredential)
+			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, nil, verifiableCredential)
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
@@ -315,7 +315,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("not matching", func(t *testing.T) {
 			ctx := newTestClient(t)
-			presentation := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				require.NoError(t, token.Set(jwt.AudienceKey, "did:example:other"))
 			}, verifiableCredential)
 

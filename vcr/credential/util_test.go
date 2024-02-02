@@ -182,7 +182,7 @@ func TestPresentationIssuanceDate(t *testing.T) {
 	presenterDID := did.MustParseDID("did:test:123")
 	expected := time.Now().In(time.UTC).Truncate(time.Second)
 	t.Run("JWT iat", func(t *testing.T) {
-		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+		presentation, _ := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
 			_ = token.Remove(jwt.NotBeforeKey)
 			require.NoError(t, token.Set(jwt.IssuedAtKey, expected))
 		})
@@ -190,7 +190,7 @@ func TestPresentationIssuanceDate(t *testing.T) {
 		assert.Equal(t, expected, *actual)
 	})
 	t.Run("JWT nbf", func(t *testing.T) {
-		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+		presentation, _ := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
 			_ = token.Remove(jwt.IssuedAtKey)
 			require.NoError(t, token.Set(jwt.NotBeforeKey, expected))
 		})
@@ -198,7 +198,7 @@ func TestPresentationIssuanceDate(t *testing.T) {
 		assert.Equal(t, expected, *actual)
 	})
 	t.Run("JWT nbf takes precedence over iat", func(t *testing.T) {
-		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+		presentation, _ := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
 			require.NoError(t, token.Set(jwt.IssuedAtKey, expected.Add(time.Hour)))
 			require.NoError(t, token.Set(jwt.NotBeforeKey, expected))
 		})
@@ -206,7 +206,7 @@ func TestPresentationIssuanceDate(t *testing.T) {
 		assert.Equal(t, expected, *actual)
 	})
 	t.Run("JWT no iat or nbf", func(t *testing.T) {
-		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+		presentation, _ := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
 			_ = token.Remove(jwt.IssuedAtKey)
 			_ = token.Remove(jwt.NotBeforeKey)
 		})
@@ -246,14 +246,14 @@ func TestPresentationExpirationDate(t *testing.T) {
 	presenterDID := did.MustParseDID("did:test:123")
 	expected := time.Now().In(time.UTC).Truncate(time.Second)
 	t.Run("JWT", func(t *testing.T) {
-		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+		presentation, _ := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
 			require.NoError(t, token.Set(jwt.ExpirationKey, expected))
 		})
 		actual := PresentationExpirationDate(presentation)
 		assert.Equal(t, expected, *actual)
 	})
 	t.Run("JWT no exp", func(t *testing.T) {
-		presentation := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
+		presentation, _ := test.CreateJWTPresentation(t, presenterDID, func(token jwt.Token) {
 			_ = token.Remove(jwt.ExpirationKey)
 		})
 		actual := PresentationExpirationDate(presentation)

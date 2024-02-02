@@ -252,7 +252,7 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, presentation vc.VerifiablePres
 	// custom requirement: credentials may only be presented by subject
 	if subjectDID, err := credential.PresenterIsCredentialSubject(presentation); err != nil {
 		return nil, newVerificationError("presenter is credential subject: %w", err)
-	} else if subjectDID == nil {
+	} else if subjectDID == nil && len(presentation.VerifiableCredential) > 0 {
 		return nil, newVerificationError("credential(s) must be presented by subject")
 	}
 
