@@ -28,6 +28,7 @@ import (
 	"go.uber.org/mock/gomock"
 	"os"
 	"path"
+	"strings"
 	"testing"
 )
 
@@ -137,12 +138,22 @@ func Test_engine_sqlDatabase(t *testing.T) {
 			_ = e.Shutdown()
 		})
 
+		// count .sql files in sql_migration directory
+		files, err := os.ReadDir("sql_migrations")
+		var sqlFiles []string
+		for _, curr := range files {
+			if strings.HasSuffix(curr.Name(), ".sql") {
+				sqlFiles = append(sqlFiles, curr.Name())
+			}
+		}
+		require.NoError(t, err)
+
 		underlyingDB, err := e.GetSQLDatabase().DB()
 		require.NoError(t, err)
 		row := underlyingDB.QueryRow("SELECT count(*) FROM schema_migrations")
 		require.NoError(t, row.Err())
 		var count int
 		assert.NoError(t, row.Scan(&count))
-		assert.Equal(t, 3, count)
+		assert.Equal(t, len(sqlFiles), count)
 	})
 }
