@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/http"
 	"net/url"
 )
@@ -109,15 +110,20 @@ func (w *Wrapper) SearchPresentations(ctx context.Context, request SearchPresent
 	if err != nil {
 		return nil, err
 	}
-	result := make([]SearchResult, 0)
+	results := make([]SearchResult, 0)
 	for _, searchResult := range searchResults {
-		result = append(result, SearchResult{
+		result := SearchResult{
 			Vp:     searchResult.Presentation,
 			Id:     searchResult.Presentation.ID.String(),
 			Fields: searchResult.Fields,
-		})
+		}
+		subjectDID, _ := credential.PresentationSigner(searchResult.Presentation)
+		if subjectDID != nil {
+			result.SubjectId = subjectDID.String()
+		}
+		results = append(results, result)
 	}
-	return SearchPresentations200JSONResponse(result), nil
+	return SearchPresentations200JSONResponse(results), nil
 }
 
 func (w *Wrapper) ActivateServiceForDID(ctx context.Context, request ActivateServiceForDIDRequestObject) (ActivateServiceForDIDResponseObject, error) {

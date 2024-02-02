@@ -27,6 +27,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -200,10 +202,13 @@ func TestWrapper_SearchPresentations(t *testing.T) {
 		"foo": "bar",
 	}
 	id, _ := ssi.ParseURI("did:nuts:foo#1")
-	vp := vc.VerifiablePresentation{
+	vp := test.ParsePresentation(t, vc.VerifiablePresentation{
 		ID:                   id,
 		VerifiableCredential: []vc.VerifiableCredential{credential.ValidNutsOrganizationCredential(t)},
-	}
+		Proof: []interface{}{proof.LDProof{
+			VerificationMethod: *id,
+		}},
+	})
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
 		results := []discovery.SearchResult{
@@ -224,6 +229,7 @@ func TestWrapper_SearchPresentations(t *testing.T) {
 		require.Len(t, actual, 1)
 		assert.Equal(t, vp, actual[0].Vp)
 		assert.Equal(t, vp.ID.String(), actual[0].Id)
+		assert.Equal(t, "did:nuts:foo", actual[0].SubjectId)
 	})
 	t.Run("no results", func(t *testing.T) {
 		test := newMockContext(t)

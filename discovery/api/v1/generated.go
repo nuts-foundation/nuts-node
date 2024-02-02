@@ -30,6 +30,9 @@ type SearchResult struct {
 	// Id The ID of the Verifiable Presentation.
 	Id string `json:"id"`
 
+	// SubjectId The ID of the Verifiable Credential subject (holder), typically a DID.
+	SubjectId string `json:"subject_id"`
+
 	// Vp Verifiable Presentation
 	Vp VerifiablePresentation `json:"vp"`
 }
