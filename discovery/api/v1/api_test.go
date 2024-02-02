@@ -225,6 +225,20 @@ func TestWrapper_SearchPresentations(t *testing.T) {
 		assert.Equal(t, vp, actual[0].Vp)
 		assert.Equal(t, vp.ID.String(), actual[0].Id)
 	})
+	t.Run("no results", func(t *testing.T) {
+		test := newMockContext(t)
+		test.client.EXPECT().Search(serviceID, expectedQuery).Return(nil, nil)
+
+		response, err := test.wrapper.SearchPresentations(ctx, SearchPresentationsRequestObject{
+			ServiceID: serviceID,
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, SearchPresentations200JSONResponse{}, response)
+		actual := response.(SearchPresentations200JSONResponse)
+		assert.NotNil(t, []SearchResult(actual))
+		assert.Len(t, actual, 0)
+	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
 		test.client.EXPECT().Search(serviceID, expectedQuery).Return(nil, discovery.ErrServiceNotFound)
