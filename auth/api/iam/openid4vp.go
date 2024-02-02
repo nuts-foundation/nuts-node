@@ -589,33 +589,35 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 		return nil, oauthError(oauth.InvalidRequest, "invalid or expired state")
 	}
 	// extract callback URI at calling app from OAuthSession
-	callbackURI := oauthSession.redirectURI()
+	// this is the URI where the user-agent will be redirected to
+	appCallbackURI := oauthSession.redirectURI()
 
 	// check if code is present
 	if request.Params.Code == nil {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "missing code parameter"), callbackURI)
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "missing code parameter"), appCallbackURI)
 	}
-	// send callback URL to authorization server to check against earlier redirect_uri
+	// send callback URL for verification (this method is the handler for that URL) to authorization server to check against earlier redirect_uri
+	// we call it checkURL here because it is used by the authorization server to check if the code is valid
 	requestHolder, _ := r.idToOwnedDID(ctx, request.Id) // already checked
-	// construct callback URL which must be passed along to the authorization server so it can check it against the redirect_uri
 	checkURL, err := didweb.DIDToURL(*requestHolder)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create callback URL: %w", err)
+		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
 	}
 	checkURL = checkURL.JoinPath(oauth.CallbackPath)
+
 	// use code to request access token from remote token endpoint
 	tokenResponse, err := r.auth.RelyingParty().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), callbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}
 	// update TokenResponse using session.SessionID
 	statusActive := oauth.AccessTokenRequestStatusActive
 	tokenResponse.Status = &statusActive
 	if err = r.accessTokenClientStore().Put(oauthSession.SessionID, tokenResponse); err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to store access token: %s", err.Error())), callbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to store access token: %s", err.Error())), appCallbackURI)
 	}
 	return Callback302Response{
-		Headers: Callback302ResponseHeaders{Location: callbackURI.String()},
+		Headers: Callback302ResponseHeaders{Location: appCallbackURI.String()},
 	}, nil
 }
 
