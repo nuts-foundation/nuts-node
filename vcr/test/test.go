@@ -35,7 +35,7 @@ import (
 )
 
 // CreateJWTPresentation creates a JWT presentation with the given subject DID and credentials.
-func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(token jwt.Token), credentials ...vc.VerifiableCredential) vc.VerifiablePresentation {
+func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(token jwt.Token), credentials ...vc.VerifiableCredential) (vc.VerifiablePresentation, crypto.Key) {
 	headers := map[string]any{jws.TypeKey: "JWT"}
 	claims := map[string]interface{}{
 		jwt.SubjectKey:    subjectDID.String(),
@@ -62,7 +62,7 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 	signedToken, err := keyStore.SignJWT(audit.TestContext(), claims, headers, key.KID())
 	result, err := vc.ParseVerifiablePresentation(signedToken)
 	require.NoError(t, err)
-	return *result
+	return *result, key
 }
 
 // CreateJSONLDPresentation creates a JSON-LD presentation with the given subject DID and credentials.

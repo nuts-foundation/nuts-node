@@ -22,6 +22,7 @@ import (
 	crypt "crypto"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -372,7 +373,8 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 
 func TestVerifier_VerifyVP(t *testing.T) {
 	t.Run("JWT", func(t *testing.T) {
-		const keyID = "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#abc-method-1"
+		subjectDID := did.MustParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
+		keyID := subjectDID.String() + "#abc-method-1"
 		key, err := jwk.ParseKey([]byte(`{
  "crv": "P-256",
  "d": "mvipTdytRXwTTY_6wJl5Cwj0YQ4-QdJK-fEC8DzL9_M",
@@ -398,6 +400,16 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Len(t, vcs, 1)
+		})
+		t.Run("ok - no credentials", func(t *testing.T) {
+			ctx := newMockContext(t)
+			presentation, key := test.CreateJWTPresentation(t, subjectDID, nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), resolver.NutsSigningKeyType).Return(key.Public(), nil)
+
+			vcs, err := ctx.verifier.VerifyVP(presentation, false, false, nil)
+
+			assert.NoError(t, err)
+			assert.Empty(t, vcs)
 		})
 		t.Run("JWT expired", func(t *testing.T) {
 			ctx := newMockContext(t)
@@ -478,7 +490,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		_ = json.Unmarshal([]byte(rawVP), &vp)
 		vpSignerKeyID := did.MustParseDIDURL(vp.Proof[0].(map[string]interface{})["verificationMethod"].(string))
 
-		t.Run("ok - do not verify VCs", func(t *testing.T) {
+		t.Run("ok - no credentials in VP", func(t *testing.T) {
 			_ = json.Unmarshal([]byte(rawVP), &vp)
 
 			var validAt *time.Time

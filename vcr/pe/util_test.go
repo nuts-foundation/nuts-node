@@ -30,7 +30,7 @@ import (
 
 func TestParseEnvelope(t *testing.T) {
 	t.Run("JWT", func(t *testing.T) {
-		presentation := test.CreateJWTPresentation(t, did.MustParseDID("did:example:1"), nil, credential.ValidNutsOrganizationCredential(t))
+		presentation, _ := test.CreateJWTPresentation(t, did.MustParseDID("did:example:1"), nil, credential.ValidNutsOrganizationCredential(t))
 		envelope, err := ParseEnvelope([]byte(presentation.Raw()))
 		require.NoError(t, err)
 		require.Equal(t, presentation.ID.String(), envelope.asInterface.(map[string]interface{})["id"])
@@ -59,7 +59,7 @@ func TestParseEnvelope(t *testing.T) {
 		require.Len(t, envelope.Presentations, 1)
 	})
 	t.Run("JSON array with JWTs", func(t *testing.T) {
-		presentation := test.CreateJWTPresentation(t, did.MustParseDID("did:example:1"), nil, credential.ValidNutsOrganizationCredential(t))
+		presentation, _ := test.CreateJWTPresentation(t, did.MustParseDID("did:example:1"), nil, credential.ValidNutsOrganizationCredential(t))
 		presentations := []string{presentation.Raw(), presentation.Raw()}
 		listJSON, _ := json.Marshal(presentations)
 		envelope, err := ParseEnvelope(listJSON)

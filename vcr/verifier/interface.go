@@ -48,7 +48,12 @@ type Verifier interface {
 	RegisterRevocation(revocation credential.Revocation) error
 
 	// VerifyVP verifies the given Verifiable Presentation. If successful, it returns the credentials within the presentation.
-	// If verifyVCs is true, it will also verify the credentials inside the VP, checking their correctness, signature and trust status (unless allowUntrustedVCs is true).
+	// If verifyVCs is true, it will also verify the credentials inside the VP:
+	// - checking their correctness,
+	// - signature
+	// - trust status (unless allowUntrustedVCs is true).
+	// It always checks whether the signer of the presentation is the holder of the presented credentials,
+	// but only if there are credentials in the presentation.
 	VerifyVP(presentation vc.VerifiablePresentation, verifyVCs bool, allowUntrustedVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error)
 }
 
