@@ -110,7 +110,7 @@ func (w *Wrapper) SearchPresentations(ctx context.Context, request SearchPresent
 	if err != nil {
 		return nil, err
 	}
-	result := make([]SearchResult, 0)
+	results := make([]SearchResult, 0)
 	for _, searchResult := range searchResults {
 		result := SearchResult{
 			Vp:     searchResult.Presentation,
