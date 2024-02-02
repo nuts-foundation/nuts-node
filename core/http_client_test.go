@@ -21,11 +21,15 @@ package core
 import (
 	"context"
 	"errors"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	io2 "io"
 	stdHttp "net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -113,16 +117,45 @@ func TestTestResponseCode(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		assert.NoError(t, TestResponseCode(stdHttp.StatusOK, &stdHttp.Response{StatusCode: stdHttp.StatusOK}))
 	})
-	t.Run("error", func(t *testing.T) {
-		data := []byte{1, 2, 3}
-		status := stdHttp.StatusUnauthorized
+}
 
-		err := TestResponseCode(stdHttp.StatusOK, &stdHttp.Response{StatusCode: status, Body: readCloser(data)})
+func TestTestResponseCodeWithLog(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		logger := logrus.New()
+		hook := test.NewLocal(logger)
+		assert.NoError(t, TestResponseCodeWithLog(stdHttp.StatusOK, &stdHttp.Response{StatusCode: stdHttp.StatusOK}, logger.WithFields(nil)))
+		assert.Empty(t, hook.Entries)
+	})
+	t.Run("error", func(t *testing.T) {
+		data := []byte("hello, world!")
+		status := stdHttp.StatusUnauthorized
+		logger := logrus.New()
+		hook := test.NewLocal(logger)
+		requestURL, _ := url.Parse("/foo")
+		request := &stdHttp.Request{URL: requestURL}
+
+		err := TestResponseCodeWithLog(stdHttp.StatusOK, &stdHttp.Response{StatusCode: status, Body: readCloser(data), Request: request}, logger.WithFields(nil))
 
 		assert.Error(t, err)
 		require.ErrorAs(t, err, new(HttpError))
 		assert.Equal(t, data, err.(HttpError).ResponseBody)
 		assert.Equal(t, status, err.(HttpError).StatusCode)
+
+		assert.Len(t, hook.Entries, 1)
+		assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
+		assert.Equal(t, "Unexpected HTTP response (len=13): hello, world!", hook.LastEntry().Message)
+	})
+	t.Run("large response body (>100), clipped", func(t *testing.T) {
+		data := strings.Repeat("a", 101)
+		status := stdHttp.StatusUnauthorized
+		logger := logrus.New()
+		hook := test.NewLocal(logger)
+		requestURL, _ := url.Parse("/foo")
+		request := &stdHttp.Request{URL: requestURL}
+
+		_ = TestResponseCodeWithLog(stdHttp.StatusOK, &stdHttp.Response{StatusCode: status, Body: readCloser(data), Request: request}, logger.WithFields(nil))
+
+		assert.Equal(t, "Unexpected HTTP response (len=101): "+strings.Repeat("a", 100)+"...(clipped)", hook.LastEntry().Message)
 	})
 }
 

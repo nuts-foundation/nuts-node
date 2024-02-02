@@ -24,6 +24,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"time"
@@ -39,8 +40,23 @@ type HttpError struct {
 // TestResponseCode checks whether the returned HTTP status response code matches the expected code.
 // If it doesn't match it returns an error, containing the received and expected status code, and the response body.
 func TestResponseCode(expectedStatusCode int, response *http.Response) error {
+	return TestResponseCodeWithLog(expectedStatusCode, response, nil)
+}
+
+// TestResponseCodeWithLog acts like TestResponseCode, but logs the response body if the status code is not as expected.
+// It logs using the given logger, unless nil is passed.
+func TestResponseCodeWithLog(expectedStatusCode int, response *http.Response, log *logrus.Entry) error {
 	if response.StatusCode != expectedStatusCode {
 		responseData, _ := io.ReadAll(response.Body)
+		if log != nil {
+			// Cut off the response body to 100 characters max to prevent logging of large responses
+			responseBodyString := string(responseData)
+			if len(responseBodyString) > 100 {
+				responseBodyString = responseBodyString[:100] + "...(clipped)"
+			}
+			log.WithField("http_request_path", response.Request.URL.Path).
+				Infof("Unexpected HTTP response (len=%d): %s", len(responseData), responseBodyString)
+		}
 		return HttpError{
 			error:        fmt.Errorf("server returned HTTP %d (expected: %d)", response.StatusCode, expectedStatusCode),
 			StatusCode:   response.StatusCode,

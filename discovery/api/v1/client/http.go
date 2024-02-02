@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery/api/v1/model"
+	"github.com/nuts-foundation/nuts-node/discovery/log"
 	"io"
 	"net/http"
 	"net/url"
@@ -59,7 +60,7 @@ func (h DefaultHTTPClient) Register(ctx context.Context, serviceEndpointURL stri
 		return fmt.Errorf("failed to invoke remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	defer httpResponse.Body.Close()
-	if err := core.TestResponseCode(201, httpResponse); err != nil {
+	if err := core.TestResponseCodeWithLog(201, httpResponse, log.Logger()); err != nil {
 		return fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	return nil
