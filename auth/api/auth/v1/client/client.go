@@ -74,14 +74,7 @@ func (h HTTPClient) CreateAccessToken(ctx context.Context, endpointURL url.URL, 
 		return nil, err
 	}
 
-	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		rse := err.(core.HttpError)
-		// Cut off the response body to 100 characters max to prevent logging of large responses
-		responseBodyString := string(rse.ResponseBody)
-		if len(responseBodyString) > 100 {
-			responseBodyString = responseBodyString[:100] + "...(clipped)"
-		}
-		log.Logger().WithError(err).Infof("Erroneous CreateAccessToken response (len=%d): %s", len(rse.ResponseBody), responseBodyString)
+	if err = core.TestResponseCodeWithLog(http.StatusOK, response, log.Logger()); err != nil {
 		return nil, &oauthAPIError{err: err, statusCode: response.StatusCode}
 	}
 
