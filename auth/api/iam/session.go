@@ -26,15 +26,21 @@ import (
 	"net/url"
 )
 
+// OAuthSession is the session object that is used to store information about the OAuth request.
+// The client state (and nonce/redirectToken as well) is used to refer to this session.
+// Both the client and the server use this session to store information about the request.
 type OAuthSession struct {
 	ClientID               string
 	Scope                  string
-	OwnDID                 did.DID
+	OwnDID                 *did.DID
 	ClientState            string
+	SessionID              string
 	RedirectURI            string
 	ServerState            ServerState
 	ResponseType           string
 	PresentationDefinition PresentationDefinition
+	UserID                 string
+	VerifierDID            *did.DID
 }
 
 // ServerState is a convenience type for extracting different types of data from the session.
@@ -64,13 +70,11 @@ func (s ServerState) VerifiablePresentations() []vc.VerifiablePresentation {
 }
 
 // PresentationSubmission returns the Presentation Submission from the server state.
-func (s ServerState) PresentationSubmission() pe.PresentationSubmission {
-	if val, ok := s[submissionStateKey]; ok {
-		if pd, ok := val.(pe.PresentationSubmission); ok {
-			return pd
-		}
+func (s ServerState) PresentationSubmission() *pe.PresentationSubmission {
+	if val, ok := s[submissionStateKey].(pe.PresentationSubmission); ok {
+		return &val
 	}
-	return pe.PresentationSubmission{}
+	return nil
 }
 
 // CredentialMap returns the credential map from the server state.
@@ -81,21 +85,14 @@ func (s ServerState) CredentialMap() map[string]vc.VerifiableCredential {
 	return map[string]vc.VerifiableCredential{}
 }
 
-// UserSession is the session object for handling the user browser session.
-// A RedirectSession is replaced with a UserSession.
-type UserSession struct {
-	ClientState string
-	SessionID   string
-	UserID      string
-	OwnDID      did.DID
-}
-
 // RedirectSession is the session object that is used to redirect the user to a Nuts node website.
 // It stores information from the internal API call that started the request access token.
 // The key to this session is passed to the user via a 302 redirect.
 type RedirectSession struct {
-	OwnDID             did.DID
-	AccessTokenRequest RequestAccessTokenRequestObject
+	AccessTokenRequest RequestUserAccessTokenRequestObject
+	// SessionID is used by the calling app to get the access token later on
+	SessionID string
+	OwnDID    did.DID
 }
 
 func (s OAuthSession) CreateRedirectURI(params map[string]string) string {

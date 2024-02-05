@@ -50,6 +50,32 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+func TestRelyingParty_AccessToken(t *testing.T) {
+	code := "code"
+	callbackURI := "https://test.test/iam/123/callback"
+	clientID := did.MustParseDID("did:web:test.test:iam:123")
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := createOAuthRPContext(t)
+
+		response, err := ctx.relyingParty.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "token", response.AccessToken)
+		assert.Equal(t, "bearer", response.TokenType)
+	})
+	t.Run("error - failed to get access token", func(t *testing.T) {
+		ctx := createOAuthRPContext(t)
+		ctx.token = nil
+
+		response, err := ctx.relyingParty.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID)
+
+		assert.EqualError(t, err, "remote server: error creating access token: server returned HTTP 404 (expected: 200)")
+		assert.Nil(t, response)
+	})
+}
+
 func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 	const bearerToken = "jwt-bearer-token"
 

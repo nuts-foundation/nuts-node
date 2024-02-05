@@ -27,12 +27,10 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // s2sMaxPresentationValidity defines the maximum validity of a presentation.
@@ -99,36 +97,14 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	}
 
 	// All OK, allow access
-	response, err := r.createS2SAccessToken(issuer, time.Now(), pexEnvelope.Presentations, *submission, *definition, scope, credentialSubjectID, credentialMap)
+	response, err := r.createAccessToken(issuer, time.Now(), pexEnvelope.Presentations, submission, *definition, scope, credentialSubjectID, credentialMap)
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r Wrapper) requestServiceAccessToken(ctx context.Context, requestHolder did.DID, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	// resolve verifier metadata
-	requestVerifier, err := did.ParseDID(request.Body.Verifier)
-	if err != nil {
-		return nil, core.InvalidInputError("invalid verifier: %w", err)
-	}
-	_, _, err = r.vdr.Resolver().Resolve(*requestVerifier, nil)
-	if err != nil {
-		if errors.Is(err, resolver.ErrNotFound) {
-			return nil, core.InvalidInputError("verifier not found: %w", err)
-		}
-		return nil, err
-	}
-
-	tokenResult, err := r.auth.RelyingParty().RequestRFC021AccessToken(ctx, requestHolder, *requestVerifier, request.Body.Scope)
-	if err != nil {
-		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
-		return nil, err
-	}
-	return RequestAccessToken200JSONResponse(*tokenResult), nil
-}
-
-func (r Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submission pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submission *pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	fieldsMap, err := definition.ResolveConstraintsFields(credentialMap)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve Presentation Definition Constraints Fields: %w", err)
@@ -142,10 +118,10 @@ func (r Wrapper) createS2SAccessToken(issuer did.DID, issueTime time.Time, prese
 		Scope:                          scope,
 		VPToken:                        presentations,
 		PresentationDefinition:         &definition,
-		PresentationSubmission:         &submission,
+		PresentationSubmission:         submission,
 		InputDescriptorConstraintIdMap: fieldsMap,
 	}
-	err = r.accessTokenStore().Put(accessToken.Token, accessToken)
+	err = r.accessTokenServerStore().Put(accessToken.Token, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
@@ -212,6 +188,7 @@ func (r Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresenta
 
 // extractNonce extracts the nonce from the presentation.
 // it uses the nonce from the JWT if available, otherwise it uses the nonce from the LD proof.
+// returns empty string when no nonce is found.
 func extractNonce(presentation vc.VerifiablePresentation) (string, error) {
 	var nonce string
 	switch presentation.Format() {

@@ -118,23 +118,15 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
 }
 
-func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, vp vc.VerifiablePresentation, submission pe.PresentationSubmission, scopes string) (oauth.TokenResponse, error) {
+func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data url.Values) (oauth.TokenResponse, error) {
 	var token oauth.TokenResponse
-	presentationDefinitionURL, err := url.Parse(tokenEndpoint)
+	tokenURL, err := url.Parse(tokenEndpoint)
 	if err != nil {
 		return token, err
 	}
 
 	// create a POST request with x-www-form-urlencoded body
-	assertion := vp.Raw()
-	presentationSubmission, _ := json.Marshal(submission)
-	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", presentationDefinitionURL.String(), scopes, assertion, string(presentationSubmission))
-	data := url.Values{}
-	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
-	data.Set(oauth.AssertionParam, assertion)
-	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
-	data.Set(oauth.ScopeParam, scopes)
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, presentationDefinitionURL.String(), strings.NewReader(data.Encode()))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL.String(), strings.NewReader(data.Encode()))
 	request.Header.Add("Accept", "application/json")
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	if err != nil {

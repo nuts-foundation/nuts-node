@@ -68,17 +68,13 @@ func bodyLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) echo
 	return middleware.BodyDumpWithConfig(middleware.BodyDumpConfig{
 		Handler: func(e echo.Context, request []byte, response []byte) {
 			requestContentType := e.Request().Header.Get("Content-Type")
-			requestBody := "(not loggable: " + requestContentType + ")"
 			if isLoggableContentType(requestContentType) {
-				requestBody = string(request)
-				logger.Infof("HTTP request body: %s", requestBody)
+				logger.Infof("HTTP request body: %s", string(request))
 			}
 
 			responseContentType := e.Response().Header().Get("Content-Type")
-			responseBody := "(not loggable: " + responseContentType + ")"
 			if isLoggableContentType(responseContentType) {
-				responseBody = string(response)
-				logger.Infof("HTTP response body: %s", responseBody)
+				logger.Infof("HTTP response body: %s", string(response))
 			}
 		},
 		Skipper: skipper,

@@ -31,6 +31,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	http2 "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -165,6 +167,43 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 	}
 }
 
+func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error) {
+	// check id in path
+	_, err := r.idToOwnedDID(ctx, request.Id)
+	if err != nil {
+		// this is an OAuthError already, will be rendered as 400 but that's fine (for now) for an illegal id
+		return nil, err
+	}
+
+	// if error is present, delegate call to error handler
+	if request.Params.Error != nil {
+		return r.handleCallbackError(request)
+	}
+
+	return r.handleCallback(ctx, request)
+}
+
+func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error) {
+	// get access token from store
+	var token TokenResponse
+	err := r.accessTokenClientStore().Get(request.SessionID, &token)
+	if err != nil {
+		return nil, err
+	}
+	if token.Status != nil && *token.Status == oauth.AccessTokenRequestStatusPending {
+		// return pending status
+		return RetrieveAccessToken200JSONResponse(token), nil
+	}
+	// delete access token from store
+	// change this when tokens can be cached
+	err = r.accessTokenClientStore().Delete(request.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	// return access token
+	return RetrieveAccessToken200JSONResponse(token), nil
+}
+
 // IntrospectAccessToken allows the resource server (XIS/EHR) to introspect details of an access token issued by this node
 func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
 	// Validate token
@@ -175,7 +214,7 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	}
 
 	token := AccessToken{}
-	if err := r.accessTokenStore().Get(request.Body.Token, &token); err != nil {
+	if err := r.accessTokenServerStore().Get(request.Body.Token, &token); err != nil {
 		// Return 200 + 'Active = false' when token is invalid or malformed
 		log.Logger().Debug("IntrospectAccessToken: failed to get token from store")
 		return IntrospectAccessToken200JSONResponse{}, err
@@ -381,13 +420,31 @@ func (r Wrapper) idToOwnedDID(ctx context.Context, id string) (*did.DID, error) 
 	return &ownDID, nil
 }
 
-func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	if request.Body == nil {
-		// why did oapi-codegen generate a pointer for the body??
-		return nil, core.InvalidInputError("missing request body")
+func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error) {
+	requestHolder, err := r.getWalletDID(ctx, request.Did)
+	if err != nil {
+		return nil, err
 	}
+
+	// resolve verifier metadata
+	requestVerifier, err := did.ParseDID(request.Body.Verifier)
+	if err != nil {
+		return nil, core.InvalidInputError("invalid verifier: %w", err)
+	}
+
+	tokenResult, err := r.auth.RelyingParty().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope)
+	if err != nil {
+		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
+		return nil, err
+	}
+	return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
+}
+
+// getWalletDID resolves a web did and checks if it's owned by this node
+// it differs from idToOwnedDID in that it does require the id to be a web did (and not a partial)
+func (r Wrapper) getWalletDID(ctx context.Context, didString string) (*did.DID, error) {
 	// resolve wallet
-	requestHolder, err := did.ParseDID(request.Did)
+	requestHolder, err := did.ParseDID(didString)
 	if err != nil {
 		return nil, core.NotFoundError("did not found: %w", err)
 	}
@@ -398,24 +455,67 @@ func (r Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	if !isWallet {
 		return nil, core.InvalidInputError("did not owned by this node")
 	}
-	if request.Body.UserID != nil && len(*request.Body.UserID) > 0 {
-		// forward to user flow
-		return r.requestUserAccessToken(ctx, *requestHolder, request)
+	return requestHolder, nil
+}
+
+func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
+	requestHolder, err := r.getWalletDID(ctx, request.Did)
+	if err != nil {
+		return nil, err
 	}
-	return r.requestServiceAccessToken(ctx, *requestHolder, request)
+
+	if request.Body.UserId == "" {
+		return nil, core.InvalidInputError("missing userID")
+	}
+	// require RedirectURL
+	if request.Body.RedirectUri == "" {
+		return nil, core.InvalidInputError("missing redirect_uri")
+	}
+
+	// session ID for calling app (supports polling for token)
+	sessionID := crypto.GenerateNonce()
+
+	// generate a redirect token valid for 5 seconds
+	token := crypto.GenerateNonce()
+	err = r.userRedirectStore().Put(token, RedirectSession{
+		AccessTokenRequest: request,
+		SessionID:          sessionID,
+		OwnDID:             *requestHolder,
+	})
+	if err != nil {
+		return nil, err
+	}
+	status := oauth.AccessTokenRequestStatusPending
+	err = r.accessTokenClientStore().Put(sessionID, TokenResponse{
+		Status: &status,
+	})
+
+	// generate a link to the redirect endpoint
+	webURL, err := didweb.DIDToURL(*requestHolder)
+	if err != nil {
+		return nil, err
+	}
+	// redirect to generic user page, context of token will render correct page
+	redirectURL := http2.AddQueryParams(*webURL.JoinPath("user"), map[string]string{
+		"token": token,
+	})
+	return RequestUserAccessToken200JSONResponse{
+		RedirectUri: redirectURL.String(),
+		SessionId:   sessionID,
+	}, nil
 }
 
 func createSession(params map[string]string, ownDID did.DID) *OAuthSession {
 	session := &OAuthSession{
 		// TODO: Validate client ID
-		ClientID: params[clientIDParam],
+		ClientID: params[oauth.ClientIDParam],
 		// TODO: Validate scope
-		Scope:       params[scopeParam],
-		ClientState: params[stateParam],
+		Scope:       params[oauth.ScopeParam],
+		ClientState: params[oauth.StateParam],
 		ServerState: map[string]interface{}{},
 		// TODO: Validate according to https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
-		RedirectURI:  params[redirectURIParam],
-		OwnDID:       ownDID,
+		RedirectURI:  params[oauth.RedirectURIParam],
+		OwnDID:       &ownDID,
 		ResponseType: params[responseTypeParam],
 	}
 	return session
@@ -436,6 +536,12 @@ func (r Wrapper) identityURL(id string) *url.URL {
 	return r.auth.PublicURL().JoinPath("iam", id)
 }
 
-func (r Wrapper) accessTokenStore() storage.SessionStore {
-	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "accesstoken")
+// accessTokenClientStore is used by the client to store pending access tokens and return them to the calling app.
+func (r Wrapper) accessTokenClientStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "clientaccesstoken")
+}
+
+// accessTokenServerStore is used by the Auth server to store issued access tokens
+func (r Wrapper) accessTokenServerStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "serveraccesstoken")
 }

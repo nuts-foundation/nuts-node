@@ -21,9 +21,11 @@ package oauth
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
 	"net/url"
@@ -71,6 +73,28 @@ func NewRelyingParty(
 		strictMode:        strictMode,
 		wallet:            wallet,
 	}
+}
+
+func (s *relyingParty) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error) {
+	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+	}
+	if len(metadata.TokenEndpoint) == 0 {
+		return nil, fmt.Errorf("no token endpoint found in Authorization Server metadata: %s", verifier)
+	}
+	// call token endpoint
+	data := url.Values{}
+	data.Set(oauth.ClientIDParam, clientID.String())
+	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
+	data.Set(oauth.CodeParam, code)
+	data.Set(oauth.RedirectURIParam, callbackURI)
+	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data)
+	if err != nil {
+		return nil, fmt.Errorf("remote server: error creating access token: %w", err)
+	}
+	return &token, nil
 }
 
 // CreateJwtGrant creates a JWT Grant from the given CreateJwtGrantRequest
@@ -132,7 +156,7 @@ func (s *relyingParty) CreateAuthorizationRequest(ctx context.Context, requestHo
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callback URL: %w", err)
 	}
-	callbackURL = callbackURL.JoinPath("callback")
+	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
 	redirectURL := nutsHttp.AddQueryParams(*endpoint, map[string]string{
 		"client_id":     requestHolder.String(),
 		"response_type": "code",
@@ -228,7 +252,16 @@ func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester d
 	if err != nil {
 		return nil, fmt.Errorf("failed to create verifiable presentation: %w", err)
 	}
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, *vp, submission, scopes)
+
+	assertion := vp.Raw()
+	presentationSubmission, _ := json.Marshal(submission)
+	data := url.Values{}
+	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
+	data.Set(oauth.AssertionParam, assertion)
+	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
+	data.Set(oauth.ScopeParam, scopes)
+	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
+	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data)
 	if err != nil {
 		// the error could be a http error, we just relay it here to make use of any 400 status codes.
 		return nil, err

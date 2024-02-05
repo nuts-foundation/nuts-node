@@ -20,23 +20,21 @@ package iam
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/test"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"testing"
-	"time"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/test"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
 )
 
 func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
@@ -144,6 +142,71 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 	})
 }
 
+func TestHTTPClient_AccessToken(t *testing.T) {
+	ctx := context.Background()
+	// params are checked server side, so we don't need to provide valid values here
+	tokenResponse := oauth.TokenResponse{
+		AccessToken: "token",
+	}
+
+	data := url.Values{}
+
+	t.Run("ok", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: tokenResponse}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.AccessToken(ctx, tlsServer.URL, data)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, tokenResponse, response)
+		require.NotNil(t, handler.Request)
+	})
+	t.Run("error - incorrect url", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: tokenResponse}
+		_, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, ":", data)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+	})
+	t.Run("error - oauth error", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidRequest}}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, tlsServer.URL, data)
+
+		require.Error(t, err)
+		// check if the error is an OAuth error
+		oauthError, ok := err.(oauth.OAuth2Error)
+		require.True(t, ok)
+		assert.Equal(t, oauth.InvalidRequest, oauthError.Code)
+	})
+	t.Run("error - generic server error", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusBadGateway, ResponseData: "offline"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, tlsServer.URL, data)
+
+		require.Error(t, err)
+		// check if the error is a http error
+		httpError, ok := err.(core.HttpError)
+		require.True(t, ok)
+		assert.Equal(t, "offline", string(httpError.ResponseBody))
+	})
+	t.Run("error - invalid response", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, tlsServer.URL, data)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value, }")
+	})
+
+}
+
 func TestHTTPClient_ClientMetadata(t *testing.T) {
 	ctx := context.Background()
 	metadata := oauth.OAuthClientMetadata{
@@ -170,63 +233,6 @@ func TestHTTPClient_ClientMetadata(t *testing.T) {
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
-	})
-}
-
-func TestHTTPClient_AccessToken(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctx := context.Background()
-		now := int(time.Now().Unix())
-		scope := "test"
-		accessToken := oauth.TokenResponse{
-			AccessToken: "token",
-			TokenType:   "bearer",
-			Scope:       &scope,
-			ExpiresIn:   &now,
-		}
-		vp := vc.VerifiablePresentation{}
-
-		t.Run("ok", func(t *testing.T) {
-			handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: accessToken}
-			tlsServer, client := testServerAndClient(t, &handler)
-
-			response, err := client.AccessToken(ctx, tlsServer.URL, vp, pe.PresentationSubmission{}, "test")
-
-			require.NoError(t, err)
-			require.NotNil(t, response)
-			assert.Equal(t, "token", response.AccessToken)
-			assert.Equal(t, "bearer", response.TokenType)
-			require.NotNil(t, response.Scope)
-			assert.Equal(t, "test", *response.Scope)
-			require.NotNil(t, response.ExpiresIn)
-			assert.Equal(t, now, *response.ExpiresIn)
-		})
-	})
-	t.Run("error - oauth error", func(t *testing.T) {
-		ctx := context.Background()
-		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidScope}}
-		tlsServer, client := testServerAndClient(t, &handler)
-
-		_, err := client.AccessToken(ctx, tlsServer.URL, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "test")
-
-		require.Error(t, err)
-		// check if the error is an OAuth error
-		oauthError, ok := err.(oauth.OAuth2Error)
-		require.True(t, ok)
-		assert.Equal(t, oauth.InvalidScope, oauthError.Code)
-	})
-	t.Run("error - generic server error", func(t *testing.T) {
-		ctx := context.Background()
-		handler := http2.Handler{StatusCode: http.StatusBadGateway, ResponseData: "offline"}
-		tlsServer, client := testServerAndClient(t, &handler)
-
-		_, err := client.AccessToken(ctx, tlsServer.URL, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "test")
-
-		require.Error(t, err)
-		// check if the error is a http error
-		httpError, ok := err.(core.HttpError)
-		require.True(t, ok)
-		assert.Equal(t, "offline", string(httpError.ResponseBody))
 	})
 }
 
