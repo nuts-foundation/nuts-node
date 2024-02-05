@@ -33,14 +33,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type operation struct {
+	module    string
+	operation string
+	url       string
+	body      interface{}
+}
+
 // TestStatusCodes tests if the returned errors from the API implementations are correctly translated to status codes
 func TestStatusCodes(t *testing.T) {
-	type operation struct {
-		module    string
-		operation string
-		url       string
-		body      interface{}
-	}
 	t.Run("404s", func(t *testing.T) {
 		hook := logTest.NewGlobal()
 		baseUrl, _ := node.StartServer(t)
@@ -61,8 +62,7 @@ func TestStatusCodes(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-			assert.Equal(t, testCase.module, hook.LastEntry().Data["module"].(string))
-			assert.Equal(t, testCase.operation, hook.LastEntry().Data["operation"].(string))
+			assert.True(t, containsLogEntry(hook, testCase))
 		}
 	})
 	t.Run("400s", func(t *testing.T) {
@@ -83,11 +83,18 @@ func TestStatusCodes(t *testing.T) {
 			} else {
 				resp, err = http.Get(fmt.Sprintf("%s%s", baseUrl, testCase.url))
 			}
-
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-			assert.Equal(t, testCase.module, hook.LastEntry().Data["module"].(string))
-			assert.Equal(t, testCase.operation, hook.LastEntry().Data["operation"].(string))
+			assert.True(t, containsLogEntry(hook, testCase))
 		}
 	})
+}
+
+func containsLogEntry(hook *logTest.Hook, op operation) bool {
+	for _, entry := range hook.AllEntries() {
+		if entry.Data["module"] == op.module && entry.Data["operation"] == op.operation && entry.Data["requestURI"] == op.url {
+			return true
+		}
+	}
+	return false
 }
