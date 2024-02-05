@@ -401,11 +401,11 @@ func (m *Module) update() {
 		// Refresh registrations first, to make sure we have (our own) latest presentations when we load them from the Discovery Service
 		err := m.registrationManager.refresh(ctx, time.Now())
 		if err != nil {
-			log.Logger().WithError(err).Errorf("Failed to refresh service registrations on Discovery Server")
+			log.Logger().WithError(err).Errorf("Failed to refresh own Verifiable Presentations on Discovery Service")
 		}
 		err = m.clientUpdater.update(m.ctx)
 		if err != nil {
-			log.Logger().WithError(err).Errorf("Failed to refresh Verifiable Presentations from Discovery Server")
+			log.Logger().WithError(err).Errorf("Failed to load latest Verifiable Presentations from Discovery Service")
 		}
 	}
 	do()
