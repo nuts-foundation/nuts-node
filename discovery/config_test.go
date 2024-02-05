@@ -24,5 +24,5 @@ import (
 )
 
 func TestDefaultConfig(t *testing.T) {
-	assert.NotEmpty(t, DefaultConfig().Client.RegistrationRefreshInterval)
+	assert.NotEmpty(t, DefaultConfig().Client.RefreshInterval)
 }

@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/discovery/api/v1/client"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
@@ -35,14 +34,12 @@ import (
 )
 
 // clientRegistrationManager is a client component, responsible for managing registrations on a Discovery Service.
-// It automatically refreshes registered Verifiable Presentations when they are about to expire.
+// It can refresh registered Verifiable Presentations when they are about to expire.
 type clientRegistrationManager interface {
 	activate(ctx context.Context, serviceID string, subjectDID did.DID) error
 	deactivate(ctx context.Context, serviceID string, subjectDID did.DID) error
-	// refresh is a blocking call to periodically refresh registrations.
-	// It checks for Verifiable Presentations that are about to expire, and should be refreshed on the Discovery Service.
-	// It will exit when the given context is cancelled.
-	refresh(ctx context.Context, interval time.Duration)
+	// refresh checks which Verifiable Presentations that are about to expire, and should be refreshed on the Discovery Service.
+	refresh(ctx context.Context, now time.Time) error
 }
 
 var _ clientRegistrationManager = &defaultClientRegistrationManager{}
@@ -77,7 +74,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	err := r.registerPresentation(ctx, subjectDID, service)
 	if err != nil {
 		// failed, will be retried on next scheduled refresh
-		return errors.Join(ErrPresentationRegistrationFailed, err)
+		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, err)
 	}
 	log.Logger().Debugf("Successfully registered Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
 
@@ -102,7 +99,7 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 		"credentialSubject.id": subjectDID.String(),
 	})
 	if err != nil {
-		return errors.Join(ErrPresentationRegistrationFailed, err)
+		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, err)
 	}
 	if len(presentations) == 0 {
 		// no registration, nothing to do
@@ -114,11 +111,11 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 		"retract_jti": presentations[0].ID.String(),
 	})
 	if err != nil {
-		return errors.Join(ErrPresentationRegistrationFailed, err)
+		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, err)
 	}
 	err = r.client.Register(ctx, service.Endpoint, *presentation)
 	if err != nil {
-		return errors.Join(ErrPresentationRegistrationFailed, err)
+		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, err)
 	}
 	return nil
 }
@@ -163,41 +160,22 @@ func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context
 	}, &subjectDID, false)
 }
 
-func (r *defaultClientRegistrationManager) doRefresh(ctx context.Context, now time.Time) error {
+func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time.Time) error {
 	log.Logger().Debug("Refreshing own registered Verifiable Presentations on Discovery Services")
 	serviceIDs, dids, err := r.store.getPresentationsToBeRefreshed(now)
 	if err != nil {
 		return err
 	}
+	var result error = nil
 	for i, serviceID := range serviceIDs {
 		if err := r.activate(ctx, serviceID, dids[i]); err != nil {
-			log.Logger().WithError(err).Warnf("Failed to refresh Verifiable Presentation (service=%s, did=%s)", serviceID, dids[i])
+			result = errors.Join(result, fmt.Errorf("failed to refresh Verifiable Presentation (service=%s, did=%s): %w", serviceID, dids[i], err))
 		}
 	}
-	return nil
+	return result
 }
 
-func (r *defaultClientRegistrationManager) refresh(ctx context.Context, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	// do the first refresh immediately
-	do := func() {
-		if err := r.doRefresh(audit.Context(ctx, "app", ModuleName, "RefreshVerifiablePresentations"), time.Now()); err != nil {
-			log.Logger().WithError(err).Errorf("Failed to refresh Verifiable Presentations")
-		}
-	}
-	do()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			do()
-		}
-	}
-}
-
-// clientUpdater is responsible for updating the presentations for the given services, at the given interval.
+// clientUpdater is responsible for updating the local copy of Discovery Services
 // Callers should only call update().
 type clientUpdater struct {
 	services map[string]ServiceDefinition
@@ -215,29 +193,15 @@ func newClientUpdater(services map[string]ServiceDefinition, store *sqlStore, ve
 	}
 }
 
-// update starts a blocking loop that updates the presentations for the given services, at the given interval.
-// It returns when the context is cancelled.
-func (u *clientUpdater) update(ctx context.Context, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	u.doUpdate(ctx)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			u.doUpdate(ctx)
-		}
-	}
-}
-
-func (u *clientUpdater) doUpdate(ctx context.Context) {
+func (u *clientUpdater) update(ctx context.Context) error {
 	log.Logger().Debug("Checking for new Verifiable Presentations from Discovery Services")
+	var result error = nil
 	for _, service := range u.services {
 		if err := u.updateService(ctx, service); err != nil {
-			log.Logger().Errorf("Failed to update service (id=%s): %s", service.ID, err)
+			result = errors.Join(result, err)
 		}
 	}
+	return result
 }
 
 func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefinition) error {

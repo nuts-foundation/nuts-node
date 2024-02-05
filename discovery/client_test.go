@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"sync"
 	"testing"
 	"time"
 )
@@ -150,7 +149,7 @@ func Test_scheduledRegistrationManager_deregister(t *testing.T) {
 	})
 }
 
-func Test_scheduledRegistrationManager_doRefreshRegistrations(t *testing.T) {
+func Test_scheduledRegistrationManager_refresh(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 
@@ -161,7 +160,7 @@ func Test_scheduledRegistrationManager_doRefreshRegistrations(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
 
-		err := manager.doRefresh(audit.TestContext(), time.Now())
+		err := manager.refresh(audit.TestContext(), time.Now())
 
 		require.NoError(t, err)
 	})
@@ -186,37 +185,9 @@ func Test_scheduledRegistrationManager_doRefreshRegistrations(t *testing.T) {
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &bobDID, false).Return(&vpBob, nil)
 		wallet.EXPECT().List(gomock.Any(), bobDID).Return([]vc.VerifiableCredential{vcBob}, nil)
 
-		err := manager.doRefresh(audit.TestContext(), time.Now())
+		err := manager.refresh(audit.TestContext(), time.Now())
 
-		require.NoError(t, err)
-	})
-}
-
-func Test_scheduledRegistrationManager_refreshRegistrations(t *testing.T) {
-	storageEngine := storage.NewTestStorageEngine(t)
-	require.NoError(t, storageEngine.Start())
-
-	t.Run("context cancel stops the loop", func(t *testing.T) {
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		wallet := holder.NewMockWallet(ctrl)
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
-
-		ctx, cancel := context.WithCancel(context.Background())
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			manager.refresh(ctx, time.Millisecond)
-		}()
-		// make sure the loop has at least once
-		time.Sleep(5 * time.Millisecond)
-		// Make sure the function exits when the context is cancelled
-		cancel()
-		wg.Wait()
+		assert.EqualError(t, err, "failed to refresh Verifiable Presentation (service=usecase_v1, did=did:example:alice): registration of Verifiable Presentation on remote Discovery Service failed: remote error")
 	})
 }
 
@@ -294,31 +265,6 @@ func Test_clientUpdater_updateService(t *testing.T) {
 }
 
 func Test_clientUpdater_update(t *testing.T) {
-	storageEngine := storage.NewTestStorageEngine(t)
-	require.NoError(t, storageEngine.Start())
-	t.Run("context cancel stops the loop", func(t *testing.T) {
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		ctrl := gomock.NewController(t)
-		httpClient := client.NewMockHTTPClient(ctrl)
-		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiablePresentation{}, "test", nil).MinTimes(1)
-		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
-
-		ctx, cancel := context.WithCancel(context.Background())
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			updater.update(ctx, time.Millisecond)
-		}()
-		// make sure the loop has at least once
-		time.Sleep(5 * time.Millisecond)
-		// Make sure the function exits when the context is cancelled
-		cancel()
-		wg.Wait()
-	})
-}
-
-func Test_clientUpdater_doUpdate(t *testing.T) {
 	t.Run("proceeds when service update fails", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
@@ -329,7 +275,22 @@ func Test_clientUpdater_doUpdate(t *testing.T) {
 		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", errors.New("test"))
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
-		updater.doUpdate(context.Background())
+		err := updater.update(context.Background())
+
+		require.EqualError(t, err, "failed to get presentations from discovery service (id=other): test")
+	})
+	t.Run("no error", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		require.NoError(t, storageEngine.Start())
+		store := setupStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		httpClient := client.NewMockHTTPClient(ctrl)
+		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiablePresentation{}, "test", nil).MinTimes(2)
+		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
+
+		err := updater.update(context.Background())
+
+		assert.NoError(t, err)
 	})
 }
 

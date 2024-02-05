@@ -330,7 +330,58 @@ func TestModule_Search(t *testing.T) {
 	})
 }
 
+func TestModule_update(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Run("Start() initiates update", func(t *testing.T) {
+		_, _, _ = setupModule(t, storageEngine, func(module *Module) {
+			// we want to assert the job runs, so make it run very often to make the test faster
+			module.config.Client.RefreshInterval = 1 * time.Millisecond
+			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
+			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
+			// Get() should be called at least twice (times the number of Service Definitions), once for the initial run on startup, then again after the refresh interval
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil).MinTimes(2 * len(module.allDefinitions))
+			module.httpClient = httpClient
+		})
+		time.Sleep(10 * time.Millisecond)
+	})
+	t.Run("update() runs on node startup", func(t *testing.T) {
+		_, _, _ = setupModule(t, storageEngine, func(module *Module) {
+			// we want to assert the job immediately executes on node startup, even if the refresh interval hasn't passed
+			module.config.Client.RefreshInterval = time.Hour
+			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
+			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
+			// update causes call to HttpClient.Get(), once for each Service Definition
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil).Times(len(module.allDefinitions))
+			module.httpClient = httpClient
+		})
+	})
+}
+
 func TestModule_ActivateServiceForDID(t *testing.T) {
+	t.Run("ok, syncs VPs immediately after registration", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		require.NoError(t, storageEngine.Start())
+		m, _, documentOwner := setupModule(t, storageEngine, func(module *Module) {
+			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
+			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
+			httpClient.EXPECT().Register(gomock.Any(), gomock.Any(), vpAlice).Return(nil)
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil)
+			module.httpClient = httpClient
+			// disable auto-refresh job to have deterministic assertions
+			module.config.Client.RefreshInterval = 0
+		})
+		// We expect the client to create 1 VP
+		wallet := holder.NewMockWallet(gomock.NewController(t))
+		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
+		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
+		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&vpAlice, nil)
+		documentOwner.EXPECT().IsOwner(gomock.Any(), aliceDID).Return(true, nil)
+
+		err := m.ActivateServiceForDID(context.Background(), testServiceID, aliceDID)
+
+		assert.NoError(t, err)
+	})
 	t.Run("not owned", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
