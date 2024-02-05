@@ -175,7 +175,7 @@ require (
 	rsc.io/qr v0.2.0 // indirect
 )
 
-require gorm.io/driver/postgres v1.5.4
+require gorm.io/driver/postgres v1.5.5
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
