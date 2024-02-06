@@ -112,7 +112,7 @@ func (auth *Auth) RelyingParty() oauth.RelyingParty {
 }
 
 func (auth *Auth) IAMClient() iam.Client {
-	return iam.NewClient(auth.strictMode, auth.httpClientTimeout, auth.tlsConfig)
+	return iam.NewClient(auth.vcr.Wallet(), auth.strictMode, auth.httpClientTimeout, auth.tlsConfig)
 }
 
 // Configure the Auth struct by creating a validator and create an Irma server
@@ -161,6 +161,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		// auth.http.config got deprecated in favor of httpclient.timeout
 		auth.httpClientTimeout = config.HTTPClient.Timeout
 	}
+	// V1 API related stuff
 	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second
 	auth.authzServer = oauth.NewAuthorizationServer(auth.vdrInstance.Resolver(), auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
 		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenLifeSpan)
