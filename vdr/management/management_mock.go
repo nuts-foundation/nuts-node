@@ -74,6 +74,20 @@ func (mr *MockDocumentManagerMockRecorder) CreateService(ctx, subjectDID, servic
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateService", reflect.TypeOf((*MockDocumentManager)(nil).CreateService), ctx, subjectDID, service)
 }
 
+// Deactivate mocks base method.
+func (m *MockDocumentManager) Deactivate(ctx context.Context, id did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Deactivate", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Deactivate indicates an expected call of Deactivate.
+func (mr *MockDocumentManagerMockRecorder) Deactivate(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocumentManager)(nil).Deactivate), ctx, id)
+}
+
 // DeleteService mocks base method.
 func (m *MockDocumentManager) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
 	m.ctrl.T.Helper()
@@ -333,6 +347,94 @@ func (m *MockDocManipulator) UpdateService(ctx context.Context, subjectDID did.D
 func (mr *MockDocManipulatorMockRecorder) UpdateService(ctx, subjectDID, serviceID, service any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateService", reflect.TypeOf((*MockDocManipulator)(nil).UpdateService), ctx, subjectDID, serviceID, service)
+}
+
+// MockCreationOptions is a mock of CreationOptions interface.
+type MockCreationOptions struct {
+	ctrl     *gomock.Controller
+	recorder *MockCreationOptionsMockRecorder
+}
+
+// MockCreationOptionsMockRecorder is the mock recorder for MockCreationOptions.
+type MockCreationOptionsMockRecorder struct {
+	mock *MockCreationOptions
+}
+
+// NewMockCreationOptions creates a new mock instance.
+func NewMockCreationOptions(ctrl *gomock.Controller) *MockCreationOptions {
+	mock := &MockCreationOptions{ctrl: ctrl}
+	mock.recorder = &MockCreationOptionsMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCreationOptions) EXPECT() *MockCreationOptionsMockRecorder {
+	return m.recorder
+}
+
+// All mocks base method.
+func (m *MockCreationOptions) All() []CreationOption {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "All")
+	ret0, _ := ret[0].([]CreationOption)
+	return ret0
+}
+
+// All indicates an expected call of All.
+func (mr *MockCreationOptionsMockRecorder) All() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "All", reflect.TypeOf((*MockCreationOptions)(nil).All))
+}
+
+// Method mocks base method.
+func (m *MockCreationOptions) Method() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Method")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// Method indicates an expected call of Method.
+func (mr *MockCreationOptionsMockRecorder) Method() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Method", reflect.TypeOf((*MockCreationOptions)(nil).Method))
+}
+
+// With mocks base method.
+func (m *MockCreationOptions) With(option CreationOption) CreationOptions {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "With", option)
+	ret0, _ := ret[0].(CreationOptions)
+	return ret0
+}
+
+// With indicates an expected call of With.
+func (mr *MockCreationOptionsMockRecorder) With(option any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "With", reflect.TypeOf((*MockCreationOptions)(nil).With), option)
+}
+
+// MockCreationOption is a mock of CreationOption interface.
+type MockCreationOption struct {
+	ctrl     *gomock.Controller
+	recorder *MockCreationOptionMockRecorder
+}
+
+// MockCreationOptionMockRecorder is the mock recorder for MockCreationOption.
+type MockCreationOptionMockRecorder struct {
+	mock *MockCreationOption
+}
+
+// NewMockCreationOption creates a new mock instance.
+func NewMockCreationOption(ctrl *gomock.Controller) *MockCreationOption {
+	mock := &MockCreationOption{ctrl: ctrl}
+	mock.recorder = &MockCreationOptionMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockCreationOption) EXPECT() *MockCreationOptionMockRecorder {
+	return m.recorder
 }
 
 // MockDocumentOwner is a mock of DocumentOwner interface.

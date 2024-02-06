@@ -84,8 +84,15 @@ func (w Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) 
 }
 
 func (w Wrapper) DeleteDID(ctx context.Context, request DeleteDIDRequestObject) (DeleteDIDResponseObject, error) {
-	//TODO implement me
-	panic("implement me")
+	targetDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	err = w.VDR.Deactivate(ctx, *targetDID)
+	if err != nil {
+		return nil, err
+	}
+	return DeleteDID204Response{}, nil
 }
 
 func (w Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error) {

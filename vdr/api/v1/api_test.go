@@ -320,7 +320,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	did123, _ := did.ParseDID("did:nuts:123")
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(nil)
+		ctx.vdr.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(nil)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 

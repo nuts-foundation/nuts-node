@@ -526,6 +526,25 @@ func TestModule_Create(t *testing.T) {
 	})
 }
 
+func TestModule_Deactivate(t *testing.T) {
+	t.Run("unsupported DID method", func(t *testing.T) {
+		test := newVDRTestCtx(t)
+
+		err := test.vdr.Deactivate(context.Background(), did.MustParseDID("did:example:123"))
+
+		assert.EqualError(t, err, "unsupported DID method: example")
+	})
+	t.Run("manager returns error", func(t *testing.T) {
+		id := did.MustParseDID("did:nuts:123")
+		test := newVDRTestCtx(t)
+		test.mockDocumentManager.EXPECT().Deactivate(gomock.Any(), id).Return(assert.AnError)
+
+		err := test.vdr.Deactivate(context.Background(), id)
+
+		assert.EqualError(t, err, "could not deactivate DID document: "+assert.AnError.Error())
+	})
+}
+
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {

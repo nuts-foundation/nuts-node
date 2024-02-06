@@ -87,6 +87,30 @@ func Test_sqlStore_create(t *testing.T) {
 	})
 }
 
+func Test_sqlStore_delete(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+
+	store := &sqlStore{db: storageEngine.GetSQLDatabase()}
+
+	t.Run("DID does not exist", func(t *testing.T) {
+		resetStore(t, store.db)
+
+		err := store.delete(testDID)
+		require.ErrorIs(t, err, resolver.ErrNotFound)
+	})
+	t.Run("DID exists", func(t *testing.T) {
+		resetStore(t, store.db)
+		_ = store.create(testDID)
+
+		err := store.delete(testDID)
+		require.NoError(t, err)
+
+		_, _, err = store.get(testDID)
+		require.ErrorIs(t, err, resolver.ErrNotFound)
+	})
+}
+
 func Test_sqlStore_get(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())

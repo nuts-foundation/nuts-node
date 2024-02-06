@@ -67,8 +67,9 @@ type Manager struct {
 	keyStore crypto.KeyStore
 }
 
-func (m Manager) Deactivate(_ context.Context, _ did.DID) error {
-	return errors.New("Deactivate() is not yet supported for did:web")
+func (m Manager) Deactivate(_ context.Context, subjectDID did.DID) error {
+	// TODO: Should we remove private keys as well?
+	return m.store.delete(subjectDID)
 }
 
 func (m Manager) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID did.DIDURL) error {
