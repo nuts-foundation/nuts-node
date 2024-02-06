@@ -20,11 +20,13 @@ package iam
 
 import (
 	"context"
+	crypto2 "crypto"
 	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
@@ -297,10 +299,38 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
-	params := make(map[string]string)
+	params := make(map[string]interface{})
 	for key, value := range httpRequest.URL.Query() {
-		params[key] = value[0]
+		if len(value) == 1 {
+			params[key] = value[0]
+		} else {
+			params[key] = value
+		}
 	}
+
+	// if the request param is present, JAR (RFC9101, JWT Authorization Request) is used
+	// we parse the request and check the client_id param
+	if rawToken, ok := params[oauth.RequestParam].(string); ok {
+		// Parse and validate the JWT
+		token, err := crypto.ParseJWT(rawToken, func(kid string) (crypto2.PublicKey, error) {
+			return resolver.DIDKeyResolver{Resolver: r.vdr}.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
+		}, jwt.WithValidate(true))
+		if err != nil {
+			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
+		}
+		claims, err := token.AsMap(ctx)
+		if err != nil {
+			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
+		}
+		// check client_id claim, it must be the same as the client_id in the request
+		clientID, ok := claims[oauth.ClientIDParam].(string)
+		if !ok || clientID != params[oauth.ClientIDParam] {
+			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id in request parameter"}
+		}
+		// overwrite params with the claims of the JWT
+		params = claims
+	} // else, we'll allow for now, since other flows will break if we require JAR at this point.
+
 	// todo: store session in database? Isn't session specific for a particular flow?
 	session := createSession(params, *ownDID)
 
@@ -505,20 +535,17 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}, nil
 }
 
-func createSession(params map[string]string, ownDID did.DID) *OAuthSession {
-	session := &OAuthSession{
-		// TODO: Validate client ID
-		ClientID: params[oauth.ClientIDParam],
-		// TODO: Validate scope
-		Scope:       params[oauth.ScopeParam],
-		ClientState: params[oauth.StateParam],
-		ServerState: map[string]interface{}{},
-		// TODO: Validate according to https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
-		RedirectURI:  params[oauth.RedirectURIParam],
-		OwnDID:       &ownDID,
-		ResponseType: params[responseTypeParam],
-	}
-	return session
+func createSession(params map[string]interface{}, ownDID did.DID) *OAuthSession {
+	session := OAuthSession{}
+	session.ClientID, _ = params[oauth.ClientIDParam].(string)
+	session.Scope, _ = params[oauth.ScopeParam].(string)
+	session.ClientState, _ = params[oauth.StateParam].(string)
+	session.ServerState = map[string]interface{}{}
+	session.RedirectURI, _ = params[oauth.RedirectURIParam].(string)
+	session.OwnDID = &ownDID
+	session.ResponseType, _ = params[oauth.ResponseTypeParam].(string)
+
+	return &session
 }
 
 // idToDID converts the tenant-specific part of a did:web DID (e.g. 123)

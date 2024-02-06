@@ -36,7 +36,17 @@ type Client interface {
 	// ClientMetadata returns the metadata of the remote verifier.
 	ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error)
 	// CreateAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
-	CreateAuthorizationRequest(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, clientState string) (*url.URL, error)
+	// It can create both regular OAuth2 requests and OpenID4VP requests due to the RequestModifier.
+	// It's able to create an unsigned request and a signed request (JAR) based on the OAuth Server Metadata.
+	// By default, it adds the following parameters to a regular request:
+	// - client_id
+	// and to a signed request:
+	// - client_id
+	// - jwt.Issuer
+	// - jwt.Audience
+	// - nonce
+	// any of these params can be overridden by the RequestModifier.
+	CreateAuthorizationRequest(ctx context.Context, client did.DID, server did.DID, modifier RequestModifier) (*url.URL, error)
 	// PostError posts an error to the verifier. If it fails, an error is returned.
 	PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (string, error)
 	// PostAuthorizationResponse posts the authorization response to the verifier. If it fails, an error is returned.
@@ -46,3 +56,6 @@ type Client interface {
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC021.
 	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error)
 }
+
+// RequestModifier is a function that modifies the claims/params of a unsigned or signed request (JWT)
+type RequestModifier func(claims map[string]interface{})

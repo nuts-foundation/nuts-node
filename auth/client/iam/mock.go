@@ -90,18 +90,18 @@ func (mr *MockClientMockRecorder) ClientMetadata(ctx, endpoint any) *gomock.Call
 }
 
 // CreateAuthorizationRequest mocks base method.
-func (m *MockClient) CreateAuthorizationRequest(ctx context.Context, requestHolder, verifier did.DID, scopes, clientState string) (*url.URL, error) {
+func (m *MockClient) CreateAuthorizationRequest(ctx context.Context, client, server did.DID, modifier RequestModifier) (*url.URL, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAuthorizationRequest", ctx, requestHolder, verifier, scopes, clientState)
+	ret := m.ctrl.Call(m, "CreateAuthorizationRequest", ctx, client, server, modifier)
 	ret0, _ := ret[0].(*url.URL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateAuthorizationRequest indicates an expected call of CreateAuthorizationRequest.
-func (mr *MockClientMockRecorder) CreateAuthorizationRequest(ctx, requestHolder, verifier, scopes, clientState any) *gomock.Call {
+func (mr *MockClientMockRecorder) CreateAuthorizationRequest(ctx, client, server, modifier any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAuthorizationRequest", reflect.TypeOf((*MockClient)(nil).CreateAuthorizationRequest), ctx, requestHolder, verifier, scopes, clientState)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAuthorizationRequest", reflect.TypeOf((*MockClient)(nil).CreateAuthorizationRequest), ctx, client, server, modifier)
 }
 
 // PostAuthorizationResponse mocks base method.

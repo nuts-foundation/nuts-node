@@ -62,8 +62,16 @@ const (
 	CodeParam = "code"
 	// GrantTypeParam is the parameter name for the grant_type parameter
 	GrantTypeParam = "grant_type"
+	// NonceParam is the parameter name for the nonce parameter
+	NonceParam = "nonce"
+	// MaxAgeParam is the parameter name for the max_age parameter
+	MaxAgeParam = "max_age"
 	// RedirectURIParam is the parameter name for the redirect_uri parameter
 	RedirectURIParam = "redirect_uri"
+	// RequestParam is the parameter name for the request parameter
+	RequestParam = "request"
+	// ResponseTypeParam is the parameter name for the response_type parameter
+	ResponseTypeParam = "response_type"
 	// ScopeParam is the parameter name for the scope parameter
 	ScopeParam = "scope"
 	// StateParam is the parameter name for the state parameter
@@ -148,6 +156,9 @@ type AuthorizationServerMetadata struct {
 	// PresentationDefinitionUriSupported specifies whether the Wallet supports the transfer of presentation_definition by reference, with true indicating support.
 	// If omitted, the default value is true. (hence pointer, or add custom unmarshalling)
 	PresentationDefinitionUriSupported *bool `json:"presentation_definition_uri_supported,omitempty"`
+
+	// RequireSignedRequestObject specifies if the authorization server requires the use of signed request objects.
+	RequireSignedRequestObject bool `json:"require_signed_request_object,omitempty"`
 
 	// VPFormatsSupported is an object containing a list of key value pairs, where the key is a string identifying a Credential format supported by the Wallet.
 	VPFormatsSupported map[string]map[string][]string `json:"vp_formats_supported,omitempty"`

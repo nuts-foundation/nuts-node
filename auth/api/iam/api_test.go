@@ -22,6 +22,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -224,24 +226,28 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 }
 
 func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
-	serverMetadata := oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:    "https://example.com/holder/authorize",
-		ClientIdSchemesSupported: []string{"did"},
-	}
 	clientMetadata := oauth.OAuthClientMetadata{
 		VPFormats: oauth.DefaultOpenIDSupportedFormats(),
+	}
+	serverMetadata := oauth.AuthorizationServerMetadata{
+		ClientIdSchemesSupported: []string{didScheme},
+		VPFormats:                oauth.DefaultOpenIDSupportedFormats(),
 	}
 	pdEndpoint := "https://example.com/iam/verifier/presentation_definition?scope=test"
 	t.Run("ok - code response type - from holder", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
-
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
-			oauth.ClientIDParam:    holderDID.String(),
-			oauth.RedirectURIParam: "https://example.com",
-			responseTypeParam:      responseTypeCode,
-			oauth.ScopeParam:       "test",
+		
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
+			jwt.AudienceKey:         []string{verifierDID.String(), "mock"},
+			jwt.IssuerKey:           holderDID.String(),
+			oauth.ClientIDParam:     holderDID.String(),
+			oauth.NonceParam:        "nonce",
+			oauth.RedirectURIParam:  "https://example.com",
+			oauth.ResponseTypeParam: responseTypeCode,
+			oauth.ScopeParam:        "test",
+			oauth.StateParam:        "state",
 		}), HandleAuthorizeRequestRequestObject{
 			Id: "verifier",
 		})
@@ -277,7 +283,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/iam/verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
 			oauth.ClientIDParam:     verifierDID.String(),
 			clientIDSchemeParam:     didScheme,
 			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
@@ -285,7 +291,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
 			responseURIParam:        "https://example.com/iam/verifier/response",
 			responseModeParam:       responseModeDirectPost,
-			responseTypeParam:       responseTypeVPToken,
+			oauth.ResponseTypeParam: responseTypeVPToken,
 			oauth.ScopeParam:        "test",
 			oauth.StateParam:        "state",
 		}), HandleAuthorizeRequestRequestObject{
@@ -301,7 +307,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
 			"redirect_uri":  "https://example.com",
 			"response_type": "unsupported",
 		}), HandleAuthorizeRequestRequestObject{
@@ -703,10 +709,19 @@ func requireOAuthError(t *testing.T, err error, errorCode oauth.ErrorCode, error
 	assert.Equal(t, errorDescription, oauthErr.Description)
 }
 
-func requestContext(queryParams map[string]string) context.Context {
+func requestContext(queryParams map[string]interface{}) context.Context {
 	vals := url.Values{}
 	for key, value := range queryParams {
-		vals.Add(key, value)
+		switch t := value.(type) {
+		case string:
+			vals.Add(key, t)
+		case []string:
+			for _, v := range t {
+				vals.Add(key, v)
+			}
+		default:
+			panic(fmt.Sprintf("unsupported type %T", t))
+		}
 	}
 	httpRequest := &http.Request{
 		URL: &url.URL{

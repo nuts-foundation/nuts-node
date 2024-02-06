@@ -61,7 +61,7 @@ const (
 )
 
 const (
-	// responseTypeParam is the name of the response_type parameter.
+	// oauth.ResponseTypeParam is the name of the response_type parameter.
 	// Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.1
 	//
 	// TODO: reconsider the following
@@ -73,7 +73,7 @@ const (
 	//	If an authorization request is missing the "response_type" parameter,
 	//	or if the response type is not understood, the authorization server
 	//	MUST return an error response as described in Section 4.1.2.1.
-	responseTypeParam = "response_type"
+
 	// responseTypeCode is the default response_type in the OAuth2 authorized code flow
 	responseTypeCode = "code"
 	// responseTypeVPToken is defined in the OpenID4VP vp_token flow

@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"go.uber.org/mock/gomock"
 	"net/http"
@@ -54,7 +55,14 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		echoCtx.EXPECT().Request().Return(&http.Request{Host: "test.test"})
 		echoCtx.EXPECT().Redirect(http.StatusFound, expectedURL.String())
-		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, "first second", gomock.Any()).Return(expectedURL, nil)
+		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, gomock.Any()).DoAndReturn(func(_ interface{}, did, verifier did.DID, modifier iam.RequestModifier) (*url.URL, error) {
+			// check the parameters
+			params := map[string]interface{}{}
+			modifier(params)
+			assert.Equal(t, "first second", params["scope"])
+			assert.NotEmpty(t, params["state"])
+			return expectedURL, nil
+		})
 		store := ctx.client.userRedirectStore()
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
@@ -116,7 +124,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
-		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, "first second", gomock.Any()).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, gomock.Any()).Return(nil, assert.AnError)
 
 		err = ctx.client.handleUserLanding(echoCtx)
 
