@@ -13,9 +13,11 @@ import (
 	context "context"
 	reflect "reflect"
 
+	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	core "github.com/nuts-foundation/nuts-node/core"
+	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -55,6 +57,22 @@ func (m *MockWallet) BuildPresentation(ctx context.Context, credentials []vc.Ver
 func (mr *MockWalletMockRecorder) BuildPresentation(ctx, credentials, options, signerDID, validateVC any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPresentation", reflect.TypeOf((*MockWallet)(nil).BuildPresentation), ctx, credentials, options, signerDID, validateVC)
+}
+
+// BuildSubmission mocks base method.
+func (m *MockWallet) BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience ssi.URI) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BuildSubmission", ctx, walletDID, presentationDefinition, acceptedFormats, nonce, audience)
+	ret0, _ := ret[0].(*vc.VerifiablePresentation)
+	ret1, _ := ret[1].(*pe.PresentationSubmission)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// BuildSubmission indicates an expected call of BuildSubmission.
+func (mr *MockWalletMockRecorder) BuildSubmission(ctx, walletDID, presentationDefinition, acceptedFormats, nonce, audience any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildSubmission", reflect.TypeOf((*MockWallet)(nil).BuildSubmission), ctx, walletDID, presentationDefinition, acceptedFormats, nonce, audience)
 }
 
 // Diagnostics mocks base method.

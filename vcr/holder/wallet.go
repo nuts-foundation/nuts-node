@@ -31,11 +31,13 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -45,6 +47,9 @@ import (
 )
 
 const statsShelf = "stats"
+
+// ErrNoCredentials is returned when no matching credentials are found in the wallet based on a PresentationDefinition
+var ErrNoCredentials = errors.New("no matching credentials")
 
 var credentialCountStatsKey = stoabs.BytesKey("credential_count")
 
@@ -67,6 +72,61 @@ func New(
 		jsonldManager: jsonldManager,
 		walletStore:   walletStore,
 	}
+}
+
+func (h wallet) BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience ssi.URI) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	// get VCs from own wallet
+	credentials, err := h.List(ctx, walletDID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
+	}
+
+	expires := time.Now().Add(time.Minute * 15) //todo
+
+	// match against the wallet's credentials
+	// if there's a match, create a VP and call the token endpoint
+	// If the token endpoint succeeds, return the access token
+	// If no presentation definition matches, return a 412 "no matching credentials" error
+	builder := presentationDefinition.PresentationSubmissionBuilder()
+	builder.AddWallet(walletDID, credentials)
+
+	// Find supported VP format, matching support from:
+	// - what the local Nuts node supports
+	// - the presentation definition "claimed format designation" (optional)
+	// - the verifier's metadata (optional)
+	formatCandidates := credential.OpenIDSupportedFormats(oauth.DefaultOpenIDSupportedFormats())
+	formatCandidates = formatCandidates.Match(credential.OpenIDSupportedFormats(acceptedFormats))
+	if presentationDefinition.Format != nil {
+		formatCandidates = formatCandidates.Match(credential.DIFClaimFormats(*presentationDefinition.Format))
+	}
+	format := pe.ChooseVPFormat(formatCandidates.Map)
+	if format == "" {
+		return nil, nil, errors.New("requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")
+	}
+	presentationSubmission, signInstructions, err := builder.Build(format)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build presentation submission: %w", err)
+	}
+	if signInstructions.Empty() {
+		return nil, nil, ErrNoCredentials
+	}
+
+	// todo: support multiple wallets
+	audienceStr := audience.String()
+	vp, err := h.BuildPresentation(ctx, signInstructions[0].VerifiableCredentials, PresentationOptions{
+		Format: format,
+		ProofOptions: proof.ProofOptions{
+			Created:   time.Now(),
+			Challenge: &nonce,
+			Domain:    &audienceStr,
+			Expires:   &expires,
+			Nonce:     &nonce,
+		},
+	}, &walletDID, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create verifiable presentation: %w", err)
+	}
+	return vp, &presentationSubmission, nil
 }
 
 func (h wallet) BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {

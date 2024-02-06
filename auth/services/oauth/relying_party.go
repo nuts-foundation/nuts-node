@@ -21,12 +21,8 @@ package oauth
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,17 +30,13 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
-	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
-	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -75,29 +67,7 @@ func NewRelyingParty(
 	}
 }
 
-func (s *relyingParty) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error) {
-	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
-	}
-	if len(metadata.TokenEndpoint) == 0 {
-		return nil, fmt.Errorf("no token endpoint found in Authorization Server metadata: %s", verifier)
-	}
-	// call token endpoint
-	data := url.Values{}
-	data.Set(oauth.ClientIDParam, clientID.String())
-	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
-	data.Set(oauth.CodeParam, code)
-	data.Set(oauth.RedirectURIParam, callbackURI)
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data)
-	if err != nil {
-		return nil, fmt.Errorf("remote server: error creating access token: %w", err)
-	}
-	return &token, nil
-}
-
-// CreateJwtGrant creates a JWT Grant from the given CreateJwtGrantRequest
+// CreateJwtGrant creates a JWT Grant from the given CreateJwtGrantRequest, auth v1 API
 func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
 	requester, err := did.ParseDID(request.Requester)
 	if err != nil {
@@ -136,37 +106,7 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 	return &services.JwtBearerTokenResult{BearerToken: signingString, AuthorizationServerEndpoint: endpointURL}, nil
 }
 
-func (s *relyingParty) CreateAuthorizationRequest(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, clientState string) (*url.URL, error) {
-	// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
-	// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
-	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
-	}
-	if len(metadata.AuthorizationEndpoint) == 0 {
-		return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", verifier)
-	}
-	endpoint, err := url.Parse(metadata.AuthorizationEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse authorization endpoint URL: %w", err)
-	}
-	// construct callback URL for wallet
-	callbackURL, err := didweb.DIDToURL(requestHolder)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create callback URL: %w", err)
-	}
-	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
-	redirectURL := nutsHttp.AddQueryParams(*endpoint, map[string]string{
-		"client_id":     requestHolder.String(),
-		"response_type": "code",
-		"scope":         scopes,
-		"state":         clientState,
-		"redirect_uri":  callbackURL.String(),
-	})
-	return &redirectURL, nil
-}
-
+// RequestRFC003AccessToken is used in the auth v1 API
 func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantToken string, authorizationServerEndpoint url.URL) (*oauth.TokenResponse, error) {
 	if s.strictMode && strings.ToLower(authorizationServerEndpoint.Scheme) != "https" {
 		return nil, fmt.Errorf("authorization server endpoint must be HTTPS when in strict mode: %s", authorizationServerEndpoint.String())
@@ -186,115 +126,6 @@ func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantTok
 		return nil, fmt.Errorf("remote server/nuts node returned error creating access token: %w", err)
 	}
 	return accessTokenResponse, nil
-}
-
-func (s *relyingParty) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
-	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
-	}
-
-	// get the presentation definition from the verifier
-	presentationDefinition, err := s.presentationDefinition(ctx, metadata.PresentationDefinitionEndpoint, scopes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
-	}
-
-	walletCredentials, err := s.wallet.List(ctx, requester)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
-	}
-
-	// match against the wallet's credentials
-	// if there's a match, create a VP and call the token endpoint
-	// If the token endpoint succeeds, return the access token
-	// If no presentation definition matches, return a 412 "no matching credentials" error
-	builder := presentationDefinition.PresentationSubmissionBuilder()
-	builder.AddWallet(requester, walletCredentials)
-
-	// Find supported VP format, matching support from:
-	// - what the local Nuts node supports
-	// - the presentation definition "claimed format designation" (optional)
-	// - the verifier's metadata (optional)
-	formatCandidates := credential.OpenIDSupportedFormats(oauth.DefaultOpenIDSupportedFormats())
-	if metadata.VPFormats != nil {
-		formatCandidates = formatCandidates.Match(credential.OpenIDSupportedFormats(metadata.VPFormats))
-	}
-	if presentationDefinition.Format != nil {
-		formatCandidates = formatCandidates.Match(credential.DIFClaimFormats(*presentationDefinition.Format))
-	}
-	format := pe.ChooseVPFormat(formatCandidates.Map)
-	if format == "" {
-		return nil, errors.New("requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")
-	}
-	// TODO: format parameters (alg, proof_type, etc.) are ignored, but should be used in the actual signing
-	submission, signInstructions, err := builder.Build(format)
-	if err != nil {
-		return nil, fmt.Errorf("failed to match presentation definition: %w", err)
-	}
-	if signInstructions.Empty() {
-		return nil, core.Error(http.StatusPreconditionFailed, "no matching credentials")
-	}
-	expires := time.Now().Add(time.Second * 5)
-	// todo: support multiple wallets
-	domain := verifier.String()
-	nonce := nutsCrypto.GenerateNonce()
-	vp, err := s.wallet.BuildPresentation(ctx, signInstructions[0].VerifiableCredentials, holder.PresentationOptions{
-		Format: format,
-		ProofOptions: proof.ProofOptions{
-			Created: time.Now(),
-			Expires: &expires,
-			Domain:  &domain,
-			Nonce:   &nonce,
-		},
-	}, &requester, false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create verifiable presentation: %w", err)
-	}
-
-	assertion := vp.Raw()
-	presentationSubmission, _ := json.Marshal(submission)
-	data := url.Values{}
-	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
-	data.Set(oauth.AssertionParam, assertion)
-	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
-	data.Set(oauth.ScopeParam, scopes)
-	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data)
-	if err != nil {
-		// the error could be a http error, we just relay it here to make use of any 400 status codes.
-		return nil, err
-	}
-	return &oauth.TokenResponse{
-		AccessToken: token.AccessToken,
-		ExpiresIn:   token.ExpiresIn,
-		TokenType:   token.TokenType,
-		Scope:       &scopes,
-	}, nil
-}
-
-func (s *relyingParty) authorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
-	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, webdid)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
-	}
-	return metadata, nil
-}
-
-func (s *relyingParty) presentationDefinition(ctx context.Context, presentationDefinitionURL string, scopes string) (*pe.PresentationDefinition, error) {
-	parsedURL, err := url.Parse(presentationDefinitionURL)
-	if err != nil {
-		return nil, err
-	}
-	parsedURL.RawQuery = url.Values{"scope": []string{scopes}}.Encode()
-	iamClient := iam.NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	presentationDefinition, err := iamClient.PresentationDefinition(ctx, *parsedURL)
-	if err != nil {
-		return nil, err
-	}
-	return presentationDefinition, nil
 }
 
 var timeFunc = time.Now
