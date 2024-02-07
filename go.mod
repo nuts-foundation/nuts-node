@@ -171,7 +171,7 @@ require (
 	rsc.io/qr v0.2.0 // indirect
 )
 
-require gorm.io/driver/postgres v1.5.4
+require gorm.io/driver/postgres v1.5.6
 
 require (
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
