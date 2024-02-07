@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"strings"
 	"testing"
 )
 
@@ -39,6 +40,19 @@ func TestKeyResolver_ResolveKey(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, doc.VerificationMethod[0].ID.URI(), keyId)
 		assert.NotNil(t, key)
+	})
+	t.Run("ok - did:web with port", func(t *testing.T) {
+		// This test checks for regression of DID.URI() double-encoding, causing %3A to be encoded to %253A
+		// This was fixed in go-did v0.12.0
+		ctrl := gomock.NewController(t)
+		resolver := NewMockDIDResolver(ctrl)
+		keyResolver := DIDKeyResolver{Resolver: resolver}
+		doc := newDidDocWithDID(did.MustParseDID("did:web:example.com%3A8443"))
+		resolver.EXPECT().Resolve(doc.ID, gomock.Any()).AnyTimes().Return(&doc, nil, nil)
+
+		keyId, _, err := keyResolver.ResolveKey(doc.ID, nil, AssertionMethod)
+		require.NoError(t, err)
+		assert.Truef(t, strings.HasPrefix(keyId.String(), doc.ID.String()), "%s does not start with DID %s", keyId, doc.ID)
 	})
 
 	t.Run("error - document not found", func(t *testing.T) {
