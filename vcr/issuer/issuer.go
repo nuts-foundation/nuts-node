@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"time"
@@ -54,7 +55,8 @@ var TimeFunc = time.Now
 // See https://github.com/nuts-foundation/nuts-node/issues/2063
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
-	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
+	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
+	statusList statuslist.StatusList2021Issuer) Issuer {
 	keyResolver := vdrKeyResolver{
 		publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
 		privateKeyResolver: keyStore,
@@ -71,7 +73,7 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 		jsonldManager:   jsonldManager,
 		trustConfig:     trustConfig,
 		vcrStore:        vcrStore,
-		statusListStore: newStatusListMemoryStore(),
+		statusListStore: statusList,
 	}
 }
 
@@ -86,7 +88,7 @@ type issuer struct {
 	jsonldManager    jsonld.JSONLD
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
-	statusListStore  StatusList2021Store
+	statusListStore  statuslist.StatusList2021Issuer
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -216,11 +218,11 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 		Issuer:            template.Issuer,
 		ExpirationDate:    template.ExpirationDate,
 		IssuanceDate:      template.IssuanceDate,
-		CredentialStatus:  template.CredentialStatus, // TODO: needs api update for this to work. do we allow external issuers to revoke this credential?
+		//CredentialStatus:  template.CredentialStatus, // not allowed for now since it requires API changes to be able to determine what status to revoke.
 	}
 	if options.WithStatusListRevocation {
 		// add credential status
-		credentialStatusEntry, err := i.statusListStore.Create(ctx, *issuerDID, StatusPurposeRevocation)
+		credentialStatusEntry, err := i.statusListStore.Create(ctx, *issuerDID, statuslist.StatusPurposeRevocation)
 		if err != nil {
 			return nil, err
 		}
@@ -342,7 +344,7 @@ func (i issuer) revokeStatusList(ctx context.Context, credentialID ssi.URI) erro
 				return err
 			}
 			// TODO: make sure it is the correct entry when we allow other purposes, or VC issuance that include other credential statuses
-			if slEntry.StatusPurpose != StatusPurposeRevocation {
+			if slEntry.StatusPurpose != statuslist.StatusPurposeRevocation {
 				continue
 			}
 			return i.statusListStore.Revoke(ctx, credentialID, slEntry)
