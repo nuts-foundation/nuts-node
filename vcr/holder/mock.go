@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	core "github.com/nuts-foundation/nuts-node/core"
@@ -55,6 +56,20 @@ func (m *MockWallet) BuildPresentation(ctx context.Context, credentials []vc.Ver
 func (mr *MockWalletMockRecorder) BuildPresentation(ctx, credentials, options, signerDID, validateVC any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPresentation", reflect.TypeOf((*MockWallet)(nil).BuildPresentation), ctx, credentials, options, signerDID, validateVC)
+}
+
+// Delete mocks base method.
+func (m *MockWallet) Delete(ctx context.Context, subjectDID did.DID, id ssi.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", ctx, subjectDID, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockWalletMockRecorder) Delete(ctx, subjectDID, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockWallet)(nil).Delete), ctx, subjectDID, id)
 }
 
 // Diagnostics mocks base method.
