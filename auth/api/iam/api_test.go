@@ -615,7 +615,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: "invalid", Body: body})
 
-		require.EqualError(t, err, "did not found: invalid DID")
+		require.EqualError(t, err, "DID not found: invalid DID")
 	})
 	t.Run("error - invalid verifier did", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -675,7 +675,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 
 		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: "invalid", Body: body})
 
-		require.EqualError(t, err, "did not found: invalid DID")
+		require.EqualError(t, err, "DID not found: invalid DID")
 	})
 }
 
