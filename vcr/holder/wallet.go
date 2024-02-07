@@ -275,6 +275,28 @@ func (h wallet) IsEmpty() (bool, error) {
 	return count == 0, err
 }
 
+func (h wallet) Delete(ctx context.Context, subjectDID did.DID, id ssi.URI) error {
+	err := h.walletStore.Write(ctx, func(tx stoabs.WriteTx) error {
+		stats := tx.GetShelfWriter(statsShelf)
+		walletKey := stoabs.BytesKey(id.String())
+		walletShelf := tx.GetShelfWriter(subjectDID.String())
+		err := walletShelf.Delete(walletKey)
+		if err != nil {
+			return err
+		}
+		// Update stats
+		currentCount, err := h.readCredentialCount(stats)
+		if err != nil {
+			return fmt.Errorf("unable to read wallet credential count: %w", err)
+		}
+		return stats.Put(credentialCountStatsKey, binary.BigEndian.AppendUint32([]byte{}, currentCount+1))
+	}, stoabs.WithWriteLock()) // lock required for stats consistency
+	if err != nil {
+		return fmt.Errorf("unable to delete credential: %w", err)
+	}
+	return nil
+}
+
 func (h wallet) readCredentialCount(statsShelf stoabs.Reader) (uint32, error) {
 	countBytes, err := statsShelf.Get(credentialCountStatsKey)
 	if errors.Is(err, stoabs.ErrKeyNotFound) {

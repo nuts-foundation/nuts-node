@@ -56,6 +56,9 @@ type Wallet interface {
 
 	// IsEmpty returns true if the wallet contains no credentials at all (for all holder DIDs).
 	IsEmpty() (bool, error)
+
+	// Delete deletes a credential from the wallet
+	Delete(ctx context.Context, subjectDID did.DID, id ssi.URI) error
 }
 
 // PresentationOptions contains parameters used to create the right VerifiablePresentation
