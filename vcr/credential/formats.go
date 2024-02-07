@@ -57,9 +57,14 @@ type Formats struct {
 // If a format is supported by both sets, but parameters overlap (e.g. supported cryptographic algorithms),
 // the format is not included in the result.
 func (f Formats) Match(other Formats) Formats {
+	aliases := f.FormatAliases
+	if aliases == nil {
+		aliases = other.FormatAliases
+	}
 	result := Formats{
-		Map:          map[string]map[string][]string{},
-		ParamAliases: map[string]string{},
+		Map:           map[string]map[string][]string{},
+		ParamAliases:  map[string]string{},
+		FormatAliases: aliases,
 	}
 
 	for thisFormat, thisFormatParams := range f.Map {
