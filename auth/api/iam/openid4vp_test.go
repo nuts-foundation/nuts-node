@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"net/http"
 	"net/url"
 	"strings"
@@ -676,7 +677,7 @@ func TestWrapper_sendAndHandleDirectPostError(t *testing.T) {
 }
 
 func TestWrapper_sendPresentationRequest(t *testing.T) {
-	instance := New(nil, nil, nil, nil, nil)
+	instance := New(nil, nil, nil, nil, nil, nil)
 
 	redirectURI, _ := url.Parse("https://example.com/redirect")
 	verifierID, _ := url.Parse("https://example.com/verifier")
@@ -728,12 +729,13 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		mockVDR := vdr.NewMockVDR(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockWallet := holder.NewMockWallet(ctrl)
+		cryptoInstance := crypto.NewMockKeyStore(ctrl)
 		mockPolicy := policy.NewMockPDPBackend(ctrl)
 		mockVCR.EXPECT().Wallet().Return(mockWallet)
 		mockAuth := auth.NewMockAuthenticationServices(ctrl)
 		mockWallet.EXPECT().List(gomock.Any(), holderDID).Return(walletCredentials, nil)
 		mockVDR.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
-		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t), mockPolicy)
+		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t), mockPolicy, cryptoInstance)
 
 		params := map[string]string{
 			"scope":                   "eOverdracht-overdrachtsbericht",
@@ -752,7 +754,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		assert.Contains(t, httpResponse.body.String(), "</html>")
 	})
 	t.Run("invalid response_mode", func(t *testing.T) {
-		instance := New(nil, nil, nil, nil, nil)
+		instance := New(nil, nil, nil, nil, nil, nil)
 		params := map[string]string{
 			"scope":                   "eOverdracht-overdrachtsbericht",
 			"response_type":           "code",

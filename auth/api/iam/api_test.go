@@ -502,6 +502,7 @@ func TestWrapper_Routes(t *testing.T) {
 
 	router.EXPECT().GET(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	router.EXPECT().DELETE(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	(&Wrapper{}).Routes(router)
 }

@@ -35,6 +35,20 @@ type RedirectResponseWithID struct {
 	SessionId string `json:"session_id"`
 }
 
+// SearchVCResult result of a Search operation.
+type SearchVCResult struct {
+	// Revocation Credential revocation record
+	Revocation *Revocation `json:"revocation,omitempty"`
+
+	// VerifiableCredential A credential according to the W3C and Nuts specs.
+	VerifiableCredential VerifiableCredential `json:"verifiableCredential"`
+}
+
+// SearchVCResults result of a Search operation.
+type SearchVCResults struct {
+	VerifiableCredentials []SearchVCResult `json:"verifiableCredentials"`
+}
+
 // TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
 type TokenIntrospectionRequest struct {
 	Token string `json:"token"`
@@ -103,6 +117,39 @@ type TokenIntrospectionResponse struct {
 
 // TokenIntrospectionResponseAssuranceLevel Assurance level of the identity of the End-User.
 type TokenIntrospectionResponseAssuranceLevel string
+
+// DcrOid4vpAuthorizeParams defines parameters for DcrOid4vpAuthorize.
+type DcrOid4vpAuthorizeParams struct {
+	// Request Should be a signed request object as JWT with the following required fields:
+	//   - response_type : vp_token
+	//   - client_id : did value
+	//   - client_id_scheme : "did"
+	//   - redirect_uri: the uri to redirect to
+	//   - state: state
+	//   - nonce: unique
+	//   - presentation_definition or presentation_definition_uri
+	//   - user_hint
+	Request string `form:"request" json:"request"`
+}
+
+// CallbackOid4vciIssuanceParams defines parameters for CallbackOid4vciIssuance.
+type CallbackOid4vciIssuanceParams struct {
+	// Code The oauth2 code response.
+	Code string `form:"code" json:"code"`
+}
+
+// StartOid4vciIssuanceJSONBody defines parameters for StartOid4vciIssuance.
+type StartOid4vciIssuanceJSONBody struct {
+	AuthorizationDetails []struct {
+		CredentialDefinition *map[string]interface{} `json:"credential_definition,omitempty"`
+		Format               *string                 `json:"format,omitempty"`
+		Type                 *string                 `json:"type,omitempty"`
+	} `json:"authorizationDetails"`
+	Issuer string `json:"issuer"`
+
+	// RedirectURL The URL to which the user-agent will be redirected after the authorization request.
+	RedirectURL string `json:"redirectURL"`
+}
 
 // HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
 type HandleAuthorizeRequestParams struct {
@@ -180,6 +227,9 @@ type RequestUserAccessTokenJSONBody struct {
 	Verifier string `json:"verifier"`
 }
 
+// StartOid4vciIssuanceJSONRequestBody defines body for StartOid4vciIssuance for application/json ContentType.
+type StartOid4vciIssuanceJSONRequestBody StartOid4vciIssuanceJSONBody
+
 // HandleAuthorizeResponseFormdataRequestBody defines body for HandleAuthorizeResponse for application/x-www-form-urlencoded ContentType.
 type HandleAuthorizeResponseFormdataRequestBody HandleAuthorizeResponseFormdataBody
 
@@ -200,6 +250,18 @@ type ServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata
 	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	OAuthAuthorizationServerMetadata(ctx echo.Context, id string) error
+	// Metadata in the Dynamic Credential Request OID4VP flow.
+	// (GET /iam/oid4vci/dcr/{sessionId}/.well-known/openid-configuration)
+	DcrOid4vpMetadata(ctx echo.Context, sessionId string) error
+	// Authorize in the Dynamic Credential Request OID4VP flow.
+	// (GET /iam/oid4vci/dcr/{sessionId}/authorize)
+	DcrOid4vpAuthorize(ctx echo.Context, sessionId string, params DcrOid4vpAuthorizeParams) error
+	// Callback for the Oid4VCI flow.
+	// (GET /iam/oid4vci/{sessionId}/callback)
+	CallbackOid4vciIssuance(ctx echo.Context, sessionId string, params CallbackOid4vciIssuanceParams) error
+	// Start the Oid4VCI authorization flow.
+	// (POST /iam/{did}/start-oid4vci-issuance)
+	StartOid4vciIssuance(ctx echo.Context, did string) error
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{id}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, id string, params HandleAuthorizeRequestParams) error
@@ -233,6 +295,12 @@ type ServerInterface interface {
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{did}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, did string) error
+	// Helper method to search the wallet.
+	// (GET /internal/auth/v2/{did}/wallet)
+	SearchWallet(ctx echo.Context, did string) error
+	// Delete a specific credential in a wallet
+	// (DELETE /internal/auth/v2/{did}/wallet/{id})
+	DeleteWalletCredential(ctx echo.Context, did string, id string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -255,6 +323,96 @@ func (w *ServerInterfaceWrapper) OAuthAuthorizationServerMetadata(ctx echo.Conte
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.OAuthAuthorizationServerMetadata(ctx, id)
+	return err
+}
+
+// DcrOid4vpMetadata converts echo context to params.
+func (w *ServerInterfaceWrapper) DcrOid4vpMetadata(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "sessionId" -------------
+	var sessionId string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "sessionId", runtime.ParamLocationPath, ctx.Param("sessionId"), &sessionId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter sessionId: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DcrOid4vpMetadata(ctx, sessionId)
+	return err
+}
+
+// DcrOid4vpAuthorize converts echo context to params.
+func (w *ServerInterfaceWrapper) DcrOid4vpAuthorize(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "sessionId" -------------
+	var sessionId string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "sessionId", runtime.ParamLocationPath, ctx.Param("sessionId"), &sessionId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter sessionId: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DcrOid4vpAuthorizeParams
+	// ------------- Required query parameter "request" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "request", ctx.QueryParams(), &params.Request)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter request: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DcrOid4vpAuthorize(ctx, sessionId, params)
+	return err
+}
+
+// CallbackOid4vciIssuance converts echo context to params.
+func (w *ServerInterfaceWrapper) CallbackOid4vciIssuance(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "sessionId" -------------
+	var sessionId string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "sessionId", runtime.ParamLocationPath, ctx.Param("sessionId"), &sessionId)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter sessionId: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CallbackOid4vciIssuanceParams
+	// ------------- Required query parameter "code" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "code", ctx.QueryParams(), &params.Code)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter code: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CallbackOid4vciIssuance(ctx, sessionId, params)
+	return err
+}
+
+// StartOid4vciIssuance converts echo context to params.
+func (w *ServerInterfaceWrapper) StartOid4vciIssuance(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.StartOid4vciIssuance(ctx, did)
 	return err
 }
 
@@ -497,6 +655,50 @@ func (w *ServerInterfaceWrapper) RequestUserAccessToken(ctx echo.Context) error 
 	return err
 }
 
+// SearchWallet converts echo context to params.
+func (w *ServerInterfaceWrapper) SearchWallet(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.SearchWallet(ctx, did)
+	return err
+}
+
+// DeleteWalletCredential converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteWalletCredential(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteWalletCredential(ctx, did, id)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -526,6 +728,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:id", wrapper.OAuthAuthorizationServerMetadata)
+	router.GET(baseURL+"/iam/oid4vci/dcr/:sessionId/.well-known/openid-configuration", wrapper.DcrOid4vpMetadata)
+	router.GET(baseURL+"/iam/oid4vci/dcr/:sessionId/authorize", wrapper.DcrOid4vpAuthorize)
+	router.GET(baseURL+"/iam/oid4vci/:sessionId/callback", wrapper.CallbackOid4vciIssuance)
+	router.POST(baseURL+"/iam/:did/start-oid4vci-issuance", wrapper.StartOid4vciIssuance)
 	router.GET(baseURL+"/iam/:id/authorize", wrapper.HandleAuthorizeRequest)
 	router.GET(baseURL+"/iam/:id/callback", wrapper.Callback)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetWebDID)
@@ -537,6 +743,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-service-access-token", wrapper.RequestServiceAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-user-access-token", wrapper.RequestUserAccessToken)
+	router.GET(baseURL+"/internal/auth/v2/:did/wallet", wrapper.SearchWallet)
+	router.DELETE(baseURL+"/internal/auth/v2/:did/wallet/:id", wrapper.DeleteWalletCredential)
 
 }
 
@@ -572,6 +780,184 @@ type OAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse s
 }
 
 func (response OAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse) VisitOAuthAuthorizationServerMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type DcrOid4vpMetadataRequestObject struct {
+	SessionId string `json:"sessionId"`
+}
+
+type DcrOid4vpMetadataResponseObject interface {
+	VisitDcrOid4vpMetadataResponse(w http.ResponseWriter) error
+}
+
+type DcrOid4vpMetadata200JSONResponse struct {
+	// AuthorizationEndpoint URL of the Self-Issued OP used by the RP to perform Authentication of the End-User. Can be custom URL scheme, or Universal Links/App links.
+	AuthorizationEndpoint string `json:"authorization_endpoint"`
+
+	// IdTokenSigningAlgValuesSupported A JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for the ID Token to encode the Claims in a JWT [RFC7519]. Valid values include RS256, ES256, ES256K, and EdDSA.
+	IdTokenSigningAlgValuesSupported []string `json:"id_token_signing_alg_values_supported"`
+
+	// IdTokenTypesSupported A JSON array of strings containing the list of ID Token types supported by the OP, the default value is attester_signed_id_token. The ID Token types defined in this specification are:
+	// subject_signed_id_token: Self-Issued ID Token, i.e. the ID Token is signed with key material under the End-User's control.
+	// attester_signed_id_token: the ID Token is issued by the party operating the OP, i.e. this is the classical ID Token as defined in [OpenID.Core].
+	IdTokenTypesSupported *[]string `json:"id_token_types_supported,omitempty"`
+
+	// Issuer URL using the https scheme with no query or fragment component that the Self-Issued OP asserts as its Issuer Identifier. MUST be identical to the iss Claim value in ID Tokens issued from this Self-Issued OP.
+	Issuer string `json:"issuer"`
+
+	// RequestObjectSigningAlgValuesSupported A JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for Request Objects, which are described in Section 6.1 of [OpenID.Core]. Valid values include none, RS256, ES256, ES256K, and EdDSA.
+	RequestObjectSigningAlgValuesSupported []string `json:"request_object_signing_alg_values_supported"`
+
+	// ResponseTypesSupported A JSON array of strings representing supported response types. MUST include id_token
+	ResponseTypesSupported []string `json:"response_types_supported"`
+
+	// ScopesSupported A JSON array of strings representing supported scopes. MUST support the openid scope value
+	ScopesSupported []string `json:"scopes_supported"`
+
+	// SubjectSyntaxTypesSupported A JSON array of strings representing URI scheme identifiers and optionally method names of supported Subject Syntax Types defined in Section 8. When Subject Syntax Type is JWK Thumbprint, a valid value is urn:ietf:params:oauth:jwk-thumbprint defined in [RFC9278]. When Subject Syntax Type is Decentralized Identifier, valid values MUST be a did: prefix followed by a supported DID method without a : suffix. For example, support for the DID method with a method-name "example" would be represented by did:example. Support for all DID methods listed in Section 13 of [DID_Specification_Registries] is indicated by sending did without any method-name.
+	SubjectSyntaxTypesSupported []string `json:"subject_syntax_types_supported"`
+
+	// SubjectTypesSupported A JSON array of strings representing supported subject types. Valid values include pairwise and public.
+	SubjectTypesSupported []string `json:"subject_types_supported"`
+}
+
+func (response DcrOid4vpMetadata200JSONResponse) VisitDcrOid4vpMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DcrOid4vpMetadatadefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response DcrOid4vpMetadatadefaultApplicationProblemPlusJSONResponse) VisitDcrOid4vpMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type DcrOid4vpAuthorizeRequestObject struct {
+	SessionId string `json:"sessionId"`
+	Params    DcrOid4vpAuthorizeParams
+}
+
+type DcrOid4vpAuthorizeResponseObject interface {
+	VisitDcrOid4vpAuthorizeResponse(w http.ResponseWriter) error
+}
+
+type DcrOid4vpAuthorize302ResponseHeaders struct {
+	Location string
+}
+
+type DcrOid4vpAuthorize302Response struct {
+	Headers DcrOid4vpAuthorize302ResponseHeaders
+}
+
+func (response DcrOid4vpAuthorize302Response) VisitDcrOid4vpAuthorizeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type CallbackOid4vciIssuanceRequestObject struct {
+	SessionId string `json:"sessionId"`
+	Params    CallbackOid4vciIssuanceParams
+}
+
+type CallbackOid4vciIssuanceResponseObject interface {
+	VisitCallbackOid4vciIssuanceResponse(w http.ResponseWriter) error
+}
+
+type CallbackOid4vciIssuance302ResponseHeaders struct {
+	Location string
+}
+
+type CallbackOid4vciIssuance302Response struct {
+	Headers CallbackOid4vciIssuance302ResponseHeaders
+}
+
+func (response CallbackOid4vciIssuance302Response) VisitCallbackOid4vciIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type CallbackOid4vciIssuancedefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response CallbackOid4vciIssuancedefaultApplicationProblemPlusJSONResponse) VisitCallbackOid4vciIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type StartOid4vciIssuanceRequestObject struct {
+	Did  string `json:"did"`
+	Body *StartOid4vciIssuanceJSONRequestBody
+}
+
+type StartOid4vciIssuanceResponseObject interface {
+	VisitStartOid4vciIssuanceResponse(w http.ResponseWriter) error
+}
+
+type StartOid4vciIssuance302ResponseHeaders struct {
+	Location string
+}
+
+type StartOid4vciIssuance302Response struct {
+	Headers StartOid4vciIssuance302ResponseHeaders
+}
+
+func (response StartOid4vciIssuance302Response) VisitStartOid4vciIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type StartOid4vciIssuancedefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response StartOid4vciIssuancedefaultApplicationProblemPlusJSONResponse) VisitStartOid4vciIssuanceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -964,11 +1350,99 @@ func (response RequestUserAccessTokendefaultApplicationProblemPlusJSONResponse) 
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type SearchWalletRequestObject struct {
+	Did string `json:"did"`
+}
+
+type SearchWalletResponseObject interface {
+	VisitSearchWalletResponse(w http.ResponseWriter) error
+}
+
+type SearchWallet200JSONResponse SearchVCResults
+
+func (response SearchWallet200JSONResponse) VisitSearchWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchWalletdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response SearchWalletdefaultApplicationProblemPlusJSONResponse) VisitSearchWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type DeleteWalletCredentialRequestObject struct {
+	Did string `json:"did"`
+	Id  string `json:"id"`
+}
+
+type DeleteWalletCredentialResponseObject interface {
+	VisitDeleteWalletCredentialResponse(w http.ResponseWriter) error
+}
+
+type DeleteWalletCredential204Response struct {
+}
+
+func (response DeleteWalletCredential204Response) VisitDeleteWalletCredentialResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteWalletCredentialdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response DeleteWalletCredentialdefaultApplicationProblemPlusJSONResponse) VisitDeleteWalletCredentialResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata
 	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error)
+	// Metadata in the Dynamic Credential Request OID4VP flow.
+	// (GET /iam/oid4vci/dcr/{sessionId}/.well-known/openid-configuration)
+	DcrOid4vpMetadata(ctx context.Context, request DcrOid4vpMetadataRequestObject) (DcrOid4vpMetadataResponseObject, error)
+	// Authorize in the Dynamic Credential Request OID4VP flow.
+	// (GET /iam/oid4vci/dcr/{sessionId}/authorize)
+	DcrOid4vpAuthorize(ctx context.Context, request DcrOid4vpAuthorizeRequestObject) (DcrOid4vpAuthorizeResponseObject, error)
+	// Callback for the Oid4VCI flow.
+	// (GET /iam/oid4vci/{sessionId}/callback)
+	CallbackOid4vciIssuance(ctx context.Context, request CallbackOid4vciIssuanceRequestObject) (CallbackOid4vciIssuanceResponseObject, error)
+	// Start the Oid4VCI authorization flow.
+	// (POST /iam/{did}/start-oid4vci-issuance)
+	StartOid4vciIssuance(ctx context.Context, request StartOid4vciIssuanceRequestObject) (StartOid4vciIssuanceResponseObject, error)
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /iam/{id}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
@@ -1002,6 +1476,12 @@ type StrictServerInterface interface {
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{did}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
+	// Helper method to search the wallet.
+	// (GET /internal/auth/v2/{did}/wallet)
+	SearchWallet(ctx context.Context, request SearchWalletRequestObject) (SearchWalletResponseObject, error)
+	// Delete a specific credential in a wallet
+	// (DELETE /internal/auth/v2/{did}/wallet/{id})
+	DeleteWalletCredential(ctx context.Context, request DeleteWalletCredentialRequestObject) (DeleteWalletCredentialResponseObject, error)
 }
 
 type StrictHandlerFunc = strictecho.StrictEchoHandlerFunc
@@ -1035,6 +1515,114 @@ func (sh *strictHandler) OAuthAuthorizationServerMetadata(ctx echo.Context, id s
 		return err
 	} else if validResponse, ok := response.(OAuthAuthorizationServerMetadataResponseObject); ok {
 		return validResponse.VisitOAuthAuthorizationServerMetadataResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DcrOid4vpMetadata operation middleware
+func (sh *strictHandler) DcrOid4vpMetadata(ctx echo.Context, sessionId string) error {
+	var request DcrOid4vpMetadataRequestObject
+
+	request.SessionId = sessionId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DcrOid4vpMetadata(ctx.Request().Context(), request.(DcrOid4vpMetadataRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DcrOid4vpMetadata")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DcrOid4vpMetadataResponseObject); ok {
+		return validResponse.VisitDcrOid4vpMetadataResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DcrOid4vpAuthorize operation middleware
+func (sh *strictHandler) DcrOid4vpAuthorize(ctx echo.Context, sessionId string, params DcrOid4vpAuthorizeParams) error {
+	var request DcrOid4vpAuthorizeRequestObject
+
+	request.SessionId = sessionId
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DcrOid4vpAuthorize(ctx.Request().Context(), request.(DcrOid4vpAuthorizeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DcrOid4vpAuthorize")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DcrOid4vpAuthorizeResponseObject); ok {
+		return validResponse.VisitDcrOid4vpAuthorizeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CallbackOid4vciIssuance operation middleware
+func (sh *strictHandler) CallbackOid4vciIssuance(ctx echo.Context, sessionId string, params CallbackOid4vciIssuanceParams) error {
+	var request CallbackOid4vciIssuanceRequestObject
+
+	request.SessionId = sessionId
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CallbackOid4vciIssuance(ctx.Request().Context(), request.(CallbackOid4vciIssuanceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CallbackOid4vciIssuance")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CallbackOid4vciIssuanceResponseObject); ok {
+		return validResponse.VisitCallbackOid4vciIssuanceResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// StartOid4vciIssuance operation middleware
+func (sh *strictHandler) StartOid4vciIssuance(ctx echo.Context, did string) error {
+	var request StartOid4vciIssuanceRequestObject
+
+	request.Did = did
+
+	var body StartOid4vciIssuanceJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.StartOid4vciIssuance(ctx.Request().Context(), request.(StartOid4vciIssuanceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartOid4vciIssuance")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(StartOid4vciIssuanceResponseObject); ok {
+		return validResponse.VisitStartOid4vciIssuanceResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -1353,6 +1941,57 @@ func (sh *strictHandler) RequestUserAccessToken(ctx echo.Context, did string) er
 		return err
 	} else if validResponse, ok := response.(RequestUserAccessTokenResponseObject); ok {
 		return validResponse.VisitRequestUserAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SearchWallet operation middleware
+func (sh *strictHandler) SearchWallet(ctx echo.Context, did string) error {
+	var request SearchWalletRequestObject
+
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchWallet(ctx.Request().Context(), request.(SearchWalletRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchWallet")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SearchWalletResponseObject); ok {
+		return validResponse.VisitSearchWalletResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteWalletCredential operation middleware
+func (sh *strictHandler) DeleteWalletCredential(ctx echo.Context, did string, id string) error {
+	var request DeleteWalletCredentialRequestObject
+
+	request.Did = did
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteWalletCredential(ctx.Request().Context(), request.(DeleteWalletCredentialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteWalletCredential")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteWalletCredentialResponseObject); ok {
+		return validResponse.VisitDeleteWalletCredentialResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

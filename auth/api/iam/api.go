@@ -20,6 +20,7 @@ package iam
 
 import (
 	"context"
+	"crypto/tls"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -62,15 +63,19 @@ var assets embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	vcr           vcr.VCR
-	vdr           vdr.VDR
-	auth          auth.AuthenticationServices
-	policyBackend policy.PDPBackend
-	templates     *template.Template
-	storageEngine storage.Engine
+	vcr               vcr.VCR
+	vdr               vdr.VDR
+	auth              auth.AuthenticationServices
+	policyBackend     policy.PDPBackend
+	templates         *template.Template
+	storageEngine     storage.Engine
+	strictMode        bool
+	httpClientTimeout time.Duration
+	httpClientTLS     *tls.Config
+	keyStore          crypto.KeyStore
 }
 
-func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend) *Wrapper {
+func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend, keyStore crypto.KeyStore) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assets, "assets/*.html")
 	if err != nil {
@@ -83,6 +88,7 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 		vcr:           vcrInstance,
 		vdr:           vdrInstance,
 		templates:     templates,
+		keyStore:      keyStore,
 	}
 }
 
