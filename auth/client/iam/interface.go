@@ -27,7 +27,7 @@ import (
 	"net/url"
 )
 
-// Client defines the client methods for IAM OpenAPI Spec.
+// Client defines OpenID4VP client methods using the IAM OpenAPI Spec.
 type Client interface {
 	// AccessToken requests an access token at the oauth2 token endpoint.
 	AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error)
@@ -42,7 +42,7 @@ type Client interface {
 	// PostAuthorizationResponse posts the authorization response to the verifier. If it fails, an error is returned.
 	PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error)
 	// PresentationDefinition returns the presentation definition from the given endpoint.
-	PresentationDefinition(ctx context.Context, presentationDefinitionURI string) (*pe.PresentationDefinition, error)
+	PresentationDefinition(ctx context.Context, endpoint url.URL) (*pe.PresentationDefinition, error)
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC021.
 	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error)
 }

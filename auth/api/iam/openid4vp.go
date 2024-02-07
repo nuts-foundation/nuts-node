@@ -231,7 +231,11 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	}
 	// get presentation_definition from presentation_definition_uri
 	presentationDefinitionURI := params[presentationDefUriParam]
-	presentationDefinition, err := r.auth.IAMClient().PresentationDefinition(ctx, presentationDefinitionURI)
+	parsedURL, err := url.Parse(presentationDefinitionURI)
+	if err != nil {
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidPresentationDefinitionURI, Description: fmt.Sprintf("failed to retrieve presentation definition, invalid URI: %s", presentationDefinitionURI)}, responseURI, state)
+	}
+	presentationDefinition, err := r.auth.IAMClient().PresentationDefinition(ctx, *parsedURL)
 	if err != nil {
 		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidPresentationDefinitionURI, Description: fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI)}, responseURI, state)
 	}

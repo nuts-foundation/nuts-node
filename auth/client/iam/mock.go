@@ -135,18 +135,18 @@ func (mr *MockClientMockRecorder) PostError(ctx, auth2Error, verifierResponseURI
 }
 
 // PresentationDefinition mocks base method.
-func (m *MockClient) PresentationDefinition(ctx context.Context, presentationDefinitionURI string) (*pe.PresentationDefinition, error) {
+func (m *MockClient) PresentationDefinition(ctx context.Context, endpoint url.URL) (*pe.PresentationDefinition, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PresentationDefinition", ctx, presentationDefinitionURI)
+	ret := m.ctrl.Call(m, "PresentationDefinition", ctx, endpoint)
 	ret0, _ := ret[0].(*pe.PresentationDefinition)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PresentationDefinition indicates an expected call of PresentationDefinition.
-func (mr *MockClientMockRecorder) PresentationDefinition(ctx, presentationDefinitionURI any) *gomock.Call {
+func (mr *MockClientMockRecorder) PresentationDefinition(ctx, endpoint any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockClient)(nil).PresentationDefinition), ctx, presentationDefinitionURI)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockClient)(nil).PresentationDefinition), ctx, endpoint)
 }
 
 // RequestRFC021AccessToken mocks base method.

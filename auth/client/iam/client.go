@@ -1,5 +1,4 @@
 /*
- * Nuts node
  * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -25,208 +24,206 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/log"
+	"io"
+	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 )
 
-var _ Client = (*IAMClient)(nil)
-
-type IAMClient struct {
-	httpClientTimeout time.Duration
-	httpClientTLS     *tls.Config
-	strictMode        bool
-	wallet            holder.Wallet
+// HTTPClient holds the server address and other basic settings for the http client
+type HTTPClient struct {
+	strictMode bool
+	httpClient core.HTTPRequestDoer
 }
 
-// NewClient returns an implementation of Holder
-func NewClient(wallet holder.Wallet, strictMode bool, httpClientTimeout time.Duration, httpClientTLS *tls.Config) *IAMClient {
-	return &IAMClient{
-		httpClientTimeout: httpClientTimeout,
-		httpClientTLS:     httpClientTLS,
-		strictMode:        strictMode,
-		wallet:            wallet,
+// NewHTTPClient creates a new api client.
+func NewHTTPClient(strictMode bool, timeout time.Duration, tlsConfig *tls.Config) HTTPClient {
+	return HTTPClient{
+		strictMode: strictMode,
+		httpClient: core.NewStrictHTTPClient(strictMode, timeout, tlsConfig),
 	}
 }
 
-func (v *IAMClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
-	iamClient := NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
-
-	metadata, err := iamClient.ClientMetadata(ctx, endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
-	}
-	return metadata, nil
-}
-
-func (v *IAMClient) PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (string, error) {
-	iamClient := NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
-
-	responseURL, err := core.ParsePublicURL(verifierResponseURI, v.strictMode)
-	if err != nil {
-		return "", fmt.Errorf("failed to post error to verifier: %w", err)
-	}
-	validURL := *responseURL
-	if verifierClientState != "" {
-		validURL = http.AddQueryParams(*responseURL, map[string]string{
-			oauth.StateParam: verifierClientState,
-		})
-	}
-	redirectURL, err := iamClient.PostError(ctx, auth2Error, validURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to post error to verifier: %w", err)
-	}
-
-	return redirectURL, nil
-}
-
-func (v *IAMClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error) {
-	iamClient := NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
-
-	responseURL, err := core.ParsePublicURL(verifierResponseURI, v.strictMode)
-	if err != nil {
-		return "", fmt.Errorf("failed to post error to verifier: %w", err)
-	}
-	redirectURL, err := iamClient.PostAuthorizationResponse(ctx, vp, presentationSubmission, *responseURL, state)
-	if err == nil {
-		return redirectURL, nil
-	}
-
-	return "", fmt.Errorf("failed to post authorization response to verifier: %w", err)
-}
-
-func (s *IAMClient) PresentationDefinition(ctx context.Context, presentationDefinitionParam string) (*pe.PresentationDefinition, error) {
-	presentationDefinitionURL, err := core.ParsePublicURL(presentationDefinitionParam, s.strictMode)
+// OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given web DID.
+func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDID did.DID) (*oauth.AuthorizationServerMetadata, error) {
+	serverURL, err := didweb.DIDToURL(webDID)
 	if err != nil {
 		return nil, err
 	}
 
-	iamClient := NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	presentationDefinition, err := iamClient.PresentationDefinition(ctx, *presentationDefinitionURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
-	}
-	return presentationDefinition, nil
-}
-
-func (s *IAMClient) presentationDefinition(ctx context.Context, presentationDefinitionParam string, scopes string) (*pe.PresentationDefinition, error) {
-	presentationDefinitionURL, err := core.ParsePublicURL(presentationDefinitionParam, s.strictMode)
+	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL.String(), oauth.AuthzServerWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}
 
-	presentationDefinitionURL.RawQuery = url.Values{"scope": []string{scopes}}.Encode()
-	return s.PresentationDefinition(ctx, presentationDefinitionURL.String())
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	}
+
+	var metadata oauth.AuthorizationServerMetadata
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return nil, fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &metadata); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(data))
+	}
+
+	return &metadata, nil
 }
 
-func (v *IAMClient) AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
-	iamClient := NewHTTPClient(v.strictMode, v.httpClientTimeout, v.httpClientTLS)
-	// the wallet/client acts as authorization server
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, webdid)
+// ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.
+// We use the AuthorizationServerMetadata struct since it overlaps greatly with the client metadata.
+func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
+	_, err := core.ParsePublicURL(endpoint, hb.strictMode)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+		return nil, err
 	}
-	return metadata, nil
+
+	// create a GET request
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	var metadata oauth.OAuthClientMetadata
+	return &metadata, hb.doRequest(ctx, request, &metadata)
 }
 
-func (s *IAMClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error) {
-	iamClient := NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
+// PresentationDefinition retrieves the presentation definition from the presentation definition endpoint (as specified by RFC021) for the given scope.
+func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDefinitionURL url.URL) (*pe.PresentationDefinition, error) {
+	// create a GET request with scope query param
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, presentationDefinitionURL.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+		return nil, err
 	}
-	if len(metadata.TokenEndpoint) == 0 {
-		return nil, fmt.Errorf("no token endpoint found in Authorization Server metadata: %s", verifier)
+	var presentationDefinition pe.PresentationDefinition
+	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
+}
+
+func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data url.Values) (oauth.TokenResponse, error) {
+	var token oauth.TokenResponse
+	tokenURL, err := url.Parse(tokenEndpoint)
+	if err != nil {
+		return token, err
 	}
-	// call token endpoint
+
+	// create a POST request with x-www-form-urlencoded body
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL.String(), strings.NewReader(data.Encode()))
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	if err != nil {
+		return token, err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return token, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		// check for oauth error
+		if innerErr := core.TestResponseCode(http.StatusBadRequest, response); innerErr != nil {
+			// a non oauth error, the response body could contain a lot of stuff. We'll log and return the entire error
+			log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
+			return token, err
+		}
+		httpErr := err.(core.HttpError)
+		oauthError := oauth.OAuth2Error{}
+		if err := json.Unmarshal(httpErr.ResponseBody, &oauthError); err != nil {
+			return token, fmt.Errorf("unable to unmarshal OAuth error response: %w", err)
+		}
+
+		return token, oauthError
+	}
+
+	var responseData []byte
+	if responseData, err = io.ReadAll(response.Body); err != nil {
+		return token, fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(responseData, &token); err != nil {
+		// Cut off the response body to 100 characters max to prevent logging of large responses
+		responseBodyString := string(responseData)
+		if len(responseBodyString) > 100 {
+			responseBodyString = responseBodyString[:100] + "...(clipped)"
+		}
+		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
+	}
+	return token, nil
+}
+
+// PostError posts an OAuth error to the redirect URL and returns the redirect URL with the error as query parameter.
+func (hb HTTPClient) PostError(ctx context.Context, err oauth.OAuth2Error, verifierCallbackURL url.URL) (string, error) {
+	// initiate http client, create a POST request with x-www-form-urlencoded body and send it to the redirect URL
 	data := url.Values{}
-	data.Set(oauth.ClientIDParam, clientID.String())
-	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
-	data.Set(oauth.CodeParam, code)
-	data.Set(oauth.RedirectURIParam, callbackURI)
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data)
-	if err != nil {
-		return nil, fmt.Errorf("remote server: error creating access token: %w", err)
-	}
-	return &token, nil
+	data.Set(oauth.ErrorParam, string(err.Code))
+	data.Set(oauth.ErrorDescriptionParam, err.Description)
+
+	return hb.postFormExpectRedirect(ctx, data, verifierCallbackURL)
 }
 
-func (s *IAMClient) CreateAuthorizationRequest(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, clientState string) (*url.URL, error) {
-	// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
-	// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
-	iamClient := NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
-	}
-	if len(metadata.AuthorizationEndpoint) == 0 {
-		return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", verifier)
-	}
-	endpoint, err := url.Parse(metadata.AuthorizationEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse authorization endpoint URL: %w", err)
-	}
-	// construct callback URL for wallet
-	callbackURL, err := didweb.DIDToURL(requestHolder)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create callback URL: %w", err)
-	}
-	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
-	redirectURL := http.AddQueryParams(*endpoint, map[string]string{
-		"client_id":     requestHolder.String(),
-		"response_type": "code",
-		"scope":         scopes,
-		"state":         clientState,
-		"redirect_uri":  callbackURL.String(),
-	})
-	return &redirectURL, nil
-}
-
-func (s *IAMClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
-	iamClient := NewHTTPClient(s.strictMode, s.httpClientTimeout, s.httpClientTLS)
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
-	}
-
-	// get the presentation definition from the verifier
-	presentationDefinition, err := s.presentationDefinition(ctx, metadata.PresentationDefinitionEndpoint, scopes)
-	if err != nil {
-		return nil, err
-	}
-
-	nonce := nutsCrypto.GenerateNonce()
-	vp, submission, err := s.wallet.BuildSubmission(ctx, requester, *presentationDefinition, metadata.VPFormats, nonce, verifier.URI())
-	if err != nil {
-		return nil, err
-	}
-
-	assertion := vp.Raw()
-	presentationSubmission, _ := json.Marshal(submission)
+// PostAuthorizationResponse posts the authorization response to the verifier response URL and returns the callback URL.
+func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI url.URL, state string) (string, error) {
+	// initiate http client, create a POST request with x-www-form-urlencoded body and send it to the redirect URL
+	psBytes, _ := json.Marshal(presentationSubmission)
 	data := url.Values{}
-	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
-	data.Set(oauth.AssertionParam, assertion)
-	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
-	data.Set(oauth.ScopeParam, scopes)
-	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data)
+	data.Set(oauth.VpTokenParam, vp.Raw())
+	data.Set(oauth.PresentationSubmissionParam, string(psBytes))
+	data.Set(oauth.StateParam, state)
+
+	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
+}
+
+func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL.String(), strings.NewReader(form.Encode()))
 	if err != nil {
-		// the error could be a http error, we just relay it here to make use of any 400 status codes.
-		return nil, err
+		return "", err
 	}
-	return &oauth.TokenResponse{
-		AccessToken: token.AccessToken,
-		ExpiresIn:   token.ExpiresIn,
-		TokenType:   token.TokenType,
-		Scope:       &scopes,
-	}, nil
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	var redirect oauth.Redirect
+	if err := hb.doRequest(ctx, request, &redirect); err != nil {
+		return "", err
+	}
+	return redirect.RedirectURI, nil
+}
+
+func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, target interface{}) error {
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
+		rse := httpErr.(core.HttpError)
+		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidScope); ok {
+			return oauthErr
+		}
+		return httpErr
+	}
+
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &target); err != nil {
+		return fmt.Errorf("unable to unmarshal response: %w", err)
+	}
+
+	return nil
 }

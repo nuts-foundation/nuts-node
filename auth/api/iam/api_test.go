@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"net/http"
 	"net/http/httptest"
@@ -231,6 +232,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	clientMetadata := oauth.OAuthClientMetadata{
 		VPFormats: oauth.DefaultOpenIDSupportedFormats(),
 	}
+	pdEndpoint := test.MustParseURL("https://example.com/iam/verifier/presentation_definition?scope=test")
 	t.Run("ok - code response type - from holder", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
@@ -272,7 +274,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		})
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
-		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(&pe.PresentationDefinition{}, nil)
+		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), *pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, "nonce", verifierDID.URI()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/iam/verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
