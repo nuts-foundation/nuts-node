@@ -243,7 +243,13 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	// at this point in the flow it would be possible to ask the user to confirm the credentials to use
 
 	// all params checked, delegate responsibility to the holder
-	vp, submission, err := r.vcr.Wallet().BuildSubmission(ctx, walletDID, *presentationDefinition, metadata.VPFormats, nonce, verifierDID.URI())
+	// todo expiration
+	buildParams := holder.BuildParams{
+		Audience: verifierDID.String(),
+		Expires:  time.Now().Add(15 * time.Minute),
+		Nonce:    nonce,
+	}
+	vp, submission, err := r.vcr.Wallet().BuildSubmission(ctx, walletDID, *presentationDefinition, metadata.VPFormats, buildParams)
 	if err != nil {
 		if errors.Is(err, holder.ErrNoCredentials) {
 			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "no credentials available"}, responseURI, state)

@@ -350,7 +350,7 @@ func TestWallet_BuildSubmission(t *testing.T) {
 		err := w.Put(context.Background(), credentials...)
 		require.NoError(t, err)
 
-		vp, submission, err := w.BuildSubmission(ctx, walletDID, presentationDefinition, vpFormats, "", verifierDID.URI())
+		vp, submission, err := w.BuildSubmission(ctx, walletDID, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
@@ -363,7 +363,7 @@ func TestWallet_BuildSubmission(t *testing.T) {
 
 		w := New(nil, keyStore, nil, jsonldManager, store)
 
-		vp, submission, err := w.BuildSubmission(ctx, walletDID, presentationDefinition, vpFormats, "", verifierDID.URI())
+		vp, submission, err := w.BuildSubmission(ctx, walletDID, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
 		assert.Equal(t, ErrNoCredentials, err)
 		assert.Nil(t, vp)

@@ -74,14 +74,19 @@ func New(
 	}
 }
 
-func (h wallet) BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience ssi.URI) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+// BuildParams contains the parameters that will be included in the signature of the verifiable presentation
+type BuildParams struct {
+	Audience string
+	Expires  time.Time
+	Nonce    string
+}
+
+func (h wallet) BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// get VCs from own wallet
 	credentials, err := h.List(ctx, walletDID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
 	}
-
-	expires := time.Now().Add(time.Minute * 15) //todo
 
 	// match against the wallet's credentials
 	// if there's a match, create a VP and call the token endpoint
@@ -112,15 +117,14 @@ func (h wallet) BuildSubmission(ctx context.Context, walletDID did.DID, presenta
 	}
 
 	// todo: support multiple wallets
-	audienceStr := audience.String()
 	vp, err := h.BuildPresentation(ctx, signInstructions[0].VerifiableCredentials, PresentationOptions{
 		Format: format,
 		ProofOptions: proof.ProofOptions{
 			Created:   time.Now(),
-			Challenge: &nonce,
-			Domain:    &audienceStr,
-			Expires:   &expires,
-			Nonce:     &nonce,
+			Challenge: &params.Nonce,
+			Domain:    &params.Audience,
+			Expires:   &params.Expires,
+			Nonce:     &params.Nonce,
 		},
 	}, &walletDID, false)
 	if err != nil {
