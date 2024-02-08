@@ -124,6 +124,29 @@ func TestWrapper_SavePrivateKey(t *testing.T) {
 	})
 }
 
+func Test_wrapper_DeletePrivateKey(t *testing.T) {
+	ctx := context.Background()
+	t.Run("expect error for bad KIDs", func(t *testing.T) {
+		w := wrapper{kidPattern: KidPattern}
+		for _, kid := range badKIDs {
+			err := w.DeletePrivateKey(ctx, kid)
+			assert.Error(t, err)
+		}
+	})
+	t.Run("expect call to wrapped backend for good KIDs", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockStorage := NewMockStorage(ctrl)
+		w := NewValidatedKIDBackendWrapper(mockStorage, KidPattern)
+
+		for _, kid := range goodKIDs {
+			mockStorage.EXPECT().DeletePrivateKey(ctx, kid)
+			err := w.DeletePrivateKey(ctx, kid)
+			assert.NoError(t, err)
+		}
+		ctrl.Finish()
+	})
+}
+
 func TestWrapper_ListPrivateKeys(t *testing.T) {
 	ctx := context.Background()
 	t.Run("expect call to wrapped backend", func(t *testing.T) {

@@ -78,6 +78,13 @@ func (w wrapper) SavePrivateKey(ctx context.Context, kid string, key crypto.Priv
 	return w.wrappedBackend.SavePrivateKey(ctx, kid, key)
 }
 
+func (w wrapper) DeletePrivateKey(ctx context.Context, kid string) error {
+	if err := w.validateKID(kid); err != nil {
+		return err
+	}
+	return w.wrappedBackend.DeletePrivateKey(ctx, kid)
+}
+
 func (w wrapper) ListPrivateKeys(ctx context.Context) []string {
 	return w.wrappedBackend.ListPrivateKeys(ctx)
 }

@@ -55,6 +55,20 @@ func (mr *MockStorageMockRecorder) CheckHealth() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckHealth", reflect.TypeOf((*MockStorage)(nil).CheckHealth))
 }
 
+// DeletePrivateKey mocks base method.
+func (m *MockStorage) DeletePrivateKey(ctx context.Context, kid string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeletePrivateKey", ctx, kid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeletePrivateKey indicates an expected call of DeletePrivateKey.
+func (mr *MockStorageMockRecorder) DeletePrivateKey(ctx, kid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePrivateKey", reflect.TypeOf((*MockStorage)(nil).DeletePrivateKey), ctx, kid)
+}
+
 // GetPrivateKey mocks base method.
 func (m *MockStorage) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error) {
 	m.ctrl.T.Helper()

@@ -527,3 +527,80 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 		require.Equal(t, []string(nil), keys)
 	})
 }
+
+func TestAPIClient_DeletePrivateKey(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("ok - it should delete a private key", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodDelete:
+				switch request.URL.Path {
+				case "/secrets/test":
+					writer.WriteHeader(http.StatusOK)
+					break
+				}
+			}
+		}))
+		client, err := NewAPIClient(Config{s.URL, time.Second})
+		require.NoError(t, err)
+
+		err = client.DeletePrivateKey(ctx, "test")
+		require.NoError(t, err)
+	})
+
+	t.Run("ok - key with a slash in it (should be encoded)", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodDelete:
+				switch request.URL.Path {
+				case "/secrets/key%2Fwith%2Fslashes":
+					writer.WriteHeader(http.StatusOK)
+					break
+				}
+			}
+		}))
+		client, err := NewAPIClient(Config{s.URL, time.Second})
+		require.NoError(t, err)
+
+		err = client.DeletePrivateKey(ctx, "key/with/slashes")
+		require.NoError(t, err)
+	})
+
+	t.Run("error - key not found", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodDelete:
+				switch request.URL.Path {
+				case "/secrets/unknown-key":
+					writer.WriteHeader(http.StatusNotFound)
+					break
+				}
+			}
+		}))
+		client, err := NewAPIClient(Config{s.URL, time.Second})
+		require.NoError(t, err)
+
+		err = client.DeletePrivateKey(ctx, "unknown-key")
+		require.EqualError(t, err, spi.ErrNotFound.Error())
+	})
+
+	t.Run("error - server error", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodDelete:
+				switch request.URL.Path {
+				case "/secrets/server-error":
+					writer.WriteHeader(http.StatusInternalServerError)
+					break
+				}
+			}
+		}))
+		client, err := NewAPIClient(Config{s.URL, time.Second})
+		require.NoError(t, err)
+
+		err = client.DeletePrivateKey(ctx, "server-error")
+
+		require.EqualError(t, err, "unable to delete private key: server returned HTTP 500")
+	})
+}

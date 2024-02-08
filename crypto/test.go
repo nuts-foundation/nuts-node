@@ -86,6 +86,15 @@ func (m memoryStorage) PrivateKeyExists(_ context.Context, kid string) bool {
 	return ok
 }
 
+func (m memoryStorage) DeletePrivateKey(_ context.Context, kid string) error {
+	_, ok := m[kid]
+	if !ok {
+		return ErrPrivateKeyNotFound
+	}
+	delete(m, kid)
+	return nil
+}
+
 func (m memoryStorage) SavePrivateKey(_ context.Context, kid string, key crypto.PrivateKey) error {
 	m[kid] = key
 	return nil
