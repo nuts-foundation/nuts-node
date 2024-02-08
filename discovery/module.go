@@ -25,6 +25,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery/api/v1/client"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
@@ -128,17 +129,14 @@ func (m *Module) Start() error {
 		return err
 	}
 	m.clientUpdater = newClientUpdater(m.allDefinitions, m.store, m.verifyRegistration, m.httpClient)
-	m.routines.Add(1)
-	go func() {
-		defer m.routines.Done()
-		m.clientUpdater.update(m.ctx, m.config.Client.RefreshInterval)
-	}()
 	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance)
-	m.routines.Add(1)
-	go func() {
-		defer m.routines.Done()
-		m.registrationManager.refresh(m.ctx, m.config.Client.RegistrationRefreshInterval)
-	}()
+	if m.config.Client.RefreshInterval > 0 {
+		m.routines.Add(1)
+		go func() {
+			defer m.routines.Done()
+			m.update()
+		}()
+	}
 	return nil
 }
 
@@ -288,6 +286,7 @@ func (m *Module) ActivateServiceForDID(ctx context.Context, serviceID string, su
 		log.Logger().WithError(err).Warnf("Presentation registration failed, will be retried later (did=%s,service=%s)", subjectDID, serviceID)
 	} else if err == nil {
 		log.Logger().Infof("Successfully activated service for DID (did=%s,service=%s)", subjectDID, serviceID)
+		_ = m.clientUpdater.updateService(ctx, m.allDefinitions[serviceID])
 	}
 	return err
 }
@@ -392,6 +391,32 @@ func (m *Module) Search(serviceID string, query map[string]string) ([]SearchResu
 		})
 	}
 	return result, nil
+}
+
+func (m *Module) update() {
+	ticker := time.NewTicker(m.config.Client.RefreshInterval)
+	defer ticker.Stop()
+	ctx := audit.Context(m.ctx, "app", ModuleName, "RefreshDiscoveryClient")
+	do := func() {
+		// Refresh registrations first, to make sure we have (our own) latest presentations when we load them from the Discovery Service
+		err := m.registrationManager.refresh(ctx, time.Now())
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Failed to refresh own Verifiable Presentations on Discovery Service")
+		}
+		err = m.clientUpdater.update(m.ctx)
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Failed to load latest Verifiable Presentations from Discovery Service")
+		}
+	}
+	do()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			do()
+		}
+	}
 }
 
 // validateAudience checks if the given audience of the presentation matches the service ID.
