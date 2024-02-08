@@ -66,7 +66,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
 	})
 
-	t.Run("error - did not managed by this node", func(t *testing.T) {
+	t.Run("error - DID not managed by this node", func(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID)
@@ -608,7 +608,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "not owned by this node")
+		assert.EqualError(t, err, "DID not owned by this node")
 	})
 	t.Run("error - invalid DID", func(t *testing.T) {
 		ctx := newTestClient(t)
