@@ -32,9 +32,12 @@ func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
 	result := New().(*engine)
 
 	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
-	_ = result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+	err := result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 		config.Datadir = dir + "/data"
 	}))
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
 		_ = result.Shutdown()
 	})
