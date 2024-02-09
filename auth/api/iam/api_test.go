@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -236,9 +237,23 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	pdEndpoint := "https://example.com/iam/verifier/presentation_definition?scope=test"
 	t.Run("ok - code response type - from holder", func(t *testing.T) {
 		ctx := newTestClient(t)
+		expectedURL := test.MustParseURL("https://example.com/iam/holder/authorize")
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
-		
+		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), verifierDID, holderDID, gomock.Any()).DoAndReturn(func(ctx context.Context, verifierDID, holderDID did.DID, modifier iam.RequestModifier) (*url.URL, error) {
+			// check the parameters
+			params := map[string]interface{}{}
+			modifier(params)
+			assert.NotEmpty(t, params[oauth.NonceParam])
+			assert.Equal(t, didScheme, params[clientIDSchemeParam])
+			assert.Equal(t, responseTypeVPToken, params[oauth.ResponseTypeParam])
+			assert.Equal(t, "https://example.com/iam/verifier/response", params[responseURIParam])
+			assert.Equal(t, "https://example.com/iam/verifier/oauth-client", params[clientMetadataURIParam])
+			assert.Equal(t, responseModeDirectPost, params[responseModeParam])
+			assert.NotEmpty(t, params[oauth.StateParam])
+			return expectedURL, nil
+		})
+
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
 			jwt.AudienceKey:         []string{verifierDID.String(), "mock"},
 			jwt.IssuerKey:           holderDID.String(),
@@ -255,15 +270,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		require.NoError(t, err)
 		assert.IsType(t, HandleAuthorizeRequest302Response{}, res)
 		location := res.(HandleAuthorizeRequest302Response).Headers.Location
-		assert.Contains(t, location, "https://example.com/holder/authorize")
-		assert.Contains(t, location, "client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier")
-		assert.Contains(t, location, "client_id_scheme=did")
-		assert.Contains(t, location, "client_metadata_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Foauth-client")
-		assert.Contains(t, location, "nonce=")
-		assert.Contains(t, location, "presentation_definition_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fpresentation_definition%3Fscope%3Dtest")
-		assert.Contains(t, location, "response_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fresponse")
-		assert.Contains(t, location, "response_mode=direct_post")
-		assert.Contains(t, location, "response_type=vp_token")
+		assert.Equal(t, location, expectedURL.String())
 
 	})
 	t.Run("ok - vp_token response type - from verifier", func(t *testing.T) {
