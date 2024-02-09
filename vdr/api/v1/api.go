@@ -227,7 +227,7 @@ func (a *Wrapper) DeactivateDID(ctx context.Context, request DeactivateDIDReques
 	if err != nil {
 		return nil, err
 	}
-	err = a.DocManipulator.Deactivate(ctx, *id)
+	err = a.VDR.Deactivate(ctx, *id)
 	if err != nil {
 		return nil, err
 	}

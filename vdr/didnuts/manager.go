@@ -41,6 +41,11 @@ var _ management.DocumentManager = (*Manager)(nil)
 type Manager struct {
 	Creator       management.DocCreator
 	DocumentOwner management.DocumentOwner
+	Manipulator   management.DocManipulator
+}
+
+func (m Manager) Deactivate(ctx context.Context, id did.DID) error {
+	return m.Manipulator.Deactivate(ctx, id)
 }
 
 func (m Manager) Create(ctx context.Context, options management.CreationOptions) (*did.Document, crypto.Key, error) {

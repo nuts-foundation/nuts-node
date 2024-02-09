@@ -20,6 +20,7 @@ package fs
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"io/fs"
 	"os"
 	"path"
@@ -92,6 +93,26 @@ func TestFileSystemBackend_SavePrivateKey(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, fs.FileMode(0600), info.Mode().Perm())
+	})
+}
+
+func Test_fileSystemBackend_DeletePrivateKey(t *testing.T) {
+	t.Run("non-existing entry", func(t *testing.T) {
+		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
+
+		err := storage.DeletePrivateKey(nil, "unknown")
+
+		assert.ErrorIs(t, err, spi.ErrNotFound)
+	})
+	t.Run("ok", func(t *testing.T) {
+		pk := test.GenerateECKey()
+		kid := "kid"
+		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
+		_ = storage.SavePrivateKey(nil, kid, pk)
+
+		err := storage.DeletePrivateKey(nil, kid)
+
+		assert.NoError(t, err)
 	})
 }
 

@@ -142,6 +142,24 @@ func (c APIClient) SavePrivateKey(ctx context.Context, kid string, key crypto.Pr
 	}
 }
 
+func (c APIClient) DeletePrivateKey(ctx context.Context, kid string) error {
+	response, err := c.httpClient.DeleteSecretWithResponse(ctx, url.PathEscape(kid))
+	if err != nil {
+		return fmt.Errorf("unable to delete private key: %w", err)
+	}
+	switch response.StatusCode() {
+	case http.StatusOK:
+		return nil
+	case http.StatusNotFound:
+		return spi.ErrNotFound
+	default:
+		if response.JSON500 != nil {
+			return fmt.Errorf("unable to delete private key: %s", response.JSON500.Title)
+		}
+		return fmt.Errorf("unable to delete private key: server returned HTTP %d", response.StatusCode())
+	}
+}
+
 func (c APIClient) ListPrivateKeys(ctx context.Context) []string {
 	response, err := c.httpClient.ListKeysWithResponse(ctx)
 	if err != nil {

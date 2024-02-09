@@ -61,6 +61,8 @@ func DefaultCryptoConfig() Config {
 	}
 }
 
+var _ KeyStore = &Crypto{}
+
 // Crypto holds references to storage and needed config
 type Crypto struct {
 	storage spi.Storage
@@ -167,6 +169,12 @@ func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, e
 		publicKey: keyPair.Public(),
 		kid:       kid,
 	}, nil
+}
+
+// Delete removes the private key with the given KID from the KeyStore.
+func (client *Crypto) Delete(ctx context.Context, kid string) error {
+	audit.Log(ctx, log.Logger(), audit.CryptoDeleteKeyEvent).Infof("Deleting private key: %s", kid)
+	return client.storage.DeletePrivateKey(ctx, kid)
 }
 
 func generateKeyPairAndKID(namingFunc KIDNamingFunc) (*ecdsa.PrivateKey, string, error) {

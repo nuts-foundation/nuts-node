@@ -119,6 +119,25 @@ func TestCrypto_New(t *testing.T) {
 	})
 }
 
+func TestCrypto_Delete(t *testing.T) {
+	const kid = "kid"
+	ctx := audit.TestContext()
+	auditLogs := audit.CaptureLogs(t)
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		storageMock := spi.NewMockStorage(ctrl)
+		storageMock.EXPECT().DeletePrivateKey(ctx, kid).Return(nil)
+
+		client := &Crypto{storage: storageMock}
+		err := client.Delete(ctx, kid)
+
+		assert.NoError(t, err)
+		auditLogs.AssertContains(t, ModuleName, "DeleteKey", audit.TestActor, "Deleting private key: kid")
+	})
+
+}
+
 func TestCrypto_Resolve(t *testing.T) {
 	ctx := context.Background()
 	client := createCrypto(t)

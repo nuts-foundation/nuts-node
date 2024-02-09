@@ -30,6 +30,7 @@ import (
 )
 
 type store interface {
+	delete(subjectDID did.DID) error
 	create(subjectDID did.DID, methods ...did.VerificationMethod) error
 	get(subjectDID did.DID) ([]did.VerificationMethod, []did.Service, error)
 	list() ([]did.DID, error)
@@ -135,6 +136,17 @@ func (s *sqlStore) get(id did.DID) ([]did.VerificationMethod, []did.Service, err
 	}
 
 	return verificationMethods, services, nil
+}
+
+func (s *sqlStore) delete(subjectDID did.DID) error {
+	result := s.db.Model(&sqlDID{}).Where("did = ?", subjectDID.String()).Delete(&sqlDID{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return resolver.ErrNotFound
+	}
+	return nil
 }
 
 // list returns all DIDs in the store.

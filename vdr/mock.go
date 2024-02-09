@@ -91,6 +91,20 @@ func (mr *MockVDRMockRecorder) CreateService(ctx, subjectDID, service any) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateService", reflect.TypeOf((*MockVDR)(nil).CreateService), ctx, subjectDID, service)
 }
 
+// Deactivate mocks base method.
+func (m *MockVDR) Deactivate(ctx context.Context, id did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Deactivate", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Deactivate indicates an expected call of Deactivate.
+func (mr *MockVDRMockRecorder) Deactivate(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockVDR)(nil).Deactivate), ctx, id)
+}
+
 // DeleteService mocks base method.
 func (m *MockVDR) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
 	m.ctrl.T.Helper()

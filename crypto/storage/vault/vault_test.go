@@ -34,10 +34,20 @@ import (
 	"testing"
 )
 
+var _ logicaler = (*mockVaultClient)(nil)
+
 type mockVaultClient struct {
 	// when set, the methods return this error
 	err   error
 	store map[string]map[string]interface{}
+}
+
+func (m mockVaultClient) DeleteWithContext(ctx context.Context, path string) (*vault.Secret, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	delete(m.store, path)
+	return &vault.Secret{}, nil
 }
 
 func (m mockVaultClient) ReadWithContext(_ context.Context, path string) (*vault.Secret, error) {
@@ -86,6 +96,25 @@ func TestVaultKVStorage(t *testing.T) {
 		result, err := vaultStorage.GetPrivateKey(ctx, kid)
 		assert.NoError(t, err, "getting key should work")
 		assert.Equal(t, privateKey, result, "expected retrieved key to equal original")
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			vaultStorage := vaultKVStorage{client: mockVaultClient{store: map[string]map[string]interface{}{"kv/nuts-private-keys/did:nuts:123#abc": {}}}}
+			err := vaultStorage.DeletePrivateKey(ctx, kid)
+			assert.NoError(t, err)
+			assert.False(t, vaultStorage.PrivateKeyExists(ctx, kid), "key should not be in vault")
+		})
+		t.Run("key does not exist", func(t *testing.T) {
+			vaultStorage := vaultKVStorage{client: mockVaultClient{store: map[string]map[string]interface{}{}}}
+			err := vaultStorage.DeletePrivateKey(ctx, kid)
+			assert.NoError(t, err)
+		})
+		t.Run("error - while deleting", func(t *testing.T) {
+			vaultStorage := vaultKVStorage{client: mockVaultClient{err: vaultError}}
+			err := vaultStorage.DeletePrivateKey(ctx, kid)
+			assert.ErrorIs(t, err, vaultError)
+		})
 	})
 
 	t.Run("error - while writing", func(t *testing.T) {
