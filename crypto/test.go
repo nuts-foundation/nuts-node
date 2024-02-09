@@ -91,7 +91,7 @@ func (m memoryStorage) SavePrivateKey(_ context.Context, kid string, key crypto.
 	return nil
 }
 
-func NewTestKey(kid string) Key {
+func NewTestKey(kid string) *TestKey {
 	key, err := NewEphemeralKey(func(key crypto.PublicKey) (string, error) {
 		return kid, nil
 	})

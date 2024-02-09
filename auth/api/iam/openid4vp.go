@@ -101,10 +101,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("invalid audience, verifier = %s, audience = %s", verifier.String(), audience)), redirectURL)
 	}
 	// check if issuer of the JWT equals client_id
-	clientIDClaim, ok := params[oauth.ClientIDParam].(string)
-	if !ok {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter"), redirectURL)
-	}
+	clientIDClaim := params[oauth.ClientIDParam].(string)
 	issuerClaim, ok := params[jwt.IssuerKey].(string)
 	if !ok || issuerClaim != clientIDClaim {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid issuer claim"), redirectURL)

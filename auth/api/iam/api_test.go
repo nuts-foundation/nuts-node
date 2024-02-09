@@ -23,7 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"net/http/httptest"
@@ -235,6 +239,126 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		VPFormats:                oauth.DefaultOpenIDSupportedFormats(),
 	}
 	pdEndpoint := "https://example.com/iam/verifier/presentation_definition?scope=test"
+	// setup did document and keys
+	vmId := did.DIDURL{
+		DID:             holderDID,
+		Fragment:        "key",
+		DecodedFragment: "key",
+	}
+	kid := vmId.String()
+	key := crypto.NewTestKey(kid)
+	didDocument := did.Document{ID: holderDID}
+	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, did.DID{}, key.Public())
+	didDocument.AddAssertionMethod(vm)
+
+	t.Run("ok - signed request - code response type", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		// create signed request
+		request := jwt.New()
+		_ = request.Set(jwt.AudienceKey, []string{verifierDID.String()})
+		_ = request.Set(jwt.IssuerKey, holderDID.String())
+		_ = request.Set(oauth.ClientIDParam, holderDID.String())
+		_ = request.Set(oauth.NonceParam, "nonce")
+		_ = request.Set(oauth.RedirectURIParam, "https://example.com")
+		_ = request.Set(oauth.ResponseTypeParam, responseTypeCode)
+		_ = request.Set(oauth.ScopeParam, "test")
+		_ = request.Set(oauth.StateParam, "state")
+		headers := jws.NewHeaders()
+		headers.Set(jws.KeyIDKey, kid)
+		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
+		require.NoError(t, err)
+
+		expectedURL := test.MustParseURL("https://example.com/iam/holder/authorize")
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
+		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), verifierDID, holderDID, gomock.Any()).DoAndReturn(func(ctx context.Context, verifierDID, holderDID did.DID, modifier iam.RequestModifier) (*url.URL, error) {
+			// check the parameters
+			params := map[string]interface{}{}
+			modifier(params)
+			assert.NotEmpty(t, params[oauth.NonceParam])
+			assert.Equal(t, didScheme, params[clientIDSchemeParam])
+			assert.Equal(t, responseTypeVPToken, params[oauth.ResponseTypeParam])
+			assert.Equal(t, "https://example.com/iam/verifier/response", params[responseURIParam])
+			assert.Equal(t, "https://example.com/iam/verifier/oauth-client", params[clientMetadataURIParam])
+			assert.Equal(t, responseModeDirectPost, params[responseModeParam])
+			assert.NotEmpty(t, params[oauth.StateParam])
+			return expectedURL, nil
+		})
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
+			oauth.ClientIDParam: holderDID.String(),
+			oauth.RequestParam:  string(bytes),
+		}), HandleAuthorizeRequestRequestObject{
+			Id: "verifier",
+		})
+
+		require.NoError(t, err)
+		assert.IsType(t, HandleAuthorizeRequest302Response{}, res)
+		location := res.(HandleAuthorizeRequest302Response).Headers.Location
+		assert.Equal(t, location, expectedURL.String())
+	})
+	t.Run("error - invalid request parameter", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
+			oauth.ClientIDParam: "invalid",
+			oauth.RequestParam:  "invalid",
+		}), HandleAuthorizeRequestRequestObject{
+			Id: "verifier",
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid request parameter")
+		assert.Nil(t, res)
+	})
+	t.Run("error - client_id does not match", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
+		// create signed request
+		request := jwt.New()
+		_ = request.Set(jwt.IssuerKey, holderDID.String())
+		_ = request.Set(oauth.ClientIDParam, holderDID.String())
+		headers := jws.NewHeaders()
+		headers.Set(jws.KeyIDKey, kid)
+		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
+		require.NoError(t, err)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
+			oauth.ClientIDParam: "invalid",
+			oauth.RequestParam:  string(bytes),
+		}), HandleAuthorizeRequestRequestObject{
+			Id: "verifier",
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id in request parameter")
+		assert.Nil(t, res)
+	})
+	t.Run("error - client_id does not match signer", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
+		// create signed request
+		request := jwt.New()
+		_ = request.Set(jwt.IssuerKey, verifierDID.String())
+		_ = request.Set(oauth.ClientIDParam, verifierDID.String())
+		headers := jws.NewHeaders()
+		headers.Set(jws.KeyIDKey, kid)
+		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
+		require.NoError(t, err)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
+			oauth.ClientIDParam: verifierDID.String(),
+			oauth.RequestParam:  string(bytes),
+		}), HandleAuthorizeRequestRequestObject{
+			Id: "verifier",
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "client_id does not match signer of request parameter")
+		assert.Nil(t, res)
+	})
 	t.Run("ok - code response type - from holder", func(t *testing.T) {
 		ctx := newTestClient(t)
 		expectedURL := test.MustParseURL("https://example.com/iam/holder/authorize")

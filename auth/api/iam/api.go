@@ -310,9 +310,11 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 	// if the request param is present, JAR (RFC9101, JWT Authorization Request) is used
 	// we parse the request and check the client_id param
+	var signerKid string
 	if rawToken, ok := params[oauth.RequestParam].(string); ok {
 		// Parse and validate the JWT
 		token, err := crypto.ParseJWT(rawToken, func(kid string) (crypto2.PublicKey, error) {
+			signerKid = kid
 			return resolver.DIDKeyResolver{Resolver: r.vdr}.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
 		}, jwt.WithValidate(true))
 		if err != nil {
@@ -320,12 +322,22 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		}
 		claims, err := token.AsMap(ctx)
 		if err != nil {
+			// very unlikely
 			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
 		}
 		// check client_id claim, it must be the same as the client_id in the request
 		clientID, ok := claims[oauth.ClientIDParam].(string)
 		if !ok || clientID != params[oauth.ClientIDParam] {
 			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id in request parameter"}
+		}
+		// check if the signer of the JWT is the client
+		signer, err := did.ParseDIDURL(signerKid)
+		if err != nil {
+			// very unlikely since the key has already been resolved
+			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid signer", InternalError: err}
+		}
+		if signer.DID.String() != clientID {
+			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_id does not match signer of request parameter"}
 		}
 		// overwrite params with the claims of the JWT
 		params = claims

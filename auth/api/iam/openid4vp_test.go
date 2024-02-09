@@ -73,6 +73,42 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid issuer claim")
 	})
+	t.Run("invalid redirect_uri", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		params[oauth.RedirectURIParam] = ":/"
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid redirect_uri parameter")
+	})
+	t.Run("missing redirect_uri", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, oauth.RedirectURIParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing redirect_uri parameter")
+	})
+	t.Run("missing client_id", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, oauth.ClientIDParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing client_id parameter")
+	})
+	t.Run("missing audience", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, jwt.AudienceKey)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, verifier = did:web:example.com:iam:verifier, audience = []")
+	})
 	t.Run("missing did in supported_client_id_schemes", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
