@@ -283,7 +283,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			didDocVendor.AddCapabilityInvocation(vendorVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocVendor, keyVendor, nil)
 			test.mockNetwork.EXPECT().CreateTransaction(test.ctx, gomock.Any()).AnyTimes()
-			didDocVendor, keyVendor, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions())
+			didDocVendor, _, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions())
 			require.NoError(t, err)
 
 			// organization
@@ -294,7 +294,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			require.NoError(t, err)
 			didDocOrg.AddCapabilityInvocation(orgVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocOrg, keyOrg, nil)
-			didDocOrg, keyOrg, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions().
+			didDocOrg, _, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions().
 				With(didnuts.KeyFlag(management.AssertionMethodUsage|management.KeyAgreementUsage)).
 				With(didnuts.Controllers(didDocVendor.ID)).
 				With(didnuts.SelfControl(false)),
