@@ -36,7 +36,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	oauthServices "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	httpNuts "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -89,7 +88,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	if err != nil || walletDID.Method != "web" {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), redirectURL)
 	}
-	metadata, err := r.auth.Verifier().AuthorizationServerMetadata(ctx, *walletDID)
+	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, *walletDID)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet"), redirectURL)
 	}
@@ -128,7 +127,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to construct redirect path"), redirectURL)
 	}
 
-	metadataURL, err := r.auth.Verifier().ClientMetadataURL(verifier)
+	metadataURL, err := clientMetadataURL(verifier)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to construct metadata URL"), redirectURL)
 	}
@@ -210,42 +209,48 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 
 	clientIDScheme := params[clientIDSchemeParam]
 	if clientIDScheme != didScheme {
-		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id_scheme parameter"}, walletDID, responseURI, state)
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id_scheme parameter"}, responseURI, state)
 	}
 
 	verifierID := params[oauth.ClientIDParam]
 	// the verifier must be a did:web
 	verifierDID, err := did.ParseDID(verifierID)
 	if err != nil || verifierDID.Method != "web" {
-		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id parameter (only did:web is supported)"}, walletDID, responseURI, state)
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id parameter (only did:web is supported)"}, responseURI, state)
 	}
 
 	nonce, ok := params[nonceParam]
 	if !ok {
-		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing nonce parameter"}, walletDID, responseURI, state)
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing nonce parameter"}, responseURI, state)
 	}
 	// get verifier metadata
 	clientMetadataURI := params[clientMetadataURIParam]
-	metadata, err := r.auth.Holder().ClientMetadata(ctx, clientMetadataURI)
+	metadata, err := r.auth.IAMClient().ClientMetadata(ctx, clientMetadataURI)
 	if err != nil {
-		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: "failed to get client metadata (verifier)"}, walletDID, responseURI, state)
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: "failed to get client metadata (verifier)"}, responseURI, state)
 	}
 	// get presentation_definition from presentation_definition_uri
 	presentationDefinitionURI := params[presentationDefUriParam]
-	presentationDefinition, err := r.auth.Holder().PresentationDefinition(ctx, presentationDefinitionURI)
+	presentationDefinition, err := r.auth.IAMClient().PresentationDefinition(ctx, presentationDefinitionURI)
 	if err != nil {
-		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidPresentationDefinitionURI, Description: fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI)}, walletDID, responseURI, state)
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidPresentationDefinitionURI, Description: fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI)}, responseURI, state)
 	}
 
 	// at this point in the flow it would be possible to ask the user to confirm the credentials to use
 
 	// all params checked, delegate responsibility to the holder
-	vp, submission, err := r.auth.Holder().BuildPresentation(ctx, walletDID, *presentationDefinition, metadata.VPFormats, nonce, verifierDID.URI())
+	// todo expiration
+	buildParams := holder.BuildParams{
+		Audience: verifierDID.String(),
+		Expires:  time.Now().Add(15 * time.Minute),
+		Nonce:    nonce,
+	}
+	vp, submission, err := r.vcr.Wallet().BuildSubmission(ctx, walletDID, *presentationDefinition, metadata.VPFormats, buildParams)
 	if err != nil {
-		if errors.Is(err, oauthServices.ErrNoCredentials) {
-			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "no credentials available"}, walletDID, responseURI, state)
+		if errors.Is(err, holder.ErrNoCredentials) {
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "no credentials available"}, responseURI, state)
 		}
-		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: err.Error()}, walletDID, responseURI, state)
+		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: err.Error()}, responseURI, state)
 	}
 
 	// any error here is a server error, might need a fixup to prevent exposing to a user
@@ -255,7 +260,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 // sendAndHandleDirectPost sends OpenID4VP direct_post to the verifier. The verifier responds with a redirect to the client (including error fields if needed).
 // If the direct post fails, the user-agent will be redirected back to the client with an error. (Original redirect_uri).
 func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (HandleAuthorizeRequestResponseObject, error) {
-	redirectURI, err := r.auth.Holder().PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI, state)
+	redirectURI, err := r.auth.IAMClient().PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI, state)
 	if err != nil {
 		return nil, err
 	}
@@ -269,8 +274,8 @@ func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePr
 // sendAndHandleDirectPostError sends errors from handleAuthorizeRequestFromVerifier as direct_post to the verifier. The verifier responds with a redirect to the client (including error fields).
 // If the direct post fails, the user-agent will be redirected back to the client with an error. (Original redirect_uri).
 // If no redirect_uri is present, the user-agent will be redirected to the error page.
-func (r Wrapper) sendAndHandleDirectPostError(ctx context.Context, auth2Error oauth.OAuth2Error, walletDID did.DID, verifierResponseURI string, verifierClientState string) (HandleAuthorizeRequestResponseObject, error) {
-	redirectURI, err := r.auth.Holder().PostError(ctx, auth2Error, verifierResponseURI, verifierClientState)
+func (r Wrapper) sendAndHandleDirectPostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (HandleAuthorizeRequestResponseObject, error) {
+	redirectURI, err := r.auth.IAMClient().PostError(ctx, auth2Error, verifierResponseURI, verifierClientState)
 	if err == nil {
 		return HandleAuthorizeRequest302Response{
 			HandleAuthorizeRequest302ResponseHeaders{
@@ -606,7 +611,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	checkURL = checkURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.RelyingParty().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}
@@ -850,4 +855,14 @@ func oauthError(code oauth.ErrorCode, description string) oauth.OAuth2Error {
 		Code:        code,
 		Description: description,
 	}
+}
+
+func clientMetadataURL(webdid did.DID) (*url.URL, error) {
+	didURL, err := didweb.DIDToURL(webdid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
+	}
+	// we use the authorization server endpoint as the client metadata endpoint, contents are the same
+	// coming from a did:web, it's impossible to get a false URL
+	return didURL.JoinPath(oauth.ClientMetadataPath), nil
 }

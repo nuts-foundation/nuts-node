@@ -98,7 +98,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	if err != nil {
 		return err
 	}
-	redirectURL, err := r.auth.RelyingParty().CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, *verifier, accessTokenRequest.Body.Scope, oauthSession.ClientState)
+	redirectURL, err := r.auth.IAMClient().CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, *verifier, accessTokenRequest.Body.Scope, oauthSession.ClientState)
 	if err != nil {
 		return err
 	}

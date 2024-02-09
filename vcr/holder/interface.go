@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
@@ -46,6 +47,9 @@ type Wallet interface {
 	// The assertion key used for signing it is taken from signerDID's DID document.
 	// If signerDID is not provided, it will be derived from the credentials credentialSubject.id fields. But only if all provided credentials have the same (singular) credentialSubject.id field.
 	BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error)
+
+	// BuildSubmission builds a Verifiable Presentation based on the given presentation definition.
+	BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
 
 	// List returns all credentials in the wallet for the given holder.
 	List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)

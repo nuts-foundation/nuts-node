@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	pkg2 "github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	oauth2 "github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
@@ -54,7 +55,6 @@ type TestContext struct {
 	contractClientMock    *services.MockContractNotary
 	authzServerMock       *oauth.MockAuthorizationServer
 	relyingPartyMock      *oauth.MockRelyingParty
-	verifierMock          *oauth.MockVerifier
 	wrapper               Wrapper
 	cedentialResolverMock *vcr.MockResolver
 	audit                 context.Context
@@ -62,11 +62,10 @@ type TestContext struct {
 
 type mockAuthClient struct {
 	ctrl           *gomock.Controller
-	contractNotary *services.MockContractNotary
 	authzServer    *oauth.MockAuthorizationServer
+	contractNotary *services.MockContractNotary
+	iamClient      *iam.MockClient
 	relyingParty   *oauth.MockRelyingParty
-	verifier       *oauth.MockVerifier
-	holder         *oauth.MockHolder
 }
 
 func (m *mockAuthClient) V2APIEnabled() bool {
@@ -81,12 +80,8 @@ func (m *mockAuthClient) RelyingParty() oauth.RelyingParty {
 	return m.relyingParty
 }
 
-func (m *mockAuthClient) Verifier() oauth.Verifier {
-	return m.verifier
-}
-
-func (m *mockAuthClient) Holder() oauth.Holder {
-	return m.holder
+func (m *mockAuthClient) IAMClient() iam.Client {
+	return m.iamClient
 }
 
 func (m *mockAuthClient) ContractNotary() services.ContractNotary {
@@ -103,17 +98,15 @@ func createContext(t *testing.T) *TestContext {
 	contractNotary := services.NewMockContractNotary(ctrl)
 	authzServer := oauth.NewMockAuthorizationServer(ctrl)
 	relyingParty := oauth.NewMockRelyingParty(ctrl)
-	verifier := oauth.NewMockVerifier(ctrl)
 	mockCredentialResolver := vcr.NewMockResolver(ctrl)
-	holder := oauth.NewMockHolder(ctrl)
+	iamClient := iam.NewMockClient(ctrl)
 
 	authMock := &mockAuthClient{
 		ctrl:           ctrl,
 		contractNotary: contractNotary,
 		authzServer:    authzServer,
 		relyingParty:   relyingParty,
-		verifier:       verifier,
-		holder:         holder,
+		iamClient:      iamClient,
 	}
 
 	requestCtx := audit.TestContext()
@@ -125,7 +118,6 @@ func createContext(t *testing.T) *TestContext {
 		contractClientMock:    contractNotary,
 		authzServerMock:       authzServer,
 		relyingPartyMock:      relyingParty,
-		verifierMock:          verifier,
 		cedentialResolverMock: mockCredentialResolver,
 		wrapper:               Wrapper{Auth: authMock, CredentialResolver: mockCredentialResolver},
 		audit:                 requestCtx,

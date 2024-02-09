@@ -54,7 +54,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		echoCtx.EXPECT().Request().Return(&http.Request{Host: "test.test"})
 		echoCtx.EXPECT().Redirect(http.StatusFound, expectedURL.String())
-		ctx.relyingParty.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, "first second", gomock.Any()).Return(expectedURL, nil)
+		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, "first second", gomock.Any()).Return(expectedURL, nil)
 		store := ctx.client.userRedirectStore()
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
@@ -116,7 +116,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
-		ctx.relyingParty.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, "first second", gomock.Any()).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, "first second", gomock.Any()).Return(nil, assert.AnError)
 
 		err = ctx.client.handleUserLanding(echoCtx)
 

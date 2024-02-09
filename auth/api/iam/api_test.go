@@ -22,7 +22,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -230,11 +231,11 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	clientMetadata := oauth.OAuthClientMetadata{
 		VPFormats: oauth.DefaultOpenIDSupportedFormats(),
 	}
+	pdEndpoint := "https://example.com/iam/verifier/presentation_definition?scope=test"
 	t.Run("ok - code response type - from holder", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-		ctx.verifierRole.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
-		ctx.verifierRole.EXPECT().ClientMetadataURL(verifierDID).Return(test.MustParseURL("https://example.com/.well-known/authorization-server/iam/verifier"), nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
 			oauth.ClientIDParam:    holderDID.String(),
@@ -251,7 +252,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		assert.Contains(t, location, "https://example.com/holder/authorize")
 		assert.Contains(t, location, "client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier")
 		assert.Contains(t, location, "client_id_scheme=did")
-		assert.Contains(t, location, "client_metadata_uri=https%3A%2F%2Fexample.com%2F.well-known%2Fauthorization-server%2Fiam%2Fverifier")
+		assert.Contains(t, location, "client_metadata_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Foauth-client")
 		assert.Contains(t, location, "nonce=")
 		assert.Contains(t, location, "presentation_definition_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fpresentation_definition%3Fscope%3Dtest")
 		assert.Contains(t, location, "response_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fresponse")
@@ -271,10 +272,10 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			ResponseType: "code",
 		})
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
-		ctx.holderRole.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
-		ctx.holderRole.EXPECT().PresentationDefinition(gomock.Any(), "https://example.com/iam/verifier/presentation_definition?scope=test").Return(&pe.PresentationDefinition{}, nil)
-		ctx.holderRole.EXPECT().BuildPresentation(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, "nonce", verifierDID.URI()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
-		ctx.holderRole.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/iam/verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
+		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
+		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
+		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/iam/verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
 			oauth.ClientIDParam:     verifierDID.String(),
@@ -358,7 +359,7 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, state)
 		putToken(ctx, token)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
-		ctx.relyingParty.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/iam/123/callback", holderDID).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/iam/123/callback", holderDID).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Id: webIDPart,
@@ -595,7 +596,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	t.Run("ok - service flow", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(&oauth.TokenResponse{}, nil)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
@@ -630,7 +631,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	t.Run("error - verifier error", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.relyingParty.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
@@ -728,14 +729,14 @@ type testCtx struct {
 	ctrl          *gomock.Controller
 	client        *Wrapper
 	authnServices *auth.MockAuthenticationServices
-	vdr           *vdr.MockVDR
+	iamClient     *iam.MockClient
 	policy        *policy.MockPDPBackend
 	resolver      *resolver.MockDIDResolver
 	relyingParty  *oauthServices.MockRelyingParty
-	vcVerifier    *verifier.MockVerifier
 	vcr           *vcr.MockVCR
-	verifierRole  *oauthServices.MockVerifier
-	holderRole    *oauthServices.MockHolder
+	vdr           *vdr.MockVDR
+	vcVerifier    *verifier.MockVerifier
+	wallet        *holder.MockWallet
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -749,16 +750,16 @@ func newTestClient(t testing.TB) *testCtx {
 	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
 	vcVerifier := verifier.NewMockVerifier(ctrl)
-	verifierRole := oauthServices.NewMockVerifier(ctrl)
-	holderRole := oauthServices.NewMockHolder(ctrl)
+	iamClient := iam.NewMockClient(ctrl)
 	mockVDR := vdr.NewMockVDR(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
+	mockWallet := holder.NewMockWallet(ctrl)
 
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
 	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
-	authnServices.EXPECT().Verifier().Return(verifierRole).AnyTimes()
-	authnServices.EXPECT().Holder().Return(holderRole).AnyTimes()
+	mockVCR.EXPECT().Wallet().Return(mockWallet).AnyTimes()
+	authnServices.EXPECT().IAMClient().Return(iamClient).AnyTimes()
 	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
 
 	return &testCtx{
@@ -769,9 +770,9 @@ func newTestClient(t testing.TB) *testCtx {
 		vcVerifier:    vcVerifier,
 		resolver:      mockResolver,
 		vdr:           mockVDR,
-		verifierRole:  verifierRole,
-		holderRole:    holderRole,
+		iamClient:     iamClient,
 		vcr:           mockVCR,
+		wallet:        mockWallet,
 		client: &Wrapper{
 			auth:          authnServices,
 			vdr:           mockVDR,

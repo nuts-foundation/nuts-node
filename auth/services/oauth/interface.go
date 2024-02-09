@@ -20,31 +20,21 @@ package oauth
 
 import (
 	"context"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
 	"net/url"
 
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
-// RelyingParty implements the OAuth2 relying party role.
+// RelyingParty implements the OAuth2 relying party role. (V1 API)
 type RelyingParty interface {
-	// AccessToken requests an access token at the oauth2 token endpoint.
-	AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error)
 	// CreateJwtGrant creates a JWT grant token that can be used to request an access token.
 	CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error)
-	// CreateAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
-	CreateAuthorizationRequest(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, clientState string) (*url.URL, error)
 	// RequestRFC003AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC003.
 	RequestRFC003AccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint url.URL) (*oauth.TokenResponse, error)
-	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC021.
-	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error)
 }
 
-// AuthorizationServer implements the OAuth2 authorization server role.
+// AuthorizationServer implements the OAuth2 authorization server role. (V1 API)
 type AuthorizationServer interface {
 	// Configure sets up the client. Enable secureMode to have it behave more safe (e.g., sanitize internal errors).
 	Configure(clockSkewInMilliseconds int, secureMode bool) error
@@ -53,26 +43,4 @@ type AuthorizationServer interface {
 	// It returns an oauth.ErrorResponse rather than a regular Go error, because the errors that may be returned are tightly specified.
 	CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*oauth.TokenResponse, *oauth.OAuth2Error)
 	IntrospectAccessToken(ctx context.Context, token string) (*services.NutsAccessToken, error)
-}
-
-// Verifier implements the OpenID4VP Verifier role.
-type Verifier interface {
-	// AuthorizationServerMetadata returns the metadata of the remote wallet.
-	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
-	// ClientMetadataURL constructs the URL to the client metadata of the local verifier.
-	ClientMetadataURL(webdid did.DID) (*url.URL, error)
-}
-
-// Holder implements the OpenID4VP Holder role which acts as Authorization server in the OpenID4VP flow.
-type Holder interface {
-	// BuildPresentation builds a Verifiable Presentation based on the given presentation definition.
-	BuildPresentation(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, nonce string, audience ssi.URI) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
-	// ClientMetadata returns the metadata of the remote verifier.
-	ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error)
-	// PostError posts an error to the verifier. If it fails, an error is returned.
-	PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (string, error)
-	// PostAuthorizationResponse posts the authorization response to the verifier. If it fails, an error is returned.
-	PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error)
-	// PresentationDefinition returns the presentation definition from the given endpoint.
-	PresentationDefinition(ctx context.Context, presentationDefinitionURI string) (*pe.PresentationDefinition, error)
 }
