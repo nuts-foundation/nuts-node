@@ -446,14 +446,14 @@ func (r Wrapper) getWalletDID(ctx context.Context, didString string) (*did.DID, 
 	// resolve wallet
 	requestHolder, err := did.ParseDID(didString)
 	if err != nil {
-		return nil, core.NotFoundError("did not found: %w", err)
+		return nil, core.NotFoundError("DID not found: %w", err)
 	}
 	isWallet, err := r.vdr.IsOwner(ctx, *requestHolder)
 	if err != nil {
 		return nil, err
 	}
 	if !isWallet {
-		return nil, core.InvalidInputError("did not owned by this node")
+		return nil, core.InvalidInputError("DID not owned by this node")
 	}
 	return requestHolder, nil
 }
