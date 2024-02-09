@@ -104,6 +104,7 @@ func (h wallet) BuildSubmission(ctx context.Context, walletDID did.DID, presenta
 	if presentationDefinition.Format != nil {
 		formatCandidates = formatCandidates.Match(credential.DIFClaimFormats(*presentationDefinition.Format))
 	}
+	// todo: next to the format selection, also check for algorithm support
 	format := pe.ChooseVPFormat(formatCandidates.Map)
 	if format == "" {
 		return nil, nil, errors.New("requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")

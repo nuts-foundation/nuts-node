@@ -63,7 +63,7 @@ func (c *OpenID4VPClient) ClientMetadata(ctx context.Context, endpoint string) (
 
 	metadata, err := iamClient.ClientMetadata(ctx, endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+		return nil, fmt.Errorf("failed to retrieve OAuth client metadata: %w", err)
 	}
 	return metadata, nil
 }
@@ -104,9 +104,13 @@ func (c *OpenID4VPClient) PostAuthorizationResponse(ctx context.Context, vp vc.V
 	return "", fmt.Errorf("failed to post authorization response to verifier: %w", err)
 }
 
-func (c *OpenID4VPClient) PresentationDefinition(ctx context.Context, endpoint url.URL) (*pe.PresentationDefinition, error) {
+func (c *OpenID4VPClient) PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error) {
 	iamClient := c.newHTTPClient()
-	presentationDefinition, err := iamClient.PresentationDefinition(ctx, endpoint)
+	parsedURL, err := core.ParsePublicURL(endpoint, c.strictMode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
+	}
+	presentationDefinition, err := iamClient.PresentationDefinition(ctx, *parsedURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
 	}
@@ -191,7 +195,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 	presentationDefinitionURL := http.AddQueryParams(*parsedURL, map[string]string{
 		"scope": scopes,
 	})
-	presentationDefinition, err := c.PresentationDefinition(ctx, presentationDefinitionURL)
+	presentationDefinition, err := c.PresentationDefinition(ctx, presentationDefinitionURL.String())
 	if err != nil {
 		return nil, err
 	}

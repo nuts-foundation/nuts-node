@@ -38,7 +38,6 @@ import (
 	"go.uber.org/mock/gomock"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 )
 
@@ -151,19 +150,27 @@ func TestIAMClient_PostResponse(t *testing.T) {
 func TestIAMClient_PresentationDefinition(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
-		endpoint, _ := url.Parse(fmt.Sprintf("%s/presentation_definition", ctx.tlsServer.URL))
+		endpoint := fmt.Sprintf("%s/presentation_definition", ctx.tlsServer.URL)
 
-		pd, err := ctx.client.PresentationDefinition(context.Background(), *endpoint)
+		pd, err := ctx.client.PresentationDefinition(context.Background(), endpoint)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, pd)
 	})
 	t.Run("error", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
-		endpoint, _ := url.Parse(fmt.Sprintf("%s/presentation_definition", ctx.tlsServer.URL))
+		endpoint := fmt.Sprintf("%s/presentation_definition", ctx.tlsServer.URL)
 		ctx.presentationDefinition = nil
 
-		pd, err := ctx.client.PresentationDefinition(context.Background(), *endpoint)
+		pd, err := ctx.client.PresentationDefinition(context.Background(), endpoint)
+
+		assert.Error(t, err)
+		assert.Nil(t, pd)
+	})
+	t.Run("insecure", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+
+		pd, err := ctx.client.PresentationDefinition(context.Background(), "http://example.com/presentation_definition")
 
 		assert.Error(t, err)
 		assert.Nil(t, pd)

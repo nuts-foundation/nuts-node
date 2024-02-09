@@ -135,7 +135,7 @@ func (mr *MockClientMockRecorder) PostError(ctx, auth2Error, verifierResponseURI
 }
 
 // PresentationDefinition mocks base method.
-func (m *MockClient) PresentationDefinition(ctx context.Context, endpoint url.URL) (*pe.PresentationDefinition, error) {
+func (m *MockClient) PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PresentationDefinition", ctx, endpoint)
 	ret0, _ := ret[0].(*pe.PresentationDefinition)
