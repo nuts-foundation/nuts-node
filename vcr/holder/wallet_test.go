@@ -545,3 +545,37 @@ func Test_wallet_IsEmpty(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func Test_wallet_Delete(t *testing.T) {
+	t.Run("put 1 credential, delete 1 credential", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+		sut := New(nil, nil, nil, nil, store)
+		expected := createCredential(vdr.TestMethodDIDA.String())
+
+		err := sut.Put(context.Background(), expected)
+		require.NoError(t, err)
+
+		list, err := sut.List(context.Background(), vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+		assert.Equal(t, expected.ID.String(), list[0].ID.String())
+
+		verifiableCredential := list[0]
+
+		subjectDID, err := verifiableCredential.SubjectDID()
+		require.NoError(t, err)
+		err = sut.Delete(context.Background(), *subjectDID, *verifiableCredential.ID)
+		require.NoError(t, err)
+
+		list, err = sut.List(context.Background(), vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 0)
+
+		empty, err := sut.IsEmpty()
+		require.NoError(t, err)
+		assert.True(t, empty)
+
+	})
+
+}
