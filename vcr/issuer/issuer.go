@@ -129,6 +129,10 @@ func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, opt
 		return nil, fmt.Errorf("unable to store the issued credential: %w", err)
 	}
 
+	if err = i.vcrStore.StoreCredential(*createdVC, nil); err != nil {
+		return nil, fmt.Errorf("unable to store the issued credential: %w", err)
+	}
+
 	if options.Publish {
 		// Try to issue over OpenID4VCI if it's enabled and if the credential is not public
 		// (public credentials are always published on the network).
