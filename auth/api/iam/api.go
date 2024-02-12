@@ -299,48 +299,16 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
-	params := make(map[string]interface{})
-	for key, value := range httpRequest.URL.Query() {
-		if len(value) == 1 {
-			params[key] = value[0]
-		} else {
-			params[key] = value
-		}
-	}
+	params := parseQueryParams(httpRequest.URL.Query())
+	clientId := params.get(oauth.ClientIDParam)
 
 	// if the request param is present, JAR (RFC9101, JWT Authorization Request) is used
-	// we parse the request and check the client_id param
-	var signerKid string
-	if rawToken, ok := params[oauth.RequestParam].(string); ok {
-		// Parse and validate the JWT
-		token, err := crypto.ParseJWT(rawToken, func(kid string) (crypto2.PublicKey, error) {
-			signerKid = kid
-			return resolver.DIDKeyResolver{Resolver: r.vdr}.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
-		}, jwt.WithValidate(true))
+	// we parse the request and validate
+	if rawToken := params.get(oauth.RequestParam); rawToken != "" {
+		params, err = r.validateJARRequest(ctx, rawToken, clientId)
 		if err != nil {
-			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
+			return nil, err
 		}
-		claims, err := token.AsMap(ctx)
-		if err != nil {
-			// very unlikely
-			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
-		}
-		// check client_id claim, it must be the same as the client_id in the request
-		clientID, ok := claims[oauth.ClientIDParam].(string)
-		if !ok || clientID != params[oauth.ClientIDParam] {
-			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id in request parameter"}
-		}
-		// check if the signer of the JWT is the client
-		signer, err := did.ParseDIDURL(signerKid)
-		if err != nil {
-			// very unlikely since the key has already been resolved
-			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid signer", InternalError: err}
-		}
-		if signer.DID.String() != clientID {
-			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_id does not match signer of request parameter"}
-		}
-		// overwrite params with the claims of the JWT
-		params = claims
 	} // else, we'll allow for now, since other flows will break if we require JAR at this point.
 
 	// todo: store session in database? Isn't session specific for a particular flow?
@@ -385,6 +353,40 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 			RedirectURI: redirectURI,
 		}
 	}
+}
+
+// validateJARRequest validates a JAR (JWT Authorization Request) and returns the JWT claims.
+// the client_id must match the signer of the JWT.
+func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clientId string) (singleStringParam, error) {
+	var signerKid string
+	// Parse and validate the JWT
+	token, err := crypto.ParseJWT(rawToken, func(kid string) (crypto2.PublicKey, error) {
+		signerKid = kid
+		return resolver.DIDKeyResolver{Resolver: r.vdr}.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
+	}, jwt.WithValidate(true))
+	if err != nil {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
+	}
+	claimsAsMap, err := token.AsMap(ctx)
+	if err != nil {
+		// very unlikely
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
+	}
+	params := parseJWTClaims(claimsAsMap)
+	// check client_id claim, it must be the same as the client_id in the request
+	if clientId != params.get(oauth.ClientIDParam) {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id in request parameter"}
+	}
+	// check if the signer of the JWT is the client
+	signer, err := did.ParseDIDURL(signerKid)
+	if err != nil {
+		// very unlikely since the key has already been resolved
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid signer", InternalError: err}
+	}
+	if signer.DID.String() != clientId {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_id does not match signer of request parameter"}
+	}
+	return params, nil
 }
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
@@ -547,15 +549,15 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}, nil
 }
 
-func createSession(params map[string]interface{}, ownDID did.DID) *OAuthSession {
+func createSession(params singleStringParam, ownDID did.DID) *OAuthSession {
 	session := OAuthSession{}
-	session.ClientID, _ = params[oauth.ClientIDParam].(string)
-	session.Scope, _ = params[oauth.ScopeParam].(string)
-	session.ClientState, _ = params[oauth.StateParam].(string)
+	session.ClientID = params.get(oauth.ClientIDParam)
+	session.Scope = params.get(oauth.ScopeParam)
+	session.ClientState = params.get(oauth.StateParam)
 	session.ServerState = map[string]interface{}{}
-	session.RedirectURI, _ = params[oauth.RedirectURIParam].(string)
+	session.RedirectURI = params.get(oauth.RedirectURIParam)
 	session.OwnDID = &ownDID
-	session.ResponseType, _ = params[oauth.ResponseTypeParam].(string)
+	session.ResponseType = params.get(oauth.ResponseTypeParam)
 
 	return &session
 }

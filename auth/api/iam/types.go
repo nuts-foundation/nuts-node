@@ -82,7 +82,6 @@ const (
 	// responseTypeVPIDToken is defined in the OpenID4VP flow that combines its vp_token with SIOPv2's id_token
 	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#appendix-B
 	responseTypeVPIDToken = "vp_token id_token"
-	nonceParam            = "nonce"
 )
 
 var responseTypesSupported = []string{responseTypeCode, responseTypeVPToken, responseTypeVPIDToken}

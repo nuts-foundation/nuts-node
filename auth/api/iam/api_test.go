@@ -379,7 +379,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		})
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
-			jwt.AudienceKey:         []string{verifierDID.String(), "mock"},
+			jwt.AudienceKey:         verifierDID.String(),
 			jwt.IssuerKey:           holderDID.String(),
 			oauth.ClientIDParam:     holderDID.String(),
 			oauth.NonceParam:        "nonce",
@@ -418,7 +418,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ClientIDParam:     verifierDID.String(),
 			clientIDSchemeParam:     didScheme,
 			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
-			nonceParam:              "nonce",
+			oauth.NonceParam:        "nonce",
 			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
 			responseURIParam:        "https://example.com/iam/verifier/response",
 			responseModeParam:       responseModeDirectPost,

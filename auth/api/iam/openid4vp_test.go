@@ -51,7 +51,7 @@ var holderDID = did.MustParseDID("did:web:example.com:iam:holder")
 var issuerDID = did.MustParseDID("did:web:example.com:iam:issuer")
 
 func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
-	defaultParams := func() map[string]interface{} {
+	defaultParams := func() singleStringParam {
 		return map[string]interface{}{
 			oauth.ClientIDParam:     holderDID.String(),
 			oauth.RedirectURIParam:  "https://example.com",
@@ -71,7 +71,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid issuer claim")
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)")
 	})
 	t.Run("invalid redirect_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -91,15 +91,6 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "missing redirect_uri parameter")
 	})
-	t.Run("missing client_id", func(t *testing.T) {
-		ctx := newTestClient(t)
-		params := defaultParams()
-		delete(params, oauth.ClientIDParam)
-
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "missing client_id parameter")
-	})
 	t.Run("missing audience", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
@@ -107,7 +98,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, verifier = did:web:example.com:iam:verifier, audience = []")
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, verifier = did:web:example.com:iam:verifier, audience = ")
 	})
 	t.Run("missing did in supported_client_id_schemes", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -153,7 +144,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 			oauth.ClientIDParam:     verifierDID.String(),
 			clientIDSchemeParam:     didScheme,
 			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
-			nonceParam:              "nonce",
+			oauth.NonceParam:        "nonce",
 			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
 			responseModeParam:       responseModeDirectPost,
 			responseURIParam:        responseURI,
@@ -183,16 +174,6 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 
 		require.NoError(t, err)
 	})
-	t.Run("missing client_metadata_uri", func(t *testing.T) {
-		ctx := newTestClient(t)
-		params := defaultParams()
-		delete(params, clientMetadataURIParam)
-		expectPostError(t, ctx, oauth.InvalidRequest, "missing client_metadata_uri parameter", responseURI, "state")
-
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
-
-		require.NoError(t, err)
-	})
 	t.Run("invalid client_metadata_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
@@ -206,7 +187,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("missing nonce", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		delete(params, nonceParam)
+		delete(params, oauth.NonceParam)
 		expectPostError(t, ctx, oauth.InvalidRequest, "missing nonce parameter", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
