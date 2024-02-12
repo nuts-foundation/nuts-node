@@ -289,7 +289,7 @@ func (h wallet) Delete(ctx context.Context, subjectDID did.DID, id ssi.URI) erro
 		if err != nil {
 			return fmt.Errorf("unable to read wallet credential count: %w", err)
 		}
-		return stats.Put(credentialCountStatsKey, binary.BigEndian.AppendUint32([]byte{}, currentCount+1))
+		return stats.Put(credentialCountStatsKey, binary.BigEndian.AppendUint32([]byte{}, currentCount-1))
 	}, stoabs.WithWriteLock()) // lock required for stats consistency
 	if err != nil {
 		return fmt.Errorf("unable to delete credential: %w", err)
