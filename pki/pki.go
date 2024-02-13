@@ -94,6 +94,7 @@ func (p *PKI) CreateTLSConfig(cfg core.TLSConfig) (*tls.Config, error) {
 		return nil, err
 	}
 	_ = p.SetVerifyPeerCertificateFunc(tlsConfig) // no error can occur
+	tlsConfig.InsecureSkipVerify = cfg.InsecureSkipVerify
 	return tlsConfig, nil
 }
 

@@ -85,6 +85,7 @@ type TLSConfig struct {
 	CertKeyFile          string `koanf:"certkeyfile"`
 	TrustStoreFile       string `koanf:"truststorefile"`
 	legacyTLS            *NetworkTLSConfig
+	InsecureSkipVerify   bool `koanf:"insecureskipverify"`
 }
 
 // Enabled returns whether TLS should be enabled, according to the global config.
