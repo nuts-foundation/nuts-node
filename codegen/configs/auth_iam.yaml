@@ -14,3 +14,4 @@ output-options:
     - RedirectResponse
     - TokenResponse
     - VerifiablePresentation
+    - VerifiableCredential

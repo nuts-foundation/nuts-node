@@ -179,6 +179,21 @@ func (mr *MockIssuerMockRecorder) SearchCredential(credentialType, issuer, subje
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchCredential", reflect.TypeOf((*MockIssuer)(nil).SearchCredential), credentialType, issuer, subject)
 }
 
+// StatusList mocks base method.
+func (m *MockIssuer) StatusList(ctx context.Context, issuer did.DID, page int) (*vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StatusList", ctx, issuer, page)
+	ret0, _ := ret[0].(*vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StatusList indicates an expected call of StatusList.
+func (mr *MockIssuerMockRecorder) StatusList(ctx, issuer, page any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StatusList", reflect.TypeOf((*MockIssuer)(nil).StatusList), ctx, issuer, page)
+}
+
 // MockStore is a mock of Store interface.
 type MockStore struct {
 	ctrl     *gomock.Controller
