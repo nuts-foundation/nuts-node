@@ -21,11 +21,15 @@ package storage
 import (
 	"context"
 	"errors"
+	"testing"
+
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"testing"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
@@ -84,4 +88,11 @@ func NewTestInMemorySessionDatabase(t *testing.T) *InMemorySessionDatabase {
 		db.close()
 	})
 	return db
+}
+
+func AddDIDtoSQLDB(t testing.TB, db *gorm.DB, dids ...did.DID) {
+	for _, id := range dids {
+		// use gorm EXEC since it accepts '?' as the argument placeholder for all DBs
+		require.NoError(t, db.Exec("INSERT INTO vdr_didweb ( did ) VALUES ( ? )", id.String()).Error)
+	}
 }

@@ -26,7 +26,9 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -51,7 +53,7 @@ import (
 	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
 )
 
-func Test_issuer_buildVC(t *testing.T) {
+func Test_issuer_buildAndSignVC(t *testing.T) {
 	credentialType := ssi.MustParseURI("TestCredential")
 	issuerID := ssi.MustParseURI("did:nuts:123")
 	issuerDID, _ := did.ParseDID(issuerID.String())
@@ -146,15 +148,15 @@ func Test_issuer_buildVC(t *testing.T) {
 	})
 	t.Run("credentialStatus", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			issuerDID := ssi.MustParseURI("did:web:example.com:iam:123")
+			issuerDID := did.MustParseDID("did:web:example.com:iam:123")
 			slTemplate := template
-			slTemplate.Issuer = issuerDID // does not overwrite template
+			slTemplate.Issuer = issuerDID.URI() // does not overwrite template
 
 			ctrl := gomock.NewController(t)
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
 			jsonldManager := jsonld.NewTestJSONLDManager(t)
-			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore, statusListStore: newStatusListMemoryStore()}
+			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore, statusListStore: NewTestStatusListStore(t, issuerDID)}
 
 			result, err := sut.buildAndSignVC(ctx, slTemplate, CredentialOptions{WithStatusListRevocation: true})
 
@@ -173,7 +175,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
 			jsonldManager := jsonld.NewTestJSONLDManager(t)
-			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore, statusListStore: newStatusListMemoryStore()}
+			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore, statusListStore: NewTestStatusListStore(t)}
 
 			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{WithStatusListRevocation: true})
 
@@ -553,7 +555,7 @@ func Test_issuer_Issue(t *testing.T) {
 }
 
 func TestNewIssuer(t *testing.T) {
-	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil)
+	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	assert.IsType(t, &issuer{}, createdIssuer)
 }
 
@@ -798,13 +800,13 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		statuslist := newStatusListMemoryStore()
-		entry, err := statuslist.Create(context.Background(), issuerDID, StatusPurposeRevocation)
+		status := NewTestStatusListStore(t, issuerDID)
+		entry, err := status.Create(context.Background(), issuerDID, statuslist.StatusPurposeRevocation)
 		require.NoError(t, err)
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
 		sut := issuer{
 			store:           issuerStore,
-			statusListStore: statuslist,
+			statusListStore: status,
 		}
 
 		revCred, err := sut.Revoke(context.Background(), credentialID)
@@ -813,13 +815,13 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 		assert.Nil(t, revCred)
 	})
 	t.Run("error - double revocation", func(t *testing.T) {
-		statuslist := newStatusListMemoryStore()
-		entry, err := statuslist.Create(context.Background(), issuerDID, StatusPurposeRevocation)
+		status := NewTestStatusListStore(t, issuerDID)
+		entry, err := status.Create(context.Background(), issuerDID, statuslist.StatusPurposeRevocation)
 		require.NoError(t, err)
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
 		sut := issuer{
 			store:           issuerStore,
-			statusListStore: statuslist,
+			statusListStore: status,
 		}
 
 		_, err = sut.Revoke(context.Background(), credentialID)
@@ -839,14 +841,14 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 		assert.Nil(t, result)
 	})
 	t.Run("error - statuslist credential not found", func(t *testing.T) {
-		statuslist := newStatusListMemoryStore()
-		entry, err := statuslist.Create(context.Background(), issuerDID, StatusPurposeRevocation)
+		status := NewTestStatusListStore(t, issuerDID)
+		entry, err := status.Create(context.Background(), issuerDID, statuslist.StatusPurposeRevocation)
 		require.NoError(t, err)
 		entry.StatusListCredential = "unknown status list"
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
 		sut := issuer{
 			store:           issuerStore,
-			statusListStore: statuslist,
+			statusListStore: status,
 		}
 
 		_, err = sut.Revoke(context.Background(), credentialID)
@@ -939,9 +941,9 @@ func TestIssuer_StatusList(t *testing.T) {
 			jsonldManager:   jsonldManager,
 			keyStore:        keyStore,
 			trustConfig:     trustConfig,
-			statusListStore: newStatusListMemoryStore(),
+			statusListStore: NewTestStatusListStore(t, issuerDID),
 		}
-		_, err = sut.statusListStore.Create(ctx, issuerDID, StatusPurposeRevocation)
+		_, err = sut.statusListStore.Create(ctx, issuerDID, statuslist.StatusPurposeRevocation)
 		require.NoError(t, err)
 
 		result, err := sut.StatusList(ctx, issuerDID, 1)
@@ -960,7 +962,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		require.Len(t, subjects, 1)
 		assert.Equal(t, subjects[0].Id, issuerURL.JoinPath("statuslist", "1").String())
 		assert.Equal(t, subjects[0].Type, credential.StatusList2021CredentialSubjectType)
-		assert.Equal(t, subjects[0].StatusPurpose, StatusPurposeRevocation)
+		assert.Equal(t, subjects[0].StatusPurpose, statuslist.StatusPurposeRevocation)
 		assert.NotEmpty(t, subjects[0].EncodedList, "")
 
 		// verify credential -> trust is not added automatically
@@ -974,7 +976,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.NoError(t, verif.Verify(*result, true, true, nil))
 	})
 	t.Run("error - unknown status list credential", func(t *testing.T) {
-		sut := issuer{statusListStore: newStatusListMemoryStore()}
+		sut := issuer{statusListStore: NewTestStatusListStore(t, issuerDID)}
 
 		result, err := sut.StatusList(ctx, issuerDID, 1)
 
@@ -990,9 +992,9 @@ func TestIssuer_StatusList(t *testing.T) {
 			jsonldManager:   jsonldManager,
 			keyStore:        keyStore,
 			trustConfig:     trustConfig,
-			statusListStore: newStatusListMemoryStore(),
+			statusListStore: NewTestStatusListStore(t, issuerDID),
 		}
-		_, err = sut.statusListStore.Create(ctx, issuerDID, StatusPurposeRevocation)
+		_, err = sut.statusListStore.Create(ctx, issuerDID, statuslist.StatusPurposeRevocation)
 		require.NoError(t, err)
 
 		result, err := sut.StatusList(ctx, issuerDID, 1)
@@ -1001,7 +1003,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.Error(t, err, "issuance failed")
 	})
 	t.Run("error - did:nuts", func(t *testing.T) {
-		sut := issuer{statusListStore: newStatusListMemoryStore()}
+		sut := issuer{statusListStore: NewTestStatusListStore(t)}
 		issuerNuts := did.MustParseDID("did:nuts:123")
 
 		result, err := sut.StatusList(ctx, issuerNuts, 1)
@@ -1009,4 +1011,14 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.ErrorContains(t, err, "unsupported DID method: nuts")
 		assert.Nil(t, result)
 	})
+}
+
+func NewTestStatusListStore(t testing.TB, dids ...did.DID) statuslist.StatusList2021Issuer {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	db := storageEngine.GetSQLDatabase()
+	storage.AddDIDtoSQLDB(t, db, dids...)
+	store, err := statuslist.NewStatusListStore(db)
+	require.NoError(t, err)
+	return store
 }
