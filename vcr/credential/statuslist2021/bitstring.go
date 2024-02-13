@@ -80,14 +80,14 @@ func Compress(bitstring []byte) (string, error) {
 	}
 
 	// encode to base64 string.
-	// Bitstring Status List spec clarified this to be multibase bas64URL encoding without padding. StatusList2021 spec is not multibase.
+	// Bitstring Status List spec clarified this to be multibase base64URL encoding without padding. StatusList2021 spec is not multibase.
 	return base64.RawURLEncoding.EncodeToString(buf.Bytes()), nil
 }
 
 // Expand a compressed StatusList2021 bitstring. It first applies base64 decoding followed by gzip decompression.
 func Expand(encodedList string) (Bitstring, error) {
 	// base64 decode
-	// Bitstring Status List spec clarified this to be multibase bas64URL encoding without padding. StatusList2021 spec is not multibase.
+	// Bitstring Status List spec clarified this to be multibase base64URL encoding without padding. StatusList2021 spec is not multibase.
 	enc := base64.RawURLEncoding
 	if len(encodedList)%4 == 0 {
 		// if encoding is a multiple of 4 it may or may not be padded. URLEncoding can handle both.
