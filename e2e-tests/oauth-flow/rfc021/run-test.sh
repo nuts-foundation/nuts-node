@@ -12,9 +12,9 @@ mkdir ./node-A/data ./node-B/data  # 'data' dirs will be created with root owner
 echo "------------------------------------"
 echo "Creating Postgres databases..."
 echo "------------------------------------"
-docker-compose up --wait db
-docker-compose exec db psql -U postgres -c "CREATE DATABASE node_a"
-docker-compose exec db psql -U postgres -c "CREATE DATABASE node_b"
+docker compose up --wait db
+docker compose exec db psql -U postgres -c "CREATE DATABASE node_a"
+docker compose exec db psql -U postgres -c "CREATE DATABASE node_b"
 
 echo "------------------------------------"
 echo "Starting Docker containers..."
