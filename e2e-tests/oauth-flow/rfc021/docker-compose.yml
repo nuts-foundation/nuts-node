@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   nodeA-backend:
-    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:local}"
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
       - "11323:1323"
     environment:
@@ -30,7 +30,7 @@ services:
       - "./node-A/html:/etc/nginx/html:ro"
       - "../scripts/oauth2.js:/etc/nginx/oauth2.js:ro"
   nodeB-backend:
-    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:local}"
+    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     ports:
       - "21323:1323"
     environment:
