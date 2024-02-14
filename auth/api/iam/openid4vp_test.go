@@ -51,7 +51,7 @@ var holderDID = did.MustParseDID("did:web:example.com:iam:holder")
 var issuerDID = did.MustParseDID("did:web:example.com:iam:issuer")
 
 func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
-	defaultParams := func() singleStringParam {
+	defaultParams := func() oauthParameters {
 		return map[string]interface{}{
 			oauth.ClientIDParam:     holderDID.String(),
 			oauth.RedirectURIParam:  "https://example.com",

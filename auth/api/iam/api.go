@@ -357,7 +357,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 // validateJARRequest validates a JAR (JWT Authorization Request) and returns the JWT claims.
 // the client_id must match the signer of the JWT.
-func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clientId string) (singleStringParam, error) {
+func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clientId string) (oauthParameters, error) {
 	var signerKid string
 	// Parse and validate the JWT
 	token, err := crypto.ParseJWT(rawToken, func(kid string) (crypto2.PublicKey, error) {
@@ -375,7 +375,7 @@ func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clien
 	params := parseJWTClaims(claimsAsMap)
 	// check client_id claim, it must be the same as the client_id in the request
 	if clientId != params.get(oauth.ClientIDParam) {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id in request parameter"}
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id claim in signed authorization request"}
 	}
 	// check if the signer of the JWT is the client
 	signer, err := did.ParseDIDURL(signerKid)
@@ -384,7 +384,7 @@ func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clien
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid signer", InternalError: err}
 	}
 	if signer.DID.String() != clientId {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_id does not match signer of request parameter"}
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_id does not match signer of authorization request"}
 	}
 	return params, nil
 }
@@ -549,7 +549,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}, nil
 }
 
-func createSession(params singleStringParam, ownDID did.DID) *OAuthSession {
+func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
 	session := OAuthSession{}
 	session.ClientID = params.get(oauth.ClientIDParam)
 	session.Scope = params.get(oauth.ScopeParam)

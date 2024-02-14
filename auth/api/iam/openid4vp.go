@@ -67,7 +67,7 @@ var oauthNonceKey = []string{"oauth", "nonce"}
 // scope, OPTIONAL. The scope that maps to a presentation definition, if not set we just want an empty VP
 // state, RECOMMENDED.  Opaque value used to maintain state between the request and the callback.
 // nonce, REQUIRED. Random value, may only be used once.
-func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier did.DID, params singleStringParam) (HandleAuthorizeRequestResponseObject, error) {
+func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier did.DID, params oauthParameters) (HandleAuthorizeRequestResponseObject, error) {
 	// first we check the redirect URL because later errors will redirect to this URL
 	// from RFC6749:
 	// If the request fails due to a missing, invalid, or mismatching
@@ -204,7 +204,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 // there are way more error conditions that listed at: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-error-response
 // missing or invalid parameters are all mapped to invalid_request
 // any operation that fails is mapped to server_error, this includes unreachable or broken backends.
-func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletDID did.DID, params singleStringParam) (HandleAuthorizeRequestResponseObject, error) {
+func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletDID did.DID, params oauthParameters) (HandleAuthorizeRequestResponseObject, error) {
 	responseMode := params.get(responseModeParam)
 	if responseMode != responseModeDirectPost {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid response_mode parameter"}
@@ -661,7 +661,7 @@ func (r Wrapper) sendPresentationRequest(_ context.Context, response http.Respon
 
 // handlePresentationRequest handles an Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
 // It is handled by a wallet, called by a verifier who wants the wallet to present one or more verifiable credentials.
-func (r Wrapper) handlePresentationRequest(ctx context.Context, params singleStringParam, session *OAuthSession) (HandleAuthorizeRequestResponseObject, error) {
+func (r Wrapper) handlePresentationRequest(ctx context.Context, params oauthParameters, session *OAuthSession) (HandleAuthorizeRequestResponseObject, error) {
 	// Todo: for compatibility, we probably need to support presentation_definition and/or presentation_definition_uri.
 	if err := assertParamNotPresent(params, presentationDefUriParam); err != nil {
 		return nil, err
@@ -844,7 +844,7 @@ func (r Wrapper) oauthNonceStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthNonceKey...)
 }
 
-func assertParamPresent(params singleStringParam, param ...string) error {
+func assertParamPresent(params oauthParameters, param ...string) error {
 	for _, curr := range param {
 		if params.get(curr) == "" {
 			return fmt.Errorf("%s parameter must be present", curr)
@@ -853,7 +853,7 @@ func assertParamPresent(params singleStringParam, param ...string) error {
 	return nil
 }
 
-func assertParamNotPresent(params singleStringParam, param ...string) error {
+func assertParamNotPresent(params oauthParameters, param ...string) error {
 	for _, curr := range param {
 		if params.get(curr) != "" {
 			return fmt.Errorf("%s parameter must not be present", curr)
