@@ -93,8 +93,8 @@ func (p credentialRecord) TableName() string {
 type credentialPropertyRecord struct {
 	// CredentialID refers to the entry record in discovery_credential
 	CredentialID string `gorm:"primaryKey"`
-	// Key is JSON path of the property.
-	Key string `gorm:"primaryKey"`
+	// Path is JSON path of the property.
+	Path string `gorm:"primaryKey"`
 	// Value is the value of the property.
 	Value string
 }
@@ -231,15 +231,15 @@ func createPresentationRecord(serviceID string, timestamp *Timestamp, presentati
 			CredentialType:      credentialType,
 		}
 		// Create key-value properties of the credential subject, which is then stored in the property table for searching.
-		keys, values := indexJSONObject(currCred.CredentialSubject[0].(map[string]interface{}), nil, nil, "credentialSubject")
-		for i, key := range keys {
-			if key == "credentialSubject.id" {
+		paths, values := indexJSONObject(currCred.CredentialSubject[0].(map[string]interface{}), nil, nil, "credentialSubject")
+		for i, path := range paths {
+			if path == "credentialSubject.id" {
 				// present as column, don't index
 				continue
 			}
 			newCredential.Properties = append(newCredential.Properties, credentialPropertyRecord{
 				CredentialID: newCredential.ID,
-				Key:          key,
+				Path:         path,
 				Value:        values[i],
 			})
 		}
@@ -324,7 +324,7 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 			// Multiple (inner) joins to filter on a dynamic number of properties to filter on is not pretty, but it works
 			alias := "p" + strconv.Itoa(numProps)
 			numProps++
-			stmt = stmt.Joins("inner join discovery_credential_prop "+alias+" ON "+alias+".credential_id = cred.id AND "+alias+".key = ? AND "+alias+".value "+eq+" ?", jsonPath, value)
+			stmt = stmt.Joins("inner join discovery_credential_prop "+alias+" ON "+alias+".credential_id = cred.id AND "+alias+".path = ? AND "+alias+".value "+eq+" ?", jsonPath, value)
 		}
 	}
 
@@ -480,12 +480,12 @@ func (s *sqlStore) getTag(serviceID string) (Tag, error) {
 // indexJSONObject indexes a JSON object, resulting in a slice of JSON paths and corresponding string values.
 // It only traverses JSON objects and only adds string values to the result.
 func indexJSONObject(target map[string]interface{}, jsonPaths []string, stringValues []string, currentPath string) ([]string, []string) {
-	for key, value := range target {
+	for path, value := range target {
 		thisPath := currentPath
 		if len(thisPath) > 0 {
 			thisPath += "."
 		}
-		thisPath += key
+		thisPath += path
 
 		switch typedValue := value.(type) {
 		case string:

@@ -1,0 +1,21 @@
+version: "3.7"
+services:
+  nodeA-backend:
+    environment:
+      NUTS_STORAGE_SQL_CONNECTION: postgres://postgres:postgres@db:5432/node_a?sslmode=disable
+  nodeB-backend:
+    environment:
+      NUTS_STORAGE_SQL_CONNECTION: postgres://postgres:postgres@db:5432/node_b?sslmode=disable
+  db:
+    image: postgres:16-alpine
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ] # this makes sure the container only reports healthy it can be connected to
+      interval: 1s
+      timeout: 5s
+      retries: 20

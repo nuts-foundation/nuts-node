@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   nodeA-backend:
-    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:local}"
     ports:
       - "11323:1323"
     environment:
@@ -30,7 +30,7 @@ services:
       - "./node-A/html:/etc/nginx/html:ro"
       - "../scripts/oauth2.js:/etc/nginx/oauth2.js:ro"
   nodeB-backend:
-    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
+    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:local}"
     ports:
       - "21323:1323"
     environment:
@@ -56,16 +56,3 @@ services:
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/key.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
       - "./node-B/html:/etc/nginx/html:ro"
-  db:
-    image: postgres:16-alpine
-    restart: always
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ] # this makes sure the container only reports healthy it can be connected to
-      interval: 1s
-      timeout: 5s
-      retries: 20

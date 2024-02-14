@@ -20,9 +20,11 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"errors"
 	"fmt"
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -177,28 +179,28 @@ func (e *engine) initSQLDatabase() error {
 
 	// Find right SQL adapter
 	type sqlAdapter struct {
-		connector            func(dsn string) gorm.Dialector
-		gormConnectionString func(config string) string
+		connector func(sqlDB *sql.DB) gorm.Dialector
 	}
 	adapters := map[string]sqlAdapter{
 		"sqlite": {
-			connector: sqlite.Open,
-			gormConnectionString: func(trimmed string) string {
-				return trimmed
+			connector: func(sqlDB *sql.DB) gorm.Dialector {
+				return &sqlite.Dialector{Conn: sqlDB}
 			},
 		},
 		"postgres": {
-			connector: postgres.Open,
-			gormConnectionString: func(trimmed string) string {
-				return fmt.Sprintf("postgres:%s", trimmed)
+			connector: func(sqlDB *sql.DB) gorm.Dialector {
+				return postgres.New(postgres.Config{Conn: sqlDB})
+			},
+		},
+		"mysql": {
+			connector: func(sqlDB *sql.DB) gorm.Dialector {
+				return mysql.New(mysql.Config{Conn: sqlDB})
 			},
 		},
 	}
 	var adapter *sqlAdapter
-	var trimmedConnectionString string
 	for prefix, curr := range adapters {
-		trimmedConnectionString = strings.TrimPrefix(connectionString, prefix+":")
-		if len(trimmedConnectionString) != len(connectionString) {
+		if strings.HasPrefix(connectionString, prefix+":") {
 			adapter = &curr
 			break
 		}
@@ -209,8 +211,31 @@ func (e *engine) initSQLDatabase() error {
 
 	// Open connection and migrate
 	var err error
+	connectionURL, err := url.Parse(connectionString)
+	if err != nil {
+		return err
+	}
+	dbMigrator := dbmate.New(connectionURL)
+	migratorDriver, err := dbMigrator.Driver()
+	if err != nil {
+		return err
+	}
+	sqlDB, err := migratorDriver.Open()
+	if err != nil {
+		return err
+	}
+	log.Logger().Debug("Running database migrations...")
 
-	e.sqlDB, err = gorm.Open(adapter.connector(adapter.gormConnectionString(trimmedConnectionString)), &gorm.Config{
+	// we need the connectionString with adapter specific prefix here
+	dbMigrator.FS = sqlMigrationsFS
+	dbMigrator.MigrationsDir = []string{"sql_migrations"}
+	dbMigrator.AutoDumpSchema = false
+	dbMigrator.Log = sqlMigrationLogger{}
+	if err = dbMigrator.CreateAndMigrate(); err != nil {
+		return fmt.Errorf("failed to migrate database: %w on %s", err, connectionString)
+	}
+
+	e.sqlDB, err = gorm.Open(adapter.connector(sqlDB), &gorm.Config{
 		TranslateError: true,
 		Logger: gormLogrusLogger{
 			underlying:    log.Logger(),
@@ -219,22 +244,6 @@ func (e *engine) initSQLDatabase() error {
 	})
 	if err != nil {
 		return err
-	}
-	log.Logger().Debug("Running database migrations...")
-
-	// we need the connectionString with adapter specific prefix here
-	dbURL, err := url.Parse(connectionString)
-	if err != nil {
-		return err
-	}
-	db := dbmate.New(dbURL)
-	db.FS = sqlMigrationsFS
-	db.MigrationsDir = []string{"sql_migrations"}
-	db.AutoDumpSchema = false
-	db.Log = sqlMigrationLogger{}
-
-	if err = db.CreateAndMigrate(); err != nil {
-		return fmt.Errorf("failed to migrate database: %w on %s", err, dbURL.String())
 	}
 	return nil
 }

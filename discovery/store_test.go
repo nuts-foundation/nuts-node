@@ -446,7 +446,7 @@ func resetStore(t *testing.T, db *gorm.DB) {
 func sliceToMap(slice []credentialPropertyRecord) map[string]string {
 	var result = make(map[string]string)
 	for _, curr := range slice {
-		result[curr.Key] = curr.Value
+		result[curr.Path] = curr.Value
 	}
 	return result
 }
