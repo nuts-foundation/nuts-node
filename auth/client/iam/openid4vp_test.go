@@ -23,6 +23,11 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -33,12 +38,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 func TestIAMClient_AccessToken(t *testing.T) {
@@ -200,52 +203,99 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 
 func TestIAMClient_AuthorizationRequest(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
-	scopes := "first second"
-	clientState := crypto.GenerateNonce()
+	modifier := func(values map[string]interface{}) {
+		values["custom"] = "value"
+	}
 
-	t.Run("ok", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
+	t.Run("JAR", func(t *testing.T) {
+		keyId := walletDID.URI()
+		keyId.Fragment = "1"
+		privKey := crypto.NewTestKey(keyId.String())
 
-		redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
+		t.Run("ok", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
+			ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
+				assert.Equal(t, keyId.String(), key)
+				assert.Equal(t, walletDID.String(), claims[jwt.IssuerKey])
+				assert.Equal(t, ctx.verifierDID.String(), claims[jwt.AudienceKey])
+				assert.Equal(t, walletDID.String(), claims[oauth.ClientIDParam])
+				assert.Equal(t, "value", claims["custom"])
+				assert.NotEmpty(t, claims[oauth.NonceParam])
+				return "signed JWT", nil
+			})
+			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
 
-		assert.NoError(t, err)
-		require.NotNil(t, redirectURL)
-		assert.Equal(t, walletDID.String(), redirectURL.Query().Get("client_id"))
-		assert.Equal(t, "code", redirectURL.Query().Get("response_type"))
-		assert.Equal(t, "first second", redirectURL.Query().Get("scope"))
-		assert.NotEmpty(t, redirectURL.Query().Get("state"))
-		assert.Equal(t, "https://test.test/iam/123/callback", redirectURL.Query().Get("redirect_uri"))
+			assert.NoError(t, err)
+			require.NotNil(t, redirectURL)
+			assert.Equal(t, "signed JWT", redirectURL.Query().Get(oauth.RequestParam))
+			assert.Equal(t, walletDID.String(), redirectURL.Query().Get(oauth.ClientIDParam))
+		})
+		t.Run("error - failed to sign JWT", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.authzServerMetadata.RequireSignedRequestObject = true
+			ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
+			ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).Return("", assert.AnError)
+
+			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
+
+			assert.Error(t, err)
+			assert.Empty(t, redirectURL)
+		})
+		t.Run("error - failed to resolve key", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.authzServerMetadata.RequireSignedRequestObject = true
+			ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, nil, resolver.ErrKeyNotFound)
+
+			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
+
+			assert.Error(t, err)
+			assert.Empty(t, redirectURL)
+		})
 	})
-	t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-		ctx.metadata = nil
+	t.Run("non-JAR", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.authzServerMetadata.RequireSignedRequestObject = false
 
-		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
+			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
-	})
-	t.Run("error - faulty authorization server metadata", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-		ctx.metadata = func(writer http.ResponseWriter) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte("{"))
-		}
+			assert.NoError(t, err)
+			require.NotNil(t, redirectURL)
+			assert.Equal(t, walletDID.String(), redirectURL.Query().Get("client_id"))
+			assert.Equal(t, "value", redirectURL.Query().Get("custom"))
+		})
+		t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.metadata = nil
 
-		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
+			_, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: unable to unmarshal response: unexpected end of JSON input, {")
-	})
-	t.Run("error - missing authorization endpoint", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-		ctx.authzServerMetadata.AuthorizationEndpoint = ""
+			assert.Error(t, err)
+			assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
+		})
+		t.Run("error - faulty authorization server metadata", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.metadata = func(writer http.ResponseWriter) {
+				writer.Header().Add("Content-Type", "application/json")
+				writer.WriteHeader(http.StatusOK)
+				_, _ = writer.Write([]byte("{"))
+			}
 
-		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
+			_, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
 
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "no authorization endpoint found in metadata for")
+			assert.Error(t, err)
+			assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: unable to unmarshal response: unexpected end of JSON input, {")
+		})
+		t.Run("error - missing authorization endpoint", func(t *testing.T) {
+			ctx := createClientServerTestContext(t)
+			ctx.authzServerMetadata.AuthorizationEndpoint = ""
+
+			_, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
+
+			assert.Error(t, err)
+			assert.ErrorContains(t, err, "no authorization endpoint found in metadata for")
+		})
 	})
 }
 
@@ -329,6 +379,8 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 
 func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestContext {
 	ctrl := gomock.NewController(t)
+	jwtSigner := crypto.NewMockJWTSigner(ctrl)
+	keyResolver := resolver.NewMockKeyResolver(ctrl)
 	wallet := holder.NewMockWallet(ctrl)
 	if tlsConfig == nil {
 		tlsConfig = &tls.Config{}
@@ -340,17 +392,23 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 		ctrl:  ctrl,
 		client: &OpenID4VPClient{
 			httpClientTLS: tlsConfig,
+			jwtSigner:     jwtSigner,
+			keyResolver:   keyResolver,
 			wallet:        wallet,
 		},
-		wallet: wallet,
+		jwtSigner:   jwtSigner,
+		keyResolver: keyResolver,
+		wallet:      wallet,
 	}
 }
 
 type clientTestContext struct {
-	ctrl   *gomock.Controller
-	audit  context.Context
-	client Client
-	wallet *holder.MockWallet
+	audit       context.Context
+	client      Client
+	ctrl        *gomock.Controller
+	jwtSigner   *crypto.MockJWTSigner
+	keyResolver *resolver.MockKeyResolver
+	wallet      *holder.MockWallet
 }
 
 type clientServerTestContext struct {
@@ -450,6 +508,7 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	ctx.authzServerMetadata.TokenEndpoint = ctx.tlsServer.URL + "/token"
 	ctx.authzServerMetadata.PresentationDefinitionEndpoint = ctx.tlsServer.URL + "/presentation_definition"
 	ctx.authzServerMetadata.AuthorizationEndpoint = ctx.tlsServer.URL + "/authorize"
+	ctx.authzServerMetadata.RequireSignedRequestObject = true
 
 	return ctx
 }

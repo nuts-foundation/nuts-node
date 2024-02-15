@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -50,12 +51,16 @@ var holderDID = did.MustParseDID("did:web:example.com:iam:holder")
 var issuerDID = did.MustParseDID("did:web:example.com:iam:issuer")
 
 func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
-	defaultParams := func() map[string]string {
-		return map[string]string{
-			oauth.ClientIDParam:    holderDID.String(),
-			oauth.RedirectURIParam: "https://example.com",
-			responseTypeParam:      "code",
-			oauth.ScopeParam:       "test",
+	defaultParams := func() oauthParameters {
+		return map[string]interface{}{
+			oauth.ClientIDParam:     holderDID.String(),
+			oauth.RedirectURIParam:  "https://example.com",
+			oauth.ResponseTypeParam: "code",
+			oauth.ScopeParam:        "test",
+			oauth.StateParam:        "state",
+			jwt.AudienceKey:         []string{verifierDID.String()},
+			jwt.IssuerKey:           holderDID.String(),
+			oauth.NonceParam:        "nonce",
 		}
 	}
 
@@ -67,6 +72,33 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)")
+	})
+	t.Run("invalid redirect_uri", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		params[oauth.RedirectURIParam] = ":/"
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid redirect_uri parameter")
+	})
+	t.Run("missing redirect_uri", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, oauth.RedirectURIParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing redirect_uri parameter")
+	})
+	t.Run("missing audience", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, jwt.AudienceKey)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, verifier = did:web:example.com:iam:verifier, audience = ")
 	})
 	t.Run("missing did in supported_client_id_schemes", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -91,21 +123,13 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	t.Run("failed to generate verifier web url", func(t *testing.T) {
 		ctx := newTestClient(t)
 		verifierDID := did.MustParseDID("did:notweb:example.com:verifier")
+		params := defaultParams()
+		params[jwt.AudienceKey] = []string{verifierDID.String()}
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
 
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
-		requireOAuthError(t, err, oauth.ServerError, "invalid verifier DID")
-	})
-	t.Run("incorrect holder AuthorizationEndpoint URL", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
-			AuthorizationEndpoint: "://example.com",
-		}, nil)
-
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid wallet endpoint")
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid verifier DID")
 	})
 }
 
@@ -115,16 +139,16 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		VPFormats: oauth.DefaultOpenIDSupportedFormats(),
 	}
 	pdEndpoint := "https://example.com/iam/verifier/presentation_definition?scope=test"
-	defaultParams := func() map[string]string {
-		return map[string]string{
+	defaultParams := func() map[string]interface{} {
+		return map[string]interface{}{
 			oauth.ClientIDParam:     verifierDID.String(),
 			clientIDSchemeParam:     didScheme,
 			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
-			nonceParam:              "nonce",
+			oauth.NonceParam:        "nonce",
 			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
 			responseModeParam:       responseModeDirectPost,
 			responseURIParam:        responseURI,
-			responseTypeParam:       responseTypeVPToken,
+			oauth.ResponseTypeParam: responseTypeVPToken,
 			oauth.ScopeParam:        "test",
 			oauth.StateParam:        "state",
 		}
@@ -150,11 +174,10 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 
 		require.NoError(t, err)
 	})
-	t.Run("missing client_metadata_uri", func(t *testing.T) {
+	t.Run("invalid client_metadata_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		delete(params, clientMetadataURIParam)
-		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "").Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, "failed to get client metadata (verifier)", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
@@ -164,7 +187,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("missing nonce", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		delete(params, nonceParam)
+		delete(params, oauth.NonceParam)
 		expectPostError(t, ctx, oauth.InvalidRequest, "missing nonce parameter", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
@@ -734,7 +757,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		mockVDR.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t), mockPolicy)
 
-		params := map[string]string{
+		params := map[string]interface{}{
 			"scope":                   "eOverdracht-overdrachtsbericht",
 			"response_type":           "code",
 			"response_mode":           "direct_post",
@@ -752,7 +775,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 	})
 	t.Run("invalid response_mode", func(t *testing.T) {
 		instance := New(nil, nil, nil, nil, nil)
-		params := map[string]string{
+		params := map[string]interface{}{
 			"scope":                   "eOverdracht-overdrachtsbericht",
 			"response_type":           "code",
 			"response_mode":           "invalid",

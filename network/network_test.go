@@ -639,7 +639,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 	ctx := context.Background()
 	keyID := did.DIDURL{DID: *nodeDID}
 	keyID.Fragment = "some-key"
-	key := crypto.NewTestKey(keyID.String()).(*crypto.TestKey).PrivateKey
+	key := crypto.NewTestKey(keyID.String()).PrivateKey
 	documentWithoutNutsCommService := &did.Document{
 		KeyAgreement: []did.VerificationRelationship{
 			{VerificationMethod: &did.VerificationMethod{ID: keyID}},

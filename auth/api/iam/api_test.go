@@ -22,13 +22,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
+	"fmt"
+  "net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
 
 	"github.com/labstack/echo/v4"
+  	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -38,9 +42,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	oauthServices "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+  "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
+  "github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -227,24 +233,65 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 }
 
 func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
-	serverMetadata := oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:    "https://example.com/holder/authorize",
-		ClientIdSchemesSupported: []string{"did"},
-	}
 	clientMetadata := oauth.OAuthClientMetadata{
 		VPFormats: oauth.DefaultOpenIDSupportedFormats(),
 	}
+	serverMetadata := oauth.AuthorizationServerMetadata{
+		ClientIdSchemesSupported: []string{didScheme},
+		VPFormats:                oauth.DefaultOpenIDSupportedFormats(),
+	}
 	pdEndpoint := "https://example.com/iam/verifier/presentation_definition?scope=test"
-	t.Run("ok - code response type - from holder", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
+	// setup did document and keys
+	vmId := did.DIDURL{
+		DID:             holderDID,
+		Fragment:        "key",
+		DecodedFragment: "key",
+	}
+	kid := vmId.String()
+	key := crypto.NewTestKey(kid)
+	didDocument := did.Document{ID: holderDID}
+	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, did.DID{}, key.Public())
+	didDocument.AddAssertionMethod(vm)
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
-			oauth.ClientIDParam:    holderDID.String(),
-			oauth.RedirectURIParam: "https://example.com",
-			responseTypeParam:      responseTypeCode,
-			oauth.ScopeParam:       "test",
+	t.Run("ok - signed request - code response type", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		// create signed request
+		request := jwt.New()
+		_ = request.Set(jwt.AudienceKey, []string{verifierDID.String()})
+		_ = request.Set(jwt.IssuerKey, holderDID.String())
+		_ = request.Set(oauth.ClientIDParam, holderDID.String())
+		_ = request.Set(oauth.NonceParam, "nonce")
+		_ = request.Set(oauth.RedirectURIParam, "https://example.com")
+		_ = request.Set(oauth.ResponseTypeParam, responseTypeCode)
+		_ = request.Set(oauth.ScopeParam, "test")
+		_ = request.Set(oauth.StateParam, "state")
+		headers := jws.NewHeaders()
+		headers.Set(jws.KeyIDKey, kid)
+		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
+		require.NoError(t, err)
+
+		expectedURL := test.MustParseURL("https://example.com/iam/holder/authorize")
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
+		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), verifierDID, holderDID, gomock.Any()).DoAndReturn(func(ctx context.Context, verifierDID, holderDID did.DID, modifier iam.RequestModifier) (*url.URL, error) {
+			// check the parameters
+			params := map[string]interface{}{}
+			modifier(params)
+			assert.NotEmpty(t, params[oauth.NonceParam])
+			assert.Equal(t, didScheme, params[clientIDSchemeParam])
+			assert.Equal(t, responseTypeVPToken, params[oauth.ResponseTypeParam])
+			assert.Equal(t, "https://example.com/iam/verifier/response", params[responseURIParam])
+			assert.Equal(t, "https://example.com/iam/verifier/oauth-client", params[clientMetadataURIParam])
+			assert.Equal(t, responseModeDirectPost, params[responseModeParam])
+			assert.NotEmpty(t, params[oauth.StateParam])
+			return expectedURL, nil
+		})
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
+			oauth.ClientIDParam: holderDID.String(),
+			oauth.RequestParam:  string(bytes),
 		}), HandleAuthorizeRequestRequestObject{
 			Id: "verifier",
 		})
@@ -252,15 +299,104 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		require.NoError(t, err)
 		assert.IsType(t, HandleAuthorizeRequest302Response{}, res)
 		location := res.(HandleAuthorizeRequest302Response).Headers.Location
-		assert.Contains(t, location, "https://example.com/holder/authorize")
-		assert.Contains(t, location, "client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier")
-		assert.Contains(t, location, "client_id_scheme=did")
-		assert.Contains(t, location, "client_metadata_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Foauth-client")
-		assert.Contains(t, location, "nonce=")
-		assert.Contains(t, location, "presentation_definition_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fpresentation_definition%3Fscope%3Dtest")
-		assert.Contains(t, location, "response_uri=https%3A%2F%2Fexample.com%2Fiam%2Fverifier%2Fresponse")
-		assert.Contains(t, location, "response_mode=direct_post")
-		assert.Contains(t, location, "response_type=vp_token")
+		assert.Equal(t, location, expectedURL.String())
+	})
+	t.Run("error - invalid request parameter", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
+			oauth.ClientIDParam: "invalid",
+			oauth.RequestParam:  "invalid",
+		}), HandleAuthorizeRequestRequestObject{
+			Id: "verifier",
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid request parameter")
+		assert.Nil(t, res)
+	})
+	t.Run("error - client_id does not match", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
+		// create signed request
+		request := jwt.New()
+		_ = request.Set(jwt.IssuerKey, holderDID.String())
+		_ = request.Set(oauth.ClientIDParam, holderDID.String())
+		headers := jws.NewHeaders()
+		headers.Set(jws.KeyIDKey, kid)
+		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
+		require.NoError(t, err)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
+			oauth.ClientIDParam: "invalid",
+			oauth.RequestParam:  string(bytes),
+		}), HandleAuthorizeRequestRequestObject{
+			Id: "verifier",
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id claim in signed authorization request")
+		assert.Nil(t, res)
+	})
+	t.Run("error - client_id does not match signer", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
+		// create signed request
+		request := jwt.New()
+		_ = request.Set(jwt.IssuerKey, verifierDID.String())
+		_ = request.Set(oauth.ClientIDParam, verifierDID.String())
+		headers := jws.NewHeaders()
+		headers.Set(jws.KeyIDKey, kid)
+		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
+		require.NoError(t, err)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
+			oauth.ClientIDParam: verifierDID.String(),
+			oauth.RequestParam:  string(bytes),
+		}), HandleAuthorizeRequestRequestObject{
+			Id: "verifier",
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "client_id does not match signer of authorization request")
+		assert.Nil(t, res)
+	})
+	t.Run("ok - code response type - from holder", func(t *testing.T) {
+		ctx := newTestClient(t)
+		expectedURL := test.MustParseURL("https://example.com/iam/holder/authorize")
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
+		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), verifierDID, holderDID, gomock.Any()).DoAndReturn(func(ctx context.Context, verifierDID, holderDID did.DID, modifier iam.RequestModifier) (*url.URL, error) {
+			// check the parameters
+			params := map[string]interface{}{}
+			modifier(params)
+			assert.NotEmpty(t, params[oauth.NonceParam])
+			assert.Equal(t, didScheme, params[clientIDSchemeParam])
+			assert.Equal(t, responseTypeVPToken, params[oauth.ResponseTypeParam])
+			assert.Equal(t, "https://example.com/iam/verifier/response", params[responseURIParam])
+			assert.Equal(t, "https://example.com/iam/verifier/oauth-client", params[clientMetadataURIParam])
+			assert.Equal(t, responseModeDirectPost, params[responseModeParam])
+			assert.NotEmpty(t, params[oauth.StateParam])
+			return expectedURL, nil
+		})
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
+			jwt.AudienceKey:         verifierDID.String(),
+			jwt.IssuerKey:           holderDID.String(),
+			oauth.ClientIDParam:     holderDID.String(),
+			oauth.NonceParam:        "nonce",
+			oauth.RedirectURIParam:  "https://example.com",
+			oauth.ResponseTypeParam: responseTypeCode,
+			oauth.ScopeParam:        "test",
+			oauth.StateParam:        "state",
+		}), HandleAuthorizeRequestRequestObject{
+			Id: "verifier",
+		})
+
+		require.NoError(t, err)
+		assert.IsType(t, HandleAuthorizeRequest302Response{}, res)
+		location := res.(HandleAuthorizeRequest302Response).Headers.Location
+		assert.Equal(t, location, expectedURL.String())
 
 	})
 	t.Run("ok - vp_token response type - from verifier", func(t *testing.T) {
@@ -280,15 +416,15 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/iam/verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
 			oauth.ClientIDParam:     verifierDID.String(),
 			clientIDSchemeParam:     didScheme,
 			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
-			nonceParam:              "nonce",
+			oauth.NonceParam:        "nonce",
 			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
 			responseURIParam:        "https://example.com/iam/verifier/response",
 			responseModeParam:       responseModeDirectPost,
-			responseTypeParam:       responseTypeVPToken,
+			oauth.ResponseTypeParam: responseTypeVPToken,
 			oauth.ScopeParam:        "test",
 			oauth.StateParam:        "state",
 		}), HandleAuthorizeRequestRequestObject{
@@ -304,7 +440,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]string{
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
 			"redirect_uri":  "https://example.com",
 			"response_type": "unsupported",
 		}), HandleAuthorizeRequestRequestObject{
@@ -734,10 +870,19 @@ func requireOAuthError(t *testing.T, err error, errorCode oauth.ErrorCode, error
 	assert.Equal(t, errorDescription, oauthErr.Description)
 }
 
-func requestContext(queryParams map[string]string) context.Context {
+func requestContext(queryParams map[string]interface{}) context.Context {
 	vals := url.Values{}
 	for key, value := range queryParams {
-		vals.Add(key, value)
+		switch t := value.(type) {
+		case string:
+			vals.Add(key, t)
+		case []string:
+			for _, v := range t {
+				vals.Add(key, v)
+			}
+		default:
+			panic(fmt.Sprintf("unsupported type %T", t))
+		}
 	}
 	httpRequest := &http.Request{
 		URL: &url.URL{

@@ -106,7 +106,6 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 	return &services.JwtBearerTokenResult{BearerToken: signingString, AuthorizationServerEndpoint: endpointURL}, nil
 }
 
-// RequestRFC003AccessToken is used in the auth v1 API
 func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantToken string, authorizationServerEndpoint url.URL) (*oauth.TokenResponse, error) {
 	if s.strictMode && strings.ToLower(authorizationServerEndpoint.Scheme) != "https" {
 		return nil, fmt.Errorf("authorization server endpoint must be HTTPS when in strict mode: %s", authorizationServerEndpoint.String())
