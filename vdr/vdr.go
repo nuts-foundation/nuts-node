@@ -286,6 +286,24 @@ func (r *Module) Create(ctx context.Context, options management.CreationOptions)
 	return doc, key, nil
 }
 
+func (r *Module) Deactivate(ctx context.Context, id did.DID) error {
+	log.Logger().
+		WithField(core.LogFieldDID, id).
+		Debug("Deactivating DID Document")
+	manager := r.documentManagers[id.Method]
+	if manager == nil {
+		return fmt.Errorf("%w: %s", management.ErrUnsupportedDIDMethod, id.Method)
+	}
+	err := manager.Deactivate(ctx, id)
+	if err != nil {
+		return fmt.Errorf("could not deactivate DID document: %w", err)
+	}
+	log.Logger().
+		WithField(core.LogFieldDID, id).
+		Info("DID Document deactivated")
+	return nil
+}
+
 // Update updates a DID Document based on the DID.
 // It only works on did:nuts, so is subject for removal in the future.
 func (r *Module) Update(ctx context.Context, id did.DID, next did.Document) error {

@@ -50,6 +50,8 @@ type Storage interface {
 	SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error
 	// ListPrivateKeys returns the KIDs of the private keys that are present. Returns a []string(nil) if there was a problem.
 	ListPrivateKeys(ctx context.Context) []string
+	// DeletePrivateKey removes the private key with the given KID from the storage backend.
+	DeletePrivateKey(ctx context.Context, kid string) error
 }
 
 // PublicKeyEntry is a public key entry also containing the period it's valid for.

@@ -38,6 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -131,6 +132,13 @@ func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID s
 	}
 
 	return f(ctx, request)
+}
+
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
+func (w Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
+		vcrTypes.ErrNotFound: http.StatusNotFound,
+	})
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
@@ -560,6 +568,15 @@ func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
 	session.ResponseType = params.get(oauth.ResponseTypeParam)
 
 	return &session
+}
+
+func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject) (StatusListResponseObject, error) {
+	cred, err := r.vcr.Issuer().StatusList(ctx, r.idToDID(request.Id), request.Page)
+	if err != nil {
+		return nil, err
+	}
+
+	return StatusList200JSONResponse(*cred), nil
 }
 
 // idToDID converts the tenant-specific part of a did:web DID (e.g. 123)

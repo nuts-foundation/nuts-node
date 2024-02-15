@@ -131,6 +131,19 @@ func (fsc fileSystemBackend) SavePrivateKey(_ context.Context, kid string, key c
 	return err
 }
 
+// DeletePrivateKey removes the private key for the given legalEntity from disk.
+func (fsc fileSystemBackend) DeletePrivateKey(_ context.Context, kid string) error {
+	filePath := fsc.getEntryPath(kid, privateKeyEntry)
+	err := os.Remove(filePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return spi.ErrNotFound
+		}
+		return fmt.Errorf("could not open entry %s with filename %s: %w", kid, filePath, err)
+	}
+	return nil
+}
+
 func (fsc fileSystemBackend) ListPrivateKeys(_ context.Context) []string {
 	var result []string
 	err := filepath.Walk(fsc.fspath, func(path string, info fs.FileInfo, err error) error {

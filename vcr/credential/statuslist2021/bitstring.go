@@ -27,7 +27,8 @@ import (
 
 var ErrIndexNotInBitstring = errors.New("index not in status list")
 
-var defaultBitstringLengthInBytes = 16 * 1024 // *8 = herd privacy of 16kB or 131072 bit
+const defaultBitstringLengthInBytes = 16 * 1024 // *8 = herd privacy of 16kB or 131072 bit
+const MaxBitstringIndex = defaultBitstringLengthInBytes*8 - 1
 
 // Bitstring is not thread-safe
 type Bitstring []byte
@@ -79,25 +80,19 @@ func Compress(bitstring []byte) (string, error) {
 		return "", err
 	}
 
-	// encode to base64 string
-	// The StatusList2021 spec examples contain '-' from which I took that it uses URLEncoding over StdEncoding (with padding)
-	return base64.URLEncoding.EncodeToString(buf.Bytes()), nil
+	// encode to base64 string.
+	// Bitstring Status List spec clarified this to be multibase base64URL encoding without padding. StatusList2021 spec is not multibase.
+	return base64.RawURLEncoding.EncodeToString(buf.Bytes()), nil
 }
 
 // Expand a compressed StatusList2021 bitstring. It first applies base64 decoding followed by gzip decompression.
 func Expand(encodedList string) (Bitstring, error) {
 	// base64 decode
-	// The StatusList2021 spec examples contain '-' from which I took that it uses URLEncoding over StdEncoding.
-	// Usage of padding is still unclear. RFC4648 section 3.2 says use padding:
-	//		Implementations MUST include appropriate pad characters at the end of
-	//		encoded data unless the specification referring to this document
-	//		explicitly states otherwise.
-	// However, other implementations use no padding, so we accept both.
-	enc := base64.URLEncoding
-	if len(encodedList)%4 != 0 {
-		// base64 encodes 24 bit using 4 base64 chars
-		// any multiple of 4 is either padded or does not require padding, the rest requires RawURLEncoding
-		enc = base64.RawURLEncoding
+	// Bitstring Status List spec clarified this to be multibase base64URL encoding without padding. StatusList2021 spec is not multibase.
+	enc := base64.RawURLEncoding
+	if len(encodedList)%4 == 0 {
+		// if encoding is a multiple of 4 it may or may not be padded. URLEncoding can handle both.
+		enc = base64.URLEncoding
 	}
 
 	compressed, err := enc.DecodeString(encodedList)

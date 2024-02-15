@@ -54,6 +54,9 @@ type KeyStore interface {
 	KeyCreator
 	KeyResolver
 	JWTSigner
+
+	// Delete removes the private key with the given KID from the KeyStore.
+	Delete(ctx context.Context, kid string) error
 }
 
 // Decrypter is the interface to support decryption

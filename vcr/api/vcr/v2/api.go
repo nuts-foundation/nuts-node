@@ -23,15 +23,14 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/http"
-
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -82,38 +81,16 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		resolver.ErrNotFound:        http.StatusBadRequest,
 		resolver.ErrKeyNotFound:     http.StatusBadRequest,
 		did.ErrInvalidDID:           http.StatusBadRequest,
+		vcrTypes.ErrStatusNotFound:  http.StatusBadRequest,
 	})
 }
 
 // IssueVC handles the API request for credential issuing.
 func (w Wrapper) IssueVC(ctx context.Context, request IssueVCRequestObject) (IssueVCResponseObject, error) {
-	options := issuer.CredentialOptions{
-		Publish: true,
-	}
-	if request.Body.PublishToNetwork != nil {
-		options.Publish = *request.Body.PublishToNetwork
-	}
-	if request.Body.Format != nil {
-		options.Format = string(*request.Body.Format)
-	}
-
-	// Check param constraints:
-	if request.Body.Visibility == nil || *request.Body.Visibility == "" {
-		if options.Publish {
-			return nil, core.InvalidInputError("visibility must be set when publishing credential")
-		}
-	} else {
-		// visibility is set
-		// Visibility can only be used when publishing
-		if !options.Publish {
-			return nil, core.InvalidInputError("visibility setting is only allowed when publishing to the network")
-		}
-		// Check if the values are in range
-		if *request.Body.Visibility != Public && *request.Body.Visibility != Private {
-			return nil, core.InvalidInputError("invalid value for visibility")
-		}
-		// Set the actual value
-		options.Public = *request.Body.Visibility == Public
+	// validate credential options
+	options, err := parseCredentialOptions(request)
+	if err != nil {
+		return nil, err
 	}
 
 	// Set default context, if not set
@@ -145,12 +122,84 @@ func (w Wrapper) IssueVC(ctx context.Context, request IssueVCRequestObject) (Iss
 		CredentialSubject: requestedVC.CredentialSubject,
 	}
 
-	vcCreated, err := w.VCR.Issuer().Issue(ctx, template, options)
+	vcCreated, err := w.VCR.Issuer().Issue(ctx, template, *options)
 	if err != nil {
 		return nil, err
 	}
 
 	return IssueVC200JSONResponse(*vcCreated), nil
+}
+
+// parseCredentialOptions extracts returns all options from the request object,
+// or an error if the (combination of) options is invalid for the issuer's DID method.
+func parseCredentialOptions(request IssueVCRequestObject) (*issuer.CredentialOptions, error) {
+	issuerDID, err := did.ParseDID(request.Body.Issuer)
+	if err != nil {
+		return nil, err
+	}
+
+	options := issuer.CredentialOptions{}
+
+	// Set format
+	if request.Body.Format != nil {
+		options.Format = string(*request.Body.Format)
+	}
+
+	// Valid CredentialOptions:
+	// All: Format
+	// did:nuts: PublishToNetwork, Visibility
+	// did:web: WithStatusList2021Revocation
+	switch issuerDID.Method {
+	case "nuts":
+		options.Publish = true
+		if request.Body.PublishToNetwork != nil {
+			options.Publish = *request.Body.PublishToNetwork
+		}
+
+		// Check param constraints:
+		if request.Body.Visibility == nil || *request.Body.Visibility == "" {
+			if options.Publish {
+				return nil, core.InvalidInputError("visibility must be set when publishing credential")
+			}
+		} else {
+			// visibility is set
+			// Visibility can only be used when publishing
+			if !options.Publish {
+				return nil, core.InvalidInputError("visibility setting is only allowed when publishing to the network")
+			}
+			// Check if the values are in range
+			if *request.Body.Visibility != Public && *request.Body.Visibility != Private {
+				return nil, core.InvalidInputError("invalid value for visibility")
+			}
+			// Set the actual value
+			options.Public = *request.Body.Visibility == Public
+		}
+
+		// return error for invalid options
+		if request.Body.WithStatusList2021Revocation != nil {
+			return nil, core.InvalidInputError("illegal option 'withStatusList2021Revocation' requested for issuer's DID method: %s", issuerDID.Method)
+		}
+	case "web":
+		// check if statusList2021Entry should be added
+		if request.Body.WithStatusList2021Revocation != nil {
+			options.WithStatusListRevocation = *request.Body.WithStatusList2021Revocation
+		}
+		// non expiring credential MUST set a value for withStatusList2021Revocation
+		if request.Body.ExpirationDate == nil && request.Body.WithStatusList2021Revocation == nil {
+			return nil, core.InvalidInputError("withStatusList2021Revocation MUST be provided for credentials without expirationDate")
+		}
+		// return error for invalid options
+		if request.Body.PublishToNetwork != nil {
+			return nil, core.InvalidInputError("illegal option 'publishToNetwork' requested for issuer's DID method: %s", issuerDID.Method)
+		}
+		if request.Body.Visibility != nil {
+			return nil, core.InvalidInputError("illegal option 'visibility' requested for issuer's DID method: %s", issuerDID.Method)
+		}
+	default:
+		return nil, core.InvalidInputError("unsupported DID method: %s", issuerDID.Method)
+	}
+
+	return &options, nil
 }
 
 // RevokeVC handles the API request for revoking a credential.
@@ -164,7 +213,13 @@ func (w Wrapper) RevokeVC(ctx context.Context, request RevokeVCRequestObject) (R
 	if err != nil {
 		return nil, err
 	}
-	return RevokeVC200JSONResponse(*revocation), nil
+
+	// did:nuts credential / network revocation
+	if revocation != nil {
+		return RevokeVC200JSONResponse(*revocation), nil
+	}
+	// did:web credential / status list revocation
+	return RevokeVC204Response{}, nil
 }
 
 // SearchIssuedVCs handles the API request for searching for issued VCs

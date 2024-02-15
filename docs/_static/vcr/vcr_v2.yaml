@@ -191,9 +191,12 @@ paths:
       summary: "Revoke an issued credential"
       description: |
         Revoke a credential.
+        For a credential issued by did:nuts a revocation credential is published to the network
+        For a credential issued by did:web the revocation bit is set on the status list referenced in VC.credentialStatus
 
         error returns:
-        * 400 - Credential can't be revoked. Most likely due to a missing private key.
+        * 400 - Credential can't be revoked. Most likely due to a missing private key. Or credential contains no credentialStatus.
+        * 404 - Credential not found
         * 409 - Credential has already been revoked
         * 500 - An error occurred while processing the request
       operationId: "revokeVC"
@@ -201,11 +204,13 @@ paths:
         - credential
       responses:
         "200":
-          description: Revocation has been processed locally. It has also been published to the network.
+          description: Revocation for did:nuts VC has been published to the network.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Revocation'
+        "204":
+          description: Revocation for did:web VC has been processed. It is accessible in the StatusList bitstring.
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/vc:
@@ -503,6 +508,19 @@ components:
           description: RFC3339 time string until when the credential is valid.
           type: string
           example: "2012-01-02T12:00:00Z"
+        credentialSubject:
+          $ref: '#/components/schemas/CredentialSubject'
+        withStatusList2021Revocation:
+          description: |
+            Add a credentialStatus with statusPurpose 'revocation' to the issued credential. This allows a credential to 
+            be revoked using the referenced StatusList2021Credential. StatusPurpose 'suspension' is not supported (yet). 
+            See https://www.w3.org/TR/2023/WD-vc-status-list-20230427/
+            
+            Credentials with a short lifespan (expiry) are preferred over adding a credentialStatus.
+            This is a required field for credentials without an expirationDate.
+            Only valid for did:web issuers.
+          type: boolean
+          default: false
         format:
           description: Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
           default: ldp_vc
@@ -516,17 +534,17 @@ components:
             When set to false, the caller is responsible for distributing the VC to a holder. When the issuer is
             also the holder, it then can be used to directly create a presentation (self issued).
             Note: a not published credential can still be publicly revoked.
+            Only valid for did:nuts issuers.
           type: boolean
           default: true
         visibility:
-            description: |
-              When publishToNetwork is true, the credential can be published publicly or privately to the holder.
-              This field is mandatory if publishToNetwork is true to prevent accidents. It defaults to "private".
-            type: string
-            enum: [ public, private ]
-            default: private
-        credentialSubject:
-          $ref: '#/components/schemas/CredentialSubject'
+          description: |
+            When publishToNetwork is true, the credential can be published publicly or privately to the holder.
+            This field is mandatory if publishToNetwork is true to prevent accidents. It defaults to "private".
+            Only valid for did:nuts issuers.
+          type: string
+          enum: [ public, private ]
+          default: private
     SearchVCRequest:
       type: object
       description: request body for searching VCs

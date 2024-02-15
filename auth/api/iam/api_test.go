@@ -23,19 +23,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/test"
-	"net/http"
+  "net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
 
 	"github.com/labstack/echo/v4"
+  	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -44,12 +42,16 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	oauthServices "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+  "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
+  "github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -817,6 +819,34 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	})
 }
 
+func TestWrapper_StatusList(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+		page := 1
+		id := "123"
+		issuerDID := did.MustParseDID("did:web:example.com:iam:" + id)
+		slCred := VerifiableCredential{Issuer: ssi.MustParseURI(issuerDID.String())}
+		ctx.vcIssuer.EXPECT().StatusList(nil, issuerDID, page).Return(&slCred, nil)
+
+		res, err := ctx.client.StatusList(nil, StatusListRequestObject{
+			Id:   id,
+			Page: page,
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, StatusList200JSONResponse(slCred), res)
+	})
+	t.Run("error - not found", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vcIssuer.EXPECT().StatusList(nil, gomock.Any(), gomock.Any()).Return(nil, types.ErrNotFound)
+
+		res, err := ctx.client.StatusList(nil, StatusListRequestObject{})
+
+		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.Nil(t, res)
+	})
+}
+
 type strictServerCallCapturer bool
 
 func (s *strictServerCallCapturer) handle(_ echo.Context, _ interface{}) (response interface{}, err error) {
@@ -881,6 +911,7 @@ type testCtx struct {
 	relyingParty  *oauthServices.MockRelyingParty
 	vcr           *vcr.MockVCR
 	vdr           *vdr.MockVDR
+	vcIssuer      *issuer.MockIssuer
 	vcVerifier    *verifier.MockVerifier
 	wallet        *holder.MockWallet
 }
@@ -895,6 +926,7 @@ func newTestClient(t testing.TB) *testCtx {
 	policyInstance := policy.NewMockPDPBackend(ctrl)
 	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
+	vcIssuer := issuer.NewMockIssuer(ctrl)
 	vcVerifier := verifier.NewMockVerifier(ctrl)
 	iamClient := iam.NewMockClient(ctrl)
 	mockVDR := vdr.NewMockVDR(ctrl)
@@ -903,6 +935,7 @@ func newTestClient(t testing.TB) *testCtx {
 
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
+	mockVCR.EXPECT().Issuer().Return(vcIssuer).AnyTimes()
 	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
 	mockVCR.EXPECT().Wallet().Return(mockWallet).AnyTimes()
 	authnServices.EXPECT().IAMClient().Return(iamClient).AnyTimes()
@@ -913,6 +946,7 @@ func newTestClient(t testing.TB) *testCtx {
 		authnServices: authnServices,
 		policy:        policyInstance,
 		relyingParty:  relyingPary,
+		vcIssuer:      vcIssuer,
 		vcVerifier:    vcVerifier,
 		resolver:      mockResolver,
 		vdr:           mockVDR,

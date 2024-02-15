@@ -24,6 +24,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"time"
 
@@ -54,7 +56,7 @@ var TimeFunc = time.Now
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
-) Issuer {
+	statusList statuslist.StatusList2021Issuer) Issuer {
 	keyResolver := vdrKeyResolver{
 		publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
 		privateKeyResolver: keyStore,
@@ -66,11 +68,12 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 		walletResolver: openid4vci.DIDIdentifierResolver{
 			ServiceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
 		},
-		keyResolver:   keyResolver,
-		keyStore:      keyStore,
-		jsonldManager: jsonldManager,
-		trustConfig:   trustConfig,
-		vcrStore:      vcrStore,
+		keyResolver:     keyResolver,
+		keyStore:        keyStore,
+		jsonldManager:   jsonldManager,
+		trustConfig:     trustConfig,
+		vcrStore:        vcrStore,
+		statusListStore: statusList,
 	}
 }
 
@@ -85,6 +88,7 @@ type issuer struct {
 	jsonldManager    jsonld.JSONLD
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
+	statusListStore  statuslist.StatusList2021Issuer
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -96,7 +100,7 @@ func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, opt
 		return nil, errors.New("publishing VC JWTs is not supported")
 	}
 
-	createdVC, err := i.buildVC(ctx, template, options)
+	createdVC, err := i.buildAndSignVC(ctx, template, options)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +189,7 @@ func (i issuer) issueUsingOpenID4VCI(ctx context.Context, credential vc.Verifiab
 	return true, i.vcrStore.StoreCredential(credential, nil)
 }
 
-func (i issuer) buildVC(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
+func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
 	if len(template.Type) != 1 {
 		return nil, core.InvalidInputError("can only issue credential with 1 type")
 	}
@@ -214,6 +218,20 @@ func (i issuer) buildVC(ctx context.Context, template vc.VerifiableCredential, o
 		Issuer:            template.Issuer,
 		ExpirationDate:    template.ExpirationDate,
 		IssuanceDate:      template.IssuanceDate,
+		//CredentialStatus:  template.CredentialStatus, // not allowed for now since it requires API changes to be able to determine what status to revoke.
+	}
+	if options.WithStatusListRevocation {
+		// add credential status
+		credentialStatusEntry, err := i.statusListStore.Create(ctx, *issuerDID, statuslist.StatusPurposeRevocation)
+		if err != nil {
+			return nil, err
+		}
+		unsignedCredential.CredentialStatus = append(unsignedCredential.CredentialStatus, credentialStatusEntry)
+
+		// add status list context
+		if !unsignedCredential.ContainsContext(statusList2021ContextURI) {
+			unsignedCredential.Context = append(unsignedCredential.Context, statusList2021ContextURI)
+		}
 	}
 	if unsignedCredential.IssuanceDate == nil {
 		issuanceDate := TimeFunc()
@@ -259,6 +277,19 @@ func (i issuer) buildJSONLDCredential(ctx context.Context, unsignedCredential vc
 }
 
 func (i issuer) Revoke(ctx context.Context, credentialID ssi.URI) (*credential.Revocation, error) {
+	credentialDIDURL, err := did.ParseDIDURL(credentialID.String())
+
+	// revoke did:nuts credential. activating on err maintains existing behavior
+	if err != nil || credentialDIDURL.Method == didnuts.MethodName {
+		return i.revokeDIDNuts(ctx, credentialID)
+	}
+
+	// revoke a credential that has a revocable credentialStatus
+	return nil, i.revokeStatusList(ctx, credentialID)
+}
+
+// revokeDIDNuts revokes did:nuts credentials and publishes the revocation to the network
+func (i issuer) revokeDIDNuts(ctx context.Context, credentialID ssi.URI) (*credential.Revocation, error) {
 	// Previously we first tried to resolve the credential, but that's not necessary:
 	// if the credential doesn't actually exist the revocation doesn't apply to anything, no harm done.
 	// Although it is a bit ugly, it helps issuers to revoke credentials that they don't have anymore,
@@ -290,6 +321,37 @@ func (i issuer) Revoke(ctx context.Context, credentialID ssi.URI) (*credential.R
 		WithField(core.LogFieldCredentialID, credentialID).
 		Info("Verifiable Credential revoked")
 	return revocation, nil
+}
+
+// revokeStatusList revokes a credential through its credential status
+func (i issuer) revokeStatusList(ctx context.Context, credentialID ssi.URI) error {
+	cred, err := i.store.GetCredential(credentialID)
+	if err != nil {
+		return err
+	}
+
+	statuses, err := cred.CredentialStatuses()
+	if err != nil {
+		return err
+	}
+
+	// find the correct credentialStatus and revoke it on the relevant statuslist
+	for _, status := range statuses {
+		if status.Type == credential.StatusList2021EntryType {
+			var slEntry credential.StatusList2021Entry
+			err = json.Unmarshal(status.Raw(), &slEntry)
+			if err != nil {
+				return err
+			}
+			// TODO: make sure it is the correct entry when we allow other purposes, or VC issuance that include other credential statuses
+			if slEntry.StatusPurpose != statuslist.StatusPurposeRevocation {
+				continue
+			}
+			return i.statusListStore.Revoke(ctx, credentialID, slEntry)
+		}
+	}
+
+	return types.ErrStatusNotFound
 }
 
 func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*credential.Revocation, error) {
@@ -340,6 +402,8 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 	return &signedRevocation, nil
 }
 
+// isRevoked returns false if no credential.Revocation can be found, all other cases default to true.
+// Only applies to did:nuts revocations.
 func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
 	_, err := i.store.GetRevocation(credentialID)
 	switch err {
@@ -356,4 +420,48 @@ func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
 
 func (i issuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	return i.store.SearchCredential(credentialType, issuer, subject)
+}
+
+// statusListValidity is default validity of a statuslist credential. It should be
+const statusListValidity = 24 * time.Hour // TODO: make configurable
+
+var statusList2021ContextURI = ssi.MustParseURI(jsonld.W3cStatusList2021Context)
+var statusList2021CredentialTypeURI = ssi.MustParseURI(credential.StatusList2021CredentialType)
+
+func (i issuer) StatusList(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
+	// todo: get cached credential if available
+
+	// get credential subject
+	credSubject, err := i.statusListStore.CredentialSubject(ctx, issuerDID, page)
+	if err != nil {
+		return nil, err
+	}
+
+	// create statuslist credential template
+	iss := TimeFunc()
+	exp := iss.Add(statusListValidity)
+	template := vc.VerifiableCredential{
+		Context: []ssi.URI{
+			vc.VCContextV1URI(),
+			statusList2021ContextURI,
+		},
+		Type: []ssi.URI{
+			// vc.VerifiableCredentialTypeV1URI(), // automatically added
+			statusList2021CredentialTypeURI,
+		},
+		CredentialSubject: []any{credSubject},
+		Issuer:            issuerDID.URI(),
+		IssuanceDate:      &iss,
+		ExpirationDate:    &exp,
+	}
+
+	// build and sign the VC.
+	// All content is validated and these credentials should not be in the issuer store, so don't use i.Issue()
+	statusListCredential, err := i.buildAndSignVC(ctx, template, CredentialOptions{Format: vc.JSONLDCredentialProofFormat})
+	if err != nil {
+		return nil, err
+	}
+	// TODO: cache result
+
+	return statusListCredential, nil
 }

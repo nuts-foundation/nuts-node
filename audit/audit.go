@@ -31,6 +31,8 @@ import (
 const (
 	// CryptoNewKeyEvent occurs when creating a new key.
 	CryptoNewKeyEvent = "CreateNewKey"
+	// CryptoDeleteKeyEvent occurs when deleting a key.
+	CryptoDeleteKeyEvent = "DeleteKey"
 	// CryptoSignJWTEvent occurs when signing a JWT.
 	CryptoSignJWTEvent = "SignJWT"
 	// CryptoSignJWSEvent occurs when signing a JWS.

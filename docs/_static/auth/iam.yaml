@@ -528,6 +528,40 @@ paths:
           description: |
             This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
             Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
+  /iam/{id}/statuslist/{page}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: The ID part of the web DID
+        schema:
+          type: string
+          example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+      - name: page
+        in: path
+        required: true
+        description: StatusListCredential page number for this DID
+        schema:
+          type: integer
+          example: 1
+    get:
+      summary: Get the StatusList2021Credential for the given DID and page
+      description: >
+        Returns the StatusList2021Credential as specified in https://www.w3.org/TR/2023/WD-vc-status-list-20230427/
+  
+        error returns:
+        * 404 - id or page not found; possibly be non-existing, deactivated, or not managed by this node
+        * 500 - internal server error
+      operationId: statusList
+      responses:
+        "200":
+          description: OK, StatusList2021Credential found and returned
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/VerifiableCredential"
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     DIDDocument:
@@ -558,6 +592,8 @@ components:
           type: string
           description: The session ID that can be used to retrieve the access token by the calling application.
           example: "eyJhbGciOiJSUzI1NiIsI"
+    VerifiableCredential:
+      $ref: '../common/ssi_types.yaml#/components/schemas/VerifiableCredential'
     TokenResponse:
       type: object
       description: |

@@ -74,6 +74,20 @@ func (mr *MockDocumentManagerMockRecorder) CreateService(ctx, subjectDID, servic
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateService", reflect.TypeOf((*MockDocumentManager)(nil).CreateService), ctx, subjectDID, service)
 }
 
+// Deactivate mocks base method.
+func (m *MockDocumentManager) Deactivate(ctx context.Context, id did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Deactivate", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Deactivate indicates an expected call of Deactivate.
+func (mr *MockDocumentManagerMockRecorder) Deactivate(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocumentManager)(nil).Deactivate), ctx, id)
+}
+
 // DeleteService mocks base method.
 func (m *MockDocumentManager) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
 	m.ctrl.T.Helper()
