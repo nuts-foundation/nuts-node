@@ -52,9 +52,9 @@ create table discovery_credential
 create table discovery_credential_prop
 (
     credential_id varchar(36)  not null,
-    key           varchar(100) not null,
+    path           varchar(100) not null,
     value         varchar(500),
-    PRIMARY KEY (credential_id, key),
+    PRIMARY KEY (credential_id, path),
     -- cascading delete: if the presentation gets deleted, the properties get deleted as well
     constraint fk_discovery_credential_id foreign key (credential_id) references discovery_credential (id) on delete cascade
 );

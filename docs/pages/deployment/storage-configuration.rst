@@ -56,16 +56,27 @@ SQL
 
 .. note::
 
-    SQL storage is still in development, for now you'll still need the other storage options described by this document.
-
-As we're transitioning to protocols with less shared state, we foresee Nuts' data models to become more relational.
-To simplify things, we intent to move towards SQL based storage in the future.
-The first database to be supported in SQLite, to aid development and demo/workshop setups. Other, supported SQL databases might be:
-- MySQL family (MariaDB, Percona)
-- PostgreSQL
+    When your use case only produces/consumes ``did:web`` DIDs and related Verifiable Credentials,
+    all data (except private keys) is stored in a SQL database.
+    If you consume/produce ``did:nuts`` DIDs, you still need the other storage options (BBolt and/or Redis) described by this document.
 
 By default, storage SQLite will be used in a file called ``sqlite.db`` in the configured data directory.
-This can be overridden by configuring a connection string in ``storage.sql.connection`` (only SQLite for now).
+This can be overridden by configuring a connection string in ``storage.sql.connection``.
+Other supported SQL databases are PostgreSQL and MySQL.
+
+Connection strings must be in the following format:
+
+.. code-block:: none
+
+    protocol://username:password@host:port/database_name?options
+
+See the `dbmate documentation <https://github.com/amacneil/dbmate?tab=readme-ov-file#connecting-to-the-database>`_ for more information.
+
+Examples:
+
+- Postgres: ``postgres://user:password@localhost:5432/dbname?sslmode=disable``
+- MySql: ``mysql://user:password@localhost:3306/dbname?charset=utf8mb4&parseTime=True&loc=Local``
+- SQLite: ``sqlite:file:/some/path/sqlite.db?_journal_mode=WAL&_foreign_keys=on``
 
 Redis Sentinel
 ^^^^^^^^^^^^^^
