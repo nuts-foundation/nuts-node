@@ -333,7 +333,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			Id: "verifier",
 		})
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id in request parameter")
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id claim in signed authorization request")
 		assert.Nil(t, res)
 	})
 	t.Run("error - client_id does not match signer", func(t *testing.T) {
@@ -356,7 +356,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			Id: "verifier",
 		})
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "client_id does not match signer of request parameter")
+		requireOAuthError(t, err, oauth.InvalidRequest, "client_id does not match signer of authorization request")
 		assert.Nil(t, res)
 	})
 	t.Run("ok - code response type - from holder", func(t *testing.T) {
