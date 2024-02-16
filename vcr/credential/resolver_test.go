@@ -28,6 +28,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -51,7 +52,7 @@ func TestFindValidator(t *testing.T) {
 	})
 
 	t.Run("validator and builder found for StatusList2021Credential", func(t *testing.T) {
-		assert.IsType(t, statusList2021CredentialValidator{}, FindValidator(ValidStatusList2021Credential(t)))
+		assert.IsType(t, statuslist.statusList2021CredentialValidator{}, FindValidator(statuslist.ValidStatusList2021Credential(t)))
 	})
 }
 

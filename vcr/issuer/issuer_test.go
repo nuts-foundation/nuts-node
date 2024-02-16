@@ -168,7 +168,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			statuses, err := result.CredentialStatuses()
 			require.NoError(t, err)
 			require.Len(t, statuses, 1)
-			assert.Equal(t, credential.StatusList2021EntryType, statuses[0].Type)
+			assert.Equal(t, statuslist.StatusList2021EntryType, statuses[0].Type)
 		})
 		t.Run("error - did:nuts", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -787,7 +787,7 @@ func Test_issuer_revokeNetwork(t *testing.T) {
 
 func TestIssuer_revokeStatusList(t *testing.T) {
 	issuerDID := did.MustParseDID("did:web:example.com:iam:123")
-	storeWithCred := func(c *gomock.Controller, entry credential.StatusList2021Entry) (*MockStore, ssi.URI) {
+	storeWithCred := func(c *gomock.Controller, entry statuslist.StatusList2021Entry) (*MockStore, ssi.URI) {
 		credentialID := ssi.MustParseURI(issuerDID.String() + "#identifier")
 		cred := &vc.VerifiableCredential{
 			ID:               &credentialID,
@@ -858,8 +858,8 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 	t.Run("error - invalid credentialStatus", func(t *testing.T) {
 	})
 	t.Run("error - no revokable credential status", func(t *testing.T) {
-		issuerStore, credentialID := storeWithCred(gomock.NewController(t), credential.StatusList2021Entry{
-			Type:          credential.StatusList2021EntryType,
+		issuerStore, credentialID := storeWithCred(gomock.NewController(t), statuslist.StatusList2021Entry{
+			Type:          statuslist.StatusList2021EntryType,
 			StatusPurpose: "not revocation",
 		})
 		sut := issuer{store: issuerStore}
@@ -953,15 +953,15 @@ func TestIssuer_StatusList(t *testing.T) {
 		require.NotNil(t, result)
 		assert.Contains(t, result.Context, statusList2021ContextURI)
 		assert.Equal(t, result.Issuer.String(), issuerDID.String())
-		assert.True(t, result.IsType(ssi.MustParseURI(credential.StatusList2021CredentialType)))
+		assert.True(t, result.IsType(ssi.MustParseURI(statuslist.StatusList2021CredentialType)))
 
 		// credential subject
-		var subjects []credential.StatusList2021CredentialSubject
+		var subjects []statuslist.StatusList2021CredentialSubject
 		err = result.UnmarshalCredentialSubject(&subjects)
 		require.NoError(t, err)
 		require.Len(t, subjects, 1)
 		assert.Equal(t, subjects[0].Id, issuerURL.JoinPath("statuslist", "1").String())
-		assert.Equal(t, subjects[0].Type, credential.StatusList2021CredentialSubjectType)
+		assert.Equal(t, subjects[0].Type, statuslist.StatusList2021CredentialSubjectType)
 		assert.Equal(t, subjects[0].StatusPurpose, statuslist.StatusPurposeRevocation)
 		assert.NotEmpty(t, subjects[0].EncodedList, "")
 

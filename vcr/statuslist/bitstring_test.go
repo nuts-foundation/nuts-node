@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist2021
+package statuslist
 
 import (
 	"github.com/stretchr/testify/assert"

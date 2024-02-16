@@ -337,8 +337,8 @@ func (i issuer) revokeStatusList(ctx context.Context, credentialID ssi.URI) erro
 
 	// find the correct credentialStatus and revoke it on the relevant statuslist
 	for _, status := range statuses {
-		if status.Type == credential.StatusList2021EntryType {
-			var slEntry credential.StatusList2021Entry
+		if status.Type == statuslist.StatusList2021EntryType {
+			var slEntry statuslist.StatusList2021Entry
 			err = json.Unmarshal(status.Raw(), &slEntry)
 			if err != nil {
 				return err
@@ -426,7 +426,7 @@ func (i issuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject
 const statusListValidity = 24 * time.Hour // TODO: make configurable
 
 var statusList2021ContextURI = ssi.MustParseURI(jsonld.W3cStatusList2021Context)
-var statusList2021CredentialTypeURI = ssi.MustParseURI(credential.StatusList2021CredentialType)
+var statusList2021CredentialTypeURI = ssi.MustParseURI(statuslist.StatusList2021CredentialType)
 
 func (i issuer) StatusList(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
 	// todo: get cached credential if available

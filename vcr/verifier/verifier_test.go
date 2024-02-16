@@ -22,6 +22,7 @@ import (
 	crypt "crypto"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"net/http"
 	"net/http/httptest"
@@ -133,7 +134,7 @@ func TestVerifier_Verify(t *testing.T) {
 
 	t.Run("validate credentialStatus", func(t *testing.T) {
 		// make StatusList2021Credential with a revocation bit set
-		statusListCred := credential.ValidStatusList2021Credential(t)
+		statusListCred := statuslist.ValidStatusList2021Credential(t)
 		statusListCredBytes, err := json.Marshal(statusListCred)
 		require.NoError(t, err)
 		statusListIndex := 1 // bit 1 is set in slCred
@@ -144,9 +145,9 @@ func TestVerifier_Verify(t *testing.T) {
 		}))
 
 		// statusListEntry for credentialToValidate without statusListIndex
-		slEntry := credential.StatusList2021Entry{
+		slEntry := statuslist.StatusList2021Entry{
 			ID:                   "https://example-com/credentials/status/3#statusListIndex",
-			Type:                 credential.StatusList2021EntryType,
+			Type:                 statuslist.StatusList2021EntryType,
 			StatusPurpose:        "revocation",
 			StatusListCredential: ts.URL,
 		}
@@ -189,9 +190,9 @@ func TestVerifier_Verify(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				writer.WriteHeader(400)
 			}))
-			slEntry := credential.StatusList2021Entry{
+			slEntry := statuslist.StatusList2021Entry{
 				ID:                   "not relevant",
-				Type:                 credential.StatusList2021EntryType,
+				Type:                 statuslist.StatusList2021EntryType,
 				StatusPurpose:        "revocation",
 				StatusListIndex:      "1",
 				StatusListCredential: ts.URL, //

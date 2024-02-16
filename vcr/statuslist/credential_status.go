@@ -16,7 +16,7 @@
  *
  */
 
-package verifier
+package statuslist
 
 import (
 	"encoding/json"
@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/credential/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 )
@@ -51,7 +50,7 @@ type statusList struct {
 	// statusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
 	statusPurpose string
 	// expanded StatusList2021 Bitstring
-	expanded statuslist2021.Bitstring
+	expanded Bitstring
 	// lastUpdated is the timestamp this statusList was generated
 	lastUpdated time.Time
 }
@@ -72,7 +71,7 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 	// returns errors if processing fails -> TODO: hard/soft fail option?
 	// returns types.ErrRevoked if correct type, purpose, and listed.
 	for _, status := range statuses {
-		if status.Type != credential.StatusList2021EntryType {
+		if status.Type != StatusList2021EntryType {
 			// ignore other credentialStatus.type
 			// TODO: what log level?
 			log.Logger().
@@ -80,7 +79,7 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 				Info("ignoring credentialStatus with unknown type")
 			continue
 		}
-		var slEntry credential.StatusList2021Entry // CredentialStatus of the credentialToVerify
+		var slEntry StatusList2021Entry // CredentialStatus of the credentialToVerify
 		if err = json.Unmarshal(status.Raw(), &slEntry); err != nil {
 			// cannot happen. already validated in credential.defaultCredentialValidator{}
 			return err
@@ -138,7 +137,7 @@ func (cs *credentialStatus) update(statusListCredential string) (*statusList, er
 	}
 
 	// make statusList
-	expanded, err := statuslist2021.Expand(credSubject.EncodedList)
+	expanded, err := Expand(credSubject.EncodedList)
 	if err != nil {
 		// cant happen, already checked in verifyStatusList2021Credential
 		return nil, err
@@ -186,9 +185,9 @@ func (cs *credentialStatus) download(statusListCredential string) (*vc.Verifiabl
 }
 
 // verifyStatusList2021Credential checks that the StatusList2021Credential is currently valid
-func (cs *credentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCredential) (*credential.StatusList2021CredentialSubject, error) {
+func (cs *credentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCredential) (*StatusList2021CredentialSubject, error) {
 	// make sure we have the correct credential.
-	if len(cred.Type) > 2 || !cred.IsType(ssi.MustParseURI(credential.StatusList2021CredentialType)) {
+	if len(cred.Type) > 2 || !cred.IsType(ssi.MustParseURI(StatusList2021CredentialType)) {
 		return nil, errors.New("incorrect credential types")
 	}
 
@@ -203,13 +202,13 @@ func (cs *credentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCre
 	}
 
 	// check credentialSubject
-	var credSubjects []credential.StatusList2021CredentialSubject
+	var credSubjects []StatusList2021CredentialSubject
 	if err := cred.UnmarshalCredentialSubject(&credSubjects); err != nil {
 		// cannot happen. already validated in credential.statusList2021CredentialValidator{}
 		return nil, err
 	}
 	credSubject := credSubjects[0] // validators already ensured there is exactly 1 credentialSubject
-	_, err := statuslist2021.Expand(credSubject.EncodedList)
+	_, err := Expand(credSubject.EncodedList)
 	if err != nil {
 		return nil, fmt.Errorf("credentialSubject.encodedList is invalid: %w", err)
 	}

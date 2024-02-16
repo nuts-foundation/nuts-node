@@ -10,8 +10,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/credential/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,7 +40,7 @@ func TestSqlStore_Create(t *testing.T) {
 	require.NoError(t, err)
 	storage.AddDIDtoSQLDB(t, s.db, aliceDID, bobDID) // NOTE: most tests re-use same store
 
-	var entry *credential.StatusList2021Entry
+	var entry *StatusList2021Entry
 
 	t.Run("ok", func(t *testing.T) {
 
@@ -57,7 +55,7 @@ func TestSqlStore_Create(t *testing.T) {
 			assert.Equal(t, statusListCredential, entry.StatusListCredential)
 			assert.Equal(t, "0", entry.StatusListIndex)
 			assert.Equal(t, fmt.Sprintf("%s#0", statusListCredential), entry.ID)
-			assert.Equal(t, credential.StatusList2021EntryType, entry.Type)
+			assert.Equal(t, StatusList2021EntryType, entry.Type)
 			assert.Equal(t, StatusPurposeRevocation, entry.StatusPurpose)
 		})
 		t.Run("second entry", func(t *testing.T) {
@@ -78,7 +76,7 @@ func TestSqlStore_Create(t *testing.T) {
 			// set last_issued_index to max value for a single credential so the next entry will be in page 2
 			s.db.Model(&statusListCredentialRecord{}).
 				Where("subject_id = ?", statusListCredential).
-				Update("last_issued_index", statuslist2021.MaxBitstringIndex)
+				Update("last_issued_index", MaxBitstringIndex)
 			statusListCredential, _ = toStatusListCredential(aliceDID, 2) // now expect page 2 to be used
 
 			entry, err = s.Create(nil, aliceDID, StatusPurposeRevocation)
@@ -227,7 +225,7 @@ func TestSqlStore_Revoke(t *testing.T) {
 	t.Run("error - statusListIndex OOB", func(t *testing.T) {
 		cEntry := entry
 		cEntry.StatusListIndex = "10"
-		assert.ErrorIs(t, s.Revoke(nil, ssi.URI{}, cEntry), statuslist2021.ErrIndexNotInBitstring)
+		assert.ErrorIs(t, s.Revoke(nil, ssi.URI{}, cEntry), ErrIndexNotInBitstring)
 	})
 }
 
@@ -242,11 +240,11 @@ func TestSqlStore_CredentialSubject(t *testing.T) {
 	entry := *entryP
 
 	t.Run("ok - empty bitstring", func(t *testing.T) {
-		encodedList, err := statuslist2021.Compress(*statuslist2021.NewBitstring())
+		encodedList, err := Compress(*NewBitstring())
 		assert.NoError(t, err)
-		expectedCS := credential.StatusList2021CredentialSubject{
+		expectedCS := StatusList2021CredentialSubject{
 			Id:            entry.StatusListCredential,
-			Type:          credential.StatusList2021CredentialSubjectType,
+			Type:          StatusList2021CredentialSubjectType,
 			StatusPurpose: StatusPurposeRevocation,
 			EncodedList:   encodedList,
 		}
@@ -264,7 +262,7 @@ func TestSqlStore_CredentialSubject(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, cs)
 
-		bs, err := statuslist2021.Expand(cs.EncodedList)
+		bs, err := Expand(cs.EncodedList)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, bs)
 	})
