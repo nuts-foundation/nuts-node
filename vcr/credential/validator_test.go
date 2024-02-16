@@ -533,7 +533,7 @@ func Test_validateCredentialStatus(t *testing.T) {
 	t.Run(statuslist.StatusList2021EntryType, func(t *testing.T) {
 		makeValidCSEntry := func() vc.VerifiableCredential {
 			return vc.VerifiableCredential{
-				Context: []ssi.URI{statuslist.statusList2021ContextURI},
+				Context: []ssi.URI{ssi.MustParseURI(jsonld.W3cStatusList2021Context)},
 				CredentialStatus: []any{&statuslist.StatusList2021Entry{
 					ID:                   "https://example-com/credentials/status/3#94567",
 					Type:                 statuslist.StatusList2021EntryType,

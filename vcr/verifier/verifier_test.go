@@ -156,7 +156,7 @@ func TestVerifier_Verify(t *testing.T) {
 		http.DefaultClient = ts.Client() // newMockContext sets credentialStatus.client to http.DefaultClient
 		ctx := newMockContext(t)
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
-		ctx.verifier.credentialStatus.verifySignature = func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
+		ctx.verifier.credentialStatus = statuslist.NewCredentialStatus(http.DefaultClient, func(_ vc.VerifiableCredential, _ *time.Time) error { return nil }) // don't check signatures on 'downloaded' StatusList2021Credentials
 
 		cred := credential.ValidNutsOrganizationCredential(t)
 		cred.Context = append(cred.Context, ssi.MustParseURI(jsonld.W3cStatusList2021Context))

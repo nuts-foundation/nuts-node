@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
 )
 
 // FindValidator finds the Validator the provided credential based on its Type
@@ -39,9 +38,6 @@ func FindValidator(credential vc.VerifiableCredential) Validator {
 				return nutsOrganizationCredentialValidator{}
 			case NutsAuthorizationCredentialType:
 				return nutsAuthorizationCredentialValidator{}
-			case statuslist.StatusList2021CredentialType:
-				// TODO: is this needed? The only place where should be receiving StatusList2021Credentials is in the StatusList2021 caching layer, where we know what credential we should be receiving.
-				return statuslist.statusList2021CredentialValidator{}
 			}
 		}
 	}

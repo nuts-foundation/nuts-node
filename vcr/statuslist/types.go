@@ -14,7 +14,7 @@ const (
 	StatusList2021EntryType = "StatusList2021Entry"
 )
 
-var statusList2021ContextURI = ssi.MustParseURI(jsonld.W3cStatusList2021Context)
+var StatusList2021ContextURI = ssi.MustParseURI(jsonld.W3cStatusList2021Context)
 var statusList2021CredentialTypeURI = ssi.MustParseURI(StatusList2021CredentialType)
 
 // StatusList2021Entry is the "credentialStatus" property used by issuers to enable VerifiableCredential status information.

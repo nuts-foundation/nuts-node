@@ -27,20 +27,27 @@ import (
 	"strconv"
 	"time"
 
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 )
 
-type credentialStatus struct {
-	client          core.HTTPRequestDoer
-	verifySignature func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error // TODO: replace with new SignatureVerifier interface?
+type VerifySignFn func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error // TODO: replace with new SignatureVerifier interface?
+
+func NewCredentialStatus(client core.HTTPRequestDoer, signVerifier VerifySignFn) *CredentialStatus {
+	return &CredentialStatus{
+		client:          client,
+		verifySignature: signVerifier,
+	}
 }
 
-// statusList is an immutable struct containing all information needed to verify a credentialStatus
+type CredentialStatus struct {
+	client          core.HTTPRequestDoer
+	verifySignature VerifySignFn
+}
+
+// statusList is an immutable struct containing all information needed to Verify a credentialStatus
 type statusList struct {
 	// credential is the complete StatusList2021Credential this statusList is about
 	credential *vc.VerifiableCredential
@@ -55,9 +62,9 @@ type statusList struct {
 	lastUpdated time.Time
 }
 
-// VerifyCredentialStatus returns a types.ErrRevoked when the credentialStatus contains a 'StatusList2021Entry' that can be resolved and lists the credential as 'revoked'
+// Verify CredentialStatus returns a types.ErrRevoked when the credentialStatus contains a 'StatusList2021Entry' that can be resolved and lists the credential as 'revoked'
 // Other credentialStatus type/statusPurpose are ignored. Verification may fail with other non-standardized errors.
-func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) error {
+func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) error {
 	if credentialToVerify.CredentialStatus == nil {
 		return nil
 	}
@@ -119,14 +126,14 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 	return nil
 }
 
-func (cs *credentialStatus) statusList(statusListCredential string) (*statusList, error) {
+func (cs *CredentialStatus) statusList(statusListCredential string) (*statusList, error) {
 	// TODO: check if there is a cached version to return
 	return cs.update(statusListCredential)
 }
 
 // update
-func (cs *credentialStatus) update(statusListCredential string) (*statusList, error) {
-	// download and verify
+func (cs *CredentialStatus) update(statusListCredential string) (*statusList, error) {
+	// download and Verify
 	cred, err := cs.download(statusListCredential)
 	if err != nil {
 		return nil, err
@@ -155,7 +162,7 @@ func (cs *credentialStatus) update(statusListCredential string) (*statusList, er
 }
 
 // download the StatusList2021Credential found at statusList2021Entry.statusListCredential
-func (cs *credentialStatus) download(statusListCredential string) (*vc.VerifiableCredential, error) {
+func (cs *CredentialStatus) download(statusListCredential string) (*vc.VerifiableCredential, error) {
 	var cred vc.VerifiableCredential // VC containing CredentialStatus of the credentialToVerify
 	req, err := http.NewRequest(http.MethodGet, statusListCredential, nil)
 	if err != nil {
@@ -170,7 +177,7 @@ func (cs *credentialStatus) download(statusListCredential string) (*vc.Verifiabl
 			// log, don't fail
 			log.Logger().
 				WithError(err).
-				WithField("method", "credentialStatus.download").
+				WithField("method", "CredentialStatus.download").
 				Debug("failed to close response body")
 		}
 	}()
@@ -185,14 +192,14 @@ func (cs *credentialStatus) download(statusListCredential string) (*vc.Verifiabl
 }
 
 // verifyStatusList2021Credential checks that the StatusList2021Credential is currently valid
-func (cs *credentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCredential) (*StatusList2021CredentialSubject, error) {
-	// make sure we have the correct credential.
-	if len(cred.Type) > 2 || !cred.IsType(ssi.MustParseURI(StatusList2021CredentialType)) {
+func (cs *CredentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCredential) (*StatusList2021CredentialSubject, error) {
+	// make sure we have the correct credential type.
+	if len(cred.Type) != 2 || !cred.IsType(statusList2021CredentialTypeURI) {
 		return nil, errors.New("incorrect credential types")
 	}
 
-	// returns statusList2021CredentialValidator, or Validate() fails because base type is missing
-	if err := credential.FindValidator(cred).Validate(cred); err != nil {
+	// validate credential.
+	if err := (statusList2021CredentialValidator{}).Validate(cred); err != nil {
 		return nil, err
 	}
 
@@ -204,7 +211,7 @@ func (cs *credentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCre
 	// check credentialSubject
 	var credSubjects []StatusList2021CredentialSubject
 	if err := cred.UnmarshalCredentialSubject(&credSubjects); err != nil {
-		// cannot happen. already validated in credential.statusList2021CredentialValidator{}
+		// cannot happen. already validated in statusList2021CredentialValidator{}
 		return nil, err
 	}
 	credSubject := credSubjects[0] // validators already ensured there is exactly 1 credentialSubject
@@ -213,7 +220,7 @@ func (cs *credentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCre
 		return nil, fmt.Errorf("credentialSubject.encodedList is invalid: %w", err)
 	}
 
-	// verify signature
+	// Verify signature
 	if err = cs.verifySignature(cred, nil); err != nil {
 		return nil, err
 	}

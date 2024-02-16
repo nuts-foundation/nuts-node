@@ -58,7 +58,7 @@ type verifier struct {
 	store         Store
 	trustConfig   *trust.Config
 	signatureVerifier
-	credentialStatus *statuslist.credentialStatus
+	credentialStatus *statuslist.CredentialStatus
 }
 
 // VerificationError is used to describe a VC/VP verification failure.
@@ -92,10 +92,8 @@ func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver reso
 		keyResolver:   keyResolver,
 		jsonldManager: jsonldManager,
 	}
-	v.credentialStatus = &statuslist.credentialStatus{
-		client:          client,
-		verifySignature: v.signatureVerifier.VerifySignature,
-	}
+	v.credentialStatus = statuslist.NewCredentialStatus(client, v.signatureVerifier.VerifySignature)
+
 	return v
 }
 
@@ -127,7 +125,7 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	}
 
 	// Check the credentialStatus if the credential is revoked
-	err := v.credentialStatus.verify(credentialToVerify)
+	err := v.credentialStatus.Verify(credentialToVerify)
 	if err != nil {
 		// soft fail, only return an error when revocation is confirmed and log everything else
 		if errors.Is(err, types.ErrRevoked) {

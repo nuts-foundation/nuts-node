@@ -24,13 +24,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/piprate/json-gold/ld"
 )
@@ -150,8 +150,9 @@ func validateCredentialStatus(credential vc.VerifiableCredential) error {
 		if credentialStatus.Type != statuslist.StatusList2021EntryType {
 			continue
 		}
+		// TODO: AllFieldsDefined validator should be sufficient?
 
-		if !credential.ContainsContext(statuslist.statusList2021ContextURI) {
+		if !credential.ContainsContext(statuslist.StatusList2021ContextURI) {
 			return errors.New("StatusList2021 context is required")
 		}
 
