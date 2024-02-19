@@ -51,7 +51,7 @@ import (
 )
 
 func testCredential(t *testing.T) vc.VerifiableCredential {
-	subject := credential.ValidNutsOrganizationCredential(t)
+	subject := test.ValidNutsOrganizationCredential(t)
 	return subject
 }
 
@@ -134,7 +134,7 @@ func TestVerifier_Verify(t *testing.T) {
 
 	t.Run("validate credentialStatus", func(t *testing.T) {
 		// make StatusList2021Credential with a revocation bit set
-		statusListCred := statuslist2021.ValidStatusList2021Credential(t)
+		statusListCred := test.ValidStatusList2021Credential(t)
 		statusListCredBytes, err := json.Marshal(statusListCred)
 		require.NoError(t, err)
 		statusListIndex := 1 // bit 1 is set in slCred
@@ -158,7 +158,7 @@ func TestVerifier_Verify(t *testing.T) {
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
 		ctx.verifier.credentialStatus = statuslist2021.NewCredentialStatus(http.DefaultClient, func(_ vc.VerifiableCredential, _ *time.Time) error { return nil }) // don't check signatures on 'downloaded' StatusList2021Credentials
 
-		cred := credential.ValidNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		cred.Context = append(cred.Context, ssi.MustParseURI(jsonld.W3cStatusList2021Context))
 
 		t.Run("not revoked", func(t *testing.T) {

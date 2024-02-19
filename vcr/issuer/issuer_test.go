@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -610,7 +611,7 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 	})
 
 	t.Run("error - returned from used services", func(t *testing.T) {
-		testVC := *credential.ValidNutsAuthorizationCredential()
+		testVC := test.ValidNutsAuthorizationCredential(t)
 		issuerDID := did.MustParseDID(testVC.Issuer.String())
 
 		t.Run("no assertionKey for issuer", func(t *testing.T) {

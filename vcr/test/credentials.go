@@ -17,7 +17,7 @@
  *
  */
 
-package credential
+package test
 
 import (
 	"crypto/ecdsa"
@@ -37,24 +37,27 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 )
 
-func ValidNutsAuthorizationCredential() *vc.VerifiableCredential {
-	id := stringToURI(vdr.TestDIDA.String() + "#38E90E8C-F7E5-4333-B63A-F9DD155A0272")
+func ValidNutsAuthorizationCredential(t testing.TB) vc.VerifiableCredential {
+	if t == nil {
+		panic("can only be used in tests")
+	}
+	id := ssi.MustParseURI(vdr.TestDIDA.String() + "#38E90E8C-F7E5-4333-B63A-F9DD155A0272")
 	issuanceDate := time.Now()
-	return &vc.VerifiableCredential{
-		Context:      []ssi.URI{vc.VCContextV1URI(), NutsV1ContextURI},
+	return vc.VerifiableCredential{
+		Context:      []ssi.URI{vc.VCContextV1URI(), ssi.MustParseURI("https://nuts.nl/credentials/v1")},
 		ID:           &id,
-		Type:         []ssi.URI{*NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
-		Issuer:       stringToURI(vdr.TestDIDA.String()),
+		Type:         []ssi.URI{ssi.MustParseURI("NutsAuthorizationCredential"), vc.VerifiableCredentialTypeV1URI()},
+		Issuer:       ssi.MustParseURI(vdr.TestDIDA.String()),
 		IssuanceDate: &issuanceDate,
 		CredentialSubject: []interface{}{
-			NutsAuthorizationCredentialSubject{
-				ID:           vdr.TestDIDB.String(),
-				PurposeOfUse: "eTransfer",
-				Resources: []Resource{
-					{
-						Path:        "/composition/1",
-						Operations:  []string{"read"},
-						UserContext: true,
+			map[string]any{
+				"id":           vdr.TestDIDB.String(),
+				"purposeOfUse": "eTransfer",
+				"resources": []any{
+					map[string]any{
+						"path":        "/composition/1",
+						"operations":  []string{"read"},
+						"userContext": true,
 					},
 				},
 			},
@@ -97,6 +100,29 @@ func JWTNutsOrganizationCredential(t *testing.T, subjectID did.DID) vc.Verifiabl
 	return *jwtVC
 }
 
-func stringToURI(input string) ssi.URI {
-	return ssi.MustParseURI(input)
+func ValidStatusList2021Credential(t testing.TB) vc.VerifiableCredential {
+	if t == nil {
+		panic("can only be used in tests")
+	}
+	id := ssi.MustParseURI("https://example.com/credentials/status/3")
+	validFrom := time.Now()
+	validUntilTomorrow := validFrom.Add(24 * time.Hour)
+	return vc.VerifiableCredential{
+		Context:          []ssi.URI{vc.VCContextV1URI(), ssi.MustParseURI("https://w3id.org/vc/status-list/2021/v1")},
+		ID:               &id,
+		Type:             []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("StatusList2021Credential")},
+		Issuer:           ssi.MustParseURI("did:example:12345"),
+		ValidFrom:        &validFrom,
+		ValidUntil:       &validUntilTomorrow,
+		CredentialStatus: nil,
+		CredentialSubject: []any{
+			map[string]any{
+				"id":            "https://example-com/status/3#list",
+				"type":          "StatusList2021",
+				"statusPurpose": "revocation",
+				"encodedList":   "H4sIAAAAAAAA_-zAsQAAAAACsNDypwqjZ2sAAAAAAAAAAAAAAAAAAACAtwUAAP__NxdfzQBAAAA=", // has bit 1 set to true
+			},
+		},
+		Proof: []any{vc.Proof{}},
+	}
 }

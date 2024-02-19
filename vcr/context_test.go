@@ -23,7 +23,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,7 +55,7 @@ func TestNutsV1Context(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("NutsAuthorizationCredential", func(t *testing.T) {
-		subject := credential.ValidNutsAuthorizationCredential()
+		subject := test.ValidNutsAuthorizationCredential(t)
 		subject.Proof = nil
 		vcJSON, _ := subject.MarshalJSON()
 		documents, err := reader.ReadBytes(vcJSON)

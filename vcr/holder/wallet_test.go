@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -324,7 +325,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 }
 
 func TestWallet_BuildSubmission(t *testing.T) {
-	credentials := []vc.VerifiableCredential{credential.ValidNutsOrganizationCredential(t)}
+	credentials := []vc.VerifiableCredential{test.ValidNutsOrganizationCredential(t)}
 	// walletDID matches the subject of the ValidNutsOrganizationCredential
 	walletDID := did.MustParseDID("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
 	verifierDID := did.MustParseDID("did:web:example.com:iam:verifier")
