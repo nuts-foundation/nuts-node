@@ -187,3 +187,57 @@ func TestGetDIDFromURL(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestChainedDIDResolver_Resolve(t *testing.T) {
+	expected := did.Document{
+		ID: did.MustParseDID("did:example:123"),
+	}
+	t.Run("first resolver hit", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		resolver1 := NewMockDIDResolver(ctrl)
+		resolver2 := NewMockDIDResolver(ctrl)
+		resolver1.EXPECT().Resolve(expected.ID, gomock.Any()).Return(&expected, nil, nil)
+		router := &ChainedDIDResolver{Resolvers: []DIDResolver{resolver1, resolver2}}
+
+		doc, _, err := router.Resolve(expected.ID, nil)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expected, *doc)
+	})
+	t.Run("first resolver returns ErrNotFound, second resolvers resolves it", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		resolver1 := NewMockDIDResolver(ctrl)
+		resolver2 := NewMockDIDResolver(ctrl)
+		resolver1.EXPECT().Resolve(expected.ID, gomock.Any()).Return(nil, nil, ErrNotFound)
+		resolver2.EXPECT().Resolve(expected.ID, gomock.Any()).Return(&expected, nil, nil)
+		router := &ChainedDIDResolver{Resolvers: []DIDResolver{resolver1, resolver2}}
+
+		doc, _, err := router.Resolve(expected.ID, nil)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expected, *doc)
+	})
+	t.Run("first resolver returns other error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		resolver1 := NewMockDIDResolver(ctrl)
+		resolver2 := NewMockDIDResolver(ctrl)
+		resolver1.EXPECT().Resolve(expected.ID, gomock.Any()).Return(nil, nil, errors.New("oops"))
+		router := &ChainedDIDResolver{Resolvers: []DIDResolver{resolver1, resolver2}}
+
+		_, _, err := router.Resolve(expected.ID, nil)
+
+		assert.Error(t, err)
+	})
+	t.Run("all resolvers return ErrNotFound", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		resolver1 := NewMockDIDResolver(ctrl)
+		resolver2 := NewMockDIDResolver(ctrl)
+		resolver1.EXPECT().Resolve(expected.ID, gomock.Any()).Return(nil, nil, ErrNotFound)
+		resolver2.EXPECT().Resolve(expected.ID, gomock.Any()).Return(nil, nil, ErrNotFound)
+		router := &ChainedDIDResolver{Resolvers: []DIDResolver{resolver1, resolver2}}
+
+		_, _, err := router.Resolve(expected.ID, nil)
+
+		assert.ErrorIs(t, err, ErrNotFound)
+	})
+}
