@@ -42,27 +42,8 @@ type Validator interface {
 	Validate(credential vc.VerifiableCredential) error
 }
 
-// ErrValidation is a common error indicating validation failed
-var ErrValidation = errors.New("validation failed")
-
-type validationError struct {
-	msg string
-}
-
-// Error returns the error message
-func (err *validationError) Error() string {
-	return fmt.Sprintf("validation failed: %s", err.msg)
-}
-
-// Is checks if validationError matches the target error
-func (err *validationError) Is(target error) bool {
-	return errors.Is(target, ErrValidation)
-}
-
-func failure(err string, args ...interface{}) error {
-	errStr := fmt.Sprintf(err, args...)
-	return &validationError{errStr}
-}
+// errValidation is a common error indicating validation failed
+var errValidation = errors.New("validation failed")
 
 // AllFieldsDefinedValidator is a Validator that tests whether all fields are defined in the JSON-LD context.
 type AllFieldsDefinedValidator struct {
@@ -84,7 +65,7 @@ func (d AllFieldsDefinedValidator) Validate(input vc.VerifiableCredential) error
 	options.SafeMode = true
 
 	if _, err = processor.Expand(document, options); err != nil {
-		return &validationError{msg: err.Error()}
+		return fmt.Errorf("%w: %w", errValidation, err)
 	}
 	return nil
 }
@@ -94,30 +75,30 @@ type defaultCredentialValidator struct {
 
 func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential) error {
 	if !credential.IsType(vc.VerifiableCredentialTypeV1URI()) {
-		return failure("type 'VerifiableCredential' is required")
+		return fmt.Errorf("%w: type 'VerifiableCredential' is required", errValidation)
 	}
 
 	if !credential.ContainsContext(vc.VCContextV1URI()) {
-		return failure("default context is required")
+		return fmt.Errorf("%w: default context is required", errValidation)
 	}
 
 	if credential.ID == nil {
-		return failure("'ID' is required")
+		return fmt.Errorf("%w: 'ID' is required", errValidation)
 	}
 
 	// 'issuanceDate' must be present, but can be zero if replaced by alias 'validFrom'
 	if (credential.IssuanceDate == nil || credential.IssuanceDate.IsZero()) &&
 		(credential.ValidFrom == nil || credential.ValidFrom.IsZero()) {
-		return failure("'issuanceDate' is required")
+		return fmt.Errorf("%w: 'issuanceDate' is required", errValidation)
 	}
 
 	if credential.Format() == vc.JSONLDCredentialProofFormat && credential.Proof == nil {
-		return failure("'proof' is required for JSON-LD credentials")
+		return fmt.Errorf("%w: 'proof' is required for JSON-LD credentials", errValidation)
 	}
 
 	// CredentialStatus is not specific to the credential type and the syntax (not status) should be checked here.
 	if err := validateCredentialStatus(credential); err != nil {
-		return failure("invalid credentialStatus: %s", err)
+		return fmt.Errorf("%w: invalid credentialStatus: %w", errValidation, err)
 	}
 
 	return nil
@@ -200,36 +181,36 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	}
 
 	if !credential.IsType(*NutsOrganizationCredentialTypeURI) {
-		return failure("type '%s' is required", NutsOrganizationCredentialType)
+		return fmt.Errorf("%w: type '%s' is required", errValidation, NutsOrganizationCredentialType)
 	}
 
 	if !credential.ContainsContext(NutsV1ContextURI) {
-		return failure("context '%s' is required", NutsV1ContextURI.String())
+		return fmt.Errorf("%w: context '%s' is required", errValidation, NutsV1ContextURI.String())
 	}
 
 	// if it fails, length check will trigger
 	_ = credential.UnmarshalCredentialSubject(&target)
 	if len(target) != 1 {
-		return failure("single CredentialSubject expected")
+		return fmt.Errorf("%w: single CredentialSubject expected", errValidation)
 	}
 	cs := target[0]
 
 	if cs.Organization == nil {
-		return failure("'credentialSubject.organization' is empty")
+		return fmt.Errorf("%w: 'credentialSubject.organization' is empty", errValidation)
 	}
 	if cs.ID == "" {
-		return failure("'credentialSubject.ID' is nil")
+		return fmt.Errorf("%w: 'credentialSubject.ID' is nil", errValidation)
 	}
 	if _, err = did.ParseDID(cs.ID); err != nil {
-		return failure("invalid 'credentialSubject.id': %v", err)
+		return fmt.Errorf("%w: invalid 'credentialSubject.id': %w", errValidation, err)
 	}
 
 	if n, ok := cs.Organization["name"]; !ok || len(strings.TrimSpace(n)) == 0 {
-		return failure("'credentialSubject.name' is empty")
+		return fmt.Errorf("%w: 'credentialSubject.name' is empty", errValidation)
 	}
 
 	if c, ok := cs.Organization["city"]; !ok || len(strings.TrimSpace(c)) == 0 {
-		return failure("'credentialSubject.city' is empty")
+		return fmt.Errorf("%w: 'credentialSubject.city' is empty", errValidation)
 	}
 
 	return (defaultCredentialValidator{}).Validate(credential)
@@ -249,28 +230,28 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	}
 
 	if !credential.IsType(*NutsAuthorizationCredentialTypeURI) {
-		return failure("type '%s' is required", NutsAuthorizationCredentialType)
+		return fmt.Errorf("%w: type '%s' is required", errValidation, NutsAuthorizationCredentialType)
 	}
 
 	if !credential.ContainsContext(NutsV1ContextURI) {
-		return failure("context '%s' is required", NutsV1ContextURI.String())
+		return fmt.Errorf("%w: context '%s' is required", errValidation, NutsV1ContextURI.String())
 	}
 
 	// if it fails, length check will trigger
 	_ = credential.UnmarshalCredentialSubject(&target)
 	if len(target) != 1 {
-		return failure("single CredentialSubject expected")
+		return fmt.Errorf("%w: single CredentialSubject expected", errValidation)
 	}
 	cs := target[0]
 
 	if len(strings.TrimSpace(cs.ID)) == 0 {
-		return failure("'credentialSubject.ID' is nil")
+		return fmt.Errorf("%w: 'credentialSubject.ID' is nil", errValidation)
 	}
 	if _, err = did.ParseDID(cs.ID); err != nil {
-		return failure("invalid 'credentialSubject.id': %v", err)
+		return fmt.Errorf("%w: invalid 'credentialSubject.id': %w", errValidation, err)
 	}
 	if len(strings.TrimSpace(cs.PurposeOfUse)) == 0 {
-		return failure("'credentialSubject.PurposeOfUse' is nil")
+		return fmt.Errorf("%w: 'credentialSubject.PurposeOfUse' is nil", errValidation)
 	}
 
 	err = validateResources(cs.Resources)
@@ -288,14 +269,14 @@ func validOperationTypes() []string {
 func validateResources(resources []Resource) error {
 	for _, r := range resources {
 		if len(strings.TrimSpace(r.Path)) == 0 {
-			return failure("'credentialSubject.Resources[].Path' is required'")
+			return fmt.Errorf("%w: 'credentialSubject.Resources[].Path' is required'", errValidation)
 		}
 		if len(r.Operations) == 0 {
-			return failure("'credentialSubject.Resources[].Operations[]' requires at least one value")
+			return fmt.Errorf("%w: 'credentialSubject.Resources[].Operations[]' requires at least one value", errValidation)
 		}
 		for _, o := range r.Operations {
 			if !validOperation(o) {
-				return failure("'credentialSubject.Resources[].Operations[]' contains an invalid operation '%s'", o)
+				return fmt.Errorf("%w: 'credentialSubject.Resources[].Operations[]' contains an invalid operation '%s'", errValidation, o)
 			}
 		}
 	}
@@ -318,7 +299,7 @@ func validateNutsCredentialID(credential vc.VerifiableCredential) error {
 		return err
 	}
 	if id.String() != credential.Issuer.String() {
-		return failure("credential ID must start with issuer")
+		return fmt.Errorf("%w: credential ID must start with issuer", errValidation)
 	}
 	return nil
 }
