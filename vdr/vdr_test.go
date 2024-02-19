@@ -259,7 +259,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			keyID.Fragment = "1"
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
-			_ = vdr.Configure(*core.NewServerConfig())
+			_ = vdr.Configure(core.TestServerConfig())
 			//vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})
 			didDocument := did.Document{ID: TestDIDA}
 
@@ -486,7 +486,7 @@ func TestVDR_Configure(t *testing.T) {
 		require.NoError(t, err)
 
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
-		err = instance.Configure(core.ServerConfig{})
+		err = instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
 
 		doc, md, err := instance.Resolver().Resolve(*inputDID, nil)
@@ -500,7 +500,7 @@ func TestVDR_Configure(t *testing.T) {
 	})
 	t.Run("it can resolve using did:key", func(t *testing.T) {
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
-		err := instance.Configure(core.ServerConfig{})
+		err := instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
 
 		doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK"), nil)

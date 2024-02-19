@@ -126,19 +126,17 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	}
 	// did:web
 	publicURL, err := config.ServerURL()
-	var webResolver resolver.DIDResolver
-	if err == nil {
-		manager := didweb.NewManager(*publicURL.JoinPath("iam"), r.keyStore, r.storageInstance.GetSQLDatabase())
-		r.documentManagers[didweb.MethodName] = manager
-		// did:web resolver should first look in own database, then resolve over the web
-		webResolver = resolver.ChainedDIDResolver{
-			Resolvers: []resolver.DIDResolver{
-				manager,
-				didweb.NewResolver(),
-			},
-		}
-	} else {
-		webResolver = didweb.NewResolver()
+	if err != nil {
+		return err
+	}
+	manager := didweb.NewManager(*publicURL.JoinPath("iam"), r.keyStore, r.storageInstance.GetSQLDatabase())
+	r.documentManagers[didweb.MethodName] = manager
+	// did:web resolver should first look in own database, then resolve over the web
+	webResolver := resolver.ChainedDIDResolver{
+		Resolvers: []resolver.DIDResolver{
+			manager,
+			didweb.NewResolver(),
+		},
 	}
 
 	// Register DID methods we can resolve
