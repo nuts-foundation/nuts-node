@@ -66,7 +66,7 @@ func BuildRevocation(issuer ssi.URI, subject ssi.URI) Revocation {
 // ValidateRevocation checks if a revocation record contains the required fields and if fields have the correct value.
 func ValidateRevocation(r Revocation) error {
 	if r.Subject.String() == "" || r.Subject.Fragment == "" {
-		return failure("'subject' is required and requires a valid fragment")
+		return fmt.Errorf("%w: 'subject' is required and requires a valid fragment", errValidation)
 	}
 
 	// Only check type if @context is set
@@ -79,20 +79,20 @@ func ValidateRevocation(r Revocation) error {
 			}
 		}
 		if !foundType {
-			return failure(fmt.Sprintf("'type' does not contain %s", RevocationType))
+			return fmt.Errorf("%w: 'type' does not contain %s", errValidation, RevocationType)
 		}
 	}
 
 	if r.Issuer.String() == "" {
-		return failure("'issuer' is required")
+		return fmt.Errorf("%w: 'issuer' is required", errValidation)
 	}
 
 	if r.Date.IsZero() {
-		return failure("'date' is required")
+		return fmt.Errorf("%w: 'date' is required", errValidation)
 	}
 
 	if r.Proof == nil {
-		return failure("'proof' is required")
+		return fmt.Errorf("%w: 'proof' is required", errValidation)
 	}
 
 	return nil
