@@ -35,7 +35,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
@@ -101,7 +100,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 }`), &submission))
 	submissionJSONBytes, _ := json.Marshal(submission)
 	submissionJSON := string(submissionJSONBytes)
-	verifiableCredential := credential.ValidNutsOrganizationCredential(t)
+	verifiableCredential := test.ValidNutsOrganizationCredential(t)
 	subjectDID, _ := verifiableCredential.SubjectDID()
 	proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
 		proof.Domain = &issuerDIDStr
@@ -182,7 +181,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		ctx := newTestClient(t)
 
 		secondSubjectID := did.MustParseDID("did:web:example.com:other")
-		secondPresentation := test.CreateJSONLDPresentation(t, secondSubjectID, proofVisitor, credential.JWTNutsOrganizationCredential(t, secondSubjectID))
+		secondPresentation := test.CreateJSONLDPresentation(t, secondSubjectID, proofVisitor, test.JWTNutsOrganizationCredential(t, secondSubjectID))
 		assertionJSON, _ := json.Marshal([]VerifiablePresentation{presentation, secondPresentation})
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, string(assertionJSON))

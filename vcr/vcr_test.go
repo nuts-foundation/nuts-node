@@ -30,9 +30,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
@@ -85,7 +85,7 @@ func TestVCR_Configure(t *testing.T) {
 	})
 	t.Run("strictmode passed to client APIs", func(t *testing.T) {
 		// load test VC
-		testVC := credential.ValidNutsOrganizationCredential(t)
+		testVC := test.ValidNutsOrganizationCredential(t)
 		issuerDID := did.MustParseDID(testVC.Issuer.String())
 		testDirectory := io.TestDirectory(t)
 		ctrl := gomock.NewController(t)

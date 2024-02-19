@@ -28,6 +28,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
+	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -107,7 +108,7 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	ctx.vcr.ambassador.(*ambassador).writer = mockWriter
 
 	// load VC
-	vc := credential.ValidNutsOrganizationCredential(t)
+	vc := vcrTest.ValidNutsOrganizationCredential(t)
 
 	// load key
 	pem, _ := os.ReadFile("test/private.pem")

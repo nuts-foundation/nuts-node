@@ -28,55 +28,41 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/assets"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// copy of vcr/validNutsOrganizationCredential to prevent circular deps.
-func validNutsOrganizationCredential(t *testing.T) vc.VerifiableCredential {
-	inputVC := vc.VerifiableCredential{}
-	vcJSON, err := assets.TestAssets.ReadFile("test_assets/vc.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = json.Unmarshal(vcJSON, &inputVC)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return inputVC
-}
-
 func TestCredentialStatus_verify(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cs, entry, _ := testSetup(t, false)
-		cred := validNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		cred.CredentialStatus = []any{entry}
 		assert.NoError(t, cs.Verify(cred))
 	})
 	t.Run("ok - multiple credentialStatus", func(t *testing.T) {
 		cs, entry, _ := testSetup(t, false)
-		cred := validNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		cred.CredentialStatus = []any{entry, entry}
 		assert.NoError(t, cs.Verify(cred))
 	})
 	t.Run("ok - no credentialStatus", func(t *testing.T) {
 		cs, _, _ := testSetup(t, false)
-		cred := validNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		cred.CredentialStatus = nil
 		assert.NoError(t, cs.Verify(cred))
 	})
 	t.Run("ok - unknown credentialStatus.type is ignored", func(t *testing.T) {
 		cs, entry, _ := testSetup(t, false)
 		entry.Type = "SomethingElse"
-		cred := validNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		cred.CredentialStatus = []any{entry}
 		assert.NoError(t, cs.Verify(cred))
 	})
 	t.Run("ok - revoked", func(t *testing.T) {
 		cs, entry, _ := testSetup(t, true) // true
-		cred := validNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		cred.CredentialStatus = []any{entry}
 		err := cs.Verify(cred)
 		assert.ErrorIs(t, err, types.ErrRevoked)
@@ -84,21 +70,21 @@ func TestCredentialStatus_verify(t *testing.T) {
 	t.Run("ok - credentialStatus.statusPurpose != 'revocation' is ignored", func(t *testing.T) {
 		cs, entry, _ := testSetup(t, true) // true
 		entry.StatusPurpose = "suspension"
-		cred := validNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		cred.CredentialStatus = []any{entry}
 		assert.NoError(t, cs.Verify(cred))
 	})
 	t.Run("error - cannot get statusList", func(t *testing.T) {
 		cs, entry, _ := testSetup(t, false)
 		cs.client = http.DefaultClient
-		cred := validNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		cred.CredentialStatus = []any{entry}
 		assert.ErrorContains(t, cs.Verify(cred), "tls: failed to verify certificate: x509: certificate signed by unknown authority")
 	})
 	t.Run("error - statusPurpose mismatch", func(t *testing.T) {
 		// server that return StatusList2021Credential with statusPurpose == suspension
-		statusList2021Credential := ValidStatusList2021Credential(t)
-		statusList2021Credential.CredentialSubject[0].(*CredentialSubject).StatusPurpose = "suspension"
+		statusList2021Credential := test.ValidStatusList2021Credential(t)
+		statusList2021Credential.CredentialSubject[0].(map[string]any)["statusPurpose"] = "suspension"
 		credBytes, err := json.Marshal(statusList2021Credential)
 		require.NoError(t, err)
 		ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -114,7 +100,7 @@ func TestCredentialStatus_verify(t *testing.T) {
 
 		// test credential
 		entry.StatusListCredential = ts.URL
-		cred := validNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		cred.CredentialStatus = []any{entry}
 
 		err = cs.Verify(cred)
@@ -124,7 +110,7 @@ func TestCredentialStatus_verify(t *testing.T) {
 	t.Run("error - credentialStatus.statusListIndex out of bounds", func(t *testing.T) {
 		cs, entry, _ := testSetup(t, false)
 		entry.StatusListIndex = "500000" // max is ±130k
-		cred := validNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		cred.CredentialStatus = []any{entry}
 		assert.EqualError(t, cs.Verify(cred), "index not in status list")
 
@@ -167,7 +153,7 @@ func TestCredentialStatus_update(t *testing.T) {
 
 func TestCredentialStatus_download(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t) // has bit 1 set
+		cred := test.ValidStatusList2021Credential(t) // has bit 1 set
 		expected, err := json.Marshal(cred)
 		require.NoError(t, err)
 		ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -227,50 +213,53 @@ func TestCredentialStatus_verifyStatusList2021Credential(t *testing.T) {
 		},
 	}
 	t.Run("ok", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		expected := cred.CredentialSubject[0].(*CredentialSubject)
+		cred := test.ValidStatusList2021Credential(t)
+		expectedBs, err := json.Marshal(cred.CredentialSubject[0])
+		require.NoError(t, err)
 		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
 		assert.NoError(t, err)
 		require.NotNil(t, credSubj)
-		assert.Equal(t, *expected, *credSubj)
+		credSubjBs, err := json.Marshal(credSubj)
+		assert.NoError(t, err)
+		assert.JSONEq(t, string(expectedBs), string(credSubjBs))
 	})
 	t.Run("error - incorrect credential type", func(t *testing.T) {
-		cred := validNutsOrganizationCredential(t)
+		cred := test.ValidNutsOrganizationCredential(t)
 		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
 		assert.EqualError(t, err, "incorrect credential types")
 		assert.Nil(t, credSubj)
 	})
 	t.Run("error - too many credential types", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
+		cred := test.ValidStatusList2021Credential(t)
 		cred.Type = append(cred.Type, ssi.MustParseURI("OneTooMany"))
 		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
 		assert.EqualError(t, err, "incorrect credential types")
 		assert.Nil(t, credSubj)
 	})
 	t.Run("error - credential validation failed", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(*CredentialSubject).Type = "wrong type"
+		cred := test.ValidStatusList2021Credential(t)
+		cred.CredentialSubject[0].(map[string]any)["type"] = "wrong type"
 		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
 		assert.EqualError(t, err, "credentialSubject.type 'StatusList2021' is required")
 		assert.Nil(t, credSubj)
 	})
 	t.Run("error - contains CredentialStatus", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
+		cred := test.ValidStatusList2021Credential(t)
 		cred.CredentialStatus = []any{}
 		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
 		assert.EqualError(t, err, "StatusList2021Credential with a CredentialStatus is not supported")
 		assert.Nil(t, credSubj)
 	})
 	t.Run("error - invalid credentialSubject.encodedList", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(*CredentialSubject).EncodedList = "@"
+		cred := test.ValidStatusList2021Credential(t)
+		cred.CredentialSubject[0].(map[string]any)["encodedList"] = "@"
 		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
 
 		assert.EqualError(t, err, "credentialSubject.encodedList is invalid: illegal base64 data at input byte 0")
 		assert.Nil(t, credSubj)
 	})
 	t.Run("error -invalid signature", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
+		cred := test.ValidStatusList2021Credential(t)
 		cs := CredentialStatus{verifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 			return errors.New("invalid signature")
 		}}
@@ -286,7 +275,7 @@ func TestCredentialStatus_verifyStatusList2021Credential(t *testing.T) {
 //   - the test server
 func testSetup(t testing.TB, entryIsRevoked bool) (*CredentialStatus, Entry, *httptest.Server) {
 	// make test server
-	statusList2021Credential := ValidStatusList2021Credential(t) // has bit 1 set
+	statusList2021Credential := test.ValidStatusList2021Credential(t) // has bit 1 set
 	credBytes, err := json.Marshal(statusList2021Credential)
 	if err != nil {
 		t.Fatal(err)
@@ -309,7 +298,7 @@ func testSetup(t testing.TB, entryIsRevoked bool) (*CredentialStatus, Entry, *ht
 	// make StatusList2021Entry
 	slEntry := Entry{
 		Type:                 EntryType,
-		StatusPurpose:        "revocation",
+		StatusPurpose:        StatusPurposeRevocation,
 		StatusListIndex:      "76248",
 		StatusListCredential: ts.URL,
 	}

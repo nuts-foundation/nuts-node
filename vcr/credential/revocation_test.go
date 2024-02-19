@@ -26,11 +26,12 @@ import (
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBuildRevocation(t *testing.T) {
-	target := ValidNutsOrganizationCredential(t)
+	target := test.ValidNutsOrganizationCredential(t)
 
 	at := time.Now()
 	nowFunc = func() time.Time {
