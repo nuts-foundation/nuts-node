@@ -30,7 +30,7 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/piprate/json-gold/ld"
 )
@@ -71,7 +71,7 @@ type AllFieldsDefinedValidator struct {
 
 // Validate implements Validator.Validate.
 func (d AllFieldsDefinedValidator) Validate(input vc.VerifiableCredential) error {
-	// Expand with safe mode enabled, which asserts that all properties are defined in the JSON-LD context.
+	// expand with safe mode enabled, which asserts that all properties are defined in the JSON-LD context.
 	inputAsJSON, _ := input.MarshalJSON()
 	document, err := ld.DocumentFromReader(bytes.NewReader(inputAsJSON))
 	if err != nil {
@@ -146,18 +146,18 @@ func validateCredentialStatus(credential vc.VerifiableCredential) error {
 			return errors.New("credentialStatus.type is required")
 		}
 
-		// only accept StatusList2021EntryType for now
-		if credentialStatus.Type != statuslist.StatusList2021EntryType {
+		// only accept StatusList2021Entry for now
+		if credentialStatus.Type != statuslist2021.EntryType {
 			continue
 		}
 		// TODO: AllFieldsDefined validator should be sufficient?
 
-		if !credential.ContainsContext(statuslist.StatusList2021ContextURI) {
+		if !credential.ContainsContext(statuslist2021.ContextURI) {
 			return errors.New("StatusList2021 context is required")
 		}
 
 		// unmarshal as StatusList2021Entry
-		var cs statuslist.StatusList2021Entry
+		var cs statuslist2021.Entry
 		if err = json.Unmarshal(credentialStatus.Raw(), &cs); err != nil {
 			return err
 		}

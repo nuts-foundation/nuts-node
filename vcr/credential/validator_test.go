@@ -23,7 +23,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -530,13 +530,13 @@ func Test_validateCredentialStatus(t *testing.T) {
 		assert.EqualError(t, err, "credentialStatus.type is required")
 	})
 
-	t.Run(statuslist.StatusList2021EntryType, func(t *testing.T) {
+	t.Run(statuslist2021.EntryType, func(t *testing.T) {
 		makeValidCSEntry := func() vc.VerifiableCredential {
 			return vc.VerifiableCredential{
 				Context: []ssi.URI{ssi.MustParseURI(jsonld.W3cStatusList2021Context)},
-				CredentialStatus: []any{&statuslist.StatusList2021Entry{
+				CredentialStatus: []any{&statuslist2021.Entry{
 					ID:                   "https://example-com/credentials/status/3#94567",
-					Type:                 statuslist.StatusList2021EntryType,
+					Type:                 statuslist2021.EntryType,
 					StatusPurpose:        "revocation",
 					StatusListIndex:      "94567",
 					StatusListCredential: "https://example-com/credentials/status/3",
@@ -560,31 +560,31 @@ func Test_validateCredentialStatus(t *testing.T) {
 		})
 		t.Run("error - id == statusListCredential", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*statuslist.StatusList2021Entry).ID = cred.CredentialStatus[0].(*statuslist.StatusList2021Entry).StatusListCredential
+			cred.CredentialStatus[0].(*statuslist2021.Entry).ID = cred.CredentialStatus[0].(*statuslist2021.Entry).StatusListCredential
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "StatusList2021Entry.id is the same as the StatusList2021Entry.statusListCredential")
 		})
 		t.Run("error - missing statusPurpose", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*statuslist.StatusList2021Entry).StatusPurpose = ""
+			cred.CredentialStatus[0].(*statuslist2021.Entry).StatusPurpose = ""
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "StatusList2021Entry.statusPurpose is required")
 		})
 		t.Run("error - statusListIndex is negative", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*statuslist.StatusList2021Entry).StatusListIndex = "-1"
+			cred.CredentialStatus[0].(*statuslist2021.Entry).StatusListIndex = "-1"
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "invalid StatusList2021Entry.statusListIndex")
 		})
 		t.Run("error - statusListIndex is not a number", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*statuslist.StatusList2021Entry).StatusListIndex = "one"
+			cred.CredentialStatus[0].(*statuslist2021.Entry).StatusListIndex = "one"
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "invalid StatusList2021Entry.statusListIndex")
 		})
 		t.Run("error - statusListCredential is not a valid URL", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*statuslist.StatusList2021Entry).StatusListCredential = "not a URL"
+			cred.CredentialStatus[0].(*statuslist2021.Entry).StatusListCredential = "not a URL"
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "parse StatusList2021Entry.statusListCredential URL: parse \"not a URL\": invalid URI for request")
 		})

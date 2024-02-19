@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
 	"strings"
 	"time"
 
@@ -58,7 +58,7 @@ type verifier struct {
 	store         Store
 	trustConfig   *trust.Config
 	signatureVerifier
-	credentialStatus *statuslist.CredentialStatus
+	credentialStatus *statuslist2021.CredentialStatus
 }
 
 // VerificationError is used to describe a VC/VP verification failure.
@@ -92,7 +92,7 @@ func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver reso
 		keyResolver:   keyResolver,
 		jsonldManager: jsonldManager,
 	}
-	v.credentialStatus = statuslist.NewCredentialStatus(client, v.signatureVerifier.VerifySignature)
+	v.credentialStatus = statuslist2021.NewCredentialStatus(client, v.signatureVerifier.VerifySignature)
 
 	return v
 }

@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist
+package statuslist2021
 
 import (
 	"github.com/nuts-foundation/go-did"
@@ -30,16 +30,16 @@ func ValidStatusList2021Credential(_ testing.TB) vc.VerifiableCredential {
 	validFrom := time.Now()
 	validUntilTomorrow := validFrom.Add(24 * time.Hour)
 	return vc.VerifiableCredential{
-		Context:          []ssi.URI{vc.VCContextV1URI(), StatusList2021ContextURI},
+		Context:          []ssi.URI{vc.VCContextV1URI(), ContextURI},
 		ID:               &id,
-		Type:             []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI(StatusList2021CredentialType)},
+		Type:             []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI(CredentialType)},
 		Issuer:           ssi.MustParseURI("did:example:12345"),
 		ValidFrom:        &validFrom,
 		ValidUntil:       &validUntilTomorrow,
 		CredentialStatus: nil,
-		CredentialSubject: []any{&StatusList2021CredentialSubject{
+		CredentialSubject: []any{&CredentialSubject{
 			Id:            "https://example-com/status/3#list",
-			Type:          StatusList2021CredentialSubjectType,
+			Type:          CredentialSubjectType,
 			StatusPurpose: "revocation",
 			EncodedList:   "H4sIAAAAAAAA_-zAsQAAAAACsNDypwqjZ2sAAAAAAAAAAAAAAAAAAACAtwUAAP__NxdfzQBAAAA=", // has bit 1 set to true
 		}},

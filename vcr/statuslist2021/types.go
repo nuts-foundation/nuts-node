@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist
+package statuslist2021
 
 import (
 	"github.com/nuts-foundation/go-did"
@@ -24,19 +24,19 @@ import (
 )
 
 const (
-	// StatusList2021CredentialType is the type of StatusList2021Credential
-	StatusList2021CredentialType = "StatusList2021Credential"
-	// StatusList2021CredentialSubjectType is the credentialSubject.type in a StatusList2021Credential
-	StatusList2021CredentialSubjectType = "StatusList2021"
-	// StatusList2021EntryType is the credentialStatus.type that lists the entry of that credential on a list
-	StatusList2021EntryType = "StatusList2021Entry"
+	// CredentialType is the type of StatusList2021Credential
+	CredentialType = "StatusList2021Credential"
+	// CredentialSubjectType is the credentialSubject.type in a StatusList2021Credential
+	CredentialSubjectType = "StatusList2021"
+	// EntryType is the credentialStatus.type that lists the entry of that credential on a list
+	EntryType = "StatusList2021Entry"
 )
 
-var StatusList2021ContextURI = ssi.MustParseURI(jsonld.W3cStatusList2021Context)
-var statusList2021CredentialTypeURI = ssi.MustParseURI(StatusList2021CredentialType)
+var ContextURI = ssi.MustParseURI(jsonld.W3cStatusList2021Context)
+var credentialTypeURI = ssi.MustParseURI(CredentialType)
 
-// StatusList2021Entry is the "credentialStatus" property used by issuers to enable VerifiableCredential status information.
-type StatusList2021Entry struct {
+// Entry is the "credentialStatus" property used by issuers to enable VerifiableCredential status information.
+type Entry struct {
 	// ID is expected to be a URL that identifies the status information associated with the verifiable credential.
 	// It MUST NOT be the URL for the status list, which is in StatusListCredential.
 	ID string `json:"id,omitempty"`
@@ -54,7 +54,7 @@ type StatusList2021Entry struct {
 	StatusListCredential string `json:"statusListCredential,omitempty"`
 }
 
-type StatusList2021CredentialSubject struct {
+type CredentialSubject struct {
 	// ID for the credential subject
 	Id string `json:"id"`
 	// Type MUST be "StatusList2021Credential"

@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist
+package statuslist2021
 
 import (
 	"encoding/json"
@@ -56,8 +56,8 @@ type statusList struct {
 	statusListCredential string
 	// statusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
 	statusPurpose string
-	// expanded StatusList2021 Bitstring
-	expanded Bitstring
+	// expanded StatusList2021 bitstring
+	expanded bitstring
 	// lastUpdated is the timestamp this statusList was generated
 	lastUpdated time.Time
 }
@@ -70,7 +70,7 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 	}
 	statuses, err := credentialToVerify.CredentialStatuses()
 	if err != nil {
-		// cannot happen. already validated in credential.defaultCredentialValidator{}
+		// cannot happen. already validated in defaultCredentialValidator{}
 		return err
 	}
 
@@ -78,7 +78,7 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 	// returns errors if processing fails -> TODO: hard/soft fail option?
 	// returns types.ErrRevoked if correct type, purpose, and listed.
 	for _, status := range statuses {
-		if status.Type != StatusList2021EntryType {
+		if status.Type != EntryType {
 			// ignore other credentialStatus.type
 			// TODO: what log level?
 			log.Logger().
@@ -86,7 +86,7 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 				Info("ignoring credentialStatus with unknown type")
 			continue
 		}
-		var slEntry StatusList2021Entry // CredentialStatus of the credentialToVerify
+		var slEntry Entry // CredentialStatus of the credentialToVerify
 		if err = json.Unmarshal(status.Raw(), &slEntry); err != nil {
 			// cannot happen. already validated in credential.defaultCredentialValidator{}
 			return err
@@ -115,7 +115,7 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 			// cannot happen. already validated in credential.defaultCredentialValidator{}
 			return err
 		}
-		revoked, err := sList.expanded.Bit(index)
+		revoked, err := sList.expanded.bit(index)
 		if err != nil {
 			return err
 		}
@@ -144,7 +144,7 @@ func (cs *CredentialStatus) update(statusListCredential string) (*statusList, er
 	}
 
 	// make statusList
-	expanded, err := Expand(credSubject.EncodedList)
+	expanded, err := expand(credSubject.EncodedList)
 	if err != nil {
 		// cant happen, already checked in verifyStatusList2021Credential
 		return nil, err
@@ -192,14 +192,14 @@ func (cs *CredentialStatus) download(statusListCredential string) (*vc.Verifiabl
 }
 
 // verifyStatusList2021Credential checks that the StatusList2021Credential is currently valid
-func (cs *CredentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCredential) (*StatusList2021CredentialSubject, error) {
+func (cs *CredentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCredential) (*CredentialSubject, error) {
 	// make sure we have the correct credential type.
-	if len(cred.Type) != 2 || !cred.IsType(statusList2021CredentialTypeURI) {
+	if len(cred.Type) != 2 || !cred.IsType(credentialTypeURI) {
 		return nil, errors.New("incorrect credential types")
 	}
 
 	// validate credential.
-	if err := (statusList2021CredentialValidator{}).Validate(cred); err != nil {
+	if err := (credentialValidator{}).Validate(cred); err != nil {
 		return nil, err
 	}
 
@@ -209,13 +209,13 @@ func (cs *CredentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCre
 	}
 
 	// check credentialSubject
-	var credSubjects []StatusList2021CredentialSubject
+	var credSubjects []CredentialSubject
 	if err := cred.UnmarshalCredentialSubject(&credSubjects); err != nil {
-		// cannot happen. already validated in statusList2021CredentialValidator{}
+		// cannot happen. already validated in credentialValidator{}
 		return nil, err
 	}
 	credSubject := credSubjects[0] // validators already ensured there is exactly 1 credentialSubject
-	_, err := Expand(credSubject.EncodedList)
+	_, err := expand(credSubject.EncodedList)
 	if err != nil {
 		return nil, fmt.Errorf("credentialSubject.encodedList is invalid: %w", err)
 	}

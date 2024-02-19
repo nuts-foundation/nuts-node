@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist
+package statuslist2021
 
 import (
 	"errors"
@@ -59,25 +59,25 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 	return nil
 }
 
-// statusList2021CredentialValidator validates that all required fields of a StatusList2021CredentialType are present
-type statusList2021CredentialValidator struct{}
+// credentialValidator validates that all required fields of a StatusList2021Credential are present
+type credentialValidator struct{}
 
-func (d statusList2021CredentialValidator) Validate(credential vc.VerifiableCredential) error {
+func (d credentialValidator) Validate(credential vc.VerifiableCredential) error {
 	if err := (defaultCredentialValidator{}).Validate(credential); err != nil {
 		return err
 	}
 
 	{ // Credential checks
-		if !credential.ContainsContext(StatusList2021ContextURI) {
-			return fmt.Errorf("context '%s' is required", StatusList2021ContextURI)
+		if !credential.ContainsContext(ContextURI) {
+			return fmt.Errorf("context '%s' is required", ContextURI)
 		}
-		if !credential.IsType(statusList2021CredentialTypeURI) {
-			return fmt.Errorf("type '%s' is required", statusList2021CredentialTypeURI)
+		if !credential.IsType(credentialTypeURI) {
+			return fmt.Errorf("type '%s' is required", credentialTypeURI)
 		}
 	}
 
 	{ // CredentialSubject checks
-		var target []StatusList2021CredentialSubject
+		var target []CredentialSubject
 		err := credential.UnmarshalCredentialSubject(&target)
 		if err != nil {
 			return err
@@ -89,8 +89,8 @@ func (d statusList2021CredentialValidator) Validate(credential vc.VerifiableCred
 		}
 		cs := target[0]
 
-		if cs.Type != StatusList2021CredentialSubjectType {
-			return fmt.Errorf("credentialSubject.type '%s' is required", StatusList2021CredentialSubjectType)
+		if cs.Type != CredentialSubjectType {
+			return fmt.Errorf("credentialSubject.type '%s' is required", CredentialSubjectType)
 		}
 		if cs.StatusPurpose == "" {
 			return errors.New("credentialSubject.statusPurpose is required")

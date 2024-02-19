@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist
+package statuslist2021
 
 import (
 	"context"
@@ -54,15 +54,15 @@ const (
 // them by setting the relevant bit on the StatusList.
 // Individual statuses should be derived from the StatusList2021Credential(s), not inspected here.
 type StatusList2021Issuer interface {
-	// CredentialSubject creates a StatusList2021CredentialSubject to incorporate in a StatusList2021Credential issued by issuer.
-	CredentialSubject(ctx context.Context, issuer did.DID, page int) (*StatusList2021CredentialSubject, error)
-	// Create a credential.StatusList2021Entry that can be added to the credentialStatus of a VC.
+	// CredentialSubject creates a CredentialSubject to incorporate in a StatusList2021Credential issued by issuer.
+	CredentialSubject(ctx context.Context, issuer did.DID, page int) (*CredentialSubject, error)
+	// Create a StatusList2021Entry that can be added to the credentialStatus of a VC.
 	// The corresponding credential will have a gap in the bitstring if the returned entry does not make it into a credential.
-	Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*StatusList2021Entry, error)
+	Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*Entry, error)
 	// Revoke by adding StatusList2021Entry to the list of revocations.
 	// The credentialID is only used to allow reverse search of revocations, its issuer is NOT compared to the entry issuer.
 	// Returns types.ErrRevoked if already revoked, or types.ErrNotFound when the entry.StatusListCredential is unknown.
-	Revoke(ctx context.Context, credentialID ssi.URI, entry StatusList2021Entry) error
+	Revoke(ctx context.Context, credentialID ssi.URI, entry Entry) error
 }
 
 func (s statusListCredentialRecord) TableName() string {
@@ -78,7 +78,7 @@ type statusListCredentialRecord struct {
 	Issuer string
 	// Page number corresponding to this SubjectID.
 	Page int
-	// LastIssuedIndex on this page. Range:  0 <= StatusListIndex < statuslist2021.MaxBitstringIndex
+	// LastIssuedIndex on this page. Range:  0 <= StatusListIndex < statuslist2021.maxBitstringIndex
 	LastIssuedIndex int
 	// Revocations list all revocations for this SubjectID
 	Revocations []revocationRecord `gorm:"foreignKey:StatusListCredential;references:SubjectID"`
@@ -92,7 +92,7 @@ func (s revocationRecord) TableName() string {
 type revocationRecord struct {
 	// StatusListCredential is the credentialSubject.ID this revocation belongs to. Example https://example.com/iam/id/statuslist/1
 	StatusListCredential string `gorm:"primaryKey"`
-	// StatusListIndex of the revoked status list entry. Range: 0 <= StatusListIndex <= statuslist2021.MaxBitstringIndex
+	// StatusListIndex of the revoked status list entry. Range: 0 <= StatusListIndex <= statuslist2021.maxBitstringIndex
 	StatusListIndex int `gorm:"primaryKey;autoIncrement:false"`
 	// CredentialID is the VC.ID of the credential revoked by this status list entry.
 	// The value is stored as convenience during revocation, but is not validated.
@@ -118,7 +118,7 @@ func NewStatusListStore(db *gorm.DB) (*sqlStore, error) {
 	return &sqlStore{db: db}, nil
 }
 
-func (s *sqlStore) CredentialSubject(ctx context.Context, issuer did.DID, page int) (*StatusList2021CredentialSubject, error) {
+func (s *sqlStore) CredentialSubject(ctx context.Context, issuer did.DID, page int) (*CredentialSubject, error) {
 	statusListCredential, err := toStatusListCredential(issuer, page)
 	if err != nil {
 		return nil, err
@@ -136,29 +136,29 @@ func (s *sqlStore) CredentialSubject(ctx context.Context, issuer did.DID, page i
 	}
 
 	// make encodedList
-	bitstring := NewBitstring()
+	bitstring := newBitstring()
 	for _, rev := range statuslist.Revocations {
-		if err = bitstring.SetBit(rev.StatusListIndex, true); err != nil {
+		if err = bitstring.setBit(rev.StatusListIndex, true); err != nil {
 			// can't happen
 			return nil, err
 		}
 	}
-	encodedList, err := Compress(*bitstring)
+	encodedList, err := compress(*bitstring)
 	if err != nil {
 		// can't happen
 		return nil, err
 	}
 
 	// return credential subject
-	return &StatusList2021CredentialSubject{
+	return &CredentialSubject{
 		Id:            statusListCredential,
-		Type:          StatusList2021CredentialSubjectType,
+		Type:          CredentialSubjectType,
 		StatusPurpose: StatusPurposeRevocation,
 		EncodedList:   encodedList,
 	}, nil
 }
 
-func (s *sqlStore) Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*StatusList2021Entry, error) {
+func (s *sqlStore) Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*Entry, error) {
 	if purpose != StatusPurposeRevocation {
 		return nil, errUnsupportedPurpose
 	}
@@ -197,7 +197,7 @@ func (s *sqlStore) Create(ctx context.Context, issuer did.DID, purpose StatusPur
 				// first time issuer; prepare to create a new Page / StatusListCredential
 				credentialRecord = statusListCredentialRecord{
 					Issuer:          issuer.String(),
-					LastIssuedIndex: MaxBitstringIndex, // this will be incremented to move to page 1
+					LastIssuedIndex: maxBitstringIndex, // this will be incremented to move to page 1
 					Page:            0,
 				}
 			}
@@ -206,7 +206,7 @@ func (s *sqlStore) Create(ctx context.Context, issuer did.DID, purpose StatusPur
 			credentialRecord.LastIssuedIndex++
 
 			// create new page (statusListCredential) if current is full
-			if credentialRecord.LastIssuedIndex > MaxBitstringIndex {
+			if credentialRecord.LastIssuedIndex > maxBitstringIndex {
 				credentialRecord.LastIssuedIndex = 0
 				credentialRecord.Page++
 
@@ -245,16 +245,16 @@ func (s *sqlStore) Create(ctx context.Context, issuer did.DID, purpose StatusPur
 		break
 	}
 
-	return &StatusList2021Entry{
+	return &Entry{
 		ID:                   fmt.Sprintf("%s#%d", credentialRecord.SubjectID, credentialRecord.LastIssuedIndex),
-		Type:                 StatusList2021EntryType,
+		Type:                 EntryType,
 		StatusPurpose:        StatusPurposeRevocation,
 		StatusListIndex:      strconv.Itoa(credentialRecord.LastIssuedIndex),
 		StatusListCredential: credentialRecord.SubjectID,
 	}, nil
 }
 
-func (s *sqlStore) Revoke(ctx context.Context, credentialID ssi.URI, entry StatusList2021Entry) error {
+func (s *sqlStore) Revoke(ctx context.Context, credentialID ssi.URI, entry Entry) error {
 	// parse StatusListIndex
 	statusListIndex, err := strconv.Atoi(entry.StatusListIndex)
 	if err != nil {

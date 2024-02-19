@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist
+package statuslist2021
 
 import (
 	"context"
@@ -58,7 +58,7 @@ func TestSqlStore_Create(t *testing.T) {
 	require.NoError(t, err)
 	storage.AddDIDtoSQLDB(t, s.db, aliceDID, bobDID) // NOTE: most tests re-use same store
 
-	var entry *StatusList2021Entry
+	var entry *Entry
 
 	t.Run("ok", func(t *testing.T) {
 
@@ -73,7 +73,7 @@ func TestSqlStore_Create(t *testing.T) {
 			assert.Equal(t, statusListCredential, entry.StatusListCredential)
 			assert.Equal(t, "0", entry.StatusListIndex)
 			assert.Equal(t, fmt.Sprintf("%s#0", statusListCredential), entry.ID)
-			assert.Equal(t, StatusList2021EntryType, entry.Type)
+			assert.Equal(t, EntryType, entry.Type)
 			assert.Equal(t, StatusPurposeRevocation, entry.StatusPurpose)
 		})
 		t.Run("second entry", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestSqlStore_Create(t *testing.T) {
 			// set last_issued_index to max value for a single credential so the next entry will be in page 2
 			s.db.Model(&statusListCredentialRecord{}).
 				Where("subject_id = ?", statusListCredential).
-				Update("last_issued_index", MaxBitstringIndex)
+				Update("last_issued_index", maxBitstringIndex)
 			statusListCredential, _ = toStatusListCredential(aliceDID, 2) // now expect page 2 to be used
 
 			entry, err = s.Create(nil, aliceDID, StatusPurposeRevocation)
@@ -194,7 +194,7 @@ func TestSqlStore_Create(t *testing.T) {
 			defer storePG.writeLock.Unlock()
 			raceFn(storePG)
 			// To confirm there was a race condition on the page creation (can't happen with SQLite), check the logs for:
-			//		2024/02/12 19:53:20 .../nuts-node/vcr/statuslist/store.go:196 duplicated key not allowed
+			//		2024/02/12 19:53:20 .../nuts-node/vcr/statuslist2021/store.go:196 duplicated key not allowed
 			// If this error was logged and the test did not fail it is handled correctly.
 		})
 	})
@@ -258,11 +258,11 @@ func TestSqlStore_CredentialSubject(t *testing.T) {
 	entry := *entryP
 
 	t.Run("ok - empty bitstring", func(t *testing.T) {
-		encodedList, err := Compress(*NewBitstring())
+		encodedList, err := compress(*newBitstring())
 		assert.NoError(t, err)
-		expectedCS := StatusList2021CredentialSubject{
+		expectedCS := CredentialSubject{
 			Id:            entry.StatusListCredential,
-			Type:          StatusList2021CredentialSubjectType,
+			Type:          CredentialSubjectType,
 			StatusPurpose: StatusPurposeRevocation,
 			EncodedList:   encodedList,
 		}
@@ -280,7 +280,7 @@ func TestSqlStore_CredentialSubject(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, cs)
 
-		bs, err := Expand(cs.EncodedList)
+		bs, err := expand(cs.EncodedList)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, bs)
 	})

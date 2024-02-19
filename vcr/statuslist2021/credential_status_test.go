@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist
+package statuslist2021
 
 import (
 	"encoding/json"
@@ -98,7 +98,7 @@ func TestCredentialStatus_verify(t *testing.T) {
 	t.Run("error - statusPurpose mismatch", func(t *testing.T) {
 		// server that return StatusList2021Credential with statusPurpose == suspension
 		statusList2021Credential := ValidStatusList2021Credential(t)
-		statusList2021Credential.CredentialSubject[0].(*StatusList2021CredentialSubject).StatusPurpose = "suspension"
+		statusList2021Credential.CredentialSubject[0].(*CredentialSubject).StatusPurpose = "suspension"
 		credBytes, err := json.Marshal(statusList2021Credential)
 		require.NoError(t, err)
 		ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -228,7 +228,7 @@ func TestCredentialStatus_verifyStatusList2021Credential(t *testing.T) {
 	}
 	t.Run("ok", func(t *testing.T) {
 		cred := ValidStatusList2021Credential(t)
-		expected := cred.CredentialSubject[0].(*StatusList2021CredentialSubject)
+		expected := cred.CredentialSubject[0].(*CredentialSubject)
 		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
 		assert.NoError(t, err)
 		require.NotNil(t, credSubj)
@@ -249,7 +249,7 @@ func TestCredentialStatus_verifyStatusList2021Credential(t *testing.T) {
 	})
 	t.Run("error - credential validation failed", func(t *testing.T) {
 		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(*StatusList2021CredentialSubject).Type = "wrong type"
+		cred.CredentialSubject[0].(*CredentialSubject).Type = "wrong type"
 		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
 		assert.EqualError(t, err, "credentialSubject.type 'StatusList2021' is required")
 		assert.Nil(t, credSubj)
@@ -263,7 +263,7 @@ func TestCredentialStatus_verifyStatusList2021Credential(t *testing.T) {
 	})
 	t.Run("error - invalid credentialSubject.encodedList", func(t *testing.T) {
 		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(*StatusList2021CredentialSubject).EncodedList = "@"
+		cred.CredentialSubject[0].(*CredentialSubject).EncodedList = "@"
 		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
 
 		assert.EqualError(t, err, "credentialSubject.encodedList is invalid: illegal base64 data at input byte 0")
@@ -284,7 +284,7 @@ func TestCredentialStatus_verifyStatusList2021Credential(t *testing.T) {
 //   - credentialStatus that does NOT Verify signatures, and a client configured for the test server
 //   - a StatusList2021Entry pointing to the test server, optionally provide a statusListIndex matching statusList2021Credential.encodedList to simulate revocation
 //   - the test server
-func testSetup(t testing.TB, entryIsRevoked bool) (*CredentialStatus, StatusList2021Entry, *httptest.Server) {
+func testSetup(t testing.TB, entryIsRevoked bool) (*CredentialStatus, Entry, *httptest.Server) {
 	// make test server
 	statusList2021Credential := ValidStatusList2021Credential(t) // has bit 1 set
 	credBytes, err := json.Marshal(statusList2021Credential)
@@ -307,8 +307,8 @@ func testSetup(t testing.TB, entryIsRevoked bool) (*CredentialStatus, StatusList
 	}
 
 	// make StatusList2021Entry
-	slEntry := StatusList2021Entry{
-		Type:                 StatusList2021EntryType,
+	slEntry := Entry{
+		Type:                 EntryType,
 		StatusPurpose:        "revocation",
 		StatusListIndex:      "76248",
 		StatusListCredential: ts.URL,
