@@ -20,7 +20,6 @@ package holder
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -254,64 +253,12 @@ func (h wallet) buildJSONLDPresentation(ctx context.Context, subjectDID did.DID,
 	return vc.ParseVerifiablePresentation(string(resultJSON))
 }
 
-func (h wallet) Put(ctx context.Context, credentials ...vc.VerifiableCredential) error {
-	err := h.walletStore.Write(ctx, func(tx stoabs.WriteTx) error {
-		stats := tx.GetShelfWriter(statsShelf)
-		var newCredentials uint32
-		for _, curr := range credentials {
-			subjectDID, err := curr.SubjectDID()
-			if err != nil {
-				return fmt.Errorf("unable to resolve subject DID from VC %s: %w", curr.ID, err)
-			}
-			walletKey := stoabs.BytesKey(curr.ID.String())
-			// First check if the VC doesn't already exist; otherwise stats will be incorrect
-			walletShelf := tx.GetShelfWriter(subjectDID.String())
-			_, err = walletShelf.Get(walletKey)
-			if err == nil {
-				// Already exists
-				continue
-			} else if !errors.Is(err, stoabs.ErrKeyNotFound) {
-				// Other error
-				return fmt.Errorf("unable to check if credential %s already exists: %w", curr.ID, err)
-			}
-			// Write credential
-			data, _ := curr.MarshalJSON()
-			err = walletShelf.Put(walletKey, data)
-			if err != nil {
-				return fmt.Errorf("unable to store credential %s: %w", curr.ID, err)
-			}
-			newCredentials++
-		}
-		// Update stats
-		currentCount, err := h.readCredentialCount(stats)
-		if err != nil {
-			return fmt.Errorf("unable to read wallet credential count: %w", err)
-		}
-		return stats.Put(credentialCountStatsKey, binary.BigEndian.AppendUint32([]byte{}, currentCount+newCredentials))
-	}, stoabs.WithWriteLock()) // lock required for stats consistency
-	if err != nil {
-		return fmt.Errorf("unable to store credential(s): %w", err)
-	}
-	return nil
+func (h wallet) Put(_ context.Context, credentials ...vc.VerifiableCredential) error {
+	return h.walletStore.put(credentials...)
 }
 
-func (h wallet) List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
-	var result []vc.VerifiableCredential
-	err := h.walletStore.ReadShelf(ctx, holderDID.String(), func(reader stoabs.Reader) error {
-		return reader.Iterate(func(key stoabs.Key, value []byte) error {
-			var cred vc.VerifiableCredential
-			err := json.Unmarshal(value, &cred)
-			if err != nil {
-				return fmt.Errorf("unable to unmarshal credential %s: %w", string(key.Bytes()), err)
-			}
-			result = append(result, cred)
-			return nil
-		}, stoabs.BytesKey{})
-	})
-	if err != nil {
-		return nil, fmt.Errorf("unable to list credentials: %w", err)
-	}
-	return result, nil
+func (h wallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	return h.walletStore.list(holderDID)
 }
 
 func (h wallet) Diagnostics() []core.DiagnosticResult {
@@ -335,7 +282,7 @@ func (h wallet) IsEmpty() (bool, error) {
 var _ schema.Tabler = (*walletRecord)(nil)
 
 type walletRecord struct {
-	HolderDID    string                 `gorm:"primaryKey"`
+	HolderDID    string                 `gorm:"primaryKey;column:holder_did"`
 	CredentialID string                 `gorm:"primaryKey"`
 	Credential   store.CredentialRecord `gorm:"foreignKey:CredentialID;references:ID"`
 }
@@ -356,10 +303,36 @@ func (s walletStore) count() (int64, error) {
 
 func (s walletStore) list(holderDID did.DID) ([]vc.VerifiableCredential, error) {
 	var records []walletRecord
-	err := s.db.Model(walletRecord{}).Where("holder_did = ?", holderDID.String()).Find(&records).Error
+	err := s.db.Model(walletRecord{}).Preload("Credential").Where("holder_did = ?", holderDID.String()).Find(&records).Error
 	var results []vc.VerifiableCredential
 	for _, record := range records {
-		results = append(results, record.Credential.SubjectID)
+		verifiableCredential, err := vc.ParseVerifiableCredential(record.Credential.Raw)
+		if err != nil {
+			return nil, fmt.Errorf("unable to unmarshal credential %s: %w", record.CredentialID, err)
+		}
+		results = append(results, *verifiableCredential)
 	}
-	return result, err
+	return results, err
+}
+
+func (s walletStore) put(credentials ...vc.VerifiableCredential) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		for _, curr := range credentials {
+			subjectDID, err := curr.SubjectDID()
+			if err != nil {
+				return fmt.Errorf("unable to resolve subject DID from VC %s: %w", curr.ID, err)
+			}
+			record, err := store.CredentialStore{}.Store(tx, curr)
+			if err != nil {
+				return err
+			}
+			if err := tx.FirstOrCreate(&walletRecord{
+				HolderDID:    subjectDID.String(),
+				CredentialID: record.ID,
+			}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
