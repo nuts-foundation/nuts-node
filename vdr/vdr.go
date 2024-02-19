@@ -112,12 +112,6 @@ func (r *Module) Name() string {
 func (r *Module) Configure(config core.ServerConfig) error {
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
 
-	// Register DID methods we can resolve
-	r.didResolver.Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
-	r.didResolver.Register(didweb.MethodName, didweb.NewResolver())
-	r.didResolver.Register(didjwk.MethodName, didjwk.NewResolver())
-	r.didResolver.Register(didkey.MethodName, didkey.NewResolver())
-
 	// Methods we can produce from the Nuts node
 	// did:nuts
 	r.documentManagers = map[string]management.DocumentManager{
@@ -132,9 +126,26 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	}
 	// did:web
 	publicURL, err := config.ServerURL()
+	var webResolver resolver.DIDResolver
 	if err == nil {
-		r.documentManagers[didweb.MethodName] = didweb.NewManager(*publicURL.JoinPath("iam"), r.keyStore, r.storageInstance.GetSQLDatabase())
+		manager := didweb.NewManager(*publicURL.JoinPath("iam"), r.keyStore, r.storageInstance.GetSQLDatabase())
+		r.documentManagers[didweb.MethodName] = manager
+		// did:web resolver should first look in own database, then resolve over the web
+		webResolver = resolver.ChainedDIDResolver{
+			Resolvers: []resolver.DIDResolver{
+				manager,
+				didweb.NewResolver(),
+			},
+		}
+	} else {
+		webResolver = didweb.NewResolver()
 	}
+
+	// Register DID methods we can resolve
+	r.didResolver.Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
+	r.didResolver.Register(didweb.MethodName, webResolver)
+	r.didResolver.Register(didjwk.MethodName, didjwk.NewResolver())
+	r.didResolver.Register(didkey.MethodName, didkey.NewResolver())
 
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()
