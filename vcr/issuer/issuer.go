@@ -24,7 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"time"
@@ -56,7 +56,7 @@ var TimeFunc = time.Now
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
-	statusList statuslist.StatusList2021Issuer) Issuer {
+	statusList statuslist2021.StatusList2021Issuer) Issuer {
 	keyResolver := vdrKeyResolver{
 		publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
 		privateKeyResolver: keyStore,
@@ -88,7 +88,7 @@ type issuer struct {
 	jsonldManager    jsonld.JSONLD
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
-	statusListStore  statuslist.StatusList2021Issuer
+	statusListStore  statuslist2021.StatusList2021Issuer
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -222,7 +222,7 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 	}
 	if options.WithStatusListRevocation {
 		// add credential status
-		credentialStatusEntry, err := i.statusListStore.Create(ctx, *issuerDID, statuslist.StatusPurposeRevocation)
+		credentialStatusEntry, err := i.statusListStore.Create(ctx, *issuerDID, statuslist2021.StatusPurposeRevocation)
 		if err != nil {
 			return nil, err
 		}
@@ -337,14 +337,14 @@ func (i issuer) revokeStatusList(ctx context.Context, credentialID ssi.URI) erro
 
 	// find the correct credentialStatus and revoke it on the relevant statuslist
 	for _, status := range statuses {
-		if status.Type == credential.StatusList2021EntryType {
-			var slEntry credential.StatusList2021Entry
+		if status.Type == statuslist2021.EntryType {
+			var slEntry statuslist2021.Entry
 			err = json.Unmarshal(status.Raw(), &slEntry)
 			if err != nil {
 				return err
 			}
 			// TODO: make sure it is the correct entry when we allow other purposes, or VC issuance that include other credential statuses
-			if slEntry.StatusPurpose != statuslist.StatusPurposeRevocation {
+			if slEntry.StatusPurpose != statuslist2021.StatusPurposeRevocation {
 				continue
 			}
 			return i.statusListStore.Revoke(ctx, credentialID, slEntry)
@@ -426,7 +426,7 @@ func (i issuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject
 const statusListValidity = 24 * time.Hour // TODO: make configurable
 
 var statusList2021ContextURI = ssi.MustParseURI(jsonld.W3cStatusList2021Context)
-var statusList2021CredentialTypeURI = ssi.MustParseURI(credential.StatusList2021CredentialType)
+var statusList2021CredentialTypeURI = ssi.MustParseURI(statuslist2021.CredentialType)
 
 func (i issuer) StatusList(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
 	// todo: get cached credential if available

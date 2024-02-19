@@ -22,6 +22,7 @@ import (
 	crypt "crypto"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"net/http"
 	"net/http/httptest"
@@ -133,7 +134,7 @@ func TestVerifier_Verify(t *testing.T) {
 
 	t.Run("validate credentialStatus", func(t *testing.T) {
 		// make StatusList2021Credential with a revocation bit set
-		statusListCred := credential.ValidStatusList2021Credential(t)
+		statusListCred := statuslist2021.ValidStatusList2021Credential(t)
 		statusListCredBytes, err := json.Marshal(statusListCred)
 		require.NoError(t, err)
 		statusListIndex := 1 // bit 1 is set in slCred
@@ -144,9 +145,9 @@ func TestVerifier_Verify(t *testing.T) {
 		}))
 
 		// statusListEntry for credentialToValidate without statusListIndex
-		slEntry := credential.StatusList2021Entry{
+		slEntry := statuslist2021.Entry{
 			ID:                   "https://example-com/credentials/status/3#statusListIndex",
-			Type:                 credential.StatusList2021EntryType,
+			Type:                 statuslist2021.EntryType,
 			StatusPurpose:        "revocation",
 			StatusListCredential: ts.URL,
 		}
@@ -155,7 +156,7 @@ func TestVerifier_Verify(t *testing.T) {
 		http.DefaultClient = ts.Client() // newMockContext sets credentialStatus.client to http.DefaultClient
 		ctx := newMockContext(t)
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
-		ctx.verifier.credentialStatus.verifySignature = func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
+		ctx.verifier.credentialStatus = statuslist2021.NewCredentialStatus(http.DefaultClient, func(_ vc.VerifiableCredential, _ *time.Time) error { return nil }) // don't check signatures on 'downloaded' StatusList2021Credentials
 
 		cred := credential.ValidNutsOrganizationCredential(t)
 		cred.Context = append(cred.Context, ssi.MustParseURI(jsonld.W3cStatusList2021Context))
@@ -189,9 +190,9 @@ func TestVerifier_Verify(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				writer.WriteHeader(400)
 			}))
-			slEntry := credential.StatusList2021Entry{
+			slEntry := statuslist2021.Entry{
 				ID:                   "not relevant",
-				Type:                 credential.StatusList2021EntryType,
+				Type:                 statuslist2021.EntryType,
 				StatusPurpose:        "revocation",
 				StatusListIndex:      "1",
 				StatusListCredential: ts.URL, //

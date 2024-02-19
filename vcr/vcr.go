@@ -29,7 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io/fs"
@@ -263,7 +263,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		c.walletHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
 		c.openidSessionStore = c.storageClient.GetSessionDatabase()
 	}
-	status, err := statuslist.NewStatusListStore(c.storageClient.GetSQLDatabase())
+	status, err := statuslist2021.NewStatusListStore(c.storageClient.GetSQLDatabase())
 	if err != nil {
 		return err
 	}
