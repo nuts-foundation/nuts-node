@@ -22,7 +22,7 @@ require (
 	github.com/mdp/qrterminal/v3 v3.2.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multicodec v0.9.0
-	github.com/nats-io/nats-server/v2 v2.10.10
+	github.com/nats-io/nats-server/v2 v2.10.11
 	github.com/nats-io/nats.go v1.33.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.12.0
@@ -171,7 +171,10 @@ require (
 	rsc.io/qr v0.2.0 // indirect
 )
 
-require gorm.io/driver/postgres v1.5.6
+require (
+	gorm.io/driver/mysql v1.5.2
+	gorm.io/driver/postgres v1.5.6
+)
 
 require (
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
@@ -181,6 +184,5 @@ require (
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/microsoft/go-mssqldb v1.6.0 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
-	gorm.io/driver/mysql v1.5.2 // indirect
 	gorm.io/driver/sqlserver v1.5.2 // indirect
 )
