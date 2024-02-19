@@ -19,14 +19,10 @@
 package jsonld
 
 import (
-	"encoding/json"
 	"testing"
 
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNewJSONLDInstance(t *testing.T) {
@@ -70,16 +66,14 @@ func TestNewJSONLDInstance(t *testing.T) {
 
 func TestAllFieldsDefined(t *testing.T) {
 	documentLoader := NewTestJSONLDManager(t).DocumentLoader()
-	// load a valid NutsOrganizationCredential
-	vcJSON, err := assets.TestAssets.ReadFile("test_assets/vc.json")
-	require.NoError(t, err)
-	t.Run("ok", func(t *testing.T) {
-		inputVC := vc.VerifiableCredential{}
-		require.NoError(t, json.Unmarshal(vcJSON, &inputVC))
-
-		err := AllFieldsDefined(documentLoader, inputVC)
-
-		assert.NoError(t, err)
+	t.Run("ok - object", func(t *testing.T) {
+		assert.NoError(t, AllFieldsDefined(documentLoader, TestVC()))
+	})
+	t.Run("ok - string", func(t *testing.T) {
+		assert.NoError(t, AllFieldsDefined(documentLoader, TestOrganizationCredential))
+	})
+	t.Run("ok - bytes", func(t *testing.T) {
+		assert.NoError(t, AllFieldsDefined(documentLoader, []byte(testVP)))
 	})
 	t.Run("failed - invalid fields", func(t *testing.T) {
 		var invalidCredentialSubject = make(map[string]interface{})
@@ -89,12 +83,12 @@ func TestAllFieldsDefined(t *testing.T) {
 			"city": "EIbergen",
 		}
 
-		inputVC := vc.VerifiableCredential{}
-		require.NoError(t, json.Unmarshal(vcJSON, &inputVC))
+		inputVC := testOrganizationCredential()
 		inputVC.CredentialSubject[0] = invalidCredentialSubject
 
 		err := AllFieldsDefined(documentLoader, inputVC)
 
 		assert.EqualError(t, err, "jsonld: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 	})
+
 }

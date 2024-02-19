@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld/log"
 	"github.com/piprate/json-gold/ld"
@@ -65,12 +64,21 @@ func (j *jsonld) Config() interface{} {
 	return &j.config
 }
 
-// AllFieldsDefined tests whether all fields are defined in the JSON-LD context(s).
-func AllFieldsDefined(DocumentLoader ld.DocumentLoader, input vc.VerifiableCredential) error {
-	// expand with safe mode enabled, which asserts that all properties are defined in the JSON-LD context.
-	inputAsJSON, err := json.Marshal(input)
-	if err != nil {
-		return err
+// AllFieldsDefined tests whether all fields are defined in the JSON-LD context(s) of the input.
+// input can be JSON in []byte or string format, or will be Marshaled into JSON.
+func AllFieldsDefined(DocumentLoader ld.DocumentLoader, input any) error {
+	var inputAsJSON []byte
+	switch v := input.(type) {
+	case []byte:
+		inputAsJSON = v
+	case string:
+		inputAsJSON = []byte(v)
+	default:
+		var err error
+		inputAsJSON, err = json.Marshal(input)
+		if err != nil {
+			return err
+		}
 	}
 
 	document, err := ld.DocumentFromReader(bytes.NewReader(inputAsJSON))
@@ -83,6 +91,7 @@ func AllFieldsDefined(DocumentLoader ld.DocumentLoader, input vc.VerifiableCrede
 	options.DocumentLoader = DocumentLoader
 	options.SafeMode = true
 
+	// expand with safe mode enabled, which asserts that all properties are defined in the JSON-LD context.
 	if _, err = processor.Expand(document, options); err != nil {
 		return fmt.Errorf("jsonld: %w", err)
 	}
