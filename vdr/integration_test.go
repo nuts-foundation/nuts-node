@@ -238,10 +238,11 @@ type testContext struct {
 func setup(t *testing.T) testContext {
 	// === Setup ===
 	testDir := io.TestDirectory(t)
-	nutsConfig := *core.NewServerConfig()
-	nutsConfig.Strictmode = false
-	nutsConfig.Verbosity = "debug"
-	nutsConfig.Datadir = testDir
+	nutsConfig := core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Strictmode = false
+		config.Verbosity = "debug"
+		config.Datadir = testDir
+	})
 
 	// Configure the logger:
 	var lvl log.Level
