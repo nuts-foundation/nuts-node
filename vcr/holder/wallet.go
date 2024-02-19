@@ -35,13 +35,17 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/credential/store"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 	"strings"
 	"time"
 )
@@ -58,19 +62,19 @@ type wallet struct {
 	keyStore      crypto.KeyStore
 	verifier      verifier.Verifier
 	jsonldManager jsonld.JSONLD
-	walletStore   stoabs.KVStore
+	walletStore   walletStore
 }
 
 // New creates a new Wallet.
 func New(
 	keyResolver resolver.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD,
-	walletStore stoabs.KVStore) Wallet {
+	storageEngine storage.Engine) Wallet {
 	return &wallet{
 		keyResolver:   keyResolver,
 		keyStore:      keyStore,
 		verifier:      verifier,
 		jsonldManager: jsonldManager,
-		walletStore:   walletStore,
+		walletStore:   walletStore{db: storageEngine.GetSQLDatabase()},
 	}
 }
 
@@ -311,13 +315,7 @@ func (h wallet) List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCre
 }
 
 func (h wallet) Diagnostics() []core.DiagnosticResult {
-	ctx := context.Background()
-	var count uint32
-	var err error
-	err = h.walletStore.Read(ctx, func(tx stoabs.ReadTx) error {
-		count, err = h.readCredentialCount(tx.GetShelfReader(statsShelf))
-		return err
-	})
+	count, err := h.walletStore.count()
 	if err != nil {
 		log.Logger().WithError(err).Warn("unable to read credential count in wallet")
 	}
@@ -330,23 +328,38 @@ func (h wallet) Diagnostics() []core.DiagnosticResult {
 }
 
 func (h wallet) IsEmpty() (bool, error) {
-	ctx := context.Background()
-	var count uint32
-	var err error
-	err = h.walletStore.Read(ctx, func(tx stoabs.ReadTx) error {
-		count, err = h.readCredentialCount(tx.GetShelfReader(statsShelf))
-		return err
-	})
+	count, err := h.walletStore.count()
 	return count == 0, err
 }
 
-func (h wallet) readCredentialCount(statsShelf stoabs.Reader) (uint32, error) {
-	countBytes, err := statsShelf.Get(credentialCountStatsKey)
-	if errors.Is(err, stoabs.ErrKeyNotFound) {
-		// No stats yet
-		countBytes = make([]byte, 4)
-	} else if err != nil {
-		return 0, fmt.Errorf("error reading credential count for wallet: %w", err)
+var _ schema.Tabler = (*walletRecord)(nil)
+
+type walletRecord struct {
+	HolderDID    string                 `gorm:"primaryKey"`
+	CredentialID string                 `gorm:"primaryKey"`
+	Credential   store.CredentialRecord `gorm:"foreignKey:CredentialID;references:ID"`
+}
+
+func (walletRecord) TableName() string {
+	return "wallet_credential"
+}
+
+type walletStore struct {
+	db *gorm.DB
+}
+
+func (s walletStore) count() (int64, error) {
+	var count int64
+	err := s.db.Model(walletRecord{}).Count(&count).Error
+	return count, err
+}
+
+func (s walletStore) list(holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	var records []walletRecord
+	err := s.db.Model(walletRecord{}).Where("holder_did = ?", holderDID.String()).Find(&records).Error
+	var results []vc.VerifiableCredential
+	for _, record := range records {
+		results = append(results, record.Credential.SubjectID)
 	}
-	return binary.BigEndian.Uint32(countBytes), nil
+	return result, err
 }
