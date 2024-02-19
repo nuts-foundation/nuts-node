@@ -106,9 +106,7 @@ func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, opt
 	}
 
 	// Sanity check: all provided fields must be defined by the context: otherwise they're not protected by the signature
-	err = credential.AllFieldsDefinedValidator{
-		DocumentLoader: i.jsonldManager.DocumentLoader(),
-	}.Validate(*createdVC)
+	err = jsonld.AllFieldsDefined(i.jsonldManager.DocumentLoader(), *createdVC)
 	if err != nil {
 		return nil, err
 	}

@@ -20,7 +20,6 @@
 package credential
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,7 +31,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"github.com/piprate/json-gold/ld"
 )
 
 // Validator is the interface specific VC verification.
@@ -44,31 +42,6 @@ type Validator interface {
 
 // errValidation is a common error indicating validation failed
 var errValidation = errors.New("validation failed")
-
-// AllFieldsDefinedValidator is a Validator that tests whether all fields are defined in the JSON-LD context.
-type AllFieldsDefinedValidator struct {
-	DocumentLoader ld.DocumentLoader
-}
-
-// Validate implements Validator.Validate.
-func (d AllFieldsDefinedValidator) Validate(input vc.VerifiableCredential) error {
-	// expand with safe mode enabled, which asserts that all properties are defined in the JSON-LD context.
-	inputAsJSON, _ := input.MarshalJSON()
-	document, err := ld.DocumentFromReader(bytes.NewReader(inputAsJSON))
-	if err != nil {
-		return err
-	}
-
-	processor := ld.NewJsonLdProcessor()
-	options := ld.NewJsonLdOptions("")
-	options.DocumentLoader = d.DocumentLoader
-	options.SafeMode = true
-
-	if _, err = processor.Expand(document, options); err != nil {
-		return fmt.Errorf("%w: %w", errValidation, err)
-	}
-	return nil
-}
 
 type defaultCredentialValidator struct {
 }

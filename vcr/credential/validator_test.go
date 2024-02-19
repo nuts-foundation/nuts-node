@@ -338,32 +338,6 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	})
 }
 
-func TestAllFieldsDefinedValidator(t *testing.T) {
-	validator := AllFieldsDefinedValidator{jsonld.NewTestJSONLDManager(t).DocumentLoader()}
-	t.Run("ok", func(t *testing.T) {
-		inputVC := test.ValidNutsOrganizationCredential(t)
-
-		err := validator.Validate(inputVC)
-
-		assert.NoError(t, err)
-	})
-	t.Run("failed - invalid fields", func(t *testing.T) {
-		var invalidCredentialSubject = make(map[string]interface{})
-		invalidCredentialSubject["id"] = vdr.TestDIDB.String()
-		invalidCredentialSubject["organizationButIncorrectFieldName"] = map[string]interface{}{
-			"name": "Because we care B.V.",
-			"city": "EIbergen",
-		}
-
-		inputVC := test.ValidNutsOrganizationCredential(t)
-		inputVC.CredentialSubject[0] = invalidCredentialSubject
-
-		err := validator.Validate(inputVC)
-
-		assert.EqualError(t, err, "validation failed: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
-	})
-}
-
 func TestDefaultCredentialValidator(t *testing.T) {
 	validator := defaultCredentialValidator{}
 

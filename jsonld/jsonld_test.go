@@ -19,9 +19,14 @@
 package jsonld
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/stretchr/testify/assert"
+	"encoding/json"
 	"testing"
+
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewJSONLDInstance(t *testing.T) {
@@ -60,5 +65,36 @@ func TestNewJSONLDInstance(t *testing.T) {
 			})
 		})
 
+	})
+}
+
+func TestAllFieldsDefined(t *testing.T) {
+	documentLoader := NewTestJSONLDManager(t).DocumentLoader()
+	// load a valid NutsOrganizationCredential
+	vcJSON, err := assets.TestAssets.ReadFile("test_assets/vc.json")
+	require.NoError(t, err)
+	t.Run("ok", func(t *testing.T) {
+		inputVC := vc.VerifiableCredential{}
+		require.NoError(t, json.Unmarshal(vcJSON, &inputVC))
+
+		err := AllFieldsDefined(documentLoader, inputVC)
+
+		assert.NoError(t, err)
+	})
+	t.Run("failed - invalid fields", func(t *testing.T) {
+		var invalidCredentialSubject = make(map[string]interface{})
+		invalidCredentialSubject["id"] = "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+		invalidCredentialSubject["organizationButIncorrectFieldName"] = map[string]interface{}{
+			"name": "Because we care B.V.",
+			"city": "EIbergen",
+		}
+
+		inputVC := vc.VerifiableCredential{}
+		require.NoError(t, json.Unmarshal(vcJSON, &inputVC))
+		inputVC.CredentialSubject[0] = invalidCredentialSubject
+
+		err := AllFieldsDefined(documentLoader, inputVC)
+
+		assert.EqualError(t, err, "jsonld: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 	})
 }

@@ -19,6 +19,11 @@
 package jsonld
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld/log"
 	"github.com/piprate/json-gold/ld"
@@ -58,4 +63,28 @@ func (j jsonld) Name() string {
 
 func (j *jsonld) Config() interface{} {
 	return &j.config
+}
+
+// AllFieldsDefined tests whether all fields are defined in the JSON-LD context(s).
+func AllFieldsDefined(DocumentLoader ld.DocumentLoader, input vc.VerifiableCredential) error {
+	// expand with safe mode enabled, which asserts that all properties are defined in the JSON-LD context.
+	inputAsJSON, err := json.Marshal(input)
+	if err != nil {
+		return err
+	}
+
+	document, err := ld.DocumentFromReader(bytes.NewReader(inputAsJSON))
+	if err != nil {
+		return err
+	}
+
+	processor := ld.NewJsonLdProcessor()
+	options := ld.NewJsonLdOptions("")
+	options.DocumentLoader = DocumentLoader
+	options.SafeMode = true
+
+	if _, err = processor.Expand(document, options); err != nil {
+		return fmt.Errorf("jsonld: %w", err)
+	}
+	return nil
 }
