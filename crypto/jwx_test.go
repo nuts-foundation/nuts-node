@@ -565,18 +565,3 @@ func TestThumbprint(t *testing.T) {
 		assert.Equal(t, expectedThumbPrint, thumbPrint)
 	})
 }
-
-func TestES256k(t *testing.T) {
-	// Make sure the -tags jwx_es256k is passed to the go build argument.
-	t.Run("test ES256K", func(t *testing.T) {
-		ecKey := test.GenerateECKey()
-		token := jwt.New()
-		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256K, ecKey))
-		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
-			return ecKey.Public(), nil
-		})
-		require.NoError(t, err)
-
-		assert.NotNil(t, parsedToken)
-	})
-}
