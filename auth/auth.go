@@ -19,7 +19,9 @@
 package auth
 
 import (
+	"crypto/tls"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
@@ -43,20 +45,21 @@ var _ AuthenticationServices = (*Auth)(nil)
 
 // Auth is the main struct of the Auth service
 type Auth struct {
-	config          Config
-	jsonldManager   jsonld.JSONLD
-	authzServer     oauth.AuthorizationServer
-	relyingParty    oauth.RelyingParty
-	verifier        oauth.Verifier
-	holder          oauth.Holder
-	contractNotary  services.ContractNotary
-	serviceResolver didman.CompoundServiceResolver
-	keyStore        crypto.KeyStore
-	vcr             vcr.VCR
-	pkiProvider     pki.Provider
-	shutdownFunc    func()
-	vdrInstance     vdr.VDR
-	publicURL       *url.URL
+	config            Config
+	jsonldManager     jsonld.JSONLD
+	authzServer       oauth.AuthorizationServer
+	relyingParty      oauth.RelyingParty
+	contractNotary    services.ContractNotary
+	serviceResolver   didman.CompoundServiceResolver
+	keyStore          crypto.KeyStore
+	vcr               vcr.VCR
+	pkiProvider       pki.Provider
+	shutdownFunc      func()
+	vdrInstance       vdr.VDR
+	publicURL         *url.URL
+	strictMode        bool
+	httpClientTimeout time.Duration
+	tlsConfig         *tls.Config
 }
 
 // Name returns the name of the module.
@@ -108,12 +111,9 @@ func (auth *Auth) RelyingParty() oauth.RelyingParty {
 	return auth.relyingParty
 }
 
-func (auth *Auth) Verifier() oauth.Verifier {
-	return auth.verifier
-}
-
-func (auth *Auth) Holder() oauth.Holder {
-	return auth.holder
+func (auth *Auth) IAMClient() iam.Client {
+	keyResolver := resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}
+	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.keyStore, auth.strictMode, auth.httpClientTimeout, auth.tlsConfig)
 }
 
 // Configure the Auth struct by creating a validator and create an Irma server
@@ -147,7 +147,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return errors.New("in strictmode TLS must be enabled")
 	}
 
-	tlsConfig, err := auth.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
+	auth.tlsConfig, err = auth.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 	if err != nil {
 		return err
 	}
@@ -156,20 +156,18 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	var clientTimeout time.Duration
 	if auth.config.HTTPTimeout >= 0 {
-		clientTimeout = time.Duration(auth.config.HTTPTimeout) * time.Second
+		auth.httpClientTimeout = time.Duration(auth.config.HTTPTimeout) * time.Second
 	} else {
 		// auth.http.config got deprecated in favor of httpclient.timeout
-		clientTimeout = config.HTTPClient.Timeout
+		auth.httpClientTimeout = config.HTTPClient.Timeout
 	}
+	// V1 API related stuff
 	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second
 	auth.authzServer = oauth.NewAuthorizationServer(auth.vdrInstance.Resolver(), auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
 		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenLifeSpan)
 	auth.relyingParty = oauth.NewRelyingParty(auth.vdrInstance.Resolver(), auth.serviceResolver,
-		auth.keyStore, auth.vcr.Wallet(), clientTimeout, tlsConfig, config.Strictmode)
-	auth.verifier = oauth.NewVerifier(config.Strictmode, clientTimeout, tlsConfig)
-	auth.holder = oauth.NewHolder(auth.vcr.Wallet(), config.Strictmode, clientTimeout, tlsConfig)
+		auth.keyStore, auth.vcr.Wallet(), auth.httpClientTimeout, auth.tlsConfig, config.Strictmode)
 
 	if err := auth.authzServer.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err

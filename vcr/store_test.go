@@ -26,7 +26,7 @@ import (
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -40,7 +40,7 @@ import (
 
 func TestVcr_StoreCredential(t *testing.T) {
 	// load VC
-	target := credential.ValidNutsOrganizationCredential(t)
+	target := test.ValidNutsOrganizationCredential(t)
 	holderDID := did.MustParseDID(target.CredentialSubject[0].(map[string]interface{})["id"].(string))
 
 	// load pub key
@@ -133,7 +133,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 
 func TestStore_writeCredential(t *testing.T) {
 	// load VC
-	target := credential.ValidNutsOrganizationCredential(t)
+	target := test.ValidNutsOrganizationCredential(t)
 
 	t.Run("ok - stored in JSON-LD collection", func(t *testing.T) {
 		ctx := newMockContext(t)

@@ -63,6 +63,7 @@ type logicaler interface {
 	ReadWithContext(ctx context.Context, path string) (*vault.Secret, error)
 	WriteWithContext(ctx context.Context, path string, data map[string]interface{}) (*vault.Secret, error)
 	ReadWithDataWithContext(ctx context.Context, path string, data map[string][]string) (*vault.Secret, error)
+	DeleteWithContext(ctx context.Context, path string) (*vault.Secret, error)
 }
 
 type vaultKVStorage struct {
@@ -224,4 +225,13 @@ func (v vaultKVStorage) SavePrivateKey(ctx context.Context, kid string, key cryp
 	}
 
 	return v.storeValue(ctx, path, keyName, pem)
+}
+
+func (v vaultKVStorage) DeletePrivateKey(ctx context.Context, kid string) error {
+	path := privateKeyPath(v.config.PathPrefix, kid)
+	_, err := v.client.DeleteWithContext(ctx, path)
+	if err != nil {
+		return fmt.Errorf("unable to delete private key from vault: %w", err)
+	}
+	return nil
 }

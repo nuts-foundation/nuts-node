@@ -13,6 +13,7 @@ import (
 	url "net/url"
 	reflect "reflect"
 
+	iam "github.com/nuts-foundation/nuts-node/auth/client/iam"
 	services "github.com/nuts-foundation/nuts-node/auth/services"
 	oauth "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	gomock "go.uber.org/mock/gomock"
@@ -69,18 +70,18 @@ func (mr *MockAuthenticationServicesMockRecorder) ContractNotary() *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContractNotary", reflect.TypeOf((*MockAuthenticationServices)(nil).ContractNotary))
 }
 
-// Holder mocks base method.
-func (m *MockAuthenticationServices) Holder() oauth.Holder {
+// IAMClient mocks base method.
+func (m *MockAuthenticationServices) IAMClient() iam.Client {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Holder")
-	ret0, _ := ret[0].(oauth.Holder)
+	ret := m.ctrl.Call(m, "IAMClient")
+	ret0, _ := ret[0].(iam.Client)
 	return ret0
 }
 
-// Holder indicates an expected call of Holder.
-func (mr *MockAuthenticationServicesMockRecorder) Holder() *gomock.Call {
+// IAMClient indicates an expected call of IAMClient.
+func (mr *MockAuthenticationServicesMockRecorder) IAMClient() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Holder", reflect.TypeOf((*MockAuthenticationServices)(nil).Holder))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IAMClient", reflect.TypeOf((*MockAuthenticationServices)(nil).IAMClient))
 }
 
 // PublicURL mocks base method.
@@ -123,18 +124,4 @@ func (m *MockAuthenticationServices) V2APIEnabled() bool {
 func (mr *MockAuthenticationServicesMockRecorder) V2APIEnabled() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "V2APIEnabled", reflect.TypeOf((*MockAuthenticationServices)(nil).V2APIEnabled))
-}
-
-// Verifier mocks base method.
-func (m *MockAuthenticationServices) Verifier() oauth.Verifier {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verifier")
-	ret0, _ := ret[0].(oauth.Verifier)
-	return ret0
-}
-
-// Verifier indicates an expected call of Verifier.
-func (mr *MockAuthenticationServicesMockRecorder) Verifier() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verifier", reflect.TypeOf((*MockAuthenticationServices)(nil).Verifier))
 }

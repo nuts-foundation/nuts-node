@@ -26,8 +26,11 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -318,6 +321,54 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			assert.EqualError(t, err, "unable to resolve signer DID from VCs for creating VP: unable to get subject DID from VC: there must be at least 1 credentialSubject")
 			assert.Nil(t, resultingPresentation)
 		})
+	})
+}
+
+func TestWallet_BuildSubmission(t *testing.T) {
+	credentials := []vc.VerifiableCredential{test.ValidNutsOrganizationCredential(t)}
+	// walletDID matches the subject of the ValidNutsOrganizationCredential
+	walletDID := did.MustParseDID("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
+	verifierDID := did.MustParseDID("did:web:example.com:iam:verifier")
+	presentationDefinition := pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{{Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}}}}
+	vpFormats := oauth.DefaultOpenIDSupportedFormats()
+
+	key := vdr.TestMethodDIDAPrivateKey()
+	jsonldManager := jsonld.NewTestJSONLDManager(t)
+	ctx := audit.TestContext()
+
+	keyStorage := crypto.NewMemoryStorage()
+	_ = keyStorage.SavePrivateKey(ctx, key.KID(), key.PrivateKey)
+	keyStore := crypto.NewTestCryptoInstance(keyStorage)
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(key.KID()), key.Public(), nil)
+
+		w := New(keyResolver, keyStore, nil, jsonldManager, store)
+		err := w.Put(context.Background(), credentials...)
+		require.NoError(t, err)
+
+		vp, submission, err := w.BuildSubmission(ctx, walletDID, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+
+		assert.NoError(t, err)
+		require.NotNil(t, vp)
+		require.NotNil(t, submission)
+
+	})
+	t.Run("error - no matching credentials", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		store, _ := storageEngine.GetProvider("test").GetKVStore("credentials", storage.PersistentStorageClass)
+
+		w := New(nil, keyStore, nil, jsonldManager, store)
+
+		vp, submission, err := w.BuildSubmission(ctx, walletDID, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+
+		assert.Equal(t, ErrNoCredentials, err)
+		assert.Nil(t, vp)
+		assert.Nil(t, submission)
 	})
 }
 

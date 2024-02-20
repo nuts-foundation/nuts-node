@@ -103,8 +103,8 @@ func (w *Wrapper) SearchPresentations(ctx context.Context, request SearchPresent
 	// Use query parameters provided in request context (see Routes())
 	queryValues := ctx.Value(requestQueryContextKey).(url.Values)
 	query := make(map[string]string)
-	for key, values := range queryValues {
-		query[key] = values[0]
+	for path, values := range queryValues {
+		query[path] = values[0]
 	}
 	searchResults, err := w.Client.Search(request.ServiceID, query)
 	if err != nil {

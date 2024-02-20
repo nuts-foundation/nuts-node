@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/discovery"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/assert"
@@ -204,7 +203,7 @@ func TestWrapper_SearchPresentations(t *testing.T) {
 	id, _ := ssi.ParseURI("did:nuts:foo#1")
 	vp := test.ParsePresentation(t, vc.VerifiablePresentation{
 		ID:                   id,
-		VerifiableCredential: []vc.VerifiableCredential{credential.ValidNutsOrganizationCredential(t)},
+		VerifiableCredential: []vc.VerifiableCredential{test.ValidNutsOrganizationCredential(t)},
 		Proof: []interface{}{proof.LDProof{
 			VerificationMethod: *id,
 		}},

@@ -271,8 +271,8 @@ func Test_clientUpdater_update(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		httpClient := client.NewMockHTTPClient(ctrl)
-		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return([]vc.VerifiablePresentation{}, "test", nil)
-		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", errors.New("test"))
+		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/usecase", gomock.Any()).Return([]vc.VerifiablePresentation{}, "test", nil)
+		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, "", errors.New("test"))
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
 		err := updater.update(context.Background())

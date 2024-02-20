@@ -25,7 +25,7 @@ import (
 	"embed"
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -101,8 +101,8 @@ func TestParsePresentationDefinition(t *testing.T) {
 }
 
 func TestMatch(t *testing.T) {
-	jsonldVC := credential.ValidNutsOrganizationCredential(t)
-	jwtVC := credential.JWTNutsOrganizationCredential(t, did.MustParseDID("did:web:example.com"))
+	jsonldVC := vcrTest.ValidNutsOrganizationCredential(t)
+	jwtVC := vcrTest.JWTNutsOrganizationCredential(t, did.MustParseDID("did:web:example.com"))
 
 	t.Run("Basic", func(t *testing.T) {
 		t.Run("JSON-LD", func(t *testing.T) {
@@ -414,7 +414,7 @@ txJy6M1-lD7a5HTzanYTWBPAUHDZGyGKXdJw-W_x0IWChBzI8t3kpG253fg6V3tPgHeKXE94fz_QpYfg
 	})
 
 	t.Run("JSON-LD", func(t *testing.T) {
-		verifiableCredential := credential.ValidNutsOrganizationCredential(t)
+		verifiableCredential := vcrTest.ValidNutsOrganizationCredential(t)
 
 		t.Run("format with matching ldp_vc", func(t *testing.T) {
 			asMap := map[string]map[string][]string{"jwt_vc": {"alg": {"ES256K", "ES384"}}, "ldp_vc": {"proof_type": {"JsonWebSignature2020"}}}
@@ -685,8 +685,8 @@ func Test_matchFilter(t *testing.T) {
 
 func TestPresentationDefinition_ResolveConstraintsFields(t *testing.T) {
 	subjectDID := did.MustParseDID("did:web:example.com")
-	jwtCredential := credential.JWTNutsOrganizationCredential(t, subjectDID)
-	jsonldCredential := credential.JWTNutsOrganizationCredential(t, subjectDID)
+	jwtCredential := vcrTest.JWTNutsOrganizationCredential(t, subjectDID)
+	jsonldCredential := vcrTest.JWTNutsOrganizationCredential(t, subjectDID)
 	definition := definitions().JSONLDorJWT
 	t.Run("match JWT", func(t *testing.T) {
 		credentialMap := map[string]vc.VerifiableCredential{

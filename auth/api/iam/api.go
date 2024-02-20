@@ -20,12 +20,13 @@ package iam
 
 import (
 	"context"
-	"crypto/tls"
+	crypto2 "crypto"
 	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
@@ -37,6 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -135,6 +137,13 @@ func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID s
 	}
 
 	return f(ctx, request)
+}
+
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
+func (w Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
+		vcrTypes.ErrNotFound: http.StatusNotFound,
+	})
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
@@ -303,10 +312,18 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
-	params := make(map[string]string)
-	for key, value := range httpRequest.URL.Query() {
-		params[key] = value[0]
-	}
+	params := parseQueryParams(httpRequest.URL.Query())
+	clientId := params.get(oauth.ClientIDParam)
+
+	// if the request param is present, JAR (RFC9101, JWT Authorization Request) is used
+	// we parse the request and validate
+	if rawToken := params.get(oauth.RequestParam); rawToken != "" {
+		params, err = r.validateJARRequest(ctx, rawToken, clientId)
+		if err != nil {
+			return nil, err
+		}
+	} // else, we'll allow for now, since other flows will break if we require JAR at this point.
+
 	// todo: store session in database? Isn't session specific for a particular flow?
 	session := createSession(params, *ownDID)
 
@@ -349,6 +366,40 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 			RedirectURI: redirectURI,
 		}
 	}
+}
+
+// validateJARRequest validates a JAR (JWT Authorization Request) and returns the JWT claims.
+// the client_id must match the signer of the JWT.
+func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clientId string) (oauthParameters, error) {
+	var signerKid string
+	// Parse and validate the JWT
+	token, err := crypto.ParseJWT(rawToken, func(kid string) (crypto2.PublicKey, error) {
+		signerKid = kid
+		return resolver.DIDKeyResolver{Resolver: r.vdr}.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
+	}, jwt.WithValidate(true))
+	if err != nil {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
+	}
+	claimsAsMap, err := token.AsMap(ctx)
+	if err != nil {
+		// very unlikely
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
+	}
+	params := parseJWTClaims(claimsAsMap)
+	// check client_id claim, it must be the same as the client_id in the request
+	if clientId != params.get(oauth.ClientIDParam) {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id claim in signed authorization request"}
+	}
+	// check if the signer of the JWT is the client
+	signer, err := did.ParseDIDURL(signerKid)
+	if err != nil {
+		// very unlikely since the key has already been resolved
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid signer", InternalError: err}
+	}
+	if signer.DID.String() != clientId {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_id does not match signer of authorization request"}
+	}
+	return params, nil
 }
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
@@ -438,7 +489,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		return nil, core.InvalidInputError("invalid verifier: %w", err)
 	}
 
-	tokenResult, err := r.auth.RelyingParty().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -452,14 +503,14 @@ func (r Wrapper) getWalletDID(ctx context.Context, didString string) (*did.DID, 
 	// resolve wallet
 	requestHolder, err := did.ParseDID(didString)
 	if err != nil {
-		return nil, core.NotFoundError("did not found: %w", err)
+		return nil, core.NotFoundError("DID not found: %w", err)
 	}
 	isWallet, err := r.vdr.IsOwner(ctx, *requestHolder)
 	if err != nil {
 		return nil, err
 	}
 	if !isWallet {
-		return nil, core.InvalidInputError("did not owned by this node")
+		return nil, core.InvalidInputError("DID not owned by this node")
 	}
 	return requestHolder, nil
 }
@@ -511,20 +562,26 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}, nil
 }
 
-func createSession(params map[string]string, ownDID did.DID) *OAuthSession {
-	session := &OAuthSession{
-		// TODO: Validate client ID
-		ClientID: params[oauth.ClientIDParam],
-		// TODO: Validate scope
-		Scope:       params[oauth.ScopeParam],
-		ClientState: params[oauth.StateParam],
-		ServerState: map[string]interface{}{},
-		// TODO: Validate according to https://datatracker.ietf.org/doc/html/rfc6749#section-3.1.2
-		RedirectURI:  params[oauth.RedirectURIParam],
-		OwnDID:       &ownDID,
-		ResponseType: params[responseTypeParam],
+func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
+	session := OAuthSession{}
+	session.ClientID = params.get(oauth.ClientIDParam)
+	session.Scope = params.get(oauth.ScopeParam)
+	session.ClientState = params.get(oauth.StateParam)
+	session.ServerState = map[string]interface{}{}
+	session.RedirectURI = params.get(oauth.RedirectURIParam)
+	session.OwnDID = &ownDID
+	session.ResponseType = params.get(oauth.ResponseTypeParam)
+
+	return &session
+}
+
+func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject) (StatusListResponseObject, error) {
+	cred, err := r.vcr.Issuer().StatusList(ctx, r.idToDID(request.Id), request.Page)
+	if err != nil {
+		return nil, err
 	}
-	return session
+
+	return StatusList200JSONResponse(*cred), nil
 }
 
 // idToDID converts the tenant-specific part of a did:web DID (e.g. 123)

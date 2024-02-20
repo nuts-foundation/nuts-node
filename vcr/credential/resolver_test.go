@@ -43,15 +43,11 @@ func TestFindValidator(t *testing.T) {
 	})
 
 	t.Run("validator and builder found for NutsOrganizationCredential", func(t *testing.T) {
-		assert.IsType(t, nutsOrganizationCredentialValidator{}, FindValidator(ValidNutsOrganizationCredential(t)))
+		assert.IsType(t, nutsOrganizationCredentialValidator{}, FindValidator(test.ValidNutsOrganizationCredential(t)))
 	})
 
 	t.Run("validator and builder found for NutsAuthorizationCredential", func(t *testing.T) {
-		assert.IsType(t, nutsAuthorizationCredentialValidator{}, FindValidator(*ValidNutsAuthorizationCredential()))
-	})
-
-	t.Run("validator and builder found for StatusList2021Credential", func(t *testing.T) {
-		assert.IsType(t, statusList2021CredentialValidator{}, FindValidator(ValidStatusList2021Credential(t)))
+		assert.IsType(t, nutsAuthorizationCredentialValidator{}, FindValidator(test.ValidNutsAuthorizationCredential(t)))
 	})
 }
 

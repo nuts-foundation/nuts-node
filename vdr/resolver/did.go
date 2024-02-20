@@ -37,6 +37,30 @@ type DIDResolver interface {
 	Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error)
 }
 
+var _ DIDResolver = &ChainedDIDResolver{}
+
+// ChainedDIDResolver is a DID resolver that tries to resolve the DID with multiple resolvers.
+// E.g., it could first attempt a caching DID resolver, then a network DID resolver.
+// If the first resolver returns ErrNotFound, the next resolver is tried.
+// Other errors of the first resolver are returned immediately.
+type ChainedDIDResolver struct {
+	Resolvers []DIDResolver
+}
+
+func (c ChainedDIDResolver) Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error) {
+	for _, resolver := range c.Resolvers {
+		document, metadata, err := resolver.Resolve(id, metadata)
+		if err == nil {
+			return document, metadata, nil
+		} else if errors.Is(err, ErrNotFound) {
+			continue
+		} else {
+			return nil, nil, err
+		}
+	}
+	return nil, nil, ErrNotFound
+}
+
 // ErrDIDMethodNotSupported is returned when a DID method is not supported by the DID resolver
 var ErrDIDMethodNotSupported = errors.New("DID method not supported")
 

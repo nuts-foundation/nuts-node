@@ -39,7 +39,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/test"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	vcr "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -49,32 +48,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
-
-func TestRelyingParty_AccessToken(t *testing.T) {
-	code := "code"
-	callbackURI := "https://test.test/iam/123/callback"
-	clientID := did.MustParseDID("did:web:test.test:iam:123")
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-
-		response, err := ctx.relyingParty.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID)
-
-		require.NoError(t, err)
-		require.NotNil(t, response)
-		assert.Equal(t, "token", response.AccessToken)
-		assert.Equal(t, "bearer", response.TokenType)
-	})
-	t.Run("error - failed to get access token", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.token = nil
-
-		response, err := ctx.relyingParty.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID)
-
-		assert.EqualError(t, err, "remote server: error creating access token: server returned HTTP 404 (expected: 200)")
-		assert.Nil(t, response)
-	})
-}
 
 func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 	const bearerToken = "jwt-bearer-token"
@@ -141,161 +114,6 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 			assert.EqualError(t, err, fmt.Sprintf("authorization server endpoint must be HTTPS when in strict mode: %s", httpServer.URL))
 			assert.Nil(t, response)
 		})
-	})
-}
-
-func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
-	walletDID := did.MustParseDID("did:test:123")
-	scopes := "first second"
-	credentials := []vcr.VerifiableCredential{credential.ValidNutsOrganizationCredential(t)}
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
-		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), credentials, gomock.Any(), &walletDID, false).Return(&vc.VerifiablePresentation{}, nil).Return(&vc.VerifiablePresentation{}, nil)
-
-		response, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
-
-		assert.NoError(t, err)
-		require.NotNil(t, response)
-		assert.Equal(t, "token", response.AccessToken)
-		assert.Equal(t, "bearer", response.TokenType)
-	})
-	t.Run("authorization server supported VP formats don't match", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.authzServerMetadata.VPFormats = map[string]map[string][]string{
-			"unsupported": nil,
-		}
-		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
-
-		response, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
-
-		assert.EqualError(t, err, "requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")
-		assert.Nil(t, response)
-	})
-	t.Run("error - access denied", func(t *testing.T) {
-		oauthError := oauth.OAuth2Error{
-			Code:        "invalid_scope",
-			Description: "the scope you requested is unknown",
-		}
-		oauthErrorBytes, _ := json.Marshal(oauthError)
-		ctx := createOAuthRPContext(t)
-		ctx.token = func(writer http.ResponseWriter) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusBadRequest)
-			_, _ = writer.Write(oauthErrorBytes)
-		}
-		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
-		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), credentials, gomock.Any(), &walletDID, false).Return(&vc.VerifiablePresentation{}, nil).Return(&vc.VerifiablePresentation{}, nil)
-
-		_, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
-
-		require.Error(t, err)
-		oauthError, ok := err.(oauth.OAuth2Error)
-		require.True(t, ok)
-		assert.Equal(t, oauth.InvalidScope, oauthError.Code)
-	})
-	t.Run("error - no matching credentials", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return([]vc.VerifiableCredential{}, nil)
-
-		_, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
-
-		assert.Error(t, err)
-		// the error should be a 412 precondition failed
-		assert.EqualError(t, err, "no matching credentials")
-	})
-	t.Run("error - failed to get presentation definition", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.presentationDefinition = nil
-
-		_, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve presentation definition: server returned HTTP 404 (expected: 200)")
-	})
-	t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.metadata = nil
-
-		_, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
-	})
-	t.Run("error - faulty presentation definition", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.presentationDefinition = func(writer http.ResponseWriter) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte("{"))
-		}
-
-		_, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve presentation definition: unable to unmarshal response: unexpected end of JSON input")
-	})
-	t.Run("error - failed to build vp", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return(credentials, nil)
-		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), credentials, gomock.Any(), &walletDID, false).Return(&vc.VerifiablePresentation{}, nil).Return(nil, errors.New("error"))
-
-		_, err := ctx.relyingParty.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to create verifiable presentation: error")
-	})
-}
-
-func TestRelyingParty_AuthorizationRequest(t *testing.T) {
-	walletDID := did.MustParseDID("did:web:test.test:iam:123")
-	scopes := "first second"
-	clientState := crypto.GenerateNonce()
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-
-		redirectURL, err := ctx.relyingParty.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
-
-		assert.NoError(t, err)
-		require.NotNil(t, redirectURL)
-		assert.Equal(t, walletDID.String(), redirectURL.Query().Get("client_id"))
-		assert.Equal(t, "code", redirectURL.Query().Get("response_type"))
-		assert.Equal(t, "first second", redirectURL.Query().Get("scope"))
-		assert.NotEmpty(t, redirectURL.Query().Get("state"))
-		assert.Equal(t, "https://test.test/iam/123/callback", redirectURL.Query().Get("redirect_uri"))
-	})
-	t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.metadata = nil
-
-		_, err := ctx.relyingParty.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
-	})
-	t.Run("error - faulty authorization server metadata", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.metadata = func(writer http.ResponseWriter) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte("{"))
-		}
-
-		_, err := ctx.relyingParty.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: unable to unmarshal response: unexpected end of JSON input, {")
-	})
-	t.Run("error - missing authorization endpoint", func(t *testing.T) {
-		ctx := createOAuthRPContext(t)
-		ctx.authzServerMetadata.AuthorizationEndpoint = ""
-
-		_, err := ctx.relyingParty.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, scopes, clientState)
-
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "no authorization endpoint found in metadata for")
 	})
 }
 

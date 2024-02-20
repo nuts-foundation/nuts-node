@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io"
@@ -258,7 +259,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			keyID.Fragment = "1"
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
-			_ = vdr.Configure(*core.NewServerConfig())
+			_ = vdr.Configure(core.TestServerConfig())
 			//vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})
 			didDocument := did.Document{ID: TestDIDA}
 
@@ -283,7 +284,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			didDocVendor.AddCapabilityInvocation(vendorVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocVendor, keyVendor, nil)
 			test.mockNetwork.EXPECT().CreateTransaction(test.ctx, gomock.Any()).AnyTimes()
-			didDocVendor, keyVendor, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions())
+			didDocVendor, _, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions())
 			require.NoError(t, err)
 
 			// organization
@@ -294,7 +295,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			require.NoError(t, err)
 			didDocOrg.AddCapabilityInvocation(orgVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocOrg, keyOrg, nil)
-			didDocOrg, keyOrg, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions().
+			didDocOrg, _, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions().
 				With(didnuts.KeyFlag(management.AssertionMethodUsage|management.KeyAgreementUsage)).
 				With(didnuts.Controllers(didDocVendor.ID)).
 				With(didnuts.SelfControl(false)),
@@ -441,23 +442,38 @@ func TestVDR_IsOwner(t *testing.T) {
 func TestVDR_Configure(t *testing.T) {
 	storageInstance := storage.NewTestStorageEngine(t)
 	t.Run("it can resolve using did:web", func(t *testing.T) {
-		http.DefaultTransport = roundTripperFunc(func(r *http.Request) (*http.Response, error) {
-			return &http.Response{
-				Header:     map[string][]string{"Content-Type": {"application/json"}},
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(`{"id": "did:web:example.com"}`)),
-			}, nil
+		t.Run("not in database", func(t *testing.T) {
+			http.DefaultTransport = roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				return &http.Response{
+					Header:     map[string][]string{"Content-Type": {"application/json"}},
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(`{"id": "did:web:example.com"}`)),
+				}, nil
+			})
+
+			instance := NewVDR(nil, nil, nil, nil, storageInstance)
+			err := instance.Configure(core.ServerConfig{URL: "https://nuts.nl"})
+			require.NoError(t, err)
+
+			doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com"), nil)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, doc)
+			assert.NotNil(t, md)
 		})
+		t.Run("resolves local DID from database", func(t *testing.T) {
+			instance := NewVDR(crypto.NewMemoryCryptoInstance(), nil, nil, nil, storageInstance)
+			err := instance.Configure(core.ServerConfig{URL: "https://example.com"})
+			require.NoError(t, err)
+			_, _, err = instance.Create(audit.TestContext(), management.Create("web").With(didweb.UserPath("root")))
+			require.NoError(t, err)
 
-		instance := NewVDR(nil, nil, nil, nil, storageInstance)
-		err := instance.Configure(core.ServerConfig{URL: "https://nuts.nl"})
-		require.NoError(t, err)
+			doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com:iam:root"), nil)
 
-		doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com"), nil)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, doc)
-		assert.NotNil(t, md)
+			assert.NoError(t, err)
+			assert.NotNil(t, doc)
+			assert.NotNil(t, md)
+		})
 	})
 	t.Run("it can resolve using did:jwk", func(t *testing.T) {
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -470,7 +486,7 @@ func TestVDR_Configure(t *testing.T) {
 		require.NoError(t, err)
 
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
-		err = instance.Configure(core.ServerConfig{})
+		err = instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
 
 		doc, md, err := instance.Resolver().Resolve(*inputDID, nil)
@@ -484,7 +500,7 @@ func TestVDR_Configure(t *testing.T) {
 	})
 	t.Run("it can resolve using did:key", func(t *testing.T) {
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
-		err := instance.Configure(core.ServerConfig{})
+		err := instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
 
 		doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK"), nil)
@@ -523,6 +539,25 @@ func TestModule_Create(t *testing.T) {
 		_, _, err := test.vdr.Create(context.Background(), management.Create(didnuts.MethodName))
 
 		assert.EqualError(t, err, "could not create DID document (method nuts): test")
+	})
+}
+
+func TestModule_Deactivate(t *testing.T) {
+	t.Run("unsupported DID method", func(t *testing.T) {
+		test := newVDRTestCtx(t)
+
+		err := test.vdr.Deactivate(context.Background(), did.MustParseDID("did:example:123"))
+
+		assert.EqualError(t, err, "unsupported DID method: example")
+	})
+	t.Run("manager returns error", func(t *testing.T) {
+		id := did.MustParseDID("did:nuts:123")
+		test := newVDRTestCtx(t)
+		test.mockDocumentManager.EXPECT().Deactivate(gomock.Any(), id).Return(assert.AnError)
+
+		err := test.vdr.Deactivate(context.Background(), id)
+
+		assert.EqualError(t, err, "could not deactivate DID document: "+assert.AnError.Error())
 	})
 }
 

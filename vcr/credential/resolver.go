@@ -38,9 +38,6 @@ func FindValidator(credential vc.VerifiableCredential) Validator {
 				return nutsOrganizationCredentialValidator{}
 			case NutsAuthorizationCredentialType:
 				return nutsAuthorizationCredentialValidator{}
-			case StatusList2021CredentialType:
-				// TODO: is this needed? The only place where should be receiving StatusList2021Credentials is in the StatusList2021 caching layer, where we know what credential we should be receiving.
-				return statusList2021CredentialValidator{}
 			}
 		}
 	}

@@ -320,7 +320,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	did123, _ := did.ParseDID("did:nuts:123")
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(nil)
+		ctx.vdr.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(nil)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -339,7 +339,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrNotFound)
+		ctx.vdr.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrNotFound)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -349,7 +349,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - document already deactivated", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDeactivated)
+		ctx.vdr.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDeactivated)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -359,7 +359,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDIDNotManagedByThisNode)
+		ctx.vdr.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDIDNotManagedByThisNode)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 

@@ -19,6 +19,7 @@
 package auth
 
 import (
+	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"net/url"
@@ -31,12 +32,10 @@ const ModuleName = "Auth"
 type AuthenticationServices interface {
 	// AuthzServer returns the oauth.AuthorizationServer
 	AuthzServer() oauth.AuthorizationServer
-	// Holder returens the oauth.Holder
-	Holder() oauth.Holder
+	// IAMClient returns the IAM Client API
+	IAMClient() iam.Client
 	// RelyingParty returns the oauth.RelyingParty
 	RelyingParty() oauth.RelyingParty
-	// Verifier returns the oauth.Verifier service provider
-	Verifier() oauth.Verifier
 	// ContractNotary returns an instance of ContractNotary
 	ContractNotary() services.ContractNotary
 	// V2APIEnabled returns true if the V2 API is enabled.

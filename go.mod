@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/PaesslerAG/jsonpath v0.1.2-0.20230323094847-3484786d6f97
 	github.com/alicebob/miniredis/v2 v2.31.1
-	github.com/amacneil/dbmate/v2 v2.11.0
+	github.com/amacneil/dbmate/v2 v2.12.0
 	github.com/avast/retry-go/v4 v4.5.1
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.9.5
@@ -13,7 +13,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/goodsign/monday v1.0.2
 	github.com/google/uuid v1.6.0
-	github.com/hashicorp/vault/api v1.11.0
+	github.com/hashicorp/vault/api v1.12.0
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/knadh/koanf v1.5.0
 	github.com/labstack/echo/v4 v4.11.4
@@ -22,8 +22,8 @@ require (
 	github.com/mdp/qrterminal/v3 v3.2.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multicodec v0.9.0
-	github.com/nats-io/nats-server/v2 v2.10.10
-	github.com/nats-io/nats.go v1.32.0
+	github.com/nats-io/nats-server/v2 v2.10.11
+	github.com/nats-io/nats.go v1.33.1
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.12.0
 	github.com/nuts-foundation/go-leia/v4 v4.0.1
@@ -33,7 +33,7 @@ require (
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
 	github.com/privacybydesign/irmago v0.15.1
 	github.com/prometheus/client_golang v1.18.0
-	github.com/prometheus/client_model v0.5.0
+	github.com/prometheus/client_model v0.6.0
 	github.com/redis/go-redis/v9 v9.4.0
 	github.com/santhosh-tekuri/jsonschema v1.2.4
 	github.com/sirupsen/logrus v1.9.3
@@ -47,7 +47,7 @@ require (
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.19.0
 	golang.org/x/time v0.5.0
-	google.golang.org/grpc v1.61.0
+	google.golang.org/grpc v1.61.1
 	google.golang.org/protobuf v1.32.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
@@ -107,7 +107,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/klauspost/compress v1.17.5 // indirect
+	github.com/klauspost/compress v1.17.6 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.2 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
@@ -160,7 +160,7 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yuin/gopher-lua v1.1.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
@@ -171,7 +171,10 @@ require (
 	rsc.io/qr v0.2.0 // indirect
 )
 
-require gorm.io/driver/postgres v1.5.6
+require (
+	gorm.io/driver/mysql v1.5.4
+	gorm.io/driver/postgres v1.5.6
+)
 
 require (
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
@@ -180,6 +183,6 @@ require (
 	github.com/jackc/pgx/v5 v5.4.3 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/microsoft/go-mssqldb v1.6.0 // indirect
-	gorm.io/driver/mysql v1.5.2 // indirect
+	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	gorm.io/driver/sqlserver v1.5.2 // indirect
 )

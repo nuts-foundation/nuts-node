@@ -39,6 +39,9 @@ type DocumentManager interface {
 	DocumentOwner
 	resolver.DIDResolver
 
+	// Deactivate deactivates a DID document, making it unusable for future interactions.
+	Deactivate(ctx context.Context, id did.DID) error
+
 	// CreateService creates a new service in the DID document identified by subjectDID.
 	// If the service DID is not provided, it will be generated.
 	CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error)

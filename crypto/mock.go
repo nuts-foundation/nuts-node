@@ -175,6 +175,20 @@ func (mr *MockKeyStoreMockRecorder) DecryptJWE(ctx, message any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecryptJWE", reflect.TypeOf((*MockKeyStore)(nil).DecryptJWE), ctx, message)
 }
 
+// Delete mocks base method.
+func (m *MockKeyStore) Delete(ctx context.Context, kid string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", ctx, kid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockKeyStoreMockRecorder) Delete(ctx, kid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockKeyStore)(nil).Delete), ctx, kid)
+}
+
 // EncryptJWE mocks base method.
 func (m *MockKeyStore) EncryptJWE(ctx context.Context, payload []byte, headers map[string]any, publicKey any) (string, error) {
 	m.ctrl.T.Helper()

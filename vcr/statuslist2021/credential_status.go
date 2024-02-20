@@ -16,7 +16,7 @@
  *
  */
 
-package verifier
+package statuslist2021
 
 import (
 	"encoding/json"
@@ -27,21 +27,27 @@ import (
 	"strconv"
 	"time"
 
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/credential/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 )
 
-type credentialStatus struct {
-	client          core.HTTPRequestDoer
-	verifySignature func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error // TODO: replace with new SignatureVerifier interface?
+type VerifySignFn func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error // TODO: replace with new SignatureVerifier interface?
+
+func NewCredentialStatus(client core.HTTPRequestDoer, signVerifier VerifySignFn) *CredentialStatus {
+	return &CredentialStatus{
+		client:          client,
+		verifySignature: signVerifier,
+	}
 }
 
-// statusList is an immutable struct containing all information needed to verify a credentialStatus
+type CredentialStatus struct {
+	client          core.HTTPRequestDoer
+	verifySignature VerifySignFn
+}
+
+// statusList is an immutable struct containing all information needed to Verify a credentialStatus
 type statusList struct {
 	// credential is the complete StatusList2021Credential this statusList is about
 	credential *vc.VerifiableCredential
@@ -50,21 +56,21 @@ type statusList struct {
 	statusListCredential string
 	// statusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
 	statusPurpose string
-	// expanded StatusList2021 Bitstring
-	expanded statuslist2021.Bitstring
+	// expanded StatusList2021 bitstring
+	expanded bitstring
 	// lastUpdated is the timestamp this statusList was generated
 	lastUpdated time.Time
 }
 
-// VerifyCredentialStatus returns a types.ErrRevoked when the credentialStatus contains a 'StatusList2021Entry' that can be resolved and lists the credential as 'revoked'
+// Verify CredentialStatus returns a types.ErrRevoked when the credentialStatus contains a 'StatusList2021Entry' that can be resolved and lists the credential as 'revoked'
 // Other credentialStatus type/statusPurpose are ignored. Verification may fail with other non-standardized errors.
-func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) error {
+func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) error {
 	if credentialToVerify.CredentialStatus == nil {
 		return nil
 	}
 	statuses, err := credentialToVerify.CredentialStatuses()
 	if err != nil {
-		// cannot happen. already validated in credential.defaultCredentialValidator{}
+		// cannot happen. already validated in defaultCredentialValidator{}
 		return err
 	}
 
@@ -72,7 +78,7 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 	// returns errors if processing fails -> TODO: hard/soft fail option?
 	// returns types.ErrRevoked if correct type, purpose, and listed.
 	for _, status := range statuses {
-		if status.Type != credential.StatusList2021EntryType {
+		if status.Type != EntryType {
 			// ignore other credentialStatus.type
 			// TODO: what log level?
 			log.Logger().
@@ -80,7 +86,7 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 				Info("ignoring credentialStatus with unknown type")
 			continue
 		}
-		var slEntry credential.StatusList2021Entry // CredentialStatus of the credentialToVerify
+		var slEntry Entry // CredentialStatus of the credentialToVerify
 		if err = json.Unmarshal(status.Raw(), &slEntry); err != nil {
 			// cannot happen. already validated in credential.defaultCredentialValidator{}
 			return err
@@ -109,7 +115,7 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 			// cannot happen. already validated in credential.defaultCredentialValidator{}
 			return err
 		}
-		revoked, err := sList.expanded.Bit(index)
+		revoked, err := sList.expanded.bit(index)
 		if err != nil {
 			return err
 		}
@@ -120,14 +126,14 @@ func (cs *credentialStatus) verify(credentialToVerify vc.VerifiableCredential) e
 	return nil
 }
 
-func (cs *credentialStatus) statusList(statusListCredential string) (*statusList, error) {
+func (cs *CredentialStatus) statusList(statusListCredential string) (*statusList, error) {
 	// TODO: check if there is a cached version to return
 	return cs.update(statusListCredential)
 }
 
 // update
-func (cs *credentialStatus) update(statusListCredential string) (*statusList, error) {
-	// download and verify
+func (cs *CredentialStatus) update(statusListCredential string) (*statusList, error) {
+	// download and Verify
 	cred, err := cs.download(statusListCredential)
 	if err != nil {
 		return nil, err
@@ -138,7 +144,7 @@ func (cs *credentialStatus) update(statusListCredential string) (*statusList, er
 	}
 
 	// make statusList
-	expanded, err := statuslist2021.Expand(credSubject.EncodedList)
+	expanded, err := expand(credSubject.EncodedList)
 	if err != nil {
 		// cant happen, already checked in verifyStatusList2021Credential
 		return nil, err
@@ -156,7 +162,7 @@ func (cs *credentialStatus) update(statusListCredential string) (*statusList, er
 }
 
 // download the StatusList2021Credential found at statusList2021Entry.statusListCredential
-func (cs *credentialStatus) download(statusListCredential string) (*vc.VerifiableCredential, error) {
+func (cs *CredentialStatus) download(statusListCredential string) (*vc.VerifiableCredential, error) {
 	var cred vc.VerifiableCredential // VC containing CredentialStatus of the credentialToVerify
 	req, err := http.NewRequest(http.MethodGet, statusListCredential, nil)
 	if err != nil {
@@ -171,7 +177,7 @@ func (cs *credentialStatus) download(statusListCredential string) (*vc.Verifiabl
 			// log, don't fail
 			log.Logger().
 				WithError(err).
-				WithField("method", "credentialStatus.download").
+				WithField("method", "CredentialStatus.download").
 				Debug("failed to close response body")
 		}
 	}()
@@ -186,14 +192,14 @@ func (cs *credentialStatus) download(statusListCredential string) (*vc.Verifiabl
 }
 
 // verifyStatusList2021Credential checks that the StatusList2021Credential is currently valid
-func (cs *credentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCredential) (*credential.StatusList2021CredentialSubject, error) {
-	// make sure we have the correct credential.
-	if len(cred.Type) > 2 || !cred.IsType(ssi.MustParseURI(credential.StatusList2021CredentialType)) {
+func (cs *CredentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCredential) (*CredentialSubject, error) {
+	// make sure we have the correct credential type.
+	if len(cred.Type) != 2 || !cred.IsType(credentialTypeURI) {
 		return nil, errors.New("incorrect credential types")
 	}
 
-	// returns statusList2021CredentialValidator, or Validate() fails because base type is missing
-	if err := credential.FindValidator(cred).Validate(cred); err != nil {
+	// validate credential.
+	if err := (credentialValidator{}).Validate(cred); err != nil {
 		return nil, err
 	}
 
@@ -203,18 +209,18 @@ func (cs *credentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCre
 	}
 
 	// check credentialSubject
-	var credSubjects []credential.StatusList2021CredentialSubject
+	var credSubjects []CredentialSubject
 	if err := cred.UnmarshalCredentialSubject(&credSubjects); err != nil {
-		// cannot happen. already validated in credential.statusList2021CredentialValidator{}
+		// cannot happen. already validated in credentialValidator{}
 		return nil, err
 	}
 	credSubject := credSubjects[0] // validators already ensured there is exactly 1 credentialSubject
-	_, err := statuslist2021.Expand(credSubject.EncodedList)
+	_, err := expand(credSubject.EncodedList)
 	if err != nil {
 		return nil, fmt.Errorf("credentialSubject.encodedList is invalid: %w", err)
 	}
 
-	// verify signature
+	// Verify signature
 	if err = cs.verifySignature(cred, nil); err != nil {
 		return nil, err
 	}

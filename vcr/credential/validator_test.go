@@ -23,6 +23,8 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +41,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	validator := nutsOrganizationCredentialValidator{}
 
 	t.Run("ok", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 
 		err := validator.Validate(v)
 
@@ -47,7 +49,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing custom type", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		v.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
 
 		err := validator.Validate(v)
@@ -56,7 +58,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing credential subject", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		v.CredentialSubject = []interface{}{}
 
 		err := validator.Validate(v)
@@ -65,7 +67,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing organization", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		v.CredentialSubject = []interface{}{credentialSubject}
@@ -76,7 +78,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing organization name", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
@@ -90,7 +92,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing organization city", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
@@ -104,7 +106,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - empty organization city", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
@@ -119,7 +121,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - empty organization name", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
 		credentialSubject["organization"] = map[string]interface{}{
@@ -134,7 +136,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing credentialSubject.ID", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["organization"] = map[string]interface{}{
 			"name": "Because we care B.V.",
@@ -148,7 +150,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - invalid credentialSubject.ID", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = "invalid"
 		credentialSubject["organization"] = map[string]interface{}{
@@ -163,7 +165,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - invalid ID", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		otherID := vdr.TestDIDB.URI()
 		v.ID = &otherID
 
@@ -174,8 +176,8 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	})
 
 	t.Run("failed - missing nuts context", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
-		v.Context = []ssi.URI{stringToURI("https://www.w3.org/2018/credentials/v1")}
+		v := test.ValidNutsOrganizationCredential(t)
+		v.Context = []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")}
 
 		err := validator.Validate(v)
 
@@ -187,17 +189,16 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	validator := nutsAuthorizationCredentialValidator{}
 
 	t.Run("ok", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
+		v := test.ValidNutsAuthorizationCredential(t)
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("ok - multiple resources", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
-		subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		subject.Resources = []Resource{
+		v := test.ValidNutsAuthorizationCredential(t)
+		v.CredentialSubject[0].(map[string]any)["resources"] = []Resource{
 			{
 				Path:        "/Task/1",
 				UserContext: false,
@@ -213,158 +214,124 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 				Operations: []string{"read", "update"},
 			},
 		}
-		v.CredentialSubject[0] = subject
 
-		err := validator.Validate(*v)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("ok - multiple resources", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
-		subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		subject.Resources = []Resource{
-			{
-				Path:        "/Task/1",
-				UserContext: false,
-				Operations:  []string{"read"},
-			},
-			{
-				Path:        "/Task/2",
-				UserContext: true,
-				Operations:  []string{"read"},
-			},
-			{
-				Path:       "/Task/3",
-				Operations: []string{"read", "update"},
-			},
-		}
-		v.CredentialSubject[0] = subject
-
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("ok - empty resources array", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
-		subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		subject.Resources = []Resource{}
-		v.CredentialSubject[0] = subject
+		v := test.ValidNutsAuthorizationCredential(t)
+		v.CredentialSubject[0].(map[string]any)["resources"] = []Resource{}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("failed - invalid ID", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
+		v := test.ValidNutsAuthorizationCredential(t)
 		otherID := vdr.TestDIDB.URI()
 		v.ID = &otherID
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: credential ID must start with issuer")
 	})
 
 	t.Run("failed - missing Nuts context", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
+		v := test.ValidNutsAuthorizationCredential(t)
 		v.Context = []ssi.URI{vc.VCContextV1URI()}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' is required")
 	})
 
 	t.Run("failed - missing authorization VC type", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
+		v := test.ValidNutsAuthorizationCredential(t)
 		v.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: type 'NutsAuthorizationCredential' is required")
 	})
 
 	t.Run("failed - missing credentialSubject", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
+		v := test.ValidNutsAuthorizationCredential(t)
 		v.CredentialSubject = []interface{}{}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: single CredentialSubject expected")
 	})
 
 	t.Run("failed - missing credentialSubject.ID", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.ID = ""
-		v.CredentialSubject[0] = cs
+		v := test.ValidNutsAuthorizationCredential(t)
+		v.CredentialSubject[0].(map[string]any)["id"] = ""
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.ID' is nil")
 	})
 
 	t.Run("failed - invalid credentialSubject.ID", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.ID = "unknown"
-		v.CredentialSubject[0] = cs
+		v := test.ValidNutsAuthorizationCredential(t)
+		v.CredentialSubject[0].(map[string]any)["id"] = "unknown"
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID")
 	})
 
 	t.Run("failed - missing purposeOfUse", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.PurposeOfUse = ""
-		v.CredentialSubject[0] = cs
+		v := test.ValidNutsAuthorizationCredential(t)
+		v.CredentialSubject[0].(map[string]any)["purposeOfUse"] = ""
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.PurposeOfUse' is nil")
 	})
 
 	t.Run("failed - resources: missing path", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Resources[0].Path = ""
-		v.CredentialSubject[0] = cs
+		v := test.ValidNutsAuthorizationCredential(t)
+		v.CredentialSubject[0].(map[string]any)["resources"] = []Resource{{
+			Operations: []string{"read"},
+		}}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Path' is required'")
 	})
 
 	t.Run("failed - resources: missing operation", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Resources[0].Operations = []string{}
-		v.CredentialSubject[0] = cs
+		v := test.ValidNutsAuthorizationCredential(t)
+		v.CredentialSubject[0].(map[string]any)["resources"] = []Resource{{
+			Path: "/composition/1",
+		}}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' requires at least one value")
 	})
 
 	t.Run("failed - resources: invalid operation", func(t *testing.T) {
-		v := ValidNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Resources[0].Operations = []string{"unknown"}
-		v.CredentialSubject[0] = cs
+		v := test.ValidNutsAuthorizationCredential(t)
+		v.CredentialSubject[0].(map[string]any)["resources"] = []Resource{{
+			Path:       "/composition/1",
+			Operations: []string{"unknown"},
+		}}
 
-		err := validator.Validate(*v)
+		err := validator.Validate(v)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' contains an invalid operation 'unknown'")
@@ -374,7 +341,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 func TestAllFieldsDefinedValidator(t *testing.T) {
 	validator := AllFieldsDefinedValidator{jsonld.NewTestJSONLDManager(t).DocumentLoader()}
 	t.Run("ok", func(t *testing.T) {
-		inputVC := ValidNutsOrganizationCredential(t)
+		inputVC := test.ValidNutsOrganizationCredential(t)
 
 		err := validator.Validate(inputVC)
 
@@ -388,7 +355,7 @@ func TestAllFieldsDefinedValidator(t *testing.T) {
 			"city": "EIbergen",
 		}
 
-		inputVC := ValidNutsOrganizationCredential(t)
+		inputVC := test.ValidNutsOrganizationCredential(t)
 		inputVC.CredentialSubject[0] = invalidCredentialSubject
 
 		err := validator.Validate(inputVC)
@@ -401,14 +368,14 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	validator := defaultCredentialValidator{}
 
 	t.Run("ok - NutsOrganizationCredential", func(t *testing.T) {
-		err := validator.Validate(ValidNutsOrganizationCredential(t))
+		err := validator.Validate(test.ValidNutsOrganizationCredential(t))
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("ok - credential with just ID in credentialSubject", func(t *testing.T) {
 		// compaction replaces credentialSubject map with ID, with just the ID as string
-		credential := *ValidNutsAuthorizationCredential()
+		credential := test.ValidNutsAuthorizationCredential(t)
 		credential.CredentialSubject = []interface{}{
 			map[string]interface{}{
 				"id": "did:nuts:1234",
@@ -421,7 +388,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	})
 
 	t.Run("ok - ValidFrom instead of IssuanceDate", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		v.IssuanceDate, v.ValidFrom = v.ValidFrom, v.IssuanceDate
 
 		err := validator.Validate(v)
@@ -432,7 +399,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	})
 
 	t.Run("ok - unknown credentialStatus.type is ignored", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		v.CredentialStatus = []any{
 			vc.CredentialStatus{
 				ID:   ssi.MustParseURI("test"),
@@ -446,7 +413,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	})
 
 	t.Run("failed - missing ID", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		v.ID = nil
 
 		err := validator.Validate(v)
@@ -455,7 +422,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	})
 
 	t.Run("failed - missing proof", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		v.Proof = nil
 
 		err := validator.Validate(v)
@@ -464,8 +431,8 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	})
 
 	t.Run("failed - missing default context", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
-		v.Context = []ssi.URI{stringToURI(NutsV1Context)}
+		v := test.ValidNutsOrganizationCredential(t)
+		v.Context = []ssi.URI{ssi.MustParseURI(NutsV1Context)}
 
 		err := validator.Validate(v)
 
@@ -473,8 +440,8 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	})
 
 	t.Run("failed - missing default type", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
-		v.Type = []ssi.URI{stringToURI(NutsOrganizationCredentialType)}
+		v := test.ValidNutsOrganizationCredential(t)
+		v.Type = []ssi.URI{ssi.MustParseURI(NutsOrganizationCredentialType)}
 
 		err := validator.Validate(v)
 
@@ -482,7 +449,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	})
 
 	t.Run("failed - issuanceDate and validFrom both missing", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		v.IssuanceDate = nil
 
 		err := validator.Validate(v)
@@ -491,7 +458,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	})
 
 	t.Run("failed - issuanceDate is zero", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		v.IssuanceDate = new(time.Time)
 
 		err := validator.Validate(v)
@@ -500,74 +467,12 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	})
 
 	t.Run("failed - invalid credentialStatus", func(t *testing.T) {
-		v := ValidNutsOrganizationCredential(t)
+		v := test.ValidNutsOrganizationCredential(t)
 		v.CredentialStatus = []any{"{"}
 
 		err := validator.Validate(v)
 
 		assert.EqualError(t, err, "validation failed: invalid credentialStatus: json: cannot unmarshal string into Go value of type vc.CredentialStatus")
-	})
-}
-
-func TestStatusList2021CredentialValidator_Validate(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.NoError(t, err)
-	})
-	t.Run("error - wraps defaultCredentialValidator", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.Context = []ssi.URI{statusList2021CredentialTypeURI}
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "validation failed: default context is required")
-	})
-	t.Run("error - missing status list context", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.Context = []ssi.URI{vc.VCContextV1URI()}
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "validation failed: context 'https://w3id.org/vc/status-list/2021/v1' is required")
-	})
-	t.Run("error - missing StatusList credential type", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "validation failed: type 'StatusList2021Credential' is required")
-	})
-	t.Run("error - invalid credential subject", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject = []any{"{"}
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "validation failed: json: cannot unmarshal string into Go value of type credential.StatusList2021CredentialSubject")
-	})
-	t.Run("error - wrong credential subject", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject = []any{NutsAuthorizationCredentialSubject{}}
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "validation failed: credentialSubject.type 'StatusList2021' is required")
-	})
-	t.Run("error - multiple credentialSubject", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject = []any{StatusList2021CredentialSubject{}, StatusList2021CredentialSubject{}}
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "validation failed: single CredentialSubject expected")
-	})
-	t.Run("error - missing credentialSubject.type", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(*StatusList2021CredentialSubject).Type = ""
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "validation failed: credentialSubject.type 'StatusList2021' is required")
-	})
-	t.Run("error - missing statusPurpose", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(*StatusList2021CredentialSubject).StatusPurpose = ""
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "validation failed: credentialSubject.statusPurpose is required")
-	})
-	t.Run("error - missing encodedList", func(t *testing.T) {
-		cred := ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(*StatusList2021CredentialSubject).EncodedList = ""
-		err := statusList2021CredentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "validation failed: credentialSubject.encodedList is required")
 	})
 }
 
@@ -591,13 +496,13 @@ func Test_validateCredentialStatus(t *testing.T) {
 		assert.EqualError(t, err, "credentialStatus.type is required")
 	})
 
-	t.Run(StatusList2021EntryType, func(t *testing.T) {
+	t.Run(statuslist2021.EntryType, func(t *testing.T) {
 		makeValidCSEntry := func() vc.VerifiableCredential {
 			return vc.VerifiableCredential{
-				Context: []ssi.URI{statusList2021ContextURI},
-				CredentialStatus: []any{&StatusList2021Entry{
+				Context: []ssi.URI{ssi.MustParseURI(jsonld.W3cStatusList2021Context)},
+				CredentialStatus: []any{&statuslist2021.Entry{
 					ID:                   "https://example-com/credentials/status/3#94567",
-					Type:                 StatusList2021EntryType,
+					Type:                 statuslist2021.EntryType,
 					StatusPurpose:        "revocation",
 					StatusListIndex:      "94567",
 					StatusListCredential: "https://example-com/credentials/status/3",
@@ -621,31 +526,31 @@ func Test_validateCredentialStatus(t *testing.T) {
 		})
 		t.Run("error - id == statusListCredential", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*StatusList2021Entry).ID = cred.CredentialStatus[0].(*StatusList2021Entry).StatusListCredential
+			cred.CredentialStatus[0].(*statuslist2021.Entry).ID = cred.CredentialStatus[0].(*statuslist2021.Entry).StatusListCredential
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "StatusList2021Entry.id is the same as the StatusList2021Entry.statusListCredential")
 		})
 		t.Run("error - missing statusPurpose", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*StatusList2021Entry).StatusPurpose = ""
+			cred.CredentialStatus[0].(*statuslist2021.Entry).StatusPurpose = ""
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "StatusList2021Entry.statusPurpose is required")
 		})
 		t.Run("error - statusListIndex is negative", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*StatusList2021Entry).StatusListIndex = "-1"
+			cred.CredentialStatus[0].(*statuslist2021.Entry).StatusListIndex = "-1"
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "invalid StatusList2021Entry.statusListIndex")
 		})
 		t.Run("error - statusListIndex is not a number", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*StatusList2021Entry).StatusListIndex = "one"
+			cred.CredentialStatus[0].(*statuslist2021.Entry).StatusListIndex = "one"
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "invalid StatusList2021Entry.statusListIndex")
 		})
 		t.Run("error - statusListCredential is not a valid URL", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*StatusList2021Entry).StatusListCredential = "not a URL"
+			cred.CredentialStatus[0].(*statuslist2021.Entry).StatusListCredential = "not a URL"
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "parse StatusList2021Entry.statusListCredential URL: parse \"not a URL\": invalid URI for request")
 		})

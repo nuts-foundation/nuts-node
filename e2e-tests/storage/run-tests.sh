@@ -10,13 +10,6 @@ pushd redis
 popd
 
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-echo "!! Running test: Postgres         !!"
-echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-pushd postgres
-./run-test.sh
-popd
-
-echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 echo "!! Running test: Backup/Restore   !!"
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 pushd backup-restore
