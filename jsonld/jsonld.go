@@ -20,7 +20,6 @@ package jsonld
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -65,23 +64,8 @@ func (j *jsonld) Config() interface{} {
 }
 
 // AllFieldsDefined tests whether all fields are defined in the JSON-LD context(s) of the input.
-// input can be JSON in []byte or string format, or will be Marshaled into JSON.
-func AllFieldsDefined(DocumentLoader ld.DocumentLoader, input any) error {
-	var inputAsJSON []byte
-	switch v := input.(type) {
-	case []byte:
-		inputAsJSON = v
-	case string:
-		inputAsJSON = []byte(v)
-	default:
-		var err error
-		inputAsJSON, err = json.Marshal(input)
-		if err != nil {
-			return err
-		}
-	}
-
-	document, err := ld.DocumentFromReader(bytes.NewReader(inputAsJSON))
+func AllFieldsDefined(DocumentLoader ld.DocumentLoader, inputJSON []byte) error {
+	document, err := ld.DocumentFromReader(bytes.NewReader(inputJSON))
 	if err != nil {
 		return err
 	}

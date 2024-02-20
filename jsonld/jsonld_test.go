@@ -19,6 +19,7 @@
 package jsonld
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -66,13 +67,10 @@ func TestNewJSONLDInstance(t *testing.T) {
 
 func TestAllFieldsDefined(t *testing.T) {
 	documentLoader := NewTestJSONLDManager(t).DocumentLoader()
-	t.Run("ok - object", func(t *testing.T) {
-		assert.NoError(t, AllFieldsDefined(documentLoader, TestVC()))
+	t.Run("ok - vc", func(t *testing.T) {
+		assert.NoError(t, AllFieldsDefined(documentLoader, []byte(TestOrganizationCredential)))
 	})
-	t.Run("ok - string", func(t *testing.T) {
-		assert.NoError(t, AllFieldsDefined(documentLoader, TestOrganizationCredential))
-	})
-	t.Run("ok - bytes", func(t *testing.T) {
+	t.Run("ok - vp", func(t *testing.T) {
 		assert.NoError(t, AllFieldsDefined(documentLoader, []byte(testVP)))
 	})
 	t.Run("failed - invalid fields", func(t *testing.T) {
@@ -85,8 +83,10 @@ func TestAllFieldsDefined(t *testing.T) {
 
 		inputVC := testOrganizationCredential()
 		inputVC.CredentialSubject[0] = invalidCredentialSubject
+		// inputVC.raw is only set during unmarshal, so we need to set
+		vcBytes, _ := json.Marshal(inputVC)
 
-		err := AllFieldsDefined(documentLoader, inputVC)
+		err := AllFieldsDefined(documentLoader, vcBytes)
 
 		assert.EqualError(t, err, "jsonld: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 	})
