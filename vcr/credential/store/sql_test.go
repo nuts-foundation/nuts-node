@@ -70,6 +70,20 @@ func TestCredentialStore_Store(t *testing.T) {
 		_, err := CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcOrganization)
 		assert.NoError(t, err)
 	})
+	t.Run("duplicate credential.ID", func(t *testing.T) {
+		vcEve := createPersonCredential("66", "did:example:eve", map[string]interface{}{
+			"givenName":  "Evil",
+			"familyName": "Mastermind",
+		})
+		vcEve2 := createPersonCredential("66", "did:example:eve", map[string]interface{}{
+			"givenName":  "Eviler",
+			"familyName": "Mastermind",
+		})
+		_, err := CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcEve)
+		assert.NoError(t, err)
+		_, err = CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcEve2)
+		assert.Error(t, err)
+	})
 	t.Run("with indexable properties in credential", func(t *testing.T) {
 
 		var actual []CredentialPropertyRecord
