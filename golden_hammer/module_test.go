@@ -105,6 +105,19 @@ func TestGoldenHammer_Fix(t *testing.T) {
 	openid4vci.SetTLSIdentifierResolverPort(t, serverPort)
 	defer tlsServer.Close()
 
+	t.Run("DID methods other than did:nuts are ignored", func(t *testing.T) {
+		ctx := newMockContext(t)
+		otherDID := did.MustParseDID("did:example:123")
+		ctx.vdr.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{otherDID}, nil)
+		service := ctx.hammer
+		service.tlsConfig = tlsServer.TLS
+		service.tlsConfig.InsecureSkipVerify = true
+		service.tlsConfig.Certificates = []tls.Certificate{pki.Certificate()}
+
+		err := service.registerServiceBaseURLs()
+
+		assert.NoError(t, err)
+	})
 	t.Run("nothing to fix", func(t *testing.T) {
 		// vendor and care organization DIDs already have the required service, so there's nothing to fix
 		ctx := newMockContext(t)
