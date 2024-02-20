@@ -210,7 +210,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-	c.issuerStore, err = issuer.NewLeiaIssuerStore(issuerStorePath, issuerBackupStore)
+	c.issuerStore, err = issuer.NewStore(c.storageClient.GetSQLDatabase(), issuerStorePath, issuerBackupStore)
 	if err != nil {
 		return err
 	}

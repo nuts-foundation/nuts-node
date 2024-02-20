@@ -23,10 +23,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"gorm.io/gorm"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -463,4 +466,81 @@ func (i issuer) StatusList(ctx context.Context, issuerDID did.DID, page int) (*v
 	// TODO: cache result
 
 	return statusListCredential, nil
+}
+
+func NewStore(db *gorm.DB, leiaIssuerStorePath string, leiaIssuerBackupStore stoabs.KVStore) (Store, error) {
+	didNutsStore, err := NewLeiaIssuerStore(leiaIssuerStorePath, leiaIssuerBackupStore)
+	if err != nil {
+		return nil, err
+	}
+	return &combinedStore{
+		didNutsStore:   didNutsStore,
+		otherDIDsStore: sqlStore{db: db},
+	}, nil
+}
+
+var _ Store = &combinedStore{}
+
+type combinedStore struct {
+	didNutsStore   Store
+	otherDIDsStore Store
+}
+
+func (c combinedStore) Diagnostics() []core.DiagnosticResult {
+	var result []core.DiagnosticResult
+	issuedCredentialCount := 0
+	// both stores return issued_credentials_count, merge them
+	// Not the nicest way, but the did:nuts store will be removed in the future.
+	for _, store := range []Store{c.didNutsStore, c.otherDIDsStore} {
+		currResult := store.Diagnostics()
+		for _, diagnosticResult := range currResult {
+			if diagnosticResult.Name() == "issued_credentials_count" {
+				issuedCredentialCount += diagnosticResult.Result().(int)
+			} else {
+				result = append(result, diagnosticResult)
+			}
+		}
+	}
+	result = append(result, core.GenericDiagnosticResult{
+		Title:   "issued_credentials_count",
+		Outcome: issuedCredentialCount,
+	})
+	return result
+}
+
+func (c combinedStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) {
+	if strings.HasPrefix(id.String(), "did:nuts:") {
+		return c.didNutsStore.GetCredential(id)
+	}
+	return c.otherDIDsStore.GetCredential(id)
+}
+
+func (c combinedStore) StoreCredential(vc vc.VerifiableCredential) error {
+	if strings.HasPrefix(vc.Issuer.String(), "did:nuts:") {
+		return c.didNutsStore.StoreCredential(vc)
+	}
+	return c.otherDIDsStore.StoreCredential(vc)
+}
+
+func (c combinedStore) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+	if strings.HasPrefix(id.String(), "did:nuts:") {
+		return c.didNutsStore.GetRevocation(id)
+	}
+	return c.otherDIDsStore.GetRevocation(id)
+}
+
+func (c combinedStore) StoreRevocation(r credential.Revocation) error {
+	return c.didNutsStore.StoreRevocation(r)
+}
+
+func (c combinedStore) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
+	if strings.HasPrefix(issuer.String(), "did:nuts:") {
+		return c.didNutsStore.SearchCredential(credentialType, issuer, subject)
+	}
+	return c.otherDIDsStore.SearchCredential(credentialType, issuer, subject)
+}
+
+func (c combinedStore) Close() error {
+	// did:web SQL store does not need closing
+	return c.didNutsStore.Close()
 }
