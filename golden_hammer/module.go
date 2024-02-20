@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"sort"
@@ -187,6 +188,10 @@ func (h *GoldenHammer) listDocumentToFix() ([]did.Document, error) {
 	}
 	var documents []did.Document
 	for _, id := range dids {
+		if id.Method != didnuts.MethodName {
+			// Not a Nuts DID, skip
+			continue
+		}
 		if h.fixedDocumentDIDs[id.String()] {
 			// Already fixed
 			continue
