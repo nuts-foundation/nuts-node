@@ -243,7 +243,7 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 	stmt = store.CredentialStore{}.BuildSearchStatement(stmt, "discovery_credential.credential_id", query)
 
 	var matches []presentationRecord
-	if err := stmt.Preload("Credentials").Preload("Credential").Find(&matches).Error; err != nil {
+	if err := stmt.Preload("Credentials").Preload("Credentials.Credential").Find(&matches).Error; err != nil {
 		return nil, err
 	}
 	var results []vc.VerifiablePresentation
