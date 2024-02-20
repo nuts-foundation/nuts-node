@@ -155,36 +155,15 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 			return err
 		}
 
-		newPresentation, err := createPresentationRecord(serviceID, newTimestamp, presentation)
-		if err != nil {
-			return err
-		}
-		credentialStore := store.CredentialStore{}
-		for _, verifiableCredential := range presentation.VerifiableCredential {
-			cred, err := credentialStore.Store(tx, verifiableCredential)
-			if err != nil {
-				return err
-			}
-			newPresentation.Credentials = append(newPresentation.Credentials, credentialRecord{
-				ID:             uuid.NewString(),
-				PresentationID: newPresentation.ID,
-				CredentialID:   cred.ID,
-			})
-		}
-
-		return tx.Create(&newPresentation).Error
+		return storePresentation(tx, serviceID, newTimestamp, presentation)
 	})
 }
 
-// createPresentationRecord creates a presentationRecord from a VerifiablePresentation.
-// It creates the following types:
-// - presentationRecord
-// - presentationRecord.Credentials with credentialRecords of the credentials in the presentation
-// - presentationRecord.Credentials.Properties of the credentialSubject properties of the credential (for s
-func createPresentationRecord(serviceID string, timestamp *Timestamp, presentation vc.VerifiablePresentation) (*presentationRecord, error) {
+// storePresentation creates a presentationRecord from a VerifiablePresentation and stores it, with its credentials, in the database.
+func storePresentation(tx *gorm.DB, serviceID string, timestamp *Timestamp, presentation vc.VerifiablePresentation) error {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	newPresentation := presentationRecord{
@@ -198,7 +177,21 @@ func createPresentationRecord(serviceID string, timestamp *Timestamp, presentati
 	if timestamp != nil {
 		newPresentation.LamportTimestamp = uint64(*timestamp)
 	}
-	return &newPresentation, nil
+
+	credentialStore := store.CredentialStore{}
+	for _, verifiableCredential := range presentation.VerifiableCredential {
+		cred, err := credentialStore.Store(tx, verifiableCredential)
+		if err != nil {
+			return err
+		}
+		newPresentation.Credentials = append(newPresentation.Credentials, credentialRecord{
+			ID:             uuid.NewString(),
+			PresentationID: newPresentation.ID,
+			CredentialID:   cred.ID,
+		})
+	}
+
+	return tx.Create(&newPresentation).Error
 }
 
 // get returns all presentations, registered on the given service, starting after the given tag.
@@ -250,7 +243,7 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 	stmt = store.CredentialStore{}.BuildSearchStatement(stmt, "discovery_credential.credential_id", query)
 
 	var matches []presentationRecord
-	if err := stmt.Preload("Credentials").Preload("Credentials.Credential").Find(&matches).Error; err != nil {
+	if err := stmt.Preload("Credentials").Preload("Credential").Find(&matches).Error; err != nil {
 		return nil, err
 	}
 	var results []vc.VerifiablePresentation

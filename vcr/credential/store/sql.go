@@ -19,6 +19,7 @@
 package store
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
 	"gorm.io/gorm"
@@ -87,7 +88,17 @@ func (c CredentialStore) Store(db *gorm.DB, credential vc.VerifiableCredential) 
 		}
 	}
 	// Create key-value properties of the credential subject, which is then stored in the property table for searching.
-	paths, values := indexJSONObject(credential.CredentialSubject[0].(map[string]interface{}), nil, nil, "credentialSubject")
+	if len(credential.CredentialSubject) != 1 {
+		return nil, fmt.Errorf("expected exactly one credential subject, got %d", len(credential.CredentialSubject))
+	}
+	credentialSubjectJSON, err := json.Marshal(credential.CredentialSubject[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal credential subject: %w", err)
+	}
+	var credentialSubject map[string]interface{}
+	_ = json.Unmarshal(credentialSubjectJSON, &credentialSubject) // if we marshalled it, we can unmarshal into a map
+	// now index it
+	paths, values := indexJSONObject(credentialSubject, nil, nil, "credentialSubject")
 	for i, path := range paths {
 		if path == "credentialSubject.id" {
 			// present as column, don't index
@@ -100,7 +111,16 @@ func (c CredentialStore) Store(db *gorm.DB, credential vc.VerifiableCredential) 
 		})
 	}
 
-	return &newCredential, db.FirstOrCreate(&newCredential, CredentialRecord{ID: newCredential.ID}).Error
+	var existingCredential *CredentialRecord
+	if err := db.Where(CredentialRecord{ID: newCredential.ID}).
+		Attrs(newCredential).
+		FirstOrCreate(&existingCredential).Error; err != nil {
+		return nil, err
+	}
+	if existingCredential.Raw != newCredential.Raw {
+		return nil, fmt.Errorf("credential with this ID already exists with different contents: %s", newCredential.ID)
+	}
+	return &newCredential, nil
 }
 
 // BuildSearchStatement enriches a Gorm query to search for Verifiable Credentials in the SQL database.

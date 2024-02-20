@@ -19,10 +19,12 @@
 package store
 
 import (
+	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -58,6 +60,7 @@ func init() {
 }
 
 func TestCredentialStore_Store(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 	t.Cleanup(func() {
@@ -71,6 +74,7 @@ func TestCredentialStore_Store(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("duplicate credential.ID", func(t *testing.T) {
+		setupStore(t, storageEngine.GetSQLDatabase())
 		vcEve := createPersonCredential("66", "did:example:eve", map[string]interface{}{
 			"givenName":  "Evil",
 			"familyName": "Mastermind",
@@ -80,14 +84,18 @@ func TestCredentialStore_Store(t *testing.T) {
 			"familyName": "Mastermind",
 		})
 		_, err := CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcEve)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		_, err = CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcEve2)
-		assert.Error(t, err)
+		require.EqualError(t, err, "credential with this ID already exists with different contents: 66")
 	})
 	t.Run("with indexable properties in credential", func(t *testing.T) {
-
+		setupStore(t, storageEngine.GetSQLDatabase())
+		_, err := CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcAlice)
+		require.NoError(t, err)
 		var actual []CredentialPropertyRecord
+
 		assert.NoError(t, db.Find(&actual).Error)
+
 		require.Len(t, actual, 2)
 		assert.Equal(t, "Alice", sliceToMap(actual)["credentialSubject.person.givenName"])
 		assert.Equal(t, "Jones", sliceToMap(actual)["credentialSubject.person.familyName"])
@@ -323,7 +331,7 @@ func setupStore(t *testing.T, db *gorm.DB) {
 
 func createPersonCredential(id string, subjectID string, properties map[string]interface{}) vc.VerifiableCredential {
 	parsedID := ssi.MustParseURI(id)
-	return vc.VerifiableCredential{
+	cred := vc.VerifiableCredential{
 		ID:     &parsedID,
 		Issuer: personIssuer,
 		Type:   []ssi.URI{ssi.MustParseURI("PersonCredential")},
@@ -334,4 +342,7 @@ func createPersonCredential(id string, subjectID string, properties map[string]i
 			},
 		},
 	}
+	data, _ := cred.MarshalJSON()
+	_ = json.Unmarshal(data, &cred)
+	return cred
 }
