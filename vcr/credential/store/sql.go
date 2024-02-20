@@ -48,7 +48,7 @@ func (p CredentialRecord) TableName() string {
 
 // CredentialPropertyRecord is a property of a Verifiable Credential stored in the SQL database.
 type CredentialPropertyRecord struct {
-	// CredentialID refers to the entry record in discovery_credential
+	// CredentialID refers to the entry record in credential
 	CredentialID string `gorm:"primaryKey"`
 	// Path is JSON path of the property.
 	Path string `gorm:"primaryKey"`
