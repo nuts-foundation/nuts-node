@@ -40,8 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
-var timeFunc = time.Now
-
 const (
 	maxSkew = 5 * time.Second
 )

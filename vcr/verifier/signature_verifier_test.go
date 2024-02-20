@@ -56,14 +56,6 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 	var pk = new(ecdsa.PublicKey)
 	pke.JWK().Raw(pk)
 
-	now := time.Now()
-	timeFunc = func() time.Time {
-		return now
-	}
-	defer func() {
-		timeFunc = time.Now
-	}()
-
 	t.Run("JSON-LD", func(t *testing.T) {
 		sv, mockKeyResolver := signatureVerifierTestSetup(t)
 		mockKeyResolver.EXPECT().ResolveKeyByID(testKID, gomock.Any(), resolver.NutsSigningKeyType).Return(pk, nil)

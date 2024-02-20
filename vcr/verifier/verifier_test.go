@@ -58,14 +58,6 @@ func testCredential(t *testing.T) vc.VerifiableCredential {
 func TestVerifier_Verify(t *testing.T) {
 	const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
 
-	now := time.Now()
-	timeFunc = func() time.Time {
-		return now
-	}
-	defer func() {
-		timeFunc = time.Now
-	}()
-
 	t.Run("error - unknown credential", func(t *testing.T) {
 		t.Skip("unknown types are ok")
 		ctx := newMockContext(t)
