@@ -127,11 +127,82 @@ const TestCredential = `
 }
 `
 
+const testVP = `{
+  "@context": [
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json",
+    "https://nuts.nl/credentials/v1",
+    "https://www.w3.org/2018/credentials/v1"
+  ],
+  "proof": {
+    "challenge": "EN:PractitionerLogin:v3 I hereby declare to act on behalf of CareBears located in Caretown. This declaration is valid from Wednesday, 19 April 2023 12:20:00 until Thursday, 20 April 2023 13:20:00.",
+    "created": "2023-04-20T09:53:03Z",
+    "expires": "2023-04-24T09:53:03Z",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6ImRpZDpudXRzOjhOWXpmc25kWkpIaDZHcXpLaVNCcHlFUnJGeHVYNjR6NnRFNXJhYTduRWptI2JZY3VldDZFSG9qTWxhTXF3Tm9DM2M2ZXRLbFVIb0o5clJ2VXUzWktFRXcifQ..IqGTyxmKgQ2HQ6RuYSn2B0sFh-okj8aEYC1VGTtlm1eiLBVr2wnnp1fX9oifhWHocuEKURkuSubENeW-Z3nMHQ",
+    "proofPurpose": "assertionMethod",
+    "type": "JsonWebSignature2020",
+    "verificationMethod": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw"
+  },
+  "type": [
+    "VerifiablePresentation",
+    "NutsSelfSignedPresentation"
+  ],
+  "verifiableCredential": [
+    {
+      "@context": [
+        "https://nuts.nl/credentials/v1",
+        "https://www.w3.org/2018/credentials/v1",
+        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+      ],
+      "credentialSubject": [
+        {
+          "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
+          "member": {
+            "identifier": "user@example.com",
+            "member": {
+              "familyName": "Tester",
+              "initials": "T",
+              "type": "Person"
+            },
+            "roleName": "Verpleegkundige niveau 2",
+            "type": "EmployeeRole"
+          },
+          "type": "Organization"
+        }
+      ],
+      "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#dde77e76-7e3c-483f-a813-2b851a6a969c",
+      "issuanceDate": "2023-04-20T08:52:45.941461+02:00",
+      "issuer": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
+      "proof": {
+        "created": "2023-04-20T09:53:03Z",
+        "expires": "2023-04-24T09:53:03Z",
+        "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6ImRpZDpudXRzOjhOWXpmc25kWkpIaDZHcXpLaVNCcHlFUnJGeHVYNjR6NnRFNXJhYTduRWptI2JZY3VldDZFSG9qTWxhTXF3Tm9DM2M2ZXRLbFVIb0o5clJ2VXUzWktFRXcifQ..VhEbDoth8GrAni_LhZm-12VnlJToAbX0FDg1Rf7u7qIy3W54IcxAxkZP28YxGG681WpufwPeqHrtnYLsW8Fh7w",
+        "proofPurpose": "assertionMethod",
+        "type": "JsonWebSignature2020",
+        "verificationMethod": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw"
+      },
+      "type": [
+        "NutsEmployeeCredential",
+        "VerifiableCredential"
+      ]
+    }
+  ]
+}
+`
+
 // TestVC returns an instance of the TestCredential
 func TestVC() vc.VerifiableCredential {
 	credential := vc.VerifiableCredential{}
 
 	json.Unmarshal([]byte(TestCredential), &credential)
+
+	return credential
+}
+
+// testOrganizationCredential returns an instance of the TestOrganizationCredential
+func testOrganizationCredential() vc.VerifiableCredential {
+	credential := vc.VerifiableCredential{}
+
+	json.Unmarshal([]byte(TestOrganizationCredential), &credential)
 
 	return credential
 }

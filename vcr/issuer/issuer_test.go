@@ -549,7 +549,7 @@ func Test_issuer_Issue(t *testing.T) {
 				Publish: true,
 				Public:  true,
 			})
-			assert.EqualError(t, err, "validation failed: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
+			assert.EqualError(t, err, "jsonld: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 			assert.Nil(t, result)
 		})
 	})

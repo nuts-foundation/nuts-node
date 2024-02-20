@@ -19,9 +19,11 @@
 package jsonld
 
 import (
+	"encoding/json"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestNewJSONLDInstance(t *testing.T) {
@@ -61,4 +63,32 @@ func TestNewJSONLDInstance(t *testing.T) {
 		})
 
 	})
+}
+
+func TestAllFieldsDefined(t *testing.T) {
+	documentLoader := NewTestJSONLDManager(t).DocumentLoader()
+	t.Run("ok - vc", func(t *testing.T) {
+		assert.NoError(t, AllFieldsDefined(documentLoader, []byte(TestOrganizationCredential)))
+	})
+	t.Run("ok - vp", func(t *testing.T) {
+		assert.NoError(t, AllFieldsDefined(documentLoader, []byte(testVP)))
+	})
+	t.Run("failed - invalid fields", func(t *testing.T) {
+		var invalidCredentialSubject = make(map[string]interface{})
+		invalidCredentialSubject["id"] = "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+		invalidCredentialSubject["organizationButIncorrectFieldName"] = map[string]interface{}{
+			"name": "Because we care B.V.",
+			"city": "EIbergen",
+		}
+
+		inputVC := testOrganizationCredential()
+		inputVC.CredentialSubject[0] = invalidCredentialSubject
+		// inputVC.raw is only set during unmarshal, so we need to set
+		vcBytes, _ := json.Marshal(inputVC)
+
+		err := AllFieldsDefined(documentLoader, vcBytes)
+
+		assert.EqualError(t, err, "jsonld: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
+	})
+
 }
