@@ -169,7 +169,6 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 				ID:             uuid.NewString(),
 				PresentationID: newPresentation.ID,
 				CredentialID:   cred.ID,
-				Credential:     *cred,
 			})
 		}
 
