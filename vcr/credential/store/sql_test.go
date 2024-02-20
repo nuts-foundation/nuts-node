@@ -22,6 +22,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -31,6 +32,7 @@ import (
 
 var vcAlice vc.VerifiableCredential
 var vcBob vc.VerifiableCredential
+var vcOrganization vc.VerifiableCredential
 var personIssuer = ssi.MustParseURI("https://example.com/mayor")
 var organizationIssuer = ssi.MustParseURI("https://example.com/chamber-of-commerce")
 
@@ -39,32 +41,16 @@ func init() {
 		"givenName":  "Alice",
 		"familyName": "Jones",
 	})
-	vcBob = createPersonCredential("1", "did:example:bob", map[string]interface{}{
+	vcBob = createPersonCredential("2", "did:example:bob", map[string]interface{}{
 		"givenName":  "Bob",
 		"familyName": "Jomper",
 	})
-	vcBob = vc.VerifiableCredential{
-		Issuer: personIssuer,
-		Type:   []ssi.URI{ssi.MustParseURI("PersonCredential")},
-		CredentialSubject: []interface{}{
-			map[string]interface{}{
-				"id": "did:example:bob",
-				"person": map[string]interface{}{
-					"givenName":  "Bob",
-					"familyName": "Jomper",
-				},
-			},
-		},
-	}
-	vcBob.ID, _ = ssi.ParseURI("2")
-	vcOrganization := vc.VerifiableCredential{
+	vcOrganization = vc.VerifiableCredential{
 		Issuer: organizationIssuer,
 		CredentialSubject: []interface{}{
-			map[string]interface{}{
-				"id": "did:example:org",
-				"organization": map[string]interface{}{
-					"name": "Example Corp",
-				},
+			credential.NutsOrganizationCredentialSubject{
+				ID:           "did:example:org",
+				Organization: map[string]string{"name": "Example Corp"},
 			},
 		},
 	}
@@ -79,10 +65,12 @@ func TestCredentialStore_Store(t *testing.T) {
 	})
 	db := storageEngine.GetSQLDatabase()
 
-	t.Run("with indexable properties in credential", func(t *testing.T) {
+	t.Run("ok - CredentialSubject struct", func(t *testing.T) {
 		setupStore(t, storageEngine.GetSQLDatabase())
-		_, err := CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcAlice)
+		_, err := CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcOrganization)
 		assert.NoError(t, err)
+	})
+	t.Run("with indexable properties in credential", func(t *testing.T) {
 
 		var actual []CredentialPropertyRecord
 		assert.NoError(t, db.Find(&actual).Error)
