@@ -21,13 +21,13 @@ package storage
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )

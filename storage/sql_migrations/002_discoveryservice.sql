@@ -38,30 +38,12 @@ create table discovery_credential
     -- presentation_id is NOT the ID of the presentation (VerifiablePresentation.ID), but refers to the presentation record in the discovery_presentation table.
     presentation_id       varchar(36)  not null,
     credential_id         varchar(500) not null,
-    credential_issuer     varchar(500) not null,
-    credential_subject_id varchar(500) not null,
-    -- for now, credentials with at most 2 types are supported.
-    -- The type stored in the type column will be the 'other' type, not being 'VerifiableCredential'.
-    -- When credentials with 3 or more types appear, we could have to use a separate table for the types.
-    credential_type       varchar(100),
-    constraint fk_discovery_credential_presentation foreign key (presentation_id) references discovery_presentation (id) on delete cascade
-);
-
--- discovery_credential_prop contains the credentialSubject properties of a credential in a presentation of the discovery service.
--- It is used by clients to search for presentations.
-create table discovery_credential_prop
-(
-    credential_id varchar(36)  not null,
-    path           varchar(100) not null,
-    value         varchar(500),
-    PRIMARY KEY (credential_id, path),
-    -- cascading delete: if the presentation gets deleted, the properties get deleted as well
-    constraint fk_discovery_credential_id foreign key (credential_id) references discovery_credential (id) on delete cascade
+    constraint fk_discovery_credential_presentation foreign key (presentation_id) references discovery_presentation (id) on delete cascade,
+    constraint fk_discovery_credential foreign key (credential_id) references credential (id)
 );
 
 -- migrate:down
 drop table discovery_service;
 drop table discovery_presentation;
 drop table discovery_credential;
-drop table discovery_credential_prop;
 

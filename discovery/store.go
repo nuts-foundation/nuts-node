@@ -22,9 +22,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vcr/credential/store"
 	"math/rand"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -75,33 +74,12 @@ type credentialRecord struct {
 	PresentationID string
 	// CredentialID contains the 'id' property of the Verifiable Credential.
 	CredentialID string
-	// CredentialIssuer contains the 'issuer' property of the Verifiable Credential.
-	CredentialIssuer string
-	// CredentialSubjectID contains the 'credentialSubject.id' property of the Verifiable Credential.
-	CredentialSubjectID string
-	// CredentialType contains the 'type' property of the Verifiable Credential (not being 'VerifiableCredential').
-	CredentialType *string
-	Properties     []credentialPropertyRecord `gorm:"foreignKey:CredentialID;references:ID"`
+	Credential   store.CredentialRecord `gorm:"foreignKey:CredentialID;references:ID"`
 }
 
 // TableName returns the table name for this DTO.
 func (p credentialRecord) TableName() string {
 	return "discovery_credential"
-}
-
-// credentialPropertyRecord is a property of a Verifiable Credential in a Verifiable Presentation in a discovery service.
-type credentialPropertyRecord struct {
-	// CredentialID refers to the entry record in discovery_credential
-	CredentialID string `gorm:"primaryKey"`
-	// Path is JSON path of the property.
-	Path string `gorm:"primaryKey"`
-	// Value is the value of the property.
-	Value string
-}
-
-// TableName returns the table name for this DTO.
-func (l credentialPropertyRecord) TableName() string {
-	return "discovery_credential_prop"
 }
 
 // presentationRefreshRecord is a tab-keeping record for clients to keep track of which DIDs should be registered on which Discovery Services.
@@ -177,24 +155,15 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 			return err
 		}
 
-		newPresentation, err := createPresentationRecord(serviceID, newTimestamp, presentation)
-		if err != nil {
-			return err
-		}
-
-		return tx.Create(&newPresentation).Error
+		return storePresentation(tx, serviceID, newTimestamp, presentation)
 	})
 }
 
-// createPresentationRecord creates a presentationRecord from a VerifiablePresentation.
-// It creates the following types:
-// - presentationRecord
-// - presentationRecord.Credentials with credentialRecords of the credentials in the presentation
-// - presentationRecord.Credentials.Properties of the credentialSubject properties of the credential (for s
-func createPresentationRecord(serviceID string, timestamp *Timestamp, presentation vc.VerifiablePresentation) (*presentationRecord, error) {
+// storePresentation creates a presentationRecord from a VerifiablePresentation and stores it, with its credentials, in the database.
+func storePresentation(tx *gorm.DB, serviceID string, timestamp *Timestamp, presentation vc.VerifiablePresentation) error {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	newPresentation := presentationRecord{
@@ -209,43 +178,20 @@ func createPresentationRecord(serviceID string, timestamp *Timestamp, presentati
 		newPresentation.LamportTimestamp = uint64(*timestamp)
 	}
 
-	for _, currCred := range presentation.VerifiableCredential {
-		var credentialType *string
-		for _, currType := range currCred.Type {
-			if currType.String() != "VerifiableCredential" {
-				credentialType = new(string)
-				*credentialType = currType.String()
-				break
-			}
+	credentialStore := store.CredentialStore{}
+	for _, verifiableCredential := range presentation.VerifiableCredential {
+		cred, err := credentialStore.Store(tx, verifiableCredential)
+		if err != nil {
+			return err
 		}
-		if len(currCred.CredentialSubject) != 1 {
-			return nil, errors.New("credential must contain exactly one subject")
-		}
-
-		newCredential := credentialRecord{
-			ID:                  uuid.NewString(),
-			PresentationID:      newPresentation.ID,
-			CredentialID:        currCred.ID.String(),
-			CredentialIssuer:    currCred.Issuer.String(),
-			CredentialSubjectID: credentialSubjectID.String(),
-			CredentialType:      credentialType,
-		}
-		// Create key-value properties of the credential subject, which is then stored in the property table for searching.
-		paths, values := indexJSONObject(currCred.CredentialSubject[0].(map[string]interface{}), nil, nil, "credentialSubject")
-		for i, path := range paths {
-			if path == "credentialSubject.id" {
-				// present as column, don't index
-				continue
-			}
-			newCredential.Properties = append(newCredential.Properties, credentialPropertyRecord{
-				CredentialID: newCredential.ID,
-				Path:         path,
-				Value:        values[i],
-			})
-		}
-		newPresentation.Credentials = append(newPresentation.Credentials, newCredential)
+		newPresentation.Credentials = append(newPresentation.Credentials, credentialRecord{
+			ID:             uuid.NewString(),
+			PresentationID: newPresentation.ID,
+			CredentialID:   cred.ID,
+		})
 	}
-	return &newPresentation, nil
+
+	return tx.Create(&newPresentation).Error
 }
 
 // get returns all presentations, registered on the given service, starting after the given tag.
@@ -291,45 +237,13 @@ func (s *sqlStore) get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation,
 // Wildcard matching is supported by prefixing or suffixing the value with an asterisk (*).
 // It returns the presentations which contain credentials that match the given query.
 func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error) {
-	propertyColumns := map[string]string{
-		"id":                   "cred.credential_id",
-		"issuer":               "cred.credential_issuer",
-		"type":                 "cred.credential_type",
-		"credentialSubject.id": "cred.credential_subject_id",
-	}
-
 	stmt := s.db.Model(&presentationRecord{}).
 		Where("service_id = ?", serviceID).
-		Joins("inner join discovery_credential cred ON cred.presentation_id = discovery_presentation.id")
-	numProps := 0
-	for jsonPath, value := range query {
-		if value == "*" {
-			continue
-		}
-		// sort out wildcard mode: prefix and postfix asterisks (*) are replaced with %, which then is used in a LIKE query.
-		// Otherwise, exact match (=) is used.
-		var eq = "="
-		if strings.HasPrefix(value, "*") {
-			value = "%" + value[1:]
-			eq = "LIKE"
-		}
-		if strings.HasSuffix(value, "*") {
-			value = value[:len(value)-1] + "%"
-			eq = "LIKE"
-		}
-		if column := propertyColumns[jsonPath]; column != "" {
-			stmt = stmt.Where(column+" "+eq+" ?", value)
-		} else {
-			// This property is not present as column, but indexed as key-value property.
-			// Multiple (inner) joins to filter on a dynamic number of properties to filter on is not pretty, but it works
-			alias := "p" + strconv.Itoa(numProps)
-			numProps++
-			stmt = stmt.Joins("inner join discovery_credential_prop "+alias+" ON "+alias+".credential_id = cred.id AND "+alias+".path = ? AND "+alias+".value "+eq+" ?", jsonPath, value)
-		}
-	}
+		Joins("inner join discovery_credential ON discovery_credential.presentation_id = discovery_presentation.id")
+	stmt = store.CredentialStore{}.BuildSearchStatement(stmt, "discovery_credential.credential_id", query)
 
 	var matches []presentationRecord
-	if err := stmt.Find(&matches).Error; err != nil {
+	if err := stmt.Preload("Credentials").Preload("Credentials.Credential").Find(&matches).Error; err != nil {
 		return nil, err
 	}
 	var results []vc.VerifiablePresentation
@@ -475,29 +389,6 @@ func (s *sqlStore) getTag(serviceID string) (Tag, error) {
 		return "", nil
 	}
 	return service.LastTag, nil
-}
-
-// indexJSONObject indexes a JSON object, resulting in a slice of JSON paths and corresponding string values.
-// It only traverses JSON objects and only adds string values to the result.
-func indexJSONObject(target map[string]interface{}, jsonPaths []string, stringValues []string, currentPath string) ([]string, []string) {
-	for path, value := range target {
-		thisPath := currentPath
-		if len(thisPath) > 0 {
-			thisPath += "."
-		}
-		thisPath += path
-
-		switch typedValue := value.(type) {
-		case string:
-			jsonPaths = append(jsonPaths, thisPath)
-			stringValues = append(stringValues, typedValue)
-		case map[string]interface{}:
-			jsonPaths, stringValues = indexJSONObject(typedValue, jsonPaths, stringValues, thisPath)
-		default:
-			// other values (arrays, booleans, numbers, null) are not indexed
-		}
-	}
-	return jsonPaths, stringValues
 }
 
 // generatePrefix generates a random seed for a service, consisting of 5 uppercase letters.
