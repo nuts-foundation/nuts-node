@@ -9,7 +9,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	http2 "github.com/nuts-foundation/nuts-node/http"
@@ -58,7 +58,7 @@ func (r Wrapper) StartOid4vciIssuance(ctx context.Context, request StartOid4vciI
 		return nil, core.NotFoundError("did not found: %w", err)
 	}
 
-	metadata, err := r.iamClient().OpenIdCredentialIssuerMetadata(ctx, *issuerDid)
+	metadata, err := r.auth.MitzXNutsIAMClient().OpenIdCredentialIssuerMetadata(ctx, *issuerDid)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (r Wrapper) StartOid4vciIssuance(ctx context.Context, request StartOid4vciI
 		if err != nil {
 			return nil, err
 		}
-		metadataFromUrl, err := r.iamClient().OpenIdConfiguration(ctx, *serverURL)
+		metadataFromUrl, err := r.auth.MitzXNutsIAMClient().OpenIdConfiguration(ctx, *serverURL)
 		if err != nil {
 			return nil, err
 		}
@@ -279,7 +279,12 @@ func (r Wrapper) getPresentationDefinition(requestToken jwt.Token) (*Presentatio
 			if err != nil {
 				return nil, err
 			}
-			defer resp.Body.Close()
+			defer func(Body io.ReadCloser) {
+				err := Body.Close()
+				if err != nil {
+					log.Logger().WithError(err).Warn("Trouble closing reader")
+				}
+			}(resp.Body)
 
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
@@ -317,7 +322,7 @@ func (r Wrapper) CallbackOid4vciIssuance(ctx context.Context, request CallbackOi
 
 	issuerDid, err := did.ParseDID(oid4vciSession.IssuerDid)
 	holderDid, err := did.ParseDID(oid4vciSession.HolderDid)
-	metadata, err := r.iamClient().OpenIdCredentialIssuerMetadata(ctx, *issuerDid)
+	metadata, err := r.auth.MitzXNutsIAMClient().OpenIdCredentialIssuerMetadata(ctx, *issuerDid)
 	if len(metadata.AuthorizationServers) == 0 {
 		return nil, core.NotFoundError("cannot locate any authorization endpoint in %s", issuerDid.String())
 	}
@@ -326,13 +331,13 @@ func (r Wrapper) CallbackOid4vciIssuance(ctx context.Context, request CallbackOi
 		if err != nil {
 			return nil, err
 		}
-		metadataFromUrl, err := r.iamClient().OpenIdConfiguration(ctx, *serverURL)
+		metadataFromUrl, err := r.auth.MitzXNutsIAMClient().OpenIdConfiguration(ctx, *serverURL)
 		if err != nil {
 			return nil, err
 		}
 
 		tokenEndpoint := metadataFromUrl.TokenEndpoint
-		response, err := r.iamClient().AccessTokenOid4vci(ctx, holderDid.String(), tokenEndpoint, oid4vciSession.RedirectUri, code, &pkceParams.Verifier)
+		response, err := r.auth.MitzXNutsIAMClient().AccessTokenOid4vci(ctx, holderDid.String(), tokenEndpoint, oid4vciSession.RedirectUri, code, &pkceParams.Verifier)
 		println(response.AccessToken)
 
 		proofJwt, err := r.proofJwt(ctx, *holderDid, *issuerDid, nil)
@@ -340,7 +345,7 @@ func (r Wrapper) CallbackOid4vciIssuance(ctx context.Context, request CallbackOi
 			return nil, err
 		}
 
-		credentials, err := r.iamClient().VerifiableCredentials(ctx, metadata.CredentialEndpoint, response.AccessToken, proofJwt)
+		credentials, err := r.auth.MitzXNutsIAMClient().VerifiableCredentials(ctx, metadata.CredentialEndpoint, response.AccessToken, proofJwt)
 		if err != nil {
 			return nil, err
 		}
@@ -452,10 +457,6 @@ func (r Wrapper) DeleteWalletCredential(ctx context.Context, request DeleteWalle
 		}
 	}
 	return nil, nil
-}
-
-func (r Wrapper) iamClient() iam.HTTPClient {
-	return iam.NewHTTPClient(r.strictMode, r.httpClientTimeout, r.httpClientTLS)
 }
 
 func (r Wrapper) getSessionStore(keys ...string) storage.SessionStore {

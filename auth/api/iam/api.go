@@ -65,16 +65,13 @@ var assets embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	vcr               vcr.VCR
-	vdr               vdr.VDR
-	auth              auth.AuthenticationServices
-	policyBackend     policy.PDPBackend
-	templates         *template.Template
-	storageEngine     storage.Engine
-	strictMode        bool
-	httpClientTimeout time.Duration
-	httpClientTLS     *tls.Config
-	keyStore          crypto.KeyStore
+	vcr           vcr.VCR
+	vdr           vdr.VDR
+	auth          auth.AuthenticationServices
+	policyBackend policy.PDPBackend
+	templates     *template.Template
+	storageEngine storage.Engine
+	keyStore      crypto.KeyStore
 }
 
 func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend, keyStore crypto.KeyStore) *Wrapper {

@@ -87,20 +87,8 @@ func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, webDID 
 	return &metadata, nil
 }
 
-func (hb HTTPClient) AccessTokenOid4vci(ctx context.Context, clientId string, tokenEndpoint string, redirectUri string, code string, pkceCodeVerifier *string) (*oauth.Oid4vciTokenResponse, error) {
-	presentationDefinitionURL, err := url.Parse(tokenEndpoint)
-	if err != nil {
-		return nil, err
-	}
+func (hb HTTPClient) AccessTokenOid4vci(ctx context.Context, presentationDefinitionURL url.URL, data url.Values) (*oauth.Oid4vciTokenResponse, error) {
 	// create a POST request with x-www-form-urlencoded body
-	data := url.Values{}
-	data.Set("client_id", clientId)
-	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
-	data.Set(oauth.CodeParam, code)
-	data.Set("redirect_uri", redirectUri)
-	if pkceCodeVerifier != nil {
-		data.Set("code_verifier", *pkceCodeVerifier)
-	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, presentationDefinitionURL.String(), strings.NewReader(data.Encode()))
 	request.Header.Add("Accept", "application/json")
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -184,7 +172,12 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 	if err != nil {
 		return nil, fmt.Errorf("failed to call endpoint: %w", err)
 	}
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Logger().WithError(err).Warn("Trouble closing reader")
+		}
+	}(response.Body)
 	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	}

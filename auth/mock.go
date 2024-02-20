@@ -84,6 +84,20 @@ func (mr *MockAuthenticationServicesMockRecorder) IAMClient() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IAMClient", reflect.TypeOf((*MockAuthenticationServices)(nil).IAMClient))
 }
 
+// MitzXNutsIAMClient mocks base method.
+func (m *MockAuthenticationServices) MitzXNutsIAMClient() iam.MitzXNutsClient {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MitzXNutsIAMClient")
+	ret0, _ := ret[0].(iam.MitzXNutsClient)
+	return ret0
+}
+
+// MitzXNutsIAMClient indicates an expected call of MitzXNutsIAMClient.
+func (mr *MockAuthenticationServicesMockRecorder) MitzXNutsIAMClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MitzXNutsIAMClient", reflect.TypeOf((*MockAuthenticationServices)(nil).MitzXNutsIAMClient))
+}
+
 // PublicURL mocks base method.
 func (m *MockAuthenticationServices) PublicURL() *url.URL {
 	m.ctrl.T.Helper()

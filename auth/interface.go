@@ -43,4 +43,6 @@ type AuthenticationServices interface {
 	V2APIEnabled() bool
 	// PublicURL returns the public URL of the node.
 	PublicURL() *url.URL
+	// MitzXNutsIAMClient returns the Mitz X Nuts IAM Client API
+	MitzXNutsIAMClient() iam.MitzXNutsClient
 }
