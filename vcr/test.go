@@ -45,6 +45,7 @@ type TestVCRContext struct {
 	KeyStore    crypto.KeyStore
 	KeyResolver resolver.KeyResolver
 	VCR         VCR
+	Storage     storage.Engine
 }
 
 func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
@@ -82,6 +83,7 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 		t.Fatal(err)
 	}
 	ctx.VCR = newInstance
+	ctx.Storage = storageEngine
 
 	return ctx
 }

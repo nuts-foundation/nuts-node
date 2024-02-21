@@ -27,10 +27,8 @@ import (
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	bbolt2 "github.com/nuts-foundation/go-stoabs/bbolt"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -406,116 +404,6 @@ func TestVcr_Untrusted(t *testing.T) {
 			mockDidResolver.EXPECT().Resolve(did.MustParseDID(testCredential.Issuer.String()), nil).Return(nil, nil, resolver.ErrNoActiveController)
 			return instance.Untrusted(issuer)
 		}, 0)
-	})
-}
-
-func TestVcr_Migrate(t *testing.T) {
-	const authCred = `
-{
-    "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://nuts.nl/credentials/v1",
-        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-    ],
-    "credentialSubject": {
-        "id": "did:nuts:owned"
-    },
-    "id": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0",
-    "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",
-    "type": [
-        "NutsAuthorizationCredential",
-        "VerifiableCredential"
-    ]
-}`
-	const ownedNutsOrgCred = `
-{
-    "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://nuts.nl/credentials/v1",
-        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-    ],
-    "credentialSubject": {
-        "id": "did:nuts:owned"
-    },
-    "id": "owned",
-    "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",
-    "type": [
-        "NutsOrganizationCredential",
-        "VerifiableCredential"
-    ]
-}`
-	const otherNutsOrgCred = `
-{
-    "@context": [
-        "https://www.w3.org/2018/credentials/v1",
-        "https://nuts.nl/credentials/v1",
-        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-    ],
-    "credentialSubject": {
-        "id": "did:nuts:foo"
-    },
-    "id": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#2",
-    "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",
-    "type": [
-        "NutsOrganizationCredential",
-        "VerifiableCredential"
-    ]
-}`
-	const invalidCred = `{"id": "1", "issuer": false}`
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := audit.TestContext()
-		ctrl := gomock.NewController(t)
-		instance := NewTestVCRInstance(t)
-		mockVDR := vdr.NewMockVDR(ctrl)
-		ownedDID := did.MustParseDID("did:nuts:owned")
-		mockVDR.EXPECT().IsOwner(gomock.Any(), ownedDID).Return(true, nil)
-		mockVDR.EXPECT().IsOwner(gomock.Any(), did.MustParseDID("did:nuts:foo")).Return(false, nil)
-		instance.vdrInstance = mockVDR
-
-		// 3 credentials: 1 owned NutsAuthorizationCredential that must be ignored, 1 non-owned credential and finally 1 credential that should end up in the wallet
-		require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(authCred)}))
-		require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(ownedNutsOrgCred)}))
-		require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(otherNutsOrgCred)}))
-		// Wallet should be empty beforehand
-		list, err := instance.wallet.List(ctx, ownedDID)
-		require.NoError(t, err)
-		require.Empty(t, list)
-		require.NoError(t, err)
-
-		err = instance.Migrate()
-		require.NoError(t, err)
-
-		// Check if the owned credential is now in the wallet
-		list, err = instance.wallet.List(ctx, ownedDID)
-		require.NoError(t, err)
-		require.Len(t, list, 1)
-		assert.Equal(t, "owned", list[0].ID.String())
-	})
-	t.Run("invalid credential in store (unmarshal error)", func(t *testing.T) {
-		instance := NewTestVCRInstance(t)
-		require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(invalidCred)}))
-
-		err := instance.Migrate()
-		require.EqualError(t, err, "unable to unmarshal credential (leia key=fc69766520403a8f007e428b0c268da0ce2379a9): json: cannot unmarshal bool into Go struct field Alias.issuer of type string")
-	})
-	t.Run("no need to migrate", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		instance := NewTestVCRInstance(t)
-		wallet := holder.NewMockWallet(ctrl)
-		instance.wallet = wallet
-		wallet.EXPECT().IsEmpty().Times(2).
-			Return(true, nil). // before migration
-			Return(false, nil) // after migration
-		require.NoError(t, instance.credentialCollection().Add([]leia.Document{[]byte(ownedNutsOrgCred)}))
-
-		// First time, migration should happen since the wallet is empty
-		err := instance.Migrate()
-		require.NoError(t, err)
-
-		// Second time, migration should happen since the wallet is empty
-		err = instance.Migrate()
-		require.NoError(t, err)
 	})
 }
 

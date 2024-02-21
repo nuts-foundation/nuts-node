@@ -59,8 +59,6 @@ import (
 
 const credentialsBackupShelf = "credentials"
 
-var _ core.Migratable = (*vcr)(nil)
-
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(keyStore crypto.KeyStore, vdrInstance vdr.VDR,
 	network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine,
@@ -146,41 +144,6 @@ func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (stri
 		}
 	}
 	return identifier, nil
-}
-
-func (c *vcr) Migrate() error {
-	walletIsEmpty, err := c.wallet.IsEmpty()
-	if err != nil {
-		return fmt.Errorf("unable to check if wallet is empty: %w", err)
-	}
-	if !walletIsEmpty {
-		// Nothing to do
-		return nil
-	}
-	log.Logger().Info("Migrating credentials to wallet...")
-	var credentials []vc.VerifiableCredential
-	startTime := time.Now()
-	defer func() {
-		log.Logger().Infof("Copied %d credentials into wallet in %s", len(credentials), time.Now().Sub(startTime))
-	}()
-	err = c.credentialCollection().Iterate(leia.Query{}, func(key leia.Reference, value []byte) error {
-		var cred vc.VerifiableCredential
-		if err := json.Unmarshal(value, &cred); err != nil {
-			return fmt.Errorf("unable to unmarshal credential (leia key=%s): %w", key.EncodeToString(), err)
-		}
-		putInWallet, err := c.canWalletHoldCredential(cred)
-		if err != nil {
-			return err
-		}
-		if putInWallet {
-			credentials = append(credentials, cred)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return c.wallet.Put(context.TODO(), credentials...)
 }
 
 func (c *vcr) Issuer() issuer.Issuer {
@@ -275,11 +238,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
 	// Create holder/wallet
-	c.walletStore, err = c.storageClient.GetProvider(ModuleName).GetKVStore("wallet", storage.PersistentStorageClass)
-	if err != nil {
-		return err
-	}
-	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager, c.walletStore)
+	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager, c.storageClient)
 
 	if err = c.store.HandleRestore(); err != nil {
 		return err

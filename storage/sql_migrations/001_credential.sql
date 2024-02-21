@@ -8,7 +8,7 @@ create table credential
     -- for now, credentials with at most 2 types are supported.
     -- The type stored in the type column will be the 'other' type, not being 'VerifiableCredential'.
     -- When credentials with 3 or more types appear, we could have to use a separate table for the types.
-    type       varchar(100)
+    type varchar(100)
 );
 
 -- credential_prop contains the credentialSubject properties of a credential.
