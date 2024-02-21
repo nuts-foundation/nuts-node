@@ -304,6 +304,9 @@ func (s walletStore) count() (int64, error) {
 func (s walletStore) list(holderDID did.DID) ([]vc.VerifiableCredential, error) {
 	var records []walletRecord
 	err := s.db.Model(walletRecord{}).Preload("Credential").Where("holder_did = ?", holderDID.String()).Find(&records).Error
+	if err != nil {
+		return nil, err
+	}
 	var results []vc.VerifiableCredential
 	for _, record := range records {
 		verifiableCredential, err := vc.ParseVerifiableCredential(record.Credential.Raw)
@@ -312,7 +315,7 @@ func (s walletStore) list(holderDID did.DID) ([]vc.VerifiableCredential, error) 
 		}
 		results = append(results, *verifiableCredential)
 	}
-	return results, err
+	return results, nil
 }
 
 func (s walletStore) put(credentials ...vc.VerifiableCredential) error {

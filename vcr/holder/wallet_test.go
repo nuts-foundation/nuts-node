@@ -577,8 +577,11 @@ func Test_wallet_IsEmpty(t *testing.T) {
 
 func resetStore(t *testing.T, db *gorm.DB) {
 	// for range delete form
-	tableNames := []string{"wallet_credential", "credential", "credential_prop"}
+	tableNames := []string{"wallet_credential", "credential", "credential_prop", "vdr_didweb"}
 	for _, tableName := range tableNames {
 		require.NoError(t, db.Exec("DELETE FROM "+tableName).Error)
 	}
+	storage.AddDIDtoSQLDB(t, db, did.MustParseDID("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey"))
+	storage.AddDIDtoSQLDB(t, db, did.MustParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW"))
+	storage.AddDIDtoSQLDB(t, db, did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"))
 }
