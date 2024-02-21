@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"io"
 	"net/http"
 	"strconv"
@@ -45,6 +46,7 @@ func NewCredentialStatus(client core.HTTPRequestDoer, signVerifier VerifySignFn)
 type CredentialStatus struct {
 	client          core.HTTPRequestDoer
 	verifySignature VerifySignFn
+	jsonldManager   jsonld.JSONLD
 }
 
 // statusList is an immutable struct containing all information needed to Verify a credentialStatus
@@ -138,7 +140,7 @@ func (cs *CredentialStatus) update(statusListCredential string) (*statusList, er
 	if err != nil {
 		return nil, err
 	}
-	credSubject, err := cs.verifyStatusList2021Credential(*cred)
+	credSubject, err := cs.verify(*cred)
 	if err != nil {
 		return nil, err
 	}
@@ -191,32 +193,16 @@ func (cs *CredentialStatus) download(statusListCredential string) (*vc.Verifiabl
 	return &cred, nil
 }
 
-// verifyStatusList2021Credential checks that the StatusList2021Credential is currently valid
-func (cs *CredentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCredential) (*CredentialSubject, error) {
-	// make sure we have the correct credential type.
-	if len(cred.Type) != 2 || !cred.IsType(credentialTypeURI) {
-		return nil, errors.New("incorrect credential types")
-	}
-
-	// validate credential.
-	if err := (credentialValidator{}).Validate(cred); err != nil {
-		return nil, err
-	}
-
-	// prevent an infinite loops in credentialStatus resolution; not that this is not prohibited by the spec
-	if cred.CredentialStatus != nil {
-		return nil, errors.New("StatusList2021Credential with a CredentialStatus is not supported")
-	}
-
-	// check credentialSubject
-	var credSubjects []CredentialSubject
-	if err := cred.UnmarshalCredentialSubject(&credSubjects); err != nil {
-		// cannot happen. already validated in credentialValidator{}
-		return nil, err
-	}
-	credSubject := credSubjects[0] // validators already ensured there is exactly 1 credentialSubject
-	_, err := expand(credSubject.EncodedList)
+// verify returns the StatusList2021Credential's CredentialSubject,
+// or an error if the signature is invalid or the credential does not meet the spec.
+func (cs *CredentialStatus) verify(cred vc.VerifiableCredential) (*CredentialSubject, error) {
+	// confirm contents match spec
+	credSubj, err := cs.validate(cred)
 	if err != nil {
+		return nil, err
+	}
+
+	if _, err = expand(credSubj.EncodedList); err != nil {
 		return nil, fmt.Errorf("credentialSubject.encodedList is invalid: %w", err)
 	}
 
@@ -224,5 +210,85 @@ func (cs *CredentialStatus) verifyStatusList2021Credential(cred vc.VerifiableCre
 	if err = cs.verifySignature(cred, nil); err != nil {
 		return nil, err
 	}
-	return &credSubject, nil
+
+	return credSubj, nil
+}
+func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialSubject, error) {
+	// TODO: replace with json schema validator
+	{ // Credential checks
+		// all fields in the credential must be defined by the contexts
+		// TODO: this makes testing a lot harder, and the errors aren't useful. Maybe check for presence of contexts again.
+		//credJSON, err := json.Marshal(cred)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//if err = jsonld.AllFieldsDefined(cs.jsonldManager.DocumentLoader(), credJSON); err != nil {
+		//	return nil, err
+		//}
+		// context
+		if !cred.ContainsContext(vc.VCContextV1URI()) {
+			return nil, errors.New("default context is required")
+		}
+		if !cred.ContainsContext(ContextURI) {
+			return nil, errors.New("context 'https://w3id.org/vc/status-list/2021/v1' is required")
+		}
+
+		// type
+		if !cred.IsType(vc.VerifiableCredentialTypeV1URI()) { // same type for vc v2 spec
+			return nil, errors.New("type 'VerifiableCredential' is required")
+		}
+		if !cred.IsType(credentialTypeURI) {
+			return nil, fmt.Errorf("type '%s' is required", credentialTypeURI)
+		}
+		if len(cred.Type) > 2 {
+			return nil, errors.New("StatusList2021Credential contains other types")
+		}
+
+		// id
+		if cred.ID == nil {
+			return nil, errors.New("'ID' is required")
+		}
+
+		// 'issuanceDate' must be present, but can be zero if replaced by alias 'validFrom'
+		if (cred.IssuanceDate == nil || cred.IssuanceDate.IsZero()) &&
+			(cred.ValidFrom == nil || cred.ValidFrom.IsZero()) {
+			return nil, errors.New("'issuanceDate' or 'validFrom' is required")
+		}
+
+		if cred.Format() == vc.JSONLDCredentialProofFormat && cred.Proof == nil {
+			return nil, errors.New("'proof' is required for JSON-LD credentials")
+		}
+
+		// prevent an infinite loops in credentialStatus resolution; note that this is not prohibited by the spec
+		if cred.CredentialStatus != nil {
+			return nil, errors.New("StatusList2021Credential with a CredentialStatus is not supported")
+		}
+	}
+
+	var credentialSubject CredentialSubject
+	{ // CredentialSubject checks
+		var target []CredentialSubject
+		err := cred.UnmarshalCredentialSubject(&target)
+		if err != nil {
+			return nil, err
+		}
+		// The spec is not clear if there could be multiple CredentialSubjects. This could allow 'revocation' and 'suspension' to be defined in a single credential.
+		// However, it is not defined how to select the correct list (StatusPurpose) when validating credentials that are using this StatusList2021Credential.
+		if len(target) != 1 {
+			return nil, errors.New("single CredentialSubject expected")
+		}
+		credentialSubject = target[0]
+
+		if credentialSubject.Type != CredentialSubjectType {
+			return nil, fmt.Errorf("credentialSubject.type '%s' is required", CredentialSubjectType)
+		}
+		if credentialSubject.StatusPurpose == "" {
+			return nil, errors.New("credentialSubject.statusPurpose is required")
+		}
+		if credentialSubject.EncodedList == "" {
+			return nil, errors.New("credentialSubject.encodedList is required")
+		}
+	}
+
+	return &credentialSubject, nil
 }

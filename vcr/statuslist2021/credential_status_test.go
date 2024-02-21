@@ -21,6 +21,7 @@ package statuslist2021
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -34,7 +35,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCredentialStatus_verify(t *testing.T) {
+func TestCredentialStatus_Verify(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cs, entry, _ := testSetup(t, false)
 		cred := test.ValidNutsOrganizationCredential(t)
@@ -140,7 +141,7 @@ func TestCredentialStatus_update(t *testing.T) {
 		assert.EqualError(t, err, "parse \"%%\": invalid URL escape \"%%\"")
 		assert.Nil(t, sl)
 	})
-	t.Run("error - verifyStatusList2021Credential", func(t *testing.T) {
+	t.Run("error - verify", func(t *testing.T) {
 		cs, _, ts := testSetup(t, false)
 		cs.verifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return errors.New("custom error") }
 
@@ -205,7 +206,7 @@ func TestCredentialStatus_download(t *testing.T) {
 	})
 }
 
-func TestCredentialStatus_verifyStatusList2021Credential(t *testing.T) {
+func TestCredentialStatus_verify(t *testing.T) {
 	credentialStatusNoSignCheck := &CredentialStatus{
 		client: nil,
 		verifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
@@ -216,44 +217,24 @@ func TestCredentialStatus_verifyStatusList2021Credential(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
 		expectedBs, err := json.Marshal(cred.CredentialSubject[0])
 		require.NoError(t, err)
-		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
+		credSubj, err := credentialStatusNoSignCheck.verify(cred)
 		assert.NoError(t, err)
 		require.NotNil(t, credSubj)
 		credSubjBs, err := json.Marshal(credSubj)
 		assert.NoError(t, err)
 		assert.JSONEq(t, string(expectedBs), string(credSubjBs))
 	})
-	t.Run("error - incorrect credential type", func(t *testing.T) {
-		cred := test.ValidNutsOrganizationCredential(t)
-		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
-		assert.EqualError(t, err, "incorrect credential types")
-		assert.Nil(t, credSubj)
-	})
-	t.Run("error - too many credential types", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.Type = append(cred.Type, ssi.MustParseURI("OneTooMany"))
-		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
-		assert.EqualError(t, err, "incorrect credential types")
-		assert.Nil(t, credSubj)
-	})
 	t.Run("error - credential validation failed", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
 		cred.CredentialSubject[0].(map[string]any)["type"] = "wrong type"
-		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
+		credSubj, err := credentialStatusNoSignCheck.verify(cred)
 		assert.EqualError(t, err, "credentialSubject.type 'StatusList2021' is required")
-		assert.Nil(t, credSubj)
-	})
-	t.Run("error - contains CredentialStatus", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialStatus = []any{}
-		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
-		assert.EqualError(t, err, "StatusList2021Credential with a CredentialStatus is not supported")
 		assert.Nil(t, credSubj)
 	})
 	t.Run("error - invalid credentialSubject.encodedList", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
 		cred.CredentialSubject[0].(map[string]any)["encodedList"] = "@"
-		credSubj, err := credentialStatusNoSignCheck.verifyStatusList2021Credential(cred)
+		credSubj, err := credentialStatusNoSignCheck.verify(cred)
 
 		assert.EqualError(t, err, "credentialSubject.encodedList is invalid: illegal base64 data at input byte 0")
 		assert.Nil(t, credSubj)
@@ -263,9 +244,128 @@ func TestCredentialStatus_verifyStatusList2021Credential(t *testing.T) {
 		cs := CredentialStatus{verifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 			return errors.New("invalid signature")
 		}}
-		credSubj, err := cs.verifyStatusList2021Credential(cred)
+		credSubj, err := cs.verify(cred)
 		assert.EqualError(t, err, "invalid signature")
 		assert.Nil(t, credSubj)
+	})
+}
+
+func TestCredentialStatus_validate(t *testing.T) {
+	cs := CredentialStatus{
+		verifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error { return nil },
+		jsonldManager:   jsonld.NewTestJSONLDManager(t),
+	}
+
+	// Credential checks
+	t.Run("ok", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		_, err := cs.validate(cred)
+		assert.NoError(t, err)
+	})
+	t.Run("error - missing credential/v1 context", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.Context = []ssi.URI{credentialTypeURI}
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "default context is required")
+	})
+	t.Run("error - missing status list context", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.Context = []ssi.URI{vc.VCContextV1URI()}
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "context 'https://w3id.org/vc/status-list/2021/v1' is required")
+	})
+	t.Run("error - missing VerifiableCredential type", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.Type = []ssi.URI{credentialTypeURI}
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "type 'VerifiableCredential' is required")
+	})
+	t.Run("error - missing StatusList2021Credential type", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "type 'StatusList2021Credential' is required")
+	})
+	t.Run("error - too many credential types", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.Type = append(cred.Type, ssi.MustParseURI("OneTooMany"))
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "StatusList2021Credential contains other types")
+	})
+	t.Run("error - missing ID", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.ID = nil
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "'ID' is required")
+	})
+	t.Run("issuance date", func(t *testing.T) {
+		t.Run("ok - issuance date", func(t *testing.T) {
+			cred := test.ValidStatusList2021Credential(t)
+			cred.IssuanceDate = cred.ValidFrom // default uses validFrom
+			cred.ValidFrom = nil
+			_, err := cs.validate(cred)
+			assert.NoError(t, err)
+		})
+		t.Run("error - missing", func(t *testing.T) {
+			cred := test.ValidStatusList2021Credential(t)
+			cred.IssuanceDate = &time.Time{}
+			cred.ValidFrom = nil
+			_, err := cs.validate(cred)
+			assert.EqualError(t, err, "'issuanceDate' or 'validFrom' is required")
+		})
+	})
+	t.Run("error - jsonld without proof", func(t *testing.T) {
+		// Marshal and Unmarshal so the vc.format field is set.
+		credJSON, _ := json.Marshal(test.ValidStatusList2021Credential(t))
+		var cred vc.VerifiableCredential
+		_ = json.Unmarshal(credJSON, &cred)
+		cred.Proof = nil
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "'proof' is required for JSON-LD credentials")
+	})
+	t.Run("error - contains CredentialStatus", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.CredentialStatus = []any{}
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "StatusList2021Credential with a CredentialStatus is not supported")
+	})
+
+	// CredentialSubject checks
+	t.Run("error - invalid credential subject", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.CredentialSubject = []any{"{"}
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "json: cannot unmarshal string into Go value of type statuslist2021.CredentialSubject")
+	})
+	t.Run("error - wrong credential subject", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.CredentialSubject = []any{struct{}{}}
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "credentialSubject.type 'StatusList2021' is required")
+	})
+	t.Run("error - multiple credentialSubject", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.CredentialSubject = []any{CredentialSubject{}, CredentialSubject{}}
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "single CredentialSubject expected")
+	})
+	t.Run("error - missing credentialSubject.type", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.CredentialSubject[0].(map[string]any)["type"] = ""
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "credentialSubject.type 'StatusList2021' is required")
+	})
+	t.Run("error - missing statusPurpose", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.CredentialSubject[0].(map[string]any)["statusPurpose"] = ""
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "credentialSubject.statusPurpose is required")
+	})
+	t.Run("error - missing encodedList", func(t *testing.T) {
+		cred := test.ValidStatusList2021Credential(t)
+		cred.CredentialSubject[0].(map[string]any)["encodedList"] = ""
+		_, err := cs.validate(cred)
+		assert.EqualError(t, err, "credentialSubject.encodedList is required")
 	})
 }
 

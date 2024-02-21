@@ -19,71 +19,58 @@
 package statuslist2021
 
 import (
-	"github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestStatusList2021CredentialValidator_Validate(t *testing.T) {
+func TestEntry_Validate(t *testing.T) {
+	makeValidCSEntry := func() Entry {
+		return Entry{
+			ID:                   "https://example-com/credentials/status/3#94567",
+			Type:                 "StatusList2021Entry",
+			StatusPurpose:        "revocation",
+			StatusListIndex:      "94567",
+			StatusListCredential: "https://example-com/credentials/status/3",
+		}
+	}
+
 	t.Run("ok", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		err := credentialValidator{}.Validate(cred)
-		assert.NoError(t, err)
+		assert.NoError(t, makeValidCSEntry().Validate())
 	})
-	t.Run("error - wraps defaultCredentialValidator", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.Context = []ssi.URI{credentialTypeURI}
-		err := credentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "default context is required")
+	t.Run("error - id == statusListCredential", func(t *testing.T) {
+		entry := makeValidCSEntry()
+		entry.ID = entry.StatusListCredential
+		err := entry.Validate()
+		assert.EqualError(t, err, "StatusList2021Entry.id is the same as the StatusList2021Entry.statusListCredential")
 	})
-	t.Run("error - missing status list context", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.Context = []ssi.URI{vc.VCContextV1URI()}
-		err := credentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "context 'https://w3id.org/vc/status-list/2021/v1' is required")
-	})
-	t.Run("error - missing StatusList credential type", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
-		err := credentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "type 'StatusList2021Credential' is required")
-	})
-	t.Run("error - invalid credential subject", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject = []any{"{"}
-		err := credentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "json: cannot unmarshal string into Go value of type statuslist2021.CredentialSubject")
-	})
-	t.Run("error - wrong credential subject", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject = []any{struct{}{}}
-		err := credentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "credentialSubject.type 'StatusList2021' is required")
-	})
-	t.Run("error - multiple credentialSubject", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject = []any{CredentialSubject{}, CredentialSubject{}}
-		err := credentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "single CredentialSubject expected")
-	})
-	t.Run("error - missing credentialSubject.type", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(map[string]any)["type"] = ""
-		err := credentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "credentialSubject.type 'StatusList2021' is required")
+	t.Run("error - incorrect type", func(t *testing.T) {
+		entry := makeValidCSEntry()
+		entry.Type = "Wrong Type"
+		err := entry.Validate()
+		assert.EqualError(t, err, "StatusList2021Entry.type must be StatusList2021Entry")
 	})
 	t.Run("error - missing statusPurpose", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(map[string]any)["statusPurpose"] = ""
-		err := credentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "credentialSubject.statusPurpose is required")
+		entry := makeValidCSEntry()
+		entry.StatusPurpose = ""
+		err := entry.Validate()
+		assert.EqualError(t, err, "StatusList2021Entry.statusPurpose is required")
 	})
-	t.Run("error - missing encodedList", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(map[string]any)["encodedList"] = ""
-		err := credentialValidator{}.Validate(cred)
-		assert.EqualError(t, err, "credentialSubject.encodedList is required")
+	t.Run("error - statusListIndex is negative", func(t *testing.T) {
+		entry := makeValidCSEntry()
+		entry.StatusListIndex = "-1"
+		err := entry.Validate()
+		assert.EqualError(t, err, "invalid StatusList2021Entry.statusListIndex")
+	})
+	t.Run("error - statusListIndex is not a number", func(t *testing.T) {
+		entry := makeValidCSEntry()
+		entry.StatusListIndex = "one"
+		err := entry.Validate()
+		assert.EqualError(t, err, "invalid StatusList2021Entry.statusListIndex")
+	})
+	t.Run("error - statusListCredential is not a valid URL", func(t *testing.T) {
+		entry := makeValidCSEntry()
+		entry.StatusListCredential = "not a URL"
+		err := entry.Validate()
+		assert.EqualError(t, err, "parse StatusList2021Entry.statusListCredential URL: parse \"not a URL\": invalid URI for request")
 	})
 }
