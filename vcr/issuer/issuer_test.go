@@ -1225,7 +1225,7 @@ func Test_combinedStore_SearchCredential(t *testing.T) {
 			otherDIDsStore: webStore,
 		}
 
-		_, err := sut.SearchCredential(vc.VerifiableCredentialTypeV1URI(), issuerDID, nil)
+		_, err := sut.SearchCredential(vc.VerifiableCredentialTypeV1URI(), did.MustParseDID("did:web:example.com"), nil)
 
 		assert.NoError(t, err)
 	})
