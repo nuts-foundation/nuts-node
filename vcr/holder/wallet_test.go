@@ -575,6 +575,45 @@ func Test_wallet_IsEmpty(t *testing.T) {
 	})
 }
 
+func Test_walletStore_remove(t *testing.T) {
+	engine := storage.NewTestStorageEngine(t)
+	require.NoError(t, engine.Start())
+	t.Run("ok", func(t *testing.T) {
+		resetStore(t, engine.GetSQLDatabase())
+		sut := New(nil, nil, nil, nil, storage.NewTestStorageEngine(t))
+
+		// Have 3 credentials in wallet, 2 of the subject wallet, 1 of another wallet
+		credentialToRemove := createCredential(vdr.TestMethodDIDA.String())
+		err := sut.Put(context.Background(), credentialToRemove)
+		require.NoError(t, err)
+		otherCredential1 := createCredential(vdr.TestMethodDIDA.String())
+		err = sut.Put(context.Background(), otherCredential1)
+		require.NoError(t, err)
+		otherCredential2 := createCredential(vdr.TestMethodDIDB.String())
+		err = sut.Put(context.Background(), otherCredential2)
+		require.NoError(t, err)
+
+		err = sut.Remove(context.Background(), vdr.TestDIDA, *credentialToRemove.ID)
+		require.NoError(t, err)
+
+		// Make sure the other 2 credentials weren't removed
+		list1, err := sut.List(context.Background(), vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list1, 1)
+		assert.Equal(t, otherCredential1.ID.String(), list1[0].ID.String())
+		list2, err := sut.List(context.Background(), vdr.TestDIDB)
+		require.NoError(t, err)
+		require.Len(t, list2, 1)
+	})
+	t.Run("not found", func(t *testing.T) {
+		resetStore(t, engine.GetSQLDatabase())
+		sut := New(nil, nil, nil, nil, storage.NewTestStorageEngine(t))
+
+		err := sut.Remove(context.Background(), vdr.TestDIDA, ssi.MustParseURI("did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#123"))
+		require.EqualError(t, err, "credential not found")
+	})
+}
+
 func resetStore(t *testing.T, db *gorm.DB) {
 	// for range delete form
 	tableNames := []string{"wallet_credential", "credential", "credential_prop"}

@@ -54,6 +54,10 @@ type Wallet interface {
 	// List returns all credentials in the wallet for the given holder.
 	List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)
 
+	// Remove removes the given credential from the wallet.
+	// If the credential is not in the wallet, it returns ErrNotFound.
+	Remove(ctx context.Context, holderDID did.DID, credentialID ssi.URI) error
+
 	// Put adds the given credentials to the wallet. It is an all-or-nothing operation:
 	// if one of them fails, none of the credentials are added.
 	Put(ctx context.Context, credentials ...vc.VerifiableCredential) error

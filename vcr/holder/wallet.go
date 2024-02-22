@@ -41,6 +41,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
@@ -261,6 +262,10 @@ func (h wallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCrede
 	return h.walletStore.list(holderDID)
 }
 
+func (h wallet) Remove(_ context.Context, holderDID did.DID, credentialID ssi.URI) error {
+	return h.walletStore.remove(holderDID, credentialID)
+}
+
 func (h wallet) Diagnostics() []core.DiagnosticResult {
 	count, err := h.walletStore.count()
 	if err != nil {
@@ -338,4 +343,15 @@ func (s walletStore) put(credentials ...vc.VerifiableCredential) error {
 		}
 		return nil
 	})
+}
+
+func (s walletStore) remove(holderDID did.DID, credentialID ssi.URI) error {
+	result := s.db.Where("holder_did = ? AND credential_id = ?", holderDID.String(), credentialID.String()).Delete(&walletRecord{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return types.ErrNotFound
+	}
+	return nil
 }
