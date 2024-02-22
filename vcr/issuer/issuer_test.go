@@ -54,6 +54,9 @@ import (
 	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
 )
 
+var nutsIssuerDID = did.MustParseDID("did:nuts:123")
+var webIssuerDID = did.MustParseDID("did:web:example.cpom")
+
 func Test_issuer_buildAndSignVC(t *testing.T) {
 	credentialType := ssi.MustParseURI("TestCredential")
 	issuerID := ssi.MustParseURI("did:nuts:123")
@@ -1022,4 +1025,224 @@ func NewTestStatusListStore(t testing.TB, dids ...did.DID) statuslist2021.Status
 	store, err := statuslist2021.NewStatusListStore(db)
 	require.NoError(t, err)
 	return store
+}
+
+func Test_combinedStore_Diagnostics(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	store1 := NewMockStore(ctrl)
+	store1.EXPECT().Diagnostics().Return([]core.DiagnosticResult{
+		core.GenericDiagnosticResult{
+			Title:   "issued_credentials_count",
+			Outcome: 10,
+		},
+		core.GenericDiagnosticResult{
+			Title:   "other_diagnostic_1",
+			Outcome: "foo",
+		},
+	})
+	store2 := NewMockStore(ctrl)
+	store2.EXPECT().Diagnostics().Return([]core.DiagnosticResult{
+		core.GenericDiagnosticResult{
+			Title:   "issued_credentials_count",
+			Outcome: 15,
+		},
+		core.GenericDiagnosticResult{
+			Title:   "other_diagnostic_2",
+			Outcome: "bar",
+		},
+	})
+
+	sut := combinedStore{
+		didNutsStore:   store1,
+		otherDIDsStore: store2,
+	}
+
+	diagnostics := sut.Diagnostics()
+
+	// assert that it merges the diagnostics from the 2 stores
+	assert.Len(t, diagnostics, 3)
+	assert.Contains(t, diagnostics, core.GenericDiagnosticResult{
+		Title:   "issued_credentials_count",
+		Outcome: 25,
+	})
+	assert.Contains(t, diagnostics, core.GenericDiagnosticResult{
+		Title:   "other_diagnostic_1",
+		Outcome: "foo",
+	})
+	assert.Contains(t, diagnostics, core.GenericDiagnosticResult{
+		Title:   "other_diagnostic_2",
+		Outcome: "bar",
+	})
+}
+
+func Test_combinedStore_GetCredential(t *testing.T) {
+	t.Run("issued by did:nuts DID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		nutsStore := NewMockStore(ctrl)
+		nutsStore.EXPECT().GetCredential(gomock.Any()).Return(&vc.VerifiableCredential{}, nil)
+		webStore := NewMockStore(ctrl)
+		sut := combinedStore{
+			didNutsStore:   nutsStore,
+			otherDIDsStore: webStore,
+		}
+
+		_, err := sut.GetCredential(nutsIssuerDID.URI())
+
+		assert.NoError(t, err)
+	})
+	t.Run("issued by did:web", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		nutsStore := NewMockStore(ctrl)
+		webStore := NewMockStore(ctrl)
+		webStore.EXPECT().GetCredential(gomock.Any()).Return(&vc.VerifiableCredential{}, nil)
+		sut := combinedStore{
+			didNutsStore:   nutsStore,
+			otherDIDsStore: webStore,
+		}
+
+		_, err := sut.GetCredential(webIssuerDID.URI())
+
+		assert.NoError(t, err)
+	})
+}
+
+func Test_combinedStore_StoreCredential(t *testing.T) {
+	t.Run("issued by did:nuts DID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		nutsStore := NewMockStore(ctrl)
+		nutsStore.EXPECT().StoreCredential(gomock.Any()).Return(nil)
+		webStore := NewMockStore(ctrl)
+		sut := combinedStore{
+			didNutsStore:   nutsStore,
+			otherDIDsStore: webStore,
+		}
+
+		err := sut.StoreCredential(vc.VerifiableCredential{
+			Issuer: nutsIssuerDID.URI(),
+		})
+
+		assert.NoError(t, err)
+	})
+	t.Run("issued by did:web", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		nutsStore := NewMockStore(ctrl)
+		webStore := NewMockStore(ctrl)
+		webStore.EXPECT().StoreCredential(gomock.Any()).Return(nil)
+		sut := combinedStore{
+			didNutsStore:   nutsStore,
+			otherDIDsStore: webStore,
+		}
+
+		err := sut.StoreCredential(vc.VerifiableCredential{
+			Issuer: webIssuerDID.URI(),
+		})
+
+		assert.NoError(t, err)
+	})
+}
+
+func Test_combinedStore_GetRevocation(t *testing.T) {
+	t.Run("issued by did:nuts DID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		nutsStore := NewMockStore(ctrl)
+		nutsStore.EXPECT().GetRevocation(gomock.Any()).Return(&credential.Revocation{}, nil)
+		webStore := NewMockStore(ctrl)
+		sut := combinedStore{
+			didNutsStore:   nutsStore,
+			otherDIDsStore: webStore,
+		}
+
+		_, err := sut.GetRevocation(nutsIssuerDID.URI())
+
+		assert.NoError(t, err)
+	})
+	t.Run("issued by did:web", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		nutsStore := NewMockStore(ctrl)
+		webStore := NewMockStore(ctrl)
+		webStore.EXPECT().GetRevocation(gomock.Any()).Return(&credential.Revocation{}, nil)
+		sut := combinedStore{
+			didNutsStore:   nutsStore,
+			otherDIDsStore: webStore,
+		}
+
+		_, err := sut.GetRevocation(webIssuerDID.URI())
+
+		assert.NoError(t, err)
+	})
+}
+
+func Test_combinedStore_StoreRevocation(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	nutsStore := NewMockStore(ctrl)
+	nutsStore.EXPECT().StoreRevocation(gomock.Any()).Return(nil)
+	webStore := NewMockStore(ctrl)
+	sut := combinedStore{
+		didNutsStore:   nutsStore,
+		otherDIDsStore: webStore,
+	}
+
+	err := sut.StoreRevocation(credential.Revocation{
+		Issuer: nutsIssuerDID.URI(),
+	})
+
+	assert.NoError(t, err)
+}
+
+func Test_combinedStore_SearchCredential(t *testing.T) {
+	t.Run("issued by did:nuts DID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		nutsStore := NewMockStore(ctrl)
+		nutsStore.EXPECT().SearchCredential(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
+		webStore := NewMockStore(ctrl)
+		sut := combinedStore{
+			didNutsStore:   nutsStore,
+			otherDIDsStore: webStore,
+		}
+
+		_, err := sut.SearchCredential(vc.VerifiableCredentialTypeV1URI(), issuerDID, nil)
+
+		assert.NoError(t, err)
+	})
+	t.Run("issued by did:web", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		nutsStore := NewMockStore(ctrl)
+		webStore := NewMockStore(ctrl)
+		webStore.EXPECT().SearchCredential(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
+		sut := combinedStore{
+			didNutsStore:   nutsStore,
+			otherDIDsStore: webStore,
+		}
+
+		_, err := sut.SearchCredential(vc.VerifiableCredentialTypeV1URI(), did.MustParseDID("did:web:example.com"), nil)
+
+		assert.NoError(t, err)
+	})
+}
+
+func Test_combinedStore_Close(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	nutsStore := NewMockStore(ctrl)
+	nutsStore.EXPECT().Close()
+	webStore := NewMockStore(ctrl)
+	sut := combinedStore{
+		didNutsStore:   nutsStore,
+		otherDIDsStore: webStore,
+	}
+
+	err := sut.Close()
+
+	assert.NoError(t, err)
 }
