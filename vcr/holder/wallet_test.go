@@ -582,6 +582,8 @@ func Test_walletStore_remove(t *testing.T) {
 		resetStore(t, engine.GetSQLDatabase())
 		sut := New(nil, nil, nil, nil, storage.NewTestStorageEngine(t))
 
+		auditLogs := audit.CaptureLogs(t)
+
 		// Have 3 credentials in wallet, 2 of the subject wallet, 1 of another wallet
 		credentialToRemove := createCredential(vdr.TestMethodDIDA.String())
 		err := sut.Put(context.Background(), credentialToRemove)
@@ -593,7 +595,7 @@ func Test_walletStore_remove(t *testing.T) {
 		err = sut.Put(context.Background(), otherCredential2)
 		require.NoError(t, err)
 
-		err = sut.Remove(context.Background(), vdr.TestDIDA, *credentialToRemove.ID)
+		err = sut.Remove(audit.TestContext(), vdr.TestDIDA, *credentialToRemove.ID)
 		require.NoError(t, err)
 
 		// Make sure the other 2 credentials weren't removed
@@ -604,6 +606,9 @@ func Test_walletStore_remove(t *testing.T) {
 		list2, err := sut.List(context.Background(), vdr.TestDIDB)
 		require.NoError(t, err)
 		require.Len(t, list2, 1)
+
+		// Assert action is audited
+		auditLogs.AssertContains(t, "VCR", "VerifiableCredentialRemovedEvent", audit.TestActor, "Removed credential from wallet")
 	})
 	t.Run("not found", func(t *testing.T) {
 		resetStore(t, engine.GetSQLDatabase())

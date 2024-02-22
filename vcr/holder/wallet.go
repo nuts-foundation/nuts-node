@@ -29,7 +29,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -50,12 +50,8 @@ import (
 	"time"
 )
 
-const statsShelf = "stats"
-
 // ErrNoCredentials is returned when no matching credentials are found in the wallet based on a PresentationDefinition
 var ErrNoCredentials = errors.New("no matching credentials")
-
-var credentialCountStatsKey = stoabs.BytesKey("credential_count")
 
 type wallet struct {
 	keyResolver   resolver.KeyResolver
@@ -262,8 +258,15 @@ func (h wallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCrede
 	return h.walletStore.list(holderDID)
 }
 
-func (h wallet) Remove(_ context.Context, holderDID did.DID, credentialID ssi.URI) error {
-	return h.walletStore.remove(holderDID, credentialID)
+func (h wallet) Remove(ctx context.Context, holderDID did.DID, credentialID ssi.URI) error {
+	err := h.walletStore.remove(holderDID, credentialID)
+	if err == nil {
+		audit.Log(ctx, log.Logger(), audit.VerifiableCredentialRemovedEvent).
+			WithField(core.LogFieldCredentialID, credentialID).
+			WithField(core.LogFieldWalletDID, holderDID).
+			Info("Removed credential from wallet")
+	}
+	return err
 }
 
 func (h wallet) Diagnostics() []core.DiagnosticResult {

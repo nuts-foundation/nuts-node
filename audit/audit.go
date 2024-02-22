@@ -51,6 +51,8 @@ const (
 	InvalidOAuthTokenEvent = "InvalidOAuthToken"
 	// VerifiableCredentialRetrievedEvent occurs when a VC is retrieved by the remote wallet.
 	VerifiableCredentialRetrievedEvent = "VerifiableCredentialRetrievedEvent"
+	// VerifiableCredentialRemovedEvent occurs when a VC is removed from a wallet.
+	VerifiableCredentialRemovedEvent = "VerifiableCredentialRemovedEvent"
 )
 
 const auditLogLevel = "audit"

@@ -89,4 +89,6 @@ const (
 
 	// LogFieldAuditSubject is the log field of the subject (e.g. DID, DID document service, etc) of an audit event.
 	LogFieldAuditSubject = "subject"
+	// LogFieldWalletDID is the log field of the DID of a wallet.
+	LogFieldWalletDID = "walletDID"
 )
