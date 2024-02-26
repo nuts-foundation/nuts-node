@@ -196,17 +196,15 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 		return nil, core.InvalidInputError("can only issue credential with 1 type")
 	}
 
-	unsignedCredential := template // TODO: why are we copying the template?
-	//unsignedCredential := vc.VerifiableCredential{
-	//	Context:           template.Context,
-	//	//ID:                &credentialID, // set during signing
-	//	Type:              template.Type,
-	//	CredentialSubject: template.CredentialSubject,
-	//	Issuer:            template.Issuer,
-	//	ExpirationDate:    template.ExpirationDate,
-	//	IssuanceDate:      template.IssuanceDate,
-	//	//CredentialStatus:  template.CredentialStatus, // not allowed for now since it requires API changes to be able to determine what status to revoke.
-	//}
+	unsignedCredential := vc.VerifiableCredential{
+		Context: template.Context,
+		//ID:                &credentialID, // set during signing
+		Type:              template.Type,
+		CredentialSubject: template.CredentialSubject,
+		Issuer:            template.Issuer,
+		ExpirationDate:    template.ExpirationDate,
+		//CredentialStatus:  template.CredentialStatus, // not allowed for now since it requires API changes to be able to determine what status to revoke.
+	}
 
 	if options.WithStatusListRevocation {
 		issuerDID, err := did.ParseDID(unsignedCredential.Issuer.String())
@@ -228,6 +226,7 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 
 	issuanceDate := TimeFunc()
 	unsignedCredential.IssuanceDate = &issuanceDate
+
 	if !unsignedCredential.ContainsContext(vc.VCContextV1URI()) {
 		unsignedCredential.Context = append(unsignedCredential.Context, vc.VCContextV1URI())
 	}
