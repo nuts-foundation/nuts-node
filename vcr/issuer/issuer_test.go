@@ -948,7 +948,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		_, err = sut.statusListStore.Create(ctx, issuerDID, statuslist2021.StatusPurposeRevocation)
 		require.NoError(t, err)
 
-		issuance, _ := time.Parse(time.RFC3339, "2022-01-02T12:00:00Z")
+		issuance := time.Now()
 		expiration := issuance.Add(statusListValidity)
 		TimeFunc = func() time.Time { return issuance }
 		defer func() { TimeFunc = time.Now }()
@@ -963,8 +963,8 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.True(t, result.IsType(ssi.MustParseURI(statuslist2021.CredentialType)))
 		assert.Nil(t, result.IssuanceDate)
 		assert.Nil(t, result.ExpirationDate)
-		assert.Equal(t, *result.ValidFrom, issuance)
-		assert.Equal(t, *result.ValidUntil, expiration)
+		assert.Equal(t, result.ValidFrom.Local(), issuance.Local())
+		assert.Equal(t, result.ValidUntil.Local(), expiration.Local())
 
 		// credential subject
 		var subjects []statuslist2021.CredentialSubject
