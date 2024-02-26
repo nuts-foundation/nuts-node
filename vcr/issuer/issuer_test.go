@@ -68,13 +68,14 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 	schemaOrgContext := ssi.MustParseURI("https://schema.org")
 	issuance, err := time.Parse(time.RFC3339, "2022-01-02T12:00:00Z")
 	require.NoError(t, err)
+	TimeFunc = func() time.Time { return issuance }
+	defer func() { TimeFunc = time.Now }()
 
 	expirationDate := issuance.Add(time.Hour)
 	template := vc.VerifiableCredential{
 		Context:        []ssi.URI{schemaOrgContext},
 		Type:           []ssi.URI{credentialType},
 		Issuer:         issuerID,
-		IssuanceDate:   &issuance,
 		ExpirationDate: &expirationDate,
 		CredentialSubject: []interface{}{map[string]interface{}{
 			"id": subjectDID,
@@ -137,7 +138,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 			assert.Contains(t, result.Context, schemaOrgContext)
 			assert.Contains(t, result.Context, vc.VCContextV1URI())
-			assert.Equal(t, template.IssuanceDate.Local(), result.IssuanceDate.Local())
+			assert.Equal(t, issuance.Local(), result.IssuanceDate.Local())
 			assert.Equal(t, template.ExpirationDate.Local(), result.ExpirationDate.Local())
 			assert.Equal(t, template.Issuer, result.Issuer)
 			assert.Equal(t, template.CredentialSubject, result.CredentialSubject)
@@ -175,11 +176,8 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			assert.Equal(t, statuslist2021.EntryType, statuses[0].Type)
 		})
 		t.Run("error - did:nuts", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
 			jsonldManager := jsonld.NewTestJSONLDManager(t)
-			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore, statusListStore: NewTestStatusListStore(t)}
+			sut := issuer{jsonldManager: jsonldManager, keyStore: keyStore, statusListStore: NewTestStatusListStore(t)}
 
 			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{WithStatusListRevocation: true})
 
@@ -950,6 +948,11 @@ func TestIssuer_StatusList(t *testing.T) {
 		_, err = sut.statusListStore.Create(ctx, issuerDID, statuslist2021.StatusPurposeRevocation)
 		require.NoError(t, err)
 
+		issuance := time.Now()
+		expiration := issuance.Add(statusListValidity)
+		TimeFunc = func() time.Time { return issuance }
+		defer func() { TimeFunc = time.Now }()
+
 		result, err := sut.StatusList(ctx, issuerDID, 1)
 
 		// credential
@@ -958,6 +961,10 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.Contains(t, result.Context, statusList2021ContextURI)
 		assert.Equal(t, result.Issuer.String(), issuerDID.String())
 		assert.True(t, result.IsType(ssi.MustParseURI(statuslist2021.CredentialType)))
+		assert.Nil(t, result.IssuanceDate)
+		assert.Nil(t, result.ExpirationDate)
+		assert.Equal(t, result.ValidFrom.Local(), issuance.Local())
+		assert.Equal(t, result.ValidUntil.Local(), expiration.Local())
 
 		// credential subject
 		var subjects []statuslist2021.CredentialSubject

@@ -196,33 +196,21 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 		return nil, core.InvalidInputError("can only issue credential with 1 type")
 	}
 
-	issuerDID, err := did.ParseDID(template.Issuer.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse issuer: %w", err)
-	}
-
-	key, err := i.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
-	if err != nil {
-		const errString = "failed to sign credential: could not resolve an assertionKey for issuer: %w"
-		// Differentiate between a DID document not found and some other error:
-		if resolver.IsFunctionalResolveError(err) {
-			return nil, core.InvalidInputError(errString, err)
-		}
-		return nil, fmt.Errorf(errString, err)
-	}
-
-	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
 	unsignedCredential := vc.VerifiableCredential{
-		Context:           template.Context,
-		ID:                &credentialID,
+		Context: template.Context,
+		//ID:                &credentialID, // set during signing
 		Type:              template.Type,
 		CredentialSubject: template.CredentialSubject,
 		Issuer:            template.Issuer,
 		ExpirationDate:    template.ExpirationDate,
-		IssuanceDate:      template.IssuanceDate,
 		//CredentialStatus:  template.CredentialStatus, // not allowed for now since it requires API changes to be able to determine what status to revoke.
 	}
+
 	if options.WithStatusListRevocation {
+		issuerDID, err := did.ParseDID(unsignedCredential.Issuer.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse issuer: %w", err)
+		}
 		// add credential status
 		credentialStatusEntry, err := i.statusListStore.Create(ctx, *issuerDID, statuslist2021.StatusPurposeRevocation)
 		if err != nil {
@@ -235,10 +223,10 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 			unsignedCredential.Context = append(unsignedCredential.Context, statusList2021ContextURI)
 		}
 	}
-	if unsignedCredential.IssuanceDate == nil {
-		issuanceDate := TimeFunc()
-		unsignedCredential.IssuanceDate = &issuanceDate
-	}
+
+	issuanceDate := TimeFunc()
+	unsignedCredential.IssuanceDate = &issuanceDate
+
 	if !unsignedCredential.ContainsContext(vc.VCContextV1URI()) {
 		unsignedCredential.Context = append(unsignedCredential.Context, vc.VCContextV1URI())
 	}
@@ -247,8 +235,31 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 	if !unsignedCredential.IsType(defaultType) {
 		unsignedCredential.Type = append(unsignedCredential.Type, defaultType)
 	}
+	return i.signVC(ctx, unsignedCredential, options.Format)
+}
 
-	switch options.Format {
+// signVC signs the credential according to the requested proofFormat. It adds the credentialID, but no other fields are set/validated.
+func (i issuer) signVC(ctx context.Context, unsignedCredential vc.VerifiableCredential, proofFormat string) (*vc.VerifiableCredential, error) {
+	issuerDID, err := did.ParseDID(unsignedCredential.Issuer.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse issuer: %w", err)
+	}
+
+	// set credentialID
+	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
+	unsignedCredential.ID = &credentialID
+
+	key, err := i.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
+	if err != nil {
+		const errString = "failed to sign credential: could not resolve an assertionKey for issuer: %w"
+		// Differentiate between a DID document not found and some other error:
+		if resolver.IsFunctionalResolveError(err) {
+			return nil, core.InvalidInputError(errString, err)
+		}
+		return nil, fmt.Errorf(errString, err)
+	}
+
+	switch proofFormat {
 	case vc.JWTCredentialProofFormat:
 		return vc.CreateJWTVerifiableCredential(ctx, unsignedCredential, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
 			return i.keyStore.SignJWT(ctx, claims, headers, key)
@@ -267,7 +278,17 @@ func (i issuer) buildJSONLDCredential(ctx context.Context, unsignedCredential vc
 	b, _ := json.Marshal(unsignedCredential)
 	_ = json.Unmarshal(b, &credentialAsMap)
 
-	proofOptions := proof.ProofOptions{Created: *unsignedCredential.IssuanceDate}
+	// get issuance timestamp. statuslist2021 uses 'validFrom', everything else uses 'issuanceDate'.
+	// IssuanceDate and ValidFrom are mutually exclusive, but this is untested.
+	var created *time.Time
+	if unsignedCredential.ValidFrom != nil && !unsignedCredential.ValidFrom.IsZero() {
+		created = unsignedCredential.ValidFrom
+	}
+	if unsignedCredential.IssuanceDate != nil && !unsignedCredential.IssuanceDate.IsZero() {
+		created = unsignedCredential.IssuanceDate
+	}
+
+	proofOptions := proof.ProofOptions{Created: *created}
 
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
 	signingResult, err := proof.NewLDProof(proofOptions).Sign(ctx, credentialAsMap, webSig, key)
@@ -448,18 +469,18 @@ func (i issuer) StatusList(ctx context.Context, issuerDID did.DID, page int) (*v
 			statusList2021ContextURI,
 		},
 		Type: []ssi.URI{
-			// vc.VerifiableCredentialTypeV1URI(), // automatically added
+			vc.VerifiableCredentialTypeV1URI(),
 			statusList2021CredentialTypeURI,
 		},
 		CredentialSubject: []any{credSubject},
 		Issuer:            issuerDID.URI(),
-		IssuanceDate:      &iss,
-		ExpirationDate:    &exp,
+		ValidFrom:         &iss,
+		ValidUntil:        &exp,
 	}
 
 	// build and sign the VC.
 	// All content is validated and these credentials should not be in the issuer store, so don't use i.Issue()
-	statusListCredential, err := i.buildAndSignVC(ctx, template, CredentialOptions{Format: vc.JSONLDCredentialProofFormat})
+	statusListCredential, err := i.signVC(ctx, template, vc.JSONLDCredentialProofFormat)
 	if err != nil {
 		return nil, err
 	}
