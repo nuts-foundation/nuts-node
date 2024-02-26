@@ -948,7 +948,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		_, err = sut.statusListStore.Create(ctx, issuerDID, statuslist2021.StatusPurposeRevocation)
 		require.NoError(t, err)
 
-		issuance := time.Now().Truncate(time.Second)
+		issuance, _ := time.Parse(time.RFC3339, "2022-01-02T12:00:00Z")
 		expiration := issuance.Add(statusListValidity)
 		TimeFunc = func() time.Time { return issuance }
 		defer func() { TimeFunc = time.Now }()
