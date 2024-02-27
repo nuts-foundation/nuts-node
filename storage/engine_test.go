@@ -119,6 +119,19 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		err := e.Configure(core.ServerConfig{Datadir: dataDir})
 		assert.ErrorContains(t, err, "failed to initialize SQL database: failed to migrate database: unable to open database file")
 	})
+	t.Run("sqlite is restricted to 1 connection", func(t *testing.T) {
+		e := New()
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: t.TempDir()}))
+		require.NoError(t, e.Start())
+		t.Cleanup(func() {
+			_ = e.Shutdown()
+		})
+		e2, ok := e.(*engine)
+		require.True(t, ok)
+		db, err := e2.sqlDB.DB()
+		require.NoError(t, err)
+		assert.Equal(t, 1, db.Stats().MaxOpenConnections)
+	})
 	t.Run("nothing to migrate (already migrated)", func(t *testing.T) {
 		dataDir := io.TestDirectory(t)
 		e := New()

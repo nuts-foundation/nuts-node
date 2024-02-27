@@ -276,11 +276,11 @@ func TestCredentialStore_BuildSearchStatement(t *testing.T) {
 			setupStore(t, storageEngine.GetSQLDatabase())
 			for _, credential := range tc.inputVCs {
 				err := db.Transaction(func(tx *gorm.DB) error {
-					credentialRecord, err := store.Store(db, credential)
+					credentialRecord, err := store.Store(tx, credential)
 					if err != nil {
 						return err
 					}
-					return db.Create(&testCredential{
+					return tx.Create(&testCredential{
 						ID: credentialRecord.ID,
 					}).Error
 				})

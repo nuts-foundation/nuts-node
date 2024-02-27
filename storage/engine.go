@@ -24,22 +24,22 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"gorm.io/driver/mysql"
-	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 	"net/url"
 	"path"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/amacneil/dbmate/v2/pkg/dbmate"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/redis/go-redis/v9"
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
+	"github.com/amacneil/dbmate/v2/pkg/dbmate"
 	_ "github.com/amacneil/dbmate/v2/pkg/driver/mysql"
 	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
 	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
@@ -223,6 +223,16 @@ func (e *engine) initSQLDatabase() error {
 	sqlDB, err := migratorDriver.Open()
 	if err != nil {
 		return err
+	}
+	if strings.HasPrefix(connectionString, "sqlite:") {
+		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
+		// and any other attempt to acquire a write transaction will directly return an error.
+		// This is in contrast to most other SQL-databases, which let the 2nd thread wait for some time to acquire the lock.
+		// The general advice for SQLite is to retry the operation, which is just poor-man's scheduling.
+		// So to keep behavior consistent across databases, we'll just limit the number connections to 1 if it's a SQLite store.
+		// With 1 connection, all actions will be performed sequentially. This impacts performance, but SQLite should not be used in production.
+		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
+		sqlDB.SetMaxOpenConns(1)
 	}
 	log.Logger().Debug("Running database migrations...")
 
