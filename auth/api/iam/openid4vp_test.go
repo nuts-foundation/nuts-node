@@ -194,10 +194,9 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 
 		require.NoError(t, err)
 	})
-	t.Run("invalid presentation_definition_uri", func(t *testing.T) {
+	t.Run("fetching client metadata failed", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		params[presentationDefUriParam] = "://example.com"
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, "failed to get client metadata (verifier)", responseURI, "state")
 
