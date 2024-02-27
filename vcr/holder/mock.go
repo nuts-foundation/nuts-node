@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	core "github.com/nuts-foundation/nuts-node/core"
@@ -135,4 +136,18 @@ func (mr *MockWalletMockRecorder) Put(ctx any, credentials ...any) *gomock.Call 
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]any{ctx}, credentials...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockWallet)(nil).Put), varargs...)
+}
+
+// Remove mocks base method.
+func (m *MockWallet) Remove(ctx context.Context, holderDID did.DID, credentialID ssi.URI) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Remove", ctx, holderDID, credentialID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Remove indicates an expected call of Remove.
+func (mr *MockWalletMockRecorder) Remove(ctx, holderDID, credentialID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockWallet)(nil).Remove), ctx, holderDID, credentialID)
 }

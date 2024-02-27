@@ -404,6 +404,23 @@ func (w *Wrapper) GetCredentialsInWallet(ctx context.Context, request GetCredent
 	return GetCredentialsInWallet200JSONResponse(credentials), nil
 }
 
+func (w *Wrapper) RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error) {
+	holderDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, core.InvalidInputError("invalid holder DID: %w", err)
+	}
+	credentialID, err := ssi.ParseURI(request.Id)
+	if err != nil {
+		return nil, core.InvalidInputError("invalid credential ID: %w", err)
+	}
+	err = w.VCR.Wallet().Remove(ctx, *holderDID, *credentialID)
+	if err != nil {
+		return nil, err
+	}
+	return RemoveCredentialFromWallet204Response{}, nil
+
+}
+
 // TrustIssuer handles API request to start trusting an issuer of a Verifiable Credential.
 func (w *Wrapper) TrustIssuer(ctx context.Context, request TrustIssuerRequestObject) (TrustIssuerResponseObject, error) {
 	if err := changeTrust(*request.Body, w.VCR.Trust); err != nil {

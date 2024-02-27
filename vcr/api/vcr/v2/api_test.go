@@ -728,6 +728,33 @@ func TestWrapper_GetCredentialsInWallet(t *testing.T) {
 	})
 }
 
+func TestWrapper_RemoveCredentialFromWallet(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, holderDID, credentialID).Return(nil)
+
+		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
+			Did: holderDID.String(),
+			Id:  credentialID.String(),
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, RemoveCredentialFromWallet204Response{}, response)
+	})
+	t.Run("error", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, holderDID, credentialID).Return(assert.AnError)
+
+		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
+			Did: holderDID.String(),
+			Id:  credentialID.String(),
+		})
+
+		assert.Empty(t, response)
+		assert.ErrorIs(t, err, assert.AnError)
+	})
+}
+
 func TestWrapper_CreateVP(t *testing.T) {
 	issuerURI := ssi.MustParseURI("did:nuts:123")
 	credentialType := ssi.MustParseURI("ExampleType")
