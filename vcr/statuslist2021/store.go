@@ -22,16 +22,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
-	"sync"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"strconv"
 )
 
 // errNotFound wraps types.ErrNotFound to clarify which credential is not found
@@ -105,8 +102,7 @@ type revocationRecord struct {
 var _ StatusList2021Issuer = (*sqlStore)(nil)
 
 type sqlStore struct {
-	db        *gorm.DB
-	writeLock sync.Mutex
+	db *gorm.DB
 }
 
 // DB creates a new Session with the provided context.
@@ -161,17 +157,6 @@ func (s *sqlStore) CredentialSubject(ctx context.Context, issuer did.DID, page i
 func (s *sqlStore) Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*Entry, error) {
 	if purpose != StatusPurposeRevocation {
 		return nil, errUnsupportedPurpose
-	}
-
-	if _, isSQLite := s.db.Config.Dialector.(*sqlite.Dialector); isSQLite {
-		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
-		// and any other attempt to acquire a write transaction will directly return an error.
-		// This is in contrast to most other SQL-databases, which let the 2nd thread wait for some time to acquire the lock.
-		// The general advice for SQLite is to retry the operation, which is just poor-man's scheduling.
-		// So to keep behavior consistent across databases, we'll just lock the entire store for the duration of the transaction.
-		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
-		s.writeLock.Lock()
-		defer s.writeLock.Unlock()
 	}
 
 	var credentialRecord statusListCredentialRecord

@@ -24,14 +24,12 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/credential/store"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
@@ -98,8 +96,7 @@ func (l presentationRefreshRecord) TableName() string {
 }
 
 type sqlStore struct {
-	db        *gorm.DB
-	writeLock sync.Mutex
+	db *gorm.DB
 }
 
 func newSQLStore(db *gorm.DB, clientDefinitions map[string]ServiceDefinition, serverDefinitions map[string]ServiceDefinition) (*sqlStore, error) {
@@ -116,10 +113,7 @@ func newSQLStore(db *gorm.DB, clientDefinitions map[string]ServiceDefinition, se
 			return nil, err
 		}
 	}
-	return &sqlStore{
-		db:        db,
-		writeLock: sync.Mutex{},
-	}, nil
+	return &sqlStore{db: db}, nil
 }
 
 // Add adds a presentation to the list of presentations.
@@ -130,16 +124,6 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
 		return err
-	}
-	if _, isSQLite := s.db.Config.Dialector.(*sqlite.Dialector); isSQLite {
-		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
-		// and any other attempt to acquire a write transaction will directly return an error.
-		// This is in contrast to most other SQL-databases, which let the 2nd thread wait for some time to acquire the lock.
-		// The general advice for SQLite is to retry the operation, which is just poor-man's scheduling.
-		// So to keep behavior consistent across databases, we'll just lock the entire store for the duration of the transaction.
-		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
-		s.writeLock.Lock()
-		defer s.writeLock.Unlock()
 	}
 	if err := s.prune(); err != nil {
 		return err

@@ -189,9 +189,6 @@ func TestSqlStore_Create(t *testing.T) {
 			t.SkipNow() // requires generation of postgres DB
 			// create store with postgres DB
 			var storePG *sqlStore
-			// set lock to make sure it isn't used
-			storePG.writeLock.Lock()
-			defer storePG.writeLock.Unlock()
 			raceFn(storePG)
 			// To confirm there was a race condition on the page creation (can't happen with SQLite), check the logs for:
 			//		2024/02/12 19:53:20 .../nuts-node/vcr/statuslist2021/store.go:196 duplicated key not allowed
