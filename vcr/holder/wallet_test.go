@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -615,7 +616,7 @@ func Test_walletStore_remove(t *testing.T) {
 		sut := New(nil, nil, nil, nil, storage.NewTestStorageEngine(t))
 
 		err := sut.Remove(context.Background(), vdr.TestDIDA, ssi.MustParseURI("did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#123"))
-		require.EqualError(t, err, "credential not found")
+		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
 }
 

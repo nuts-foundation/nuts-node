@@ -487,8 +487,10 @@ paths:
     delete:
       summary: Remove a VerifiableCredential from the holders wallet.
       description: |
-        Remove a VerifiableCredential from the holders wallet.
-  
+        Remove a VerifiableCredential from the holders wallet. After removal the holder can't present the credential any more.
+        It does not revoke the credential or inform the credential issuer that the wallet removed the wallet.
+        
+
         error returns:
         * 400 - Invalid credential
         * 404 - Credential not found
