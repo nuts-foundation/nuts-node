@@ -384,9 +384,11 @@ paths:
           in: path
           required: true
           description: The DID of the requester, a Wallet owner at this node.
-          schema:
-            type: string
-            example: did:web:example.com
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
       requestBody:
         required: true
         content:
@@ -431,9 +433,11 @@ paths:
           in: path
           required: true
           description: The DID of the requester, a wallet owner at this node.
-          schema:
-            type: string
-            example: did:web:example.com
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
       requestBody:
         required: true
         content:
