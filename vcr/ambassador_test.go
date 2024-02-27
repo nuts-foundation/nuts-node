@@ -211,7 +211,7 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 			assert.False(t, value)
 			assert.True(t, errors.As(err, new(dag.EventFatal)))
 		})
-		t.Run("invalid remote JSON-LD URL (disallowed URL)", func(t *testing.T) {
+		t.Run("disallowed remote JSON-LD URL is not considered an error", func(t *testing.T) {
 			// Use JSON-LD processor to get actual returned error
 			proc := ld.NewJsonLdProcessor()
 			var target map[string]interface{}
@@ -234,8 +234,8 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 				Payload:     []byte(jsonld.TestCredential),
 			})
 
-			assert.False(t, value)
-			assert.True(t, errors.As(err, new(dag.EventFatal)))
+			assert.True(t, value)
+			assert.NoError(t, err)
 		})
 	})
 	t.Run("recoverable errors", func(t *testing.T) {

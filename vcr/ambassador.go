@@ -124,13 +124,19 @@ func (n ambassador) handleError(err error) (bool, error) {
 		errors.Is(err, context.DeadlineExceeded) {
 		return false, err
 	}
-	// Recoverable: loading remote JSON-LD documents. Disallowed URLs (configurable) is not recoverable.
+	// Disallowed URLs (configurable) is "basic flow"; not an error, no need to retry
+	if errors.Is(err, jsonld.ContextURLNotAllowedErr) {
+		log.Logger().WithError(err).Debug("JSON-LD VC or revocation ignored; context not configured on allow list")
+		return true, nil
+	}
+	// Recoverable: loading remote JSON-LD documents.
 	var jsonLDError *ld.JsonLdError
 	if errors.As(err, &jsonLDError) &&
 		jsonLDError.Code == ld.LoadingRemoteContextFailed &&
 		!errors.Is(err, jsonld.ContextURLNotAllowedErr) {
 		return false, err
 	}
+
 	// TODO: other database/storage errors are also considered recoverable. VCR only uses go-leia for storage,
 	//  which doesn't define a single error to recognize storage-related errors.
 	//  This means go-leia error, which should be recoverable, can't be recognized as being recoverable.
