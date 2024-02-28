@@ -427,9 +427,11 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: "did:web:example.com:iam:123"
-        schema:
-          type: string
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: "did:web:example.com:iam:123"
     get:
       summary: List all Verifiable Credentials in the holder's wallet.
       operationId: getCredentialsInWallet
@@ -476,8 +478,11 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        schema:
-          type: string
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: did:web:example.com
       - name: id
         in: path
         description: URL encoded VC ID.

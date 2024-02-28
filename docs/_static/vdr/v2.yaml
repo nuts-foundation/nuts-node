@@ -65,9 +65,11 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
-        schema:
-          type: string
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: "did:web:example.com:iam:123"
     get:
       summary: "Resolves a DID document"
       description: |
@@ -111,9 +113,11 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
-        schema:
-          type: string
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: "did:web:example.com:iam:123"
     post:
       summary: Adds a service to the DID document.
       description: |
@@ -148,9 +152,11 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
-        schema:
-          type: string
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: "did:web:example.com:iam:123"
       - name: serviceId
         in: path
         description: URL encoded ID identifying the service.
@@ -211,9 +217,11 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
-        schema:
-          type: string
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: "did:web:example.com:iam:123"
     post:
       summary: Creates and adds a new verificationMethod to the DID document.
       description: |
@@ -241,9 +249,11 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b
-        schema:
-          type: string
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: "did:web:example.com:iam:123"
       - name: id
         in: path
         description: URL encoded ID identifying the verification method.
