@@ -478,8 +478,11 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        schema:
-          type: string
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: did:web:example.com
       - name: id
         in: path
         description: URL encoded VC ID.

@@ -791,10 +791,7 @@ func NewRemoveCredentialFromWalletRequest(server string, did string, id string) 
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = did
 
 	var pathParam1 string
 
@@ -2758,15 +2755,12 @@ func (w *ServerInterfaceWrapper) RemoveCredentialFromWallet(ctx echo.Context) er
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	// ------------- Path parameter "id" -------------
 	var id string
 
-	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
