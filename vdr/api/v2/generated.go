@@ -370,10 +370,7 @@ func NewDeleteDIDRequest(server string, did string) (*http.Request, error) {
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -404,10 +401,7 @@ func NewResolveDIDRequest(server string, did string) (*http.Request, error) {
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -449,10 +443,7 @@ func NewCreateServiceRequestWithBody(server string, did string, contentType stri
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -485,10 +476,7 @@ func NewDeleteServiceRequest(server string, did string, serviceId string) (*http
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = did
 
 	var pathParam1 string
 
@@ -537,10 +525,7 @@ func NewUpdateServiceRequestWithBody(server string, did string, serviceId string
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = did
 
 	var pathParam1 string
 
@@ -580,10 +565,7 @@ func NewAddVerificationMethodRequest(server string, did string) (*http.Request, 
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -614,10 +596,7 @@ func NewDeleteVerificationMethodRequest(server string, did string, id string) (*
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = did
 
 	var pathParam1 string
 
@@ -1537,10 +1516,7 @@ func (w *ServerInterfaceWrapper) DeleteDID(ctx echo.Context) error {
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -1555,10 +1531,7 @@ func (w *ServerInterfaceWrapper) ResolveDID(ctx echo.Context) error {
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -1573,10 +1546,7 @@ func (w *ServerInterfaceWrapper) CreateService(ctx echo.Context) error {
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -1591,10 +1561,7 @@ func (w *ServerInterfaceWrapper) DeleteService(ctx echo.Context) error {
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	// ------------- Path parameter "serviceId" -------------
 	var serviceId string
@@ -1617,10 +1584,7 @@ func (w *ServerInterfaceWrapper) UpdateService(ctx echo.Context) error {
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	// ------------- Path parameter "serviceId" -------------
 	var serviceId string
@@ -1643,10 +1607,7 @@ func (w *ServerInterfaceWrapper) AddVerificationMethod(ctx echo.Context) error {
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -1661,10 +1622,7 @@ func (w *ServerInterfaceWrapper) DeleteVerificationMethod(ctx echo.Context) erro
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	// ------------- Path parameter "id" -------------
 	var id string

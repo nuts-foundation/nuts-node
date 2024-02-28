@@ -716,10 +716,7 @@ func NewGetCredentialsInWalletRequest(server string, did string) (*http.Request,
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -761,10 +758,7 @@ func NewLoadVCRequestWithBody(server string, did string, contentType string, bod
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -2734,10 +2728,7 @@ func (w *ServerInterfaceWrapper) GetCredentialsInWallet(ctx echo.Context) error 
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -2752,10 +2743,7 @@ func (w *ServerInterfaceWrapper) LoadVC(ctx echo.Context) error {
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
