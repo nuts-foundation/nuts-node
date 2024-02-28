@@ -33,6 +33,9 @@ import (
 // validatePresentationSigner checks if the presenter of the VP is the same as the subject of the VCs being presented.
 // All returned errors can be used as description in an OAuth2 error.
 func validatePresentationSigner(presentation vc.VerifiablePresentation, expectedCredentialSubjectDID did.DID) (*did.DID, error) {
+	if len(presentation.VerifiableCredential) == 0 {
+		return credential.PresentationSigner(presentation)
+	}
 	subjectDID, err := credential.PresenterIsCredentialSubject(presentation)
 	if err != nil {
 		return nil, err

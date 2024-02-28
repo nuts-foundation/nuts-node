@@ -444,7 +444,17 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 			proof.LDProof{VerificationMethod: vcID},
 		},
 	}
+	t.Run("ok - empty presentation and submission", func(t *testing.T) {
+		emptyVP := vc.VerifiablePresentation{
+			Proof: []interface{}{
+				proof.LDProof{VerificationMethod: vcID},
+			},
+		}
+		credentials, err := PresentationSubmission{}.Validate(toEnvelope(t, emptyVP), PresentationDefinition{})
 
+		require.NoError(t, err)
+		assert.Empty(t, credentials)
+	})
 	t.Run("ok - 1 presentation", func(t *testing.T) {
 		constant := vcID.String()
 		definition := PresentationDefinition{

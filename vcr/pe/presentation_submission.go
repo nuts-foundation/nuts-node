@@ -278,7 +278,7 @@ func (s PresentationSubmission) Validate(envelope Envelope, definition Presentat
 	if err != nil {
 		return nil, err
 	}
-	if len(signInstructions) == 0 {
+	if len(signInstructions) == 0 && len(definition.InputDescriptors) > 0 {
 		return nil, errors.New("presentation submission doesn't match presentation definition")
 	}
 	// Build a input descriptor -> credential map for comparison
