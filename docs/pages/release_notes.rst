@@ -10,6 +10,7 @@ Hazelnut update (v5.4.6)
 Release date: 2024-02-27
 
 - VCR: lower log level for disallowed JSON-LD context URLs from 'error' to 'debug' (#2837)
+- Updated dependencies
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.5...v5.4.6
 
