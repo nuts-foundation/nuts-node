@@ -104,6 +104,7 @@ func Test_requestLoggerMiddleware(t *testing.T) {
 		echoMock.EXPECT().Request().Return(&http.Request{})
 		echoMock.EXPECT().Response().Return(&echo.Response{Status: http.StatusOK})
 		echoMock.EXPECT().RealIP().Return("::1")
+		echoMock.EXPECT().Get(core.StatusCodeResolverContextKey)
 
 		logger, hook := test.NewNullLogger()
 		logFunc := requestLoggerMiddleware(func(_ echo.Context) bool {

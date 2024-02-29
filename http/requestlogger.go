@@ -21,9 +21,9 @@ package http
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 	"mime"
-	"net/http"
 )
 
 // requestLoggerMiddleware returns middleware that logs metadata of HTTP requests.
@@ -39,15 +39,7 @@ func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) e
 		LogValuesFunc: func(c echo.Context, values middleware.RequestLoggerValues) error {
 			status := values.Status
 			if values.Error != nil {
-				// In case the error provides `func StatusCode() int`
-				// (e.g. core.HTTPStatusCodeError)
-				if x, ok := values.Error.(interface{ StatusCode() int }); ok {
-					status = x.StatusCode()
-				} else if x, ok := values.Error.(*echo.HTTPError); ok {
-					status = x.Code
-				} else {
-					status = http.StatusInternalServerError
-				}
+				status = core.GetHTTPStatusCode(values.Error, c)
 			}
 
 			logger.WithFields(logrus.Fields{
