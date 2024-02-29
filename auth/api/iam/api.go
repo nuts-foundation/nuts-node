@@ -226,8 +226,12 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	token := AccessToken{}
 	if err := r.accessTokenServerStore().Get(request.Body.Token, &token); err != nil {
 		// Return 200 + 'Active = false' when token is invalid or malformed
-		log.Logger().Debug("IntrospectAccessToken: failed to get token from store")
-		return IntrospectAccessToken200JSONResponse{}, err
+		if errors.Is(err, storage.ErrNotFound) {
+			log.Logger().Debug("IntrospectAccessToken: token not found (unknown or expired)")
+			return IntrospectAccessToken200JSONResponse{}, nil
+		}
+		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to retrieve token")
+		return nil, err
 	}
 
 	if token.Expiration.Before(time.Now()) {

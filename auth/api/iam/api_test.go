@@ -564,9 +564,16 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
 	})
+	t.Run("error - other store error", func(t *testing.T) {
+		// token is invalid JSON
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("err", "{"))
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "err"}})
+		assert.ErrorContains(t, err, "json: cannot unmarshal")
+		assert.Nil(t, res)
+	})
 	t.Run("error - does not exist", func(t *testing.T) {
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "does not exist"}})
-		require.ErrorIs(t, err, storage.ErrNotFound)
+		require.NoError(t, err)
 		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
 	})
 	t.Run("error - expired token", func(t *testing.T) {
