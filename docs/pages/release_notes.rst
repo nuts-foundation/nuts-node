@@ -4,6 +4,27 @@ Release notes
 #############
 
 ************************
+Hazelnut update (v5.4.6)
+************************
+
+Release date: 2024-02-27
+
+- VCR: lower log level for disallowed JSON-LD context URLs from 'error' to 'debug' (#2837)
+- Updated dependencies
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.5...v5.4.6
+
+************************
+Hazelnut update (v5.4.5)
+************************
+
+Release date: 2023-12-11
+
+- Auth: make sure create session and validate signatures perform the same checks (#2664)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.4...v5.4.5
+
+************************
 Hazelnut update (v5.4.4)
 ************************
 
@@ -20,8 +41,10 @@ Hazelnut update (v5.4.3)
 Release date: 2023-09-07
 
 - Fixed an issue where revocations received through the network were not written to a backup that was introduced in v5.4.0.
-Nodes upgrading from v5.4.0-v5.4.2 need to make an empty POST call to ``<node-address>/internal/network/v1/reprocess?type=application/ld+json%3Btype=revocation``.
-- Fixed a performance issue with initializing the backup databases.
+  Nodes upgrading from v5.4.0-v5.4.2 need to make an empty POST call to ``<node-address>/internal/network/v1/reprocess?type=application/ld+json%3Btype=revocation``.
+- Reduced number of pages transmitted per message on a full sync to enhance performance
+- Fixed a performance issue with initializing the backup databases
+- Fixed some typos in NL language templates (@jelmerterwal)
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.2...v5.4.3
 
