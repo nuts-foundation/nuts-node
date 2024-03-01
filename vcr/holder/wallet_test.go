@@ -371,6 +371,19 @@ func TestWallet_BuildSubmission(t *testing.T) {
 		assert.Nil(t, vp)
 		assert.Nil(t, submission)
 	})
+	t.Run("ok - empty presentation", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(key.KID()), key.Public(), nil)
+		w := New(keyResolver, keyStore, nil, jsonldManager, storageEngine)
+
+		vp, submission, err := w.BuildSubmission(ctx, walletDID, pe.PresentationDefinition{}, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+
+		assert.Nil(t, err)
+		assert.NotNil(t, vp)
+		assert.NotNil(t, submission)
+	})
 }
 
 func Test_wallet_Put(t *testing.T) {

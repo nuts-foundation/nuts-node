@@ -114,7 +114,17 @@ func (h wallet) BuildSubmission(ctx context.Context, walletDID did.DID, presenta
 		return nil, nil, fmt.Errorf("failed to build presentation submission: %w", err)
 	}
 	if signInstructions.Empty() {
-		return nil, nil, ErrNoCredentials
+		// we'll allow empty if no credentials are required
+		if len(presentationDefinition.InputDescriptors) > 0 {
+			return nil, nil, ErrNoCredentials
+		}
+		// add empty sign instruction
+		signInstructions = append(signInstructions, pe.SignInstruction{Holder: walletDID})
+		presentationSubmission = pe.PresentationSubmission{
+			Id:            uuid.NewString(),
+			DefinitionId:  presentationDefinition.Id,
+			DescriptorMap: make([]pe.InputDescriptorMappingObject, 0),
+		}
 	}
 
 	// todo: support multiple wallets
