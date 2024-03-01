@@ -19,9 +19,40 @@
 package statuslist2021
 
 import (
-	"github.com/stretchr/testify/assert"
+	"context"
+	"encoding/json"
 	"testing"
+	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/stretchr/testify/assert"
 )
+
+// newTestCredentialStatus returns a CredentialStatus that does not Sign or VerifySignature, with a SQLite db containing the dids, and no http-client.
+func newTestCredentialStatus(t testing.TB, dids ...did.DID) *CredentialStatus {
+	cs := NewCredentialStatus(storage.NewTestStorageEngine(t).GetSQLDatabase(), nil)
+	cs.Sign = noopSign
+	cs.VerifySignature = noopSignVerify
+	storage.AddDIDtoSQLDB(t, cs.db, dids...)
+	return cs
+}
+
+func noopSign(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
+	unsignedCredential.ID, _ = ssi.ParseURI("test-id")
+	// marshal-unmarshal credential to set the .raw field
+	bs, err := json.Marshal(unsignedCredential)
+	if err != nil {
+		return nil, err
+	}
+	return &unsignedCredential, json.Unmarshal(bs, &unsignedCredential)
+}
+
+func noopSignVerify(_ vc.VerifiableCredential, _ *time.Time) error {
+	return nil
+}
 
 func TestEntry_Validate(t *testing.T) {
 	makeValidCSEntry := func() Entry {

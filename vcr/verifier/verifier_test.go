@@ -22,6 +22,7 @@ import (
 	crypt "crypto"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"net/http"
@@ -148,7 +149,8 @@ func TestVerifier_Verify(t *testing.T) {
 		http.DefaultClient = ts.Client() // newMockContext sets credentialStatus.client to http.DefaultClient
 		ctx := newMockContext(t)
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
-		ctx.verifier.credentialStatus = statuslist2021.NewCredentialStatus(http.DefaultClient, func(_ vc.VerifiableCredential, _ *time.Time) error { return nil }) // don't check signatures on 'downloaded' StatusList2021Credentials
+		ctx.verifier.credentialStatus = statuslist2021.NewCredentialStatus(storage.NewTestStorageEngine(t).GetSQLDatabase(), ts.Client())
+		ctx.verifier.credentialStatus.VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
 
 		cred := test.ValidNutsOrganizationCredential(t)
 		cred.Context = append(cred.Context, ssi.MustParseURI(jsonld.W3cStatusList2021Context))
@@ -695,7 +697,7 @@ func newMockContext(t *testing.T) mockContext {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
-	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, http.DefaultClient).(*verifier)
+	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, &statuslist2021.CredentialStatus{}).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,

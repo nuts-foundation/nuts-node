@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"io"
 	"net/http"
 	"strconv"
@@ -31,38 +30,11 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"gorm.io/gorm/clause"
 )
 
-type VerifySignFn func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error // TODO: replace with new SignatureVerifier interface?
-
-func NewCredentialStatus(client core.HTTPRequestDoer, signVerifier VerifySignFn) *CredentialStatus {
-	return &CredentialStatus{
-		client:          client,
-		verifySignature: signVerifier,
-	}
-}
-
-type CredentialStatus struct {
-	client          core.HTTPRequestDoer
-	verifySignature VerifySignFn
-	jsonldManager   jsonld.JSONLD
-}
-
-// statusList is an immutable struct containing all information needed to Verify a credentialStatus
-type statusList struct {
-	// credential is the complete StatusList2021Credential this statusList is about
-	credential *vc.VerifiableCredential
-	// statusListCredential is the URL (from StatusList2021Entry.statusListCredential) that credential was downloaded from
-	// it should match with credential.ID
-	statusListCredential string
-	// statusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
-	statusPurpose string
-	// expanded StatusList2021 bitstring
-	expanded bitstring
-	// lastUpdated is the timestamp this statusList was generated
-	lastUpdated time.Time
-}
+// maxAgeExternal is the maximum age of external credentials. If older than this we try to refresh.
+const maxAgeExternal = 15 * time.Minute
 
 // Verify CredentialStatus returns a types.ErrRevoked when the credentialStatus contains a 'StatusList2021Entry' that can be resolved and lists the credential as 'revoked'
 // Other credentialStatus type/statusPurpose are ignored. Verification may fail with other non-standardized errors.
@@ -82,10 +54,11 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 	for _, status := range statuses {
 		if status.Type != EntryType {
 			// ignore other credentialStatus.type
-			// TODO: what log level?
 			log.Logger().
 				WithField("credentialStatus.type", status.Type).
-				Info("ignoring credentialStatus with unknown type")
+				WithField(core.LogFieldCredentialID, credentialToVerify.ID).
+				WithField(core.LogFieldCredentialType, credentialToVerify.Type).
+				Info("Ignoring credentialStatus with unknown type")
 			continue
 		}
 		var slEntry Entry // CredentialStatus of the credentialToVerify
@@ -94,11 +67,12 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 			return err
 		}
 		if slEntry.StatusPurpose != "revocation" {
-			// ignore purposes that are not revocation
-			// TODO: what log level?
+			// ignore non-revocation purposes
 			log.Logger().
 				WithField("credentialStatus.statusPurpose", slEntry.StatusPurpose).
-				Info("ignoring credentialStatus with purpose other than 'revocation'")
+				WithField(core.LogFieldCredentialID, credentialToVerify.ID).
+				WithField(core.LogFieldCredentialType, credentialToVerify.Type).
+				Info("Ignoring credentialStatus with purpose other than 'revocation'")
 			continue
 		}
 
@@ -107,35 +81,63 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 		if err != nil {
 			return err
 		}
-		if sList.statusPurpose != slEntry.StatusPurpose {
-			return fmt.Errorf("StatusList2021Credential.credentialSubject.statusPuspose='%s' does not match vc.credentialStatus.statusPurpose='%s'", sList.statusPurpose, slEntry.StatusPurpose)
+		if sList.StatusPurpose != slEntry.StatusPurpose {
+			return fmt.Errorf("StatusList2021Credential.credentialSubject.statusPuspose='%s' does not match vc.credentialStatus.statusPurpose='%s'", sList.StatusPurpose, slEntry.StatusPurpose)
 		}
 
 		// check if listed
 		index, err := strconv.Atoi(slEntry.StatusListIndex)
 		if err != nil {
-			// cannot happen. already validated in credential.defaultCredentialValidator{}
+			// can't happen, checked during validation of credentialToVerify
 			return err
 		}
-		revoked, err := sList.expanded.bit(index)
+		revoked, err := sList.Expanded.bit(index)
 		if err != nil {
 			return err
 		}
 		if revoked {
-			return types.ErrRevoked
+			return errRevoked
 		}
 	}
 	return nil
 }
 
-func (cs *CredentialStatus) statusList(statusListCredential string) (*statusList, error) {
-	// TODO: check if there is a cached version to return
-	return cs.update(statusListCredential)
+func (cs *CredentialStatus) statusList(statusListCredential string) (*credentialRecord, error) {
+	cr, err := cs.loadCredential(statusListCredential)
+	if err != nil {
+		// assume any error means we don't have the credential, so try fetching remote
+		return cs.update(statusListCredential)
+	}
+
+	// managed credentials are always up-to-date, does not matter that it is expired
+	if cs.isManaged(statusListCredential) {
+		return cr, nil
+	}
+
+	// TODO: renewal criteria need to be reconsidered if we add other purposes. A 'suspension' may have been canceled
+	// renew expired certificates
+	if (cr.Expires != nil && time.Unix(*cr.Expires, 0).Before(time.Now())) || // expired
+		time.Unix(cr.CreatedAt, 0).Add(maxAgeExternal).Before(time.Now()) { // older than 15 min
+		crUpdated, err := cs.update(statusListCredential)
+		if err == nil {
+			return crUpdated, nil
+		}
+		// use known credential if we can't fetch a new one, even if it is older/expired
+		if cr.Expires != nil && time.Unix(*cr.Expires, 0).Before(time.Now()) {
+			// log warning if using expired credential
+			log.Logger().WithError(err).WithField(core.LogFieldCredentialSubject, statusListCredential).
+				Info("Validating credentialStatus using expired StatusList2021Credential")
+		}
+	}
+
+	// return credentialRecord, which could be outdated but is the best information available.
+	return cr, nil
 }
 
-// update
-func (cs *CredentialStatus) update(statusListCredential string) (*statusList, error) {
-	// download and Verify
+// update credential in db by downloading remote credential. Storage failures are logged, but does not return an error.
+func (cs *CredentialStatus) update(statusListCredential string) (*credentialRecord, error) {
+	// TODO: use caching headers for unchanged status list credentials
+	// download and verify
 	cred, err := cs.download(statusListCredential)
 	if err != nil {
 		return nil, err
@@ -144,22 +146,43 @@ func (cs *CredentialStatus) update(statusListCredential string) (*statusList, er
 	if err != nil {
 		return nil, err
 	}
+	if statusListCredential != credSubject.ID {
+		return nil, fmt.Errorf("status list: wrong credential: expected '%s', got '%s'", statusListCredential, credSubject.ID)
+	}
 
-	// make statusList
+	// make bit string
 	expanded, err := expand(credSubject.EncodedList)
 	if err != nil {
-		// cant happen, already checked in verifyStatusList2021Credential
+		// cant happen, already checked in verify
 		return nil, err
 	}
-	sl := statusList{
-		credential:           cred,
-		statusListCredential: statusListCredential,
-		statusPurpose:        credSubject.StatusPurpose,
-		expanded:             expanded,
-		lastUpdated:          time.Now(),
+
+	// expiration: specced as validUntil, but also accept expirationDate
+	var expiresPtr *int64
+	if cred.ExpirationDate != nil && !cred.ExpirationDate.IsZero() {
+		expires := cred.ExpirationDate.Unix()
+		expiresPtr = &expires
 	}
-	// TODO: cache updated credential so it does not have to be downloaded everytime
-	//  	 also cache if statusPurposes != 'revocation' to prevent unnecessary downloads
+	if cred.ValidUntil != nil && !cred.ValidUntil.IsZero() {
+		expires := cred.ValidUntil.Unix()
+		expiresPtr = &expires
+	}
+
+	sl := credentialRecord{
+		SubjectID:     statusListCredential,
+		StatusPurpose: credSubject.StatusPurpose,
+		Expanded:      expanded,
+		//Created:              time.Now(), // set by gorm when stored
+		Expires: expiresPtr,
+		Raw:     cred.Raw(),
+	}
+
+	// store credential
+	err = cs.db.Clauses(clause.OnConflict{UpdateAll: true}).Create(&sl).Error
+	if err != nil {
+		// log if storage fails, but still return the credential
+		log.Logger().WithError(err).Info("Failed to store StatusList2021Credential")
+	}
 	return &sl, nil
 }
 
@@ -177,10 +200,8 @@ func (cs *CredentialStatus) download(statusListCredential string) (*vc.Verifiabl
 	defer func() {
 		if err = res.Body.Close(); err != nil {
 			// log, don't fail
-			log.Logger().
-				WithError(err).
-				WithField("method", "CredentialStatus.download").
-				Debug("failed to close response body")
+			log.Logger().WithError(err).WithField("StatusList2021Credential url", statusListCredential).
+				Debug("Failed to close response body")
 		}
 	}()
 	body, err := io.ReadAll(res.Body)
@@ -207,15 +228,18 @@ func (cs *CredentialStatus) verify(cred vc.VerifiableCredential) (*CredentialSub
 	}
 
 	// Verify signature
-	if err = cs.verifySignature(cred, nil); err != nil {
+	if err = cs.VerifySignature(cred, nil); err != nil {
 		return nil, err
 	}
 
 	return credSubj, nil
 }
+
+// validate returns an error when the credential doesn't meet the spec.
 func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialSubject, error) {
-	// TODO: replace with json schema validator
+	// TODO: replace with json schema validator?
 	{ // Credential checks
+		// context
 		// all fields in the credential must be defined by the contexts
 		// TODO: this makes testing a lot harder, and the errors aren't useful. Maybe check for presence of contexts again.
 		//credJSON, err := json.Marshal(cred)
@@ -225,7 +249,6 @@ func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialS
 		//if err = jsonld.AllFieldsDefined(cs.jsonldManager.DocumentLoader(), credJSON); err != nil {
 		//	return nil, err
 		//}
-		// context
 		if !cred.ContainsContext(vc.VCContextV1URI()) {
 			return nil, errors.New("default context is required")
 		}
@@ -266,7 +289,7 @@ func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialS
 	}
 
 	var credentialSubject CredentialSubject
-	{ // CredentialSubject checks
+	{ // credentialSubject checks
 		var target []CredentialSubject
 		err := cred.UnmarshalCredentialSubject(&target)
 		if err != nil {
@@ -275,7 +298,7 @@ func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialS
 		// The spec is not clear if there could be multiple CredentialSubjects. This could allow 'revocation' and 'suspension' to be defined in a single credential.
 		// However, it is not defined how to select the correct list (StatusPurpose) when validating credentials that are using this StatusList2021Credential.
 		if len(target) != 1 {
-			return nil, errors.New("single CredentialSubject expected")
+			return nil, errors.New("single credentialSubject expected")
 		}
 		credentialSubject = target[0]
 

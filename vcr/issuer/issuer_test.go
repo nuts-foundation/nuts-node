@@ -168,7 +168,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			// only check fields relevant to credential status
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			assert.Contains(t, result.Context, statusList2021ContextURI)
+			assert.Contains(t, result.Context, statuslist2021.ContextURI)
 
 			statuses, err := result.CredentialStatuses()
 			require.NoError(t, err)
@@ -176,8 +176,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			assert.Equal(t, statuslist2021.EntryType, statuses[0].Type)
 		})
 		t.Run("error - did:nuts", func(t *testing.T) {
-			jsonldManager := jsonld.NewTestJSONLDManager(t)
-			sut := issuer{jsonldManager: jsonldManager, keyStore: keyStore, statusListStore: NewTestStatusListStore(t)}
+			sut := issuer{keyStore: keyStore, statusListStore: NewTestStatusListStore(t)}
 
 			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{WithStatusListRevocation: true})
 
@@ -557,7 +556,7 @@ func Test_issuer_Issue(t *testing.T) {
 }
 
 func TestNewIssuer(t *testing.T) {
-	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil, &statuslist2021.CredentialStatus{})
 	assert.IsType(t, &issuer{}, createdIssuer)
 }
 
@@ -945,33 +944,29 @@ func TestIssuer_StatusList(t *testing.T) {
 			trustConfig:     trustConfig,
 			statusListStore: NewTestStatusListStore(t, issuerDID),
 		}
+		sut.statusListStore.(*statuslist2021.CredentialStatus).Sign = sut.signVC
 		_, err = sut.statusListStore.Create(ctx, issuerDID, statuslist2021.StatusPurposeRevocation)
 		require.NoError(t, err)
-
-		issuance := time.Now()
-		expiration := issuance.Add(statusListValidity)
-		TimeFunc = func() time.Time { return issuance }
-		defer func() { TimeFunc = time.Now }()
 
 		result, err := sut.StatusList(ctx, issuerDID, 1)
 
 		// credential
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		assert.Contains(t, result.Context, statusList2021ContextURI)
+		assert.Contains(t, result.Context, statuslist2021.ContextURI)
 		assert.Equal(t, result.Issuer.String(), issuerDID.String())
 		assert.True(t, result.IsType(ssi.MustParseURI(statuslist2021.CredentialType)))
 		assert.Nil(t, result.IssuanceDate)
 		assert.Nil(t, result.ExpirationDate)
-		assert.Equal(t, result.ValidFrom.Local(), issuance.Local())
-		assert.Equal(t, result.ValidUntil.Local(), expiration.Local())
+		assert.InDelta(t, result.ValidFrom.Unix(), time.Now().Unix(), 2) // allow for 2 sec diff on slow CI
+		assert.Greater(t, result.ValidUntil.Unix(), result.ValidFrom.Unix())
 
 		// credential subject
 		var subjects []statuslist2021.CredentialSubject
 		err = result.UnmarshalCredentialSubject(&subjects)
 		require.NoError(t, err)
 		require.Len(t, subjects, 1)
-		assert.Equal(t, subjects[0].Id, issuerURL.JoinPath("statuslist", "1").String())
+		assert.Equal(t, subjects[0].ID, issuerURL.JoinPath("statuslist", "1").String())
 		assert.Equal(t, subjects[0].Type, statuslist2021.CredentialSubjectType)
 		assert.Equal(t, subjects[0].StatusPurpose, statuslist2021.StatusPurposeRevocation)
 		assert.NotEmpty(t, subjects[0].EncodedList, "")
@@ -983,7 +978,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		vDIDResolverMock.EXPECT().Resolve(gomock.Any(), gomock.Any())
 		vKeyResolverMock := resolver.NewMockKeyResolver(ctrl)
 		vKeyResolverMock.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(signingKey.Public(), nil)
-		verif := verifier.NewVerifier(vStoreMock, vDIDResolverMock, vKeyResolverMock, jsonldManager, trustConfig, nil)
+		verif := verifier.NewVerifier(vStoreMock, vDIDResolverMock, vKeyResolverMock, jsonldManager, trustConfig, &statuslist2021.CredentialStatus{})
 		assert.NoError(t, verif.Verify(*result, true, true, nil))
 	})
 	t.Run("error - unknown status list credential", func(t *testing.T) {
@@ -995,18 +990,22 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.Nil(t, result)
 	})
 	t.Run("error - issuance failed", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(nil, errors.New("issuance failed"))
+		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
+		storage.AddDIDtoSQLDB(t, db, issuerDID)
+		status := statuslist2021.NewCredentialStatus(db, nil)
+		status.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
+			return &unsignedCredential, nil
+		}
+		_, err = status.Create(ctx, issuerDID, statuslist2021.StatusPurposeRevocation)
+		require.NoError(t, err)
+		db.Exec("DROP TABLE status_list_credential")
+
 		sut := issuer{
-			keyResolver:     keyResolverMock,
 			jsonldManager:   jsonldManager,
 			keyStore:        keyStore,
 			trustConfig:     trustConfig,
-			statusListStore: NewTestStatusListStore(t, issuerDID),
+			statusListStore: status,
 		}
-		_, err = sut.statusListStore.Create(ctx, issuerDID, statuslist2021.StatusPurposeRevocation)
-		require.NoError(t, err)
 
 		result, err := sut.StatusList(ctx, issuerDID, 1)
 
@@ -1024,14 +1023,20 @@ func TestIssuer_StatusList(t *testing.T) {
 	})
 }
 
-func NewTestStatusListStore(t testing.TB, dids ...did.DID) statuslist2021.StatusList2021Issuer {
+func NewTestStatusListStore(t testing.TB, dids ...did.DID) *statuslist2021.CredentialStatus {
 	storageEngine := storage.NewTestStorageEngine(t)
-	require.NoError(t, storageEngine.Start())
 	db := storageEngine.GetSQLDatabase()
 	storage.AddDIDtoSQLDB(t, db, dids...)
-	store, err := statuslist2021.NewStatusListStore(db)
-	require.NoError(t, err)
-	return store
+	cs := statuslist2021.NewCredentialStatus(db, nil)
+	cs.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
+		unsignedCredential.ID, _ = ssi.ParseURI("test-credential")
+		bs, err := json.Marshal(unsignedCredential)
+		require.NoError(t, err)
+		unsignedWithRawField := new(vc.VerifiableCredential)
+		require.NoError(t, json.Unmarshal(bs, unsignedWithRawField))
+		return unsignedWithRawField, nil
+	}
+	return cs
 }
 
 func Test_combinedStore_Diagnostics(t *testing.T) {

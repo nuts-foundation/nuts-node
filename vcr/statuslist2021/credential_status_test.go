@@ -21,7 +21,6 @@ package statuslist2021
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -83,21 +82,20 @@ func TestCredentialStatus_Verify(t *testing.T) {
 		assert.ErrorContains(t, cs.Verify(cred), "tls: failed to verify certificate: x509: certificate signed by unknown authority")
 	})
 	t.Run("error - statusPurpose mismatch", func(t *testing.T) {
+		// credentialStatus
+		cs, entry, ts := testSetup(t, false)
+
 		// server that return StatusList2021Credential with statusPurpose == suspension
 		statusList2021Credential := test.ValidStatusList2021Credential(t)
 		statusList2021Credential.CredentialSubject[0].(map[string]any)["statusPurpose"] = "suspension"
+		statusList2021Credential.CredentialSubject[0].(map[string]any)["id"] = ts.URL
 		credBytes, err := json.Marshal(statusList2021Credential)
 		require.NoError(t, err)
-		ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		ts.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			if _, err = writer.Write(credBytes); err != nil {
 				t.Fatal(err)
 			}
-		}))
-		defer ts.Close()
-
-		// credentialStatus
-		cs, entry, _ := testSetup(t, false)
-		cs.client = ts.Client()
+		})
 
 		// test credential
 		entry.StatusListCredential = ts.URL
@@ -118,20 +116,150 @@ func TestCredentialStatus_Verify(t *testing.T) {
 	})
 }
 
+func TestCredentialStatus_statusList(t *testing.T) {
+	makeRecords := func(subjectID string) (credentialRecord, credentialIssuerRecord) {
+		cir := credentialIssuerRecord{
+			SubjectID: subjectID,
+			Issuer:    aliceDID.String(),
+			Page:      1,
+			Revocations: []revocationRecord{{
+				StatusListCredential: subjectID,
+				StatusListIndex:      1,
+			}},
+		}
+		_, cr, err := (&CredentialStatus{Sign: noopSign}).updateCredential(nil, &cir)
+		require.NoError(t, err)
+		return *cr, cir
+	}
+	t.Run("ok - known credential", func(t *testing.T) {
+		cs, entry, _ := testSetup(t, false)
+		cs.client = nil // panics if attempts to update
+		expectedCR, _ := makeRecords(entry.StatusListCredential)
+		require.NoError(t, cs.db.Create(&expectedCR).Error)
+
+		require.NotPanics(t, func() {
+			actualCR, err := cs.statusList(entry.StatusListCredential)
+			require.NoError(t, err)
+			assert.Equal(t, expectedCR, *actualCR)
+		})
+	})
+	t.Run("ok - new credential", func(t *testing.T) {
+		cs, entry, _ := testSetup(t, false)
+
+		actualCR, err := cs.statusList(entry.StatusListCredential)
+		require.NoError(t, err)
+		assert.NotEmpty(t, actualCR)
+	})
+	t.Run("ok - managed and expired", func(t *testing.T) {
+		cs, _, _ := testSetup(t, false)
+		cs.client = nil // panics if attempts to update
+		cr, cir := makeRecords("a")
+		require.NoError(t, cs.db.Create(&cr).Error)
+		require.NoError(t, cs.db.Create(&cir).Error)
+
+		assert.NotPanics(t, func() {
+			actualCR, err := cs.statusList(cir.SubjectID)
+
+			require.NoError(t, err)
+			assert.Equal(t, cr, *actualCR)
+		})
+	})
+	t.Run("ok - expired", func(t *testing.T) {
+		cs, _, ts := testSetup(t, false)
+		cr, cir := makeRecords(ts.URL)
+		expires := time.Now().Add(-time.Second).Unix()
+		cr.Expires = &expires
+		require.NoError(t, cs.db.Create(&cr).Error)
+
+		actualCR, err := cs.statusList(cir.SubjectID)
+
+		assert.NoError(t, err)
+		require.NotEmpty(t, actualCR)
+		assert.NotEqual(t, cr, *actualCR)
+	})
+	t.Run("ok - exceeded max age", func(t *testing.T) {
+		cs, _, ts := testSetup(t, false)
+		cr, cir := makeRecords(ts.URL)
+		cr.CreatedAt = time.Now().Add(-2 * maxAgeExternal).Unix()
+		require.NoError(t, cs.db.Create(&cr).Error)
+
+		actualCR, err := cs.statusList(cir.SubjectID)
+
+		assert.NoError(t, err)
+		require.NotEmpty(t, actualCR)
+		assert.NotEqual(t, cr, *actualCR)
+	})
+	t.Run("ok - use expired", func(t *testing.T) {
+		cs, _, ts := testSetup(t, false)
+		ts.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			if _, err := writer.Write([]byte{'{'}); err != nil {
+				t.Fatal(err)
+			}
+		})
+		cr, cir := makeRecords(ts.URL)
+		expires := time.Now().Add(-time.Second).Unix()
+		cr.Expires = &expires
+		require.NoError(t, cs.db.Create(&cr).Error)
+
+		actualCR, err := cs.statusList(cir.SubjectID)
+
+		require.NoError(t, err)
+		assert.Equal(t, cr, *actualCR)
+	})
+	t.Run("error - unknown and failed to download", func(t *testing.T) {
+		cs, entry, ts := testSetup(t, false)
+		ts.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			if _, err := writer.Write([]byte{'{'}); err != nil {
+				t.Fatal(err)
+			}
+		})
+
+		actualCR, err := cs.statusList(entry.StatusListCredential)
+
+		assert.EqualError(t, err, "unexpected end of JSON input")
+		assert.Nil(t, actualCR)
+	})
+
+}
+
 func TestCredentialStatus_update(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		cs, _, ts := testSetup(t, false)
+		cs, entry, ts := testSetup(t, false)
 
 		sl, err := cs.update(ts.URL)
 
 		assert.NoError(t, err)
 		require.NotNil(t, sl)
-		assert.NotNil(t, sl.credential)
-		assert.Equal(t, ts.URL, sl.statusListCredential)
-		assert.Equal(t, "revocation", sl.statusPurpose)
-		assert.NotEmpty(t, sl.expanded)
-		assert.WithinRange(t, sl.lastUpdated, time.Now().Add(-time.Second), time.Now())
-		// TODO: check that statusList is cached
+		assert.NotNil(t, sl.Raw)
+		assert.Equal(t, ts.URL, sl.SubjectID)
+		assert.Equal(t, "revocation", sl.StatusPurpose)
+		assert.NotEmpty(t, sl.Expanded)
+		assert.InDelta(t, sl.CreatedAt, time.Now().Unix(), 2) // allow 2 sec difference on slow CI
+		assert.NotNil(t, sl.Expires)
+		slDB, err := cs.loadCredential(entry.StatusListCredential)
+		require.NoError(t, err)
+		assert.Equal(t, *sl, *slDB)
+	})
+	t.Run("ok - ExpirationDate", func(t *testing.T) {
+		cs, _, ts := testSetup(t, false)
+		// change handler
+		statusList2021Credential := test.ValidStatusList2021Credential(t)
+		expectedExpires := time.Now().Truncate(time.Second)
+		statusList2021Credential.ExpirationDate = &expectedExpires
+		statusList2021Credential.ValidUntil = nil
+		statusList2021Credential.CredentialSubject[0].(map[string]any)["id"] = ts.URL
+		credBytes, err := json.Marshal(statusList2021Credential)
+		require.NoError(t, err)
+		ts.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			if _, err = writer.Write(credBytes); err != nil {
+				t.Fatal(err)
+			}
+		})
+
+		sl, err := cs.update(ts.URL)
+
+		require.NoError(t, err)
+		assert.Equal(t, expectedExpires.Unix(), *sl.Expires)
 	})
 	t.Run("error - download", func(t *testing.T) {
 		cs, _, _ := testSetup(t, false)
@@ -143,11 +271,27 @@ func TestCredentialStatus_update(t *testing.T) {
 	})
 	t.Run("error - verify", func(t *testing.T) {
 		cs, _, ts := testSetup(t, false)
-		cs.verifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return errors.New("custom error") }
+		cs.VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return errors.New("custom error") }
 
 		sl, err := cs.update(ts.URL)
 
 		assert.EqualError(t, err, "custom error")
+		assert.Nil(t, sl)
+	})
+	t.Run("error - wrong StatusList2021Credential", func(t *testing.T) {
+		cs, _, ts := testSetup(t, false)
+		// change handler
+		credBytes, err := json.Marshal(test.ValidStatusList2021Credential(t))
+		require.NoError(t, err)
+		ts.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			if _, err = writer.Write(credBytes); err != nil {
+				t.Fatal(err)
+			}
+		})
+
+		sl, err := cs.update(ts.URL)
+
+		assert.ErrorContains(t, err, "status list: wrong credential: expected")
 		assert.Nil(t, sl)
 	})
 }
@@ -172,7 +316,7 @@ func TestCredentialStatus_download(t *testing.T) {
 		assert.NoError(t, err)
 		assert.JSONEq(t, string(expected), string(actual))
 	})
-	t.Run("error - statusListCredential not a URL", func(t *testing.T) {
+	t.Run("error - StatusListCredential not a URL", func(t *testing.T) {
 		cs := CredentialStatus{client: http.DefaultClient}
 		received, err := cs.download("%%")
 		assert.EqualError(t, err, "parse \"%%\": invalid URL escape \"%%\"")
@@ -209,7 +353,7 @@ func TestCredentialStatus_download(t *testing.T) {
 func TestCredentialStatus_verify(t *testing.T) {
 	credentialStatusNoSignCheck := &CredentialStatus{
 		client: nil,
-		verifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
+		VerifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 			return nil
 		},
 	}
@@ -241,7 +385,7 @@ func TestCredentialStatus_verify(t *testing.T) {
 	})
 	t.Run("error -invalid signature", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cs := CredentialStatus{verifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
+		cs := CredentialStatus{VerifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 			return errors.New("invalid signature")
 		}}
 		credSubj, err := cs.verify(cred)
@@ -252,8 +396,7 @@ func TestCredentialStatus_verify(t *testing.T) {
 
 func TestCredentialStatus_validate(t *testing.T) {
 	cs := CredentialStatus{
-		verifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error { return nil },
-		jsonldManager:   jsonld.NewTestJSONLDManager(t),
+		VerifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error { return nil },
 	}
 
 	// Credential checks
@@ -347,7 +490,7 @@ func TestCredentialStatus_validate(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
 		cred.CredentialSubject = []any{CredentialSubject{}, CredentialSubject{}}
 		_, err := cs.validate(cred)
-		assert.EqualError(t, err, "single CredentialSubject expected")
+		assert.EqualError(t, err, "single credentialSubject expected")
 	})
 	t.Run("error - missing credentialSubject.type", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
@@ -375,25 +518,24 @@ func TestCredentialStatus_validate(t *testing.T) {
 //   - the test server
 func testSetup(t testing.TB, entryIsRevoked bool) (*CredentialStatus, Entry, *httptest.Server) {
 	// make test server
+	ts := httptest.NewTLSServer(nil)
+	t.Cleanup(func() { ts.Close() })
+
+	// credential
 	statusList2021Credential := test.ValidStatusList2021Credential(t) // has bit 1 set
+	statusList2021Credential.CredentialSubject[0].(map[string]any)["id"] = ts.URL
 	credBytes, err := json.Marshal(statusList2021Credential)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	require.NoError(t, err)
+
+	// set test server handler
+	ts.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if _, err = writer.Write(credBytes); err != nil {
 			t.Fatal(err)
 		}
-	}))
-	t.Cleanup(func() { ts.Close() })
+	})
 
 	// make credentialStatus
-	credentialStatusNoSignCheck := &CredentialStatus{
-		client: ts.Client(),
-		verifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
-			return nil
-		},
-	}
+	credentialStatusNoSignCheck := newTestCredentialStatus(t, aliceDID, bobDID)
 
 	// make StatusList2021Entry
 	slEntry := Entry{

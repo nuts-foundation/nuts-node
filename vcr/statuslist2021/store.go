@@ -22,63 +22,64 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strconv"
 )
 
-// errNotFound wraps types.ErrNotFound to clarify which credential is not found
-var errNotFound = fmt.Errorf("status list: %w", types.ErrNotFound)
+// statusListValidity is default validity of a status list credential
+const statusListValidity = 24 * time.Hour // TODO: make configurable, and set reasonable default.
+// minTimeUntilExpired is the minimum time a credential must be valid that is returned by the API
+const minTimeUntilExpired = statusListValidity / 4
 
-// errUnsupportedPurpose limits current usage to 'revocation'
-var errUnsupportedPurpose = errors.New("status list: purpose not supported")
-
-// errNotFound wraps types.ErrRevoked to clarify the source of the error
-var errRevoked = fmt.Errorf("status list: %w", types.ErrRevoked)
-
-type StatusPurpose string
-
-const (
-	StatusPurposeRevocation = "revocation"
-	statusPurposeSuspension = "suspension" // currently not supported
-)
-
-// StatusList2021Issuer keeps track of the number of credentials with a credential status per issuer, and allows revoking
-// them by setting the relevant bit on the StatusList.
-// Individual statuses should be derived from the StatusList2021Credential(s), not inspected here.
-type StatusList2021Issuer interface {
-	// CredentialSubject creates a CredentialSubject to incorporate in a StatusList2021Credential issued by issuer.
-	CredentialSubject(ctx context.Context, issuer did.DID, page int) (*CredentialSubject, error)
-	// Create a StatusList2021Entry that can be added to the credentialStatus of a VC.
-	// The corresponding credential will have a gap in the bitstring if the returned entry does not make it into a credential.
-	Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*Entry, error)
-	// Revoke by adding StatusList2021Entry to the list of revocations.
-	// The credentialID is only used to allow reverse search of revocations, its issuer is NOT compared to the entry issuer.
-	// Returns types.ErrRevoked if already revoked, or types.ErrNotFound when the entry.StatusListCredential is unknown.
-	Revoke(ctx context.Context, credentialID ssi.URI, entry Entry) error
+func (s credentialIssuerRecord) TableName() string {
+	return "status_list_credential_issuer"
 }
 
-func (s statusListCredentialRecord) TableName() string {
-	return "status_list_credential"
-}
-
-// statusListCredentialRecord keeps track of the StatusListCredential issued by an issuer, and what the LastIssuedIndex is for each credential.
-type statusListCredentialRecord struct {
-	// SubjectID is the VC.CredentialSubject.ID for this StatusListCredential.
+// credentialIssuerRecord keeps track of a StatusList2021Credential issued by the Issuer, and what the LastIssuedIndex is for the credential.
+// Issuers can have multiple StatusList2021Credentials, the one with the highest page number is the most recent VC / VC currently being issued on.
+type credentialIssuerRecord struct {
+	// SubjectID is the VC.credentialSubject.ID for this StatusListCredential.
 	// It is the URL where the credential can be downloaded e.g., https://example.com/iam/id/statuslist/1.
 	SubjectID string `gorm:"primaryKey"`
 	// Issuer of the StatusListCredential.
 	Issuer string
 	// Page number corresponding to this SubjectID.
 	Page int
-	// LastIssuedIndex on this page. Range:  0 <= StatusListIndex < statuslist2021.maxBitstringIndex
+	// LastIssuedIndex on this page. Range:  0 <= StatusListIndex < maxBitstringIndex
 	LastIssuedIndex int
 	// Revocations list all revocations for this SubjectID
 	Revocations []revocationRecord `gorm:"foreignKey:StatusListCredential;references:SubjectID"`
+}
+
+func (c credentialRecord) TableName() string {
+	return "status_list_credential"
+}
+
+// credentialRecord contains the latest known version of a StatusList2021Credential.
+// For managed credentials this always contains the most up-to-date information,
+// for external credentials it contains the status as received on CreatedAt.
+type credentialRecord struct {
+	// SubjectID is the URL (from Entry.StatusListCredential) that credential was downloaded from
+	// it should match with CredentialSubject.ID
+	SubjectID string `gorm:"primaryKey"`
+	// StatusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
+	StatusPurpose string
+	// Expanded StatusList2021 bitstring
+	Expanded bitstring
+	// CreatedAt is the UNIX timestamp this credentialRecord was generated
+	CreatedAt int64 `gorm:"autoCreateTime"`
+	// Expires is the UNIX timestamp the credential expires. May be missing in external credentials
+	Expires *int64
+	// Raw contains the raw data of the Verifiable Credential
+	Raw string
 }
 
 func (s revocationRecord) TableName() string {
@@ -89,7 +90,7 @@ func (s revocationRecord) TableName() string {
 type revocationRecord struct {
 	// StatusListCredential is the credentialSubject.ID this revocation belongs to. Example https://example.com/iam/id/statuslist/1
 	StatusListCredential string `gorm:"primaryKey"`
-	// StatusListIndex of the revoked status list entry. Range: 0 <= StatusListIndex <= statuslist2021.maxBitstringIndex
+	// StatusListIndex of the revoked status list entry. Range: 0 <= StatusListIndex <= maxBitstringIndex
 	StatusListIndex int `gorm:"primaryKey;autoIncrement:false"`
 	// CredentialID is the VC.ID of the credential revoked by this status list entry.
 	// The value is stored as convenience during revocation, but is not validated.
@@ -99,80 +100,169 @@ type revocationRecord struct {
 	RevokedAt int64 `gorm:"autoCreateTime;column:created_at"`
 }
 
-var _ StatusList2021Issuer = (*sqlStore)(nil)
-
-type sqlStore struct {
-	db *gorm.DB
+func (cs *CredentialStatus) loadCredential(subjectID string) (*credentialRecord, error) {
+	cr := new(credentialRecord)
+	err := cs.db.First(cr, "subject_id = ?", subjectID).Error
+	if err != nil {
+		return nil, err
+	}
+	return cr, nil
 }
 
-// DB creates a new Session with the provided context.
-func (s *sqlStore) DB(ctx context.Context) *gorm.DB {
-	return s.db.WithContext(ctx)
+// isManaged returns true if issued by this node. returns false on db errors.
+func (cs *CredentialStatus) isManaged(subjectID string) bool {
+	var exists bool
+	cs.db.Model(new(credentialIssuerRecord)).
+		Select("count(*) > 0").
+		Where("subject_id = ?", subjectID).
+		First(&exists)
+	return exists
 }
 
-func NewStatusListStore(db *gorm.DB) (*sqlStore, error) {
-	return &sqlStore{db: db}, nil
-}
-
-func (s *sqlStore) CredentialSubject(ctx context.Context, issuer did.DID, page int) (*CredentialSubject, error) {
-	statusListCredential, err := toStatusListCredential(issuer, page)
+func (cs *CredentialStatus) Credential(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
+	statusListCredentialURL, err := toStatusListCredential(issuerDID, page)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check that status_list_credential exists! and then load all revocations.
-	var statuslist statusListCredentialRecord
-	err = s.DB(ctx).Preload("Revocations").First(&statuslist, "subject_id = ?", statusListCredential).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// status_list_credential.id does not exist or is not managed by this node
-			return nil, errNotFound
+	// only return credential if we are the issuer
+	if !cs.isManaged(statusListCredentialURL) {
+		return nil, errNotFound
+	}
+
+	// return stored credential if valid for long enough
+	credRecord, err := cs.loadCredential(statusListCredentialURL)
+	if err == nil && time.Now().Add(minTimeUntilExpired).Before(time.Unix(*credRecord.Expires, 0)) {
+		cred, err := vc.ParseVerifiableCredential(credRecord.Raw)
+		if err == nil {
+			return cred, nil
 		}
+		// log broken credential in DB and try to issue a new credential
+		log.Logger().WithError(err).WithField("StatusList2021Credential", statusListCredentialURL).Error("Failed to parse managed credential in database")
+	}
+
+	// issue a new credential if we can't load the existing, or it's about to expire
+	var cred *vc.VerifiableCredential // is nil, so if this panics outside this method the var name is probably shadowed in the db.Transaction.
+	err = cs.db.Transaction(func(tx *gorm.DB) error {
+		// lock credentialRecord row for statusListCredentialURL since it will be updated.
+		// Revoke does the same to guarantee the DB always contains all revocations.
+		err = tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
+			Find(new(credentialRecord), "subject_id = ?", statusListCredentialURL).
+			Error
+		if err != nil {
+			return err
+		}
+
+		issuerRecord := new(credentialIssuerRecord)
+		err = tx.Preload("Revocations").First(issuerRecord, "subject_id = ?", statusListCredentialURL).Error
+		if err != nil {
+			// gorm.ErrRecordNotFound can't happen, isManaged() confirmed it exists
+			return err
+		}
+		cred, credRecord, err = cs.updateCredential(ctx, issuerRecord)
+		if err != nil {
+			return err
+		}
+
+		err = tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(credRecord).Error
+		if err != nil {
+			// log error, but don't fail.
+			log.Logger().
+				WithError(err).
+				WithField("Status list URL", statusListCredentialURL).
+				Error("failed to store issued StatusList2021Credential")
+		}
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	// make encodedList
-	bitstring := newBitstring()
-	for _, rev := range statuslist.Revocations {
-		if err = bitstring.setBit(rev.StatusListIndex, true); err != nil {
+	return cred, nil
+}
+
+// updateCredential creates a signed StatusList2021Credential and a credentialRecord from the credentialIssuerRecord.
+// All revocations must be present in the issuerRecord. The caller is responsible for writing the credentialRecord to the db.
+func (cs *CredentialStatus) updateCredential(ctx context.Context, issuerRecord *credentialIssuerRecord) (*vc.VerifiableCredential, *credentialRecord, error) {
+	issuerDID, err := did.ParseDID(issuerRecord.Issuer)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// bit string
+	expanded := newBitstring()
+	for _, rev := range issuerRecord.Revocations {
+		if err = expanded.setBit(rev.StatusListIndex, true); err != nil {
 			// can't happen
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	encodedList, err := compress(*bitstring)
+	encodedList, err := compress(*expanded)
 	if err != nil {
 		// can't happen
-		return nil, err
+		return nil, nil, err
 	}
 
-	// return credential subject
-	return &CredentialSubject{
-		Id:            statusListCredential,
+	// credential subject
+	credSubject := &CredentialSubject{
+		ID:            issuerRecord.SubjectID,
 		Type:          CredentialSubjectType,
 		StatusPurpose: StatusPurposeRevocation,
 		EncodedList:   encodedList,
-	}, nil
+	}
+	// create and sign new credential
+	statusListCredential, err := cs.buildAndSignVC(ctx, *issuerDID, *credSubject)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// create new credentialRecord
+	expires := statusListCredential.ValidUntil.Unix()
+	credRecord := &credentialRecord{
+		SubjectID:     credSubject.ID,
+		StatusPurpose: credSubject.StatusPurpose,
+		Expanded:      *expanded,
+		Expires:       &expires,
+		Raw:           statusListCredential.Raw(),
+	}
+	return statusListCredential, credRecord, nil
 }
 
-func (s *sqlStore) Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*Entry, error) {
+// buildAndSignVC intends to do the same as vcr.issuer.buildAndSignVC
+func (cs *CredentialStatus) buildAndSignVC(ctx context.Context, issuerDID did.DID, credSubject CredentialSubject) (*vc.VerifiableCredential, error) {
+	iss := time.Now()
+	exp := iss.Add(statusListValidity)
+	template := vc.VerifiableCredential{
+		Context: []ssi.URI{
+			vc.VCContextV1URI(),
+			ContextURI,
+		},
+		Type: []ssi.URI{
+			vc.VerifiableCredentialTypeV1URI(),
+			credentialTypeURI,
+		},
+		CredentialSubject: []any{credSubject},
+		Issuer:            issuerDID.URI(),
+		ValidFrom:         &iss,
+		ValidUntil:        &exp,
+	}
+
+	// sign the credential
+	return cs.Sign(ctx, template, vc.JSONLDCredentialProofFormat)
+}
+
+func (cs *CredentialStatus) Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*Entry, error) {
 	if purpose != StatusPurposeRevocation {
 		return nil, errUnsupportedPurpose
 	}
 
-	var credentialRecord statusListCredentialRecord
+	credentialIssuer := new(credentialIssuerRecord)
 	for {
-		err := s.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		err := cs.db.Transaction(func(tx *gorm.DB) error {
 			// lock issuer's last page; iff it exists
-			//
-			// SELECT *
-			// FROM status_list_credential
-			// WHERE issuer = 'issuer.String()'
-			// ORDER BY page DESC
-			// LIMIT 1
-			// FOR UPDATE;
-			err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
 				Order("page").
-				Last(&credentialRecord, "issuer = ?", issuer.String()).
+				Last(credentialIssuer, "issuer = ?", issuer.String()).
 				Error
 			if err != nil {
 				if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -180,7 +270,7 @@ func (s *sqlStore) Create(ctx context.Context, issuer did.DID, purpose StatusPur
 				}
 
 				// first time issuer; prepare to create a new Page / StatusListCredential
-				credentialRecord = statusListCredentialRecord{
+				credentialIssuer = &credentialIssuerRecord{
 					Issuer:          issuer.String(),
 					LastIssuedIndex: maxBitstringIndex, // this will be incremented to move to page 1
 					Page:            0,
@@ -188,41 +278,38 @@ func (s *sqlStore) Create(ctx context.Context, issuer did.DID, purpose StatusPur
 			}
 
 			// next index
-			credentialRecord.LastIssuedIndex++
+			credentialIssuer.LastIssuedIndex++
 
-			// create new page (statusListCredential) if current is full
-			if credentialRecord.LastIssuedIndex > maxBitstringIndex {
-				credentialRecord.LastIssuedIndex = 0
-				credentialRecord.Page++
-
-				// set statusListCredential with correct page
-				credentialRecord.SubjectID, err = toStatusListCredential(issuer, credentialRecord.Page)
+			// create new page (statusListCredential) if current is full and release lock
+			// write actions here are not protected by the SELECT FOR UPDATE clause, so can fail with gorm.ErrDuplicatedKey
+			if credentialIssuer.LastIssuedIndex > maxBitstringIndex {
+				credentialIssuer.LastIssuedIndex = 0
+				credentialIssuer.Page++
+				credentialIssuer.SubjectID, err = toStatusListCredential(issuer, credentialIssuer.Page)
 				if err != nil {
 					return err
 				}
+				// add new credentialIssuerRecord
+				if err = tx.Create(credentialIssuer).Error; err != nil {
+					return err
+				}
 
-				// add new statusListCredential
-				// this is not protected by the SELECT FOR UPDATE clause, so can fail with gorm.ErrDuplicatedKey
-				//
-				// INSERT INTO  status_list_credential (id, issuer, page, last_issued_index)
-				// VALUES ('credentialRecord.ID', 'credentialRecord.Issuer', 'credentialRecord.Page', 0);
-				return tx.Create(credentialRecord).Error
+				_, credRecord, err := cs.updateCredential(ctx, credentialIssuer)
+				if err != nil {
+					return err
+				}
+				return tx.Create(credRecord).Error
 			}
 
 			// update last_issued_index and release lock
-			//
-			// UPDATE status_list_credential
-			// SET last_issued_index = 'credentialRecord.LastIssuedIndex'
-			// WHERE id = 'credentialRecord.ID';
-			return tx.Model(&statusListCredentialRecord{}).
-				Where("subject_id = ?", credentialRecord.SubjectID).
-				UpdateColumn("last_issued_index", credentialRecord.LastIssuedIndex).Error // only then update
+			return tx.Model(&credentialIssuerRecord{}).
+				Where("subject_id = ?", credentialIssuer.SubjectID).
+				UpdateColumn("last_issued_index", credentialIssuer.LastIssuedIndex).Error // only then update
 		})
 		if err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				// gorm.ErrDuplicatedKey means that a race condition occurred while trying to add a new statusListCredential.
-				// This can't happen for SQLite due to the lock
-				// manually check test "no race conditions on UPDATE or CREATE" if this logic changes.
+				// gorm.ErrDuplicatedKey means that a race condition occurred while trying to add a new credentialRecord
+				// or credentialIssuerRecord. We just have to try again.
 				continue
 			}
 			return nil, err
@@ -231,15 +318,15 @@ func (s *sqlStore) Create(ctx context.Context, issuer did.DID, purpose StatusPur
 	}
 
 	return &Entry{
-		ID:                   fmt.Sprintf("%s#%d", credentialRecord.SubjectID, credentialRecord.LastIssuedIndex),
+		ID:                   fmt.Sprintf("%s#%d", credentialIssuer.SubjectID, credentialIssuer.LastIssuedIndex),
 		Type:                 EntryType,
 		StatusPurpose:        StatusPurposeRevocation,
-		StatusListIndex:      strconv.Itoa(credentialRecord.LastIssuedIndex),
-		StatusListCredential: credentialRecord.SubjectID,
+		StatusListIndex:      strconv.Itoa(credentialIssuer.LastIssuedIndex),
+		StatusListCredential: credentialIssuer.SubjectID,
 	}, nil
 }
 
-func (s *sqlStore) Revoke(ctx context.Context, credentialID ssi.URI, entry Entry) error {
+func (cs *CredentialStatus) Revoke(ctx context.Context, credentialID ssi.URI, entry Entry) error {
 	// parse StatusListIndex
 	statusListIndex, err := strconv.Atoi(entry.StatusListIndex)
 	if err != nil {
@@ -252,39 +339,63 @@ func (s *sqlStore) Revoke(ctx context.Context, credentialID ssi.URI, entry Entry
 	}
 
 	// check if StatusList2021Credential is managed by this node
-	var statuslist statusListCredentialRecord
-	// SELECT * FROM status_list_credential WHERE id = 'entry.StatusListCredential' LIMIT 1;
-	err = s.DB(ctx).First(&statuslist, "subject_id = ?", entry.StatusListCredential).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errNotFound // statusListCredential not managed by this node
+	if !cs.isManaged(entry.StatusListCredential) {
+		return errNotFound
+	}
+
+	return cs.db.Transaction(func(tx *gorm.DB) error {
+		// lock relevant credentialRecord. It was created when the first entry was issued for this credential.
+		err = tx.Model(new(credentialRecord)).
+			Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
+			Select("count(*) > 0").
+			Where("subject_id = ?", entry.StatusListCredential).
+			First(new(bool)).
+			Error
+		if err != nil {
+			return err
 		}
-		return err
-	}
 
-	// validate StatusListIndex
-	if statusListIndex < 0 || statusListIndex > statuslist.LastIssuedIndex {
-		return ErrIndexNotInBitstring
-	}
-
-	// revoke
-	revocation := revocationRecord{
-		StatusListCredential: statuslist.SubjectID,
-		StatusListIndex:      statusListIndex,
-		CredentialID:         credentialID.String(),
-	}
-	// INSERT INTO status_list_status (status_list_credential, status_list_index, credentialID)
-	// VALUES ('statuslist.ID', 'statusListIndex', 'credentialID.String()');
-	err = s.DB(ctx).Create(&revocation).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return errRevoked // already revoked
+		// revoke
+		revocation := revocationRecord{
+			StatusListCredential: entry.StatusListCredential,
+			StatusListIndex:      statusListIndex,
+			CredentialID:         credentialID.String(),
 		}
-		return err
-	}
 
-	// successful revocation
-	return nil
+		// fail fast, immediately fail if revocation already exists
+		err = tx.Create(&revocation).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				return errRevoked // already revoked
+			}
+			return err
+		}
+
+		// load all revocations
+		issuerRecord := new(credentialIssuerRecord)
+		err = tx.Preload("Revocations").First(issuerRecord, "subject_id = ?", entry.StatusListCredential).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// can't happen, already checked
+				return errNotFound
+			}
+			return err
+		}
+
+		// validate StatusListIndex; triggers a rollback after the fact, but this should never happen.
+		if statusListIndex < 0 || statusListIndex > issuerRecord.LastIssuedIndex {
+			return ErrIndexNotInBitstring
+		}
+
+		// append new revocation and re-issue credential.
+		issuerRecord.Revocations = append(issuerRecord.Revocations)
+		credRecord := new(credentialRecord)
+		_, credRecord, err = cs.updateCredential(ctx, issuerRecord)
+		if err != nil {
+			return err
+		}
+		return tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(credRecord).Error
+	})
 }
 
 func toStatusListCredential(issuer did.DID, page int) (string, error) {

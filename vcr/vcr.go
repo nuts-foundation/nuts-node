@@ -226,14 +226,10 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		c.walletHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
 		c.openidSessionStore = c.storageClient.GetSessionDatabase()
 	}
-	status, err := statuslist2021.NewStatusListStore(c.storageClient.GetSQLDatabase())
-	if err != nil {
-		return err
-	}
 
+	status := statuslist2021.NewCredentialStatus(c.storageClient.GetSQLDatabase(), core.NewStrictHTTPClient(config.Strictmode, config.HTTPClient.Timeout, tlsConfig))
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig, status)
-	c.verifierHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, c.verifierHttpClient)
+	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, status)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 

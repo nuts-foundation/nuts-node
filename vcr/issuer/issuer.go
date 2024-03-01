@@ -59,12 +59,12 @@ var TimeFunc = time.Now
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
-	statusList statuslist2021.StatusList2021Issuer) Issuer {
+	statusList *statuslist2021.CredentialStatus) Issuer {
 	keyResolver := vdrKeyResolver{
 		publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
 		privateKeyResolver: keyStore,
 	}
-	return &issuer{
+	i := &issuer{
 		store:            store,
 		networkPublisher: networkPublisher,
 		openidHandlerFn:  openidHandlerFn,
@@ -78,6 +78,8 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 		vcrStore:        vcrStore,
 		statusListStore: statusList,
 	}
+	statusList.Sign = i.signVC
+	return i
 }
 
 type issuer struct {
@@ -91,7 +93,7 @@ type issuer struct {
 	jsonldManager    jsonld.JSONLD
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
-	statusListStore  statuslist2021.StatusList2021Issuer
+	statusListStore  statuslist2021.Issuer
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -219,8 +221,8 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 		unsignedCredential.CredentialStatus = append(unsignedCredential.CredentialStatus, credentialStatusEntry)
 
 		// add status list context
-		if !unsignedCredential.ContainsContext(statusList2021ContextURI) {
-			unsignedCredential.Context = append(unsignedCredential.Context, statusList2021ContextURI)
+		if !unsignedCredential.ContainsContext(statuslist2021.ContextURI) {
+			unsignedCredential.Context = append(unsignedCredential.Context, statuslist2021.ContextURI)
 		}
 	}
 
@@ -445,48 +447,8 @@ func (i issuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject
 	return i.store.SearchCredential(credentialType, issuer, subject)
 }
 
-// statusListValidity is default validity of a statuslist credential. It should be
-const statusListValidity = 24 * time.Hour // TODO: make configurable
-
-var statusList2021ContextURI = ssi.MustParseURI(jsonld.W3cStatusList2021Context)
-var statusList2021CredentialTypeURI = ssi.MustParseURI(statuslist2021.CredentialType)
-
 func (i issuer) StatusList(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
-	// todo: get cached credential if available
-
-	// get credential subject
-	credSubject, err := i.statusListStore.CredentialSubject(ctx, issuerDID, page)
-	if err != nil {
-		return nil, err
-	}
-
-	// create statuslist credential template
-	iss := TimeFunc()
-	exp := iss.Add(statusListValidity)
-	template := vc.VerifiableCredential{
-		Context: []ssi.URI{
-			vc.VCContextV1URI(),
-			statusList2021ContextURI,
-		},
-		Type: []ssi.URI{
-			vc.VerifiableCredentialTypeV1URI(),
-			statusList2021CredentialTypeURI,
-		},
-		CredentialSubject: []any{credSubject},
-		Issuer:            issuerDID.URI(),
-		ValidFrom:         &iss,
-		ValidUntil:        &exp,
-	}
-
-	// build and sign the VC.
-	// All content is validated and these credentials should not be in the issuer store, so don't use i.Issue()
-	statusListCredential, err := i.signVC(ctx, template, vc.JSONLDCredentialProofFormat)
-	if err != nil {
-		return nil, err
-	}
-	// TODO: cache result
-
-	return statusListCredential, nil
+	return i.statusListStore.Credential(ctx, issuerDID, page)
 }
 
 func NewStore(db *gorm.DB, leiaIssuerStorePath string, leiaIssuerBackupStore stoabs.KVStore) (Store, error) {
