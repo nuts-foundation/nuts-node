@@ -19,6 +19,7 @@
 package verifier
 
 import (
+	"context"
 	crypt "crypto"
 	"encoding/json"
 	"errors"
@@ -149,8 +150,14 @@ func TestVerifier_Verify(t *testing.T) {
 		http.DefaultClient = ts.Client() // newMockContext sets credentialStatus.client to http.DefaultClient
 		ctx := newMockContext(t)
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
-		ctx.verifier.credentialStatus = statuslist2021.NewCredentialStatus(storage.NewTestStorageEngine(t).GetSQLDatabase(), ts.Client())
+		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
+		ctx.verifier.credentialStatus = statuslist2021.NewCredentialStatus(db, ts.Client())
 		ctx.verifier.credentialStatus.VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
+		ctx.verifier.credentialStatus.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
+			bs, err := json.Marshal(unsignedCredential)
+			require.NoError(t, err)
+			return &unsignedCredential, json.Unmarshal(bs, &unsignedCredential)
+		}
 
 		cred := test.ValidNutsOrganizationCredential(t)
 		cred.Context = append(cred.Context, ssi.MustParseURI(jsonld.W3cStatusList2021Context))
@@ -164,8 +171,18 @@ func TestVerifier_Verify(t *testing.T) {
 			assert.NoError(t, validationErr)
 		})
 		t.Run("is revoked", func(t *testing.T) {
-			slEntry.StatusListIndex = strconv.Itoa(statusListIndex)
-			cred.CredentialStatus = []any{slEntry}
+			didAlice := did.MustParseDID("did:web:example.com:iam:alice")
+			storage.AddDIDtoSQLDB(t, db, didAlice)
+			entry, err := ctx.verifier.credentialStatus.Create(nil, didAlice, statuslist2021.StatusPurposeRevocation)
+			require.NoError(t, err)
+			require.NoError(t, ctx.verifier.credentialStatus.Revoke(nil, ssi.URI{}, *entry))
+			cred := test.ValidNutsOrganizationCredential(t)
+			credentialID := didAlice.URI()
+			credentialID.Fragment = "123"
+			cred.ID = &credentialID
+			cred.Issuer = didAlice.URI()
+			cred.CredentialStatus = []any{entry}
+			cred.Context = append(cred.Context, statuslist2021.ContextURI)
 
 			validationErr := ctx.verifier.Verify(cred, true, false, nil)
 

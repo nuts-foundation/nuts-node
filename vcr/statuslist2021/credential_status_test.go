@@ -522,8 +522,8 @@ func testSetup(t testing.TB, entryIsRevoked bool) (*CredentialStatus, Entry, *ht
 	t.Cleanup(func() { ts.Close() })
 
 	// credential
-	statusList2021Credential := test.ValidStatusList2021Credential(t) // has bit 1 set
-	statusList2021Credential.CredentialSubject[0].(map[string]any)["id"] = ts.URL
+	statusList2021Credential := test.ValidStatusList2021Credential(t)             // has bit 1 set
+	statusList2021Credential.CredentialSubject[0].(map[string]any)["id"] = ts.URL // point to the test server
 	credBytes, err := json.Marshal(statusList2021Credential)
 	require.NoError(t, err)
 
@@ -536,6 +536,7 @@ func testSetup(t testing.TB, entryIsRevoked bool) (*CredentialStatus, Entry, *ht
 
 	// make credentialStatus
 	credentialStatusNoSignCheck := newTestCredentialStatus(t, aliceDID, bobDID)
+	credentialStatusNoSignCheck.client = ts.Client()
 
 	// make StatusList2021Entry
 	slEntry := Entry{
