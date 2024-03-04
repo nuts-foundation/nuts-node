@@ -49,8 +49,6 @@ jobs:
             type=ref,event=branch,enable={{is_default_branch}},prefix=
             # generate 5.2.1 tag
             type=semver,pattern={{version}}
-            # generate 5 tag
-            type=semver,pattern={{major}}
           flavor: |
             latest=${{ steps.version.outputs.git_version == steps.get-latest-tag.outputs.tag }}
 
