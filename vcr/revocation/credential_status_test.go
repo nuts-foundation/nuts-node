@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist2021
+package revocation
 
 import (
 	"encoding/json"
@@ -127,7 +127,7 @@ func TestCredentialStatus_statusList(t *testing.T) {
 				StatusListIndex:      1,
 			}},
 		}
-		_, cr, err := (&CredentialStatus{Sign: noopSign}).updateCredential(nil, &cir)
+		_, cr, err := (&StatusList2021{Sign: noopSign}).updateCredential(nil, &cir)
 		require.NoError(t, err)
 		return *cr, cir
 	}
@@ -308,7 +308,7 @@ func TestCredentialStatus_download(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		cs := CredentialStatus{client: ts.Client()}
+		cs := StatusList2021{client: ts.Client()}
 		received, err := cs.download(ts.URL)
 
 		assert.NoError(t, err)
@@ -317,7 +317,7 @@ func TestCredentialStatus_download(t *testing.T) {
 		assert.JSONEq(t, string(expected), string(actual))
 	})
 	t.Run("error - StatusListCredential not a URL", func(t *testing.T) {
-		cs := CredentialStatus{client: http.DefaultClient}
+		cs := StatusList2021{client: http.DefaultClient}
 		received, err := cs.download("%%")
 		assert.EqualError(t, err, "parse \"%%\": invalid URL escape \"%%\"")
 		assert.Nil(t, received)
@@ -328,7 +328,7 @@ func TestCredentialStatus_download(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		cs := CredentialStatus{client: ts.Client()}
+		cs := StatusList2021{client: ts.Client()}
 		received, err := cs.download(ts.URL)
 
 		assert.ErrorContains(t, err, "fetching StatusList2021Credential from")
@@ -342,7 +342,7 @@ func TestCredentialStatus_download(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		cs := &CredentialStatus{client: ts.Client()}
+		cs := &StatusList2021{client: ts.Client()}
 
 		received, err := cs.download(ts.URL)
 		assert.EqualError(t, err, "unexpected end of JSON input")
@@ -351,7 +351,7 @@ func TestCredentialStatus_download(t *testing.T) {
 }
 
 func TestCredentialStatus_verify(t *testing.T) {
-	credentialStatusNoSignCheck := &CredentialStatus{
+	credentialStatusNoSignCheck := &StatusList2021{
 		client: nil,
 		VerifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 			return nil
@@ -385,7 +385,7 @@ func TestCredentialStatus_verify(t *testing.T) {
 	})
 	t.Run("error -invalid signature", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cs := CredentialStatus{VerifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
+		cs := StatusList2021{VerifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 			return errors.New("invalid signature")
 		}}
 		credSubj, err := cs.verify(cred)
@@ -395,7 +395,7 @@ func TestCredentialStatus_verify(t *testing.T) {
 }
 
 func TestCredentialStatus_validate(t *testing.T) {
-	cs := CredentialStatus{
+	cs := StatusList2021{
 		VerifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error { return nil },
 	}
 
@@ -407,7 +407,7 @@ func TestCredentialStatus_validate(t *testing.T) {
 	})
 	t.Run("error - missing credential/v1 context", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cred.Context = []ssi.URI{credentialTypeURI}
+		cred.Context = []ssi.URI{statusList2021CredentialTypeURI}
 		_, err := cs.validate(cred)
 		assert.EqualError(t, err, "default context is required")
 	})
@@ -419,7 +419,7 @@ func TestCredentialStatus_validate(t *testing.T) {
 	})
 	t.Run("error - missing VerifiableCredential type", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cred.Type = []ssi.URI{credentialTypeURI}
+		cred.Type = []ssi.URI{statusList2021CredentialTypeURI}
 		_, err := cs.validate(cred)
 		assert.EqualError(t, err, "type 'VerifiableCredential' is required")
 	})
@@ -478,7 +478,7 @@ func TestCredentialStatus_validate(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
 		cred.CredentialSubject = []any{"{"}
 		_, err := cs.validate(cred)
-		assert.EqualError(t, err, "json: cannot unmarshal string into Go value of type statuslist2021.CredentialSubject")
+		assert.EqualError(t, err, "json: cannot unmarshal string into Go value of type revocation.StatusList2021CredentialSubject")
 	})
 	t.Run("error - wrong credential subject", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
@@ -488,7 +488,7 @@ func TestCredentialStatus_validate(t *testing.T) {
 	})
 	t.Run("error - multiple credentialSubject", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject = []any{CredentialSubject{}, CredentialSubject{}}
+		cred.CredentialSubject = []any{StatusList2021CredentialSubject{}, StatusList2021CredentialSubject{}}
 		_, err := cs.validate(cred)
 		assert.EqualError(t, err, "single credentialSubject expected")
 	})
@@ -516,7 +516,7 @@ func TestCredentialStatus_validate(t *testing.T) {
 //   - credentialStatus that does NOT Verify signatures, and a client configured for the test server
 //   - a StatusList2021Entry pointing to the test server, optionally provide a statusListIndex matching statusList2021Credential.encodedList to simulate revocation
 //   - the test server
-func testSetup(t testing.TB, entryIsRevoked bool) (*CredentialStatus, Entry, *httptest.Server) {
+func testSetup(t testing.TB, entryIsRevoked bool) (*StatusList2021, StatusList2021Entry, *httptest.Server) {
 	// make test server
 	ts := httptest.NewTLSServer(nil)
 	t.Cleanup(func() { ts.Close() })
@@ -539,8 +539,8 @@ func testSetup(t testing.TB, entryIsRevoked bool) (*CredentialStatus, Entry, *ht
 	credentialStatusNoSignCheck.client = ts.Client()
 
 	// make StatusList2021Entry
-	slEntry := Entry{
-		Type:                 EntryType,
+	slEntry := StatusList2021Entry{
+		Type:                 StatusList2021EntryType,
 		StatusPurpose:        StatusPurposeRevocation,
 		StatusListIndex:      "76248",
 		StatusListCredential: ts.URL,

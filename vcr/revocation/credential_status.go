@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist2021
+package revocation
 
 import (
 	"encoding/json"
@@ -36,9 +36,9 @@ import (
 // maxAgeExternal is the maximum age of external StatusList2021Credentials. If older than this we try to refresh.
 const maxAgeExternal = 15 * time.Minute
 
-// Verify CredentialStatus returns a types.ErrRevoked when the credentialStatus contains a 'StatusList2021Entry' that can be resolved and lists the credential as 'revoked'
+// Verify StatusList2021 returns a types.ErrRevoked when the credentialStatus contains a 'StatusList2021Entry' that can be resolved and lists the credential as 'revoked'
 // Other credentialStatus type/statusPurpose are ignored. Verification may fail with other non-standardized errors.
-func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) error {
+func (cs *StatusList2021) Verify(credentialToVerify vc.VerifiableCredential) error {
 	if credentialToVerify.CredentialStatus == nil {
 		return nil
 	}
@@ -52,7 +52,7 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 	// returns errors if processing fails -> TODO: hard/soft fail option?
 	// returns types.ErrRevoked if correct type, purpose, and listed.
 	for _, status := range statuses {
-		if status.Type != EntryType {
+		if status.Type != StatusList2021EntryType {
 			// ignore other credentialStatus.type
 			log.Logger().
 				WithField("credentialStatus.type", status.Type).
@@ -61,7 +61,7 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 				Info("Ignoring credentialStatus with unknown type")
 			continue
 		}
-		var slEntry Entry // CredentialStatus of the credentialToVerify
+		var slEntry StatusList2021Entry // CredentialStatus of the credentialToVerify
 		if err = json.Unmarshal(status.Raw(), &slEntry); err != nil {
 			// cannot happen. already validated in credential.defaultCredentialValidator{}
 			return err
@@ -102,7 +102,7 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 	return nil
 }
 
-func (cs *CredentialStatus) statusList(statusListCredential string) (*credentialRecord, error) {
+func (cs *StatusList2021) statusList(statusListCredential string) (*credentialRecord, error) {
 	cr, err := cs.loadCredential(statusListCredential)
 	if err != nil {
 		// assume any error means we don't have the credential, so try fetching remote
@@ -135,7 +135,7 @@ func (cs *CredentialStatus) statusList(statusListCredential string) (*credential
 }
 
 // update StatusList2021Credential in db by downloading remote StatusList2021Credential. Storage failures are logged, but do not return an error.
-func (cs *CredentialStatus) update(statusListCredential string) (*credentialRecord, error) {
+func (cs *StatusList2021) update(statusListCredential string) (*credentialRecord, error) {
 	// TODO: use caching headers for unchanged status list StatusList2021Credentials
 	// download and verify
 	cred, err := cs.download(statusListCredential)
@@ -187,7 +187,7 @@ func (cs *CredentialStatus) update(statusListCredential string) (*credentialReco
 }
 
 // download the StatusList2021Credential found at statusList2021Entry.statusListCredential
-func (cs *CredentialStatus) download(statusListCredential string) (*vc.VerifiableCredential, error) {
+func (cs *StatusList2021) download(statusListCredential string) (*vc.VerifiableCredential, error) {
 	var cred vc.VerifiableCredential // VC containing CredentialStatus of the credentialToVerify
 	req, err := http.NewRequest(http.MethodGet, statusListCredential, nil)
 	if err != nil {
@@ -214,9 +214,9 @@ func (cs *CredentialStatus) download(statusListCredential string) (*vc.Verifiabl
 	return &cred, nil
 }
 
-// verify returns the StatusList2021Credential's CredentialSubject,
+// verify returns the StatusList2021Credential's StatusList2021CredentialSubject,
 // or an error if the signature is invalid or the StatusList2021Credential does not meet the spec.
-func (cs *CredentialStatus) verify(cred vc.VerifiableCredential) (*CredentialSubject, error) {
+func (cs *StatusList2021) verify(cred vc.VerifiableCredential) (*StatusList2021CredentialSubject, error) {
 	// confirm contents match spec
 	credSubj, err := cs.validate(cred)
 	if err != nil {
@@ -236,7 +236,7 @@ func (cs *CredentialStatus) verify(cred vc.VerifiableCredential) (*CredentialSub
 }
 
 // validate returns an error when the StatusList2021Credential doesn't meet the spec.
-func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialSubject, error) {
+func (cs *StatusList2021) validate(cred vc.VerifiableCredential) (*StatusList2021CredentialSubject, error) {
 	// TODO: replace with json schema validator?
 	{ // Credential checks
 		// context
@@ -252,7 +252,7 @@ func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialS
 		if !cred.ContainsContext(vc.VCContextV1URI()) {
 			return nil, errors.New("default context is required")
 		}
-		if !cred.ContainsContext(ContextURI) {
+		if !cred.ContainsContext(StatusList2021ContextURI) {
 			return nil, errors.New("context 'https://w3id.org/vc/status-list/2021/v1' is required")
 		}
 
@@ -260,8 +260,8 @@ func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialS
 		if !cred.IsType(vc.VerifiableCredentialTypeV1URI()) { // same type for vc v2 spec
 			return nil, errors.New("type 'VerifiableCredential' is required")
 		}
-		if !cred.IsType(credentialTypeURI) {
-			return nil, fmt.Errorf("type '%s' is required", credentialTypeURI)
+		if !cred.IsType(statusList2021CredentialTypeURI) {
+			return nil, fmt.Errorf("type '%s' is required", statusList2021CredentialTypeURI)
 		}
 		if len(cred.Type) > 2 {
 			return nil, errors.New("StatusList2021Credential contains other types")
@@ -288,9 +288,9 @@ func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialS
 		}
 	}
 
-	var credentialSubject CredentialSubject
+	var credentialSubject StatusList2021CredentialSubject
 	{ // credentialSubject checks
-		var target []CredentialSubject
+		var target []StatusList2021CredentialSubject
 		err := cred.UnmarshalCredentialSubject(&target)
 		if err != nil {
 			return nil, err
@@ -302,8 +302,8 @@ func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialS
 		}
 		credentialSubject = target[0]
 
-		if credentialSubject.Type != CredentialSubjectType {
-			return nil, fmt.Errorf("credentialSubject.type '%s' is required", CredentialSubjectType)
+		if credentialSubject.Type != StatusList2021CredentialSubjectType {
+			return nil, fmt.Errorf("credentialSubject.type '%s' is required", StatusList2021CredentialSubjectType)
 		}
 		if credentialSubject.StatusPurpose == "" {
 			return nil, errors.New("credentialSubject.statusPurpose is required")

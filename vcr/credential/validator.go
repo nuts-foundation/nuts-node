@@ -27,7 +27,7 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -100,13 +100,13 @@ func validateCredentialStatus(credential vc.VerifiableCredential) error {
 
 		// only validate StatusList2021Entry for now
 		switch credentialStatus.Type {
-		case statuslist2021.EntryType:
+		case revocation.StatusList2021EntryType:
 			// TODO: json.AllFieldsDefined validator should be sufficient?
-			if !credential.ContainsContext(statuslist2021.ContextURI) {
+			if !credential.ContainsContext(revocation.StatusList2021ContextURI) {
 				return errors.New("StatusList2021 context is required")
 			}
 
-			var cs statuslist2021.Entry
+			var cs revocation.StatusList2021Entry
 			if err = json.Unmarshal(credentialStatus.Raw(), &cs); err != nil {
 				return err
 			}

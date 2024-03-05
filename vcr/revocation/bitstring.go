@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist2021
+package revocation
 
 import (
 	"bytes"

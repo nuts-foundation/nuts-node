@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist2021
+package revocation
 
 import (
 	"context"
@@ -67,7 +67,7 @@ func (c credentialRecord) TableName() string {
 // For managed StatusList2021Credentials this always contains the most up-to-date information,
 // for external StatusList2021Credentials it contains the status as received on CreatedAt.
 type credentialRecord struct {
-	// SubjectID is the URL (from Entry.StatusListCredential) that credential was downloaded from
+	// SubjectID is the URL (from StatusList2021Entry.StatusListCredential) that credential was downloaded from
 	// it should match with CredentialSubject.ID
 	SubjectID string `gorm:"primaryKey"`
 	// StatusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
@@ -100,7 +100,7 @@ type revocationRecord struct {
 	RevokedAt int64 `gorm:"autoCreateTime;column:created_at"`
 }
 
-func (cs *CredentialStatus) loadCredential(subjectID string) (*credentialRecord, error) {
+func (cs *StatusList2021) loadCredential(subjectID string) (*credentialRecord, error) {
 	cr := new(credentialRecord)
 	err := cs.db.First(cr, "subject_id = ?", subjectID).Error
 	if err != nil {
@@ -110,7 +110,7 @@ func (cs *CredentialStatus) loadCredential(subjectID string) (*credentialRecord,
 }
 
 // isManaged returns true if issued by this node. returns false on db errors.
-func (cs *CredentialStatus) isManaged(subjectID string) bool {
+func (cs *StatusList2021) isManaged(subjectID string) bool {
 	var exists bool
 	cs.db.Model(new(credentialIssuerRecord)).
 		Select("count(*) > 0").
@@ -119,7 +119,7 @@ func (cs *CredentialStatus) isManaged(subjectID string) bool {
 	return exists
 }
 
-func (cs *CredentialStatus) Credential(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
+func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
 	statusListCredentialURL, err := toStatusListCredential(issuerDID, page)
 	if err != nil {
 		return nil, err
@@ -183,7 +183,7 @@ func (cs *CredentialStatus) Credential(ctx context.Context, issuerDID did.DID, p
 
 // updateCredential creates a signed StatusList2021Credential and a credentialRecord from the credentialIssuerRecord.
 // All revocations must be present in the issuerRecord. The caller is responsible for writing the credentialRecord to the db.
-func (cs *CredentialStatus) updateCredential(ctx context.Context, issuerRecord *credentialIssuerRecord) (*vc.VerifiableCredential, *credentialRecord, error) {
+func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *credentialIssuerRecord) (*vc.VerifiableCredential, *credentialRecord, error) {
 	issuerDID, err := did.ParseDID(issuerRecord.Issuer)
 	if err != nil {
 		return nil, nil, err
@@ -204,9 +204,9 @@ func (cs *CredentialStatus) updateCredential(ctx context.Context, issuerRecord *
 	}
 
 	// credential subject
-	credSubject := &CredentialSubject{
+	credSubject := &StatusList2021CredentialSubject{
 		ID:            issuerRecord.SubjectID,
-		Type:          CredentialSubjectType,
+		Type:          StatusList2021CredentialSubjectType,
 		StatusPurpose: StatusPurposeRevocation,
 		EncodedList:   encodedList,
 	}
@@ -229,17 +229,17 @@ func (cs *CredentialStatus) updateCredential(ctx context.Context, issuerRecord *
 }
 
 // buildAndSignVC intends to do the same as vcr.issuer.buildAndSignVC
-func (cs *CredentialStatus) buildAndSignVC(ctx context.Context, issuerDID did.DID, credSubject CredentialSubject) (*vc.VerifiableCredential, error) {
+func (cs *StatusList2021) buildAndSignVC(ctx context.Context, issuerDID did.DID, credSubject StatusList2021CredentialSubject) (*vc.VerifiableCredential, error) {
 	iss := time.Now()
 	exp := iss.Add(statusListValidity)
 	template := vc.VerifiableCredential{
 		Context: []ssi.URI{
 			vc.VCContextV1URI(),
-			ContextURI,
+			StatusList2021ContextURI,
 		},
 		Type: []ssi.URI{
 			vc.VerifiableCredentialTypeV1URI(),
-			credentialTypeURI,
+			statusList2021CredentialTypeURI,
 		},
 		CredentialSubject: []any{credSubject},
 		Issuer:            issuerDID.URI(),
@@ -251,7 +251,7 @@ func (cs *CredentialStatus) buildAndSignVC(ctx context.Context, issuerDID did.DI
 	return cs.Sign(ctx, template, vc.JSONLDCredentialProofFormat)
 }
 
-func (cs *CredentialStatus) Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*Entry, error) {
+func (cs *StatusList2021) Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*StatusList2021Entry, error) {
 	if purpose != StatusPurposeRevocation {
 		return nil, errUnsupportedPurpose
 	}
@@ -317,16 +317,16 @@ func (cs *CredentialStatus) Create(ctx context.Context, issuer did.DID, purpose 
 		break
 	}
 
-	return &Entry{
+	return &StatusList2021Entry{
 		ID:                   fmt.Sprintf("%s#%d", credentialIssuer.SubjectID, credentialIssuer.LastIssuedIndex),
-		Type:                 EntryType,
+		Type:                 StatusList2021EntryType,
 		StatusPurpose:        StatusPurposeRevocation,
 		StatusListIndex:      strconv.Itoa(credentialIssuer.LastIssuedIndex),
 		StatusListCredential: credentialIssuer.SubjectID,
 	}, nil
 }
 
-func (cs *CredentialStatus) Revoke(ctx context.Context, credentialID ssi.URI, entry Entry) error {
+func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entry StatusList2021Entry) error {
 	// parse StatusListIndex
 	statusListIndex, err := strconv.Atoi(entry.StatusListIndex)
 	if err != nil {

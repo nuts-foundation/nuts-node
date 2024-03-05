@@ -28,7 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
@@ -168,12 +168,12 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			// only check fields relevant to credential status
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			assert.Contains(t, result.Context, statuslist2021.ContextURI)
+			assert.Contains(t, result.Context, revocation.StatusList2021ContextURI)
 
 			statuses, err := result.CredentialStatuses()
 			require.NoError(t, err)
 			require.Len(t, statuses, 1)
-			assert.Equal(t, statuslist2021.EntryType, statuses[0].Type)
+			assert.Equal(t, revocation.StatusList2021EntryType, statuses[0].Type)
 		})
 		t.Run("error - did:nuts", func(t *testing.T) {
 			sut := issuer{keyStore: keyStore, statusListStore: NewTestStatusListStore(t)}
@@ -556,7 +556,7 @@ func Test_issuer_Issue(t *testing.T) {
 }
 
 func TestNewIssuer(t *testing.T) {
-	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil, &statuslist2021.CredentialStatus{})
+	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil, &revocation.StatusList2021{})
 	assert.IsType(t, &issuer{}, createdIssuer)
 }
 
@@ -788,7 +788,7 @@ func Test_issuer_revokeNetwork(t *testing.T) {
 
 func TestIssuer_revokeStatusList(t *testing.T) {
 	issuerDID := did.MustParseDID("did:web:example.com:iam:123")
-	storeWithCred := func(c *gomock.Controller, entry statuslist2021.Entry) (*MockStore, ssi.URI) {
+	storeWithCred := func(c *gomock.Controller, entry revocation.StatusList2021Entry) (*MockStore, ssi.URI) {
 		credentialID := ssi.MustParseURI(issuerDID.String() + "#identifier")
 		cred := &vc.VerifiableCredential{
 			ID:               &credentialID,
@@ -802,7 +802,7 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		status := NewTestStatusListStore(t, issuerDID)
-		entry, err := status.Create(context.Background(), issuerDID, statuslist2021.StatusPurposeRevocation)
+		entry, err := status.Create(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
 		sut := issuer{
@@ -817,7 +817,7 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 	})
 	t.Run("error - double revocation", func(t *testing.T) {
 		status := NewTestStatusListStore(t, issuerDID)
-		entry, err := status.Create(context.Background(), issuerDID, statuslist2021.StatusPurposeRevocation)
+		entry, err := status.Create(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
 		sut := issuer{
@@ -843,7 +843,7 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 	})
 	t.Run("error - statuslist credential not found", func(t *testing.T) {
 		status := NewTestStatusListStore(t, issuerDID)
-		entry, err := status.Create(context.Background(), issuerDID, statuslist2021.StatusPurposeRevocation)
+		entry, err := status.Create(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		entry.StatusListCredential = "unknown status list"
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
@@ -859,8 +859,8 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 	t.Run("error - invalid credentialStatus", func(t *testing.T) {
 	})
 	t.Run("error - no revokable credential status", func(t *testing.T) {
-		issuerStore, credentialID := storeWithCred(gomock.NewController(t), statuslist2021.Entry{
-			Type:          statuslist2021.EntryType,
+		issuerStore, credentialID := storeWithCred(gomock.NewController(t), revocation.StatusList2021Entry{
+			Type:          revocation.StatusList2021EntryType,
 			StatusPurpose: "not revocation",
 		})
 		sut := issuer{store: issuerStore}
@@ -944,8 +944,8 @@ func TestIssuer_StatusList(t *testing.T) {
 			trustConfig:     trustConfig,
 			statusListStore: NewTestStatusListStore(t, issuerDID),
 		}
-		sut.statusListStore.(*statuslist2021.CredentialStatus).Sign = sut.signVC
-		_, err = sut.statusListStore.Create(ctx, issuerDID, statuslist2021.StatusPurposeRevocation)
+		sut.statusListStore.(*revocation.StatusList2021).Sign = sut.signVC
+		_, err = sut.statusListStore.Create(ctx, issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 
 		result, err := sut.StatusList(ctx, issuerDID, 1)
@@ -953,22 +953,22 @@ func TestIssuer_StatusList(t *testing.T) {
 		// credential
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		assert.Contains(t, result.Context, statuslist2021.ContextURI)
+		assert.Contains(t, result.Context, revocation.StatusList2021ContextURI)
 		assert.Equal(t, result.Issuer.String(), issuerDID.String())
-		assert.True(t, result.IsType(ssi.MustParseURI(statuslist2021.CredentialType)))
+		assert.True(t, result.IsType(ssi.MustParseURI(revocation.StatusList2021CredentialType)))
 		assert.Nil(t, result.IssuanceDate)
 		assert.Nil(t, result.ExpirationDate)
 		assert.InDelta(t, result.ValidFrom.Unix(), time.Now().Unix(), 2) // allow for 2 sec diff on slow CI
 		assert.Greater(t, result.ValidUntil.Unix(), result.ValidFrom.Unix())
 
 		// credential subject
-		var subjects []statuslist2021.CredentialSubject
+		var subjects []revocation.StatusList2021CredentialSubject
 		err = result.UnmarshalCredentialSubject(&subjects)
 		require.NoError(t, err)
 		require.Len(t, subjects, 1)
 		assert.Equal(t, subjects[0].ID, issuerURL.JoinPath("statuslist", "1").String())
-		assert.Equal(t, subjects[0].Type, statuslist2021.CredentialSubjectType)
-		assert.Equal(t, subjects[0].StatusPurpose, statuslist2021.StatusPurposeRevocation)
+		assert.Equal(t, subjects[0].Type, revocation.StatusList2021CredentialSubjectType)
+		assert.Equal(t, subjects[0].StatusPurpose, revocation.StatusPurposeRevocation)
 		assert.NotEmpty(t, subjects[0].EncodedList, "")
 
 		// verify credential -> trust is not added automatically
@@ -978,7 +978,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		vDIDResolverMock.EXPECT().Resolve(gomock.Any(), gomock.Any())
 		vKeyResolverMock := resolver.NewMockKeyResolver(ctrl)
 		vKeyResolverMock.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(signingKey.Public(), nil)
-		verif := verifier.NewVerifier(vStoreMock, vDIDResolverMock, vKeyResolverMock, jsonldManager, trustConfig, &statuslist2021.CredentialStatus{})
+		verif := verifier.NewVerifier(vStoreMock, vDIDResolverMock, vKeyResolverMock, jsonldManager, trustConfig, &revocation.StatusList2021{})
 		assert.NoError(t, verif.Verify(*result, true, true, nil))
 	})
 	t.Run("error - unknown status list credential", func(t *testing.T) {
@@ -992,11 +992,11 @@ func TestIssuer_StatusList(t *testing.T) {
 	t.Run("error - issuance failed", func(t *testing.T) {
 		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
 		storage.AddDIDtoSQLDB(t, db, issuerDID)
-		status := statuslist2021.NewCredentialStatus(db, nil)
+		status := revocation.NewStatusList2021(db, nil)
 		status.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
 			return &unsignedCredential, nil
 		}
-		_, err = status.Create(ctx, issuerDID, statuslist2021.StatusPurposeRevocation)
+		_, err = status.Create(ctx, issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		db.Exec("DROP TABLE status_list_credential")
 
@@ -1023,11 +1023,11 @@ func TestIssuer_StatusList(t *testing.T) {
 	})
 }
 
-func NewTestStatusListStore(t testing.TB, dids ...did.DID) *statuslist2021.CredentialStatus {
+func NewTestStatusListStore(t testing.TB, dids ...did.DID) *revocation.StatusList2021 {
 	storageEngine := storage.NewTestStorageEngine(t)
 	db := storageEngine.GetSQLDatabase()
 	storage.AddDIDtoSQLDB(t, db, dids...)
-	cs := statuslist2021.NewCredentialStatus(db, nil)
+	cs := revocation.NewStatusList2021(db, nil)
 	cs.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
 		unsignedCredential.ID, _ = ssi.ParseURI("test-credential")
 		bs, err := json.Marshal(unsignedCredential)

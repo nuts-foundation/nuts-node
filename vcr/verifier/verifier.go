@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"strings"
 	"time"
 
@@ -55,7 +55,7 @@ type verifier struct {
 	store         Store
 	trustConfig   *trust.Config
 	signatureVerifier
-	credentialStatus *statuslist2021.CredentialStatus
+	credentialStatus *revocation.StatusList2021
 }
 
 // VerificationError is used to describe a VC/VP verification failure.
@@ -83,7 +83,7 @@ func (e VerificationError) Error() string {
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver resolver.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config, credentialStatus *statuslist2021.CredentialStatus) Verifier {
+func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver resolver.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config, credentialStatus *revocation.StatusList2021) Verifier {
 	v := &verifier{store: store, didResolver: didResolver, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig,
 		signatureVerifier: signatureVerifier{
 			keyResolver:   keyResolver,

@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
@@ -59,7 +59,7 @@ var TimeFunc = time.Now
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
-	statusList *statuslist2021.CredentialStatus) Issuer {
+	statusList *revocation.StatusList2021) Issuer {
 	keyResolver := vdrKeyResolver{
 		publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
 		privateKeyResolver: keyStore,
@@ -93,7 +93,7 @@ type issuer struct {
 	jsonldManager    jsonld.JSONLD
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
-	statusListStore  statuslist2021.Issuer
+	statusListStore  revocation.StatusList2021Issuer
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -214,15 +214,15 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 			return nil, fmt.Errorf("failed to parse issuer: %w", err)
 		}
 		// add credential status
-		credentialStatusEntry, err := i.statusListStore.Create(ctx, *issuerDID, statuslist2021.StatusPurposeRevocation)
+		credentialStatusEntry, err := i.statusListStore.Create(ctx, *issuerDID, revocation.StatusPurposeRevocation)
 		if err != nil {
 			return nil, err
 		}
 		unsignedCredential.CredentialStatus = append(unsignedCredential.CredentialStatus, credentialStatusEntry)
 
 		// add status list context
-		if !unsignedCredential.ContainsContext(statuslist2021.ContextURI) {
-			unsignedCredential.Context = append(unsignedCredential.Context, statuslist2021.ContextURI)
+		if !unsignedCredential.ContainsContext(revocation.StatusList2021ContextURI) {
+			unsignedCredential.Context = append(unsignedCredential.Context, revocation.StatusList2021ContextURI)
 		}
 	}
 
@@ -362,14 +362,14 @@ func (i issuer) revokeStatusList(ctx context.Context, credentialID ssi.URI) erro
 
 	// find the correct credentialStatus and revoke it on the relevant statuslist
 	for _, status := range statuses {
-		if status.Type == statuslist2021.EntryType {
-			var slEntry statuslist2021.Entry
+		if status.Type == revocation.StatusList2021EntryType {
+			var slEntry revocation.StatusList2021Entry
 			err = json.Unmarshal(status.Raw(), &slEntry)
 			if err != nil {
 				return err
 			}
 			// TODO: make sure it is the correct entry when we allow other purposes, or VC issuance that include other credential statuses
-			if slEntry.StatusPurpose != statuslist2021.StatusPurposeRevocation {
+			if slEntry.StatusPurpose != revocation.StatusPurposeRevocation {
 				continue
 			}
 			return i.statusListStore.Revoke(ctx, credentialID, slEntry)

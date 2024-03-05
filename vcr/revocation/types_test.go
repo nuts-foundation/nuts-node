@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist2021
+package revocation
 
 import (
 	"context"
@@ -31,9 +31,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// newTestCredentialStatus returns a CredentialStatus that does not Sign or VerifySignature, with a SQLite db containing the dids, and no http-client.
-func newTestCredentialStatus(t testing.TB, dids ...did.DID) *CredentialStatus {
-	cs := NewCredentialStatus(storage.NewTestStorageEngine(t).GetSQLDatabase(), nil)
+// newTestCredentialStatus returns a StatusList2021 that does not Sign or VerifySignature, with a SQLite db containing the dids, and no http-client.
+func newTestCredentialStatus(t testing.TB, dids ...did.DID) *StatusList2021 {
+	cs := NewStatusList2021(storage.NewTestStorageEngine(t).GetSQLDatabase(), nil)
 	cs.Sign = noopSign
 	cs.VerifySignature = noopSignVerify
 	storage.AddDIDtoSQLDB(t, cs.db, dids...)
@@ -55,8 +55,8 @@ func noopSignVerify(_ vc.VerifiableCredential, _ *time.Time) error {
 }
 
 func TestEntry_Validate(t *testing.T) {
-	makeValidCSEntry := func() Entry {
-		return Entry{
+	makeValidCSEntry := func() StatusList2021Entry {
+		return StatusList2021Entry{
 			ID:                   "https://example-com/credentials/status/3#94567",
 			Type:                 "StatusList2021Entry",
 			StatusPurpose:        "revocation",

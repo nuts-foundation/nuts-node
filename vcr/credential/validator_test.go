@@ -23,7 +23,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/sirupsen/logrus"
@@ -477,13 +477,13 @@ func Test_validateCredentialStatus(t *testing.T) {
 		assert.EqualError(t, err, "credentialStatus.type is required")
 	})
 
-	t.Run(statuslist2021.EntryType, func(t *testing.T) {
+	t.Run(revocation.StatusList2021EntryType, func(t *testing.T) {
 		makeValidCSEntry := func() vc.VerifiableCredential {
 			return vc.VerifiableCredential{
 				Context: []ssi.URI{ssi.MustParseURI(jsonld.W3cStatusList2021Context)},
-				CredentialStatus: []any{&statuslist2021.Entry{
+				CredentialStatus: []any{&revocation.StatusList2021Entry{
 					ID:                   "https://example-com/credentials/status/3#94567",
-					Type:                 statuslist2021.EntryType,
+					Type:                 revocation.StatusList2021EntryType,
 					StatusPurpose:        "revocation",
 					StatusListIndex:      "94567",
 					StatusListCredential: "https://example-com/credentials/status/3",
@@ -507,7 +507,7 @@ func Test_validateCredentialStatus(t *testing.T) {
 		})
 		t.Run("error - credentialStatus validation is called", func(t *testing.T) {
 			cred := makeValidCSEntry()
-			cred.CredentialStatus[0].(*statuslist2021.Entry).StatusListCredential = "make sure validator is called"
+			cred.CredentialStatus[0].(*revocation.StatusList2021Entry).StatusListCredential = "make sure validator is called"
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "parse StatusList2021Entry.statusListCredential URL: parse \"make sure validator is called\": invalid URI for request")
 		})

@@ -16,7 +16,7 @@
  *
  */
 
-package statuslist2021
+package revocation
 
 import (
 	"context"
@@ -51,7 +51,7 @@ func TestSqlStore_Create(t *testing.T) {
 	testCtx := context.Background()
 
 	var err error
-	var entry *Entry
+	var entry *StatusList2021Entry
 
 	t.Run("ok", func(t *testing.T) {
 
@@ -69,7 +69,7 @@ func TestSqlStore_Create(t *testing.T) {
 			assert.Equal(t, statusListCredential, entry.StatusListCredential)
 			assert.Equal(t, "0", entry.StatusListIndex)
 			assert.Equal(t, fmt.Sprintf("%s#0", statusListCredential), entry.ID)
-			assert.Equal(t, EntryType, entry.Type)
+			assert.Equal(t, StatusList2021EntryType, entry.Type)
 			assert.Equal(t, StatusPurposeRevocation, entry.StatusPurpose)
 
 			// confirm records created
@@ -131,7 +131,7 @@ func TestSqlStore_Create(t *testing.T) {
 		// In the first round they race to create a page for an issuer.
 		// In the second round they race to update the last_issued_index for the page created in round 1.
 		// The result is that each issuer has 1 (page) status list credential for which 4 entries are issued.
-		raceFn := func(cs *CredentialStatus) {
+		raceFn := func(cs *StatusList2021) {
 			const numJobs = 10
 
 			// worker waits for a did, requests a statusListEntry for the did, and reports that it has completed.
@@ -186,10 +186,10 @@ func TestSqlStore_Create(t *testing.T) {
 		t.Run("postgres", func(t *testing.T) {
 			t.SkipNow() // requires generation of postgres DB
 			// create store with postgres DB
-			var storePG *CredentialStatus
+			var storePG *StatusList2021
 			raceFn(storePG)
 			// To confirm there was a race condition on the page creation (can't happen with SQLite), check the logs for:
-			//		2024/02/12 19:53:20 .../nuts-node/vcr/statuslist2021/... duplicated key not allowed
+			//		2024/02/12 19:53:20 .../nuts-node/vcr/revocation/... duplicated key not allowed
 			// If this error was logged and the test did not fail it is handled correctly.
 		})
 	})
@@ -263,9 +263,9 @@ func TestCredentialStatus_Credential(t *testing.T) {
 	t.Run("ok - empty bitstring", func(t *testing.T) {
 		encodedList, err := compress(*newBitstring())
 		assert.NoError(t, err)
-		expectedCS := toMap(t, CredentialSubject{
+		expectedCS := toMap(t, StatusList2021CredentialSubject{
 			ID:            entry.StatusListCredential,
-			Type:          CredentialSubjectType,
+			Type:          StatusList2021CredentialSubjectType,
 			StatusPurpose: StatusPurposeRevocation,
 			EncodedList:   encodedList,
 		})
@@ -287,7 +287,7 @@ func TestCredentialStatus_Credential(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, cred)
 
-		var credSubs []CredentialSubject
+		var credSubs []StatusList2021CredentialSubject
 		require.NoError(t, cred.UnmarshalCredentialSubject(&credSubs))
 
 		bs, err := expand(credSubs[0].EncodedList)
@@ -325,15 +325,15 @@ func TestCredentialStatus_Credential(t *testing.T) {
 }
 
 func TestCredentialStatus_buildAndSignVC(t *testing.T) {
-	cs := &CredentialStatus{Sign: noopSign}
+	cs := &StatusList2021{Sign: noopSign}
 
 	subjectID, err := toStatusListCredential(aliceDID, 1)
 	require.NoError(t, err)
 	encodedList, err := compress(*newBitstring())
 	require.NoError(t, err)
-	expectedCS := CredentialSubject{
+	expectedCS := StatusList2021CredentialSubject{
 		ID:            subjectID,
-		Type:          CredentialSubjectType,
+		Type:          StatusList2021CredentialSubjectType,
 		StatusPurpose: StatusPurposeRevocation,
 		EncodedList:   encodedList,
 	}
@@ -342,9 +342,9 @@ func TestCredentialStatus_buildAndSignVC(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.True(t, cred.ContainsContext(vc.VCContextV1URI()))
-	assert.True(t, cred.ContainsContext(ContextURI))
+	assert.True(t, cred.ContainsContext(StatusList2021ContextURI))
 	assert.True(t, cred.IsType(vc.VerifiableCredentialTypeV1URI()))
-	assert.True(t, cred.IsType(credentialTypeURI))
+	assert.True(t, cred.IsType(statusList2021CredentialTypeURI))
 	assert.Equal(t, toMap(t, expectedCS), cred.CredentialSubject[0])
 	assert.Equal(t, aliceDID.String(), cred.Issuer.String())
 	assert.InDelta(t, time.Now().Unix(), cred.ValidFrom.Unix(), 2)
