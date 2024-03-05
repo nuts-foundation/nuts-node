@@ -64,7 +64,7 @@ func CreateHTTPErrorHandler() echo.HTTPErrorHandler {
 		if operationID != nil {
 			title = fmt.Sprintf("%s failed", fmt.Sprintf("%s", operationID))
 		}
-		statusCode := getHTTPStatusCode(err, ctx)
+		statusCode := GetHTTPStatusCode(err, ctx)
 		logger := getContextLogger(ctx)
 		logMsg := logger.
 			WithField("operationID", operationID).
@@ -186,13 +186,16 @@ func ResolveStatusCode(err error, mapping map[error]int) int {
 	return unmappedStatusCode
 }
 
-// getHTTPStatusCode resolves the HTTP Status Code to be returned from the given error, in this order:
+// GetHTTPStatusCode resolves the HTTP Status Code to be returned from the given error, in this order:
 // - errors with a predefined status code (HTTPStatusCodeError, echo.HTTPError)
 // - from handler
 // - if none of the above criteria match, HTTP 500 Internal Server Error is returned.
-func getHTTPStatusCode(err error, ctx echo.Context) int {
+func GetHTTPStatusCode(err error, ctx echo.Context) int {
 	if predefined, ok := err.(HTTPStatusCodeError); ok {
 		return predefined.StatusCode()
+	}
+	if predefined, ok := err.(*echo.HTTPError); ok {
+		return predefined.Code
 	}
 
 	statusCodeResolverInterf := ctx.Get(StatusCodeResolverContextKey)

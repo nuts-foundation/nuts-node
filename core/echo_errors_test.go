@@ -117,3 +117,31 @@ func TestResolveStatusCode(t *testing.T) {
 		assert.Equal(t, unmappedStatusCode, ResolveStatusCode(io.EOF, map[error]int{}))
 	})
 }
+
+func TestGetHTTPStatusCode(t *testing.T) {
+	t.Run("implements StatusCode()", func(t *testing.T) {
+		assert.Equal(t, http.StatusTeapot, GetHTTPStatusCode(httpStatusCodeError{
+			statusCode: http.StatusTeapot,
+		}, nil))
+	})
+	t.Run("it's a echo.HTTPError", func(t *testing.T) {
+		assert.Equal(t, http.StatusTeapot, GetHTTPStatusCode(&echo.HTTPError{Code: http.StatusTeapot}, nil))
+	})
+	t.Run("it's another error", func(t *testing.T) {
+		context := echo.New().NewContext(nil, nil)
+		assert.Equal(t, http.StatusInternalServerError, GetHTTPStatusCode(assert.AnError, context))
+	})
+	t.Run("context provides implements ErrorStatusCodeResolver", func(t *testing.T) {
+		context := echo.New().NewContext(nil, nil)
+		context.Set(StatusCodeResolverContextKey, errorMapper(http.StatusTeapot))
+		assert.Equal(t, http.StatusTeapot, GetHTTPStatusCode(assert.AnError, context))
+	})
+}
+
+var _ ErrorStatusCodeResolver = (*errorMapper)(nil)
+
+type errorMapper int
+
+func (e errorMapper) ResolveStatusCode(_ error) int {
+	return int(e)
+}
