@@ -42,8 +42,8 @@ var bobDID = did.MustParseDID("did:web:example.com:iam:bob")
 
 func Test_TableNames(t *testing.T) {
 	assert.Equal(t, credentialRecord{}.TableName(), "status_list_credential")
-	assert.Equal(t, credentialIssuerRecord{}.TableName(), "status_list_credential_issuer")
-	assert.Equal(t, revocationRecord{}.TableName(), "status_list_status")
+	assert.Equal(t, credentialIssuerRecord{}.TableName(), "status_list")
+	assert.Equal(t, revocationRecord{}.TableName(), "status_list_entry")
 }
 
 func TestSqlStore_Create(t *testing.T) {

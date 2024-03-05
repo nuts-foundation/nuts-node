@@ -33,7 +33,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// maxAgeExternal is the maximum age of external credentials. If older than this we try to refresh.
+// maxAgeExternal is the maximum age of external StatusList2021Credentials. If older than this we try to refresh.
 const maxAgeExternal = 15 * time.Minute
 
 // Verify CredentialStatus returns a types.ErrRevoked when the credentialStatus contains a 'StatusList2021Entry' that can be resolved and lists the credential as 'revoked'
@@ -79,7 +79,7 @@ func (cs *CredentialStatus) Verify(credentialToVerify vc.VerifiableCredential) e
 		// get StatusList2021Credential with same purpose
 		sList, err := cs.statusList(slEntry.StatusListCredential)
 		if err != nil {
-			return err
+			return fmt.Errorf("status list: %w", err)
 		}
 		if sList.StatusPurpose != slEntry.StatusPurpose {
 			return fmt.Errorf("StatusList2021Credential.credentialSubject.statusPuspose='%s' does not match vc.credentialStatus.statusPurpose='%s'", sList.StatusPurpose, slEntry.StatusPurpose)
@@ -109,7 +109,7 @@ func (cs *CredentialStatus) statusList(statusListCredential string) (*credential
 		return cs.update(statusListCredential)
 	}
 
-	// managed credentials are always up-to-date, does not matter that it is expired
+	// managed StatusList2021Credentials are always up-to-date, does not matter that it is expired
 	if cs.isManaged(statusListCredential) {
 		return cr, nil
 	}
@@ -122,9 +122,9 @@ func (cs *CredentialStatus) statusList(statusListCredential string) (*credential
 		if err == nil {
 			return crUpdated, nil
 		}
-		// use known credential if we can't fetch a new one, even if it is older/expired
+		// use known StatusList2021Credential if we can't fetch a new one, even if it is older/expired
 		if cr.Expires != nil && time.Unix(*cr.Expires, 0).Before(time.Now()) {
-			// log warning if using expired credential
+			// log warning if using expired StatusList2021Credential
 			log.Logger().WithError(err).WithField(core.LogFieldCredentialSubject, statusListCredential).
 				Info("Validating credentialStatus using expired StatusList2021Credential")
 		}
@@ -134,9 +134,9 @@ func (cs *CredentialStatus) statusList(statusListCredential string) (*credential
 	return cr, nil
 }
 
-// update credential in db by downloading remote credential. Storage failures are logged, but does not return an error.
+// update StatusList2021Credential in db by downloading remote StatusList2021Credential. Storage failures are logged, but do not return an error.
 func (cs *CredentialStatus) update(statusListCredential string) (*credentialRecord, error) {
-	// TODO: use caching headers for unchanged status list credentials
+	// TODO: use caching headers for unchanged status list StatusList2021Credentials
 	// download and verify
 	cred, err := cs.download(statusListCredential)
 	if err != nil {
@@ -177,7 +177,7 @@ func (cs *CredentialStatus) update(statusListCredential string) (*credentialReco
 		Raw:     cred.Raw(),
 	}
 
-	// store credential
+	// store StatusList2021Credential
 	err = cs.db.Clauses(clause.OnConflict{UpdateAll: true}).Create(&sl).Error
 	if err != nil {
 		// log if storage fails, but still return the credential
@@ -215,7 +215,7 @@ func (cs *CredentialStatus) download(statusListCredential string) (*vc.Verifiabl
 }
 
 // verify returns the StatusList2021Credential's CredentialSubject,
-// or an error if the signature is invalid or the credential does not meet the spec.
+// or an error if the signature is invalid or the StatusList2021Credential does not meet the spec.
 func (cs *CredentialStatus) verify(cred vc.VerifiableCredential) (*CredentialSubject, error) {
 	// confirm contents match spec
 	credSubj, err := cs.validate(cred)
@@ -235,12 +235,12 @@ func (cs *CredentialStatus) verify(cred vc.VerifiableCredential) (*CredentialSub
 	return credSubj, nil
 }
 
-// validate returns an error when the credential doesn't meet the spec.
+// validate returns an error when the StatusList2021Credential doesn't meet the spec.
 func (cs *CredentialStatus) validate(cred vc.VerifiableCredential) (*CredentialSubject, error) {
 	// TODO: replace with json schema validator?
 	{ // Credential checks
 		// context
-		// all fields in the credential must be defined by the contexts
+		// all fields in the StatusList2021Credential must be defined by the contexts
 		// TODO: this makes testing a lot harder, and the errors aren't useful. Maybe check for presence of contexts again.
 		//credJSON, err := json.Marshal(cred)
 		//if err != nil {

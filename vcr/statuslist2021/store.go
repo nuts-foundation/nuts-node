@@ -34,20 +34,20 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// statusListValidity is default validity of a status list credential
+// statusListValidity is default validity of a StatusList2021Credential
 const statusListValidity = 24 * time.Hour // TODO: make configurable, and set reasonable default.
-// minTimeUntilExpired is the minimum time a credential must be valid that is returned by the API
+// minTimeUntilExpired is the minimum time a StatusList2021Credential must be valid that is returned by the API
 const minTimeUntilExpired = statusListValidity / 4
 
 func (s credentialIssuerRecord) TableName() string {
-	return "status_list_credential_issuer"
+	return "status_list"
 }
 
-// credentialIssuerRecord keeps track of a StatusList2021Credential issued by the Issuer, and what the LastIssuedIndex is for the credential.
+// credentialIssuerRecord keeps track of a StatusList2021Credential issued by the Issuer, and what the LastIssuedIndex is for the StatusList2021Credential.
 // Issuers can have multiple StatusList2021Credentials, the one with the highest page number is the most recent VC / VC currently being issued on.
 type credentialIssuerRecord struct {
 	// SubjectID is the VC.credentialSubject.ID for this StatusListCredential.
-	// It is the URL where the credential can be downloaded e.g., https://example.com/iam/id/statuslist/1.
+	// It is the URL where the StatusList2021Credential can be downloaded e.g., https://example.com/iam/id/statuslist/1.
 	SubjectID string `gorm:"primaryKey"`
 	// Issuer of the StatusListCredential.
 	Issuer string
@@ -64,8 +64,8 @@ func (c credentialRecord) TableName() string {
 }
 
 // credentialRecord contains the latest known version of a StatusList2021Credential.
-// For managed credentials this always contains the most up-to-date information,
-// for external credentials it contains the status as received on CreatedAt.
+// For managed StatusList2021Credentials this always contains the most up-to-date information,
+// for external StatusList2021Credentials it contains the status as received on CreatedAt.
 type credentialRecord struct {
 	// SubjectID is the URL (from Entry.StatusListCredential) that credential was downloaded from
 	// it should match with CredentialSubject.ID
@@ -76,14 +76,14 @@ type credentialRecord struct {
 	Expanded bitstring
 	// CreatedAt is the UNIX timestamp this credentialRecord was generated
 	CreatedAt int64 `gorm:"autoCreateTime"`
-	// Expires is the UNIX timestamp the credential expires. May be missing in external credentials
+	// Expires is the UNIX timestamp the StatusList2021Credential expires. May be missing in external StatusList2021Credentials
 	Expires *int64
 	// Raw contains the raw data of the Verifiable Credential
 	Raw string
 }
 
 func (s revocationRecord) TableName() string {
-	return "status_list_status"
+	return "status_list_entry"
 }
 
 // revocationRecord is created when a statusList entry has been revoked.
@@ -125,23 +125,23 @@ func (cs *CredentialStatus) Credential(ctx context.Context, issuerDID did.DID, p
 		return nil, err
 	}
 
-	// only return credential if we are the issuer
+	// only return StatusList2021Credential if we are the issuer
 	if !cs.isManaged(statusListCredentialURL) {
 		return nil, errNotFound
 	}
 
-	// return stored credential if valid for long enough
+	// return stored StatusList2021Credential if valid for long enough
 	credRecord, err := cs.loadCredential(statusListCredentialURL)
 	if err == nil && time.Now().Add(minTimeUntilExpired).Before(time.Unix(*credRecord.Expires, 0)) {
 		cred, err := vc.ParseVerifiableCredential(credRecord.Raw)
 		if err == nil {
 			return cred, nil
 		}
-		// log broken credential in DB and try to issue a new credential
-		log.Logger().WithError(err).WithField("StatusList2021Credential", statusListCredentialURL).Error("Failed to parse managed credential in database")
+		// log broken StatusList2021Credential in DB and try to issue a new one
+		log.Logger().WithError(err).WithField("StatusList2021Credential", statusListCredentialURL).Error("Failed to parse managed StatusList2021Credential in database")
 	}
 
-	// issue a new credential if we can't load the existing, or it's about to expire
+	// issue a new StatusList2021Credential if we can't load the existing, or it's about to expire
 	var cred *vc.VerifiableCredential // is nil, so if this panics outside this method the var name is probably shadowed in the db.Transaction.
 	err = cs.db.Transaction(func(tx *gorm.DB) error {
 		// lock credentialRecord row for statusListCredentialURL since it will be updated.
@@ -210,7 +210,7 @@ func (cs *CredentialStatus) updateCredential(ctx context.Context, issuerRecord *
 		StatusPurpose: StatusPurposeRevocation,
 		EncodedList:   encodedList,
 	}
-	// create and sign new credential
+	// create and sign a new StatusList2021Credential
 	statusListCredential, err := cs.buildAndSignVC(ctx, *issuerDID, *credSubject)
 	if err != nil {
 		return nil, nil, err
@@ -247,7 +247,7 @@ func (cs *CredentialStatus) buildAndSignVC(ctx context.Context, issuerDID did.DI
 		ValidUntil:        &exp,
 	}
 
-	// sign the credential
+	// sign the StatusList2021Credential
 	return cs.Sign(ctx, template, vc.JSONLDCredentialProofFormat)
 }
 
@@ -344,7 +344,7 @@ func (cs *CredentialStatus) Revoke(ctx context.Context, credentialID ssi.URI, en
 	}
 
 	return cs.db.Transaction(func(tx *gorm.DB) error {
-		// lock relevant credentialRecord. It was created when the first entry was issued for this credential.
+		// lock relevant credentialRecord. It was created when the first entry was issued for this StatusList2021Credential.
 		err = tx.Model(new(credentialRecord)).
 			Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
 			Select("count(*) > 0").
@@ -387,7 +387,7 @@ func (cs *CredentialStatus) Revoke(ctx context.Context, credentialID ssi.URI, en
 			return ErrIndexNotInBitstring
 		}
 
-		// append new revocation and re-issue credential.
+		// append new revocation and re-issue the StatusList2021Credential.
 		issuerRecord.Revocations = append(issuerRecord.Revocations)
 		credRecord := new(credentialRecord)
 		_, credRecord, err = cs.updateCredential(ctx, issuerRecord)

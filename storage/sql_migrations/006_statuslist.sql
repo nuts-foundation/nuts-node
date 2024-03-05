@@ -18,8 +18,8 @@ create table status_list_credential
     raw             text            not null
 );
 
--- status_list_credential_issuer: keeps track of all status list credentials issued by an issuer, and the highest status list index issued for each credential.
-create table status_list_credential_issuer
+-- status_list: keeps track of all status list credentials issued by an issuer, and the highest status list index issued for each credential.
+create table status_list
 (
     -- id: VC.credentialSubject.ID; URL where this status list credential can be downloaded.
     subject_id          varchar(500)    not null    primary key,
@@ -34,8 +34,8 @@ create table status_list_credential_issuer
     constraint fk_issuer_did foreign key (issuer) references vdr_didweb (did) on delete cascade
 );
 
--- status_list_status: lists all status list entries for which the status bit is set to true. (revocation table)
-create table status_list_status
+-- status_list_entry: lists all status list entries for which the status bit is set to true. (revocation table)
+create table status_list_entry
 (
     -- status_list_credential: URL where the status list credential can be resolved; as referenced in the status list entry.
     status_list_credential  varchar(500)    not null,
@@ -49,10 +49,10 @@ create table status_list_status
     -- status_list_entry_id: unique identifier of a status list entry
     constraint status_list_entry_id primary key (status_list_credential, status_list_index),
     -- Ties the status_list_credential to an issuer (did) via the status_list_issuer table
-    constraint fk_status_list_credential foreign key (status_list_credential) references status_list_credential_issuer (subject_id) on delete cascade
+    constraint fk_status_list_credential foreign key (status_list_credential) references status_list (subject_id) on delete cascade
 );
 
 -- migrate:down
 drop table status_list_credential;
-drop table status_list_credential_issuer;
-drop table status_list_status;
+drop table status_list;
+drop table status_list_entry;

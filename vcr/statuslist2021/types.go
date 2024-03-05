@@ -40,14 +40,14 @@ const (
 	CredentialType = "StatusList2021Credential"
 	// CredentialSubjectType is the credentialSubject.type in a StatusList2021Credential
 	CredentialSubjectType = "StatusList2021"
-	// EntryType is the credentialStatus.type that lists the entry of that credential on a list
+	// EntryType is the credentialStatus.type
 	EntryType = "StatusList2021Entry"
 )
 
 var ContextURI = ssi.MustParseURI(jsonld.W3cStatusList2021Context)
 var credentialTypeURI = ssi.MustParseURI(CredentialType)
 
-// errNotFound wraps types.ErrNotFound to clarify which credential is not found
+// errNotFound wraps types.ErrNotFound to clarify which StatusList2021Credential is not found
 var errNotFound = fmt.Errorf("status list: %w", types.ErrNotFound)
 
 // errRevoked wraps types.ErrRevoked to clarify the source of the error
@@ -66,11 +66,11 @@ const (
 // Issuer side of StatusList2021
 type Issuer interface {
 	// Credential provides a valid StatusList2021Credential with subject ID derived from the issuer and page.
-	// It returns the last issued credential if it is still valid or issues a new credential.
+	// It returns the last issued StatusList2021Credential if it is still valid or issues a new StatusList2021Credential.
 	Credential(ctx context.Context, issuer did.DID, page int) (*vc.VerifiableCredential, error)
 	// Create a StatusList2021Entry that can be added to the credentialStatus of a VC.
-	// The corresponding credential will have a gap in the bitstring if the returned entry does not make it into a credential.
-	// If the entry belongs to a new StatusList2021Credential, an empty credential is issued and stored.
+	// The corresponding StatusList2021Credential will have a gap in the bitstring if the returned entry does not make it into a VC.
+	// If the entry belongs to a new StatusList2021Credential, an empty StatusList2021Credential is issued and stored.
 	Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*Entry, error)
 	// Revoke by adding the StatusList2021Entry to the list of revocations, and updates the relevant StatusList2021Credential.
 	// The credentialID allows reverse search of revocations, its issuer is NOT verified against the entry issuer or VC.
@@ -94,6 +94,9 @@ type SignFn func(ctx context.Context, unsignedCredential vc.VerifiableCredential
 var _ Issuer = (*CredentialStatus)(nil)
 var _ Verifier = (*CredentialStatus)(nil)
 
+// CredentialStatus implements the W3C Verifiable Credentials Status List v2021 draft specification.
+// https://www.w3.org/TR/2023/WD-vc-status-list-20230427/
+// VerifySignature and Sign methods are used to verify and sign StatusList2021Credentials
 type CredentialStatus struct {
 	client          core.HTTPRequestDoer
 	db              *gorm.DB
@@ -118,10 +121,10 @@ type Entry struct {
 	// This value must match credentialSubject.statusPurpose value in the VerifiableCredential.
 	StatusPurpose string `json:"statusPurpose,omitempty"`
 	// StatusListIndex is an arbitrary size integer greater than or equal to 0, expressed as a string.
-	// The value identifies the bit position of the status of the verifiable credential.
+	// The value identifies the position in the bitstring of the corresponding StatusListCredential.
 	StatusListIndex string `json:"statusListIndex,omitempty"`
-	// StatusListCredential property MUST be a URL to a verifiable credential.
-	// When the URL is dereferenced, the resulting verifiable credential MUST have type property that includes the "StatusList2021Credential" value.
+	// StatusListCredential property MUST be a URL to the StatusList2021Credential.
+	// When the URL is dereferenced, the resulting verifiable credential's type MUST include the "StatusList2021Credential".
 	StatusListCredential string `json:"statusListCredential,omitempty"`
 }
 
@@ -154,6 +157,7 @@ func (e Entry) Validate() error {
 	return nil
 }
 
+// CredentialSubject of a StatusList2021Credential
 type CredentialSubject struct {
 	// ID for the credential subject
 	ID string `json:"id"`
