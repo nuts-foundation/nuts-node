@@ -6,7 +6,7 @@ create table discovery_presentation_refresh
     -- It comes from the service definition.
     service_id   varchar(200) not null,
     -- did is the DID that should be registered on the Discovery Service.
-    did          varchar(500) not null,
+    did          varchar(370) not null,
     -- next_refresh is the timestamp (seconds since Unix epoch) when the registration on the
     -- Discovery Service should be refreshed.
     next_refresh integer      not null,

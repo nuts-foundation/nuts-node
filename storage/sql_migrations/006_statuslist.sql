@@ -5,7 +5,7 @@ create table status_list_credential
     -- id: VC.credentialSubject.ID; URL where this status list credential can be downloaded.
     subject_id                  varchar(500)    not null    primary key,
     -- issuer: the DID of the issuer of this statusListCredential.
-    issuer              varchar(500)    not null,
+    issuer              varchar(370)    not null,
     -- page: the n-th StatusList2021Credential issued by this issuer.
     --      Used to find the credential statusList2021Entries are being issued to. Could require an index in the future.
     page                integer         not null,
@@ -24,7 +24,7 @@ create table status_list_status
     status_list_index       integer         not null,
     -- credential_id: id of the credential that lists this status.
     --      Could be present more than once if the credential's credentialStatus contains multiple status list entries.
-    credential_id           varchar(500)    not null,
+    credential_id           varchar(415)    not null,
     -- created_at: timestamp the status was registered (status bit set). Measured in seconds since UNIX epoch.
     created_at              integer         not null,
     -- status_list_entry_id: unique identifier of a status list entry

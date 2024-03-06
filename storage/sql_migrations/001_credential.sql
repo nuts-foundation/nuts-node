@@ -1,9 +1,9 @@
 -- migrate:up
 create table credential
 (
-    id         varchar(500) not null primary key,
-    issuer     varchar(500) not null,
-    subject_id varchar(500) not null,
+    id         varchar(415) not null primary key,
+    issuer     varchar(370) not null,
+    subject_id varchar(370) not null,
     raw        text         not null,
     -- for now, credentials with at most 2 types are supported.
     -- The type stored in the type column will be the 'other' type, not being 'VerifiableCredential'.
@@ -15,7 +15,7 @@ create table credential
 -- It is to search for credentials.
 create table credential_prop
 (
-    credential_id varchar(36)  not null,
+    credential_id varchar(415)  not null,
     path          varchar(100) not null,
     value         varchar(500),
     PRIMARY KEY (credential_id, path),

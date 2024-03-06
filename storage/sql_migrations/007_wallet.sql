@@ -1,9 +1,8 @@
 -- migrate:up
 create table wallet_credential
 (
-    holder_did    varchar(500) not null,
-    credential_id varchar(500) not null,
-    primary key (holder_did, credential_id),
+    credential_id varchar(415) not null,
+    holder_did    varchar(370) not null,
     constraint fk_wallet_credential foreign key (credential_id) references credential (id)
 );
 

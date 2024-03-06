@@ -19,8 +19,8 @@ create table discovery_presentation
     -- lamport_timestamp is the lamport clock of the presentation, converted to a tag and then returned to the client.
     -- It is only populated if the node is server for this service.
     lamport_timestamp       integer      null,
-    credential_subject_id   varchar(500) not null,
-    presentation_id         varchar(500) not null,
+    credential_subject_id   varchar(370) not null,
+    presentation_id         varchar(415) not null,
     presentation_raw        text         not null,
     presentation_expiration integer      not null,
     unique (service_id, credential_subject_id),
@@ -37,7 +37,7 @@ create table discovery_credential
     id                    varchar(36)  not null primary key,
     -- presentation_id is NOT the ID of the presentation (VerifiablePresentation.ID), but refers to the presentation record in the discovery_presentation table.
     presentation_id       varchar(36)  not null,
-    credential_id         varchar(500) not null,
+    credential_id         varchar(415) not null,
     constraint fk_discovery_credential_presentation foreign key (presentation_id) references discovery_presentation (id) on delete cascade,
     constraint fk_discovery_credential foreign key (credential_id) references credential (id)
 );
