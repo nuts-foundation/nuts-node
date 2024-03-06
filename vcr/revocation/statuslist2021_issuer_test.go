@@ -338,7 +338,7 @@ func TestCredentialStatus_buildAndSignVC(t *testing.T) {
 		EncodedList:   encodedList,
 	}
 
-	cred, err := cs.buildAndSignVC(nil, aliceDID, expectedCS)
+	cred, err := cs.buildAndSignVC(nil, aliceDID, expectedCS, nil)
 
 	require.NoError(t, err)
 	assert.True(t, cred.ContainsContext(vc.VCContextV1URI()))

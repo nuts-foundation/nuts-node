@@ -127,7 +127,7 @@ func TestCredentialStatus_statusList(t *testing.T) {
 				StatusListIndex:      1,
 			}},
 		}
-		_, cr, err := (&StatusList2021{Sign: noopSign}).updateCredential(nil, &cir)
+		_, cr, err := (&StatusList2021{Sign: noopSign}).updateCredential(nil, &cir, nil)
 		require.NoError(t, err)
 		return *cr, cir
 	}

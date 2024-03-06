@@ -78,7 +78,8 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 		vcrStore:      vcrStore,
 		statusList:    statusList,
 	}
-	statusList.Sign = i.signVC
+	statusList.Sign = i.buildJSONLDCredential
+	statusList.ResolveKey = i.keyResolver.ResolveAssertionKey
 	return i
 }
 
@@ -198,9 +199,26 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 		return nil, core.InvalidInputError("can only issue credential with 1 type")
 	}
 
+	issuerDID, err := did.ParseDID(template.Issuer.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse issuer: %w", err)
+	}
+
+	// immediately fail if we do not have the private key
+	key, err := i.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
+	if err != nil {
+		const errString = "failed to sign credential: could not resolve an assertionKey for issuer: %w"
+		// Differentiate between a DID document not found and some other error:
+		if resolver.IsFunctionalResolveError(err) {
+			return nil, core.InvalidInputError(errString, err)
+		}
+		return nil, fmt.Errorf(errString, err)
+	}
+
+	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
 	unsignedCredential := vc.VerifiableCredential{
-		Context: template.Context,
-		//ID:                &credentialID, // set during signing
+		Context:           template.Context,
+		ID:                &credentialID,
 		Type:              template.Type,
 		CredentialSubject: template.CredentialSubject,
 		Issuer:            template.Issuer,
@@ -209,10 +227,6 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 	}
 
 	if options.WithStatusListRevocation {
-		issuerDID, err := did.ParseDID(unsignedCredential.Issuer.String())
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse issuer: %w", err)
-		}
 		// add credential status
 		credentialStatusEntry, err := i.statusList.Entry(ctx, *issuerDID, revocation.StatusPurposeRevocation)
 		if err != nil {
@@ -237,31 +251,8 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 	if !unsignedCredential.IsType(defaultType) {
 		unsignedCredential.Type = append(unsignedCredential.Type, defaultType)
 	}
-	return i.signVC(ctx, unsignedCredential, options.Format)
-}
 
-// signVC signs the credential according to the requested proofFormat. It adds the credentialID, but no other fields are set/validated.
-func (i issuer) signVC(ctx context.Context, unsignedCredential vc.VerifiableCredential, proofFormat string) (*vc.VerifiableCredential, error) {
-	issuerDID, err := did.ParseDID(unsignedCredential.Issuer.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse issuer: %w", err)
-	}
-
-	// set credentialID
-	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
-	unsignedCredential.ID = &credentialID
-
-	key, err := i.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
-	if err != nil {
-		const errString = "failed to sign credential: could not resolve an assertionKey for issuer: %w"
-		// Differentiate between a DID document not found and some other error:
-		if resolver.IsFunctionalResolveError(err) {
-			return nil, core.InvalidInputError(errString, err)
-		}
-		return nil, fmt.Errorf(errString, err)
-	}
-
-	switch proofFormat {
+	switch options.Format {
 	case vc.JWTCredentialProofFormat:
 		return vc.CreateJWTVerifiableCredential(ctx, unsignedCredential, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
 			return i.keyStore.SignJWT(ctx, claims, headers, key)

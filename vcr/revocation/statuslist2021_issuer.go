@@ -22,6 +22,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"strconv"
 	"time"
 
@@ -109,7 +111,8 @@ func (cs *StatusList2021) loadCredential(subjectID string) (*credentialRecord, e
 	return cr, nil
 }
 
-// isManaged returns true if issued by this node. returns false on db errors.
+// isManaged returns true if the StatusList2021Credential is issued by this node.
+// returns false on db errors, or if the StatusList2021Credential does not exist.
 func (cs *StatusList2021) isManaged(subjectID string) bool {
 	var exists bool
 	cs.db.Model(new(credentialIssuerRecord)).
@@ -125,7 +128,7 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 		return nil, err
 	}
 
-	// only return StatusList2021Credential if we are the issuer
+	// only return StatusList2021Credential if it already exists, and we are the issuer
 	if !cs.isManaged(statusListCredentialURL) {
 		return nil, errNotFound
 	}
@@ -139,6 +142,12 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 		}
 		// log broken StatusList2021Credential in DB and try to issue a new one
 		log.Logger().WithError(err).WithField("StatusList2021Credential", statusListCredentialURL).Error("Failed to parse managed StatusList2021Credential in database")
+	}
+
+	// resolve signing key outside of transaction
+	key, err := cs.ResolveKey(ctx, issuerDID)
+	if err != nil {
+		return nil, err
 	}
 
 	// issue a new StatusList2021Credential if we can't load the existing, or it's about to expire
@@ -159,7 +168,7 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 			// gorm.ErrRecordNotFound can't happen, isManaged() confirmed it exists
 			return err
 		}
-		cred, credRecord, err = cs.updateCredential(ctx, issuerRecord)
+		cred, credRecord, err = cs.updateCredential(ctx, issuerRecord, key)
 		if err != nil {
 			return err
 		}
@@ -183,7 +192,7 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 
 // updateCredential creates a signed StatusList2021Credential and a credentialRecord from the credentialIssuerRecord.
 // All revocations must be present in the issuerRecord. The caller is responsible for writing the credentialRecord to the db.
-func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *credentialIssuerRecord) (*vc.VerifiableCredential, *credentialRecord, error) {
+func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *credentialIssuerRecord, key crypto.Key) (*vc.VerifiableCredential, *credentialRecord, error) {
 	issuerDID, err := did.ParseDID(issuerRecord.Issuer)
 	if err != nil {
 		return nil, nil, err
@@ -211,7 +220,7 @@ func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *cr
 		EncodedList:   encodedList,
 	}
 	// create and sign a new StatusList2021Credential
-	statusListCredential, err := cs.buildAndSignVC(ctx, *issuerDID, *credSubject)
+	statusListCredential, err := cs.buildAndSignVC(ctx, *issuerDID, *credSubject, key)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -229,9 +238,10 @@ func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *cr
 }
 
 // buildAndSignVC intends to do the same as vcr.issuer.buildAndSignVC
-func (cs *StatusList2021) buildAndSignVC(ctx context.Context, issuerDID did.DID, credSubject StatusList2021CredentialSubject) (*vc.VerifiableCredential, error) {
+func (cs *StatusList2021) buildAndSignVC(ctx context.Context, issuerDID did.DID, credSubject StatusList2021CredentialSubject, key crypto.Key) (*vc.VerifiableCredential, error) {
 	iss := time.Now()
 	exp := iss.Add(statusListValidity)
+	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
 	template := vc.VerifiableCredential{
 		Context: []ssi.URI{
 			vc.VCContextV1URI(),
@@ -241,6 +251,7 @@ func (cs *StatusList2021) buildAndSignVC(ctx context.Context, issuerDID did.DID,
 			vc.VerifiableCredentialTypeV1URI(),
 			statusList2021CredentialTypeURI,
 		},
+		ID:                &credentialID,
 		CredentialSubject: []any{credSubject},
 		Issuer:            issuerDID.URI(),
 		ValidFrom:         &iss,
@@ -248,12 +259,18 @@ func (cs *StatusList2021) buildAndSignVC(ctx context.Context, issuerDID did.DID,
 	}
 
 	// sign the StatusList2021Credential
-	return cs.Sign(ctx, template, vc.JSONLDCredentialProofFormat)
+	return cs.Sign(ctx, template, key)
 }
 
 func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*StatusList2021Entry, error) {
 	if purpose != StatusPurposeRevocation {
 		return nil, errUnsupportedPurpose
+	}
+
+	// resolve signing key outside of transaction
+	key, err := cs.ResolveKey(ctx, issuer)
+	if err != nil {
+		return nil, err
 	}
 
 	credentialIssuer := new(credentialIssuerRecord)
@@ -294,7 +311,7 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 					return err
 				}
 
-				_, credRecord, err := cs.updateCredential(ctx, credentialIssuer)
+				_, credRecord, err := cs.updateCredential(ctx, credentialIssuer, key)
 				if err != nil {
 					return err
 				}
@@ -341,6 +358,18 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 	// check if StatusList2021Credential is managed by this node
 	if !cs.isManaged(entry.StatusListCredential) {
 		return errNotFound
+	}
+
+	// resolve signing key outside of transaction
+	var issuerStr string
+	cs.db.Model(&credentialIssuerRecord{}).Select("issuer").First(&issuerStr, "subject_id = ?", entry.StatusListCredential)
+	issuerDID, err := did.ParseDID(issuerStr)
+	if err != nil {
+		return err
+	}
+	key, err := cs.ResolveKey(ctx, *issuerDID)
+	if err != nil {
+		return err
 	}
 
 	return cs.db.Transaction(func(tx *gorm.DB) error {
@@ -390,7 +419,7 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		// append new revocation and re-issue the StatusList2021Credential.
 		issuerRecord.Revocations = append(issuerRecord.Revocations)
 		credRecord := new(credentialRecord)
-		_, credRecord, err = cs.updateCredential(ctx, issuerRecord)
+		_, credRecord, err = cs.updateCredential(ctx, issuerRecord, key)
 		if err != nil {
 			return err
 		}
