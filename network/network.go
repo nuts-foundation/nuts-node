@@ -258,7 +258,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			// Not allowed in strict mode for security reasons: only intended for demo/workshop purposes.
 			if config.Strictmode {
-				return errors.New("disabling TLS in strict mode is not allowed")
+				if len(n.config.BootstrapNodes) == 0 && n.assumeNewNode {
+					log.Logger().Info("It appears the gRPC network will not be used (no bootstrap nodes and an empty network state), so disabled TLS is accepted even with strict mode enabled.")
+				} else {
+					return errors.New("disabling TLS in strict mode is not allowed")
+				}
 			}
 			authenticator = grpc.NewDummyAuthenticator(nil)
 		}

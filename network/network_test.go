@@ -261,6 +261,19 @@ func TestNetwork_Configure(t *testing.T) {
 
 		assert.EqualError(t, err, "disabling TLS in strict mode is not allowed")
 	})
+	t.Run("ok - TLS disabled in strict mode, with empty node", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		ctx := createNetwork(t, ctrl)
+		ctx.protocol.EXPECT().Configure(gomock.Any())
+		ctx.network.connectionManager = nil
+		ctx.network.assumeNewNode = true
+
+		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = io.TestDirectory(t)
+		}))
+
+		require.NoError(t, err)
+	})
 
 	t.Run("error - TLS offloaded without setting ClientCertHeaderName", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
