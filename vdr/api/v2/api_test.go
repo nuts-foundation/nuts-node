@@ -21,8 +21,12 @@ package v2
 
 import (
 	"context"
+	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/core"
+	httpTest "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"strings"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -225,6 +229,186 @@ func TestWrapper_ResolveDID(t *testing.T) {
 		response, err := ctx.client.ResolveDID(nil, ResolveDIDRequestObject{Did: id.String()})
 
 		assert.ErrorIs(t, err, assert.AnError)
+		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_ResolveServiceEndpointByType(t *testing.T) {
+	t.Run("endpoint is string", func(t *testing.T) {
+		const stringEndpoint = "https://example.com"
+		service := did.Service{
+			Type:            "string-api",
+			ServiceEndpoint: stringEndpoint,
+		}
+
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Resolve(id, nil).Return(&did.Document{
+			Service: []Service{service},
+		}, nil, nil)
+
+		response, err := ctx.client.ResolveServiceEndpointByType(nil, ResolveServiceEndpointByTypeRequestObject{
+			Did:    id.String(),
+			Params: ResolveServiceEndpointByTypeParams{ServiceType: "string-api"},
+		})
+
+		require.NoError(t, err)
+		assert.IsType(t, ResolveServiceEndpointByType200JSONResponse{}, response)
+		data := httpTest.GetResponseBody(t, response.VisitResolveServiceEndpointByTypeResponse)
+		assert.Equal(t, `"`+stringEndpoint+`"`, strings.TrimSpace(data))
+	})
+	t.Run("endpoint is object", func(t *testing.T) {
+		var objectEndpoint = map[string]interface{}{
+			"rest": "https://example.com/rest",
+		}
+		objectEndpointJSON, _ := json.Marshal(objectEndpoint)
+		service := did.Service{
+			Type:            "object-api",
+			ServiceEndpoint: objectEndpoint,
+		}
+
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Resolve(id, nil).Return(&did.Document{
+			Service: []Service{service},
+		}, nil, nil)
+
+		response, err := ctx.client.ResolveServiceEndpointByType(nil, ResolveServiceEndpointByTypeRequestObject{
+			Did:    id.String(),
+			Params: ResolveServiceEndpointByTypeParams{ServiceType: "object-api"},
+		})
+
+		require.NoError(t, err)
+		assert.IsType(t, ResolveServiceEndpointByType200JSONResponse{}, response)
+		data := httpTest.GetResponseBody(t, response.VisitResolveServiceEndpointByTypeResponse)
+		assert.Equal(t, string(objectEndpointJSON), strings.TrimSpace(data))
+	})
+	t.Run("invalid/no type", func(t *testing.T) {
+		ctx := newMockContext(t)
+		response, err := ctx.client.ResolveServiceEndpointByType(nil, ResolveServiceEndpointByTypeRequestObject{
+			Did:    id.String(),
+			Params: ResolveServiceEndpointByTypeParams{},
+		})
+
+		assert.ErrorIs(t, err, core.InvalidInputError("parameter 'type' is required"))
+		assert.Nil(t, response)
+	})
+	t.Run("resolver error", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Resolve(id, nil).Return(nil, nil, assert.AnError)
+
+		response, err := ctx.client.ResolveServiceEndpointByType(nil, ResolveServiceEndpointByTypeRequestObject{
+			Did:    id.String(),
+			Params: ResolveServiceEndpointByTypeParams{ServiceType: "object-api"},
+		})
+
+		assert.ErrorIs(t, err, assert.AnError)
+		assert.Nil(t, response)
+	})
+	t.Run("unknown service", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Resolve(id, nil).Return(&did.Document{}, nil, nil)
+
+		response, err := ctx.client.ResolveServiceEndpointByType(nil, ResolveServiceEndpointByTypeRequestObject{
+			Did:    id.String(),
+			Params: ResolveServiceEndpointByTypeParams{ServiceType: "object-api"},
+		})
+
+		assert.ErrorIs(t, err, resolver.ErrServiceNotFound)
+		assert.Nil(t, response)
+	})
+	t.Run("invalid DID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		response, err := ctx.client.ResolveServiceEndpointByType(nil, ResolveServiceEndpointByTypeRequestObject{
+			Did:    "invalid",
+			Params: ResolveServiceEndpointByTypeParams{ServiceType: "object-api"},
+		})
+
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_ResolveServiceEndpointByID(t *testing.T) {
+	t.Run("endpoint is string", func(t *testing.T) {
+		const stringEndpoint = "https://example.com"
+		service := did.Service{
+			ID:              ssi.MustParseURI("1"),
+			Type:            "string-api",
+			ServiceEndpoint: stringEndpoint,
+		}
+
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Resolve(id, nil).Return(&did.Document{
+			Service: []Service{service},
+		}, nil, nil)
+
+		response, err := ctx.client.ResolveServiceEndpointByID(nil, ResolveServiceEndpointByIDRequestObject{
+			Did:       id.String(),
+			ServiceId: "1",
+		})
+
+		require.NoError(t, err)
+		assert.IsType(t, ResolveServiceEndpointByID200JSONResponse{}, response)
+		data := httpTest.GetResponseBody(t, response.VisitResolveServiceEndpointByIDResponse)
+		assert.Equal(t, `"`+stringEndpoint+`"`, strings.TrimSpace(data))
+	})
+	t.Run("endpoint is object", func(t *testing.T) {
+		var objectEndpoint = map[string]interface{}{
+			"rest": "https://example.com/rest",
+		}
+		objectEndpointJSON, _ := json.Marshal(objectEndpoint)
+		service := did.Service{
+			ID:              ssi.MustParseURI("1"),
+			Type:            "object-api",
+			ServiceEndpoint: objectEndpoint,
+		}
+
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Resolve(id, nil).Return(&did.Document{
+			Service: []Service{service},
+		}, nil, nil)
+
+		response, err := ctx.client.ResolveServiceEndpointByID(nil, ResolveServiceEndpointByIDRequestObject{
+			Did:       id.String(),
+			ServiceId: "1",
+		})
+
+		require.NoError(t, err)
+		assert.IsType(t, ResolveServiceEndpointByID200JSONResponse{}, response)
+		data := httpTest.GetResponseBody(t, response.VisitResolveServiceEndpointByIDResponse)
+		assert.Equal(t, string(objectEndpointJSON), strings.TrimSpace(data))
+	})
+	t.Run("resolver error", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Resolve(id, nil).Return(nil, nil, assert.AnError)
+
+		response, err := ctx.client.ResolveServiceEndpointByID(nil, ResolveServiceEndpointByIDRequestObject{
+			Did:       id.String(),
+			ServiceId: "1",
+		})
+
+		assert.ErrorIs(t, err, assert.AnError)
+		assert.Nil(t, response)
+	})
+	t.Run("unknown service", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vdr.EXPECT().Resolve(id, nil).Return(&did.Document{}, nil, nil)
+
+		response, err := ctx.client.ResolveServiceEndpointByID(nil, ResolveServiceEndpointByIDRequestObject{
+			Did:       id.String(),
+			ServiceId: "1",
+		})
+
+		assert.ErrorIs(t, err, resolver.ErrServiceNotFound)
+		assert.Nil(t, response)
+	})
+	t.Run("invalid DID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		response, err := ctx.client.ResolveServiceEndpointByID(nil, ResolveServiceEndpointByIDRequestObject{
+			Did:       "invalid",
+			ServiceId: "1",
+		})
+
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
 		assert.Nil(t, response)
 	})
 }

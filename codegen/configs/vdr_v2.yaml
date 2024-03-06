@@ -10,4 +10,5 @@ output-options:
   - DIDDocument
   - DIDDocumentMetadata
   - Service
+  - ServiceEndpoint
   - VerificationMethod

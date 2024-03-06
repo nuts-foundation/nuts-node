@@ -21,6 +21,7 @@ package v2
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
@@ -46,6 +47,7 @@ type Wrapper struct {
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		resolver.ErrNotFound:                http.StatusNotFound,
+		resolver.ErrServiceNotFound:         http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusForbidden,
 		did.ErrInvalidDID:                   http.StatusBadRequest,
 		management.ErrInvalidService:        http.StatusBadRequest,
@@ -69,7 +71,7 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 	}))
 }
 
-func (w Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
+func (w *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
 	options := management.Create(didweb.MethodName)
 	if request.Body.Id != nil && *request.Body.Id != "" {
 		options = options.With(didweb.UserPath(*request.Body.Id))
@@ -84,7 +86,7 @@ func (w Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) 
 	return CreateDID200JSONResponse(*doc), nil
 }
 
-func (w Wrapper) DeleteDID(ctx context.Context, request DeleteDIDRequestObject) (DeleteDIDResponseObject, error) {
+func (w *Wrapper) DeleteDID(ctx context.Context, request DeleteDIDRequestObject) (DeleteDIDResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -96,7 +98,7 @@ func (w Wrapper) DeleteDID(ctx context.Context, request DeleteDIDRequestObject) 
 	return DeleteDID204Response{}, nil
 }
 
-func (w Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error) {
+func (w *Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -111,8 +113,8 @@ func (w Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject) 
 	}, nil
 }
 
-func (a *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDIDsResponseObject, error) {
-	list, err := a.VDR.ListOwned(ctx)
+func (w *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDIDsResponseObject, error) {
+	list, err := w.VDR.ListOwned(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +125,7 @@ func (a *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDI
 	return ListDIDs200JSONResponse(result), nil
 }
 
-func (w Wrapper) CreateService(ctx context.Context, request CreateServiceRequestObject) (CreateServiceResponseObject, error) {
+func (w *Wrapper) CreateService(ctx context.Context, request CreateServiceRequestObject) (CreateServiceResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -135,7 +137,7 @@ func (w Wrapper) CreateService(ctx context.Context, request CreateServiceRequest
 	return CreateService200JSONResponse(*createdService), nil
 }
 
-func (w Wrapper) DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error) {
+func (w *Wrapper) DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -151,7 +153,7 @@ func (w Wrapper) DeleteService(ctx context.Context, request DeleteServiceRequest
 	return DeleteService204Response{}, nil
 }
 
-func (w Wrapper) UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error) {
+func (w *Wrapper) UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -167,10 +169,57 @@ func (w Wrapper) UpdateService(ctx context.Context, request UpdateServiceRequest
 	return UpdateService200JSONResponse(*newService), nil
 }
 
+func (w *Wrapper) ResolveServiceEndpointByType(_ context.Context, request ResolveServiceEndpointByTypeRequestObject) (ResolveServiceEndpointByTypeResponseObject, error) {
+	if len(request.Params.ServiceType) == 0 {
+		return nil, core.InvalidInputError("parameter 'type' is required")
+	}
+	serviceEndpoint, err := w.resolveService(request.Did, func(service did.Service) bool {
+		return service.Type == request.Params.ServiceType
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ResolveServiceEndpointByType200JSONResponse(*serviceEndpoint), nil
+}
+
+func (w *Wrapper) ResolveServiceEndpointByID(_ context.Context, request ResolveServiceEndpointByIDRequestObject) (ResolveServiceEndpointByIDResponseObject, error) {
+	serviceID, err := ssi.ParseURI(request.ServiceId)
+	if err != nil {
+		return nil, err
+	}
+	serviceEndpoint, err := w.resolveService(request.Did, func(s did.Service) bool {
+		return s.ID.String() == serviceID.String()
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ResolveServiceEndpointByID200JSONResponse(*serviceEndpoint), nil
+}
+
 func (w Wrapper) AddVerificationMethod(_ context.Context, _ AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error) {
 	return nil, errors.New("not yet supported")
 }
 
 func (w Wrapper) DeleteVerificationMethod(_ context.Context, _ DeleteVerificationMethodRequestObject) (DeleteVerificationMethodResponseObject, error) {
 	return nil, errors.New("not yet supported")
+}
+
+
+func (w *Wrapper) resolveService(subjectDID string, predicate func(did.Service) bool) (*ServiceEndpoint, error) {
+	subject, err := did.ParseDID(subjectDID)
+	if err != nil {
+		return nil, err
+	}
+	didDocument, _, err := w.VDR.Resolve(*subject, nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, service := range didDocument.Service {
+		if predicate(service) {
+			var serviceEndpoint json.RawMessage
+			serviceEndpoint, _ = json.Marshal(service.ServiceEndpoint)
+			return &ServiceEndpoint{Value: serviceEndpoint}, nil
+		}
+	}
+	return nil, resolver.ErrServiceNotFound
 }
