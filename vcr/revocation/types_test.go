@@ -21,13 +21,12 @@ package revocation
 import (
 	"context"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"testing"
 	"time"
 
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -43,7 +42,6 @@ func newTestStatusList2021(t testing.TB, dids ...did.DID) *StatusList2021 {
 }
 
 func noopSign(_ context.Context, unsignedCredential vc.VerifiableCredential, _ crypto.Key) (*vc.VerifiableCredential, error) {
-	unsignedCredential.ID, _ = ssi.ParseURI("test-id")
 	// marshal-unmarshal credential to set the .raw field
 	bs, err := json.Marshal(unsignedCredential)
 	if err != nil {

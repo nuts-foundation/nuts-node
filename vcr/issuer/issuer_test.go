@@ -974,7 +974,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.Equal(t, subjects[0].StatusPurpose, revocation.StatusPurposeRevocation)
 		assert.NotEmpty(t, subjects[0].EncodedList, "")
 
-		// verify credential -> trust is not added automatically
+		// verify credential; revocation.StatusList2021 does not test signatures on StatusList2021Credentials it produces
 		ctrl := gomock.NewController(t)
 		vStoreMock := verifier.NewMockStore(ctrl)
 		vStoreMock.EXPECT().GetRevocations(gomock.Any()).Return(nil, verifier.ErrNotFound)

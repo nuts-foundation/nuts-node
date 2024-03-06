@@ -22,14 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"gorm.io/gorm"
@@ -147,6 +147,7 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 	// resolve signing key outside of transaction
 	key, err := cs.ResolveKey(ctx, issuerDID)
 	if err != nil {
+		// should never happen; credential confirmed to issued by this node
 		return nil, err
 	}
 
@@ -362,13 +363,19 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 
 	// resolve signing key outside of transaction
 	var issuerStr string
-	cs.db.Model(&credentialIssuerRecord{}).Select("issuer").First(&issuerStr, "subject_id = ?", entry.StatusListCredential)
+	err = cs.db.Model(&credentialIssuerRecord{}).Select("issuer").First(&issuerStr, "subject_id = ?", entry.StatusListCredential).Error
+	if err != nil {
+		// can't happen; confirmed isManaged
+		return err
+	}
 	issuerDID, err := did.ParseDID(issuerStr)
 	if err != nil {
+		// can't happen; own DB
 		return err
 	}
 	key, err := cs.ResolveKey(ctx, *issuerDID)
 	if err != nil {
+		// can't happen; credential confirmed to issued by this node
 		return err
 	}
 
