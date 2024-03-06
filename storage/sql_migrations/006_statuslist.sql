@@ -21,7 +21,7 @@ create table status_list_credential
 -- status_list: keeps track of all status list credentials issued by an issuer, and the highest status list index issued for each credential.
 create table status_list
 (
-    -- id: VC.credentialSubject.ID; URL where this status list credential can be downloaded.
+    -- subject_id: VC.credentialSubject.ID; URL where this status list credential can be downloaded.
     subject_id          varchar(500)    not null    primary key,
     -- issuer: the DID of the issuer of this statusListCredential.
     issuer              varchar(500)    not null,

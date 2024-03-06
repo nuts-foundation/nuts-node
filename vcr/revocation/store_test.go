@@ -47,7 +47,7 @@ func Test_TableNames(t *testing.T) {
 }
 
 func TestSqlStore_Create(t *testing.T) {
-	s := newTestCredentialStatus(t, aliceDID, bobDID) // NOTE: most tests re-use the same store, so they will fail when tests run out of order.
+	s := newTestStatusList2021(t, aliceDID, bobDID) // NOTE: most tests re-use the same store, so they will fail when tests run out of order.
 	testCtx := context.Background()
 
 	var err error
@@ -61,7 +61,7 @@ func TestSqlStore_Create(t *testing.T) {
 			assert.ErrorIs(t, s.db.First(new(credentialIssuerRecord), "subject_id = ?", statusListCredential).Error, gorm.ErrRecordNotFound)
 			assert.ErrorIs(t, s.db.First(new(credentialRecord), "subject_id = ?", statusListCredential).Error, gorm.ErrRecordNotFound)
 
-			entry, err = s.Create(testCtx, aliceDID, StatusPurposeRevocation)
+			entry, err = s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
 
 			assert.NoError(t, err)
 			require.NotNil(t, entry)
@@ -79,7 +79,7 @@ func TestSqlStore_Create(t *testing.T) {
 		t.Run("second entry", func(t *testing.T) {
 			statusListCredential, _ := toStatusListCredential(aliceDID, 1)
 
-			entry, err = s.Create(testCtx, aliceDID, StatusPurposeRevocation)
+			entry, err = s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
 
 			assert.NoError(t, err)
 			require.NotNil(t, entry)
@@ -97,7 +97,7 @@ func TestSqlStore_Create(t *testing.T) {
 				Update("last_issued_index", maxBitstringIndex)
 			statusListCredential, _ = toStatusListCredential(aliceDID, 2) // now expect page 2 to be used
 
-			entry, err = s.Create(testCtx, aliceDID, StatusPurposeRevocation)
+			entry, err = s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
 
 			assert.NoError(t, err)
 			require.NotNil(t, entry)
@@ -107,7 +107,7 @@ func TestSqlStore_Create(t *testing.T) {
 			assert.Equal(t, fmt.Sprintf("%s#0", statusListCredential), entry.ID)
 		})
 		t.Run("second issuer", func(t *testing.T) {
-			entry, err = s.Create(testCtx, bobDID, StatusPurposeRevocation)
+			entry, err = s.Entry(testCtx, bobDID, StatusPurposeRevocation)
 
 			assert.NoError(t, err)
 			require.NotNil(t, entry)
@@ -117,12 +117,12 @@ func TestSqlStore_Create(t *testing.T) {
 		})
 	})
 	t.Run("error - unsupported purpose", func(t *testing.T) {
-		entry, err = s.Create(testCtx, aliceDID, statusPurposeSuspension)
+		entry, err = s.Entry(testCtx, aliceDID, statusPurposeSuspension)
 		assert.ErrorIs(t, err, errUnsupportedPurpose)
 		assert.Nil(t, entry)
 	})
 	t.Run("error - unsupported DID method", func(t *testing.T) {
-		entry, err = s.Create(testCtx, did.MustParseDID("did:nuts:123"), StatusPurposeRevocation)
+		entry, err = s.Entry(testCtx, did.MustParseDID("did:nuts:123"), StatusPurposeRevocation)
 		assert.EqualError(t, err, "status list: unsupported DID method: nuts")
 		assert.Nil(t, entry)
 	})
@@ -138,7 +138,7 @@ func TestSqlStore_Create(t *testing.T) {
 			worker := func(dids <-chan did.DID, done chan<- struct{}) {
 				defer close(done) // senders close
 				for issuer := range dids {
-					_, _ = cs.Create(testCtx, issuer, StatusPurposeRevocation)
+					_, _ = cs.Entry(testCtx, issuer, StatusPurposeRevocation)
 					done <- struct{}{}
 				}
 			}
@@ -181,7 +181,7 @@ func TestSqlStore_Create(t *testing.T) {
 			assert.Equal(t, int64(numJobs), count)
 		}
 		t.Run("sqlite", func(t *testing.T) {
-			raceFn(newTestCredentialStatus(t))
+			raceFn(newTestStatusList2021(t))
 		})
 		t.Run("postgres", func(t *testing.T) {
 			t.SkipNow() // requires generation of postgres DB
@@ -196,9 +196,9 @@ func TestSqlStore_Create(t *testing.T) {
 }
 
 func TestSqlStore_Revoke(t *testing.T) {
-	s := newTestCredentialStatus(t, aliceDID, bobDID)
+	s := newTestStatusList2021(t, aliceDID, bobDID)
 
-	entryP, err := s.Create(nil, aliceDID, StatusPurposeRevocation)
+	entryP, err := s.Entry(nil, aliceDID, StatusPurposeRevocation)
 	require.NoError(t, err)
 	entry := *entryP
 
@@ -252,11 +252,11 @@ func TestSqlStore_Revoke(t *testing.T) {
 }
 
 func TestCredentialStatus_Credential(t *testing.T) {
-	s := newTestCredentialStatus(t, aliceDID, bobDID)
+	s := newTestStatusList2021(t, aliceDID, bobDID)
 	auditCtx := audit.TestContext()
 
 	// create status list credential for alice
-	entryP, err := s.Create(auditCtx, aliceDID, StatusPurposeRevocation)
+	entryP, err := s.Entry(auditCtx, aliceDID, StatusPurposeRevocation)
 	require.NoError(t, err)
 	entry := *entryP
 

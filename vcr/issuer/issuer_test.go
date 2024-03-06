@@ -161,7 +161,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
 			jsonldManager := jsonld.NewTestJSONLDManager(t)
-			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore, statusListStore: NewTestStatusListStore(t, issuerDID)}
+			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore, statusList: NewTestStatusList2021(t, issuerDID)}
 
 			result, err := sut.buildAndSignVC(ctx, slTemplate, CredentialOptions{WithStatusListRevocation: true})
 
@@ -176,7 +176,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			assert.Equal(t, revocation.StatusList2021EntryType, statuses[0].Type)
 		})
 		t.Run("error - did:nuts", func(t *testing.T) {
-			sut := issuer{keyStore: keyStore, statusListStore: NewTestStatusListStore(t)}
+			sut := issuer{keyStore: keyStore, statusList: NewTestStatusList2021(t)}
 
 			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{WithStatusListRevocation: true})
 
@@ -801,13 +801,13 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		status := NewTestStatusListStore(t, issuerDID)
-		entry, err := status.Create(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
+		status := NewTestStatusList2021(t, issuerDID)
+		entry, err := status.Entry(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
 		sut := issuer{
-			store:           issuerStore,
-			statusListStore: status,
+			store:      issuerStore,
+			statusList: status,
 		}
 
 		revCred, err := sut.Revoke(context.Background(), credentialID)
@@ -816,13 +816,13 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 		assert.Nil(t, revCred)
 	})
 	t.Run("error - double revocation", func(t *testing.T) {
-		status := NewTestStatusListStore(t, issuerDID)
-		entry, err := status.Create(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
+		status := NewTestStatusList2021(t, issuerDID)
+		entry, err := status.Entry(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
 		sut := issuer{
-			store:           issuerStore,
-			statusListStore: status,
+			store:      issuerStore,
+			statusList: status,
 		}
 
 		_, err = sut.Revoke(context.Background(), credentialID)
@@ -842,14 +842,14 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 		assert.Nil(t, result)
 	})
 	t.Run("error - statuslist credential not found", func(t *testing.T) {
-		status := NewTestStatusListStore(t, issuerDID)
-		entry, err := status.Create(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
+		status := NewTestStatusList2021(t, issuerDID)
+		entry, err := status.Entry(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		entry.StatusListCredential = "unknown status list"
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
 		sut := issuer{
-			store:           issuerStore,
-			statusListStore: status,
+			store:      issuerStore,
+			statusList: status,
 		}
 
 		_, err = sut.Revoke(context.Background(), credentialID)
@@ -938,14 +938,14 @@ func TestIssuer_StatusList(t *testing.T) {
 		keyResolverMock := NewMockkeyResolver(ctrl)
 		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
 		sut := issuer{
-			keyResolver:     keyResolverMock,
-			jsonldManager:   jsonldManager,
-			keyStore:        keyStore,
-			trustConfig:     trustConfig,
-			statusListStore: NewTestStatusListStore(t, issuerDID),
+			keyResolver:   keyResolverMock,
+			jsonldManager: jsonldManager,
+			keyStore:      keyStore,
+			trustConfig:   trustConfig,
+			statusList:    NewTestStatusList2021(t, issuerDID),
 		}
-		sut.statusListStore.(*revocation.StatusList2021).Sign = sut.signVC
-		_, err = sut.statusListStore.Create(ctx, issuerDID, revocation.StatusPurposeRevocation)
+		sut.statusList.(*revocation.StatusList2021).Sign = sut.signVC
+		_, err = sut.statusList.Entry(ctx, issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 
 		result, err := sut.StatusList(ctx, issuerDID, 1)
@@ -982,7 +982,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.NoError(t, verif.Verify(*result, true, true, nil))
 	})
 	t.Run("error - unknown status list credential", func(t *testing.T) {
-		sut := issuer{statusListStore: NewTestStatusListStore(t, issuerDID)}
+		sut := issuer{statusList: NewTestStatusList2021(t, issuerDID)}
 
 		result, err := sut.StatusList(ctx, issuerDID, 1)
 
@@ -996,15 +996,15 @@ func TestIssuer_StatusList(t *testing.T) {
 		status.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
 			return &unsignedCredential, nil
 		}
-		_, err = status.Create(ctx, issuerDID, revocation.StatusPurposeRevocation)
+		_, err = status.Entry(ctx, issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		db.Exec("DROP TABLE status_list_credential")
 
 		sut := issuer{
-			jsonldManager:   jsonldManager,
-			keyStore:        keyStore,
-			trustConfig:     trustConfig,
-			statusListStore: status,
+			jsonldManager: jsonldManager,
+			keyStore:      keyStore,
+			trustConfig:   trustConfig,
+			statusList:    status,
 		}
 
 		result, err := sut.StatusList(ctx, issuerDID, 1)
@@ -1013,7 +1013,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.Error(t, err, "issuance failed")
 	})
 	t.Run("error - did:nuts", func(t *testing.T) {
-		sut := issuer{statusListStore: NewTestStatusListStore(t)}
+		sut := issuer{statusList: NewTestStatusList2021(t)}
 		issuerNuts := did.MustParseDID("did:nuts:123")
 
 		result, err := sut.StatusList(ctx, issuerNuts, 1)
@@ -1023,7 +1023,7 @@ func TestIssuer_StatusList(t *testing.T) {
 	})
 }
 
-func NewTestStatusListStore(t testing.TB, dids ...did.DID) *revocation.StatusList2021 {
+func NewTestStatusList2021(t testing.TB, dids ...did.DID) *revocation.StatusList2021 {
 	storageEngine := storage.NewTestStorageEngine(t)
 	db := storageEngine.GetSQLDatabase()
 	storage.AddDIDtoSQLDB(t, db, dids...)

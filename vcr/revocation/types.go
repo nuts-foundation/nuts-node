@@ -68,10 +68,10 @@ type StatusList2021Issuer interface {
 	// Credential provides a valid StatusList2021Credential with subject ID derived from the issuer and page.
 	// It returns the last issued StatusList2021Credential if it is still valid or issues a new StatusList2021Credential.
 	Credential(ctx context.Context, issuer did.DID, page int) (*vc.VerifiableCredential, error)
-	// Create a StatusList2021Entry that can be added to the credentialStatus of a VC.
+	// Entry creates a StatusList2021Entry that can be added to the credentialStatus of a VC.
 	// The corresponding StatusList2021Credential will have a gap in the bitstring if the returned entry does not make it into a VC.
 	// If the entry belongs to a new StatusList2021Credential, an empty StatusList2021Credential is issued and stored.
-	Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*StatusList2021Entry, error)
+	Entry(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*StatusList2021Entry, error)
 	// Revoke by adding the StatusList2021Entry to the list of revocations, and updates the relevant StatusList2021Credential.
 	// The credentialID allows reverse search of revocations, its issuer is NOT verified against the entry issuer or VC.
 	// Returns types.ErrRevoked if already revoked, or types.ErrNotFound when the entry.StatusListCredential is unknown.

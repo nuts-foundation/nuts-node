@@ -535,7 +535,7 @@ func testSetup(t testing.TB, entryIsRevoked bool) (*StatusList2021, StatusList20
 	})
 
 	// make credentialStatus
-	credentialStatusNoSignCheck := newTestCredentialStatus(t, aliceDID, bobDID)
+	credentialStatusNoSignCheck := newTestStatusList2021(t, aliceDID, bobDID)
 	credentialStatusNoSignCheck.client = ts.Client()
 
 	// make StatusList2021Entry

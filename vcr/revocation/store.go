@@ -251,7 +251,7 @@ func (cs *StatusList2021) buildAndSignVC(ctx context.Context, issuerDID did.DID,
 	return cs.Sign(ctx, template, vc.JSONLDCredentialProofFormat)
 }
 
-func (cs *StatusList2021) Create(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*StatusList2021Entry, error) {
+func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*StatusList2021Entry, error) {
 	if purpose != StatusPurposeRevocation {
 		return nil, errUnsupportedPurpose
 	}

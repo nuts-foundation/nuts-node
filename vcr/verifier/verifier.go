@@ -55,7 +55,7 @@ type verifier struct {
 	store         Store
 	trustConfig   *trust.Config
 	signatureVerifier
-	credentialStatus *revocation.StatusList2021
+	credentialStatus revocation.StatusList2021Verifier
 }
 
 // VerificationError is used to describe a VC/VP verification failure.

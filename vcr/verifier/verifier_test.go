@@ -152,8 +152,8 @@ func TestVerifier_Verify(t *testing.T) {
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
 		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
 		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client())
-		ctx.verifier.credentialStatus.VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
-		ctx.verifier.credentialStatus.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
+		ctx.verifier.credentialStatus.(*revocation.StatusList2021).VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
+		ctx.verifier.credentialStatus.(*revocation.StatusList2021).Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
 			bs, err := json.Marshal(unsignedCredential)
 			require.NoError(t, err)
 			return &unsignedCredential, json.Unmarshal(bs, &unsignedCredential)
@@ -173,9 +173,9 @@ func TestVerifier_Verify(t *testing.T) {
 		t.Run("is revoked", func(t *testing.T) {
 			didAlice := did.MustParseDID("did:web:example.com:iam:alice")
 			storage.AddDIDtoSQLDB(t, db, didAlice)
-			entry, err := ctx.verifier.credentialStatus.Create(nil, didAlice, revocation.StatusPurposeRevocation)
+			entry, err := ctx.verifier.credentialStatus.(*revocation.StatusList2021).Entry(nil, didAlice, revocation.StatusPurposeRevocation)
 			require.NoError(t, err)
-			require.NoError(t, ctx.verifier.credentialStatus.Revoke(nil, ssi.URI{}, *entry))
+			require.NoError(t, ctx.verifier.credentialStatus.(*revocation.StatusList2021).Revoke(nil, ssi.URI{}, *entry))
 			cred := test.ValidNutsOrganizationCredential(t)
 			credentialID := didAlice.URI()
 			credentialID.Fragment = "123"

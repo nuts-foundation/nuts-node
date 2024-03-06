@@ -71,12 +71,12 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 		walletResolver: openid4vci.DIDIdentifierResolver{
 			ServiceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
 		},
-		keyResolver:     keyResolver,
-		keyStore:        keyStore,
-		jsonldManager:   jsonldManager,
-		trustConfig:     trustConfig,
-		vcrStore:        vcrStore,
-		statusListStore: statusList,
+		keyResolver:   keyResolver,
+		keyStore:      keyStore,
+		jsonldManager: jsonldManager,
+		trustConfig:   trustConfig,
+		vcrStore:      vcrStore,
+		statusList:    statusList,
 	}
 	statusList.Sign = i.signVC
 	return i
@@ -93,7 +93,7 @@ type issuer struct {
 	jsonldManager    jsonld.JSONLD
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
-	statusListStore  revocation.StatusList2021Issuer
+	statusList       revocation.StatusList2021Issuer
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -214,7 +214,7 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 			return nil, fmt.Errorf("failed to parse issuer: %w", err)
 		}
 		// add credential status
-		credentialStatusEntry, err := i.statusListStore.Create(ctx, *issuerDID, revocation.StatusPurposeRevocation)
+		credentialStatusEntry, err := i.statusList.Entry(ctx, *issuerDID, revocation.StatusPurposeRevocation)
 		if err != nil {
 			return nil, err
 		}
@@ -372,7 +372,7 @@ func (i issuer) revokeStatusList(ctx context.Context, credentialID ssi.URI) erro
 			if slEntry.StatusPurpose != revocation.StatusPurposeRevocation {
 				continue
 			}
-			return i.statusListStore.Revoke(ctx, credentialID, slEntry)
+			return i.statusList.Revoke(ctx, credentialID, slEntry)
 		}
 	}
 
@@ -448,7 +448,7 @@ func (i issuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject
 }
 
 func (i issuer) StatusList(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
-	return i.statusListStore.Credential(ctx, issuerDID, page)
+	return i.statusList.Credential(ctx, issuerDID, page)
 }
 
 func NewStore(db *gorm.DB, leiaIssuerStorePath string, leiaIssuerBackupStore stoabs.KVStore) (Store, error) {
