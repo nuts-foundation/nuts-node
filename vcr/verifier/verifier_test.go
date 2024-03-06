@@ -19,10 +19,12 @@
 package verifier
 
 import (
+	"context"
 	crypt "crypto"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"net/http"
 	"net/http/httptest"
@@ -137,9 +139,9 @@ func TestVerifier_Verify(t *testing.T) {
 		}))
 
 		// statusListEntry for credentialToValidate without statusListIndex
-		slEntry := statuslist2021.Entry{
+		slEntry := revocation.StatusList2021Entry{
 			ID:                   "https://example-com/credentials/status/3#statusListIndex",
-			Type:                 statuslist2021.EntryType,
+			Type:                 revocation.StatusList2021EntryType,
 			StatusPurpose:        "revocation",
 			StatusListCredential: ts.URL,
 		}
@@ -148,7 +150,14 @@ func TestVerifier_Verify(t *testing.T) {
 		http.DefaultClient = ts.Client() // newMockContext sets credentialStatus.client to http.DefaultClient
 		ctx := newMockContext(t)
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
-		ctx.verifier.credentialStatus = statuslist2021.NewCredentialStatus(http.DefaultClient, func(_ vc.VerifiableCredential, _ *time.Time) error { return nil }) // don't check signatures on 'downloaded' StatusList2021Credentials
+		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
+		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client())
+		ctx.verifier.credentialStatus.(*revocation.StatusList2021).VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
+		ctx.verifier.credentialStatus.(*revocation.StatusList2021).Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
+			bs, err := json.Marshal(unsignedCredential)
+			require.NoError(t, err)
+			return &unsignedCredential, json.Unmarshal(bs, &unsignedCredential)
+		}
 
 		cred := test.ValidNutsOrganizationCredential(t)
 		cred.Context = append(cred.Context, ssi.MustParseURI(jsonld.W3cStatusList2021Context))
@@ -162,8 +171,18 @@ func TestVerifier_Verify(t *testing.T) {
 			assert.NoError(t, validationErr)
 		})
 		t.Run("is revoked", func(t *testing.T) {
-			slEntry.StatusListIndex = strconv.Itoa(statusListIndex)
-			cred.CredentialStatus = []any{slEntry}
+			didAlice := did.MustParseDID("did:web:example.com:iam:alice")
+			storage.AddDIDtoSQLDB(t, db, didAlice)
+			entry, err := ctx.verifier.credentialStatus.(*revocation.StatusList2021).Entry(nil, didAlice, revocation.StatusPurposeRevocation)
+			require.NoError(t, err)
+			require.NoError(t, ctx.verifier.credentialStatus.(*revocation.StatusList2021).Revoke(nil, ssi.URI{}, *entry))
+			cred := test.ValidNutsOrganizationCredential(t)
+			credentialID := didAlice.URI()
+			credentialID.Fragment = "123"
+			cred.ID = &credentialID
+			cred.Issuer = didAlice.URI()
+			cred.CredentialStatus = []any{entry}
+			cred.Context = append(cred.Context, revocation.StatusList2021ContextURI)
 
 			validationErr := ctx.verifier.Verify(cred, true, false, nil)
 
@@ -182,9 +201,9 @@ func TestVerifier_Verify(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				writer.WriteHeader(400)
 			}))
-			slEntry := statuslist2021.Entry{
+			slEntry := revocation.StatusList2021Entry{
 				ID:                   "not relevant",
-				Type:                 statuslist2021.EntryType,
+				Type:                 revocation.StatusList2021EntryType,
 				StatusPurpose:        "revocation",
 				StatusListIndex:      "1",
 				StatusListCredential: ts.URL, //
@@ -695,7 +714,7 @@ func newMockContext(t *testing.T) mockContext {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
-	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, http.DefaultClient).(*verifier)
+	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, &revocation.StatusList2021{}).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,

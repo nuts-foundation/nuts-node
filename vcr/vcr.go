@@ -29,7 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io/fs"
@@ -226,14 +226,10 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		c.walletHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
 		c.openidSessionStore = c.storageClient.GetSessionDatabase()
 	}
-	status, err := statuslist2021.NewStatusListStore(c.storageClient.GetSQLDatabase())
-	if err != nil {
-		return err
-	}
 
+	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), core.NewStrictHTTPClient(config.Strictmode, config.HTTPClient.Timeout, tlsConfig))
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig, status)
-	c.verifierHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, c.verifierHttpClient)
+	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, status)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 

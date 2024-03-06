@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
@@ -59,25 +59,27 @@ var TimeFunc = time.Now
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
-	statusList statuslist2021.StatusList2021Issuer) Issuer {
+	statusList *revocation.StatusList2021) Issuer {
 	keyResolver := vdrKeyResolver{
 		publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
 		privateKeyResolver: keyStore,
 	}
-	return &issuer{
+	i := &issuer{
 		store:            store,
 		networkPublisher: networkPublisher,
 		openidHandlerFn:  openidHandlerFn,
 		walletResolver: openid4vci.DIDIdentifierResolver{
 			ServiceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
 		},
-		keyResolver:     keyResolver,
-		keyStore:        keyStore,
-		jsonldManager:   jsonldManager,
-		trustConfig:     trustConfig,
-		vcrStore:        vcrStore,
-		statusListStore: statusList,
+		keyResolver:   keyResolver,
+		keyStore:      keyStore,
+		jsonldManager: jsonldManager,
+		trustConfig:   trustConfig,
+		vcrStore:      vcrStore,
+		statusList:    statusList,
 	}
+	statusList.Sign = i.signVC
+	return i
 }
 
 type issuer struct {
@@ -91,7 +93,7 @@ type issuer struct {
 	jsonldManager    jsonld.JSONLD
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
-	statusListStore  statuslist2021.StatusList2021Issuer
+	statusList       revocation.StatusList2021Issuer
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -212,15 +214,15 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 			return nil, fmt.Errorf("failed to parse issuer: %w", err)
 		}
 		// add credential status
-		credentialStatusEntry, err := i.statusListStore.Create(ctx, *issuerDID, statuslist2021.StatusPurposeRevocation)
+		credentialStatusEntry, err := i.statusList.Entry(ctx, *issuerDID, revocation.StatusPurposeRevocation)
 		if err != nil {
 			return nil, err
 		}
 		unsignedCredential.CredentialStatus = append(unsignedCredential.CredentialStatus, credentialStatusEntry)
 
 		// add status list context
-		if !unsignedCredential.ContainsContext(statusList2021ContextURI) {
-			unsignedCredential.Context = append(unsignedCredential.Context, statusList2021ContextURI)
+		if !unsignedCredential.ContainsContext(revocation.StatusList2021ContextURI) {
+			unsignedCredential.Context = append(unsignedCredential.Context, revocation.StatusList2021ContextURI)
 		}
 	}
 
@@ -360,17 +362,17 @@ func (i issuer) revokeStatusList(ctx context.Context, credentialID ssi.URI) erro
 
 	// find the correct credentialStatus and revoke it on the relevant statuslist
 	for _, status := range statuses {
-		if status.Type == statuslist2021.EntryType {
-			var slEntry statuslist2021.Entry
+		if status.Type == revocation.StatusList2021EntryType {
+			var slEntry revocation.StatusList2021Entry
 			err = json.Unmarshal(status.Raw(), &slEntry)
 			if err != nil {
 				return err
 			}
 			// TODO: make sure it is the correct entry when we allow other purposes, or VC issuance that include other credential statuses
-			if slEntry.StatusPurpose != statuslist2021.StatusPurposeRevocation {
+			if slEntry.StatusPurpose != revocation.StatusPurposeRevocation {
 				continue
 			}
-			return i.statusListStore.Revoke(ctx, credentialID, slEntry)
+			return i.statusList.Revoke(ctx, credentialID, slEntry)
 		}
 	}
 
@@ -445,48 +447,8 @@ func (i issuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject
 	return i.store.SearchCredential(credentialType, issuer, subject)
 }
 
-// statusListValidity is default validity of a statuslist credential. It should be
-const statusListValidity = 24 * time.Hour // TODO: make configurable
-
-var statusList2021ContextURI = ssi.MustParseURI(jsonld.W3cStatusList2021Context)
-var statusList2021CredentialTypeURI = ssi.MustParseURI(statuslist2021.CredentialType)
-
 func (i issuer) StatusList(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
-	// todo: get cached credential if available
-
-	// get credential subject
-	credSubject, err := i.statusListStore.CredentialSubject(ctx, issuerDID, page)
-	if err != nil {
-		return nil, err
-	}
-
-	// create statuslist credential template
-	iss := TimeFunc()
-	exp := iss.Add(statusListValidity)
-	template := vc.VerifiableCredential{
-		Context: []ssi.URI{
-			vc.VCContextV1URI(),
-			statusList2021ContextURI,
-		},
-		Type: []ssi.URI{
-			vc.VerifiableCredentialTypeV1URI(),
-			statusList2021CredentialTypeURI,
-		},
-		CredentialSubject: []any{credSubject},
-		Issuer:            issuerDID.URI(),
-		ValidFrom:         &iss,
-		ValidUntil:        &exp,
-	}
-
-	// build and sign the VC.
-	// All content is validated and these credentials should not be in the issuer store, so don't use i.Issue()
-	statusListCredential, err := i.signVC(ctx, template, vc.JSONLDCredentialProofFormat)
-	if err != nil {
-		return nil, err
-	}
-	// TODO: cache result
-
-	return statusListCredential, nil
+	return i.statusList.Credential(ctx, issuerDID, page)
 }
 
 func NewStore(db *gorm.DB, leiaIssuerStorePath string, leiaIssuerBackupStore stoabs.KVStore) (Store, error) {

@@ -16,10 +16,11 @@
  *
  */
 
-package statuslist2021
+package revocation
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -27,45 +28,40 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 var aliceDID = did.MustParseDID("did:web:example.com:iam:alice")
 var bobDID = did.MustParseDID("did:web:example.com:iam:bob")
 
 func Test_TableNames(t *testing.T) {
-	assert.Equal(t, statusListCredentialRecord{}.TableName(), "status_list_credential")
-	assert.Equal(t, revocationRecord{}.TableName(), "status_list_status")
-}
-
-func TestSqlStore_DB(t *testing.T) {
-	s, err := NewStatusListStore(storage.NewTestStorageEngine(t).GetSQLDatabase())
-	require.NoError(t, err)
-	storage.AddDIDtoSQLDB(t, s.db, aliceDID)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err = s.DB(ctx).First(statusListCredentialRecord{}).Error
-	assert.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, credentialRecord{}.TableName(), "status_list_credential")
+	assert.Equal(t, credentialIssuerRecord{}.TableName(), "status_list")
+	assert.Equal(t, revocationRecord{}.TableName(), "status_list_entry")
 }
 
 func TestSqlStore_Create(t *testing.T) {
-	s, err := NewStatusListStore(storage.NewTestStorageEngine(t).GetSQLDatabase())
-	require.NoError(t, err)
-	storage.AddDIDtoSQLDB(t, s.db, aliceDID, bobDID) // NOTE: most tests re-use same store
+	s := newTestStatusList2021(t, aliceDID, bobDID) // NOTE: most tests re-use the same store, so they will fail when tests run out of order.
+	testCtx := context.Background()
 
-	var entry *Entry
+	var err error
+	var entry *StatusList2021Entry
 
 	t.Run("ok", func(t *testing.T) {
 
 		t.Run("new issuer", func(t *testing.T) {
 			statusListCredential, _ := toStatusListCredential(aliceDID, 1)
+			// confirm empty DB
+			assert.ErrorIs(t, s.db.First(new(credentialIssuerRecord), "subject_id = ?", statusListCredential).Error, gorm.ErrRecordNotFound)
+			assert.ErrorIs(t, s.db.First(new(credentialRecord), "subject_id = ?", statusListCredential).Error, gorm.ErrRecordNotFound)
 
-			entry, err = s.Create(nil, aliceDID, StatusPurposeRevocation)
+			entry, err = s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
 
 			assert.NoError(t, err)
 			require.NotNil(t, entry)
@@ -73,13 +69,17 @@ func TestSqlStore_Create(t *testing.T) {
 			assert.Equal(t, statusListCredential, entry.StatusListCredential)
 			assert.Equal(t, "0", entry.StatusListIndex)
 			assert.Equal(t, fmt.Sprintf("%s#0", statusListCredential), entry.ID)
-			assert.Equal(t, EntryType, entry.Type)
+			assert.Equal(t, StatusList2021EntryType, entry.Type)
 			assert.Equal(t, StatusPurposeRevocation, entry.StatusPurpose)
+
+			// confirm records created
+			assert.NoError(t, s.db.First(new(credentialIssuerRecord), "subject_id = ?", statusListCredential).Error)
+			assert.NoError(t, s.db.First(new(credentialRecord), "subject_id = ?", statusListCredential).Error)
 		})
 		t.Run("second entry", func(t *testing.T) {
 			statusListCredential, _ := toStatusListCredential(aliceDID, 1)
 
-			entry, err = s.Create(nil, aliceDID, StatusPurposeRevocation)
+			entry, err = s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
 
 			assert.NoError(t, err)
 			require.NotNil(t, entry)
@@ -92,12 +92,12 @@ func TestSqlStore_Create(t *testing.T) {
 		t.Run("credential rollover", func(t *testing.T) {
 			statusListCredential, _ := toStatusListCredential(aliceDID, 1)
 			// set last_issued_index to max value for a single credential so the next entry will be in page 2
-			s.db.Model(&statusListCredentialRecord{}).
+			s.db.Model(&credentialIssuerRecord{}).
 				Where("subject_id = ?", statusListCredential).
 				Update("last_issued_index", maxBitstringIndex)
 			statusListCredential, _ = toStatusListCredential(aliceDID, 2) // now expect page 2 to be used
 
-			entry, err = s.Create(nil, aliceDID, StatusPurposeRevocation)
+			entry, err = s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
 
 			assert.NoError(t, err)
 			require.NotNil(t, entry)
@@ -107,22 +107,22 @@ func TestSqlStore_Create(t *testing.T) {
 			assert.Equal(t, fmt.Sprintf("%s#0", statusListCredential), entry.ID)
 		})
 		t.Run("second issuer", func(t *testing.T) {
-			entry, err = s.Create(nil, bobDID, StatusPurposeRevocation)
+			entry, err = s.Entry(testCtx, bobDID, StatusPurposeRevocation)
 
 			assert.NoError(t, err)
 			require.NotNil(t, entry)
 			assert.Equal(t, "0", entry.StatusListIndex)
 			// alice#1, alice#2, bob#1; fails if only part of the 'ok' block is executed
-			assert.Equal(t, int64(3), s.db.Find(&[]statusListCredentialRecord{}).RowsAffected)
+			assert.Equal(t, int64(3), s.db.Find(&[]credentialIssuerRecord{}).RowsAffected)
 		})
 	})
 	t.Run("error - unsupported purpose", func(t *testing.T) {
-		entry, err = s.Create(nil, aliceDID, statusPurposeSuspension)
+		entry, err = s.Entry(testCtx, aliceDID, statusPurposeSuspension)
 		assert.ErrorIs(t, err, errUnsupportedPurpose)
 		assert.Nil(t, entry)
 	})
 	t.Run("error - unsupported DID method", func(t *testing.T) {
-		entry, err = s.Create(nil, did.MustParseDID("did:nuts:123"), StatusPurposeRevocation)
+		entry, err = s.Entry(testCtx, did.MustParseDID("did:nuts:123"), StatusPurposeRevocation)
 		assert.EqualError(t, err, "status list: unsupported DID method: nuts")
 		assert.Nil(t, entry)
 	})
@@ -131,14 +131,14 @@ func TestSqlStore_Create(t *testing.T) {
 		// In the first round they race to create a page for an issuer.
 		// In the second round they race to update the last_issued_index for the page created in round 1.
 		// The result is that each issuer has 1 (page) status list credential for which 4 entries are issued.
-		raceFn := func(store *sqlStore) {
+		raceFn := func(cs *StatusList2021) {
 			const numJobs = 10
 
 			// worker waits for a did, requests a statusListEntry for the did, and reports that it has completed.
 			worker := func(dids <-chan did.DID, done chan<- struct{}) {
 				defer close(done) // senders close
 				for issuer := range dids {
-					_, _ = store.Create(nil, issuer, StatusPurposeRevocation)
+					_, _ = cs.Entry(testCtx, issuer, StatusPurposeRevocation)
 					done <- struct{}{}
 				}
 			}
@@ -156,7 +156,7 @@ func TestSqlStore_Create(t *testing.T) {
 			for j := 0; j < numJobs; j++ {
 				// generate a new DID and add it to the VDR
 				id := did.MustParseDID("did:web:example.com:iam:" + strconv.Itoa(j))
-				storage.AddDIDtoSQLDB(t, store.db, id)
+				storage.AddDIDtoSQLDB(t, cs.db, id)
 
 				// round 1; race on page (status_list_credential.id) creation
 				jobA <- id
@@ -173,51 +173,58 @@ func TestSqlStore_Create(t *testing.T) {
 
 			// number of status list credentials = numJobs
 			var count int64
-			store.db.Model(&statusListCredentialRecord{}).Count(&count)
+			cs.db.Model(&credentialIssuerRecord{}).Count(&count)
 			assert.Equal(t, int64(numJobs), count)
 
 			// all have a unique issuer and have issued exactly 4 status list entries
-			store.db.Model(&statusListCredentialRecord{}).Distinct("issuer").Where("last_issued_index = 3").Count(&count)
+			cs.db.Model(&credentialIssuerRecord{}).Distinct("issuer").Where("last_issued_index = 3").Count(&count)
 			assert.Equal(t, int64(numJobs), count)
 		}
 		t.Run("sqlite", func(t *testing.T) {
-			store, err := NewStatusListStore(storage.NewTestStorageEngine(t).GetSQLDatabase())
-			require.NoError(t, err)
-			raceFn(store)
+			raceFn(newTestStatusList2021(t))
 		})
 		t.Run("postgres", func(t *testing.T) {
 			t.SkipNow() // requires generation of postgres DB
 			// create store with postgres DB
-			var storePG *sqlStore
+			var storePG *StatusList2021
 			raceFn(storePG)
 			// To confirm there was a race condition on the page creation (can't happen with SQLite), check the logs for:
-			//		2024/02/12 19:53:20 .../nuts-node/vcr/statuslist2021/store.go:196 duplicated key not allowed
+			//		2024/02/12 19:53:20 .../nuts-node/vcr/revocation/... duplicated key not allowed
 			// If this error was logged and the test did not fail it is handled correctly.
 		})
 	})
 }
 
 func TestSqlStore_Revoke(t *testing.T) {
-	s, err := NewStatusListStore(storage.NewTestStorageEngine(t).GetSQLDatabase())
-	require.NoError(t, err)
-	storage.AddDIDtoSQLDB(t, s.db, aliceDID, bobDID)
+	s := newTestStatusList2021(t, aliceDID, bobDID)
 
-	entryP, err := s.Create(nil, aliceDID, StatusPurposeRevocation)
+	entryP, err := s.Entry(nil, aliceDID, StatusPurposeRevocation)
 	require.NoError(t, err)
 	entry := *entryP
 
 	t.Run("ok", func(t *testing.T) {
+		statusListIndex := 0
+		// confirm statuslist entry not revoked in credential
+		credRecord, err := s.loadCredential(entry.StatusListCredential)
+		require.NoError(t, err)
+		set, _ := credRecord.Expanded.bit(statusListIndex)
+		assert.False(t, set)
 		credentialID := bobDID.URI() // not alice
-		assert.NoError(t, s.Revoke(nil, credentialID, entry))
-		// confirm it is in the DB
+		require.NoError(t, s.Revoke(nil, credentialID, entry))
+		// confirm the revocation is in the DB
 		var revocation revocationRecord
 		err = s.db.Where(&revocationRecord{
 			StatusListCredential: entry.StatusListCredential,
-			StatusListIndex:      0,
+			StatusListIndex:      statusListIndex,
 			CredentialID:         credentialID.String(),
 		}).First(&revocation).Error
 		assert.NoError(t, err)
 		assert.InDelta(t, time.Now().Unix(), revocation.RevokedAt, 2) // allow 2 seconds difference for slow CI
+		// confirm statuslist credential is updated
+		credRecord, err = s.loadCredential(entry.StatusListCredential)
+		require.NoError(t, err)
+		set, _ = credRecord.Expanded.bit(statusListIndex)
+		assert.True(t, set)
 	})
 	t.Run("error - ErrRevoked", func(t *testing.T) {
 		assert.ErrorIs(t, s.Revoke(nil, ssi.URI{}, entry), types.ErrRevoked)
@@ -244,51 +251,111 @@ func TestSqlStore_Revoke(t *testing.T) {
 	})
 }
 
-func TestSqlStore_CredentialSubject(t *testing.T) {
-	s, err := NewStatusListStore(storage.NewTestStorageEngine(t).GetSQLDatabase())
-	require.NoError(t, err)
-	storage.AddDIDtoSQLDB(t, s.db, aliceDID, bobDID)
+func TestCredentialStatus_Credential(t *testing.T) {
+	s := newTestStatusList2021(t, aliceDID, bobDID)
+	auditCtx := audit.TestContext()
 
 	// create status list credential for alice
-	entryP, err := s.Create(nil, aliceDID, StatusPurposeRevocation)
+	entryP, err := s.Entry(auditCtx, aliceDID, StatusPurposeRevocation)
 	require.NoError(t, err)
 	entry := *entryP
 
 	t.Run("ok - empty bitstring", func(t *testing.T) {
 		encodedList, err := compress(*newBitstring())
 		assert.NoError(t, err)
-		expectedCS := CredentialSubject{
-			Id:            entry.StatusListCredential,
-			Type:          CredentialSubjectType,
+		expectedCS := toMap(t, StatusList2021CredentialSubject{
+			ID:            entry.StatusListCredential,
+			Type:          StatusList2021CredentialSubjectType,
 			StatusPurpose: StatusPurposeRevocation,
 			EncodedList:   encodedList,
-		}
+		})
+		s.Sign = nil // guarantees credential comes from db
+		defer func() { s.Sign = noopSign }()
 
-		cs, err := s.CredentialSubject(nil, aliceDID, 1)
+		cred, err := s.Credential(auditCtx, aliceDID, 1)
 
 		assert.NoError(t, err)
-		require.NotNil(t, cs)
-		assert.Equal(t, expectedCS, *cs)
+		require.NotNil(t, cred)
+		assert.Equal(t, expectedCS, cred.CredentialSubject[0])
 	})
 	t.Run("ok - with revocations", func(t *testing.T) {
 		require.NoError(t, s.Revoke(nil, ssi.URI{}, entry))
+		s.Sign = nil // guarantees credential comes from db
+		defer func() { s.Sign = noopSign }()
 
-		cs, err := s.CredentialSubject(nil, aliceDID, 1)
+		cred, err := s.Credential(auditCtx, aliceDID, 1)
 		assert.NoError(t, err)
-		require.NotNil(t, cs)
+		require.NotNil(t, cred)
 
-		bs, err := expand(cs.EncodedList)
+		var credSubs []StatusList2021CredentialSubject
+		require.NoError(t, cred.UnmarshalCredentialSubject(&credSubs))
+
+		bs, err := expand(credSubs[0].EncodedList)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, bs)
 	})
+	t.Run("ok - loadCredential failed", func(t *testing.T) {
+		// add bob as issuer for page 0
+		subjectID, err := toStatusListCredential(bobDID, 0)
+		require.NoError(t, err)
+		s.db.Create(&credentialIssuerRecord{
+			SubjectID: subjectID,
+			Issuer:    bobDID.String(),
+		})
+		// try load the credential
+		cred, err := s.Credential(auditCtx, bobDID, 0)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, cred)
+	})
+	t.Run("ok - refresh expired credential", func(t *testing.T) {
+		// change expires so that time.Now is between refresh and expired
+		err = s.db.Model(new(credentialRecord)).Where("subject_id = ?", entry.StatusListCredential).
+			UpdateColumn("expires", time.Now().Add(minTimeUntilExpired-time.Second).Unix()).Error
+		require.NoError(t, err)
+		// try load the credential
+		cred, err := s.Credential(auditCtx, aliceDID, 1)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, cred)
+	})
 	t.Run("error - ErrNotFound", func(t *testing.T) {
-		cs, err := s.CredentialSubject(nil, aliceDID, 2)
+		cred, err := s.Credential(auditCtx, aliceDID, 2)
 		assert.ErrorIs(t, err, types.ErrNotFound)
-		require.Nil(t, cs)
+		require.Nil(t, cred)
 	})
-	t.Run("error - unsupported DID method", func(t *testing.T) {
-		cs, err := s.CredentialSubject(nil, did.MustParseDID("did:nuts:123"), 1)
-		assert.EqualError(t, err, "status list: unsupported DID method: nuts")
-		require.Nil(t, cs)
-	})
+}
+
+func TestCredentialStatus_buildAndSignVC(t *testing.T) {
+	cs := &StatusList2021{Sign: noopSign}
+
+	subjectID, err := toStatusListCredential(aliceDID, 1)
+	require.NoError(t, err)
+	encodedList, err := compress(*newBitstring())
+	require.NoError(t, err)
+	expectedCS := StatusList2021CredentialSubject{
+		ID:            subjectID,
+		Type:          StatusList2021CredentialSubjectType,
+		StatusPurpose: StatusPurposeRevocation,
+		EncodedList:   encodedList,
+	}
+
+	cred, err := cs.buildAndSignVC(nil, aliceDID, expectedCS)
+
+	require.NoError(t, err)
+	assert.True(t, cred.ContainsContext(vc.VCContextV1URI()))
+	assert.True(t, cred.ContainsContext(StatusList2021ContextURI))
+	assert.True(t, cred.IsType(vc.VerifiableCredentialTypeV1URI()))
+	assert.True(t, cred.IsType(statusList2021CredentialTypeURI))
+	assert.Equal(t, toMap(t, expectedCS), cred.CredentialSubject[0])
+	assert.Equal(t, aliceDID.String(), cred.Issuer.String())
+	assert.InDelta(t, time.Now().Unix(), cred.ValidFrom.Unix(), 2)
+	assert.InDelta(t, time.Now().Add(statusListValidity).Unix(), cred.ValidUntil.Unix(), 2)
+	assert.Nil(t, cred.IssuanceDate)
+	assert.Nil(t, cred.ExpirationDate)
+}
+
+func toMap(t testing.TB, obj any) (result map[string]any) {
+	bs, err := json.Marshal(obj)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(bs, &result))
+	return
 }

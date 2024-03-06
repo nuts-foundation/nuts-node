@@ -1,9 +1,28 @@
 -- migrate:up
--- status_list_credential: keeps track of all status list credentials issued by an issuer, and the highest status list index issued for each credential.
+
+-- status_list_credential: latest version of known credentials.
 create table status_list_credential
 (
     -- id: VC.credentialSubject.ID; URL where this status list credential can be downloaded.
-    subject_id                  varchar(500)    not null    primary key,
+    -- the credential served at this URL may change over time, so we only keep the latest
+    subject_id      varchar(500)    not null    primary key,
+    -- StatusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
+    status_purpose  varchar(25)     not null,
+    -- expanded StatusList2021 bitstring
+    expanded        text            not null,
+    -- created is the seconds since Unix Epoch when this credentialRecord was generated
+    created_at      integer         not null,
+    -- expires is the seconds since Unix Epoch when the credential expires, only present if set.
+    expires         integer         null,
+    -- raw credential, either base64 (jwt) or json.
+    raw             text            not null
+);
+
+-- status_list: keeps track of all status list credentials issued by an issuer, and the highest status list index issued for each credential.
+create table status_list
+(
+    -- subject_id: VC.credentialSubject.ID; URL where this status list credential can be downloaded.
+    subject_id          varchar(500)    not null    primary key,
     -- issuer: the DID of the issuer of this statusListCredential.
     issuer              varchar(370)    not null,
     -- page: the n-th StatusList2021Credential issued by this issuer.
@@ -15,8 +34,8 @@ create table status_list_credential
     constraint fk_issuer_did foreign key (issuer) references vdr_didweb (did) on delete cascade
 );
 
--- status_list_status: lists all status list entries for which the status bit is set to true. (revocation table)
-create table status_list_status
+-- status_list_entry: lists all status list entries for which the status bit is set to true. (revocation table)
+create table status_list_entry
 (
     -- status_list_credential: URL where the status list credential can be resolved; as referenced in the status list entry.
     status_list_credential  varchar(500)    not null,
@@ -29,13 +48,11 @@ create table status_list_status
     created_at              integer         not null,
     -- status_list_entry_id: unique identifier of a status list entry
     constraint status_list_entry_id primary key (status_list_credential, status_list_index),
-    -- credential_id: references a credential in the issued credentials table, once it exists.
-    -- Don't cascade credential_id on delete, credential revocation status is unchanged.
-    -- foreign key (credential_id) references issuer_store (id),
     -- Ties the status_list_credential to an issuer (did) via the status_list_issuer table
-    constraint fk_status_list_credential foreign key (status_list_credential) references status_list_credential (subject_id) on delete cascade
+    constraint fk_status_list_credential foreign key (status_list_credential) references status_list (subject_id) on delete cascade
 );
 
 -- migrate:down
 drop table status_list_credential;
-drop table status_list_status;
+drop table status_list;
+drop table status_list_entry;

@@ -23,13 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/statuslist2021"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -100,40 +98,21 @@ func validateCredentialStatus(credential vc.VerifiableCredential) error {
 			return errors.New("credentialStatus.type is required")
 		}
 
-		// only accept StatusList2021Entry for now
-		if credentialStatus.Type != statuslist2021.EntryType {
-			continue
-		}
-		// TODO: AllFieldsDefined validator should be sufficient?
+		// only validate StatusList2021Entry for now
+		switch credentialStatus.Type {
+		case revocation.StatusList2021EntryType:
+			// TODO: json.AllFieldsDefined validator should be sufficient?
+			if !credential.ContainsContext(revocation.StatusList2021ContextURI) {
+				return errors.New("StatusList2021 context is required")
+			}
 
-		if !credential.ContainsContext(statuslist2021.ContextURI) {
-			return errors.New("StatusList2021 context is required")
-		}
-
-		// unmarshal as StatusList2021Entry
-		var cs statuslist2021.Entry
-		if err = json.Unmarshal(credentialStatus.Raw(), &cs); err != nil {
-			return err
-		}
-
-		// 'id' MUST NOT be the URL for the status list
-		if cs.ID == cs.StatusListCredential {
-			return errors.New("StatusList2021Entry.id is the same as the StatusList2021Entry.statusListCredential")
-		}
-
-		// StatusPurpose must contain a purpose
-		if cs.StatusPurpose == "" {
-			return errors.New("StatusList2021Entry.statusPurpose is required")
-		}
-
-		// statusListIndex must be a non-negative number
-		if n, err := strconv.Atoi(cs.StatusListIndex); err != nil || n < 0 {
-			return errors.New("invalid StatusList2021Entry.statusListIndex")
-		}
-
-		// 'statusListCredential' must be a URL
-		if _, err = url.ParseRequestURI(cs.StatusListCredential); err != nil {
-			return fmt.Errorf("parse StatusList2021Entry.statusListCredential URL: %w", err)
+			var cs revocation.StatusList2021Entry
+			if err = json.Unmarshal(credentialStatus.Raw(), &cs); err != nil {
+				return err
+			}
+			if err = cs.Validate(); err != nil {
+				return err
+			}
 		}
 	}
 
