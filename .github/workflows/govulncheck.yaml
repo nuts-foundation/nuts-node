@@ -25,6 +25,5 @@ jobs:
       - id: govulncheck
         uses: golang/govulncheck-action@v1
         with:
-          # use go version from go.mod.
-          go-version-file: 'go.mod'
+          go-version-input: 'stable'
           go-package: ./...
