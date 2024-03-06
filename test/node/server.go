@@ -41,7 +41,6 @@ const testServerConfig = `verbosity: debug
 strictmode: false
 network:
   enablediscovery: false
-  enabletls: false
 auth:
   contractvalidators:
     - dummy

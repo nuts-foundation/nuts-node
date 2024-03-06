@@ -68,7 +68,7 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, pki
 		if err := pkiValidator.AddTruststore(trustStore.Certificates()); err != nil {
 			return err
 		}
-		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
+		// Load TLS server certificate if the gRPC server should be started.
 		if config.listenAddress != "" {
 			config.serverCert = config.clientCert
 		}
