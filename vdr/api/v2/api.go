@@ -21,6 +21,7 @@ package v2
 
 import (
 	"context"
+	"errors"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -166,12 +167,10 @@ func (w Wrapper) UpdateService(ctx context.Context, request UpdateServiceRequest
 	return UpdateService200JSONResponse(*newService), nil
 }
 
-func (w Wrapper) AddVerificationMethod(ctx context.Context, request AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error) {
-	//TODO implement me
-	panic("implement me")
+func (w Wrapper) AddVerificationMethod(_ context.Context, _ AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error) {
+	return nil, errors.New("not yet supported")
 }
 
-func (w Wrapper) DeleteVerificationMethod(ctx context.Context, request DeleteVerificationMethodRequestObject) (DeleteVerificationMethodResponseObject, error) {
-	//TODO implement me
-	panic("implement me")
+func (w Wrapper) DeleteVerificationMethod(_ context.Context, _ DeleteVerificationMethodRequestObject) (DeleteVerificationMethodResponseObject, error) {
+	return nil, errors.New("not yet supported")
 }
