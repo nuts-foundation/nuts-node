@@ -107,7 +107,6 @@ nuts:
       certfile: /opt/nuts/ssl/node.nuts.local.pem
       certkeyfile: /opt/nuts/ssl/node.nuts.local.key
     network:
-      enabletls: true
       grpcaddr: :5555
     url: https://chart-example.local
     auth:

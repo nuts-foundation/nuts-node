@@ -12,7 +12,6 @@ auth:
     autoupdateschemas: false
 network:
   grpcaddr:	:5555
-  enabletls: true
   v2:
     gossipinterval: 500
 pki:

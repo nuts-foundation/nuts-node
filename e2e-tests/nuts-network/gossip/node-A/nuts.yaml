@@ -12,6 +12,5 @@ auth:
     autoupdateschemas: false
 network:
   grpcaddr:	:5555
-  enabletls: false
   v2:
     gossipinterval: 500

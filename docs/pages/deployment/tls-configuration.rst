@@ -226,9 +226,3 @@ Refer to the HAProxy documentation for more information.
 .. note::
 
     In a (level 4) pass-through configuration, the Nuts node will see the load balancer as origin (IP) for all incoming connections.
-
-No TLS
-******
-
-You can disable TLS by setting ``network.enabletls`` to ``false``, but this feature is **only** meant for development/demo purposes.
-It should never be used in a production environment. If you disable TLS, you can only connect to nodes that have disabled TLS as well.

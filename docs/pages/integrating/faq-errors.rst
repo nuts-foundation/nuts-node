@@ -13,7 +13,7 @@ When connecting to a remote node, the following error can occur:
     Couldn't connect to peer, reconnecting in XYZ seconds (peer=some.domain.nl:5555,err=unable to connect: context deadline exceeded: connection closed before server preface received)
 
 This indicates the server is using TLS, but the local node is trying to connect without TLS.
-Check the ``network.enabletls`` setting.
+Check the TLS settings.
 
 Error: `JWT signing key not present on this node`
 *************************************************
