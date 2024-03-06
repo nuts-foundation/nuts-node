@@ -34,7 +34,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCredentialStatus_Verify(t *testing.T) {
+func TestStatusList2021_Verify(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cs, entry, _ := testSetup(t, false)
 		cred := test.ValidNutsOrganizationCredential(t)
@@ -116,7 +116,7 @@ func TestCredentialStatus_Verify(t *testing.T) {
 	})
 }
 
-func TestCredentialStatus_statusList(t *testing.T) {
+func TestStatusList2021_statusList(t *testing.T) {
 	makeRecords := func(subjectID string) (credentialRecord, credentialIssuerRecord) {
 		cir := credentialIssuerRecord{
 			SubjectID: subjectID,
@@ -222,7 +222,7 @@ func TestCredentialStatus_statusList(t *testing.T) {
 
 }
 
-func TestCredentialStatus_update(t *testing.T) {
+func TestStatusList2021_update(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cs, entry, ts := testSetup(t, false)
 
@@ -296,7 +296,7 @@ func TestCredentialStatus_update(t *testing.T) {
 	})
 }
 
-func TestCredentialStatus_download(t *testing.T) {
+func TestStatusList2021_download(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t) // has bit 1 set
 		expected, err := json.Marshal(cred)
@@ -350,7 +350,7 @@ func TestCredentialStatus_download(t *testing.T) {
 	})
 }
 
-func TestCredentialStatus_verify(t *testing.T) {
+func TestStatusList2021_verify(t *testing.T) {
 	credentialStatusNoSignCheck := &StatusList2021{
 		client: nil,
 		VerifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
@@ -394,7 +394,7 @@ func TestCredentialStatus_verify(t *testing.T) {
 	})
 }
 
-func TestCredentialStatus_validate(t *testing.T) {
+func TestStatusList2021_validate(t *testing.T) {
 	cs := StatusList2021{
 		VerifySignature: func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error { return nil },
 	}

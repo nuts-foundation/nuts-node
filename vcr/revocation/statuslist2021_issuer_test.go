@@ -48,7 +48,7 @@ func Test_TableNames(t *testing.T) {
 	assert.Equal(t, revocationRecord{}.TableName(), "status_list_entry")
 }
 
-func TestSqlStore_Create(t *testing.T) {
+func TestStatusList2021_Entry(t *testing.T) {
 	s := newTestStatusList2021(t, aliceDID, bobDID) // NOTE: most tests re-use the same store, so they will fail when tests run out of order.
 	testCtx := context.Background()
 
@@ -206,7 +206,7 @@ func TestSqlStore_Create(t *testing.T) {
 	})
 }
 
-func TestSqlStore_Revoke(t *testing.T) {
+func TestStatusList2021_Revoke(t *testing.T) {
 	s := newTestStatusList2021(t, aliceDID, bobDID)
 
 	entryP, err := s.Entry(nil, aliceDID, StatusPurposeRevocation)
@@ -269,7 +269,7 @@ func TestSqlStore_Revoke(t *testing.T) {
 	})
 }
 
-func TestCredentialStatus_Credential(t *testing.T) {
+func TestStatusList2021_Credential(t *testing.T) {
 	s := newTestStatusList2021(t, aliceDID, bobDID)
 	auditCtx := audit.TestContext()
 
@@ -356,7 +356,7 @@ func TestCredentialStatus_Credential(t *testing.T) {
 	})
 }
 
-func TestCredentialStatus_buildAndSignVC(t *testing.T) {
+func TestStatusList2021_buildAndSignVC(t *testing.T) {
 	cs := &StatusList2021{Sign: noopSign}
 
 	subjectID, err := toStatusListCredential(aliceDID, 1)
