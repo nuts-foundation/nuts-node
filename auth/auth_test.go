@@ -34,9 +34,9 @@ import (
 func TestAuth_Configure(t *testing.T) {
 	tlsServerConfig := *core.NewServerConfig()
 	tlsServerConfig.URL = "https://nuts.nl"
-	tlsServerConfig.LegacyTLS.TrustStoreFile = "test/certs/ca.pem"
-	tlsServerConfig.LegacyTLS.CertKeyFile = "test/certs/example.com.key"
-	tlsServerConfig.LegacyTLS.CertFile = "test/certs/example.com.pem"
+	tlsServerConfig.TLS.TrustStoreFile = "test/certs/ca.pem"
+	tlsServerConfig.TLS.CertKeyFile = "test/certs/example.com.key"
+	tlsServerConfig.TLS.CertFile = "test/certs/example.com.pem"
 
 	t.Run("ok", func(t *testing.T) {
 		config := DefaultConfig()

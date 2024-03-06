@@ -207,7 +207,6 @@ func getIntegrationTestConfig(t *testing.T, testDirectory string) (core.ServerCo
 
 	config := *system.Config
 	config.URL = "https://nuts.nl"
-	config.LegacyTLS.Enabled = true
 	config.TLS.CertFile = pki.CertificateFile(t)
 	config.TLS.CertKeyFile = config.TLS.CertFile
 	config.TLS.TrustStoreFile = pki.TruststoreFile(t)

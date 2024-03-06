@@ -74,7 +74,6 @@ type HTTPClientConfig struct {
 }
 
 // TLSConfig specifies how TLS should be configured for connections.
-// For v5, network.enabletls, network.truststorefile, network.certfile and network.certkeyfile must be moved to this struct.
 type TLSConfig struct {
 	// Offload specifies the TLS offloading mode for incoming/outgoing traffic.
 	Offload TLSOffloadingMode `koanf:"offload"`
@@ -84,33 +83,18 @@ type TLSConfig struct {
 	CertFile             string `koanf:"certfile"`
 	CertKeyFile          string `koanf:"certkeyfile"`
 	TrustStoreFile       string `koanf:"truststorefile"`
-	legacyTLS            *NetworkTLSConfig
 }
 
 // Enabled returns whether TLS should be enabled, according to the global config.
 func (t TLSConfig) Enabled() bool {
-	return len(t.CertFile) > 0 || len(t.CertKeyFile) > 0 ||
-		len(t.legacyTLS.CertFile) > 0 || len(t.legacyTLS.CertKeyFile) > 0
+	return len(t.CertFile) > 0 || len(t.CertKeyFile) > 0
 }
 
 // LoadCertificate loads the TLS certificate from the configured location.
 func (t TLSConfig) LoadCertificate() (tls.Certificate, error) {
-	var certFile, certKeyFile string
-	if len(t.legacyTLS.CertFile) > 0 {
-		logrus.Warn("Deprecated: use `tls.certfile` instead of `network.certfile`")
-		certFile = t.legacyTLS.CertFile
-	} else {
-		certFile = t.CertFile
-	}
-	if len(t.legacyTLS.CertKeyFile) > 0 {
-		logrus.Warn("Deprecated: use `tls.certkeyfile` instead of `network.certkeyfile`")
-		certKeyFile = t.legacyTLS.CertKeyFile
-	} else {
-		certKeyFile = t.CertKeyFile
-	}
-	certificate, err := tls.LoadX509KeyPair(certFile, certKeyFile)
+	certificate, err := tls.LoadX509KeyPair(t.CertFile, t.CertKeyFile)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("unable to load node TLS certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
+		return tls.Certificate{}, fmt.Errorf("unable to load node TLS certificate (certfile=%s,certkeyfile=%s): %w", t.CertFile, t.CertKeyFile, err)
 	}
 	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
 	if err != nil {
@@ -121,14 +105,7 @@ func (t TLSConfig) LoadCertificate() (tls.Certificate, error) {
 
 // LoadTrustStore loads the TLS trust store from the configured location.
 func (t TLSConfig) LoadTrustStore() (*TrustStore, error) {
-	var trustStoreFile string
-	if len(t.legacyTLS.TrustStoreFile) > 0 {
-		logrus.Warn("Deprecated: use `tls.truststorefile` instead of `network.truststorefile`")
-		trustStoreFile = t.legacyTLS.TrustStoreFile
-	} else {
-		trustStoreFile = t.TrustStoreFile
-	}
-	return LoadTrustStore(trustStoreFile)
+	return LoadTrustStore(t.TrustStoreFile)
 }
 
 // Load creates tls.Config from the given configuration. If TLS is disabled it returns nil.
@@ -162,7 +139,6 @@ func (t TLSConfig) Load() (*tls.Config, *TrustStore, error) {
 // so it can be used by any module requiring TLS. But since we don't want to break backwards compatibility within 1 release,
 // this needs to stay here for v5 and be removed in v6.
 type NetworkTLSConfig struct {
-	Enabled        bool   `koanf:"enabletls"`
 	CertFile       string `koanf:"certfile"`
 	CertKeyFile    string `koanf:"certkeyfile"`
 	TrustStoreFile string `koanf:"truststorefile"`
@@ -193,7 +169,6 @@ func NewServerConfig() *ServerConfig {
 		InternalRateLimiter: true,
 		Datadir:             "./data",
 		TLS: TLSConfig{
-			legacyTLS:      legacyTLS,
 			TrustStoreFile: "truststore.pem",
 			Offload:        NoOffloading,
 		},
@@ -287,29 +262,17 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("datadir", defaultCfg.Datadir, "Directory where the node stores its files.")
 	flagSet.String("url", defaultCfg.URL, "Public facing URL of the server (required). Must be HTTPS when strictmode is set.")
 	flagSet.Duration("httpclient.timeout", defaultCfg.HTTPClient.Timeout, "Request time-out for HTTP clients, such as '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
-	flagSet.String("tls.certfile", defaultCfg.TLS.CertFile, "PEM file containing the certificate for the server (also used as client certificate).")
-	flagSet.String("tls.certkeyfile", defaultCfg.TLS.CertKeyFile, "PEM file containing the private key of the server certificate.")
-	flagSet.String("tls.truststorefile", defaultCfg.TLS.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote servers.")
+	flagSet.String("tls.certfile", defaultCfg.TLS.CertFile, "PEM file containing the certificate for the server (also used as client certificate). Required in strict mode.")
+	flagSet.String("tls.certkeyfile", defaultCfg.TLS.CertKeyFile, "PEM file containing the private key of the server certificate. Required in strict mode.")
+	flagSet.String("tls.truststorefile", defaultCfg.TLS.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote servers. Required in strict mode.")
 	flagSet.String("tls.offload", string(defaultCfg.TLS.Offload), fmt.Sprintf("Whether to enable TLS offloading for incoming connections. "+
 		"Enable by setting it to '%s'. If enabled 'tls.certheader' must be configured as well.", OffloadIncomingTLS))
 	flagSet.String("tls.certheader", defaultCfg.TLS.ClientCertHeaderName, "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
 
 	// Maxvaliditydays has been deprecated in v5.x
 	flagSet.Int("tls.crl.maxvaliditydays", 0, "The number of days a CRL can be outdated, after that it will hard-fail.")
-	// Legacy TLS settings, to be removed in v6:
-	flagSet.Bool("network.enabletls", true, "Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see 'tls.offload'). Disabling TLS is not allowed in strict-mode.")
-	flagSet.String("network.certfile", "", "Deprecated: use 'tls.certfile'. PEM file containing the server certificate for the gRPC server. "+
-		"Required when 'network.enabletls' is 'true'.")
-	flagSet.String("network.certkeyfile", "", "Deprecated: use 'tls.certkeyfile'. PEM file containing the private key of the server certificate. "+
-		"Required when 'network.enabletls' is 'true'.")
-	flagSet.String("network.truststorefile", "", "Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
-	flagSet.Int("network.maxcrlvaliditydays", 0, "Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.")
 
 	flagSet.MarkDeprecated("tls.crl.maxvaliditydays", "CRLs can no longer be accepted after the time in NextUpdate has past")
-	flagSet.MarkDeprecated("network.certfile", "use 'tls.certfile' instead")
-	flagSet.MarkDeprecated("network.certkeyfile", "use 'tls.certkeyfile' instead")
-	flagSet.MarkDeprecated("network.truststorefile", "use 'tls.truststorefile' instead")
-	flagSet.MarkDeprecated("network.maxcrlvaliditydays", "use 'tls.crl.maxvaliditydays' instead")
 
 	return flagSet
 }

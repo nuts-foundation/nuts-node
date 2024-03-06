@@ -711,12 +711,10 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
 		node1 := startNode(t, "noTLS1", testDirectory, func(serverConfig *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node1"
-			serverConfig.LegacyTLS.Enabled = false
 			serverConfig.Strictmode = false
 		})
 		node2 := startNode(t, "noTLS2", testDirectory, func(serverConfig *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node2"
-			serverConfig.LegacyTLS.Enabled = false
 			serverConfig.Strictmode = false
 		})
 		// Now connect node1 to node2 and wait for them to set up
@@ -1067,7 +1065,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	serverConfig.Verbosity = "debug"
 	_ = serverConfig.Load(core.FlagSet())
 	serverConfig.Datadir = path.Join(testDirectory, name)
-	serverConfig.LegacyTLS.Enabled = true
 	serverConfig.TLS.CertFile = testPKI.CertificateFile(t)
 	serverConfig.TLS.CertKeyFile = serverConfig.TLS.CertFile
 	serverConfig.TLS.TrustStoreFile = testPKI.TruststoreFile(t)

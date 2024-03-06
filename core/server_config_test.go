@@ -265,29 +265,12 @@ func TestTLSConfig_LoadCertificate(t *testing.T) {
 		assert.Empty(t, certificate)
 		assert.EqualError(t, err, "unable to load node TLS certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
-	t.Run("use of legacy properties", func(t *testing.T) {
-		cfg := *NewServerConfig()
-		cfg.LegacyTLS.CertFile = "test/non-existent.pem"
-		cfg.LegacyTLS.CertKeyFile = "test/non-existent.pem"
-		certificate, err := cfg.TLS.LoadCertificate()
-
-		assert.Empty(t, certificate)
-		assert.EqualError(t, err, "unable to load node TLS certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
-	})
 }
 
 func TestTLSConfig_LoadTrustStore(t *testing.T) {
 	t.Run("error - file does not exist", func(t *testing.T) {
 		cfg := *NewServerConfig()
 		cfg.TLS.TrustStoreFile = "test/non-existent.pem"
-		ts, err := cfg.TLS.LoadTrustStore()
-
-		assert.Empty(t, ts)
-		assert.EqualError(t, err, "unable to read trust store (file=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
-	})
-	t.Run("use of legacy properties", func(t *testing.T) {
-		cfg := *NewServerConfig()
-		cfg.LegacyTLS.TrustStoreFile = "test/non-existent.pem"
 		ts, err := cfg.TLS.LoadTrustStore()
 
 		assert.Empty(t, ts)

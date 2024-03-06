@@ -225,8 +225,7 @@ func TestNetwork_Configure(t *testing.T) {
 
 		cfg := *core.NewServerConfig()
 		cfg.Datadir = io.TestDirectory(t)
-		*cfg.LegacyTLS = core.NetworkTLSConfig{
-			Enabled:        true,
+		cfg.TLS = core.TLSConfig{
 			TrustStoreFile: truststoreFile,
 			CertFile:       certFile,
 			CertKeyFile:    certFile,
@@ -273,8 +272,7 @@ func TestNetwork_Configure(t *testing.T) {
 
 		cfg := *core.NewServerConfig()
 		cfg.Datadir = io.TestDirectory(t)
-		*cfg.LegacyTLS = core.NetworkTLSConfig{
-			Enabled:        true,
+		cfg.TLS = core.TLSConfig{
 			TrustStoreFile: truststoreFile,
 			CertFile:       certFile,
 			CertKeyFile:    certFile,
