@@ -3,22 +3,6 @@
 API Reference
 =============
 
-Below you can discover the Nuts Node APIs and download their OpenAPI specifications:
-
-- Common: `SSI types <../../_static/common/ssi_types.yaml>`_, `Default Error <../../_static/common/error_response.yaml>`_
-- `DID Manager <../../_static/didman/v1.yaml>`_
-- `Discovery Service <../../_static/discovery/v1.yaml>`_
-- `Crypto <../../_static/crypto/v1.yaml>`_
-- `Verifiable Credential Registry (v2) <../../_static/vcr/vcr_v2.yaml>`_
-- `Verifiable Data Registry <../../_static/vdr/v1.yaml>`_
-- `Network <../../_static/network/v1.yaml>`_
-- `Auth <../../_static/auth/v1.yaml>`_
-- `Monitoring <../../_static/monitoring/v1.yaml>`_
-
-.. raw:: html
-
-    &nbsp;
-
 .. raw:: html
 
     <div id="swagger-ui"></div>
@@ -30,14 +14,16 @@ Below you can discover the Nuts Node APIs and download their OpenAPI specificati
             const ui = SwaggerUIBundle({
                 "dom_id": "#swagger-ui",
                 urls: [
-                    {url: "../../_static/didman/v1.yaml", name: "DID Manager"},
-                    {url: "../../_static/discovery/v1.yaml", name: "Discovery Service"},
+                    {url: "../../_static/auth/iam.yaml", name: "Auth (iam)"},
+                    {url: "../../_static/auth/v1.yaml", name: "Auth (v1) - DEPRECATED"},
                     {url: "../../_static/crypto/v1.yaml", name: "Crypto"},
-                    {url: "../../_static/vcr/vcr_v2.yaml", name: "Verifiable Credential Registry (v2)"},
-                    {url: "../../_static/vdr/v1.yaml", name: "Verifiable Data Registry"},
-                    {url: "../../_static/network/v1.yaml", name: "Network"},
-                    {url: "../../_static/auth/v1.yaml", name: "Auth"},
+                    {url: "../../_static/didman/v1.yaml", name: "DID Manager - DEPRECATED"},
+                    {url: "../../_static/discovery/v1.yaml", name: "Discovery Service"},
                     {url: "../../_static/monitoring/v1.yaml", name: "Monitoring"},
+                    {url: "../../_static/network/v1.yaml", name: "Network - DEPRECATED"},
+                    {url: "../../_static/vcr/vcr_v2.yaml", name: "Verifiable Credential Registry (v2)"},
+                    {url: "../../_static/vdr/v1.yaml", name: "Verifiable Data Registry (v1) - DEPRECATED"},
+                    {url: "../../_static/vdr/v2.yaml", name: "Verifiable Data Registry (v2)"},
                     ],
                 presets: [
                     SwaggerUIBundle.presets.apis,
