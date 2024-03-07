@@ -46,7 +46,6 @@ type Wrapper struct {
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		resolver.ErrNotFound:                http.StatusNotFound,
-		resolver.ErrServiceNotFound:         http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusForbidden,
 		did.ErrInvalidDID:                   http.StatusBadRequest,
 		management.ErrInvalidService:        http.StatusBadRequest,
