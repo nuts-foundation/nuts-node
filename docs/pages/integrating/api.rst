@@ -14,16 +14,16 @@ API Reference
             const ui = SwaggerUIBundle({
                 "dom_id": "#swagger-ui",
                 urls: [
-                    {url: "../../_static/auth/iam.yaml", name: "Auth (iam)"},
-                    {url: "../../_static/auth/v1.yaml", name: "Auth (v1) - DEPRECATED"},
+                    {url: "../../_static/auth/iam.yaml", name: "Auth (v2)"},
                     {url: "../../_static/crypto/v1.yaml", name: "Crypto"},
-                    {url: "../../_static/didman/v1.yaml", name: "DID Manager - DEPRECATED"},
                     {url: "../../_static/discovery/v1.yaml", name: "Discovery Service"},
                     {url: "../../_static/monitoring/v1.yaml", name: "Monitoring"},
-                    {url: "../../_static/network/v1.yaml", name: "Network - DEPRECATED"},
                     {url: "../../_static/vcr/vcr_v2.yaml", name: "Verifiable Credential Registry (v2)"},
-                    {url: "../../_static/vdr/v1.yaml", name: "Verifiable Data Registry (v1) - DEPRECATED"},
                     {url: "../../_static/vdr/v2.yaml", name: "Verifiable Data Registry (v2)"},
+                    {url: "../../_static/auth/v1.yaml", name: "Auth (v1) - DEPRECATED"},
+                    {url: "../../_static/didman/v1.yaml", name: "DID Manager - DEPRECATED"},
+                    {url: "../../_static/network/v1.yaml", name: "Network - DEPRECATED"},
+                    {url: "../../_static/vdr/v1.yaml", name: "Verifiable Data Registry (v1) - DEPRECATED"},
                     ],
                 presets: [
                     SwaggerUIBundle.presets.apis,
