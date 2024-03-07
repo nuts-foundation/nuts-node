@@ -1,6 +1,6 @@
 -- migrate:up
 -- this table is used to store the services for a did:web
-create table vdr_didweb_service
+create table did_service
 (
     -- id is the unique id of the service as it appears in the DID document.
     id   varchar(415) not null,
@@ -10,8 +10,8 @@ create table vdr_didweb_service
     -- When producing the service, data is used as JSON base object and the id and type are added.
     data text         not null,
     primary key (did, id),
-    foreign key (did) references vdr_didweb (did) on delete cascade
+    foreign key (did) references did (did) on delete cascade
 );
 
 -- migrate:down
-drop table vdr_didweb_service;
+drop table did_service;

@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/require"
@@ -93,6 +92,6 @@ func NewTestInMemorySessionDatabase(t *testing.T) *InMemorySessionDatabase {
 func AddDIDtoSQLDB(t testing.TB, db *gorm.DB, dids ...did.DID) {
 	for _, id := range dids {
 		// use gorm EXEC since it accepts '?' as the argument placeholder for all DBs
-		require.NoError(t, db.Exec("INSERT INTO vdr_didweb ( did ) VALUES ( ? )", id.String()).Error)
+		require.NoError(t, db.Exec("INSERT INTO did ( did ) VALUES ( ? )", id.String()).Error)
 	}
 }

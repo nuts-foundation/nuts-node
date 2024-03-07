@@ -52,7 +52,7 @@ type sqlDID struct {
 }
 
 func (d sqlDID) TableName() string {
-	return "vdr_didweb"
+	return "did"
 }
 
 var _ schema.Tabler = (*sqlVerificationMethod)(nil)
@@ -64,7 +64,7 @@ type sqlVerificationMethod struct {
 }
 
 func (v sqlVerificationMethod) TableName() string {
-	return "vdr_didweb_verificationmethod"
+	return "did_verificationmethod"
 }
 
 var _ schema.Tabler = (*sqlService)(nil)
@@ -76,7 +76,7 @@ type sqlService struct {
 }
 
 func (v sqlService) TableName() string {
-	return "vdr_didweb_service"
+	return "did_service"
 }
 
 var _ store = (*sqlStore)(nil)
