@@ -46,7 +46,7 @@ docker compose exec nodeB nuts vdr update "${VENDOR_B_DID}" "${DIDDOC_HASH}" /op
 
 # Issue NutsOrganizationCredential for Vendor B
 REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"visibility\": \"public\"}"
-RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "VerifiableCredential"; then
   echo "VC issued"
 else
@@ -56,8 +56,8 @@ else
 fi
 
 echo Waiting for updates to be propagated on the network...
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 5 10
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 5 10
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 5 10
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 5 10
 
 # Vendor A must trust 'NutsOrganizationCredential's from Vendor B
 docker compose exec nodeA-backend nuts vcr trust "NutsOrganizationCredential" "${VENDOR_B_DID}"
@@ -70,7 +70,7 @@ echo "------------------------------------"
 
 # draw up a contract
 REQUEST="{\"type\": \"PractitionerLogin\",\"language\": \"EN\",\"version\": \"v3\",\"legalEntity\": \"${VENDOR_B_DID}\"}"
-RESPONSE=$(echo $REQUEST | curl -X PUT --data-binary @- http://localhost:21323/internal/auth/v1/contract/drawup -H "Content-Type:application/json")
+RESPONSE=$(echo $REQUEST | curl -X PUT --data-binary @- http://localhost:28081/internal/auth/v1/contract/drawup -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "PractitionerLogin"; then
   echo $RESPONSE | sed -E 's/.*"message":"([^"]*).*/\1/' > ./node-B/data/contract.txt
   echo "Contract stored in ./node-B/data/contract.txt"
@@ -82,7 +82,7 @@ fi
 
 # sign the contract with dummy means
 sed "s/BASE64_CONTRACT/$(cat ./node-B/data/contract.txt)/" ./node-B/createsigningsessionrequesttemplate.json > ./node-B/data/createsigningsessionrequest.json
-RESPONSE=$(curl -X POST -s --data-binary "@./node-B/data/createsigningsessionrequest.json" http://localhost:21323/internal/auth/v1/signature/session -H "Content-Type:application/json")
+RESPONSE=$(curl -X POST -s --data-binary "@./node-B/data/createsigningsessionrequest.json" http://localhost:28081/internal/auth/v1/signature/session -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "sessionPtr"; then
   SESSION=$(echo $RESPONSE | sed -E 's/.*"sessionID":"([^"]*).*/\1/')
   echo $SESSION
@@ -93,7 +93,7 @@ else
 fi
 
 # poll once for status created
-RESPONSE=$(curl "http://localhost:21323/internal/auth/v1/signature/session/$SESSION")
+RESPONSE=$(curl "http://localhost:28081/internal/auth/v1/signature/session/$SESSION")
 if echo $RESPONSE | grep -q "created"; then
   echo $RESPONSE
 else
@@ -103,7 +103,7 @@ else
 fi
 
 # poll twice for status success
-RESPONSE=$(curl "http://localhost:21323/internal/auth/v1/signature/session/$SESSION")
+RESPONSE=$(curl "http://localhost:28081/internal/auth/v1/signature/session/$SESSION")
 if echo $RESPONSE | grep -q "in-progress"; then
   echo $RESPONSE
 else
@@ -113,7 +113,7 @@ else
 fi
 
 # poll three times for status completed
-RESPONSE=$(curl "http://localhost:21323/internal/auth/v1/signature/session/$SESSION")
+RESPONSE=$(curl "http://localhost:28081/internal/auth/v1/signature/session/$SESSION")
 if echo $RESPONSE | grep -q "completed"; then
   echo $RESPONSE | sed -E 's/.*"verifiablePresentation":(.*\]}).*/\1/' > ./node-B/data/vp.txt
   echo "VP stored in ./node-B/data/vp.txt"
@@ -129,7 +129,7 @@ echo "------------------------------------"
 # Create JWT bearer token
 VP=$(cat ./node-B/data/vp.txt)
 REQUEST="{\"authorizer\":\"${VENDOR_A_DID}\",\"requester\":\"${VENDOR_B_DID}\",\"identity\":${VP},\"service\":\"test\"}"
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:21323/internal/auth/v1/request-access-token -H "Content-Type:application/json" -v)
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" -v)
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
   echo "access token stored in ./node-B/data/accesstoken.txt"

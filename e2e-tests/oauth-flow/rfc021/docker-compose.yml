@@ -3,7 +3,7 @@ services:
   nodeA-backend:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
-      - "11323:1323"
+      - "18081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
@@ -32,7 +32,7 @@ services:
   nodeB-backend:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     ports:
-      - "21323:1323"
+      - "28081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
@@ -51,7 +51,7 @@ services:
     ports:
       - "20443:443"
     volumes:
-      - "./node-B/nginx.conf:/etc/nginx/nginx.conf:ro"
+      - "../../shared_config/nodeB-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/server.pem:ro"
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/key.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"

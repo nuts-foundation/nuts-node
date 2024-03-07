@@ -29,7 +29,7 @@ import (
 	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 )
 
-var NodeClientConfig = core.ClientConfig{Address: "http://localhost:1323"}
+var NodeClientConfig = core.ClientConfig{Address: "http://localhost:8081"}
 
 type EmployeeInfo struct {
 	Identifier string  `json:"identifier"`

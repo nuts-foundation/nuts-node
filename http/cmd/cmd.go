@@ -37,13 +37,12 @@ func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("http", pflag.ContinueOnError)
 
 	defs := http.DefaultConfig()
-	flags.String("http.default.address", defs.Address, "Address and port the server will be listening to")
-	flags.StringSlice("http.default.cors.origin", defs.CORS.Origin, "When set, enables CORS from the specified origins on the default HTTP interface.")
-	flags.String("http.default.tls", string(defs.TLSMode), fmt.Sprintf("Whether to enable TLS for the default interface, options are '%s', '%s', '%s'. Leaving it empty is synonymous to '%s',", http.TLSDisabledMode, http.TLSServerCertMode, http.TLServerClientCertMode, http.TLSDisabledMode))
-	flags.String("http.default.auth.type", string(defs.Auth.Type), fmt.Sprintf("Whether to enable authentication for the default interface, specify '%s' for bearer token mode or '%s' for legacy bearer token mode.", http.BearerTokenAuthV2, http.BearerTokenAuth))
-	flags.String("http.default.auth.audience", string(defs.Auth.Audience), "Expected audience for JWT tokens (default: hostname)")
-	flags.String("http.default.auth.authorizedkeyspath", string(defs.Auth.AuthorizedKeysPath), "Path to an authorized_keys file for trusted JWT signers")
-	flags.String("http.default.log", string(defs.Log), fmt.Sprintf("What to log about HTTP requests. Options are '%s', '%s' (log request method, URI, IP and response code), and '%s' (log the request and response body, in addition to the metadata).", http.LogNothingLevel, http.LogMetadataLevel, http.LogMetadataAndBodyLevel))
+	flags.String("http.internal.address", defs.Internal.Address, "Address and port the server will be listening to for internal-facing endpoints.")
+	flags.String("http.external.address", defs.External.Address, "Address and port the server will be listening to for external-facing endpoints.")
+	flags.String("http.internal.auth.type", string(defs.Internal.Auth.Type), fmt.Sprintf("Whether to enable authentication for /internal endpoints, specify '%s' for bearer token mode or '%s' for legacy bearer token mode.", http.BearerTokenAuthV2, http.BearerTokenAuth))
+	flags.String("http.internal.auth.audience", defs.Internal.Auth.Audience, "Expected audience for JWT tokens (default: hostname)")
+	flags.String("http.internal.auth.authorizedkeyspath", defs.Internal.Auth.AuthorizedKeysPath, "Path to an authorized_keys file for trusted JWT signers")
+	flags.String("http.log", string(defs.Log), fmt.Sprintf("What to log about HTTP requests. Options are '%s', '%s' (log request method, URI, IP and response code), and '%s' (log the request and response body, in addition to the metadata).", http.LogNothingLevel, http.LogMetadataLevel, http.LogMetadataAndBodyLevel))
 
 	return flags
 }

@@ -5,7 +5,7 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     ports:
-      - "11323:1323"
+      - "18081:8081"
     volumes:
       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
     healthcheck:
@@ -15,7 +15,7 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     ports:
-      - "21323:1323"
+      - "28081:8081"
     volumes:
       - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
     healthcheck:
@@ -25,7 +25,7 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     ports:
-      - "31323:1323"
+      - "38081:8081"
     volumes:
       - "./node-C/nuts.yaml:/opt/nuts/nuts.yaml:ro"
     healthcheck:
@@ -35,7 +35,7 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     ports:
-      - "41323:1323"
+      - "48081:8081"
     volumes:
       - "./node-D/nuts.yaml:/opt/nuts/nuts.yaml:ro"
     healthcheck:

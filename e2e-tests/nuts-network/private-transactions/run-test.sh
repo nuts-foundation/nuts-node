@@ -41,43 +41,44 @@ docker compose up --wait
 echo "------------------------------------"
 echo "Creating NodeDIDs..."
 echo "------------------------------------"
-export NODE_A_DID=$(setupNode "http://localhost:11323" "nodeA:5555")
+export NODE_A_DID=$(setupNode "http://localhost:18081" "nodeA:5555")
 printf "NodeDID for node-a: %s\n" "$NODE_A_DID"
 # Wait for node B to receive the TXs created by node A, indicating the connection is working
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 2 10
-export NODE_B_DID=$(setupNode "http://localhost:21323" "nodeB:5555")
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 2 10
+export NODE_B_DID=$(setupNode "http://localhost:28081" "nodeB:5555")
 printf "NodeDID for node-b: %s\n" "$NODE_B_DID"
 # Wait for node A to receive all TXs created by node B
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 4 10
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 4 10
 
 echo "------------------------------------"
 echo "Restarting with NodeDID set..."
 echo "------------------------------------"
 # Start without bootstrap node, to enforce authenticated, discovered connections (required for private transactions)
 export BOOTSTRAP_NODES=
-docker compose stop
 # Delete nodes' address books to avoid persisting initial "new node" delay, allowing to connect to each other immediately
-rm -rf ./node-*/data/network/connections.db
+docker compose exec nodeA rm -f /opt/nuts/data/network/connections.db
+docker compose exec nodeB rm -f /opt/nuts/data/network/connections.db
+docker compose stop
 docker compose up --wait
 
 echo "------------------------------------"
 echo "Issuing private credentials..."
 echo "------------------------------------"
-vcNodeA=$(createAuthCredential "http://localhost:11323" "$NODE_A_DID" "$NODE_B_DID")
+vcNodeA=$(createAuthCredential "http://localhost:18081" "$NODE_A_DID" "$NODE_B_DID")
 printf "VC issued by node A: %s\n" "$vcNodeA"
-vcNodeB=$(createAuthCredential "http://localhost:21323" "$NODE_B_DID" "$NODE_A_DID")
+vcNodeB=$(createAuthCredential "http://localhost:28081" "$NODE_B_DID" "$NODE_A_DID")
 printf "VC issued by node B: %s\n" "$vcNodeB"
 
 # Wait for transactions to sync
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 6 10
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 6 10
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 6 10
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 6 10
 
-if [ $(searchAuthCredentials "http://localhost:11323" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "2" ]; then
+if [ $(searchAuthCredentials "http://localhost:18081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "2" ]; then
   echo "failed to find NutsAuthorizationCredentials on Node-A"
   exitWithDockerLogs 1
 fi
 
-if [ $(searchAuthCredentials "http://localhost:21323" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "2" ]; then
+if [ $(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "2" ]; then
   echo "failed to find NutsAuthorizationCredentials on Node-B"
   exitWithDockerLogs 1
 fi
@@ -85,19 +86,19 @@ fi
 echo "------------------------------------"
 echo "Revoking NutsAuthorizationCredential..."
 echo "------------------------------------"
-revokeCredential "http://localhost:11323" "${vcNodeA}"
-revokeCredential "http://localhost:21323" "${vcNodeB}"
+revokeCredential "http://localhost:18081" "${vcNodeA}"
+revokeCredential "http://localhost:28081" "${vcNodeB}"
 
 # Wait for transactions to sync
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 8 10
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 8 10
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 8 10
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 8 10
 
-if [ $(searchAuthCredentials "http://localhost:11323" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
+if [ $(searchAuthCredentials "http://localhost:18081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
   echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-A"
   exitWithDockerLogs 1
 fi
 
-if [ $(searchAuthCredentials "http://localhost:21323" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
+if [ $(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
   echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-B"
   exitWithDockerLogs 1
 fi

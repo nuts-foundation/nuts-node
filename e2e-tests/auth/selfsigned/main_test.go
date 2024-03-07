@@ -63,7 +63,7 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 	require.NoError(t, err)
 
 	selfSigned := apps.SelfSigned{
-		URL:     "http://localhost:1323",
+		URL:     "http://localhost:8081",
 		Context: ctx,
 	}
 	roleName := "Soulpeeker"

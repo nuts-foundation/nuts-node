@@ -1,6 +1,9 @@
 url: https://node-B
 verbosity: debug
 internalratelimiter: false
+http:
+  internal:
+    address: :8081
 auth:
   contractvalidators:
     - dummy
@@ -15,7 +18,7 @@ tls:
   offload: incoming
   certheader: X-SSL-CERT
 network:
-  bootstrapnodes: nodeA:443
+  bootstrapnodes: nodeA:5555
   grpcaddr:	:5555
   v2:
     gossipinterval: 250

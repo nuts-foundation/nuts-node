@@ -36,7 +36,7 @@ import (
 // TestCredentialFormats tests issuing and verifying different VC.
 func TestCredentialFormats(t *testing.T) {
 	ctx := audit.TestContext()
-	_, system := node.StartServer(t)
+	_, _, system := node.StartServer(t)
 
 	issuerDID := registerDID(t, system)
 	subjectDID := registerDID(t, system)

@@ -31,7 +31,7 @@ echo Vendor B DID: $PARTY_B_DID
 
 # Issue NutsOrganizationCredential for Vendor B
 REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${PARTY_B_DID}\", \"credentialSubject\": {\"id\":\"${PARTY_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"withStatusList2021Revocation\": false}"
-RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "VerifiableCredential"; then
   echo "VC issued"
 else
@@ -40,7 +40,7 @@ else
   exitWithDockerLogs 1
 fi
 
-RESPONSE=$(echo $RESPONSE | curl -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/holder/${PARTY_B_DID}/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $RESPONSE | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/holder/${PARTY_B_DID}/vc -H "Content-Type:application/json")
 if echo $RESPONSE == ""; then
   echo "VC stored in wallet"
 else
@@ -54,7 +54,7 @@ echo "Request access token call"
 echo "---------------------------------------"
 # Request access token
 REQUEST="{\"verifier\":\"${PARTY_A_DID}\",\"scope\":\"test\", \"user_id\":\"1\", \"redirect_uri\":\"http://callback\"}"
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:21323/internal/auth/v2/${PARTY_B_DID}/request-user-access-token -H "Content-Type:application/json" -v)
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/${PARTY_B_DID}/request-user-access-token -H "Content-Type:application/json" -v)
 if echo $RESPONSE | grep -q "redirect_uri"; then
   LOCATION=$(echo $RESPONSE | sed -E 's/.*"redirect_uri":"([^"]*).*/\1/')
   SESSION=$(echo $RESPONSE | sed -E 's/.*"session_id":"([^"]*).*/\1/')
@@ -129,7 +129,7 @@ echo "--------------------------------------"
 echo "Use flow token to get access token ..."
 echo "--------------------------------------"
 
-RESPONSE=$(curl http://localhost:21323/internal/auth/v2/accesstoken/$SESSION -v -k)
+RESPONSE=$(curl http://localhost:28081/internal/auth/v2/accesstoken/$SESSION -v -k)
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
   echo "access token stored in ./node-B/data/accesstoken.txt"
