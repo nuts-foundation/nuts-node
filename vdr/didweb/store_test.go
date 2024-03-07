@@ -242,7 +242,7 @@ func resetStore(t *testing.T, db *gorm.DB) {
 		underlyingDB, err := db.DB()
 		require.NoError(t, err)
 		// related tables are emptied due to on-delete-cascade clause
-		_, err = underlyingDB.Exec("DELETE FROM vdr_didweb")
+		_, err = underlyingDB.Exec("DELETE FROM did")
 		require.NoError(t, err)
 	})
 }
