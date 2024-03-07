@@ -211,86 +211,49 @@ paths:
                 $ref: '#/components/schemas/Service'
         default:
           $ref: '../common/error_response.yaml'
-  /internal/vdr/v2/did/{did}/service/{serviceId}/endpoint:
-    parameters:
-      - name: did
-        in: path
-        description: URL encoded DID.
-        required: true
-        content:
-          plain/text:
-            schema:
-              type: string
-              example: "did:web:example.com:iam:123"
-      - name: serviceId
-        in: path
-        description: URL encoded ID identifying the service.
-        required: true
-        example:
-          - "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
-          - "#3106f751-59e3-440f-b57b-39a96a2da6c6"
-        schema:
-          type: string
     get:
-      summary: "Resolves the endpoint of a service by ID"
+      summary: "Filters services of a resolved DID document"
+      parameters:
+        - name: type
+          in: query
+          description: Type of the service to filter for.
+          required: false
+          schema:
+            type: string
+          example: "api"
+        - name: endpointType
+          in: query
+          description: |
+            The data type of the service endpoint. E.g., a single URL would be encoded as string,
+            a map would be encoded as object, a list of values as an array.
+            If specified, only services with the given endpoint type are returned.
+          required: false
+          schema:
+            type: string
+            enum:
+              - string
+              - object
+              - array
       description: |
-        Resolves a DID document, and returns the serviceEndpoint property of the service with the given ID.
+        Filters services within in a resolved DID document.
+        It returns the services that match specified filter parameters.
 
         error returns:
-        * 400 - Returned in case of malformed DID or service ID.
-        * 404 - Corresponding DID document or service could not be found
+        * 400 - Returned in case of malformed DID.
+        * 404 - DID document could not be found
         * 500 - An error occurred while processing the request
-      operationId: "resolveServiceEndpointByID"
+      operationId: "filterServices"
       tags:
         - DID
       responses:
         "200":
-          description: Service endpoint has been found and returned.
+          description: DID document has been resolved, filtered services are returned.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServiceEndpoint'
-        default:
-          $ref: '../common/error_response.yaml'
-  /internal/vdr/v2/did/{did}/service/endpoint:
-    parameters:
-      - name: did
-        in: path
-        description: URL encoded DID.
-        required: true
-        content:
-          plain/text:
-            schema:
-              type: string
-              example: "did:web:example.com:iam:123"
-      - name: serviceType
-        in: query
-        description: The type of the service to be resolved.
-        required: true
-        example:
-          - "api"
-          - "oauth-server"
-        schema:
-          type: string
-    get:
-      summary: "Resolves the endpoint of a service by ID"
-      description: |
-        Resolves a DID document, and returns the serviceEndpoint property of the service with the given type.
-
-        error returns:
-        * 400 - Returned in case of malformed DID or service type.
-        * 404 - Corresponding DID document or service could not be found
-        * 500 - An error occurred while processing the request
-      operationId: "resolveServiceEndpointByType"
-      tags:
-        - DID
-      responses:
-        "200":
-          description: Service endpoint has been found and returned.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServiceEndpoint'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/did/{did}/verificationmethod:
@@ -361,13 +324,6 @@ paths:
           $ref: '../common/error_response.yaml'
 components:
   schemas:
-    ServiceEndpoint:
-      # can be a string, or an object with a type and a value
-      oneOf:
-        - type: string
-        - type: object
-        - type: number
-        - type: boolean
     CreateDIDOptions:
         type: object
         properties:

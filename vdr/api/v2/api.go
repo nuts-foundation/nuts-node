@@ -21,7 +21,6 @@ package v2
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
@@ -169,31 +168,44 @@ func (w *Wrapper) UpdateService(ctx context.Context, request UpdateServiceReques
 	return UpdateService200JSONResponse(*newService), nil
 }
 
-func (w *Wrapper) ResolveServiceEndpointByType(_ context.Context, request ResolveServiceEndpointByTypeRequestObject) (ResolveServiceEndpointByTypeResponseObject, error) {
-	if len(request.Params.ServiceType) == 0 {
-		return nil, core.InvalidInputError("parameter 'type' is required")
-	}
-	serviceEndpoint, err := w.resolveService(request.Did, func(service did.Service) bool {
-		return service.Type == request.Params.ServiceType
-	})
+func (w *Wrapper) FilterServices(_ context.Context, request FilterServicesRequestObject) (FilterServicesResponseObject, error) {
+	subject, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
 	}
-	return ResolveServiceEndpointByType200JSONResponse(*serviceEndpoint), nil
-}
+	didDocument, _, err := w.VDR.Resolve(*subject, nil)
+	if err != nil {
+		return nil, err
+	}
 
-func (w *Wrapper) ResolveServiceEndpointByID(_ context.Context, request ResolveServiceEndpointByIDRequestObject) (ResolveServiceEndpointByIDResponseObject, error) {
-	serviceID, err := ssi.ParseURI(request.ServiceId)
-	if err != nil {
-		return nil, err
+	var results []did.Service
+	for _, service := range didDocument.Service {
+		if request.Params.Type != nil && *request.Params.Type != service.Type {
+			continue
+		}
+		if request.Params.EndpointType != nil {
+			// The value of the serviceEndpoint property MUST be a string, a map, or a set composed of one or more strings and/or maps.
+			// All string values MUST be valid URIs conforming to [RFC3986] and normalized according to the Normalization and Comparison rules in RFC3986
+			// and to any normalization rules in its applicable URI scheme specification.
+			// (taken from https://www.w3.org/TR/did-core/#services)
+			var endpointType string
+			switch service.ServiceEndpoint.(type) {
+			case string:
+				endpointType = "string"
+			case map[string]interface{}:
+				endpointType = "object"
+			case []map[string]interface{}:
+				endpointType = "array"
+			case []interface{}:
+				endpointType = "array"
+			}
+			if string(*request.Params.EndpointType) != endpointType {
+				continue
+			}
+		}
+		results = append(results, service)
 	}
-	serviceEndpoint, err := w.resolveService(request.Did, func(s did.Service) bool {
-		return s.ID.String() == serviceID.String()
-	})
-	if err != nil {
-		return nil, err
-	}
-	return ResolveServiceEndpointByID200JSONResponse(*serviceEndpoint), nil
+	return FilterServices200JSONResponse(results), nil
 }
 
 func (w Wrapper) AddVerificationMethod(_ context.Context, _ AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error) {
@@ -204,22 +216,3 @@ func (w Wrapper) DeleteVerificationMethod(_ context.Context, _ DeleteVerificatio
 	return nil, errors.New("not yet supported")
 }
 
-
-func (w *Wrapper) resolveService(subjectDID string, predicate func(did.Service) bool) (*ServiceEndpoint, error) {
-	subject, err := did.ParseDID(subjectDID)
-	if err != nil {
-		return nil, err
-	}
-	didDocument, _, err := w.VDR.Resolve(*subject, nil)
-	if err != nil {
-		return nil, err
-	}
-	for _, service := range didDocument.Service {
-		if predicate(service) {
-			var serviceEndpoint json.RawMessage
-			serviceEndpoint, _ = json.Marshal(service.ServiceEndpoint)
-			return &ServiceEndpoint{Value: serviceEndpoint}, nil
-		}
-	}
-	return nil, resolver.ErrServiceNotFound
-}
