@@ -21,6 +21,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"testing"
 
