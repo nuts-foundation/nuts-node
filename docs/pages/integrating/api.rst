@@ -2,6 +2,7 @@
 
 API Reference
 =============
+Common Schemas and Responses: `SSI types <../../_static/common/ssi_types.yaml>`_, `Default Error <../../_static/common/error_response.yaml>`_
 
 .. raw:: html
 
