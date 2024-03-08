@@ -39,7 +39,6 @@ This setup uses the following ``nuts.yaml`` configuration file:
 
   strictmode: false
   network:
-    enabletls: false
 
 .. note::
 
