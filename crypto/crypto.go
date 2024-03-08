@@ -53,8 +53,7 @@ type Config struct {
 // DefaultCryptoConfig returns a Config with a fs backend storage
 func DefaultCryptoConfig() Config {
 	return Config{
-		Storage: fs.StorageType,
-		Vault:   vault.DefaultConfig(),
+		Vault: vault.DefaultConfig(),
 		External: external.Config{
 			Timeout: 100 * time.Millisecond,
 		},
