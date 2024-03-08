@@ -26,6 +26,10 @@ func DIFClaimFormats(formats map[string]map[string][]string) Formats {
 		ParamAliases: map[string]string{
 			// no aliases for this type
 		},
+		FormatAliases: map[string]string{
+			"jwt_vp_json": "jwt_vp",
+			"jwt_vc_json": "jwt_vc",
+		},
 	}
 }
 
@@ -45,6 +49,10 @@ func OpenIDSupportedFormats(formats map[string]map[string][]string) Formats {
 type Formats struct {
 	Map          map[string]map[string][]string
 	ParamAliases map[string]string
+	// FormatAliases allows aliasing the VP and VC formats. This feature can be removed when
+	// https://identity.foundation/claim-format-registry/ and the OpenID4VC specifications have
+	// agreed on the format designators.
+	FormatAliases map[string]string
 }
 
 // Match takes the other supports formats and returns the formats that are supported by both sets.
@@ -52,13 +60,19 @@ type Formats struct {
 // If a format is supported by both sets, but parameters overlap (e.g. supported cryptographic algorithms),
 // the format is not included in the result.
 func (f Formats) Match(other Formats) Formats {
+	aliases := f.FormatAliases
+	if aliases == nil {
+		aliases = other.FormatAliases
+	}
 	result := Formats{
-		Map:          map[string]map[string][]string{},
-		ParamAliases: map[string]string{},
+		Map:           map[string]map[string][]string{},
+		ParamAliases:  map[string]string{},
+		FormatAliases: aliases,
 	}
 
 	for thisFormat, thisFormatParams := range f.Map {
-		otherFormatParams := other.normalizeParameters(other.Map[thisFormat])
+		otherFormat := other.normalizeFormat(thisFormat)
+		otherFormatParams := other.normalizeParameters(other.Map[otherFormat])
 		if otherFormatParams == nil {
 			// format not supported by other
 			continue
@@ -98,6 +112,13 @@ func (f Formats) normalizeParameter(param string) string {
 		return alias
 	}
 	return param
+}
+
+func (f Formats) normalizeFormat(format string) string {
+	if alias, ok := f.FormatAliases[format]; ok {
+		return alias
+	}
+	return format
 }
 
 // normalizeParameters normalizes the parameter map to the names used in the DIF spec.
