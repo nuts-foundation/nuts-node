@@ -49,6 +49,7 @@ func OpenIDSupportedFormats(formats map[string]map[string][]string) Formats {
 type Formats struct {
 	Map           map[string]map[string][]string
 	ParamAliases  map[string]string
+	// FormatAliases allows aliasing the VP and VC formats. This feature can be removed when https://identity.foundation/claim-format-registry/ and the OpenID4VC specifications have agreed on the format designators.
 	FormatAliases map[string]string
 }
 
