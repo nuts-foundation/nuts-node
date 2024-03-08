@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,13 +35,13 @@ import (
 func newTestStatusList2021(t testing.TB, dids ...did.DID) *StatusList2021 {
 	cs := NewStatusList2021(storage.NewTestStorageEngine(t).GetSQLDatabase(), nil)
 	cs.Sign = noopSign
+	cs.ResolveKey = noopResolveKey
 	cs.VerifySignature = noopSignVerify
 	storage.AddDIDtoSQLDB(t, cs.db, dids...)
 	return cs
 }
 
-func noopSign(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
-	unsignedCredential.ID, _ = ssi.ParseURI("test-id")
+func noopSign(_ context.Context, unsignedCredential vc.VerifiableCredential, _ crypto.Key) (*vc.VerifiableCredential, error) {
 	// marshal-unmarshal credential to set the .raw field
 	bs, err := json.Marshal(unsignedCredential)
 	if err != nil {
@@ -50,9 +50,10 @@ func noopSign(_ context.Context, unsignedCredential vc.VerifiableCredential, _ s
 	return &unsignedCredential, json.Unmarshal(bs, &unsignedCredential)
 }
 
-func noopSignVerify(_ vc.VerifiableCredential, _ *time.Time) error {
-	return nil
-}
+func noopSignVerify(_ vc.VerifiableCredential, _ *time.Time) error { return nil }
+
+// noopResolveKey should only be used in tests where CredentialStatus.Sign ignores the key (noopSign)
+func noopResolveKey(_ context.Context, _ did.DID) (crypto.Key, error) { return nil, nil }
 
 func TestEntry_Validate(t *testing.T) {
 	makeValidCSEntry := func() StatusList2021Entry {

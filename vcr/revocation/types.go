@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"gorm.io/gorm"
@@ -89,7 +90,11 @@ type StatusList2021Verifier interface {
 type VerifySignFn func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error
 
 // SignFn signs a VC according to the specified format. The vcr.issuer injects its signVC method here.
-type SignFn func(ctx context.Context, unsignedCredential vc.VerifiableCredential, credentialFormat string) (*vc.VerifiableCredential, error)
+type SignFn func(ctx context.Context, unsignedCredential vc.VerifiableCredential, key crypto.Key) (*vc.VerifiableCredential, error)
+
+// ResolveKeyFn resolves the key used SignFn to sign the StatusList2021Credential.
+// The vcr.issuer injects its keyResolver.ResolveAssertionKey here.
+type ResolveKeyFn func(ctx context.Context, issuerDID did.DID) (crypto.Key, error)
 
 var _ StatusList2021Issuer = (*StatusList2021)(nil)
 var _ StatusList2021Verifier = (*StatusList2021)(nil)
@@ -102,6 +107,7 @@ type StatusList2021 struct {
 	db              *gorm.DB
 	VerifySignature VerifySignFn // injected by verifier
 	Sign            SignFn       // injected by issuer, context must contain an audit log
+	ResolveKey      ResolveKeyFn // injected by issuer
 }
 
 // NewStatusList2021 returns a StatusList2021 without a Sign or VerifySignature method.

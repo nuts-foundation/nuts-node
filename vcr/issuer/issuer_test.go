@@ -152,16 +152,16 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 		})
 	})
 	t.Run("credentialStatus", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		keyResolverMock := NewMockkeyResolver(ctrl)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil).AnyTimes()
 		t.Run("ok", func(t *testing.T) {
 			issuerDID := did.MustParseDID("did:web:example.com:iam:123")
 			slTemplate := template
 			slTemplate.Issuer = issuerDID.URI() // does not overwrite template
 
-			ctrl := gomock.NewController(t)
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
 			jsonldManager := jsonld.NewTestJSONLDManager(t)
-			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore, statusList: NewTestStatusList2021(t, issuerDID)}
+			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore, statusList: newTestStatusList2021(t, signingKey, issuerDID)}
 
 			result, err := sut.buildAndSignVC(ctx, slTemplate, CredentialOptions{WithStatusListRevocation: true})
 
@@ -176,7 +176,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			assert.Equal(t, revocation.StatusList2021EntryType, statuses[0].Type)
 		})
 		t.Run("error - did:nuts", func(t *testing.T) {
-			sut := issuer{keyStore: keyStore, statusList: NewTestStatusList2021(t)}
+			sut := issuer{keyResolver: keyResolverMock, keyStore: keyStore, statusList: newTestStatusList2021(t, signingKey, did.MustParseDID(template.Issuer.String()))}
 
 			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{WithStatusListRevocation: true})
 
@@ -800,8 +800,15 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 		return store, credentialID
 	}
 
+	ctx := audit.TestContext()
+	keyStore := crypto.NewMemoryCryptoInstance()
+	signingKey, err := keyStore.New(ctx, func(key crypt.PublicKey) (string, error) {
+		return issuerDID.String() + "#abc", nil
+	})
+	require.NoError(t, err)
+
 	t.Run("ok", func(t *testing.T) {
-		status := NewTestStatusList2021(t, issuerDID)
+		status := newTestStatusList2021(t, signingKey, issuerDID)
 		entry, err := status.Entry(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
@@ -816,7 +823,7 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 		assert.Nil(t, revCred)
 	})
 	t.Run("error - double revocation", func(t *testing.T) {
-		status := NewTestStatusList2021(t, issuerDID)
+		status := newTestStatusList2021(t, signingKey, issuerDID)
 		entry, err := status.Entry(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		issuerStore, credentialID := storeWithCred(gomock.NewController(t), *entry)
@@ -842,7 +849,7 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 		assert.Nil(t, result)
 	})
 	t.Run("error - statuslist credential not found", func(t *testing.T) {
-		status := NewTestStatusList2021(t, issuerDID)
+		status := newTestStatusList2021(t, signingKey, issuerDID)
 		entry, err := status.Entry(context.Background(), issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 		entry.StatusListCredential = "unknown status list"
@@ -934,17 +941,13 @@ func TestIssuer_StatusList(t *testing.T) {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 	t.Run("ok", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
 		sut := issuer{
-			keyResolver:   keyResolverMock,
 			jsonldManager: jsonldManager,
 			keyStore:      keyStore,
 			trustConfig:   trustConfig,
-			statusList:    NewTestStatusList2021(t, issuerDID),
+			statusList:    newTestStatusList2021(t, signingKey, issuerDID),
 		}
-		sut.statusList.(*revocation.StatusList2021).Sign = sut.signVC
+		sut.statusList.(*revocation.StatusList2021).Sign = sut.buildJSONLDCredential
 		_, err = sut.statusList.Entry(ctx, issuerDID, revocation.StatusPurposeRevocation)
 		require.NoError(t, err)
 
@@ -971,7 +974,8 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.Equal(t, subjects[0].StatusPurpose, revocation.StatusPurposeRevocation)
 		assert.NotEmpty(t, subjects[0].EncodedList, "")
 
-		// verify credential -> trust is not added automatically
+		// verify credential; revocation.StatusList2021 does not test signatures on StatusList2021Credentials it produces
+		ctrl := gomock.NewController(t)
 		vStoreMock := verifier.NewMockStore(ctrl)
 		vStoreMock.EXPECT().GetRevocations(gomock.Any()).Return(nil, verifier.ErrNotFound)
 		vDIDResolverMock := resolver.NewMockDIDResolver(ctrl)
@@ -982,38 +986,15 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.NoError(t, verif.Verify(*result, true, true, nil))
 	})
 	t.Run("error - unknown status list credential", func(t *testing.T) {
-		sut := issuer{statusList: NewTestStatusList2021(t, issuerDID)}
+		sut := issuer{statusList: newTestStatusList2021(t, signingKey, issuerDID)}
 
 		result, err := sut.StatusList(ctx, issuerDID, 1)
 
 		assert.ErrorIs(t, err, vcr.ErrNotFound)
 		assert.Nil(t, result)
 	})
-	t.Run("error - issuance failed", func(t *testing.T) {
-		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
-		storage.AddDIDtoSQLDB(t, db, issuerDID)
-		status := revocation.NewStatusList2021(db, nil)
-		status.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
-			return &unsignedCredential, nil
-		}
-		_, err = status.Entry(ctx, issuerDID, revocation.StatusPurposeRevocation)
-		require.NoError(t, err)
-		db.Exec("DROP TABLE status_list_credential")
-
-		sut := issuer{
-			jsonldManager: jsonldManager,
-			keyStore:      keyStore,
-			trustConfig:   trustConfig,
-			statusList:    status,
-		}
-
-		result, err := sut.StatusList(ctx, issuerDID, 1)
-
-		assert.Nil(t, result)
-		assert.Error(t, err, "issuance failed")
-	})
 	t.Run("error - did:nuts", func(t *testing.T) {
-		sut := issuer{statusList: NewTestStatusList2021(t)}
+		sut := issuer{statusList: newTestStatusList2021(t, signingKey)}
 		issuerNuts := did.MustParseDID("did:nuts:123")
 
 		result, err := sut.StatusList(ctx, issuerNuts, 1)
@@ -1023,12 +1004,12 @@ func TestIssuer_StatusList(t *testing.T) {
 	})
 }
 
-func NewTestStatusList2021(t testing.TB, dids ...did.DID) *revocation.StatusList2021 {
+func newTestStatusList2021(t testing.TB, signingKey crypto.Key, dids ...did.DID) *revocation.StatusList2021 {
 	storageEngine := storage.NewTestStorageEngine(t)
 	db := storageEngine.GetSQLDatabase()
 	storage.AddDIDtoSQLDB(t, db, dids...)
 	cs := revocation.NewStatusList2021(db, nil)
-	cs.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
+	cs.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ crypto.Key) (*vc.VerifiableCredential, error) {
 		unsignedCredential.ID, _ = ssi.ParseURI("test-credential")
 		bs, err := json.Marshal(unsignedCredential)
 		require.NoError(t, err)
@@ -1036,6 +1017,10 @@ func NewTestStatusList2021(t testing.TB, dids ...did.DID) *revocation.StatusList
 		require.NoError(t, json.Unmarshal(bs, unsignedWithRawField))
 		return unsignedWithRawField, nil
 	}
+	ctrl := gomock.NewController(t)
+	keyResolverMock := NewMockkeyResolver(ctrl)
+	keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any(), gomock.Any()).Return(signingKey, nil).AnyTimes()
+	cs.ResolveKey = keyResolverMock.ResolveAssertionKey
 	return cs
 }
 

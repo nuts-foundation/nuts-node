@@ -153,11 +153,12 @@ func TestVerifier_Verify(t *testing.T) {
 		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
 		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client())
 		ctx.verifier.credentialStatus.(*revocation.StatusList2021).VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
-		ctx.verifier.credentialStatus.(*revocation.StatusList2021).Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
+		ctx.verifier.credentialStatus.(*revocation.StatusList2021).Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ crypto.Key) (*vc.VerifiableCredential, error) {
 			bs, err := json.Marshal(unsignedCredential)
 			require.NoError(t, err)
 			return &unsignedCredential, json.Unmarshal(bs, &unsignedCredential)
 		}
+		ctx.verifier.credentialStatus.(*revocation.StatusList2021).ResolveKey = func(ctx context.Context, issuerDID did.DID) (crypto.Key, error) { return nil, nil } // ctx.verifier.credentialStatus.Sign ignores the key
 
 		cred := test.ValidNutsOrganizationCredential(t)
 		cred.Context = append(cred.Context, ssi.MustParseURI(jsonld.W3cStatusList2021Context))

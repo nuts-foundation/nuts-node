@@ -22,3 +22,10 @@ echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 pushd openid4vp
 ./run-test.sh
 popd
+
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+echo "!! Running test: StatusList2021 !!"
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+pushd statuslist2021
+./run-test.sh
+popd

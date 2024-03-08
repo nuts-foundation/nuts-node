@@ -21,7 +21,9 @@ package revocation
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"strconv"
 	"testing"
 	"time"
@@ -46,7 +48,7 @@ func Test_TableNames(t *testing.T) {
 	assert.Equal(t, revocationRecord{}.TableName(), "status_list_entry")
 }
 
-func TestSqlStore_Create(t *testing.T) {
+func TestStatusList2021_Entry(t *testing.T) {
 	s := newTestStatusList2021(t, aliceDID, bobDID) // NOTE: most tests re-use the same store, so they will fail when tests run out of order.
 	testCtx := context.Background()
 
@@ -115,6 +117,15 @@ func TestSqlStore_Create(t *testing.T) {
 			// alice#1, alice#2, bob#1; fails if only part of the 'ok' block is executed
 			assert.Equal(t, int64(3), s.db.Find(&[]credentialIssuerRecord{}).RowsAffected)
 		})
+	})
+	t.Run("error - singing key not found", func(t *testing.T) {
+		s := newTestStatusList2021(t, aliceDID, bobDID)
+		s.ResolveKey = func(_ context.Context, _ did.DID) (crypto.Key, error) { return nil, errors.New("do re mi") }
+
+		entry, err = s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
+
+		assert.EqualError(t, err, "do re mi")
+		assert.Nil(t, entry)
 	})
 	t.Run("error - unsupported purpose", func(t *testing.T) {
 		entry, err = s.Entry(testCtx, aliceDID, statusPurposeSuspension)
@@ -195,7 +206,7 @@ func TestSqlStore_Create(t *testing.T) {
 	})
 }
 
-func TestSqlStore_Revoke(t *testing.T) {
+func TestStatusList2021_Revoke(t *testing.T) {
 	s := newTestStatusList2021(t, aliceDID, bobDID)
 
 	entryP, err := s.Entry(nil, aliceDID, StatusPurposeRevocation)
@@ -226,6 +237,13 @@ func TestSqlStore_Revoke(t *testing.T) {
 		set, _ = credRecord.Expanded.bit(statusListIndex)
 		assert.True(t, set)
 	})
+	t.Run("error - signing key not found", func(t *testing.T) {
+		s := newTestStatusList2021(t, aliceDID, bobDID)
+		entry, err := s.Entry(nil, aliceDID, StatusPurposeRevocation)
+		require.NoError(t, err)
+		s.ResolveKey = func(_ context.Context, _ did.DID) (crypto.Key, error) { return nil, errors.New("no key") }
+		assert.EqualError(t, s.Revoke(nil, ssi.URI{}, *entry), "no key")
+	})
 	t.Run("error - ErrRevoked", func(t *testing.T) {
 		assert.ErrorIs(t, s.Revoke(nil, ssi.URI{}, entry), types.ErrRevoked)
 	})
@@ -251,7 +269,7 @@ func TestSqlStore_Revoke(t *testing.T) {
 	})
 }
 
-func TestCredentialStatus_Credential(t *testing.T) {
+func TestStatusList2021_Credential(t *testing.T) {
 	s := newTestStatusList2021(t, aliceDID, bobDID)
 	auditCtx := audit.TestContext()
 
@@ -317,6 +335,20 @@ func TestCredentialStatus_Credential(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, cred)
 	})
+	t.Run("error - signing key not found", func(t *testing.T) {
+		s := newTestStatusList2021(t, aliceDID)
+		entry2, err := s.Entry(nil, aliceDID, StatusPurposeRevocation)
+		require.NoError(t, err)
+		// change expires to now so the StatusList2021Credential has to be signed again
+		err = s.db.Model(new(credentialRecord)).Where("subject_id = ?", entry2.StatusListCredential).UpdateColumn("expires", time.Now()).Error
+		require.NoError(t, err)
+		s.ResolveKey = func(_ context.Context, _ did.DID) (crypto.Key, error) { return nil, errors.New("no key") }
+
+		cred, err := s.Credential(auditCtx, aliceDID, 1)
+
+		assert.EqualError(t, err, "no key")
+		assert.Nil(t, cred)
+	})
 	t.Run("error - ErrNotFound", func(t *testing.T) {
 		cred, err := s.Credential(auditCtx, aliceDID, 2)
 		assert.ErrorIs(t, err, types.ErrNotFound)
@@ -324,7 +356,7 @@ func TestCredentialStatus_Credential(t *testing.T) {
 	})
 }
 
-func TestCredentialStatus_buildAndSignVC(t *testing.T) {
+func TestStatusList2021_buildAndSignVC(t *testing.T) {
 	cs := &StatusList2021{Sign: noopSign}
 
 	subjectID, err := toStatusListCredential(aliceDID, 1)
@@ -338,13 +370,16 @@ func TestCredentialStatus_buildAndSignVC(t *testing.T) {
 		EncodedList:   encodedList,
 	}
 
-	cred, err := cs.buildAndSignVC(nil, aliceDID, expectedCS)
+	cred, err := cs.buildAndSignVC(nil, aliceDID, expectedCS, nil)
+
+	// signature is checked in vcr.issuer
 
 	require.NoError(t, err)
 	assert.True(t, cred.ContainsContext(vc.VCContextV1URI()))
 	assert.True(t, cred.ContainsContext(StatusList2021ContextURI))
 	assert.True(t, cred.IsType(vc.VerifiableCredentialTypeV1URI()))
 	assert.True(t, cred.IsType(statusList2021CredentialTypeURI))
+	assert.Contains(t, cred.ID.String(), aliceDID.String())
 	assert.Equal(t, toMap(t, expectedCS), cred.CredentialSubject[0])
 	assert.Equal(t, aliceDID.String(), cred.Issuer.String())
 	assert.InDelta(t, time.Now().Unix(), cred.ValidFrom.Unix(), 2)
