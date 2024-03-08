@@ -59,7 +59,7 @@ var _ schema.Tabler = (*sqlVerificationMethod)(nil)
 
 type sqlVerificationMethod struct {
 	ID   string `gorm:"primaryKey"`
-	Did  string `gorm:"primaryKey"`
+	Did  string
 	Data []byte
 }
 
@@ -71,7 +71,7 @@ var _ schema.Tabler = (*sqlService)(nil)
 
 type sqlService struct {
 	ID   string `gorm:"primaryKey"`
-	Did  string `gorm:"primaryKey"`
+	Did  string
 	Data []byte
 }
 
