@@ -216,7 +216,8 @@ paths:
       parameters:
         - name: type
           in: query
-          description: Type of the service to filter for.
+          description: |
+            Type of the service to filter for. If specified, only services with the given service type are returned.
           required: false
           schema:
             type: string
@@ -224,9 +225,14 @@ paths:
         - name: endpointType
           in: query
           description: |
-            The data type of the service endpoint. E.g., a single URL would be encoded as string,
-            a map would be encoded as object, a list of values as an array.
-            If specified, only services with the given endpoint type are returned.
+            The data type of the service endpoint to filter for. If specified, only services with the given endpoint type are returned.
+            Endpoint types as mapped as follows:
+             
+            - string: serviceEndpoint contains a JSON string
+            - array: serviceEndpoint contains a JSON array
+            - object: serviceEndpoint contains a JSON object (key-value map) 
+            
+            If not specified, services are not filtered on their endpoint data type.
           required: false
           schema:
             type: string
@@ -254,6 +260,40 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Service'
+              examples:
+                string:
+                  summary: This example shows a response with a service containing a string endpoint.
+                  value: |
+                    [
+                      {
+                        "id": "did:web:example.com:1",
+                        "type": "api",
+                        "serviceEndpoint": "https://example.com/api"
+                      }
+                    ]
+                object:
+                  summary: This example shows a response with a service containing an object endpoint.
+                  value: |
+                    [
+                      {
+                        "id": "did:web:example.com:1",
+                        "type": "api",
+                        "serviceEndpoint": {
+                          "server1": "https://example.com/api",
+                          "server2": "https://alt.example.com/api"
+                        }
+                      }
+                    ]
+                array:
+                  summary: This example shows a response with a service containing an array endpoint.
+                  value: |
+                    [
+                      {
+                        "id": "did:web:example.com:1",
+                        "type": "api",
+                        "serviceEndpoint": ["https://example.com/api", "https://alt.example.com/api"]
+                      }
+                    ]
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/did/{did}/verificationmethod:
