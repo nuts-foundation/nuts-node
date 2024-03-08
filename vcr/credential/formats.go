@@ -47,9 +47,11 @@ func OpenIDSupportedFormats(formats map[string]map[string][]string) Formats {
 // Formats is a map of supported formats and their parameters according to https://identity.foundation/claim-format-registry/
 // E.g., ldp_vp: {proof_type: [Ed25519Signature2018, JsonWebSignature2020]}
 type Formats struct {
-	Map           map[string]map[string][]string
-	ParamAliases  map[string]string
-	// FormatAliases allows aliasing the VP and VC formats. This feature can be removed when https://identity.foundation/claim-format-registry/ and the OpenID4VC specifications have agreed on the format designators.
+	Map          map[string]map[string][]string
+	ParamAliases map[string]string
+	// FormatAliases allows aliasing the VP and VC formats. This feature can be removed when
+	// https://identity.foundation/claim-format-registry/ and the OpenID4VC specifications have
+	// agreed on the format designators.
 	FormatAliases map[string]string
 }
 
