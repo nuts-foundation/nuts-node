@@ -214,4 +214,3 @@ func (w Wrapper) AddVerificationMethod(_ context.Context, _ AddVerificationMetho
 func (w Wrapper) DeleteVerificationMethod(_ context.Context, _ DeleteVerificationMethodRequestObject) (DeleteVerificationMethodResponseObject, error) {
 	return nil, errors.New("not yet supported")
 }
-
