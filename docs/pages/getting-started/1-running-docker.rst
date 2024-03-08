@@ -27,7 +27,7 @@ If you want to run without Docker Compose you can use the following command from
 
 .. code-block:: shell
 
-  docker run --name nuts -p 1323:1323 \
+  docker run --name nuts -p 5555:5555 -p 8080:8080 -p 8081:8081 \
     --mount type=bind,source="$(pwd)"/nuts.yaml,target=/opt/nuts/nuts.yaml,readonly \
     --mount type=bind,source="$(pwd)"/data,target=/opt/nuts/data \
     -e NUTS_CONFIGFILE=/opt/nuts/nuts.yaml \
@@ -44,7 +44,7 @@ This setup uses the following ``nuts.yaml`` configuration file:
     The command above uses ``pwd`` and ``bash`` functions, which do not work on Windows. If running on Windows replace
     it with the path of the working directory.
 
-You can test whether your Nuts Node is running properly by visiting ``http://localhost:1323/status/diagnostics``. It should
+You can test whether your Nuts Node is running properly by visiting ``http://localhost:8081/status/diagnostics``. It should
 display diagnostic information about the state of the node.
 
 Docker Compose
@@ -61,7 +61,9 @@ Copy the following YAML file and save it as ``docker-compose.yaml`` in the worki
       environment:
         NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       ports:
-        - 1323:1323
+        - 5555:5555
+        - 8080:8080
+        - 8081:8081
       volumes:
         - "./nuts.yaml:/opt/nuts/nuts.yaml:ro"
         - "./data:/opt/nuts/data:rw"

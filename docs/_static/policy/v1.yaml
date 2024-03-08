@@ -3,7 +3,7 @@ info:
   title: Policy backend API specification
   version: 0.1.0
 servers:
-  - url: "http://localhost:1323"
+  - url: "http://localhost:8080"
 paths:
   /presentation_definition:
     parameters:

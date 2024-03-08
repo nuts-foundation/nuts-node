@@ -3,7 +3,10 @@ info:
   title: Nuts Auth Service API spec
   version: 1.0.0
 servers:
-  - url: http://localhost:1323
+  - url: http://localhost:8081
+    description: For internal-facing endpoints.
+  - url: http://localhost:8080
+    description: For external-facing endpoints.
 paths:
   /internal/auth/v1/signature/session:
     post:

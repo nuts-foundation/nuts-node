@@ -6,7 +6,10 @@ info:
     This API implements OpenID 4 Verifiable Credential Issuance.
     The specification is in draft and may change, thus this API might change as well.
 servers:
-  - url: "http://localhost:1323"
+  - url: http://localhost:8081
+    description: For internal-facing endpoints.
+  - url: http://localhost:8080
+    description: For external-facing endpoints.
 paths:
   # TODO: This is not a registered well-known URI, should we; 1. register it, 2. accept it's not registered and use it anyway?, 3. use another URI?
   # See https://github.com/nuts-foundation/nuts-specification/issues/258

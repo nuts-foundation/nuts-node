@@ -27,13 +27,13 @@ For example, to list all network transactions in your node (replace the value of
 
 .. code-block:: shell
 
-    NUTS_ADDRESS=my-node:1323 nuts network list
+    NUTS_ADDRESS=my-node:8081 nuts network list
 
 You can also use the Nuts docker image to run a command (against a remote Nuts node):
 
 .. code-block:: shell
 
-    docker run nutsfoundation/nuts-node --address=http://my-node:1323 network list
+    docker run nutsfoundation/nuts-node --address=http://my-node:8081 network list
 
 Or inside a running Nuts docker container (against the running Nuts node):
 
