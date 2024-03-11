@@ -3,9 +3,9 @@
 Release notes
 #############
 
-****************
-Peatnut (v6.0.0)
-****************
+***************
+Peanut (v6.0.0)
+***************
 
 **Release date:** TBD
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v6.0.0
