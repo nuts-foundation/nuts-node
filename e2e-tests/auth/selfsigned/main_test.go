@@ -117,8 +117,7 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 func issueOrganizationCredential(organization *did.Document, name, city string) error {
 	vcrClient := vcrAPI.HTTPClient{ClientConfig: apps.NodeClientConfig}
 	visibility := vcrAPI.Public
-	_, err := vcrClient.IssueVC(vcrAPI.IssueVCRequest{
-		Type:   "NutsOrganizationCredential",
+	request := vcrAPI.IssueVCRequest{
 		Issuer: organization.ID.String(),
 		CredentialSubject: map[string]interface{}{
 			"id": organization.ID.String(),
@@ -128,7 +127,9 @@ func issueOrganizationCredential(organization *did.Document, name, city string) 
 			},
 		},
 		Visibility: &visibility,
-	})
+	}
+	require.NoError(t, request.Type.FromIssueVCRequestType1([]any{"VerifiableCredential", "NutsOrganizationCredential"}))
+	_, err := vcrClient.IssueVC(request)
 	return err
 }
 
