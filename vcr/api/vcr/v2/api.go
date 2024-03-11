@@ -93,25 +93,28 @@ func (w Wrapper) IssueVC(ctx context.Context, request IssueVCRequestObject) (Iss
 		return nil, err
 	}
 
-	// Set default context, if not set
-	if request.Body.Context == nil {
-		vcContext := credential.NutsV1Context
-		request.Body.Context = &vcContext
-	}
-
-	if request.Body.Type == "" {
-		return nil, core.InvalidInputError("missing credential type")
-	}
-
-	if request.Body.CredentialSubject == nil {
-		return nil, core.InvalidInputError("missing credentialSubject")
-	}
-
 	requestedVC := vc.VerifiableCredential{}
 	rawRequest, _ := json.Marshal(*request.Body)
 	if err := json.Unmarshal(rawRequest, &requestedVC); err != nil {
 		return nil, err
 	}
+
+	// check required fields
+	if len(requestedVC.Type) == 0 {
+		return nil, core.InvalidInputError("missing credential type")
+	}
+	if len(requestedVC.CredentialSubject) == 0 {
+		return nil, core.InvalidInputError("missing credentialSubject")
+	}
+
+	{ // set missing defaults;
+		// TODO add deprecation warning for this?
+		// Set default context, if not set
+		if len(requestedVC.Context) == 0 {
+			requestedVC.Context = []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI}
+		}
+	}
+
 	// Copy parsed credential to keep control over what we pass to the issuer,
 	// (and also makes unit testing easier since vc.VerifiableCredential has unexported fields that can't be set).
 	template := vc.VerifiableCredential{

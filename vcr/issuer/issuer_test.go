@@ -211,20 +211,24 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 	})
 
 	t.Run("error - invalid params", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		keyResolverMock := NewMockkeyResolver(ctrl)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil).AnyTimes()
 		t.Run("wrong amount of credential types", func(t *testing.T) {
-			sut := issuer{}
+			sut := issuer{keyResolver: keyResolverMock, keyStore: keyStore}
 
 			template := vc.VerifiableCredential{
-				Type: []ssi.URI{},
+				Issuer: issuerDID.URI(),
+				Type:   []ssi.URI{ssi.MustParseURI("Type1"), ssi.MustParseURI("Type2")},
 			}
 			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{})
 
-			assert.ErrorIs(t, err, core.InvalidInputError("can only issue credential with 1 type"))
+			assert.ErrorIs(t, err, core.InvalidInputError("can only issue VerifiableCredential with 1 extra type"))
 			assert.Nil(t, result)
 		})
 
 		t.Run("missing issuer", func(t *testing.T) {
-			sut := issuer{}
+			sut := issuer{keyResolver: keyResolverMock, keyStore: keyStore}
 
 			template := vc.VerifiableCredential{
 				Type: []ssi.URI{credentialType},
@@ -235,12 +239,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			assert.Nil(t, result)
 		})
 		t.Run("unsupported proof format", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
-			jsonldManager := jsonld.NewTestJSONLDManager(t)
-			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
+			sut := issuer{keyResolver: keyResolverMock, keyStore: keyStore}
 
 			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{Format: "paper"})
 
@@ -470,12 +469,11 @@ func Test_issuer_Issue(t *testing.T) {
 	})
 
 	t.Run("error - from used services", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		keyResolverMock := NewMockkeyResolver(ctrl)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil).AnyTimes()
 		t.Run("could not store credential", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
 			sut := issuer{
@@ -493,11 +491,7 @@ func Test_issuer_Issue(t *testing.T) {
 		})
 
 		t.Run("could not publish credential", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			mockPublisher := NewMockPublisher(ctrl)
 			mockPublisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
@@ -516,7 +510,7 @@ func Test_issuer_Issue(t *testing.T) {
 		})
 
 		t.Run("validator fails (missing type)", func(t *testing.T) {
-			sut := issuer{}
+			sut := issuer{keyResolver: keyResolverMock}
 
 			credentialOptions := vc.VerifiableCredential{
 				Type:   []ssi.URI{},
@@ -527,16 +521,12 @@ func Test_issuer_Issue(t *testing.T) {
 				Publish: true,
 				Public:  true,
 			})
-			assert.EqualError(t, err, "can only issue credential with 1 type")
+			assert.EqualError(t, err, "can only issue VerifiableCredential with at most 1 extra type")
 			assert.Nil(t, result)
 
 		})
 
 		t.Run("validator fails (undefined fields)", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			mockStore := NewMockStore(ctrl)
 			sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
 

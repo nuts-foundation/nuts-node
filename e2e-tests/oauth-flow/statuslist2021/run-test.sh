@@ -34,7 +34,7 @@ echo "Issuing NutsOrganizationCredential..."
 echo "---------------------------------------"
 
 # Issue NutsOrganizationCredential for Vendor B with a revocable StatusList2021Entry in VC.credentialStatus
-REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${PARTY_B_DID}\", \"credentialSubject\": {\"id\":\"${PARTY_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"withStatusList2021Revocation\": true}"
+REQUEST="{\"@context\":[\"https://www.w3.org/2018/credentials/v1\", \"https://nuts.nl/credentials/v1\"], \"type\":\"NutsOrganizationCredential\", \"issuer\":\"${PARTY_B_DID}\", \"credentialSubject\": {\"id\":\"${PARTY_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"withStatusList2021Revocation\": true}"
 RESPONSE=$(echo $REQUEST | curl -s -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "VerifiableCredential"; then
   CREDENTIAL_ID=$( echo $RESPONSE | jq .id  | sed "s/\"//g" )

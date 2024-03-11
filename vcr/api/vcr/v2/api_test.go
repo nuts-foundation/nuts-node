@@ -55,23 +55,48 @@ func TestWrapper_IssueVC(t *testing.T) {
 	credentialType := ssi.MustParseURI("ExampleType")
 
 	expectedRequestedVC := vc.VerifiableCredential{
-		Context:           []ssi.URI{credential.NutsV1ContextURI},
+		Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 		Type:              []ssi.URI{credentialType},
 		Issuer:            issuerURI,
 		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
 	}
 
-	t.Run("ok with an actual credential", func(t *testing.T) {
+	t.Run("ok with an actual credential - minimal", func(t *testing.T) {
 		testContext := newMockContext(t)
 
 		public := Public
 		request := IssueVCRequest{
-			Type:              expectedRequestedVC.Type[0].String(),
 			Issuer:            expectedRequestedVC.Issuer.String(),
 			CredentialSubject: expectedRequestedVC.CredentialSubject,
 			Visibility:        &public,
 		}
+		_ = request.Type.FromIssueVCRequestType1([]any{credentialType.String()})
 		// assert that credential.NutsV1ContextURI is added if the request does not contain @context
+		testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, expectedRequestedVC, issuer.CredentialOptions{
+			Publish: true,
+			Public:  true,
+		}).Return(&expectedRequestedVC, nil)
+
+		response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
+		assert.NoError(t, err)
+		assert.Equal(t, IssueVC200JSONResponse(expectedRequestedVC), response)
+	})
+
+	t.Run("ok with an actual credential - all", func(t *testing.T) {
+		testContext := newMockContext(t)
+		expectedRequestedVC := expectedRequestedVC
+		expectedRequestedVC.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI(), credentialType}
+
+		public := Public
+		request := IssueVCRequest{
+			Context:           new(IssueVCRequest_Context),
+			Issuer:            expectedRequestedVC.Issuer.String(),
+			CredentialSubject: expectedRequestedVC.CredentialSubject,
+			Visibility:        &public,
+		}
+		require.NoError(t, request.Context.FromIssueVCRequestContext1([]any{vc.VCContextV1, credential.NutsV1ContextURI}))
+		require.NoError(t, request.Type.FromIssueVCRequestType1([]any{vc.VerifiableCredentialType, credentialType.String()}))
 		testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, expectedRequestedVC, issuer.CredentialOptions{
 			Publish: true,
 			Public:  true,
@@ -107,10 +132,11 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 			public := Public
 			request := IssueVCRequest{
-				Type:       expectedRequestedVC.Type[0].String(),
+				//Type:       expectedRequestedVC.Type[0].String(),
 				Issuer:     expectedRequestedVC.Issuer.String(),
 				Visibility: &public,
 			}
+			_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 
 			response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
@@ -125,10 +151,11 @@ func TestWrapper_IssueVC(t *testing.T) {
 				testContext := newMockContext(t)
 
 				request := IssueVCRequest{
-					Issuer:            "did:jwk:123",
-					Type:              "SomeCredential",
+					Issuer: "did:jwk:123",
+					//Type:              "SomeCredential",
 					CredentialSubject: expectedRequestedVC.CredentialSubject,
 				}
+				_ = request.Type.FromIssueVCRequestType0("SomeCredential")
 
 				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
@@ -145,12 +172,13 @@ func TestWrapper_IssueVC(t *testing.T) {
 					publishValue := true
 					visibilityValue := Private
 					request := IssueVCRequest{
-						Issuer:            expectedRequestedVC.Issuer.String(),
-						Type:              expectedRequestedVC.Type[0].String(),
+						Issuer: expectedRequestedVC.Issuer.String(),
+						//Type:              expectedRequestedVC.Type[0].String(),
 						CredentialSubject: expectedRequestedVC.CredentialSubject,
 						Visibility:        &visibilityValue,
 						PublishToNetwork:  &publishValue,
 					}
+					_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 					expectedVC := vc.VerifiableCredential{}
 					expectedResponse := IssueVC200JSONResponse(expectedVC)
 					testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{
@@ -170,12 +198,13 @@ func TestWrapper_IssueVC(t *testing.T) {
 					publishValue := true
 					visibilityValue := Public
 					request := IssueVCRequest{
-						Issuer:            expectedRequestedVC.Issuer.String(),
-						Type:              expectedRequestedVC.Type[0].String(),
+						Issuer: expectedRequestedVC.Issuer.String(),
+						//Type:              expectedRequestedVC.Type[0].String(),
 						CredentialSubject: expectedRequestedVC.CredentialSubject,
 						Visibility:        &visibilityValue,
 						PublishToNetwork:  &publishValue,
 					}
+					_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 					expectedVC := vc.VerifiableCredential{}
 					expectedResponse := IssueVC200JSONResponse(expectedVC)
 					testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{
@@ -247,11 +276,12 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 				publishValue := false
 				request := IssueVCRequest{
-					Issuer:            expectedRequestedVC.Issuer.String(),
-					Type:              expectedRequestedVC.Type[0].String(),
+					Issuer: expectedRequestedVC.Issuer.String(),
+					//Type:              expectedRequestedVC.Type[0].String(),
 					CredentialSubject: expectedRequestedVC.CredentialSubject,
 					PublishToNetwork:  &publishValue,
 				}
+				_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 				expectedVC := vc.VerifiableCredential{}
 				expectedResponse := IssueVC200JSONResponse(expectedVC)
 				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{
@@ -269,12 +299,13 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 				publishValue := false
 				request := IssueVCRequest{
-					Issuer:                       expectedRequestedVC.Issuer.String(),
-					Type:                         expectedRequestedVC.Type[0].String(),
+					Issuer: expectedRequestedVC.Issuer.String(),
+					//Type:                         expectedRequestedVC.Type[0].String(),
 					CredentialSubject:            expectedRequestedVC.CredentialSubject,
 					PublishToNetwork:             &publishValue,
 					WithStatusList2021Revocation: &publishValue,
 				}
+				_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 
 				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
@@ -285,7 +316,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 		})
 		t.Run("did:web", func(t *testing.T) {
 			expectedRequestedVC := vc.VerifiableCredential{
-				Context:           []ssi.URI{credential.NutsV1ContextURI},
+				Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 				Type:              []ssi.URI{credentialType},
 				Issuer:            ssi.MustParseURI("did:web:example.com:iam:123"),
 				CredentialSubject: []interface{}{map[string]interface{}{"id": "did:web:example.com:iam:456"}},
@@ -295,11 +326,12 @@ func TestWrapper_IssueVC(t *testing.T) {
 				testContext := newMockContext(t)
 				withRevocation := true
 				request := IssueVCRequest{
-					CredentialSubject:            expectedRequestedVC.CredentialSubject,
-					Issuer:                       expectedRequestedVC.Issuer.String(),
-					Type:                         expectedRequestedVC.Type[0].String(),
+					CredentialSubject: expectedRequestedVC.CredentialSubject,
+					Issuer:            expectedRequestedVC.Issuer.String(),
+					//Type:                         expectedRequestedVC.Type[0].String(),
 					WithStatusList2021Revocation: &withRevocation,
 				}
+				_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 				// assert that credential.NutsV1ContextURI is added if the request does not contain @context
 				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, expectedRequestedVC, issuer.CredentialOptions{
 					WithStatusListRevocation: true,
@@ -326,9 +358,10 @@ func TestWrapper_IssueVC(t *testing.T) {
 				request := IssueVCRequest{
 					CredentialSubject: expectedRequestedVC.CredentialSubject,
 					Issuer:            expectedRequestedVC.Issuer.String(),
-					Type:              expectedRequestedVC.Type[0].String(),
-					ExpirationDate:    &nowStr,
+					//Type:              expectedRequestedVC.Type[0].String(),
+					ExpirationDate: &nowStr,
 				}
+				_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 				// Circle CI keeps failing on mock comparison of expectedRequestedVC (probably .ExpirationDate) without showing any differences.
 				// Since local tests succeed, and test is about checking CredentialOptions, testing value of expectedRequestedVCs is skipped.
 				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{}).Return(&expectedRequestedVC, nil)
@@ -344,8 +377,9 @@ func TestWrapper_IssueVC(t *testing.T) {
 				request := IssueVCRequest{
 					CredentialSubject: expectedRequestedVC.CredentialSubject,
 					Issuer:            expectedRequestedVC.Issuer.String(),
-					Type:              expectedRequestedVC.Type[0].String(),
+					//Type:              expectedRequestedVC.Type[0].String(),
 				}
+				_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 
 				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
@@ -358,12 +392,13 @@ func TestWrapper_IssueVC(t *testing.T) {
 				revocation := true
 				publish := false
 				request := IssueVCRequest{
-					CredentialSubject:            expectedRequestedVC.CredentialSubject,
-					Issuer:                       expectedRequestedVC.Issuer.String(),
-					Type:                         expectedRequestedVC.Type[0].String(),
+					CredentialSubject: expectedRequestedVC.CredentialSubject,
+					Issuer:            expectedRequestedVC.Issuer.String(),
+					//Type:                         expectedRequestedVC.Type[0].String(),
 					WithStatusList2021Revocation: &revocation,
 					PublishToNetwork:             &publish,
 				}
+				_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 
 				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
@@ -376,12 +411,13 @@ func TestWrapper_IssueVC(t *testing.T) {
 				revocation := false
 				visibility := Private
 				request := IssueVCRequest{
-					CredentialSubject:            expectedRequestedVC.CredentialSubject,
-					Issuer:                       expectedRequestedVC.Issuer.String(),
-					Type:                         expectedRequestedVC.Type[0].String(),
+					CredentialSubject: expectedRequestedVC.CredentialSubject,
+					Issuer:            expectedRequestedVC.Issuer.String(),
+					//Type:                         expectedRequestedVC.Type[0].String(),
 					WithStatusList2021Revocation: &revocation,
 					Visibility:                   &visibility,
 				}
+				_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 
 				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
 
@@ -395,11 +431,12 @@ func TestWrapper_IssueVC(t *testing.T) {
 	t.Run("test errors", func(t *testing.T) {
 		public := Public
 		validIssueRequest := IssueVCRequest{
-			Issuer:            expectedRequestedVC.Issuer.String(),
-			Type:              expectedRequestedVC.Type[0].String(),
+			Issuer: expectedRequestedVC.Issuer.String(),
+			//Type:              expectedRequestedVC.Type[0].String(),
 			CredentialSubject: expectedRequestedVC.CredentialSubject,
 			Visibility:        &public,
 		}
+		_ = validIssueRequest.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
 
 		tests := []struct {
 			name       string
