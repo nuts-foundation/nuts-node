@@ -24,11 +24,11 @@ For production there are a few points to consider; enabling CORS, using alternat
 Binding HTTP interfaces
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Some HTTP endpoints are required to be accessible by the public and others only meant for administrator or your own XIS.
+Some HTTP endpoints are required to be accessible by the public and others only meant for administrator or your own client application.
 You can determine the intended public by observing the first part of the URL:
 
 * Endpoints that start with ``/public`` should be accessible by the general public,
-* ``/internal`` is meant for XIS application integration and administrators.
+* ``/internal`` is meant for client application integration and administrators.
 
 It's advisable to make sure internal endpoints aren't reachable from public networks.
 You can achieve this by binding it to a different port, by using a reverse proxy, or both.
@@ -213,7 +213,7 @@ You can generate a token using the following command, which needs to be executed
     nuts http gen-token admin 365
 
 This command generates a token for a user named "admin" which is valid for 365 days. The user's name is used for logging HTTP requests.
-It outputs the token, which should be used as ``Authorization`` Bearer token header for clients, such as XIS applications.
+It outputs the token, which should be used as ``Authorization`` Bearer token header for client applications.
 
 Diagnostics
 ***********
@@ -228,7 +228,7 @@ Monitoring Harmful Activity
 Deployment should monitor incoming traffic for potentially harmful activity,
 e.g. excessive amounts of valid requests, or requests that generate lots of errors.
 This could be caused by a malicious actor (trying to cause denial of service or trying to gain access to the system's data),
-but it could also be caused by a bug in a client application (e.g. XIS/EHR) or a bug in the Nuts Node.
+but it could also be caused by a bug in a client application or a bug in the Nuts Node.
 
 This is no different than monitoring access to any other valued system,
 so it can be solved using the existing tools to prevent (distributed) denial of service attacks and intrusion detection.

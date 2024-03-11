@@ -48,7 +48,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Duration("network.maxbackoff", defs.MaxBackoff, "Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').")
 	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "List of bootstrap nodes ('<host>:<port>') which the node initially connect to.")
 	flagSet.Bool("network.enablediscovery", defs.EnableDiscovery, "Whether to enable automatic connecting to other nodes.")
-	flagSet.String("network.nodedid", defs.NodeDID, "Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.")
+	flagSet.String("network.nodedid", defs.NodeDID, "Specifies the DID of the party that operates this node. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.")
 	flagSet.IntSlice("network.protocols", defs.Protocols, "Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.")
 	flagSet.Int("network.v2.gossipinterval", defs.ProtocolV2.GossipInterval, "Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes.")
 	flagSet.Int("network.v2.diagnosticsinterval", defs.ProtocolV2.DiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")

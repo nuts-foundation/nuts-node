@@ -1,7 +1,9 @@
 nuts-node
 #########
 
-Distributed registry for storing and querying health care providers their vendors and technical endpoints.
+Open-source implementation of did:web, OpenID4VC, PEX, private key management and related logic.
+It enables secure and trusted data exchange between organizations.
+It contains all the necessary components for secure discovery and authorization.
 
 See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how to set up, integrate and use the Nuts node.
 
