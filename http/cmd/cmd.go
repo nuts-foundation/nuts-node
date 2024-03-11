@@ -38,7 +38,7 @@ func FlagSet() *pflag.FlagSet {
 
 	defs := http.DefaultConfig()
 	flags.String("http.internal.address", defs.Internal.Address, "Address and port the server will be listening to for internal-facing endpoints.")
-	flags.String("http.external.address", defs.External.Address, "Address and port the server will be listening to for external-facing endpoints.")
+	flags.String("http.public.address", defs.Public.Address, "Address and port the server will be listening to for public-facing endpoints.")
 	flags.String("http.internal.auth.type", string(defs.Internal.Auth.Type), fmt.Sprintf("Whether to enable authentication for /internal endpoints, specify '%s' for bearer token mode or '%s' for legacy bearer token mode.", http.BearerTokenAuthV2, http.BearerTokenAuth))
 	flags.String("http.internal.auth.audience", defs.Internal.Auth.Audience, "Expected audience for JWT tokens (default: hostname)")
 	flags.String("http.internal.auth.authorizedkeyspath", defs.Internal.Auth.AuthorizedKeysPath, "Path to an authorized_keys file for trusted JWT signers")

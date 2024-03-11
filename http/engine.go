@@ -72,17 +72,17 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	// "Unauthorized (401)" is a better fit.
 	middleware.ErrJWTMissing = echo.NewHTTPError(http.StatusUnauthorized, "missing or malformed jwt")
 
-	// We have 2 HTTP interfaces: internal and external
+	// We have 2 HTTP interfaces: internal and public
 	// The following paths (and their subpaths) are bound to the internal interface:
 	// - /internal
 	// - /status
 	// - /health
 	// - /metrics
-	// All pther paths are bound to the external interface.
+	// All other paths are bound to the public interface.
 
 	h.server = NewMultiEcho()
-	// External endpoints
-	if err := h.server.Bind(RootPath, h.config.External.Address, h.createEchoServer); err != nil {
+	// Public endpoints
+	if err := h.server.Bind(RootPath, h.config.Public.Address, h.createEchoServer); err != nil {
 		return err
 	}
 	// Internal endpoints

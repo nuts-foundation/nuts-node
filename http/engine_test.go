@@ -70,8 +70,8 @@ func TestEngine_Configure(t *testing.T) {
 
 		assertServerStarted(t, engine.config.Internal.Address)
 		assertHTTPRequest(t, engine.config.Internal.Address)
-		assertServerStarted(t, engine.config.External.Address)
-		assertHTTPRequest(t, engine.config.External.Address)
+		assertServerStarted(t, engine.config.Public.Address)
+		assertHTTPRequest(t, engine.config.Public.Address)
 
 		err = engine.Shutdown()
 		assert.NoError(t, err)
@@ -157,7 +157,7 @@ func TestEngine_Configure(t *testing.T) {
 
 				t.Run("success - no auth", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.External.Address+unsecuredPath, nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Public.Address+unsecuredPath, nil)
 					response, err := http.DefaultClient.Do(request)
 
 					assert.NoError(t, err)
@@ -439,7 +439,7 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 
 		t.Run("logs bodies", func(t *testing.T) {
 			output.Reset()
-			_, _ = http.Post("http://"+engine.config.External.Address, "application/json", bytes.NewReader([]byte("{}")))
+			_, _ = http.Post("http://"+engine.config.Public.Address, "application/json", bytes.NewReader([]byte("{}")))
 			assert.Contains(t, output.String(), "HTTP request body: {}")
 			assert.Contains(t, output.String(), `HTTP response body: \"hello, world\"`)
 		})
@@ -526,6 +526,6 @@ func validJWT(t *testing.T, host string) jwt.Token {
 func createTestConfig() Config {
 	testConfig := DefaultConfig()
 	testConfig.Internal.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
-	testConfig.External.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	testConfig.Public.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 	return testConfig
 }

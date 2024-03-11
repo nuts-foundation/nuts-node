@@ -52,7 +52,7 @@ events:
 `
 
 // StartServer starts a Nuts node and returns the HTTP server URL. configFunc can be used to alter the environment before the node is started.
-func StartServer(t *testing.T, configFunc ...func(internalHttpServerURL, externalHttpServerURL string)) (string, string, *core.System) {
+func StartServer(t *testing.T, configFunc ...func(internalHttpServerURL, publicHttpServerURL string)) (string, string, *core.System) {
 	testDir := io.TestDirectory(t)
 	system := cmd.CreateSystem(func() {})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -62,22 +62,22 @@ func StartServer(t *testing.T, configFunc ...func(internalHttpServerURL, externa
 	_ = os.WriteFile(configFile, []byte(testServerConfig), os.ModePerm)
 	grpcPort := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 	natsPort := fmt.Sprintf("%d", test.FreeTCPPort())
-	externalHttpInterface := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	publicHttpInterface := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 	internalHttpInterface := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 	internalHttpServerURL := "http://" + internalHttpInterface
-	externalHttpServerURL := "http://" + externalHttpInterface
+	publicHttpServerURL := "http://" + publicHttpInterface
 
 	t.Setenv("NUTS_DATADIR", testDir)
 	t.Setenv("NUTS_CONFIGFILE", configFile)
 	t.Setenv("NUTS_HTTP_INTERNAL_ADDRESS", internalHttpInterface)
-	t.Setenv("NUTS_HTTP_EXTERNAL_ADDRESS", externalHttpInterface)
+	t.Setenv("NUTS_HTTP_PUBLIC_ADDRESS", publicHttpInterface)
 	t.Setenv("NUTS_NETWORK_GRPCADDR", grpcPort)
 	t.Setenv("NUTS_EVENTS_NATS_PORT", natsPort)
 	t.Setenv("NUTS_EVENTS_NATS_HOSTNAME", "localhost")
-	t.Setenv("NUTS_URL", externalHttpServerURL)
+	t.Setenv("NUTS_URL", publicHttpServerURL)
 
 	for _, fn := range configFunc {
-		fn(internalHttpServerURL, externalHttpServerURL)
+		fn(internalHttpServerURL, publicHttpServerURL)
 	}
 
 	os.Args = []string{"nuts", "server"}
@@ -106,7 +106,7 @@ func StartServer(t *testing.T, configFunc ...func(internalHttpServerURL, externa
 		wg.Wait()
 	})
 
-	return internalHttpServerURL, externalHttpServerURL, system
+	return internalHttpServerURL, publicHttpServerURL, system
 }
 
 func tlsClient(t *testing.T) http.Client {

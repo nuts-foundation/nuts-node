@@ -6,7 +6,7 @@ servers:
   - url: http://localhost:8081
     description: For internal-facing endpoints.
   - url: http://localhost:8080
-    description: For external-facing endpoints.
+    description: For public-facing endpoints.
 paths:
   /internal/auth/v1/signature/session:
     post:

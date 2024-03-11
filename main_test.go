@@ -227,7 +227,7 @@ func getIntegrationTestConfig(t *testing.T, testDirectory string) (core.ServerCo
 
 	httpConfig := httpEngine.DefaultConfig()
 	httpConfig.Internal.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
-	httpConfig.External.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	httpConfig.Public.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 
 	return config, ModuleConfig{
 		Network: networkConfig,

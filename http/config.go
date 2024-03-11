@@ -25,7 +25,7 @@ func DefaultConfig() Config {
 		Internal: InternalConfig{
 			Address: "localhost:8081",
 		},
-		External: ExternalConfig{
+		Public: PublicConfig{
 			Address: ":8080",
 		},
 	}
@@ -35,12 +35,12 @@ func DefaultConfig() Config {
 type Config struct {
 	// Log specifies what should be logged of HTTP requests.
 	Log      LogLevel       `koanf:"log"`
-	External ExternalConfig `koanf:"external"`
+	Public   PublicConfig   `koanf:"public"`
 	Internal InternalConfig `koanf:"internal"`
 }
 
-// ExternalConfig contains the configuration for outside-facing HTTP endpoints.
-type ExternalConfig struct {
+// PublicConfig contains the configuration for outside-facing HTTP endpoints.
+type PublicConfig struct {
 	// Address holds the interface address the HTTP service must be bound to, in the format of `interface:port` (e.g. localhost:5555).
 	Address string `koanf:"address"`
 }

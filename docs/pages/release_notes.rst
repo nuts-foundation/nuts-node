@@ -3,9 +3,9 @@
 Release notes
 #############
 
-************************
-TBD (v6.0.0)
-************************
+****************
+Peatnut (v6.0.0)
+****************
 
 **Release date:** TBD
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v6.0.0
@@ -27,7 +27,7 @@ HTTP interface
 
 The HTTP interface has been reworked to make deployments simpler and more secure:
 
-- No more dynamic binding of endpoints to ports, endpoints are now bound to the internal interface (`8081`) or the external interface (`8080`).
+- No more dynamic binding of endpoints to ports, endpoints are now bound to the internal interface (`8081`) or the public interface (`8080`).
 - Server-side TLS for HTTP has been dropped, since the Nuts node is always expected to be deployed behind a reverse proxy/ingress that handles TLS termination.
 - API authentication is now only applied to `/internal` endpoints, since those are the only API endpoints that should be protected with authentication.
 - CORS support has been removed. As it is only required by user authentication endpoints that are considered to be deprecated, CORS headers can be set by a reverse proxy if still required.

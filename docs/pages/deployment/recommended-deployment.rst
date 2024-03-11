@@ -38,8 +38,8 @@ Nuts Node
 
 Server that implements the Nuts specification that connects to the Nuts network. It will usually run as Docker container or Kubernetes pod.
 
-External Endpoints
-------------------
+Public Endpoints
+----------------
 This section describes HTTP endpoints that need to be reachable for third parties.
 These endpoints are by default available on ``:8080``.
 
@@ -49,11 +49,11 @@ These endpoints are by default available on ``:8080``.
 
   *Security*: HTTPS with **publicly trusted** server certificate (on proxy). Monitor traffic to detect attacks.
 
-* **HTTP /iam**: for accessing OAuth2 and OpenID services.
+* **HTTP /.well-known**: for accessing DID, OpenID and OAuth2 metadata
 
   *Users*: Other Nuts nodes, Verifiable Credential issuers and verifiers.
 
-  *Security*: HTTPS with **publicly trusted** server certificate (on proxy). Monitor traffic to detect attacks.
+  *Security*: HTTPS with **publicly trusted** server certificate (on proxy).
 
 There are legacy endpoints that are not recommended for new deployments, but are still supported for backwards compatibility.
 If your use case does not support ``did:nuts``, you should not expose/disable access to these endpoints.
@@ -104,6 +104,12 @@ If you need to access them from another host, you can bind it to a different int
 * **HTTP /metrics**: for scraping metrics in Prometheus format.
 
   *Users*: monitoring/metrics tooling.
+
+  *Security*: restrict access through network separation.
+
+* **HTTP /health: for checking the health of the server, returns ``OK`` if healthy.
+
+  *Users*: Docker or Kubernetes health checks.
 
   *Security*: restrict access through network separation.
 
