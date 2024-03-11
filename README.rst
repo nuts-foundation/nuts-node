@@ -1,7 +1,9 @@
 nuts-node
 #########
 
-Distributed registry for storing and querying health care providers their vendors and technical endpoints.
+Open-source implementation of did:web, OpenID4VC, PEX, private key management and related logic.
+It enables secure and trusted data exchange between organizations.
+It contains all the necessary components for secure discovery and authorization.
 
 See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how to set up, integrate and use the Nuts node.
 
@@ -28,26 +30,6 @@ See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how t
 .. image:: https://img.shields.io/badge/-Nuts_Community-informational?labelColor=grey&logo=slack
     :target: https://join.slack.com/t/nuts-foundation/shared_invite/zt-19av5q5ur-5fNbZVIFGUw5vDKSy5mqCw
     :alt: Nuts Community on Slack
-
-Hello, World!
-^^^^^^^^^^^^^
-
-The simplest way to spin up the Nuts stack is by using the setup provided by `nuts-network-local <https://github.com/nuts-foundation/nuts-network-local>`_.
-The setup is meant for development purposes and starts a Nuts node, "Demo EHR", "Registry Admin Demo" for administering your vendor and care organizations and a HAPI server to exchange FHIR data.
-
-To get started, clone the repository and run the following commands to start the stack:
-
-.. code-block:: shell
-
-    cd single
-    docker compose pull
-    docker compose up
-
-After the services have started you can try the following endpoints:
-
-- `Nuts Node status page <http://localhost:1323/status/diagnostics>`_.
-- `Registry Admin Demo login <http://localhost:1303/>`_ (default password: "demo").
-- `Demo EHR login <http://localhost:1304/>`_ (default password: "demo").
 
 Development
 ^^^^^^^^^^^
@@ -236,7 +218,7 @@ The following options can be configured on the server:
     network.enablediscovery                   true                                                                                                                                                                                                                                                                                                                                                                                                   Whether to enable automatic connecting to other nodes.
     network.grpcaddr                          \:5555                                                                                                                                                                                                                                                                                                                                                                                                  Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
     network.maxbackoff                        24h0m0s                                                                                                                                                                                                                                                                                                                                                                                                Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').
-    network.nodedid                                                                                                                                                                                                                                                                                                                                                                                                                                  Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
+    network.nodedid                                                                                                                                                                                                                                                                                                                                                                                                                                  Specifies the DID of the party that operates this node. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
     network.protocols                         []                                                                                                                                                                                                                                                                                                                                                                                                     Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
     network.v2.diagnosticsinterval            5000                                                                                                                                                                                                                                                                                                                                                                                                   Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).
     network.v2.gossipinterval                 5000                                                                                                                                                                                                                                                                                                                                                                                                   Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes.

@@ -1,7 +1,9 @@
 nuts-node
 #########
 
-Distributed registry for storing and querying health care providers their vendors and technical endpoints.
+Open-source implementation of did:web, OpenID4VC, PEX, private key management and related logic.
+It enables secure and trusted data exchange between organizations.
+It contains all the necessary components for secure discovery and authorization.
 
 See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how to set up, integrate and use the Nuts node.
 
@@ -28,12 +30,6 @@ See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how t
 .. image:: https://img.shields.io/badge/-Nuts_Community-informational?labelColor=grey&logo=slack
     :target: https://join.slack.com/t/nuts-foundation/shared_invite/zt-19av5q5ur-5fNbZVIFGUw5vDKSy5mqCw
     :alt: Nuts Community on Slack
-
-Hello, World!
-^^^^^^^^^^^^^
-
-.. include:: docs/pages/getting-started/0-hello-world-docker.rst
-    :start-after: .. marker-for-readme
 
 Development
 ^^^^^^^^^^^

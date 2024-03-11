@@ -45,7 +45,7 @@ Interfaces/Endpoints
   Since it binds to the shared HTTP interface by default (port ``1323``),
   it is recommended to :ref:`bind it to an alternative interface <production-configuration>` to securer routing.
 
-  *Users*: operators, SPs administrative and EHR applications.
+  *Users*: operators, SPs administrative and client applications.
 
   *Security*: restrict access through network separation and platform authentication.
 

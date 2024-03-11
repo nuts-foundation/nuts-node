@@ -14,13 +14,13 @@ Discovery of issuer and wallets is done by looking up metadata on well-known end
 To allow discovery of an issuer or wallet, its DID document must contain a service of type `node-http-services-baseurl`,
 that specifies the HTTPS base URL of the `/n2n` interface of the node, excluding the latter.
 E.g., when the node's `/n2n` interface is available on `https://example.com/n2n`, the endpoint to be registered is `https://example.com`.
-As always, DID documents of care organizations may reference the service in their vendor's DID document for easier administration.
+As always, DID documents may reference the service in another DID document for easier administration.
 
 Auto-registration
 ^^^^^^^^^^^^^^^^^
 
 If the `node-http-services-baseurl` service is not registered for the DIDs managed by the local node, it will automatically try to register it.
-For vendor DID documents (which have a `NutsComm` service that isn't a reference),
+For DID documents, which have a `NutsComm` service that isn't a reference,
 the node will inspect its TLS certificate's SANs and try to resolve its OpenID4VCI issuer metadata using a HTTP HEAD request.
 E.g., give the SAN `nuts.example.com` and DID `did:nuts:2nQtiQG6Cgm1GYTBaaKAgr76uY7iSexUkqX`, it will attempt the following request:
 
@@ -31,7 +31,7 @@ HEAD https://nuts.example.com/n2n/identity/did:nuts:2nQtiQG6Cgm1GYTBaaKAgr76uY7i
 When the endpoint responds with `200 OK` and `Content-Type: application/json`,
 the node will register the base URL (`https://nuts.example.com`) as `node-http-services-baseurl` service.
 
-If the DID document contains a `NutsComm` service that refers to another DID document (typically for care organization's DID documents),
+If the DID document contains a `NutsComm` service that refers to another DID document,
 it will register a service reference the other DID document. But only if that DID document contains the `node-http-services-baseurl` service.
 
 After the auto-registration succeeds the node's OpenID4VCI wallet is discoverable for other nodes,
