@@ -111,7 +111,7 @@ func TestNewClientConfigForCommand(t *testing.T) {
 		cmd.Flags().AddFlagSet(ClientConfigFlags())
 		cfg := NewClientConfigForCommand(cmd)
 
-		assert.Equal(t, "localhost:1323", cfg.Address)
+		assert.Equal(t, "localhost:8081", cfg.Address)
 		assert.Equal(t, 10*time.Second, cfg.Timeout)
 		assert.Equal(t, "info", cfg.Verbosity)
 	})

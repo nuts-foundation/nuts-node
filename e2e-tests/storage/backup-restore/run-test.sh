@@ -19,7 +19,7 @@ docker compose up --wait
 echo "------------------------------------"
 echo "Creating NodeDID..."
 echo "------------------------------------"
-export NODE_A_DID=$(setupNode "http://localhost:11323" nodeA:5555)
+export NODE_A_DID=$(setupNode "http://localhost:18081" nodeA:5555)
 printf "DID for node A: %s\n" "$NODE_A_DID"
 
 echo "------------------------------------"
@@ -31,15 +31,15 @@ docker compose up --wait
 echo "------------------------------------"
 echo "Issuing private VCs..."
 echo "------------------------------------"
-unrevokedVC_ID=$(createAuthCredential "http://localhost:11323" "$NODE_A_DID" "$NODE_A_DID")
-revokedVC_ID=$(createAuthCredential "http://localhost:11323" "$NODE_A_DID" "$NODE_A_DID")
-revokeCredential "http://localhost:11323" "$revokedVC_ID"
-assertDiagnostic "http://localhost:11323" "transaction_count: 5"
-assertDiagnostic "http://localhost:11323" "credential_count: 2"
-assertDiagnostic "http://localhost:11323" "issued_credentials_count: 2"
-assertDiagnostic "http://localhost:11323" "revocations_count: 1"
-DAG_XOR=$(readDiagnostic "http://localhost:11323" dag_xor)
-unrevokedVC=$(readCredential "http://localhost:11323" "${unrevokedVC_ID}")
+unrevokedVC_ID=$(createAuthCredential "http://localhost:18081" "$NODE_A_DID" "$NODE_A_DID")
+revokedVC_ID=$(createAuthCredential "http://localhost:18081" "$NODE_A_DID" "$NODE_A_DID")
+revokeCredential "http://localhost:18081" "$revokedVC_ID"
+assertDiagnostic "http://localhost:18081" "transaction_count: 5"
+assertDiagnostic "http://localhost:18081" "credential_count: 2"
+assertDiagnostic "http://localhost:18081" "issued_credentials_count: 2"
+assertDiagnostic "http://localhost:18081" "revocations_count: 1"
+DAG_XOR=$(readDiagnostic "http://localhost:18081" dag_xor)
+unrevokedVC=$(readCredential "http://localhost:18081" "${unrevokedVC_ID}")
 
 echo "------------------------------------"
 echo "Making backups, then start with empty node..."
@@ -56,8 +56,8 @@ removeNodeDID ./node-A/nuts.yaml
 # Restart node, assert node data is empty
 echo "Asserting node is empty"
 BACKUP_INTERVAL=0 docker compose up --wait
-assertDiagnostic "http://localhost:11323" "transaction_count: 0"
-assertDiagnostic "http://localhost:11323" "credential_count: 0"
+assertDiagnostic "http://localhost:18081" "transaction_count: 0"
+assertDiagnostic "http://localhost:18081" "credential_count: 0"
 # Restore data and rebuild
 echo "Restoring node data"
 docker compose stop
@@ -65,14 +65,14 @@ runOnAlpine "$(pwd):/host/" rm -rf /host/node-data
 runOnAlpine "$(pwd):/host/" mv -f /host/node-backup /host/node-data
 BACKUP_INTERVAL=0 docker compose up --wait
 
-assertDiagnostic "http://localhost:11323" "transaction_count: 5"
-assertDiagnostic "http://localhost:11323" "credential_count: 2"
-assertDiagnostic "http://localhost:11323" "issued_credentials_count: 2"
-assertDiagnostic "http://localhost:11323" "revoked_credentials_count: 1"
-assertDiagnostic "http://localhost:11323" "revocations_count: 1"
-assertDiagnostic "http://localhost:11323" "dag_xor: ${DAG_XOR}"
+assertDiagnostic "http://localhost:18081" "transaction_count: 5"
+assertDiagnostic "http://localhost:18081" "credential_count: 2"
+assertDiagnostic "http://localhost:18081" "issued_credentials_count: 2"
+assertDiagnostic "http://localhost:18081" "revoked_credentials_count: 1"
+assertDiagnostic "http://localhost:18081" "revocations_count: 1"
+assertDiagnostic "http://localhost:18081" "dag_xor: ${DAG_XOR}"
 # Read VC and check its the same after restore
-unrevokedVCAfterRestore=$(readCredential "http://localhost:11323" "${unrevokedVC_ID}")
+unrevokedVCAfterRestore=$(readCredential "http://localhost:18081" "${unrevokedVC_ID}")
 if [ "${unrevokedVC}" != "${unrevokedVCAfterRestore}" ]; then
   echo "FAILED: VC is differs after restore"
   exit 1

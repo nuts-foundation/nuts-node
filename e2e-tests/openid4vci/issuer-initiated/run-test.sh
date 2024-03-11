@@ -16,25 +16,25 @@ docker compose up --wait
 echo "------------------------------------"
 echo "Creating NodeDIDs, waiting for Golden Hammer to register base URLs..."
 echo "------------------------------------"
-export NODEA_DID=$(setupNode "http://localhost:11323" "nodeA:5555")
+export NODEA_DID=$(setupNode "http://localhost:18081" "nodeA:5555")
 printf "NodeDID for node A: %s\n" "$NODEA_DID"
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 3 10 # 2 for setupNode, 1 for GoldenHammer
-export NODEB_DID=$(setupNode "http://localhost:21323" "nodeB:5555")
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 3 10 # 2 for setupNode, 1 for GoldenHammer
+export NODEB_DID=$(setupNode "http://localhost:28081" "nodeB:5555")
 printf "NodeDID for node B: %s\n" "$NODEB_DID"
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 6 10 # 2 for setupNode, 1 for GoldenHammer
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 6 10 # 2 for setupNode, 1 for GoldenHammer
 
 echo "------------------------------------"
 echo "Issuing credential..."
 echo "------------------------------------"
-vcNodeA=$(createAuthCredential "http://localhost:11323" "$NODEA_DID" "$NODEB_DID")
+vcNodeA=$(createAuthCredential "http://localhost:18081" "$NODEA_DID" "$NODEB_DID")
 printf "VC issued by node A: %s\n" "$vcNodeA"
 
-waitForDiagnostic "nodeA" issued_credentials_count 1
-waitForDiagnostic "nodeB" credential_count 1
+waitForDiagnostic "nodeA-backend" issued_credentials_count 1
+waitForDiagnostic "nodeB-backend" credential_count 1
 
 # Now the credential should be present on both nodeA and nodeB
-echo $(readCredential "http://localhost:11323" $vcNodeA)
-echo $(readCredential "http://localhost:21323" $vcNodeA)
+echo $(readCredential "http://localhost:18081" $vcNodeA)
+echo $(readCredential "http://localhost:28081" $vcNodeA)
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."

@@ -58,8 +58,7 @@ Example response when one or more checks failed:
 .. note::
 
     The provided Docker containers are configured to perform this healthcheck out of the box.
-    However, if the default port (:1323) has been changed or if the ``/health`` endpoint has been bound to a different port,
-    the default healthcheck will fail and Docker will mark the container as unhealthy.
+    However, if the internal endpoints port (:8081) has been changed, the healthcheck will fail and Docker will mark the container as unhealthy.
     Override the default healthcheck to solve this.
 
 Status
@@ -165,7 +164,7 @@ Below is a minimal configuration file that will only gather Nuts metrics:
         metrics_path: '/metrics'
         scrape_interval: 5s
         static_configs:
-          - targets: ['127.0.0.1:1323']
+          - targets: ['127.0.0.1:8081']
 
 It's important to enter the correct IP/domain and port where the Nuts node can be found!
 

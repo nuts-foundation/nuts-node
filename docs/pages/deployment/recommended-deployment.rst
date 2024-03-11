@@ -38,22 +38,25 @@ Nuts Node
 
 Server that implements the Nuts specification that connects to the Nuts network. It will usually run as Docker container or Kubernetes pod.
 
-Interfaces/Endpoints
---------------------
+Public Endpoints
+----------------
+This section describes HTTP endpoints that need to be reachable for third parties.
+These endpoints are by default available on ``:8080``.
 
-* **HTTP /internal**: for managing everything related to DIDs, VCs and the Nuts Node itself. Very sensitive endpoints with no additional built-in security, so care should be taken that no unauthorized parties can access it.
-  Since it binds to the shared HTTP interface by default (port ``1323``),
-  it is recommended to :ref:`bind it to an alternative interface <production-configuration>` to securer routing.
+* **HTTP /iam**: for accessing OAuth2 and OpenID services.
 
-  *Users*: operators, SPs administrative and client applications.
-
-  *Security*: restrict access through network separation and platform authentication.
-
-* **HTTP /public**: for accessing public services, e.g. IRMA authentication.
-
-  *Users*: IRMA app.
+  *Users*: Other Nuts nodes, Verifiable Credential issuers and verifiers.
 
   *Security*: HTTPS with **publicly trusted** server certificate (on proxy). Monitor traffic to detect attacks.
+
+* **HTTP /.well-known**: for accessing DID, OpenID and OAuth2 metadata
+
+  *Users*: Other Nuts nodes, Verifiable Credential issuers and verifiers.
+
+  *Security*: HTTPS with **publicly trusted** server certificate (on proxy).
+
+There are legacy endpoints that are not recommended for new deployments, but are still supported for backwards compatibility.
+If your use case does not support ``did:nuts``, you should not expose/disable access to these endpoints.
 
 * **HTTP /n2n**: for providing Nuts services to other nodes (e.g. creating access tokens).
   The local node also calls other nodes on their `/n2n` endpoint, these outgoing calls are subject to the same security requirements.
@@ -62,58 +65,61 @@ Interfaces/Endpoints
 
   *Security*: HTTPS with server- and client certificates (mTLS) **according to network trust anchors** (on proxy). Monitor traffic to detect attacks.
 
-* **gRPC**: for communicating with other Nuts nodes according to the network protocol. Uses HTTP/2 as transport, both outbound and inbound.
+* **HTTP /public**: for accessing public services, e.g. IRMA authentication.
+
+  *Users*: IRMA app.
+
+  *Security*: HTTPS with **publicly trusted** server certificate (on proxy). Monitor traffic to detect attacks.
+
+* **gRPC**: for communicating with other Nuts nodes according to the network protocol. Uses HTTP/2 on port ``5555`` as transport, both outbound and inbound.
 
   *Users*: Nuts nodes of other SPs.
 
   *Security*: HTTPS with server- and client certificates (mTLS) **according to network trust anchors** (on proxy). This is provided by the Nuts node.
 
+Internal Endpoints
+------------------
+This section describes HTTP endpoints that must only be reachable by your own applications integrating with the Nuts node.
+These endpoints are by default available on ``127.0.0.1:8081``.
+If you need to access them from another host, you can bind it to a different interface (e.g. ``:8081`` for all interfaces).
+
+* **HTTP /internal**: for managing everything related to DIDs, VCs and the Nuts Node itself. Very sensitive endpoints with no additional built-in security, so care should be taken that no unauthorized parties can access it.
+
+  *Users*: operators, SPs administrative and EHR applications.
+
+  *Security*: restrict access through network separation and platform authentication.
+
 * **HTTP /status**: for inspecting the health of the server, returns ``OK`` if healthy.
 
   *Users*: monitoring tooling.
 
-  *Security*: Not strictly required, but advised to restrict access.
+  *Security*: restrict access through network separation.
 
 * **HTTP /status/diagnostics**: for inspecting diagnostic information of the server.
 
   *Users*: monitoring tooling, system administrators.
 
-  *Security*: Not strictly required, but advised to restrict access.
+  *Security*: restrict access through network separation.
 
 * **HTTP /metrics**: for scraping metrics in Prometheus format.
 
   *Users*: monitoring/metrics tooling.
 
-  *Security*: Not strictly required, but advised to restrict access.
+  *Security*: restrict access through network separation.
 
-* **stdout**: the server logs to standard out, which can be configured to output in JSON format for integration with existing log tooling.
+* **HTTP /health: for checking the health of the server, returns ``OK`` if healthy.
 
-Subdomains
-----------
+  *Users*: Docker or Kubernetes health checks.
 
-There are several endpoints that need to be accessed by external systems.
-You typically configure 2 subdomains for these, given `example.com` and the acceptance environment:
-
-* `nuts-acc.example.com` for traffic between nodes:
-
-   * HTTP traffic to ``/n2n``
-
-   * gRPC traffic, which will have to be bound on a separate port, e.g. ``5555`` (default).
-
-* ``nuts-public-acc.example.com`` for HTTP traffic to ``/public``
-
-These exact subdomain names are by no means required and can be adjusted to your organization's requirements.
+  *Security*: restrict access through network separation.
 
 Reverse Proxy
 ^^^^^^^^^^^^^
 
 Process that protects and routes HTTP and gRPC access (specified above) to the Nuts Node. Typically a standalone HTTP proxy (e.g. NGINX or HAProxy) that resides in a DMZ and/or an ingress service on a cloud platform.
-It will act as TLS terminator, with only a server certificate or requiring a client certificate as well (depending on the endpoint).
+It will act as TLS terminator.
 
-When terminating TLS on this proxy, make sure to properly verify client certificates for gRPC traffic and HTTP calls to ``/n2n``.
-HTTP calls to ``/public`` require a publicly trusted certificate, because mobile devices will query it (the IRMA app).
-
-The Nuts Node looks for a header called ``X-Forwarded-For`` to determine the client IP when logging HTTP and gRPC calls.
+The Nuts Node looks for a header called ``X-Forwarded-For`` to determine the client IP when logging calls.
 Refer to the documentation of your proxy on how to set this header.
 
 Database
@@ -136,8 +142,6 @@ Below is a list of items that should be addressed when running a node in product
 
 - TLS
    - Use a proxy in front of the node which terminates TLS
-   - Require client certificate on HTTP ``/n2n`` and gRPC endpoints.
-   - Make sure only correct CA certificates are in truststore (depends on network)
 - Key Management
    - Have a scheduled key rotation procedure
 - Backup Management
@@ -146,7 +150,8 @@ Below is a list of items that should be addressed when running a node in product
 - Configuration
    - Make sure ``strictmode`` is enabled
 - Security
-   - Only allow public access to ``/public``, ``/n2n`` and gRPC endpoints (but the latter 2 still require a client certificate).
-   - Make sure ``/internal`` is properly protected
+   - If not using ``did:nuts``, prevent access to the gRPC endpoint and the external ``/n2n`` and ``/public`` endpoints.
+     See the v5 documentation for deployments still using ``did:nuts``.
+   - Make sure internal HTTP endpoints are not available from the outside.
 - Availability
-   - Consider (D)DoS detection and protection for ``/public``, ``/n2n`` and gRPC endpoints
+   - Consider (D)DoS detection and protection for the ``/iam`` HTTP endpoints.

@@ -63,7 +63,7 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 	require.NoError(t, err)
 
 	selfSigned := apps.SelfSigned{
-		URL:     "http://localhost:1323",
+		URL:     "http://localhost:8081",
 		Context: ctx,
 	}
 	roleName := "Soulpeeker"
@@ -135,7 +135,7 @@ func issueOrganizationCredential(organization *did.Document, name, city string) 
 func registerCompoundService(id did.DID, compoundServiceType string) error {
 	client := didmanAPI.HTTPClient{ClientConfig: apps.NodeClientConfig}
 	_, err := client.AddCompoundService(id.String(), compoundServiceType, map[string]string{
-		"oauth": apps.NodeClientConfig.Address + "/n2n/auth/v1/accesstoken",
+		"oauth": apps.PublicNodeAddress + "/n2n/auth/v1/accesstoken",
 	})
 	return err
 }

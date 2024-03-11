@@ -1,6 +1,9 @@
 url: https://node-A
 verbosity: debug
 internalratelimiter: false
+http:
+  internal:
+    address: :8081
 auth:
   contractvalidators:
     - dummy

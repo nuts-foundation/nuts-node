@@ -4,12 +4,8 @@ strictmode: false
 internalratelimiter: false
 datadir: /opt/nuts/data
 http:
-  default:
-    address: :1323
-  alt:
-    iam:
-      tls: server
-      address: :443
+  internal:
+    address: :8081
 discovery:
   definitions:
     directory: /opt/nuts/definitions

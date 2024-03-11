@@ -6,7 +6,7 @@ services:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_NETWORK_NODEDID: "${NODE_A_DID}"
     ports:
-      - "11323:1323"
+      - "18081:8081"
     volumes:
       - "./node-A/data:/opt/nuts/data"
       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
@@ -21,7 +21,7 @@ services:
       NUTS_NETWORK_NODEDID: "${NODE_B_DID}"
       NUTS_NETWORK_BOOTSTRAPNODES: ${BOOTSTRAP_NODES}
     ports:
-      - "21323:1323"
+      - "28081:8081"
     volumes:
       - "./node-B/data:/opt/nuts/data"
       - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"

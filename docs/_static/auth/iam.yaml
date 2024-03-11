@@ -3,7 +3,10 @@ info:
   title: Auth v2 API (experimental)
   version: 0.0.0
 servers:
-  - url: "http://localhost:1323"
+  - url: http://localhost:8081
+    description: For internal-facing endpoints.
+  - url: http://localhost:8080
+    description: For public-facing endpoints.
 paths:
   /iam/{id}/did.json:
     parameters:

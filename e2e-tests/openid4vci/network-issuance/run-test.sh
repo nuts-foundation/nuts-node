@@ -26,43 +26,44 @@ docker compose up --wait
 echo "------------------------------------"
 echo "Creating NodeDIDs, waiting for Golden Hammer to register base URLs..."
 echo "------------------------------------"
-export NODEA_DID=$(setupNode "http://localhost:11323" "nodeA:5555")
+export NODEA_DID=$(setupNode "http://localhost:18081" "nodeA:5555")
 printf "NodeDID for node A: %s\n" "$NODEA_DID"
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 2 10 # 2 for setupNode, 0 for GoldenHammer
-export NODEB_DID=$(setupNode "http://localhost:21323" "nodeB:5555")
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 2 10 # 2 for setupNode, 0 for GoldenHammer
+export NODEB_DID=$(setupNode "http://localhost:28081" "nodeB:5555")
 printf "NodeDID for node B: %s\n" "$NODEB_DID"
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 5 10 # 2 for setupNode, 1 for GoldenHammer
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 5 10 # 2 for setupNode, 1 for GoldenHammer
 
 echo "------------------------------------"
 echo "Restarting with NodeDID set..."
 echo "------------------------------------"
 # Start without bootstrap node, to enforce authenticated, discovered connections (required for private transactions)
 export BOOTSTRAP_NODES=
-docker compose stop
 # Delete nodes' address books to avoid persisting initial "new node" delay, allowing to connect to each other immediately
-rm -rf ./node-*/data/network/connections.db
+docker compose exec nodeA-backend rm -f /opt/nuts/data/network/connections.db
+docker compose exec nodeB-backend rm -f /opt/nuts/data/network/connections.db
+docker compose stop
 docker compose up --wait
 
 echo "------------------------------------"
 echo "Issuing credential..."
 echo "------------------------------------"
-vcNodeA=$(createAuthCredential "http://localhost:11323" "$NODEA_DID" "$NODEB_DID")
+vcNodeA=$(createAuthCredential "http://localhost:18081" "$NODEA_DID" "$NODEB_DID")
 printf "VC issued by node A: %s\n" "$vcNodeA"
-vcNodeB=$(createAuthCredential "http://localhost:21323" "$NODEB_DID" "$NODEA_DID")
+vcNodeB=$(createAuthCredential "http://localhost:28081" "$NODEB_DID" "$NODEA_DID")
 printf "VC issued by node B: %s\n" "$vcNodeB"
 
-waitForDiagnostic "nodeA" issued_credentials_count 1
-waitForDiagnostic "nodeA" credential_count 2
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 7 10 # 2 authz credentials
-waitForDiagnostic "nodeB" issued_credentials_count 1
-waitForDiagnostic "nodeB" credential_count 2
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 7 10 # 2 authz credentials
+waitForDiagnostic "nodeA-backend" issued_credentials_count 1
+waitForDiagnostic "nodeA-backend" credential_count 2
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 7 10 # 2 authz credentials
+waitForDiagnostic "nodeB-backend" issued_credentials_count 1
+waitForDiagnostic "nodeB-backend" credential_count 2
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 7 10 # 2 authz credentials
 
 # Now the credential should be present on both nodeA and nodeB
-echo $(readCredential "http://localhost:11323" $vcNodeA)
-echo $(readCredential "http://localhost:21323" $vcNodeA)
-echo $(readCredential "http://localhost:11323" $vcNodeB)
-echo $(readCredential "http://localhost:21323" $vcNodeB)
+echo $(readCredential "http://localhost:18081" $vcNodeA)
+echo $(readCredential "http://localhost:28081" $vcNodeA)
+echo $(readCredential "http://localhost:18081" $vcNodeB)
+echo $(readCredential "http://localhost:28081" $vcNodeB)
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."

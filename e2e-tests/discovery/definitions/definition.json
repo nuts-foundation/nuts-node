@@ -1,6 +1,6 @@
 {
   "id": "dev:eOverdracht2023",
-  "endpoint": "http://nodeA:1323/discovery/dev:eOverdracht2023",
+  "endpoint": "https://nodeA/discovery/dev:eOverdracht2023",
   "presentation_max_validity": 2764800,
   "presentation_definition": {
     "id": "dev:eOverdracht2023",

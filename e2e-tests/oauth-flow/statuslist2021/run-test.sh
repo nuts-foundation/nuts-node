@@ -20,12 +20,12 @@ echo "Registering vendors..."
 echo "------------------------------------"
 
 # Register Party A
-PARTY_A_DIDDOC=$(curl -s -X POST http://localhost:11323/internal/vdr/v2/did)
+PARTY_A_DIDDOC=$(curl -s -X POST http://localhost:18081/internal/vdr/v2/did)
 PARTY_A_DID=$(echo $PARTY_A_DIDDOC | jq -r .id)
 echo "  Vendor A DID: $PARTY_A_DID"
 
 # Register Vendor B
-PARTY_B_DIDDOC=$(curl -s -X POST http://localhost:21323/internal/vdr/v2/did)
+PARTY_B_DIDDOC=$(curl -s -X POST http://localhost:28081/internal/vdr/v2/did)
 PARTY_B_DID=$(echo $PARTY_B_DIDDOC | jq -r .id)
 echo "  Vendor B DID: $PARTY_B_DID"
 
@@ -35,7 +35,7 @@ echo "---------------------------------------"
 
 # Issue NutsOrganizationCredential for Vendor B with a revocable StatusList2021Entry in VC.credentialStatus
 REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${PARTY_B_DID}\", \"credentialSubject\": {\"id\":\"${PARTY_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"withStatusList2021Revocation\": true}"
-RESPONSE=$(echo $REQUEST | curl -s -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $REQUEST | curl -s -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "VerifiableCredential"; then
   CREDENTIAL_ID=$( echo $RESPONSE | jq .id  | sed "s/\"//g" )
   echo "  VC issued: $CREDENTIAL_ID"
@@ -51,7 +51,7 @@ echo "---------------------------------------"
 echo "Validating credential pt 1..."
 echo "---------------------------------------"
 
-RESPONSE=$(echo $VALIDATION_REQUEST | curl -s -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/verifier/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $VALIDATION_REQUEST | curl -s -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/verifier/vc -H "Content-Type:application/json")
 if [[ $( echo $RESPONSE | jq -r .validity ) ==  "true" ]]; then
   echo "  VC considered valid by node-B"
 else
@@ -64,14 +64,14 @@ echo "---------------------------------------"
 echo "Revoking NutsOrganizationCredential..."
 echo "---------------------------------------"
 
-revokeCredential "http://localhost:21323" "${CREDENTIAL_ID}"
+revokeCredential "http://localhost:28081" "${CREDENTIAL_ID}"
 
 echo "---------------------------------------"
 echo "Validating credential pt 2..."
 echo "---------------------------------------"
 
 # confirm revoked by StatusList2021Credential on node-B, uses internal store
-RESPONSE=$(echo $VALIDATION_REQUEST | curl -s -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/verifier/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $VALIDATION_REQUEST | curl -s -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/verifier/vc -H "Content-Type:application/json")
 if [[ $( echo $RESPONSE | jq -r .validity ) ==  "false" ]]; then
   echo "  VC considered revoked by node-B"
 else
@@ -81,7 +81,7 @@ else
 fi
 
 # confirm revoked by StatusList2021Credential on node-A, fetches StatusList2021Credential from node-B using APIs
-RESPONSE=$(echo $VALIDATION_REQUEST | curl -s -X POST --data-binary @- http://localhost:11323/internal/vcr/v2/verifier/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $VALIDATION_REQUEST | curl -s -X POST --data-binary @- http://localhost:18081/internal/vcr/v2/verifier/vc -H "Content-Type:application/json")
 if [[ $( echo $RESPONSE | jq -r .validity ) ==  "false" ]]; then
   echo "  VC considered revoked by node-A"
 else

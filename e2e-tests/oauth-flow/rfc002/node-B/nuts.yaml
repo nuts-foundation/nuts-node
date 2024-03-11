@@ -4,10 +4,9 @@ strictmode: false
 internalratelimiter: false
 datadir: /opt/nuts/data
 http:
-  default:
-    address: :1323
+  internal:
+    address: :8081
 auth:
-  tlsenabled: true
   contractvalidators:
     - dummy
   irma:
