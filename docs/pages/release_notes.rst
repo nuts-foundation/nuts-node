@@ -4,6 +4,45 @@ Release notes
 #############
 
 ************************
+TBD (v6.0.0)
+************************
+
+**Release date:** TBD
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v6.0.0
+
+New Features
+************
+
+The following new features have been added:
+
+- TBD
+
+Changes
+*******
+
+The following features have been changed:
+
+HTTP interface
+==============
+
+The HTTP interface has been reworked to make deployments simpler and more secure:
+
+- No more dynamic binding of endpoints to ports, endpoints are now bound to the internal interface (`8081`) or the external interface (`8080`).
+- Server-side TLS for HTTP has been dropped, since the Nuts node is always expected to be deployed behind a reverse proxy/ingress that handles TLS termination.
+- API authentication is now only applied to `/internal` endpoints, since those are the only API endpoints that should be protected with authentication.
+
+Port configuration
+------------------
+To simplify HTTP configuration and proxying and make the default more secure, HTTP endpoints now map to 2 HTTP interfaces:
+
+- port `8081` for all internal-facing endpoints (`/internal`, `/status`, `/metrics`)
+- port `8080` for all public-facing endpoints (all others)
+
+The new HTTP configuration reflects this,
+
+Note that `8081` by default maps to `localhost` only, so you might need to configure it to allow it to be accessible from other machines.
+
+************************
 Hazelnut update (v5.4.6)
 ************************
 

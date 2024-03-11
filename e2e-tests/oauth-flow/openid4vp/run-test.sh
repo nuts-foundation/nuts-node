@@ -20,12 +20,12 @@ echo "Registering vendors..."
 echo "------------------------------------"
 
 # Register Party A
-PARTY_A_DIDDOC=$(docker compose exec nodeA nuts vdr create-did --v2)
+PARTY_A_DIDDOC=$(docker compose exec nodeA-backend nuts vdr create-did --v2)
 PARTY_A_DID=$(echo $PARTY_A_DIDDOC | jq -r .id)
 echo Vendor A DID: $PARTY_A_DID
 
 # Register Vendor B
-PARTY_B_DIDDOC=$(docker compose exec nodeB nuts vdr create-did --v2)
+PARTY_B_DIDDOC=$(docker compose exec nodeB-backend nuts vdr create-did --v2)
 PARTY_B_DID=$(echo $PARTY_B_DIDDOC | jq -r .id)
 echo Vendor B DID: $PARTY_B_DID
 
@@ -143,7 +143,7 @@ fi
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
-RESPONSE=$(docker compose exec nodeB curl http://resource:80/resource -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
+RESPONSE=$(docker compose exec nodeB-backend curl http://resource:80/resource -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
 if echo $RESPONSE | grep -q "OK"; then
   echo "success!"
 else

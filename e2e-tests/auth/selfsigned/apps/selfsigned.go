@@ -30,6 +30,7 @@ import (
 )
 
 var NodeClientConfig = core.ClientConfig{Address: "http://localhost:8081"}
+var PublicNodeAddress = "http://localhost:8080"
 
 type EmployeeInfo struct {
 	Identifier string  `json:"identifier"`
