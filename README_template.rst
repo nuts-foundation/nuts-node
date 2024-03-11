@@ -42,9 +42,3 @@ Configuration
 
 .. include:: docs/pages/deployment/configuration.rst
     :start-after: .. marker-for-readme
-
-CLI options
-^^^^^^^^^^^
-
-.. include:: docs/pages/deployment/administering-your-node.rst
-    :start-after: .. marker-for-readme

@@ -213,9 +213,7 @@ You can generate a token using the following command, which needs to be executed
     nuts http gen-token admin 365
 
 This command generates a token for a user named "admin" which is valid for 365 days. The user's name is used for logging HTTP requests.
-It outputs the token, which should be passed using ``--token`` or ``--token-file`` when performing CLI operations or as ``Authorization`` Bearer token header for client applications.
-You can also save it to a file named ``.nuts-client.cfg`` in your user's home directory, which will be read by CLI when no other token flags are passed.
-See the server configuration and CLI command reference for more information.
+It outputs the token, which should be used as ``Authorization`` Bearer token header for client applications.
 
 Diagnostics
 ***********

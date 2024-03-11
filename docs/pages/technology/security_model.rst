@@ -82,7 +82,6 @@ A typical Nuts Node deployment consists of various parts:
    - Remote client application
    - IRMA mobile app
 - Internal API clients:
-   - System administrator using the CLI
    - Client application and administrative system
    - Monitoring system
 - Reverse proxy for HTTP and gRPC traffic (terminates TLS)

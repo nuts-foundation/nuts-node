@@ -7,7 +7,7 @@ Issuing VCs
 ***********
 
 As a node, you can issue credentials with each DID you control (whether they are trusted is a different story).
-A credential is issued through the API or CLI.
+A credential is issued through the API.
 The node will add sensible defaults for:
 
 - id
