@@ -1,10 +1,12 @@
 #!/bin/sh
+
 # Try to read the subdomain from localtunnel.cfg
 SUBDOMAIN=$(cat /localtunnel.cfg 2>/dev/null)
 
 # Run lt to create the local tunnel with --port 1323 as background process.
 # It writes the URL to stdout which we need to extract and feed to the nuts command
 lt --port 1323 --subdomain="${SUBDOMAIN}" > /localtunnel.log 2>&1 &
+
 # Try 30 times to read the tunnel URL from the log file.
 # The format is "your url is:" followed by the URL.
 echo "Waiting for localtunnel URL (time-out in 30s)..."
@@ -27,4 +29,4 @@ SUBDOMAIN=$(echo $TUNNEL_URL | awk -F/ '{print $3}' | awk -F. '{print $1}')
 echo "${SUBDOMAIN}" > /localtunnel.cfg
 
 echo Your Nuts node URL is: ${TUNNEL_URL}
-NUTS_URL="${TUNNEL_URL}" NUTS_STRICTMODE=false NUTS_AUTH_CONTRACTVALIDATORS=dummy /usr/bin/nuts server
+NUTS_URL="${TUNNEL_URL}" NUTS_STRICTMODE=false NUTS_AUTH_CONTRACTVALIDATORS=dummy exec /usr/bin/nuts server
