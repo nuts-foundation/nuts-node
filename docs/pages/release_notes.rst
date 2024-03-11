@@ -4,6 +4,14 @@ Release notes
 #############
 
 ************************
+Peanut (v6.0.0)
+************************
+
+Release date: ?
+
+- removed usage of deprecated `purposeOfUseClaim` from NutsAuthorizationCredential
+
+************************
 Hazelnut update (v5.4.6)
 ************************
 
