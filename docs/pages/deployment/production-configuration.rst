@@ -35,6 +35,7 @@ Make sure you don't accidentally expose it through your reverse proxy.
       # The following is the default configuration of the HTTP interfaces.
       internal:
         address: 127.0.0.1:8081
+        # This enables API authentication on /internal endpoints
         auth:
           type: token_v2
           authorizedkeyspath: /opt/nuts/authorized_keys
