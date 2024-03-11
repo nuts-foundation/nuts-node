@@ -3,9 +3,9 @@
 # Try to read the subdomain from localtunnel.cfg
 SUBDOMAIN=$(cat /localtunnel.cfg 2>/dev/null)
 
-# Run lt to create the local tunnel with --port 1323 as background process.
+# Run lt to create the local tunnel with --port 8080 as background process.
 # It writes the URL to stdout which we need to extract and feed to the nuts command
-lt --port 1323 --subdomain="${SUBDOMAIN}" > /localtunnel.log 2>&1 &
+lt --port 8080 --subdomain="${SUBDOMAIN}" > /localtunnel.log 2>&1 &
 
 # Try 30 times to read the tunnel URL from the log file.
 # The format is "your url is:" followed by the URL.
