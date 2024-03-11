@@ -29,26 +29,6 @@ See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how t
     :target: https://join.slack.com/t/nuts-foundation/shared_invite/zt-19av5q5ur-5fNbZVIFGUw5vDKSy5mqCw
     :alt: Nuts Community on Slack
 
-Hello, World!
-^^^^^^^^^^^^^
-
-The simplest way to spin up the Nuts stack is by using the setup provided by `nuts-network-local <https://github.com/nuts-foundation/nuts-network-local>`_.
-The setup is meant for development purposes and starts a Nuts node, "Demo EHR", "Registry Admin Demo" for administering your vendor and care organizations and a HAPI server to exchange FHIR data.
-
-To get started, clone the repository and run the following commands to start the stack:
-
-.. code-block:: shell
-
-    cd single
-    docker compose pull
-    docker compose up
-
-After the services have started you can try the following endpoints:
-
-- `Nuts Node status page <http://localhost:1323/status/diagnostics>`_.
-- `Registry Admin Demo login <http://localhost:1303/>`_ (default password: "demo").
-- `Demo EHR login <http://localhost:1304/>`_ (default password: "demo").
-
 Development
 ^^^^^^^^^^^
 
@@ -303,23 +283,4 @@ json-ld context can only be downloaded from trusted domains configured in ``json
 and the ``internalratelimiter`` is always on.
 
 Interacting with remote Nuts nodes requires HTTPS: it will refuse to connect to plain HTTP endpoints when in strict mode.
-
-CLI options
-^^^^^^^^^^^
-
-The following options can be supplied when running CLI commands:
-
-.. table:: Client Options
-    :widths: 20 30 50
-    :class: options-table
-
-    ==========      ==============      =====================================================================================================================================================================
-    Key             Default             Description
-    ==========      ==============      =====================================================================================================================================================================
-    address         localhost:1323      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.
-    timeout         10s                 Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.
-    token                               Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
-    token-file                          File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
-    verbosity       info                Log level (trace, debug, info, warn, error)
-    ==========      ==============      =====================================================================================================================================================================
 

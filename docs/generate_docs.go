@@ -82,15 +82,6 @@ func generateCLICommands(system *core.System) {
 		panic(err)
 	}
 	_, _ = io.WriteString(writer, newline)
-
-	// Client commands
-	writeHeader(writer, "Client Commands", 1)
-	err = GenerateCommandDocs(cmd.CreateCommand(system), writer, func(cmd *cobra.Command) bool {
-		return !serverCommands.contains(cmd.CommandPath()) && cmd.CommandPath() != "nuts"
-	}, true)
-	if err != nil {
-		panic(err)
-	}
 }
 
 func writeHeader(writer io.Writer, header string, level int) {
