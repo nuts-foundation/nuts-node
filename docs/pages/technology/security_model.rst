@@ -13,7 +13,7 @@ The Nuts node's security model aims to provide non-repudiation of operations inv
 
 It focuses on:
 
-- interactions of users (e.g. system administrators) and applications of the vendor with the Nuts node APIs,
+- interactions of users (e.g. system administrators) and client applications with the Nuts node APIs,
 - security of assets managed by the Nuts node (e.g. private keys).
 
 It does not cover interactions between Nuts nodes and systems specified by the `Nuts specifications <https://nuts-foundation.gitbook.io/drafts/>`_;
@@ -31,7 +31,7 @@ The following are part of the threat model:
       - Providing secure defaults for configuration.
       - Providing "strict mode" which disallows unsafe configuration.
 - Protecting against leaking private key material.
-   - Private keys should be kept secure, since a leak compromises a vendor's presence on the Nuts network.
+   - Private keys should be kept secure, since a leak compromises a party's presence on the Nuts network.
    - Implemented by:
       - Storing keys in a secure storage (e.g. Hashicorp Vault).
       - Not allowing private keys to be exported, only to be created and used (signing/encrypting).
@@ -79,11 +79,11 @@ External threats
 A typical Nuts Node deployment consists of various parts:
 
 - External API clients:
-   - Remote vendor's client application
+   - Remote client application
    - IRMA mobile app
 - Internal API clients:
    - System administrator using the CLI
-   - Vendor's client application and administrative system
+   - Client application and administrative system
    - Monitoring system
 - Reverse proxy for HTTP and gRPC traffic (terminates TLS)
 - Nuts Node
