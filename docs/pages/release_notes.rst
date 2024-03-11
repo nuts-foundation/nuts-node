@@ -164,7 +164,7 @@ Release date: 2023-05-26
   you now have to configure it explicitly using `network.nodedid`.
 - The ``tls.crl.maxvaliditydays`` config flag has been deprecated. CRLs are now updated more frequently, making this option obsolete.
 - Adds support for RFC019 and RFC020, which describe a new EmployeeIdentity authentication means which allows an employer to make claims
-  about the identity of their employees. This has a lower level of assurance, but can be used when care organisations trust each others employee enrollment process.
+  about the identity of their employees. This has a lower level of assurance, but can be used when parties trust each others employee enrollment process.
 - Fixed issue where VDR could no longer update broken DID Documents.
 - Added API calls to _Didman_ to update endpoints and compound services (previously, they had to be deleted and then recreated to change them).
 - NutsAuthorizationCredentials and NutsOrganizationCredentials now require a valid ``credentialSubject.id`` (meaning it is a DID).
@@ -600,7 +600,7 @@ Deprecated features
 Some features will be deprecated because they have been succeeded by an improved version or when they are no longer used.
 Removing old code helps in reducing maintenance costs of the code base.
 Features that are marked as *deprecated* will be listed here.
-Any vendor using these features will have until next version to migrate to the alternative.
+Any party using these features will have until next version to migrate to the alternative.
 Keep an eye on this section for every release.
 
 - VCR V1 API is deprecated and will be removed in the next release. Please migrate all calls to the V2 API.

@@ -3,101 +3,44 @@
 Key rotation procedure
 ######################
 
-.. warning::
-    Rotating keys currently prevents private transactions (e.g. ``NutsAuthorizationCredential``) from being received properly:
-    Do not use this functionality until the `issue has been resolved <https://github.com/nuts-foundation/nuts-node/issues/1688>`_.
-
 To minimize the impact of stolen/leaked keys, private keys should be rotated at a regular, scheduled interval.
-This applies to any (vendor, care organization, or any other) private key used for a longer period of time.
+This applies to any private key used for a longer period of time.
 The node aids this procedure by supporting operations to add and remove keys from DID documents.
+
+Removal of old keys from the DID document should only be done if there are no verifiable credentials still active.
+To ensure this, all verifiable credentials should set a validity period.
 
 Procedure
 *********
 
-The procedure to rotate a key is as follows:
+The procedure to rotate a key is two fold. The two procedures can be performed independently.
 
-1. find out the ID of the key to rotate,
-2. register a new key (verification method in the DID document)
-3. remove the previous key from the DID document
+Given a period of time, eg. every month when issuing a lot of credentials or every year when issuing only a few, a new key should be added to the DID document.
+To remove old keys from the DID document, you need to ensure that all verifiable credentials have expired.
 
-To do this you need the following:
+.. note::
 
-- DID of the DID document which contains the key
-- the allowed usage of the key (verification method relationships)
+	The current API doesn't support finding VCs based on validity period or specific key.
+	The only possibility is to find all and loop over the results to check the validity period and the key used to sign the VC.
 
-The examples below use the CLI to perform the key rotation, but the same process can be performed using the REST API.
-Each step below notes the corresponding REST API operation (refer to its documentation for the exact usage).
-
-1. Determine which key to rotate
-=============================
-
-First, you need to determine which key you'll rotate. You either have a system to administer to schedule key rotations (recommended),
-or you have to resolve the DID document to lookup the ID of the key, e.g. (given the DID ``<DID>``):
-
-.. code-block:: shell
-
-    nuts vdr resolve <DID>
-
-Use the result to lookup the ID of key (verification method) to rotate, e.g.:
-
-.. code-block:: json
-    {
-      ...
-      "verificationMethod": [
-        {
-          "controller": "did:nuts:Gjkkn5PgY3hEbKBJe5xot2mGcpD7MVN9Cs4j2XU7wZZp",
-          "id": "did:nuts:Gjkkn5PgY3hEbKBJe5xot2mGcpD7MVN9Cs4j2XU7wZZp#wPB7g3ipPKastvXiLJOITdCqLFDn4nJRFsCNVxaI1us",
-          "type": "JsonWebKey2020"
-          ...
-        }
-      ]
-      ...
-    }
-
-The ID of the key to be rotated in the example above is (note the ``#`` sign):
-
-.. code-block::
-
-    did:nuts:Gjkkn5PgY3hEbKBJe5xot2mGcpD7MVN9Cs4j2XU7wZZp#wPB7g3ipPKastvXiLJOITdCqLFDn4nJRFsCNVxaI1us
-
-
-Corresponding REST API operation: ``GET /internal/vdr/v1/did/{did}``
-
-2. Register a new key
-==================
+1. Add a new key
+================
 
 Then, you add a new key which generates a new key pair in your crypto storage and adds it to the DID document:
 
 .. code-block:: shell
 
-    nuts vdr addvm <DID>
+    POST /internal/vdr/v2/did/{did}/verificationmethod
 
 When successful, it returns the verification method that was added to the DID document.
 
-Corresponding REST API operation: ``POST /internal/vdr/v1/did/{did}/verificationmethod``
+2. Remove a key
+===============
 
-.. note::
-
-    The usage (verification method relationships) of the new key is the same, as the default usage for the key of a new DID document.
-    Default key usage is sufficient for the processes supported by the Nuts node (e.g., creating access tokens, updating DID documents, or sending/receiving private transactions).
-    Specifying other usages is only possible using the REST API.
-
-
-3. Remove previous key
-===================
-
-The final step is to remove the previous key, which ID you determined in the first step, from the DID document.
+To remove a key from the DID document.
 
 .. code-block:: shell
 
-    nuts vdr delvm <DID> <KEY ID>
+    DELETE /internal/vdr/v2/did/{did}/verificationmethod/{kid}
 
-When successful, it reports the following:
-
-.. code-block::
-
-    Verification method deleted from the DID document
-
-Future operations using the DID document's keys (e.g. document updates) can now use the new key. The old key can't be used any more.
-
-Corresponding REST API operation: ``DELETE /internal/vdr/v1/did/{did}/verificationmethod/{key-id}``
+When successful, it returns with a ``204`` tatus code

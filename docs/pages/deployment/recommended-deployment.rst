@@ -122,12 +122,6 @@ It will act as TLS terminator.
 The Nuts Node looks for a header called ``X-Forwarded-For`` to determine the client IP when logging calls.
 Refer to the documentation of your proxy on how to set this header.
 
-Nuts Node Client
-^^^^^^^^^^^^^^^^
-
-CLI application used by system administrators to manage the Nuts Node and the SPs presence on the network, which calls the REST API of the Nuts Node.
-It is included in the Nuts Node server, so it can be executed in the Docker container (using ``docker exec``) or standalone process.
-
 Database
 ^^^^^^^^
 
