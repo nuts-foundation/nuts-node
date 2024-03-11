@@ -99,7 +99,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	})
 }
 
-func TestWrapper_GetWebDID(t *testing.T) {
+func TestWrapper_GetUserWebDID(t *testing.T) {
 	const webIDPart = "123"
 	ctx := audit.TestContext()
 	expectedWebDIDDoc := did.Document{
@@ -113,25 +113,25 @@ func TestWrapper_GetWebDID(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().ResolveManaged(webDID).Return(&expectedWebDIDDoc, nil)
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{webIDPart})
+		response, err := test.client.GetUserWebDID(ctx, GetUserWebDIDRequestObject{webIDPart})
 
 		assert.NoError(t, err)
-		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetWebDID200JSONResponse)))
+		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetUserWebDID200JSONResponse)))
 	})
 	t.Run("unknown DID", func(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, resolver.ErrNotFound)
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{webIDPart})
+		response, err := test.client.GetUserWebDID(ctx, GetUserWebDIDRequestObject{webIDPart})
 
 		assert.NoError(t, err)
-		assert.IsType(t, GetWebDID404Response{}, response)
+		assert.IsType(t, GetUserWebDID404Response{}, response)
 	})
 	t.Run("other error", func(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, errors.New("failed"))
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{webIDPart})
+		response, err := test.client.GetUserWebDID(ctx, GetUserWebDIDRequestObject{webIDPart})
 
 		assert.EqualError(t, err, "unable to resolve DID")
 		assert.Nil(t, response)

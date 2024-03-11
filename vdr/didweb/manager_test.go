@@ -38,7 +38,7 @@ import (
 	"testing"
 )
 
-var baseURL = test.MustParseURL("https://example.com")
+var baseURL = test.MustParseURL("https://example.com/iam")
 var subjectDID = did.MustParseDID("did:web:example.com:1234")
 var ctx = context.Background()
 
@@ -57,7 +57,7 @@ func TestManager_Create(t *testing.T) {
 	var publicKey crypto.PublicKey
 	require.NoError(t, keyAsJWK.Raw(&publicKey))
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("assert build DID document", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
@@ -66,7 +66,7 @@ func TestManager_Create(t *testing.T) {
 		}, nil)
 		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
 
-		document, key, err := m.create(audit.TestContext(), "e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4")
+		document, key, err := m.Create(audit.TestContext(), management.Create(MethodName).With(UserID("e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4")))
 		require.NoError(t, err)
 		require.NotNil(t, document)
 		require.NotNil(t, key)
@@ -78,25 +78,25 @@ func TestManager_Create(t *testing.T) {
     "https://www.w3.org/ns/did/v1"
   ],
   "assertionMethod": [
-    "did:web:example.com:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0"
+    "did:web:example.com:iam:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0"
   ],
   "authentication": [
-    "did:web:example.com:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0"
+    "did:web:example.com:iam:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0"
   ],
   "capabilityDelegation": [
-    "did:web:example.com:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0"
+    "did:web:example.com:iam:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0"
   ],
   "capabilityInvocation": [
-    "did:web:example.com:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0"
+    "did:web:example.com:iam:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0"
   ],
-  "id": "did:web:example.com:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4",
+  "id": "did:web:example.com:iam:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4",
   "keyAgreement": [
-    "did:web:example.com:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0"
+    "did:web:example.com:iam:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0"
   ],
   "verificationMethod": [
     {
-      "controller": "did:web:example.com:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4",
-      "id": "did:web:example.com:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0",
+      "controller": "did:web:example.com:iam:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4",
+      "id": "did:web:example.com:iam:e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4#0",
       "publicKeyJwk": {
         "crv": "P-256",
         "kty": "EC",
@@ -110,7 +110,7 @@ func TestManager_Create(t *testing.T) {
 		actual, _ := json.Marshal(document)
 		assert.JSONEq(t, expected, string(actual))
 	})
-	t.Run("with UserPart option", func(t *testing.T) {
+	t.Run("with UserID option", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
@@ -119,11 +119,91 @@ func TestManager_Create(t *testing.T) {
 		}, nil)
 		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
 
-		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(UserPath("test")))
+		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(UserID("test")))
 		require.NoError(t, err)
 		require.NotNil(t, document)
 		require.NotNil(t, key)
 		assert.True(t, strings.HasSuffix(document.ID.String(), ":test"))
+	})
+	t.Run("with root DID option", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
+			PublicKey: publicKey,
+		}, nil)
+		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+		expected := did.MustParseDID("did:web:example.com")
+
+		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
+		require.NoError(t, err)
+		require.NotNil(t, document)
+		require.NotNil(t, key)
+		assert.Equal(t, expected, document.ID)
+	})
+	t.Run("with DID (containing user path) option", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
+			PublicKey: publicKey,
+		}, nil)
+		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+		expected := did.MustParseDID("did:web:example.com:iam:1234")
+
+		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
+		require.NoError(t, err)
+		require.NotNil(t, document)
+		require.NotNil(t, key)
+		assert.Equal(t, expected, document.ID)
+	})
+	t.Run("without options", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
+			PublicKey: publicKey,
+		}, nil)
+		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+
+		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions())
+		require.NoError(t, err)
+		require.NotNil(t, document)
+		require.NotNil(t, key)
+		assert.True(t, strings.HasPrefix(document.ID.String(), "did:web:example.com:iam:"))
+	})
+	t.Run("with invalid user ID (contains subpath) DID option", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		m := NewManager(*baseURL, nil, storageEngine.GetSQLDatabase())
+		expected := did.MustParseDID("did:web:example.com:iam:invalid:1234")
+
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
+		require.EqualError(t, err, "invalid user path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<user id>'")
+	})
+	t.Run("with invalid user ID (path does not start with /iam) DID option", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		m := NewManager(*baseURL, nil, storageEngine.GetSQLDatabase())
+		expected := did.MustParseDID("did:web:example.com:iam:1234:invalid")
+
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
+		require.EqualError(t, err, "invalid user path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<user id>'")
+	})
+	t.Run("with empty user ID DID option", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		m := NewManager(*baseURL, nil, storageEngine.GetSQLDatabase())
+		expected := did.MustParseDID("did:web:example.com:iam:")
+
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
+		require.EqualError(t, err, "invalid user path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<user id>'")
+	})
+	t.Run("with both DID and userID options", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(subjectDID)).With(UserID("test")))
+		require.EqualError(t, err, "multiple DID options provided")
 	})
 	t.Run("with unknown option", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())

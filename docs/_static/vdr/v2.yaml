@@ -367,11 +367,27 @@ components:
   schemas:
     CreateDIDOptions:
         type: object
+        description: |
+          Options for the DID creation. If neither `did` nor `user_id` is given, a random UUID is used as user_id.
+          It's invalid to provide both `did` and `user_id` at the same time.
         properties:
-          id:
+          did:
             type: string
-            description: The ID of the DID document. If not given, a random UUID is generated.
-            example: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b"
+            description: |
+              The DID of the DID document. If it's a did:web DID and it contains a user path, it must follow the format `did:web:example.com:iam:1234`.
+              It can be used, for instance, to create a root did:web DID (one without user path).
+            example:
+              - "did:web:example.com"
+              - "did:web:example.com:iam:1234"
+          user_id:
+            type: string
+            description: |
+              The user ID of the DID document. If this option is given, the did:web DID will contain a user path that ends with the given user ID.
+              It can be used, for instance, to serve multiple did:web DIDs from the same node.
+            example:
+              - "013c6fda-73e8-45ee-9220-48652dba854b"
+              - "library"
+              - "1234"
     DIDDocument:
       $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
     DIDDocumentMetadata:
