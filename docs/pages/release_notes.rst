@@ -44,6 +44,14 @@ The new HTTP configuration reflects this,
 Note that `8081` by default maps to `localhost` only, so you might need to configure it to allow it to be accessible from other machines.
 
 ************************
+Peanut (v6.0.0)
+************************
+
+Release date: ?
+
+- removed usage of deprecated `purposeOfUseClaim` from NutsAuthorizationCredential
+
+************************
 Hazelnut update (v5.4.6)
 ************************
 
