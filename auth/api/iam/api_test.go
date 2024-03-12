@@ -240,7 +240,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ClientIdSchemesSupported: []string{didScheme},
 		VPFormats:                oauth.DefaultOpenIDSupportedFormats(),
 	}
-	pdEndpoint := "https://example.com/iam/verifier/presentation_definition?scope=test"
+	pdEndpoint := "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test"
 	// setup did document and keys
 	vmId := did.DIDURL{
 		DID:             holderDID,
@@ -271,7 +271,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
 		require.NoError(t, err)
 
-		expectedURL := test.MustParseURL("https://example.com/iam/holder/authorize")
+		expectedURL := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:holder/authorize")
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
@@ -282,8 +282,8 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			assert.NotEmpty(t, params[oauth.NonceParam])
 			assert.Equal(t, didScheme, params[clientIDSchemeParam])
 			assert.Equal(t, responseTypeVPToken, params[oauth.ResponseTypeParam])
-			assert.Equal(t, "https://example.com/iam/verifier/response", params[responseURIParam])
-			assert.Equal(t, "https://example.com/iam/verifier/oauth-client", params[clientMetadataURIParam])
+			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", params[responseURIParam])
+			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/oauth-client", params[clientMetadataURIParam])
 			assert.Equal(t, responseModeDirectPost, params[responseModeParam])
 			assert.NotEmpty(t, params[oauth.StateParam])
 			return expectedURL, nil
@@ -373,8 +373,8 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			assert.NotEmpty(t, params[oauth.NonceParam])
 			assert.Equal(t, didScheme, params[clientIDSchemeParam])
 			assert.Equal(t, responseTypeVPToken, params[oauth.ResponseTypeParam])
-			assert.Equal(t, "https://example.com/iam/verifier/response", params[responseURIParam])
-			assert.Equal(t, "https://example.com/iam/verifier/oauth-client", params[clientMetadataURIParam])
+			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", params[responseURIParam])
+			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/oauth-client", params[clientMetadataURIParam])
 			assert.Equal(t, responseModeDirectPost, params[responseModeParam])
 			assert.NotEmpty(t, params[oauth.StateParam])
 			return expectedURL, nil
@@ -414,15 +414,15 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
-		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/iam/verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
+		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
 			oauth.ClientIDParam:     verifierDID.String(),
 			clientIDSchemeParam:     didScheme,
 			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
 			oauth.NonceParam:        "nonce",
-			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
-			responseURIParam:        "https://example.com/iam/verifier/response",
+			presentationDefUriParam: "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test",
+			responseURIParam:        "https://example.com/oauth2/did:web:example.com:iam:verifier/response",
 			responseModeParam:       responseModeDirectPost,
 			oauth.ResponseTypeParam: responseTypeVPToken,
 			oauth.ScopeParam:        "test",
@@ -498,7 +498,7 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, state)
 		putToken(ctx, token)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/iam/123/callback", holderDID).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -790,7 +790,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
 	userID := "test"
-	redirectURI := "https://test.test/iam/123/cb"
+	redirectURI := "https://test.test/oauth2/" + walletDID.String() + "/cb"
 	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", UserId: userID, RedirectUri: redirectURI}
 
 	t.Run("ok", func(t *testing.T) {
@@ -803,11 +803,12 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		require.NoError(t, err)
 		redirectResponse, ok := response.(RequestUserAccessToken200JSONResponse)
 		assert.True(t, ok)
-		assert.Contains(t, redirectResponse.RedirectUri, "https://test.test/iam/123/user?token=")
+		assert.Contains(t, redirectResponse.RedirectUri, "https://test.test/oauth2/"+walletDID.String()+"/user?token=")
 
 		// assert session
 		var target RedirectSession
-		err = ctx.client.userRedirectStore().Get(redirectResponse.RedirectUri[37:], &target)
+		redirectURI, _ := url.Parse(redirectResponse.RedirectUri)
+		err = ctx.client.userRedirectStore().Get(redirectURI.Query().Get("token"), &target)
 		require.NoError(t, err)
 		assert.Equal(t, walletDID, target.OwnDID)
 
@@ -851,6 +852,49 @@ func TestWrapper_StatusList(t *testing.T) {
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Nil(t, res)
+	})
+}
+
+func Test_createOAuth2EndpointURL(t *testing.T) {
+	t.Run("no endpoint", func(t *testing.T) {
+		webDID := did.MustParseDID("did:web:example.com:iam:holder")
+		actual, err := createOAuth2EndpointURL(webDID)
+
+		require.NoError(t, err)
+		require.NotNil(t, actual)
+		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder", actual.String())
+	})
+	t.Run("ok", func(t *testing.T) {
+		webDID := did.MustParseDID("did:web:example.com:iam:holder")
+		actual, err := createOAuth2EndpointURL(webDID, "something")
+
+		require.NoError(t, err)
+		require.NotNil(t, actual)
+		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder/something", actual.String())
+	})
+	t.Run("nested path", func(t *testing.T) {
+		webDID := did.MustParseDID("did:web:example.com:iam:holder")
+		actual, err := createOAuth2EndpointURL(webDID, "///foo//bar")
+
+		require.NoError(t, err)
+		require.NotNil(t, actual)
+		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder/foo/bar", actual.String())
+	})
+	t.Run("did:web with port", func(t *testing.T) {
+		const didAsString = "did:web:example.com%3A8080:iam:holder"
+		webDID := did.MustParseDID(didAsString)
+
+		actual, err := createOAuth2EndpointURL(webDID, "something")
+
+		require.NoError(t, err)
+		require.NotNil(t, actual)
+		assert.Equal(t, "https://example.com:8080/oauth2/did:web:example.com%253A8080:iam:holder/something", actual.String())
+	})
+	t.Run("error - invalid DID", func(t *testing.T) {
+		_, err := createOAuth2EndpointURL(did.DID{})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "failed to convert DID to URL: URL does not represent a Web DID\nunsupported DID method: ")
 	})
 }
 

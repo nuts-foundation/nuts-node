@@ -45,6 +45,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 )
@@ -113,7 +114,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 	router.GET("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoLanding, auditMiddleware)
 	router.POST("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoSendRequest, auditMiddleware)
 	// The following handlers are used for the user facing OAuth2 flows.
-	router.GET("/iam/:did/user", r.handleUserLanding, auditMiddleware)
+	router.GET("/oauth2/:did/user", r.handleUserLanding, auditMiddleware)
 }
 
 func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
@@ -432,7 +433,7 @@ func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMet
 		return nil, err
 	}
 
-	identityURL, err := didweb.DIDToURL(*ownedDID)
+	identityURL, err := createOAuth2EndpointURL(*ownedDID)
 	if err != nil {
 		return nil, err
 	}
@@ -558,12 +559,12 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	})
 
 	// generate a link to the redirect endpoint
-	webURL, err := didweb.DIDToURL(*requestHolder)
+	webURL, err := createOAuth2EndpointURL(*requestHolder, "user")
 	if err != nil {
 		return nil, err
 	}
 	// redirect to generic user page, context of token will render correct page
-	redirectURL := http2.AddQueryParams(*webURL.JoinPath("user"), map[string]string{
+	redirectURL := http2.AddQueryParams(*webURL, map[string]string{
 		"token": token,
 	})
 	return RequestUserAccessToken200JSONResponse{
@@ -614,4 +615,17 @@ func (r Wrapper) accessTokenClientStore() storage.SessionStore {
 // accessTokenServerStore is used by the Auth server to store issued access tokens
 func (r Wrapper) accessTokenServerStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "serveraccesstoken")
+}
+
+// createOAuth2EndpointURL creates an OAuth2 endpoint URL for an owned did:web DID, for the given endpoint.
+// It creates a URL in the following format: https://<did:web host>/oauth2/<did>/<endpoint>
+func createOAuth2EndpointURL(webDID did.DID, endpointPath ...string) (*url.URL, error) {
+	didURL, err := didweb.DIDToURL(webDID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
+	}
+	didURL.RawPath = ""
+	didURL.Path = path.Join("oauth2", webDID.String())
+	didURL = didURL.JoinPath(endpointPath...)
+	return didURL, nil
 }

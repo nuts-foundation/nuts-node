@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
 	"time"
 
@@ -103,11 +102,10 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// construct callback URL to be used in (Signed)AuthorizationRequest
-	callbackURL, err := didweb.DIDToURL(redirectSession.OwnDID)
+	callbackURL, err := createOAuth2EndpointURL(redirectSession.OwnDID, oauth.CallbackPath)
 	if err != nil {
 		return fmt.Errorf("failed to create callback URL: %w", err)
 	}
-	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
 	modifier := func(values map[string]interface{}) {
 		values[oauth.RedirectURIParam] = callbackURL.String()
 		values[oauth.ResponseTypeParam] = responseTypeCode

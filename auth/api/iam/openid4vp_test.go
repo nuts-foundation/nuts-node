@@ -41,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -591,7 +590,7 @@ func Test_handleCallback(t *testing.T) {
 		ctx := newTestClient(t)
 		putState(ctx, state)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/iam/123/callback", holderDID).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -652,7 +651,7 @@ func expectPostError(t *testing.T, ctx *testCtx, errorCode oauth.ErrorCode, desc
 		assert.Equal(t, description, err.Description)
 		assert.Equal(t, expectedResponseURI, responseURI)
 		assert.Equal(t, verifierClientState, state)
-		holderURL, _ := didweb.DIDToURL(holderDID)
+		holderURL, _ := createOAuth2EndpointURL(holderDID)
 		require.NotNil(t, holderURL)
 		return holderURL.JoinPath("callback").String(), nil
 	})
@@ -824,33 +823,6 @@ func Test_extractChallenge(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "nonce", challenge)
-	})
-}
-
-func Test_clientMetadataURL(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		webDID := did.MustParseDID("did:web:example.com:iam:holder")
-		actual, err := clientMetadataURL(webDID)
-
-		require.NoError(t, err)
-		require.NotNil(t, actual)
-		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder/oauth-client", actual.String())
-	})
-	t.Run("did:web with port", func(t *testing.T) {
-		const didAsString = "did:web:example.com%3A8080:iam:holder"
-		webDID := did.MustParseDID(didAsString)
-
-		actual, err := clientMetadataURL(webDID)
-
-		require.NoError(t, err)
-		require.NotNil(t, actual)
-		assert.Equal(t, "https://example.com:8080/oauth2/did:web:example.com%253A8080:iam:holder/oauth-client", actual.String())
-	})
-	t.Run("error - invalid DID", func(t *testing.T) {
-		_, err := clientMetadataURL(did.DID{})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "failed to convert DID to URL: URL does not represent a Web DID\nunsupported DID method: ")
 	})
 }
 
