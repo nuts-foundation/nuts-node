@@ -404,13 +404,16 @@ func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clien
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	_, err := r.toOwnedDID(ctx, request.Did)
+	ownDID, err := r.toOwnedDID(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
-	identity := r.auth.PublicURL().JoinPath("iam", request.Did)
-
-	return OAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity)), nil
+	identity, err := didweb.DIDToURL(*ownDID)
+	if err != nil {
+		return nil, err
+	}
+	oauth2BaseURL, _ := createOAuth2EndpointURL(*ownDID) // can't fail, already did DIDToURL above
+	return OAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity, *oauth2BaseURL)), nil
 }
 
 func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {

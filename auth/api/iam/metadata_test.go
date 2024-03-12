@@ -21,29 +21,30 @@ package iam
 import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"net/url"
 	"testing"
 )
 
 func Test_authorizationServerMetadata(t *testing.T) {
-	identity := "https://example.com/iam/did:nuts:123"
-	identityURL, _ := url.Parse(identity)
+	identity := test.MustParseURL("https://example.com/iam/123")
+	oauth2Base := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:123")
 	expected := oauth.AuthorizationServerMetadata{
-		Issuer:                 identity,
-		AuthorizationEndpoint:  identity + "/authorize",
+		Issuer:                 identity.String(),
+		AuthorizationEndpoint:  oauth2Base.String() + "/authorize",
 		ResponseTypesSupported: []string{"code", "vp_token", "vp_token id_token"},
 		ResponseModesSupported: []string{"query", "direct_post"},
-		TokenEndpoint:          identity + "/token",
+		TokenEndpoint:          oauth2Base.String() + "/token",
 		GrantTypesSupported:    []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
 		PreAuthorizedGrantAnonymousAccessSupported: true,
-		PresentationDefinitionEndpoint:             identity + "/presentation_definition",
+		PresentationDefinitionEndpoint:             oauth2Base.String() + "/presentation_definition",
 		RequireSignedRequestObject:                 true,
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		ClientIdSchemesSupported:                   []string{"did"},
 	}
-	assert.Equal(t, expected, authorizationServerMetadata(*identityURL))
+	assert.Equal(t, expected, authorizationServerMetadata(*identity, *oauth2Base))
 }
 
 func Test_clientMetadata(t *testing.T) {

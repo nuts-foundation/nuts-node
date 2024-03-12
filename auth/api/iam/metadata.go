@@ -35,18 +35,18 @@ func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url
 	return issuerURL.Parse(wellKnown + issuerURL.EscapedPath())
 }
 
-func authorizationServerMetadata(identity url.URL) oauth.AuthorizationServerMetadata {
+func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.AuthorizationServerMetadata {
 	return oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:    identity.JoinPath("authorize").String(),
+		AuthorizationEndpoint:    oauth2BaseURL.JoinPath("authorize").String(),
 		ClientIdSchemesSupported: clientIdSchemesSupported,
 		GrantTypesSupported:      grantTypesSupported,
 		Issuer:                   identity.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
-		PresentationDefinitionEndpoint:             identity.JoinPath("presentation_definition").String(),
+		PresentationDefinitionEndpoint:             oauth2BaseURL.JoinPath("presentation_definition").String(),
 		RequireSignedRequestObject:                 true,
 		ResponseModesSupported:                     responseModesSupported,
 		ResponseTypesSupported:                     responseTypesSupported,
-		TokenEndpoint:                              identity.JoinPath("token").String(),
+		TokenEndpoint:                              oauth2BaseURL.JoinPath("token").String(),
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 	}
