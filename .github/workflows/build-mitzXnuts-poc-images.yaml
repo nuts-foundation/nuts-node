@@ -1,13 +1,13 @@
 ---
-name: 'Build mitzXnuts Docker images'
+name: 'Build mitzXnuts_demo Docker images'
 
 on:
   push:
     branches:
-      - mitzXnuts
+      - mitzXnuts_demo
   pull_request:
     branches:
-      - mitzXnuts
+      - mitzXnuts_demo
 
 jobs:
   docker:
@@ -57,7 +57,7 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: true
-          tags: 'nutsfoundation/nuts-node:mitz-x-nuts'
+          tags: 'nutsfoundation/nuts-node:mitz-x-nuts-demo'
           build-args: |
             GIT_VERSION=${{ steps.version.outputs.git_version }}
             GIT_COMMIT=${{ steps.version.outputs.git_commit }}
