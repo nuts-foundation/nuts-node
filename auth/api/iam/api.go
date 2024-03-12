@@ -404,7 +404,7 @@ func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clien
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	ownDID, err := r.toOwnedDID(ctx, request.Did)
+	ownDID, err := r.toOwnedDID(ctx, r.idToDID(request.Id).String())
 	if err != nil {
 		return nil, err
 	}
