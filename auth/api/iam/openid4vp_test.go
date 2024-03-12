@@ -289,7 +289,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 					VpToken:                &vpToken,
 					PresentationSubmission: &submissionAsStr,
 				},
-				Id: "verifier",
+				Did: verifierDID.String(),
 			}
 		}
 		t.Run("ok", func(t *testing.T) {
@@ -439,7 +439,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 					ErrorDescription: &description,
 					State:            &state,
 				},
-				Id: "verifier",
+				Did: verifierDID.String(),
 			}
 		}
 		t.Run("with client state", func(t *testing.T) {
@@ -553,7 +553,7 @@ func Test_handleCallback(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Params: CallbackParams{
 				Code: &code,
 			},
@@ -565,7 +565,7 @@ func Test_handleCallback(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -579,7 +579,7 @@ func Test_handleCallback(t *testing.T) {
 		putState(ctx, state)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Params: CallbackParams{
 				State: &state,
 			},
@@ -594,7 +594,7 @@ func Test_handleCallback(t *testing.T) {
 		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/iam/123/callback", holderDID).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -828,14 +828,23 @@ func Test_extractChallenge(t *testing.T) {
 }
 
 func Test_clientMetadataURL(t *testing.T) {
-	webdid := did.MustParseDID("did:web:example.com:iam:holder")
-
 	t.Run("ok", func(t *testing.T) {
-		url, err := clientMetadataURL(webdid)
+		webDID := did.MustParseDID("did:web:example.com:iam:holder")
+		actual, err := clientMetadataURL(webDID)
 
 		require.NoError(t, err)
-		require.NotNil(t, url)
-		assert.Equal(t, "https://example.com/iam/holder/oauth-client", url.String())
+		require.NotNil(t, actual)
+		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder/oauth-client", actual.String())
+	})
+	t.Run("did:web with port", func(t *testing.T) {
+		const didAsString = "did:web:example.com%3A8080:iam:holder"
+		webDID := did.MustParseDID(didAsString)
+
+		actual, err := clientMetadataURL(webDID)
+
+		require.NoError(t, err)
+		require.NotNil(t, actual)
+		assert.Equal(t, "https://example.com:8080/oauth2/did:web:example.com%253A8080:iam:holder/oauth-client", actual.String())
 	})
 	t.Run("error - invalid DID", func(t *testing.T) {
 		_, err := clientMetadataURL(did.DID{})

@@ -27,6 +27,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"net/http"
 	"net/url"
+	"path"
 	"slices"
 	"strings"
 	"time"
@@ -358,7 +359,7 @@ func (r Wrapper) handleAuthorizeResponseError(_ context.Context, request HandleA
 }
 
 func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
-	verifier, err := r.idToOwnedDID(ctx, request.Id)
+	verifier, err := r.toOwnedDID(ctx, request.Did)
 	if err != nil {
 		return nil, oauthError(oauth.InvalidRequest, "unknown verifier id")
 	}
@@ -615,7 +616,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	}
 	// send callback URL for verification (this method is the handler for that URL) to authorization server to check against earlier redirect_uri
 	// we call it checkURL here because it is used by the authorization server to check if the code is valid
-	requestHolder, _ := r.idToOwnedDID(ctx, request.Id) // already checked
+	requestHolder, _ := r.toOwnedDID(ctx, request.Did) // already checked
 	checkURL, err := didweb.DIDToURL(*requestHolder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
@@ -874,7 +875,9 @@ func clientMetadataURL(webdid did.DID) (*url.URL, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
 	}
-	// we use the authorization server endpoint as the client metadata endpoint, contents are the same
-	// coming from a did:web, it's impossible to get a false URL
-	return didURL.JoinPath(oauth.ClientMetadataPath), nil
+
+	// Client metadata is found at https://<host>/oauth2/<did>/client-metadata
+	didURL.RawPath = ""
+	didURL.Path = path.Join("oauth2", webdid.String(), oauth.ClientMetadataPath)
+	return didURL, nil
 }
