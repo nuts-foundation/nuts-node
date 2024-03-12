@@ -128,8 +128,11 @@ func issueOrganizationCredential(organization *did.Document, name, city string) 
 		},
 		Visibility: &visibility,
 	}
-	require.NoError(t, request.Type.FromIssueVCRequestType1([]any{"VerifiableCredential", "NutsOrganizationCredential"}))
-	_, err := vcrClient.IssueVC(request)
+	err := request.Type.FromIssueVCRequestType1([]any{"VerifiableCredential", "NutsOrganizationCredential"})
+	if err != nil {
+		return err
+	}
+	_, err = vcrClient.IssueVC(request)
 	return err
 }
 
