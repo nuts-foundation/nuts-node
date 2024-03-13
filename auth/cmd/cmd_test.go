@@ -48,7 +48,6 @@ func TestFlagSet(t *testing.T) {
 		ConfHTTPTimeout,
 		ConfAutoUpdateIrmaSchemas,
 		ConfIrmaSchemeManager,
-		ConfV2APIEnabled,
 	}, keys)
 }
 

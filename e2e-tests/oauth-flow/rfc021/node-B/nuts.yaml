@@ -8,7 +8,6 @@ http:
     address: :8081
 auth:
   tlsenabled: true
-  v2apienabled: true
   contractvalidators:
     - dummy
   irma:
