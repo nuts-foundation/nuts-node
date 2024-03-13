@@ -657,29 +657,6 @@ func TestWrapper_middleware(t *testing.T) {
 	server := echo.New()
 	ctrl := gomock.NewController(t)
 	authService := auth.NewMockAuthenticationServices(ctrl)
-	authService.EXPECT().V2APIEnabled().Return(true).AnyTimes()
-
-	t.Run("API enabling", func(t *testing.T) {
-		t.Run("enabled", func(t *testing.T) {
-			var called strictServerCallCapturer
-
-			ctx := server.NewContext(httptest.NewRequest("GET", "/iam/foo", nil), httptest.NewRecorder())
-			_, _ = Wrapper{auth: authService}.middleware(ctx, nil, "Test", called.handle)
-
-			assert.True(t, bool(called))
-		})
-		t.Run("disabled", func(t *testing.T) {
-			var called strictServerCallCapturer
-
-			authService := auth.NewMockAuthenticationServices(ctrl)
-			authService.EXPECT().V2APIEnabled().Return(false).AnyTimes()
-
-			ctx := server.NewContext(httptest.NewRequest("GET", "/iam/foo", nil), httptest.NewRecorder())
-			_, _ = Wrapper{auth: authService}.middleware(ctx, nil, "Test", called.handle)
-
-			assert.False(t, bool(called))
-		})
-	})
 
 	t.Run("OAuth2 error handling", func(t *testing.T) {
 		var handler strictServerCallCapturer

@@ -7,7 +7,6 @@ http:
   internal:
     address: :8081
 auth:
-  v2apienabled: true
   contractvalidators:
     - dummy
   irma:

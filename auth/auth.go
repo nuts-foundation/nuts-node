@@ -72,11 +72,6 @@ func (auth *Auth) Config() interface{} {
 	return &auth.config
 }
 
-// V2APIEnabled returns true if the v2 API is enabled
-func (auth *Auth) V2APIEnabled() bool {
-	return auth.config.V2APIEnabled
-}
-
 // PublicURL returns the public URL of the node.
 func (auth *Auth) PublicURL() *url.URL {
 	return auth.publicURL

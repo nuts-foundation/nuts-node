@@ -13,7 +13,6 @@ discovery:
     refresh_interval: 500ms
     registration_refresh_interval: 500ms
 auth:
-  v2apienabled: true
   contractvalidators:
     - dummy
   irma:
