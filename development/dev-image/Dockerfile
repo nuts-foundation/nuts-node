@@ -1,7 +1,8 @@
-FROM nutsfoundation/nuts-node:master as nutsnode
-FROM node:21-alpine
+FROM nutsfoundation/nuts-node:latest as nutsnode
+FROM debian:buster-slim
 
-RUN npm install -g localtunnel
+RUN apt-get update && apt-get install -y curl sudo musl
+RUN curl -sL https://aka.ms/DevTunnelCliInstall | bash
 
 COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
