@@ -249,11 +249,12 @@ func TestNetwork_Configure(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("error - TLS disabled in strict mode", func(t *testing.T) {
+	t.Run("error - TLS disabled in strict mode (and there are bootstrap nodes configured)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
+		ctx.network.config.BootstrapNodes = []string{"localhost:5555"}
 
 		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 			config.Datadir = io.TestDirectory(t)
@@ -266,7 +267,6 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
-		ctx.network.assumeNewNode = true
 
 		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 			config.Datadir = io.TestDirectory(t)

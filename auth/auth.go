@@ -142,11 +142,6 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		StrictMode:            config.Strictmode,
 	}, auth.vcr, resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}, auth.keyStore, auth.jsonldManager, auth.pkiProvider)
 
-	tlsEnabled := config.TLS.Enabled()
-	if config.Strictmode && !tlsEnabled {
-		return errors.New("in strictmode TLS must be enabled")
-	}
-
 	auth.tlsConfig, err = auth.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 	if err != nil {
 		return err

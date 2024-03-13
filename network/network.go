@@ -247,6 +247,13 @@ func (n *Network) Configure(config core.ServerConfig) error {
 				return grpc.BoundedBackoff(time.Second, n.config.MaxBackoff)
 			}),
 		}
+
+		otherNodes, err := n.findVendorDIDs()
+		if err != nil {
+			return err
+		}
+		n.assumeNewNode = len(otherNodes) == 0
+
 		// Configure TLS
 		var authenticator grpc.Authenticator
 		if tlsEnabled {
@@ -394,11 +401,10 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	}
 
 	// start connecting to published NutsComm addresses
-	otherNodes, err := n.didDocumentFinder.Find(management.IsActive(), management.ValidAt(time.Now()), management.ByServiceType(transport.NutsCommServiceType))
+	otherNodes, err := n.findVendorDIDs()
 	if err != nil {
 		return err
 	}
-	n.assumeNewNode = len(otherNodes) == 0
 	if n.assumeNewNode {
 		log.Logger().Infof("Assuming this is a new node, discovered NutsComm addresses are processed with a %s delay", newNodeConnectionDelay)
 	}
@@ -877,4 +883,12 @@ func (n *Network) isPayloadPresent(ctx context.Context, txRef hash.SHA256Hash) (
 		return false, err
 	}
 	return n.state.IsPayloadPresent(ctx, tx.PayloadHash())
+}
+
+func (n *Network) findVendorDIDs() ([]did.Document, error) {
+	result, err := n.didDocumentFinder.Find(management.IsActive(), management.ValidAt(time.Now()), management.ByServiceType(transport.NutsCommServiceType))
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }

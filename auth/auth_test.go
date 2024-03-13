@@ -94,13 +94,6 @@ func TestAuth_Configure(t *testing.T) {
 		assert.EqualError(t, err, "in strictmode the only valid irma-scheme-manager is 'pbdf'")
 	})
 
-	t.Run("error - TLS required in strict mode", func(t *testing.T) {
-		authCfg := TestConfig()
-		i := testInstance(t, authCfg)
-		err := i.Configure(core.TestServerConfig())
-		assert.EqualError(t, err, "in strictmode TLS must be enabled")
-	})
-
 	t.Run("error - TLS config provider returns error", func(t *testing.T) {
 		i := testInstance(t, TestConfig())
 		pkiProvider := pki.NewMockProvider(gomock.NewController(t))
