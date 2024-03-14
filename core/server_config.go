@@ -64,7 +64,7 @@ type ServerConfig struct {
 	HTTPClient          HTTPClientConfig `koanf:"httpclient"`
 	TLS                 TLSConfig        `koanf:"tls"`
 	// LegacyTLS exists to detect usage of deprecated network.{truststorefile,certkeyfile,certfile} parameters.
-	// This can be removed in v7. See https://github.com/nuts-foundation/nuts-node/issues/2909
+	// This can be removed in v6.1+ (can't skip minors in migration). See https://github.com/nuts-foundation/nuts-node/issues/2909
 	LegacyTLS TLSConfig `koanf:"network"`
 	configMap *koanf.Koanf
 }
