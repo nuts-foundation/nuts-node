@@ -48,10 +48,12 @@ const (
 	AuthzServerWellKnown = "/.well-known/oauth-authorization-server"
 	// ClientMetadataPath is the path to the client metadata relative to the complete did:web URL
 	ClientMetadataPath = "/oauth-client"
-	// openidCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in OpenID4VCI specification
-	openidCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
+	// OpenidCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in
+	// OpenID4VCI specification
+	OpenIdCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
 	// openidCredWalletWellKnown is the well-known path element we created for openid4vci to retrieve the oauth client metadata
-	openidCredWalletWellKnown = "/.well-known/openid-credential-wallet"
+	openidCredWalletWellKnown    = "/.well-known/openid-credential-wallet"
+	OpenIdConfigurationWellKnown = "/.well-known/openid-configuration"
 	// AssertionParam is the parameter name for the assertion parameter
 	AssertionParam = "assertion"
 	// AuthorizationCodeGrantType is the grant_type for the authorization_code grant type
@@ -246,4 +248,39 @@ type OAuthClientMetadata struct {
 type Redirect struct {
 	// RedirectURI is the URI to redirect the user-agent to.
 	RedirectURI string `json:"redirect_uri"`
+}
+
+// OpenIDCredentialIssuerMetadata represents the metadata of an OpenID credential issuer
+type OpenIDCredentialIssuerMetadata struct {
+	// - CredentialIssuer: an url representing the credential issuer
+	CredentialIssuer string `json:"credential_issuer"`
+	// - CredentialEndpoint: an url representing the credential endpoint
+	CredentialEndpoint string `json:"credential_endpoint"`
+	// - AuthorizationServers: a slice of urls representing the authorization servers (optional)
+	AuthorizationServers []string `json:"authorization_servers,omitempty"`
+	// - Display: a slice of maps where each map represents the display information (optional)
+	Display []map[string]string `json:"display,omitempty"`
+}
+
+// OpenIDConfigurationMetadata is the metadata of an OpenID Connect configuration.
+// It includes the issuer, authorization endpoint, token endpoint, JWKS URI,
+// and supported grant types for authentication and authorization.
+type OpenIDConfigurationMetadata = AuthorizationServerMetadata
+
+// Oid4vciTokenResponse is the response type for OAuth OID4VCI token endpoint
+type Oid4vciTokenResponse struct {
+	// The access token value
+	AccessToken string `json:"access_token"`
+	// The duration in seconds that the token is valid for, or nil if not specified
+	ExpiresIn *int `json:"expires_in,omitempty"`
+	// The type of the access token
+	TokenType string `json:"token_type"`
+	// The CNonce value, or nil if not specified
+	CNonce *string `json:"c_nonce,omitempty"`
+	// The duration in seconds that the CNonce is valid for, or nil if not specified
+	CNonceExpiresIn *int `json:"c_nonce_expires_in,omitempty"`
+	// The token scope, or nil if not specified
+	Scope *string `json:"scope,omitempty"`
+	// The authorization details, or nil if not specified
+	AuthorizationDetails *any `json:"authorization_details,omitempty"`
 }
