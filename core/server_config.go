@@ -53,17 +53,19 @@ var redactedConfigKeys = []string{
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
-	Verbosity           string            `koanf:"verbosity"`
-	LoggerFormat        string            `koanf:"loggerformat"`
-	CPUProfile          string            `koanf:"cpuprofile"`
-	Strictmode          bool              `koanf:"strictmode"`
-	InternalRateLimiter bool              `koanf:"internalratelimiter"`
-	Datadir             string            `koanf:"datadir"`
-	HTTPClient          HTTPClientConfig  `koanf:"httpclient"`
-	TLS                 TLSConfig         `koanf:"tls"`
-	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
 	// URL contains the base URL for public-facing HTTP services.
-	URL       string `koanf:"url"`
+	URL                 string           `koanf:"url"`
+	Verbosity           string           `koanf:"verbosity"`
+	LoggerFormat        string           `koanf:"loggerformat"`
+	CPUProfile          string           `koanf:"cpuprofile"`
+	Strictmode          bool             `koanf:"strictmode"`
+	InternalRateLimiter bool             `koanf:"internalratelimiter"`
+	Datadir             string           `koanf:"datadir"`
+	HTTPClient          HTTPClientConfig `koanf:"httpclient"`
+	TLS                 TLSConfig        `koanf:"tls"`
+	// LegacyTLS exists to detect usage of deprecated network.{truststorefile,certkeyfile,certfile} parameters.
+	// This can be removed in v6.1+ (can't skip minors in migration). See https://github.com/nuts-foundation/nuts-node/issues/2909
+	LegacyTLS TLSConfig `koanf:"network"`
 	configMap *koanf.Koanf
 }
 
@@ -131,19 +133,6 @@ func (t TLSConfig) Load() (*tls.Config, *TrustStore, error) {
 	return config, trustStore, nil
 }
 
-// NetworkTLSConfig is temporarily here to support having the network engine's TLS config available to both the network and auth engine.
-// This was introduced by https://github.com/nuts-foundation/nuts-node/pull/375 but leads to issues when unmarshalling non-flattened child structs.
-// This works for ServerConfig, because Koanf's FlatPaths decoding option is `false` there,
-// but for engine config the PR above requires it to be `true`, which leads to different behavior when unmarshalling engine config (v.s. server config).
-// It was a bad idea then, and will be fixed by https://github.com/nuts-foundation/nuts-node/pull/1334 because it moves TLS config to the ServerConfig,
-// so it can be used by any module requiring TLS. But since we don't want to break backwards compatibility within 1 release,
-// this needs to stay here for v5 and be removed in v6.
-type NetworkTLSConfig struct {
-	CertFile       string `koanf:"certfile"`
-	CertKeyFile    string `koanf:"certkeyfile"`
-	TrustStoreFile string `koanf:"truststorefile"`
-}
-
 // TLSOffloadingMode defines configurable modes for TLS offloading.
 type TLSOffloadingMode string
 
@@ -159,10 +148,8 @@ const (
 
 // NewServerConfig creates an initialized empty server config
 func NewServerConfig() *ServerConfig {
-	legacyTLS := &NetworkTLSConfig{}
 	return &ServerConfig{
 		configMap:           koanf.New(defaultDelimiter),
-		LegacyTLS:           legacyTLS,
 		LoggerFormat:        "text",
 		Verbosity:           "info",
 		Strictmode:          true,
@@ -204,6 +191,10 @@ func (ngc *ServerConfig) Load(flags *pflag.FlagSet) (err error) {
 
 	if err := loadConfigIntoStruct(ngc, ngc.configMap); err != nil {
 		return err
+	}
+
+	if ngc.LegacyTLS.TrustStoreFile != "" || ngc.LegacyTLS.CertKeyFile != "" || ngc.LegacyTLS.CertFile != "" {
+		return errors.New("invalid config parameter(s): network.{truststorefile,certkeyfile,certfile} have moved to tls.{...}")
 	}
 
 	// Configure logging.
