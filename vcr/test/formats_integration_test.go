@@ -42,7 +42,6 @@ func TestCredentialFormats(t *testing.T) {
 	subjectDID := registerDID(t, system)
 	publish := false
 	credentialRequestTemplate := v2.IssueVCRequest{
-		Type: "NutsOrganizationCredential",
 		CredentialSubject: map[string]interface{}{
 			"id": subjectDID.String(),
 			"organization": map[string]interface{}{
@@ -53,6 +52,7 @@ func TestCredentialFormats(t *testing.T) {
 		Issuer:           issuerDID.String(),
 		PublishToNetwork: &publish,
 	}
+	_ = credentialRequestTemplate.Type.FromIssueVCRequestType0("NutsOrganizationCredential")
 	vcrAPI := v2.Wrapper{VCR: system.FindEngineByName("vcr").(vcr.VCR)}
 
 	t.Run("VC in JSON-LD format", func(t *testing.T) {

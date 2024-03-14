@@ -159,12 +159,37 @@ func issueVC() *cobra.Command {
 				return fmt.Errorf("invalid credential subject: %w", err)
 			}
 			request := api.IssueVCRequest{
-				Context:           &args[0],
-				Type:              args[1],
+				//Context:           &args[0],
+				//Type:              args[1],
 				Issuer:            args[2],
 				CredentialSubject: credentialSubject,
 				PublishToNetwork:  &publish,
 			}
+			// set @context
+			if args[0] != "" {
+				request.Context = new(api.IssueVCRequest_Context)
+				if anyContexts := toAnyStrings(args[0]); len(anyContexts) > 1 {
+					//return errors.New("only 1 @context supported")
+					if err := request.Context.FromIssueVCRequestContext1(anyContexts); err != nil {
+						return fmt.Errorf("invalid @context: %w", err)
+					}
+				} else {
+					if err := request.Context.FromIssueVCRequestContext0(args[0]); err != nil {
+						return fmt.Errorf("invalid @context: %w", err)
+					}
+				}
+			}
+			// set type
+			if anyTypes := toAnyStrings(args[1]); len(anyTypes) > 1 {
+				if err := request.Type.FromIssueVCRequestType1(anyTypes); err != nil {
+					return fmt.Errorf("invalid credential type: %w", err)
+				}
+			} else {
+				if err := request.Type.FromIssueVCRequestType0(args[1]); err != nil {
+					return fmt.Errorf("invalid credential type: %w", err)
+				}
+			}
+
 			if publish {
 				visibility := api.IssueVCRequestVisibility(visibilityStr)
 				request.Visibility = &visibility
@@ -185,6 +210,16 @@ func issueVC() *cobra.Command {
 	result.Flags().StringVarP(&visibilityStr, "visibility", "v", "private", "Whether to publish the credential publicly ('public') or privately ('private').")
 	result.Flags().StringVarP(&expirationDate, "expiration", "e", "", "Date in RFC3339 format when the VC expires.")
 	return result
+}
+
+// toAnyStrings splits input at ',' and returns the resulting parts as []any
+func toAnyStrings(input string) []any {
+	parts := strings.Split(input, ",")
+	anyParts := make([]any, len(parts))
+	for i, part := range parts {
+		anyParts[i] = any(part)
+	}
+	return anyParts
 }
 
 // httpClient creates a remote client
