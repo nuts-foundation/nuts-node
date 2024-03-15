@@ -20,7 +20,7 @@ Configuration
 Authentication can be enabled by setting ``http.internal.auth.type`` (see example above) to ``token_v2``.
 Endpoints under ``/internal`` will then require a JWT signed by an authorized key.
 
-Authorized (public) keys are configured in an ``authorized_keys`` file as specified in the ``http.internal.auth.type.authorizedkeyspath`` parameter.
+Authorized (public) keys are specified in an ``authorized_keys`` file configured by the ``http.internal.auth.type.authorizedkeyspath`` parameter.
 This file should contain one or more trusted keys, in the standard SSH format. ECDSA, Ed25519, and RSA (>=2048-bit) keys
 are accepted. Each line in the file must contain the key-type, key-specification, and user name that is authorized,
 for example ``ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH1VNKtThJiI6c5zjLn/6EjRq1PtfM4qw4HM71zivIVn john.doe@company.com``.
