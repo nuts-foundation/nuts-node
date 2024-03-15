@@ -82,7 +82,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master'}}
         uses: docker/build-push-action@v5
         with:
-          context: development/dev-image
-          file: Dockerfile
+          context: .
+          file: development/dev-image/Dockerfile
           platforms: linux/amd64,linux/arm/v7,linux/arm64
           tags: nuts-node:dev
