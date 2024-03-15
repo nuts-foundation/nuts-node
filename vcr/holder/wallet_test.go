@@ -473,7 +473,8 @@ func Test_wallet_List(t *testing.T) {
 
 		list, err := sut.List(ctx, vdr.TestDIDA)
 		require.NoError(t, err)
-		require.Empty(t, list)
+		require.NotNil(t, list)
+		assert.Empty(t, list)
 	})
 	t.Run("not empty", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
