@@ -79,10 +79,10 @@ jobs:
             GIT_BRANCH=${{ steps.version.outputs.git_branch }}
 
       - name: Build and push development image
+        if: ${{ github.event_name != 'pull_request' && steps.docker_meta.outputs.tags == 'nuts-node:master'}}
         uses: docker/build-push-action@v5
         with:
           context: development/dev-image
           file: Dockerfile
           platforms: linux/amd64,linux/arm/v7,linux/arm64
-          push: ${{ github.event_name != 'pull_request' && steps.docker_meta.outputs.tags == 'nuts-node:master' }}
           tags: nuts-node:dev
