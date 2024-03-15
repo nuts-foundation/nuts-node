@@ -627,8 +627,10 @@ func createOAuth2EndpointURL(webDID did.DID, endpointPath ...string) (*url.URL, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
 	}
-	didURL.RawPath = ""
-	didURL.Path = path.Join("oauth2", webDID.String())
-	didURL = didURL.JoinPath(endpointPath...)
-	return didURL, nil
+	result := new(url.URL)
+	result.Scheme = didURL.Scheme
+	result.Host = didURL.Host
+	result.Path = path.Join("oauth2", webDID.String())
+	result = result.JoinPath(endpointPath...)
+	return result, nil
 }

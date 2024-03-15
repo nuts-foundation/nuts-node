@@ -571,7 +571,7 @@ paths:
           description: |
             This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
             Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
-  /oauth2/{did}/statuslist/{page}:
+  /statuslist/{did}/{page}:
     parameters:
       - name: did
         in: path
