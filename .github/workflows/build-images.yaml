@@ -84,5 +84,5 @@ jobs:
           context: development/dev-image
           file: Dockerfile
           platforms: linux/amd64,linux/arm/v7,linux/arm64
-          push: ${{ github.event_name != 'pull_request' && is_default_branch }}
+          push: ${{ github.event_name != 'pull_request' && steps.docker_meta.outputs.tags == 'nuts-node:master' }}
           tags: nuts-node:dev
