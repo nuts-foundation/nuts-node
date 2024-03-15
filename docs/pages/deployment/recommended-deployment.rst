@@ -3,10 +3,10 @@
 Recommended Deployment
 ######################
 
-This document aims to describe the systems and their components involved in deploying a Nuts node in a production environment.
-The target audience are engineers that want to deploy a Nuts Node in their environment for a Service Provider (SP).
+This document describes the systems and their components involved in deploying a Nuts node in a production environment.
+The target audience are engineers that want to deploy a Nuts Node.
 
-It does not detail services and interfaces specified by Bolts: those should be documented by the particular Bolts and should be regarded as extensions to the deployment described here.
+It does not detail services and interfaces specified by use cases: those should be documented by the particular use case and should be regarded as extensions to the deployment described here.
 
 The container diagram documents the recommended way of deploying a Nuts node using the features supported by the Nuts node's version.
 
@@ -15,23 +15,17 @@ The diagrams are in `C4 model <https://c4model.com/>`_ notation.
 System Landscape
 ****************
 
-The diagram below depicts the users and systems that interact with the Nuts node of the local SP.
+The diagram below depicts the actors that interact with the Nuts node of the local party.
 
 .. image:: ../../_static/images/diagrams/deployment-diagram-System-Landscape-Diagram.svg
 
 Containers
 **********
 
-This section details the system with involved containers (which can be native or containerized processes, physical or remote database servers or even networked filesystems).
+This section details the system with involved containers (which can be native or containerized processes, physical or remote database servers).
 It lists the interfaces of the Nuts node, who uses them and how they should be secured.
 
 .. image:: ../../_static/images/diagrams/deployment-diagram-Container-Diagram.svg
-
-.. note::
-
-    There are features that might change the recommended deployment, e.g.:
-
-    * Clustering support
 
 Nuts Node
 ^^^^^^^^^
@@ -43,13 +37,25 @@ Public Endpoints
 This section describes HTTP endpoints that need to be reachable for third parties.
 These endpoints are by default available on ``:8080``.
 
-* **HTTP /iam**: for accessing OAuth2 and OpenID services.
+* **HTTP /iam**: for resolving DID documents.
+
+  *Users*: Other Nuts nodes, Verifiable Credential issuers and verifiers.
+
+  *Security*: HTTPS with **publicly trusted** server certificate (on proxy).
+
+* **HTTP /oauth2**: for accessing OAuth2 and OpenID services.
 
   *Users*: Other Nuts nodes, Verifiable Credential issuers and verifiers.
 
   *Security*: HTTPS with **publicly trusted** server certificate (on proxy). Monitor traffic to detect attacks.
 
-* **HTTP /.well-known**: for accessing DID, OpenID and OAuth2 metadata
+* **HTTP /.well-known**: for resolving DID documents, OpenID and OAuth2 metadata
+
+  *Users*: Other Nuts nodes, Verifiable Credential issuers and verifiers.
+
+  *Security*: HTTPS with **publicly trusted** server certificate (on proxy).
+
+* **HTTP /statuslist**: for retrieving the list Verifiable Credentials
 
   *Users*: Other Nuts nodes, Verifiable Credential issuers and verifiers.
 
