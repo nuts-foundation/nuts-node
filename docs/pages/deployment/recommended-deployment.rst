@@ -113,7 +113,7 @@ If you need to access them from another host, you can bind it to a different int
 Legacy Endpoints
 ----------------
 
-There are legacy endpoints that are not used for new deployments/use cases, but are still supported for backwards compatibility.
+There are deprecated endpoints that are still supported for backwards compatibility.
 If your use case does not require ``did:nuts`` DIDs and/or the gRPC network, you can limit/disable access to these endpoints.
 
 * **HTTP /n2n**: for providing Nuts services to other nodes (e.g. creating access tokens).
