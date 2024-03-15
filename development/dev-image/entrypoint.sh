@@ -42,7 +42,7 @@ fi
 echo $TUNNEL_ID > /devtunnel/tunnel.id
 echo Your Nuts node URL is: ${TUNNEL_URL}
 
-NUTS_URL="${TUNNEL_URL}" NUTS_STRICTMODE=false NUTS_AUTH_CONTRACTVALIDATORS=dummy NUTS_HTTP_INTERNAL_ADDRESS=:8081 NUTS_AUTH_V2APIENABLED=true exec /usr/bin/nuts server
+NUTS_URL="${TUNNEL_URL}" NUTS_STRICTMODE=false NUTS_AUTH_CONTRACTVALIDATORS=dummy NUTS_HTTP_INTERNAL_ADDRESS=:8081 exec /usr/bin/nuts server
 
 # Kill the localtunnel process when the container stops
 kill $(cat /devtunnel/tunnel.pid)
