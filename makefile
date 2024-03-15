@@ -118,5 +118,5 @@ docker:
 	docker build --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg GIT_BRANCH=${GIT_BRANCH} --build-arg GIT_VERSION=${GIT_VERSION} -t nutsfoundation/nuts-node:master .
 
 docker-dev: docker
-	docker build -t nutsfoundation/nuts-node:development development/dev-image
+	docker build -t nutsfoundation/nuts-node:dev development/dev-image
 
