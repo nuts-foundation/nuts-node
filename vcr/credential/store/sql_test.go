@@ -88,6 +88,20 @@ func TestCredentialStore_Store(t *testing.T) {
 		_, err = CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcEve2)
 		require.EqualError(t, err, "credential with this ID already exists with different contents: 66")
 	})
+	t.Run("duplicate credential with different whitespace", func(t *testing.T) {
+		setupStore(t, storageEngine.GetSQLDatabase())
+		vcEve := createPersonCredential("66", "did:example:eve", map[string]interface{}{
+			"givenName":  "Evil",
+			"familyName": "Mastermind",
+		})
+		vcEve2Str, _ := json.MarshalIndent(vcEve, "", "  ")
+		vcEve2, _ := vc.ParseVerifiableCredential(string(vcEve2Str))
+
+		_, err := CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcEve)
+		require.NoError(t, err)
+		_, err = CredentialStore{}.Store(storageEngine.GetSQLDatabase(), *vcEve2)
+		require.NoError(t, err)
+	})
 	t.Run("with indexable properties in credential", func(t *testing.T) {
 		setupStore(t, storageEngine.GetSQLDatabase())
 		_, err := CredentialStore{}.Store(storageEngine.GetSQLDatabase(), vcAlice)
