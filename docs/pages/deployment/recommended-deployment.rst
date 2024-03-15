@@ -160,7 +160,7 @@ Private Key Storage
 ^^^^^^^^^^^^^^^^^^^
 
 Creating DID documents causes private keys to be generated, which need to be safely stored so the Nuts node can access them.
-It is recommended to store them in `Vault <https://www.vaultproject.io/>`_ or other secure key store.``
+It is recommended to store them in `Vault <https://www.vaultproject.io/>`_ or other secure key store.
 Refer to the config options of the crypto engine and `Vault documentation <https://www.vaultproject.io/docs>`_ for configuring it.
 
 Production Checklist
@@ -178,9 +178,9 @@ Below is a list of items that should be addressed when running a node in product
 - Configuration
    - Make sure ``strictmode`` is enabled (default)
 - Security
-   - If not using ``did:nuts``, prevent access to the:
-      - gRPC endpoint (e.g. by not mapping it in Docker), and
-      - the public ``/n2n`` and ``/public`` endpoints on HTTP ``:8080``.
+   - If not using ``did:nuts``, prevent access to:
+      - The gRPC endpoint (e.g. by not mapping it in Docker).
+      - The public ``/n2n`` and ``/public`` endpoints on HTTP ``:8080``.
         See the v5 documentation for deployments still using ``did:nuts``.
    - Make sure internal HTTP endpoints (``:8081``) are not available from the outside.
 - Availability
