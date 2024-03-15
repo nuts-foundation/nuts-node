@@ -1,4 +1,4 @@
-FROM nutsfoundation/nuts-node:latest as nutsnode
+FROM nutsfoundation/nuts-node:master as nutsnode
 FROM debian:buster-slim
 
 RUN apt-get update && apt-get install -y curl sudo musl
