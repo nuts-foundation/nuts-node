@@ -325,7 +325,7 @@ func (s walletStore) list(holderDID did.DID) ([]vc.VerifiableCredential, error) 
 	if err != nil {
 		return nil, err
 	}
-	var results []vc.VerifiableCredential
+	results := make([]vc.VerifiableCredential, 0)
 	for _, record := range records {
 		verifiableCredential, err := vc.ParseVerifiableCredential(record.Credential.Raw)
 		if err != nil {
