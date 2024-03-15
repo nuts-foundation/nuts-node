@@ -169,21 +169,21 @@ Production Checklist
 Below is a list of items that should be addressed when running a node in production:
 
 * Reverse proxy
-   * Use a proxy in front of the node which terminates TLS
-   * Make sure the reverse proxy sends the ``X-Forwarded-For`` header to log correct IP addresses
+  * Use a proxy in front of the node which terminates TLS
+  * Make sure the reverse proxy sends the ``X-Forwarded-For`` header to log correct IP addresses
 * Key Management
-   * Have a scheduled key rotation procedure
+  * Have a scheduled key rotation procedure
 * Backup Management
-   * Make sure data is backed up (data stored in SQL and private keys)
-   * Have a tested backup/restore procedure
+  * Make sure data is backed up (data stored in SQL and private keys)
+  * Have a tested backup/restore procedure
 * Configuration
-   * Make sure ``strictmode`` is enabled (default)
+  * Make sure ``strictmode`` is enabled (default)
 * Security
-   * If not using ``did:nuts``, prevent access to:
-      * The gRPC endpoint (e.g. by not mapping it in Docker).
-      * The public ``/n2n`` and ``/public`` endpoints on HTTP ``:8080``.
-        See the v5 documentation for deployments still using ``did:nuts``.
-   * Make sure internal HTTP endpoints (``:8081``) are not available from the outside.
-   * Consider protecting ``/internal`` with API authentication.
+  * If not using ``did:nuts``, prevent access to:
+    * The gRPC endpoint (e.g. by not mapping it in Docker).
+    * The public ``/n2n`` and ``/public`` endpoints on HTTP ``:8080``.
+      See the v5 documentation for deployments still using ``did:nuts``.
+  * Make sure internal HTTP endpoints (``:8081``) are not available from the outside.
+  * Consider protecting ``/internal`` with API authentication.
 * Availability
-   * Consider (D)DoS detection and protection for the ``/oauth2`` HTTP endpoints.
+  * Consider (D)DoS detection and protection for the ``/oauth2`` HTTP endpoints.
