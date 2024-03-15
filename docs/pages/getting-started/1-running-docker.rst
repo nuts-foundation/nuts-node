@@ -75,3 +75,21 @@ Start the service:
 .. code-block:: shell
 
   docker compose up
+
+Development image
+*****************
+
+There's also a development image available which includes an HTTPS tunnel.
+This is useful for development and testing purposes. In order to use it, you need a Github account.
+The development image is available at Docker hub under ``nutsfoundation/nuts-node:dev``.
+
+You can also build the development image yourself by running the following command in the root of the repository:
+
+.. code-block:: shell
+
+  make docker-dev
+
+When starting up the development image, it'll block and requires you to authenticate with Github.
+It'll print a URL to visit in your browser and a code to enter. After authenticating, the tunnel will be established and the Nuts Node will start.
+To save the tunnel configuration, mount a directory to ``/devtunnel`` inside the container. The last used tunnel is stored in ``/devtunnel/tunnel.id``.
+``devtunnel/tunnel.log`` contains the logs of the tunnel including the public accessible URL. This URL is also printed to the console.
