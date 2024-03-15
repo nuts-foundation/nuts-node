@@ -121,7 +121,7 @@ If your use case does not require ``did:nuts`` DIDs and/or the gRPC network, you
 * **/n2n** (public): for providing Nuts services to other nodes (e.g. creating access tokens).
   The local node also calls other nodes on their ``/n2n`` endpoint, these outgoing calls are subject to the same security requirements.
 
-  *Users*: Nuts nodes of other SPs.
+  *Users*: Other Nuts nodes.
 
   *Security*: HTTPS with server- and client certificates (mTLS) **according to network trust anchors** (on proxy). Monitor traffic to detect attacks.
 
@@ -133,7 +133,7 @@ If your use case does not require ``did:nuts`` DIDs and/or the gRPC network, you
 
 * **gRPC**: for communicating with other Nuts nodes according to the network protocol. Uses HTTP/2 on port ``5555`` as transport, both outbound and inbound.
 
-  *Users*: Nuts nodes of other SPs.
+  *Users*: Other Nuts nodes.
 
   *Security*: HTTPS with server- and client certificates (mTLS) **according to network trust anchors** (on proxy). This is provided by the Nuts node.
 
