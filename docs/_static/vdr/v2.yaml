@@ -39,6 +39,7 @@ paths:
 
         error returns:
         * 400 - Returned in case of malformed DID in the request body
+        * 409 - Returned in case the DID already exists
         * 500 - An error occurred while processing the request
       operationId: "createDID"
       tags:

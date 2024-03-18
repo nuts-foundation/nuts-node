@@ -442,10 +442,7 @@ func NewDeactivateServiceForDIDRequest(server string, serviceID string, did stri
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam1 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -483,10 +480,7 @@ func NewGetServiceActivationRequest(server string, serviceID string, did string)
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam1 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -524,10 +518,7 @@ func NewActivateServiceForDIDRequest(server string, serviceID string, did string
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
-	if err != nil {
-		return nil, err
-	}
+	pathParam1 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -1429,10 +1420,7 @@ func (w *ServerInterfaceWrapper) DeactivateServiceForDID(ctx echo.Context) error
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -1455,10 +1443,7 @@ func (w *ServerInterfaceWrapper) GetServiceActivation(ctx echo.Context) error {
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -1481,10 +1466,7 @@ func (w *ServerInterfaceWrapper) ActivateServiceForDID(ctx echo.Context) error {
 	// ------------- Path parameter "did" -------------
 	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
+	did = ctx.Param("did")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 

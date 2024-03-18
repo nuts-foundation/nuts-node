@@ -41,7 +41,6 @@ Nuts documentation
     pages/deployment/backup-restore.rst
     pages/deployment/key-rotation.rst
     pages/deployment/storage-configuration.rst
-    pages/deployment/tls-configuration.rst
     pages/deployment/production-configuration.rst
     pages/deployment/audit-logging.rst
 

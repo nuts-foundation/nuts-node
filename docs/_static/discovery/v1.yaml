@@ -162,8 +162,15 @@ paths:
       - name: did
         in: path
         required: true
-        schema:
-          type: string
+        example:
+          - did:web:example.com
+          - did:web:example.com:iam:user
+          - did:web:example.com%3A9443
+          - did:web:example.com%3A9443:iam:user
+        content:
+          plain/text:
+            schema:
+              type: string
     get:
       summary: Retrieves the activation status a DID on a Discovery Service.
       description: |

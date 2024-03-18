@@ -117,6 +117,25 @@ func (presentationDefinition PresentationDefinition) ResolveConstraintsFields(cr
 	return result, nil
 }
 
+// CredentialsRequired returns true if the presentation definition requires credentials.
+// This is the case if there are any InputDescriptors with constraints and no SubmissionRequirements.
+// Or if there are SubmissionRequirements with an "all" rule or a "pick" rule that requires credentials.
+func (presentationDefinition PresentationDefinition) CredentialsRequired() bool {
+	if len(presentationDefinition.SubmissionRequirements) > 0 {
+		for _, submissionRequirement := range presentationDefinition.SubmissionRequirements {
+			switch submissionRequirement.Rule {
+			case "all":
+				return true
+			case "pick":
+				if submissionRequirement.Min != nil && *submissionRequirement.Min > 0 {
+					return true
+				}
+			}
+		}
+	}
+	return len(presentationDefinition.InputDescriptors) > 0
+}
+
 func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential) ([]Candidate, error) {
 	var candidates []Candidate
 
