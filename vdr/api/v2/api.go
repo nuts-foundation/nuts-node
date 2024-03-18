@@ -50,6 +50,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		did.ErrInvalidDID:                   http.StatusBadRequest,
 		management.ErrInvalidService:        http.StatusBadRequest,
 		management.ErrUnsupportedDIDMethod:  http.StatusBadRequest,
+		management.ErrDIDAlreadyExists:      http.StatusConflict,
 	})
 }
 
