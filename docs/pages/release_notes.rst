@@ -3,24 +3,36 @@
 Release notes
 #############
 
-***************
-Peanut (v6.0.0)
-***************
+*******************
+Peanut (v6 alpha 1)
+*******************
 
 **Release date:** TBD
-**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v6.0.0
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...master
 
 New Features
 ************
 
 The following new features have been added:
 
-- TBD
+- Resolving and creating ``did:web`` DID documents (see the VDR v2 API reference for usage).
+- Resolving ``did:jwk`` and ``did:key`` DID documents.
+- Running a Discovery Server and Client (see :ref:`discovery`)
+- Added a Verifiable Credential system-wallet, which is used in Presentation Exchanges (e.g. OpenID4VP).
+  See the VCR API reference for usage.
+- Added support for OpenID4VP (OpenID for Verifiable Presentations)
+- Added support for Nuts RFC021, which negotiates an OAuth2 access token for a system through a Presentation Exchange using Verifiable Credentials.
+- Added support for `StatusList2021 <https://www.w3.org/TR/2023/WD-vc-status-list-20230427/>`_ as revocation means for Verifiable Credentials.
 
 Changes
 *******
 
-The following features have been changed:
+- Removed support for deprecated network TLS properties. Configuring these properties will now cause the node not to start.
+- Removed usage of deprecated `purposeOfUseClaim` in ``NutsAuthorizationCredential``.
+- Documentation of ``did:nuts``-related features have been removed (refer to v5 documentation).
+- Documentation of specific use cases (e.g. health care in general or eOverdracht) has been moved to the `Nuts wiki <https://wiki.nuts.nl>`_.
+
+The following features have also been changed:
 
 HTTP interface
 ==============
@@ -36,20 +48,12 @@ Port configuration
 ------------------
 To simplify HTTP configuration and proxying and make the default more secure, HTTP endpoints now map to 2 HTTP interfaces:
 
-- port `8081` for all internal-facing endpoints (`/internal`, `/status`, `/metrics`)
+- port `8081` for all internal-facing endpoints (`/internal`, `/status`, `/metrics`, `/health`)
 - port `8080` for all public-facing endpoints (all others)
 
 The new HTTP configuration reflects this,
 
 Note that `8081` by default maps to `localhost` only, so you might need to configure it to allow it to be accessible from other machines.
-
-************************
-Peanut (v6.0.0)
-************************
-
-Release date: ?
-
-- removed usage of deprecated `purposeOfUseClaim` from NutsAuthorizationCredential
 
 ************************
 Hazelnut update (v5.4.6)
