@@ -115,7 +115,7 @@ func (h wallet) BuildSubmission(ctx context.Context, walletDID did.DID, presenta
 	}
 	if signInstructions.Empty() {
 		// we'll allow empty if no credentials are required
-		if len(presentationDefinition.InputDescriptors) > 0 {
+		if presentationDefinition.CredentialsRequired() {
 			return nil, nil, ErrNoCredentials
 		}
 		// add empty sign instruction
