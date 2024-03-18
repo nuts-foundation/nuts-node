@@ -29,6 +29,7 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -132,6 +133,22 @@ func TestManager_Create(t *testing.T) {
 
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(""))
 		require.EqualError(t, err, "unknown option: string")
+	})
+	t.Run("already exists", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
+			PublicKey: publicKey,
+		}, nil)
+		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+		opts := DefaultCreationOptions().With(UserPath("test"))
+		_, _, err := m.Create(audit.TestContext(), opts)
+		require.NoError(t, err)
+
+		_, _, err = m.Create(audit.TestContext(), opts)
+
+		require.ErrorIs(t, err, management.ErrDIDAlreadyExists)
 	})
 }
 
