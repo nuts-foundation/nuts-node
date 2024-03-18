@@ -20,6 +20,7 @@ The following new features have been added:
 - Running a Discovery Server and Client (see :ref:`discovery`)
 - Added a Verifiable Credential system-wallet, which is used in Presentation Exchanges (e.g. OpenID4VP).
   See the VCR API reference for usage.
+- Added support for OpenID4VP (OpenID for Verifiable Presentations)
 - Added support for Nuts RFC021, which negotiates an OAuth2 access token for a system through a Presentation Exchange using Verifiable Credentials.
 - Added support for `StatusList2021 <https://www.w3.org/TR/2023/WD-vc-status-list-20230427/>`_ as revocation means for Verifiable Credentials.
 
