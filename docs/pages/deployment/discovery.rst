@@ -21,11 +21,16 @@ It does not load subdirectories. If the directory contains JSON files that are n
 Clients
 *******
 
-Clients will periodically refresh the loaded Discovery Services. Applications can then search for entries in the Discovery Service, e.g.:
+Clients will periodically query the Discovery Service for new registrations.
+Applications can then search for entries in the Discovery Service, e.g.:
 
 .. code-block:: http
 
     GET /internal/discovery/v1/discovery/addressbook2024:dev/?credentialSubject.name=John%20Doe
+
+Any string property in the Verifiable Credential(s) can be queried, including nested properties.
+Arrays, numbers or booleans are not supported. Wildcards can be used to search for partial matches, e.g. ``Hospital*`` or ``*First``.
+If multiple query parameters are specified, all of them must match a single Verifiable Credential.
 
 Registration
 ============
@@ -58,5 +63,10 @@ The IDs in this list must correspond to the ``id`` fields of the loaded service 
 Clients will access the discovery service through ``/discovery`` on the external HTTP interface (``8080`` by default),
 so make sure it's available externally.
 
-The endpoint for a Discovery Service as it must be specified in the definition is the service ID appended to this base URL,
-e.g.: ``/discovery/addressbook2024:dev``.
+The endpoint for a Discovery Service MUST be in the following form:
+
+.. code-block:: http
+
+    https://<host>/discovery/<service_id>
+
+Where ``<service_id>`` is the ID of the service, e.g.: ``/discovery/addressbook2024:dev``.
