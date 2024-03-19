@@ -651,7 +651,7 @@ func expectPostError(t *testing.T, ctx *testCtx, errorCode oauth.ErrorCode, desc
 		assert.Equal(t, description, err.Description)
 		assert.Equal(t, expectedResponseURI, responseURI)
 		assert.Equal(t, verifierClientState, state)
-		holderURL, _ := createOAuth2EndpointURL(holderDID)
+		holderURL, _ := createOAuth2BaseURL(holderDID)
 		require.NotNil(t, holderURL)
 		return holderURL.JoinPath("callback").String(), nil
 	})

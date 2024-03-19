@@ -45,7 +45,6 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 )
@@ -138,13 +137,14 @@ func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID s
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
-		vcrTypes.ErrNotFound: http.StatusNotFound,
+		vcrTypes.ErrNotFound:                http.StatusNotFound,
+		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
 	})
 }
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
 func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
-	ownDID, err := r.toOwnedDID(ctx, request.Did)
+	ownDID, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +304,7 @@ func toAnyMap(input any) (*map[string]any, error) {
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
-	ownDID, err := r.toOwnedDID(ctx, request.Did)
+	ownDID, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -412,7 +412,11 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 	if err != nil {
 		return nil, err
 	}
-	oauth2BaseURL, _ := createOAuth2EndpointURL(*ownDID) // can't fail, already did DIDToURL above
+	oauth2BaseURL, err := createOAuth2BaseURL(*ownDID)
+	if err != nil {
+		// can't fail, already did DIDToURL above
+		return nil, err
+	}
 	return OAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity, *oauth2BaseURL)), nil
 }
 
@@ -436,7 +440,7 @@ func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMet
 		return nil, err
 	}
 
-	identityURL, err := createOAuth2EndpointURL(*ownedDID)
+	identityURL, err := createOAuth2BaseURL(*ownedDID)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +452,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		return PresentationDefinition200JSONResponse(PresentationDefinition{}), nil
 	}
 
-	authorizer, err := r.toOwnedDID(ctx, request.Did)
+	authorizer, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -464,29 +468,39 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 	return PresentationDefinition200JSONResponse(*presentationDefinition), nil
 }
 
+// toOwnedDIDForOAuth2 is like toOwnedDID but wraps the errors in oauth.OAuth2Error to make sure they're returned as specified by the OAuth2 RFC.
+func (r Wrapper) toOwnedDIDForOAuth2(ctx context.Context, didAsString string) (*did.DID, error) {
+	result, err := r.toOwnedDID(ctx, didAsString)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "DID resolution failed") {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.ServerError,
+				Description: err.Error(),
+			}
+		} else {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: err.Error(),
+			}
+		}
+	}
+	return result, nil
+}
+
 func (r Wrapper) toOwnedDID(ctx context.Context, didAsString string) (*did.DID, error) {
 	ownDID, err := did.ParseDID(didAsString)
 	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: "invalid DID: " + err.Error(),
-		}
+		return nil, fmt.Errorf("invalid DID: %s", err)
 	}
 	owned, err := r.vdr.IsOwner(ctx, *ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
-			return nil, oauth.OAuth2Error{
-				Code:        oauth.InvalidRequest,
-				Description: "invalid issuer DID: " + err.Error(),
-			}
+			return nil, fmt.Errorf("invalid issuer DID: %s", err)
 		}
 		return nil, fmt.Errorf("DID resolution failed: %w", err)
 	}
 	if !owned {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: "issuer DID not owned by the server",
-		}
+		return nil, resolver.ErrDIDNotManagedByThisNode
 	}
 	return ownDID, nil
 }
@@ -544,10 +558,11 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	})
 
 	// generate a link to the redirect endpoint
-	webURL, err := createOAuth2EndpointURL(*requestHolder, "user")
+	webURL, err := createOAuth2BaseURL(*requestHolder)
 	if err != nil {
 		return nil, err
 	}
+	webURL = webURL.JoinPath("user")
 	// redirect to generic user page, context of token will render correct page
 	redirectURL := http2.AddQueryParams(*webURL, map[string]string{
 		"token": token,
@@ -602,9 +617,9 @@ func (r Wrapper) accessTokenServerStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "serveraccesstoken")
 }
 
-// createOAuth2EndpointURL creates an OAuth2 endpoint URL for an owned did:web DID, for the given endpoint.
-// It creates a URL in the following format: https://<did:web host>/oauth2/<did>/<endpoint>
-func createOAuth2EndpointURL(webDID did.DID, endpointPath ...string) (*url.URL, error) {
+// createOAuth2BaseURL creates an OAuth2 base URL for an owned did:web DID
+// It creates a URL in the following format: https://<did:web host>/oauth2/<did>
+func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 	didURL, err := didweb.DIDToURL(webDID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
@@ -612,7 +627,5 @@ func createOAuth2EndpointURL(webDID did.DID, endpointPath ...string) (*url.URL, 
 	result := new(url.URL)
 	result.Scheme = didURL.Scheme
 	result.Host = didURL.Host
-	result.Path = path.Join("oauth2", webDID.String())
-	result = result.JoinPath(endpointPath...)
-	return result, nil
+	return result.Parse("/oauth2/" + webDID.String())
 }

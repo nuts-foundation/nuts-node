@@ -83,18 +83,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: "123"})
 
 		assert.Equal(t, 400, statusCodeFrom(err))
-		assert.EqualError(t, err, "invalid_request - issuer DID not owned by the server")
-		assert.Nil(t, res)
-	})
-	t.Run("error - did does not exist", func(t *testing.T) {
-		//404
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, resolver.ErrNotFound)
-
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: "123"})
-
-		assert.Equal(t, 400, statusCodeFrom(err))
-		assert.EqualError(t, err, "invalid_request - invalid issuer DID: unable to find the DID document")
+		assert.EqualError(t, err, "DID document not managed by this node")
 		assert.Nil(t, res)
 	})
 	t.Run("error - internal error 500", func(t *testing.T) {
@@ -228,7 +217,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, response)
-		assert.Equal(t, "invalid_request - issuer DID not owned by the server", err.Error())
+		assert.Equal(t, "invalid_request - DID document not managed by this node", err.Error())
 	})
 }
 
@@ -526,7 +515,7 @@ func TestWrapper_Callback(t *testing.T) {
 			Did: webDID.String(),
 		})
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "issuer DID not owned by the server")
+		assert.EqualError(t, err, "DID document not managed by this node")
 		assert.Nil(t, res)
 	})
 }
@@ -714,7 +703,7 @@ func TestWrapper_toOwnedDID(t *testing.T) {
 
 		_, err := ctx.client.toOwnedDID(nil, webDID.String())
 
-		assert.EqualError(t, err, "invalid_request - issuer DID not owned by the server")
+		assert.EqualError(t, err, "DID document not managed by this node")
 	})
 	t.Run("DID does not exist (functional resolver error)", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -722,7 +711,7 @@ func TestWrapper_toOwnedDID(t *testing.T) {
 
 		_, err := ctx.client.toOwnedDID(nil, webDID.String())
 
-		assert.EqualError(t, err, "invalid_request - invalid issuer DID: unable to find the DID document")
+		assert.EqualError(t, err, "invalid issuer DID: unable to find the DID document")
 	})
 	t.Run("other resolver error", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -755,14 +744,14 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "DID not owned by this node")
+		assert.EqualError(t, err, "DID document not managed by this node")
 	})
 	t.Run("error - invalid DID", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: "invalid", Body: body})
 
-		require.EqualError(t, err, "DID not found: invalid DID")
+		require.EqualError(t, err, "invalid DID: invalid DID")
 	})
 	t.Run("error - invalid verifier did", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -823,7 +812,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 
 		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: "invalid", Body: body})
 
-		require.EqualError(t, err, "DID not found: invalid DID")
+		require.EqualError(t, err, "invalid DID: invalid DID")
 	})
 }
 
@@ -855,10 +844,10 @@ func TestWrapper_StatusList(t *testing.T) {
 	})
 }
 
-func Test_createOAuth2EndpointURL(t *testing.T) {
+func Test_createOAuth2BaseURL(t *testing.T) {
 	t.Run("no endpoint", func(t *testing.T) {
 		webDID := did.MustParseDID("did:web:example.com:iam:holder")
-		actual, err := createOAuth2EndpointURL(webDID)
+		actual, err := createOAuth2BaseURL(webDID)
 
 		require.NoError(t, err)
 		require.NotNil(t, actual)
@@ -866,32 +855,24 @@ func Test_createOAuth2EndpointURL(t *testing.T) {
 	})
 	t.Run("ok", func(t *testing.T) {
 		webDID := did.MustParseDID("did:web:example.com:iam:holder")
-		actual, err := createOAuth2EndpointURL(webDID, "something")
+		actual, err := createOAuth2BaseURL(webDID)
 
 		require.NoError(t, err)
 		require.NotNil(t, actual)
-		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder/something", actual.String())
-	})
-	t.Run("nested path", func(t *testing.T) {
-		webDID := did.MustParseDID("did:web:example.com:iam:holder")
-		actual, err := createOAuth2EndpointURL(webDID, "///foo//bar")
-
-		require.NoError(t, err)
-		require.NotNil(t, actual)
-		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder/foo/bar", actual.String())
+		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder", actual.String())
 	})
 	t.Run("did:web with port", func(t *testing.T) {
 		const didAsString = "did:web:example.com%3A8080:iam:holder"
 		webDID := did.MustParseDID(didAsString)
 
-		actual, err := createOAuth2EndpointURL(webDID, "something")
+		actual, err := createOAuth2BaseURL(webDID)
 
 		require.NoError(t, err)
 		require.NotNil(t, actual)
-		assert.Equal(t, "https://example.com:8080/oauth2/did:web:example.com%253A8080:iam:holder/something", actual.String())
+		assert.Equal(t, "https://example.com:8080/oauth2/did:web:example.com%3A8080:iam:holder", actual.String())
 	})
 	t.Run("error - invalid DID", func(t *testing.T) {
-		_, err := createOAuth2EndpointURL(did.DID{})
+		_, err := createOAuth2BaseURL(did.DID{})
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to convert DID to URL: URL does not represent a Web DID\nunsupported DID method: ")
@@ -943,13 +924,13 @@ func requestContext(queryParams map[string]interface{}) context.Context {
 	return context.WithValue(audit.TestContext(), httpRequestContextKey, httpRequest)
 }
 
-// statusCodeFrom returns the statuscode if err is core.HTTPStatusCodeError, or 0 if it isn't
+// statusCodeFrom returns the statuscode for the given error
 func statusCodeFrom(err error) int {
-	var SE core.HTTPStatusCodeError
-	if errors.As(err, &SE) {
-		return SE.StatusCode()
+	code := Wrapper{}.ResolveStatusCode(err)
+	if code == 0 {
+		return 500
 	}
-	return 500
+	return code
 }
 
 type testCtx struct {

@@ -102,10 +102,11 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// construct callback URL to be used in (Signed)AuthorizationRequest
-	callbackURL, err := createOAuth2EndpointURL(redirectSession.OwnDID, oauth.CallbackPath)
+	callbackURL, err := createOAuth2BaseURL(redirectSession.OwnDID)
 	if err != nil {
 		return fmt.Errorf("failed to create callback URL: %w", err)
 	}
+	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
 	modifier := func(values map[string]interface{}) {
 		values[oauth.RedirectURIParam] = callbackURL.String()
 		values[oauth.ResponseTypeParam] = responseTypeCode

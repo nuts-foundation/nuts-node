@@ -110,7 +110,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet"), redirectURL)
 	}
 	// own generic endpoint
-	ownURL, err := createOAuth2EndpointURL(verifier)
+	ownURL, err := createOAuth2BaseURL(verifier)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid verifier DID"), redirectURL)
 	}
@@ -349,7 +349,7 @@ func (r Wrapper) handleAuthorizeResponseError(_ context.Context, request HandleA
 }
 
 func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
-	verifier, err := r.toOwnedDID(ctx, request.Did)
+	verifier, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
 	if err != nil {
 		return nil, oauthError(oauth.InvalidRequest, "unknown verifier id")
 	}
@@ -607,10 +607,11 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	// send callback URL for verification (this method is the handler for that URL) to authorization server to check against earlier redirect_uri
 	// we call it checkURL here because it is used by the authorization server to check if the code is valid
 	requestHolder, _ := r.toOwnedDID(ctx, request.Did) // already checked
-	checkURL, err := createOAuth2EndpointURL(*requestHolder, oauth.CallbackPath)
+	checkURL, err := createOAuth2BaseURL(*requestHolder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
 	}
+	checkURL = checkURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
 	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID)
