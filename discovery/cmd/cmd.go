@@ -30,7 +30,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("discovery.definitions.directory", defs.Definitions.Directory,
 		"Directory to load Discovery Service Definitions from. If not set, the discovery service will be disabled. "+
 			"If the directory contains JSON files that can't be parsed as service definition, the node will fail to start.")
-	flagSet.StringSlice("discovery.server.definition_ids", defs.Server.DefinitionIDs,
+	flagSet.StringSlice("discovery.server.definitions", defs.Server.Definitions,
 		"IDs of the Discovery Service Definitions for which to act as server. "+
 			"If an ID does not map to a loaded service definition, the node will fail to start.")
 	flagSet.Duration("discovery.client.refresh_interval", defs.Client.RefreshInterval,

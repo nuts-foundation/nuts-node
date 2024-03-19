@@ -30,7 +30,7 @@ The following options apply to the server commands below:
       --datadir string                                 Directory where the node stores its files. (default "./data")
       --discovery.client.refresh_interval duration     Interval at which the client synchronizes with the Discovery Server; refreshing Verifiable Presentations of local DIDs and loading changes, updating the local copy. It only will actually refresh registrations of local DIDs that about to expire (less than 1/4th of their lifetime left). Specified as Golang duration (e.g. 1m, 1h30m). (default 10m0s)
       --discovery.definitions.directory string         Directory to load Discovery Service Definitions from. If not set, the discovery service will be disabled. If the directory contains JSON files that can't be parsed as service definition, the node will fail to start.
-      --discovery.server.definition_ids strings        IDs of the Discovery Service Definitions for which to act as server. If an ID does not map to a loaded service definition, the node will fail to start.
+      --discovery.server.definitions strings           IDs of the Discovery Service Definitions for which to act as server. If an ID does not map to a loaded service definition, the node will fail to start.
       --events.nats.hostname string                    Hostname for the NATS server (default "0.0.0.0")
       --events.nats.port int                           Port where the NATS server listens on (default 4222)
       --events.nats.storagedir string                  Directory where file-backed streams are stored in the NATS server
