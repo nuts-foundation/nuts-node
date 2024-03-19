@@ -21,78 +21,30 @@ package iam
 import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/url"
 	"testing"
 )
 
-func TestIssuerIdToWellKnown(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		issuer := "https://nuts.nl/iam/id"
-		u, err := oauth.IssuerIdToWellKnown(issuer, oauth.AuthzServerWellKnown, true)
-		require.NoError(t, err)
-		assert.Equal(t, "https://nuts.nl/.well-known/oauth-authorization-server/iam/id", u.String())
-	})
-	t.Run("no path in issuer", func(t *testing.T) {
-		issuer := "https://nuts.nl"
-		u, err := oauth.IssuerIdToWellKnown(issuer, oauth.AuthzServerWellKnown, true)
-		require.NoError(t, err)
-		assert.Equal(t, "https://nuts.nl/.well-known/oauth-authorization-server", u.String())
-	})
-	t.Run("don't unescape path", func(t *testing.T) {
-		issuer := "https://nuts.nl/iam/%2E%2E/still-has-iam"
-		u, err := oauth.IssuerIdToWellKnown(issuer, oauth.AuthzServerWellKnown, true)
-		require.NoError(t, err)
-		assert.Equal(t, "https://nuts.nl/.well-known/oauth-authorization-server/iam/%2E%2E/still-has-iam", u.String())
-	})
-	t.Run("https in strictmode", func(t *testing.T) {
-		issuer := "http://nuts.nl/iam/id"
-		u, err := oauth.IssuerIdToWellKnown(issuer, oauth.AuthzServerWellKnown, true)
-		assert.ErrorContains(t, err, "scheme must be https")
-		assert.Nil(t, u)
-	})
-	t.Run("no IP allowed", func(t *testing.T) {
-		issuer := "https://127.0.0.1/iam/id"
-
-		u, err := IssuerIdToWellKnown(issuer, oauth.AuthzServerWellKnown, true)
-
-		assert.ErrorContains(t, err, "hostname is IP")
-		assert.Nil(t, u)
-	})
-	t.Run("invalid URL", func(t *testing.T) {
-		issuer := "http:// /iam/id"
-		u, err := oauth.IssuerIdToWellKnown(issuer, oauth.AuthzServerWellKnown, true)
-		assert.ErrorContains(t, err, "invalid character \" \" in host name")
-		assert.Nil(t, u)
-	})
-}
-
-var vpFormats = map[string]map[string][]string{
-	"jwt_vc_json": {"alg_values_supported": []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}},
-	"jwt_vp_json": {"alg_values_supported": []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}},
-	"ldp_vc":      {"proof_type_values_supported": []string{"JsonWebSignature2020"}},
-	"ldp_vp":      {"proof_type_values_supported": []string{"JsonWebSignature2020"}},
-}
-
 func Test_authorizationServerMetadata(t *testing.T) {
-	identity := "https://example.com/iam/did:nuts:123"
-	identityURL, _ := url.Parse(identity)
+	identity := test.MustParseURL("https://example.com/iam/123")
+	oauth2Base := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:123")
 	expected := oauth.AuthorizationServerMetadata{
-		Issuer:                 identity,
-		AuthorizationEndpoint:  identity + "/authorize",
+		Issuer:                 identity.String(),
+		AuthorizationEndpoint:  oauth2Base.String() + "/authorize",
 		ResponseTypesSupported: []string{"code", "vp_token", "vp_token id_token"},
 		ResponseModesSupported: []string{"query", "direct_post"},
-		TokenEndpoint:          identity + "/token",
+		TokenEndpoint:          oauth2Base.String() + "/token",
 		GrantTypesSupported:    []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
 		PreAuthorizedGrantAnonymousAccessSupported: true,
-		PresentationDefinitionEndpoint:             identity + "/presentation_definition",
+		PresentationDefinitionEndpoint:             oauth2Base.String() + "/presentation_definition",
 		RequireSignedRequestObject:                 true,
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		ClientIdSchemesSupported:                   []string{"did"},
 	}
-	assert.Equal(t, expected, authorizationServerMetadata(*identityURL))
+	assert.Equal(t, expected, authorizationServerMetadata(*identity, *oauth2Base))
 }
 
 func Test_clientMetadata(t *testing.T) {

@@ -41,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -289,7 +288,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 					VpToken:                &vpToken,
 					PresentationSubmission: &submissionAsStr,
 				},
-				Id: "verifier",
+				Did: verifierDID.String(),
 			}
 		}
 		t.Run("ok", func(t *testing.T) {
@@ -439,7 +438,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 					ErrorDescription: &description,
 					State:            &state,
 				},
-				Id: "verifier",
+				Did: verifierDID.String(),
 			}
 		}
 		t.Run("with client state", func(t *testing.T) {
@@ -553,7 +552,7 @@ func Test_handleCallback(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Params: CallbackParams{
 				Code: &code,
 			},
@@ -565,7 +564,7 @@ func Test_handleCallback(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -579,7 +578,7 @@ func Test_handleCallback(t *testing.T) {
 		putState(ctx, state)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Params: CallbackParams{
 				State: &state,
 			},
@@ -591,10 +590,10 @@ func Test_handleCallback(t *testing.T) {
 		ctx := newTestClient(t)
 		putState(ctx, state)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/iam/123/callback", holderDID).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -652,7 +651,7 @@ func expectPostError(t *testing.T, ctx *testCtx, errorCode oauth.ErrorCode, desc
 		assert.Equal(t, description, err.Description)
 		assert.Equal(t, expectedResponseURI, responseURI)
 		assert.Equal(t, verifierClientState, state)
-		holderURL, _ := didweb.DIDToURL(holderDID)
+		holderURL, _ := createOAuth2BaseURL(holderDID)
 		require.NotNil(t, holderURL)
 		return holderURL.JoinPath("callback").String(), nil
 	})
@@ -824,24 +823,6 @@ func Test_extractChallenge(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "nonce", challenge)
-	})
-}
-
-func Test_clientMetadataURL(t *testing.T) {
-	webdid := did.MustParseDID("did:web:example.com:iam:holder")
-
-	t.Run("ok", func(t *testing.T) {
-		url, err := clientMetadataURL(webdid)
-
-		require.NoError(t, err)
-		require.NotNil(t, url)
-		assert.Equal(t, "https://example.com/iam/holder/oauth-client", url.String())
-	})
-	t.Run("error - invalid DID", func(t *testing.T) {
-		_, err := clientMetadataURL(did.DID{})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "failed to convert DID to URL: URL does not represent a Web DID\nunsupported DID method: ")
 	})
 }
 

@@ -44,7 +44,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 )
 
 var oauthNonceKey = []string{"oauth", "nonce"}
@@ -111,7 +110,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet"), redirectURL)
 	}
 	// own generic endpoint
-	ownURL, err := didweb.DIDToURL(verifier)
+	ownURL, err := createOAuth2BaseURL(verifier)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid verifier DID"), redirectURL)
 	}
@@ -135,16 +134,8 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	//    &response_mode=direct_post
 	//    &nonce=n-0S6_WzA2Mj HTTP/1.1
 	nonce := crypto.GenerateNonce()
-	callbackURL := *ownURL
-	callbackURL.Path, err = url.JoinPath(callbackURL.Path, "response")
-	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to construct redirect path"), redirectURL)
-	}
-
-	metadataURL, err := clientMetadataURL(verifier)
-	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to construct metadata URL"), redirectURL)
-	}
+	callbackURL := ownURL.JoinPath("response")
+	metadataURL := ownURL.JoinPath(oauth.ClientMetadataPath)
 
 	// check metadata for supported client_id_schemes
 	if !slices.Contains(metadata.ClientIdSchemesSupported, didScheme) {
@@ -358,7 +349,7 @@ func (r Wrapper) handleAuthorizeResponseError(_ context.Context, request HandleA
 }
 
 func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
-	verifier, err := r.idToOwnedDID(ctx, request.Id)
+	verifier, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
 	if err != nil {
 		return nil, oauthError(oauth.InvalidRequest, "unknown verifier id")
 	}
@@ -615,8 +606,8 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	}
 	// send callback URL for verification (this method is the handler for that URL) to authorization server to check against earlier redirect_uri
 	// we call it checkURL here because it is used by the authorization server to check if the code is valid
-	requestHolder, _ := r.idToOwnedDID(ctx, request.Id) // already checked
-	checkURL, err := didweb.DIDToURL(*requestHolder)
+	requestHolder, _ := r.toOwnedDID(ctx, request.Did) // already checked
+	checkURL, err := createOAuth2BaseURL(*requestHolder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
 	}
@@ -867,14 +858,4 @@ func oauthError(code oauth.ErrorCode, description string) oauth.OAuth2Error {
 		Code:        code,
 		Description: description,
 	}
-}
-
-func clientMetadataURL(webdid did.DID) (*url.URL, error) {
-	didURL, err := didweb.DIDToURL(webdid)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
-	}
-	// we use the authorization server endpoint as the client metadata endpoint, contents are the same
-	// coming from a did:web, it's impossible to get a false URL
-	return didURL.JoinPath(oauth.ClientMetadataPath), nil
 }

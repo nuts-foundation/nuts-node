@@ -61,7 +61,6 @@ import (
 )
 
 var webDID = did.MustParseDID("did:web:example.com:iam:123")
-var webIDPart = "123"
 var verifierDID = did.MustParseDID("did:web:example.com:iam:verifier")
 
 func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
@@ -70,7 +69,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: webIDPart})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: "123"})
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
@@ -81,21 +80,10 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: webIDPart})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: "123"})
 
 		assert.Equal(t, 400, statusCodeFrom(err))
-		assert.EqualError(t, err, "invalid_request - issuer DID not owned by the server")
-		assert.Nil(t, res)
-	})
-	t.Run("error - did does not exist", func(t *testing.T) {
-		//404
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, resolver.ErrNotFound)
-
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: webIDPart})
-
-		assert.Equal(t, 400, statusCodeFrom(err))
-		assert.EqualError(t, err, "invalid_request - invalid issuer DID: unable to find the DID document")
+		assert.EqualError(t, err, "DID document not managed by this node")
 		assert.Nil(t, res)
 	})
 	t.Run("error - internal error 500", func(t *testing.T) {
@@ -103,7 +91,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: webIDPart})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: "123"})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "DID resolution failed: unknown error")
@@ -112,6 +100,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 }
 
 func TestWrapper_GetWebDID(t *testing.T) {
+	const webIDPart = "123"
 	ctx := audit.TestContext()
 	expectedWebDIDDoc := did.Document{
 		ID: webDID,
@@ -154,7 +143,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
-		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: webIDPart})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Did: webDID.String()})
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthClientMetadata200JSONResponse{}, res)
@@ -163,7 +152,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID)
 
-		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: webIDPart})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Did: webDID.String()})
 
 		assert.Equal(t, 400, statusCodeFrom(err))
 		assert.Nil(t, res)
@@ -172,7 +161,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
 
-		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Id: webIDPart})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Did: webDID.String()})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "DID resolution failed: unknown error")
@@ -189,7 +178,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		test.policy.EXPECT().PresentationDefinition(gomock.Any(), webDID, "eOverdracht-overdrachtsbericht").Return(&presentationDefinition, nil)
 		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Id: "123", Params: PresentationDefinitionParams{Scope: "eOverdracht-overdrachtsbericht"}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "eOverdracht-overdrachtsbericht"}})
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -200,7 +189,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 	t.Run("ok - missing scope", func(t *testing.T) {
 		test := newTestClient(t)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Id: "123", Params: PresentationDefinitionParams{}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{}})
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -213,22 +202,22 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		test.policy.EXPECT().PresentationDefinition(gomock.Any(), webDID, "unknown").Return(nil, policy.ErrNotFound)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Id: "123", Params: PresentationDefinitionParams{Scope: "unknown"}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "unknown"}})
 
 		require.Error(t, err)
 		assert.Nil(t, response)
 		assert.Equal(t, "invalid_scope - not found", err.Error())
 	})
 
-	t.Run("error - unknown ID", func(t *testing.T) {
+	t.Run("error - unknown DID", func(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Id: "notdid", Params: PresentationDefinitionParams{Scope: "eOverdracht-overdrachtsbericht"}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "eOverdracht-overdrachtsbericht"}})
 
 		require.Error(t, err)
 		assert.Nil(t, response)
-		assert.Equal(t, "invalid_request - issuer DID not owned by the server", err.Error())
+		assert.Equal(t, "invalid_request - DID document not managed by this node", err.Error())
 	})
 }
 
@@ -240,7 +229,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ClientIdSchemesSupported: []string{didScheme},
 		VPFormats:                oauth.DefaultOpenIDSupportedFormats(),
 	}
-	pdEndpoint := "https://example.com/iam/verifier/presentation_definition?scope=test"
+	pdEndpoint := "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test"
 	// setup did document and keys
 	vmId := did.DIDURL{
 		DID:             holderDID,
@@ -271,7 +260,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
 		require.NoError(t, err)
 
-		expectedURL := test.MustParseURL("https://example.com/iam/holder/authorize")
+		expectedURL := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:holder/authorize")
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
@@ -282,8 +271,8 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			assert.NotEmpty(t, params[oauth.NonceParam])
 			assert.Equal(t, didScheme, params[clientIDSchemeParam])
 			assert.Equal(t, responseTypeVPToken, params[oauth.ResponseTypeParam])
-			assert.Equal(t, "https://example.com/iam/verifier/response", params[responseURIParam])
-			assert.Equal(t, "https://example.com/iam/verifier/oauth-client", params[clientMetadataURIParam])
+			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", params[responseURIParam])
+			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/oauth-client", params[clientMetadataURIParam])
 			assert.Equal(t, responseModeDirectPost, params[responseModeParam])
 			assert.NotEmpty(t, params[oauth.StateParam])
 			return expectedURL, nil
@@ -293,7 +282,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ClientIDParam: holderDID.String(),
 			oauth.RequestParam:  string(bytes),
 		}), HandleAuthorizeRequestRequestObject{
-			Id: "verifier",
+			Did: verifierDID.String(),
 		})
 
 		require.NoError(t, err)
@@ -309,7 +298,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ClientIDParam: "invalid",
 			oauth.RequestParam:  "invalid",
 		}), HandleAuthorizeRequestRequestObject{
-			Id: "verifier",
+			Did: verifierDID.String(),
 		})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid request parameter")
@@ -332,7 +321,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ClientIDParam: "invalid",
 			oauth.RequestParam:  string(bytes),
 		}), HandleAuthorizeRequestRequestObject{
-			Id: "verifier",
+			Did: verifierDID.String(),
 		})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id claim in signed authorization request")
@@ -355,7 +344,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ClientIDParam: verifierDID.String(),
 			oauth.RequestParam:  string(bytes),
 		}), HandleAuthorizeRequestRequestObject{
-			Id: "verifier",
+			Did: verifierDID.String(),
 		})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "client_id does not match signer of authorization request")
@@ -373,8 +362,8 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			assert.NotEmpty(t, params[oauth.NonceParam])
 			assert.Equal(t, didScheme, params[clientIDSchemeParam])
 			assert.Equal(t, responseTypeVPToken, params[oauth.ResponseTypeParam])
-			assert.Equal(t, "https://example.com/iam/verifier/response", params[responseURIParam])
-			assert.Equal(t, "https://example.com/iam/verifier/oauth-client", params[clientMetadataURIParam])
+			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", params[responseURIParam])
+			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/oauth-client", params[clientMetadataURIParam])
 			assert.Equal(t, responseModeDirectPost, params[responseModeParam])
 			assert.NotEmpty(t, params[oauth.StateParam])
 			return expectedURL, nil
@@ -390,7 +379,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ScopeParam:        "test",
 			oauth.StateParam:        "state",
 		}), HandleAuthorizeRequestRequestObject{
-			Id: "verifier",
+			Did: verifierDID.String(),
 		})
 
 		require.NoError(t, err)
@@ -414,21 +403,21 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
-		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/iam/verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
+		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
 			oauth.ClientIDParam:     verifierDID.String(),
 			clientIDSchemeParam:     didScheme,
 			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
 			oauth.NonceParam:        "nonce",
-			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
-			responseURIParam:        "https://example.com/iam/verifier/response",
+			presentationDefUriParam: "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test",
+			responseURIParam:        "https://example.com/oauth2/did:web:example.com:iam:verifier/response",
 			responseModeParam:       responseModeDirectPost,
 			oauth.ResponseTypeParam: responseTypeVPToken,
 			oauth.ScopeParam:        "test",
 			oauth.StateParam:        "state",
 		}), HandleAuthorizeRequestRequestObject{
-			Id: "holder",
+			Did: "did:web:example.com:iam:holder",
 		})
 
 		require.NoError(t, err)
@@ -444,7 +433,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			"redirect_uri":  "https://example.com",
 			"response_type": "unsupported",
 		}), HandleAuthorizeRequestRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 		})
 
 		requireOAuthError(t, err, oauth.UnsupportedResponseType, "")
@@ -458,7 +447,7 @@ func TestWrapper_HandleTokenRequest(t *testing.T) {
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
 		res, err := ctx.client.HandleTokenRequest(nil, HandleTokenRequestRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Body: &HandleTokenRequestFormdataRequestBody{
 				GrantType: "unsupported",
 			},
@@ -482,7 +471,7 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, state)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Params: CallbackParams{
 				State:            &state,
 				Error:            &errorCode,
@@ -498,10 +487,10 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, state)
 		putToken(ctx, token)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/iam/123/callback", holderDID).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -523,10 +512,10 @@ func TestWrapper_Callback(t *testing.T) {
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(false, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			Id: webIDPart,
+			Did: webDID.String(),
 		})
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "issuer DID not owned by the server")
+		assert.EqualError(t, err, "DID document not managed by this node")
 		assert.Nil(t, res)
 	})
 }
@@ -676,12 +665,12 @@ func TestWrapper_middleware(t *testing.T) {
 
 }
 
-func TestWrapper_idToOwnedDID(t *testing.T) {
+func TestWrapper_toOwnedDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
-		_, err := ctx.client.idToOwnedDID(nil, webIDPart)
+		_, err := ctx.client.toOwnedDID(nil, webDID.String())
 
 		assert.NoError(t, err)
 	})
@@ -689,23 +678,23 @@ func TestWrapper_idToOwnedDID(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID)
 
-		_, err := ctx.client.idToOwnedDID(nil, webIDPart)
+		_, err := ctx.client.toOwnedDID(nil, webDID.String())
 
-		assert.EqualError(t, err, "invalid_request - issuer DID not owned by the server")
+		assert.EqualError(t, err, "DID document not managed by this node")
 	})
 	t.Run("DID does not exist (functional resolver error)", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, resolver.ErrNotFound)
 
-		_, err := ctx.client.idToOwnedDID(nil, webIDPart)
+		_, err := ctx.client.toOwnedDID(nil, webDID.String())
 
-		assert.EqualError(t, err, "invalid_request - invalid issuer DID: unable to find the DID document")
+		assert.EqualError(t, err, "invalid issuer DID: unable to find the DID document")
 	})
 	t.Run("other resolver error", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
 
-		_, err := ctx.client.idToOwnedDID(nil, webIDPart)
+		_, err := ctx.client.toOwnedDID(nil, webDID.String())
 
 		assert.EqualError(t, err, "DID resolution failed: unknown error")
 	})
@@ -732,14 +721,14 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "DID not owned by this node")
+		assert.EqualError(t, err, "DID document not managed by this node")
 	})
 	t.Run("error - invalid DID", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: "invalid", Body: body})
 
-		require.EqualError(t, err, "DID not found: invalid DID")
+		require.EqualError(t, err, "invalid DID: invalid DID")
 	})
 	t.Run("error - invalid verifier did", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -767,7 +756,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
 	userID := "test"
-	redirectURI := "https://test.test/iam/123/cb"
+	redirectURI := "https://test.test/oauth2/" + walletDID.String() + "/cb"
 	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", UserId: userID, RedirectUri: redirectURI}
 
 	t.Run("ok", func(t *testing.T) {
@@ -780,11 +769,12 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		require.NoError(t, err)
 		redirectResponse, ok := response.(RequestUserAccessToken200JSONResponse)
 		assert.True(t, ok)
-		assert.Contains(t, redirectResponse.RedirectUri, "https://test.test/iam/123/user?token=")
+		assert.Contains(t, redirectResponse.RedirectUri, "https://test.test/oauth2/"+walletDID.String()+"/user?token=")
 
 		// assert session
 		var target RedirectSession
-		err = ctx.client.userRedirectStore().Get(redirectResponse.RedirectUri[37:], &target)
+		redirectURI, _ := url.Parse(redirectResponse.RedirectUri)
+		err = ctx.client.userRedirectStore().Get(redirectURI.Query().Get("token"), &target)
 		require.NoError(t, err)
 		assert.Equal(t, walletDID, target.OwnDID)
 
@@ -799,7 +789,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 
 		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: "invalid", Body: body})
 
-		require.EqualError(t, err, "DID not found: invalid DID")
+		require.EqualError(t, err, "invalid DID: invalid DID")
 	})
 }
 
@@ -813,7 +803,7 @@ func TestWrapper_StatusList(t *testing.T) {
 		ctx.vcIssuer.EXPECT().StatusList(nil, issuerDID, page).Return(&slCred, nil)
 
 		res, err := ctx.client.StatusList(nil, StatusListRequestObject{
-			Id:   id,
+			Did:  issuerDID.String(),
 			Page: page,
 		})
 
@@ -824,10 +814,45 @@ func TestWrapper_StatusList(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcIssuer.EXPECT().StatusList(nil, gomock.Any(), gomock.Any()).Return(nil, types.ErrNotFound)
 
-		res, err := ctx.client.StatusList(nil, StatusListRequestObject{})
+		res, err := ctx.client.StatusList(nil, StatusListRequestObject{Did: webDID.String()})
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Nil(t, res)
+	})
+}
+
+func Test_createOAuth2BaseURL(t *testing.T) {
+	t.Run("no endpoint", func(t *testing.T) {
+		webDID := did.MustParseDID("did:web:example.com:iam:holder")
+		actual, err := createOAuth2BaseURL(webDID)
+
+		require.NoError(t, err)
+		require.NotNil(t, actual)
+		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder", actual.String())
+	})
+	t.Run("ok", func(t *testing.T) {
+		webDID := did.MustParseDID("did:web:example.com:iam:holder")
+		actual, err := createOAuth2BaseURL(webDID)
+
+		require.NoError(t, err)
+		require.NotNil(t, actual)
+		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder", actual.String())
+	})
+	t.Run("did:web with port", func(t *testing.T) {
+		const didAsString = "did:web:example.com%3A8080:iam:holder"
+		webDID := did.MustParseDID(didAsString)
+
+		actual, err := createOAuth2BaseURL(webDID)
+
+		require.NoError(t, err)
+		require.NotNil(t, actual)
+		assert.Equal(t, "https://example.com:8080/oauth2/did:web:example.com%3A8080:iam:holder", actual.String())
+	})
+	t.Run("error - invalid DID", func(t *testing.T) {
+		_, err := createOAuth2BaseURL(did.DID{})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "failed to convert DID to URL: URL does not represent a Web DID\nunsupported DID method: ")
 	})
 }
 
@@ -876,13 +901,13 @@ func requestContext(queryParams map[string]interface{}) context.Context {
 	return context.WithValue(audit.TestContext(), httpRequestContextKey, httpRequest)
 }
 
-// statusCodeFrom returns the statuscode if err is core.HTTPStatusCodeError, or 0 if it isn't
+// statusCodeFrom returns the statuscode for the given error
 func statusCodeFrom(err error) int {
-	var SE core.HTTPStatusCodeError
-	if errors.As(err, &SE) {
-		return SE.StatusCode()
+	code := Wrapper{}.ResolveStatusCode(err)
+	if code == 0 {
+		return 500
 	}
-	return 500
+	return code
 }
 
 type testCtx struct {

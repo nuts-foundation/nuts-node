@@ -25,28 +25,18 @@ import (
 	"strings"
 )
 
-// IssuerIdToWellKnown converts the OAuth2 Issuer identity to the specified well-known endpoint by inserting the well-known at the root of the path.
-// It returns no url and an error when issuer is not a valid URL.
-func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url.URL, error) {
-	issuerURL, err := core.ParsePublicURL(issuer, strictmode)
-	if err != nil {
-		return nil, err
-	}
-	return issuerURL.Parse(wellKnown + issuerURL.EscapedPath())
-}
-
-func authorizationServerMetadata(identity url.URL) oauth.AuthorizationServerMetadata {
+func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.AuthorizationServerMetadata {
 	return oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:    identity.JoinPath("authorize").String(),
+		AuthorizationEndpoint:    oauth2BaseURL.JoinPath("authorize").String(),
 		ClientIdSchemesSupported: clientIdSchemesSupported,
 		GrantTypesSupported:      grantTypesSupported,
 		Issuer:                   identity.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
-		PresentationDefinitionEndpoint:             identity.JoinPath("presentation_definition").String(),
+		PresentationDefinitionEndpoint:             oauth2BaseURL.JoinPath("presentation_definition").String(),
 		RequireSignedRequestObject:                 true,
 		ResponseModesSupported:                     responseModesSupported,
 		ResponseTypesSupported:                     responseTypesSupported,
-		TokenEndpoint:                              identity.JoinPath("token").String(),
+		TokenEndpoint:                              oauth2BaseURL.JoinPath("token").String(),
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 	}
