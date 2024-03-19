@@ -624,8 +624,5 @@ func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
 	}
-	result := new(url.URL)
-	result.Scheme = didURL.Scheme
-	result.Host = didURL.Host
-	return result.Parse("/oauth2/" + webDID.String())
+	return didURL.Parse("/oauth2/" + webDID.String())
 }
