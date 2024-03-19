@@ -492,7 +492,7 @@ func (r Wrapper) toOwnedDID(ctx context.Context, didAsString string) (*did.DID, 
 }
 
 func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error) {
-	requestHolder, err := r.getWalletDID(ctx, request.Did)
+	requestHolder, err := r.toOwnedDID(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -511,26 +511,8 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
 }
 
-// getWalletDID resolves a web did and checks if it's owned by this node
-// it differs from toOwnedDID in that it does require the id to be a web did (and not a partial)
-func (r Wrapper) getWalletDID(ctx context.Context, didString string) (*did.DID, error) {
-	// resolve wallet
-	requestHolder, err := did.ParseDID(didString)
-	if err != nil {
-		return nil, core.NotFoundError("DID not found: %w", err)
-	}
-	isWallet, err := r.vdr.IsOwner(ctx, *requestHolder)
-	if err != nil {
-		return nil, err
-	}
-	if !isWallet {
-		return nil, core.InvalidInputError("DID not owned by this node")
-	}
-	return requestHolder, nil
-}
-
 func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
-	requestHolder, err := r.getWalletDID(ctx, request.Did)
+	requestHolder, err := r.toOwnedDID(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
