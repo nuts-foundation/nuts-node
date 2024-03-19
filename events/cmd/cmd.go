@@ -41,10 +41,10 @@ func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("events", pflag.ContinueOnError)
 
 	defs := events.DefaultConfig()
-	flags.Int(ConfEventsPort, defs.Nats.Port, "Port where the NATS server listens on")
-	flags.String(ConfEventsHostname, defs.Nats.Hostname, "Hostname for the NATS server")
-	flags.String(ConfEventsStorageDir, defs.Nats.StorageDir, "Directory where file-backed streams are stored in the NATS server")
-	flags.Int(ConfEventsTimeout, defs.Nats.Timeout, "Timeout for NATS server operations")
+	flags.Int(ConfEventsPort, defs.Nats.Port, "Only used by did:nuts/gRPC. Port where the NATS server listens on")
+	flags.String(ConfEventsHostname, defs.Nats.Hostname, "Only used by did:nuts/gRPC. Hostname for the NATS server")
+	flags.String(ConfEventsStorageDir, defs.Nats.StorageDir, "Only used by did:nuts/gRPC. Directory where file-backed streams are stored in the NATS server")
+	flags.Int(ConfEventsTimeout, defs.Nats.Timeout, "Only used by did:nuts/gRPC. Timeout for NATS server operations")
 
 	return flags
 }

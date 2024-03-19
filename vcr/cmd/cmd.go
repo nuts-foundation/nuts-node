@@ -40,6 +40,12 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("vcr.openid4vci.definitionsdir", defs.OpenID4VCI.DefinitionsDIR, "Directory with the additional credential definitions the node could issue (experimental, may change without notice).")
 	flagSet.Bool("vcr.openid4vci.enabled", defs.OpenID4VCI.Enabled, "Enable issuing and receiving credentials over OpenID4VCI.")
 	flagSet.Duration("vcr.openid4vci.timeout", time.Second*30, "Time-out for OpenID4VCI HTTP client operations.")
+
+	// Server-to-Server OpenID4VCI-related functionality that will probably go away soon.
+	// Should not be relied on.
+	_ = flagSet.MarkHidden("vcr.openid4vci.definitionsdir")
+	_ = flagSet.MarkHidden("vcr.openid4vci.enabled")
+	_ = flagSet.MarkHidden("vcr.openid4vci.timeout")
 	return flagSet
 }
 

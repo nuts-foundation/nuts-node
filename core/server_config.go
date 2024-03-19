@@ -253,12 +253,12 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("datadir", defaultCfg.Datadir, "Directory where the node stores its files.")
 	flagSet.String("url", defaultCfg.URL, "Public facing URL of the server (required). Must be HTTPS when strictmode is set.")
 	flagSet.Duration("httpclient.timeout", defaultCfg.HTTPClient.Timeout, "Request time-out for HTTP clients, such as '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
-	flagSet.String("tls.certfile", defaultCfg.TLS.CertFile, "PEM file containing the certificate for the server (also used as client certificate). Required in strict mode.")
-	flagSet.String("tls.certkeyfile", defaultCfg.TLS.CertKeyFile, "PEM file containing the private key of the server certificate. Required in strict mode.")
-	flagSet.String("tls.truststorefile", defaultCfg.TLS.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote servers. Required in strict mode.")
-	flagSet.String("tls.offload", string(defaultCfg.TLS.Offload), fmt.Sprintf("Whether to enable TLS offloading for incoming connections. "+
+	flagSet.String("tls.certfile", defaultCfg.TLS.CertFile, "Only used by did:nuts/gRPC. PEM file containing the certificate for the gRPC server (also used as client certificate). Required in strict mode.")
+	flagSet.String("tls.certkeyfile", defaultCfg.TLS.CertKeyFile, "Only used by did:nuts/gRPC. PEM file containing the private key of the gRPC server certificate. Required in strict mode.")
+	flagSet.String("tls.truststorefile", defaultCfg.TLS.TrustStoreFile, "Only used by did:nuts/gRPC. PEM file containing the trusted CA certificates for authenticating remote gRPC servers. Required in strict mode.")
+	flagSet.String("tls.offload", string(defaultCfg.TLS.Offload), fmt.Sprintf("Only used by did:nuts/gRPC. Whether to enable TLS offloading for incoming gRPC connections. "+
 		"Enable by setting it to '%s'. If enabled 'tls.certheader' must be configured as well.", OffloadIncomingTLS))
-	flagSet.String("tls.certheader", defaultCfg.TLS.ClientCertHeaderName, "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
+	flagSet.String("tls.certheader", defaultCfg.TLS.ClientCertHeaderName, "Only used by did:nuts/gRPC. Name of the HTTP header that will contain the client certificate when TLS is offloaded for gRPC.")
 
 	return flagSet
 }
