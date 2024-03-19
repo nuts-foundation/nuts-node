@@ -25,16 +25,6 @@ import (
 	"strings"
 )
 
-// IssuerIdToWellKnown converts the OAuth2 Issuer identity to the specified well-known endpoint by inserting the well-known at the root of the path.
-// It returns no url and an error when issuer is not a valid URL.
-func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url.URL, error) {
-	issuerURL, err := core.ParsePublicURL(issuer, strictmode)
-	if err != nil {
-		return nil, err
-	}
-	return issuerURL.Parse(wellKnown + issuerURL.EscapedPath())
-}
-
 func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.AuthorizationServerMetadata {
 	return oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:    oauth2BaseURL.JoinPath("authorize").String(),
