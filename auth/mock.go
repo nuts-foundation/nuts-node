@@ -111,17 +111,3 @@ func (mr *MockAuthenticationServicesMockRecorder) RelyingParty() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RelyingParty", reflect.TypeOf((*MockAuthenticationServices)(nil).RelyingParty))
 }
-
-// V2APIEnabled mocks base method.
-func (m *MockAuthenticationServices) V2APIEnabled() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "V2APIEnabled")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// V2APIEnabled indicates an expected call of V2APIEnabled.
-func (mr *MockAuthenticationServicesMockRecorder) V2APIEnabled() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "V2APIEnabled", reflect.TypeOf((*MockAuthenticationServices)(nil).V2APIEnabled))
-}

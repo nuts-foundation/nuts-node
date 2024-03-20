@@ -28,7 +28,7 @@ docker compose exec node nuts didman svc add "${DID_1}" testEndpoint "http://exa
 DIDDOC_2=$(docker compose exec node nuts vdr create-did)
 DID_2=$(echo $DIDDOC_2 | jq -r .id)
 docker compose exec node nuts didman svc add "${DID_2}" testEndpoint "http://example.com"
-waitForTXCount "Node" "http://localhost:11323/status/diagnostics" 4 10
+waitForTXCount "Node" "http://localhost:18081/status/diagnostics" 4 10
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."

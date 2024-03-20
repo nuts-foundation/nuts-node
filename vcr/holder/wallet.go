@@ -115,7 +115,7 @@ func (h wallet) BuildSubmission(ctx context.Context, walletDID did.DID, presenta
 	}
 	if signInstructions.Empty() {
 		// we'll allow empty if no credentials are required
-		if len(presentationDefinition.InputDescriptors) > 0 {
+		if presentationDefinition.CredentialsRequired() {
 			return nil, nil, ErrNoCredentials
 		}
 		// add empty sign instruction
@@ -325,7 +325,7 @@ func (s walletStore) list(holderDID did.DID) ([]vc.VerifiableCredential, error) 
 	if err != nil {
 		return nil, err
 	}
-	var results []vc.VerifiableCredential
+	results := make([]vc.VerifiableCredential, 0)
 	for _, record := range records {
 		verifiableCredential, err := vc.ParseVerifiableCredential(record.Credential.Raw)
 		if err != nil {

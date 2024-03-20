@@ -93,7 +93,7 @@ func Test_LoadExistingDAG(t *testing.T) {
 	defer stopNode(t, runningCtx)
 
 	// Create and update a DID document
-	vdrClient := createVDRClient(moduleConfig.HTTP.Address)
+	vdrClient := createVDRClient(moduleConfig.HTTP.Internal.Address)
 	didDocument, err := vdrClient.Create(v1.DIDCreateRequest{})
 	require.NoError(t, err)
 	_, err = vdrClient.AddNewVerificationMethod(didDocument.ID.String())
@@ -111,7 +111,7 @@ func Test_LoadExistingDAG(t *testing.T) {
 	}
 
 	// Assert we can read the DID document
-	vdrClient = createVDRClient(moduleConfig.HTTP.Address)
+	vdrClient = createVDRClient(moduleConfig.HTTP.Internal.Address)
 	doc, _, err := vdrClient.Get(didDocument.ID.String())
 	require.NoError(t, err)
 	assert.NotNil(t, doc)
@@ -166,7 +166,7 @@ func startServer(testDirectory string, exitCallback func(), serverConfig core.Se
 		// Wait for the Nuts node to start, until the given timeout. Check every 100ms
 		interval := 100 * time.Millisecond
 		attempts := int(timeout / interval)
-		address := fmt.Sprintf("http://%s/status", moduleConfig.HTTP.Address)
+		address := fmt.Sprintf("http://%s/status", moduleConfig.HTTP.Internal.Address)
 		for i := 0; i < attempts; i++ {
 			if isHttpRunning(address) {
 				cancel()
@@ -226,7 +226,8 @@ func getIntegrationTestConfig(t *testing.T, testDirectory string) (core.ServerCo
 	eventsConfig.Nats.Hostname = "localhost"
 
 	httpConfig := httpEngine.DefaultConfig()
-	httpConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	httpConfig.Internal.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	httpConfig.Public.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 
 	return config, ModuleConfig{
 		Network: networkConfig,

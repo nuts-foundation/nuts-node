@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -52,7 +53,7 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 
 		err := manager.activate(audit.TestContext(), testServiceID, aliceDID)
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 	t.Run("registration fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -69,7 +70,7 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 		err := manager.activate(audit.TestContext(), testServiceID, aliceDID)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
-		require.ErrorContains(t, err, "invoker error")
+		assert.ErrorContains(t, err, "invoker error")
 	})
 	t.Run("no matching credentials", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -84,7 +85,33 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 		err := manager.activate(audit.TestContext(), testServiceID, aliceDID)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
-		require.ErrorContains(t, err, "DID wallet does not have credentials required for registration on Discovery Service (service=usecase_v1, did=did:example:alice)")
+		assert.ErrorContains(t, err, "DID wallet does not have credentials required for registration on Discovery Service (service=usecase_v1, did=did:example:alice)")
+	})
+	t.Run("ok without credentials", func(t *testing.T) {
+		emptyDefinition := map[string]ServiceDefinition{
+			testServiceID: {
+				ID:       testServiceID,
+				Endpoint: "http://example.com/usecase",
+				PresentationDefinition: pe.PresentationDefinition{
+					InputDescriptors: []*pe.InputDescriptor{},
+				},
+				PresentationMaxValidity: int((24 * time.Hour).Seconds()),
+			},
+		}
+		ctrl := gomock.NewController(t)
+		invoker := client.NewMockHTTPClient(ctrl)
+		invoker.EXPECT().Register(gomock.Any(), "http://example.com/usecase", vpAlice)
+		mockVCR := vcr.NewMockVCR(ctrl)
+		wallet := holder.NewMockWallet(ctrl)
+		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, nil)
+		wallet.EXPECT().BuildPresentation(gomock.Any(), []vc.VerifiableCredential{}, gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
+		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
+		store := setupStore(t, storageEngine.GetSQLDatabase())
+		manager := newRegistrationManager(emptyDefinition, store, invoker, mockVCR)
+
+		err := manager.activate(audit.TestContext(), testServiceID, aliceDID)
+
+		assert.NoError(t, err)
 	})
 	t.Run("unknown service", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -95,7 +122,7 @@ func Test_scheduledRegistrationManager_register(t *testing.T) {
 
 		err := manager.activate(audit.TestContext(), "unknown", aliceDID)
 
-		require.EqualError(t, err, "discovery service not found")
+		assert.EqualError(t, err, "discovery service not found")
 	})
 }
 

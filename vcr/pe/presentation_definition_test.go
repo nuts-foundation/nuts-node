@@ -358,6 +358,26 @@ func TestMatch(t *testing.T) {
 	})
 }
 
+func TestPresentationDefinition_CredentialsRequired(t *testing.T) {
+	t.Run("no input descriptors", func(t *testing.T) {
+		pd := PresentationDefinition{}
+		assert.False(t, pd.CredentialsRequired())
+	})
+	t.Run("input descriptors", func(t *testing.T) {
+		pd := PresentationDefinition{InputDescriptors: []*InputDescriptor{{}}}
+		assert.True(t, pd.CredentialsRequired())
+	})
+	t.Run("submission requirements", func(t *testing.T) {
+		pd := PresentationDefinition{SubmissionRequirements: []*SubmissionRequirement{{Rule: "all"}}}
+		assert.True(t, pd.CredentialsRequired())
+	})
+	t.Run("submission requirement with min=0", func(t *testing.T) {
+		none := 0
+		pd := PresentationDefinition{SubmissionRequirements: []*SubmissionRequirement{{Rule: "pick", Min: &none}}}
+		assert.False(t, pd.CredentialsRequired())
+	})
+}
+
 func Test_matchFormat(t *testing.T) {
 	t.Run("no format", func(t *testing.T) {
 		match := matchFormat(nil, vc.VerifiableCredential{})

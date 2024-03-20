@@ -21,7 +21,6 @@ package http
 import (
 	"context"
 	"crypto"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -73,62 +72,32 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	// "Unauthorized (401)" is a better fit.
 	middleware.ErrJWTMissing = echo.NewHTTPError(http.StatusUnauthorized, "missing or malformed jwt")
 
-	var tlsConfig *tls.Config
-	var err error
-	if serverConfig.TLS.Offload == core.NoOffloading {
-		tlsConfig, _, err = serverConfig.TLS.Load()
-		if err != nil {
-			return err
-		}
-	}
+	// We have 2 HTTP interfaces: internal and public
+	// The following paths (and their subpaths) are bound to the internal interface:
+	// - /internal
+	// - /status
+	// - /health
+	// - /metrics
+	// All other paths are bound to the public interface.
 
 	h.server = NewMultiEcho()
-	log.Logger().Infof("Binding %s -> %s", RootPath, h.config.Address)
-	if err = h.server.Bind(RootPath, h.config.Address, func() (EchoServer, error) {
-		return h.createEchoServer(h.config.InterfaceConfig, tlsConfig)
-	}); err != nil {
+	// Public endpoints
+	if err := h.server.Bind(RootPath, h.config.Public.Address, h.createEchoServer); err != nil {
 		return err
 	}
-
-	for httpPath, httpConfig := range h.config.AltBinds {
-		address := httpConfig.Address
-		if len(address) == 0 {
-			address = h.config.Address
-		}
-		log.Logger().Infof("Binding /%s -> %s", httpPath, address)
-		if err := h.server.Bind(httpPath, address, func() (EchoServer, error) {
-			return h.createEchoServer(httpConfig, tlsConfig)
-		}); err != nil {
+	// Internal endpoints
+	for _, httpPath := range []string{"/internal", "/status", "/health", "/metrics"} {
+		if err := h.server.Bind(httpPath, h.config.Internal.Address, h.createEchoServer); err != nil {
 			return err
 		}
 	}
 
-	h.applyGlobalMiddleware(h.server, serverConfig)
-
-	// Apply path-dependent config for configured HTTP paths
-	var paths []string
-	for httpPath, httpConfig := range h.config.AltBinds {
-		boundServer := h.server.getInterface(httpPath)
-		err := h.applyBindMiddleware(boundServer, httpPath, nil, serverConfig, httpConfig)
-		if err != nil {
-			return err
-		}
-		if !strings.HasPrefix(httpPath, "/") {
-			httpPath = "/" + httpPath
-		}
-		paths = append(paths, httpPath)
-	}
-
-	// Apply path-dependent config for root path, but exclude configured HTTP paths to avoid enabling middleware twice.
-	err = h.applyBindMiddleware(h.server.getInterface(RootPath), RootPath, paths, serverConfig, h.config.InterfaceConfig)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	h.applyRateLimiterMiddleware(h.server, serverConfig)
+	h.applyLoggerMiddleware(h.server, []string{"/metrics", "/status", "/health"}, h.config.Log)
+	return h.applyAuthMiddleware(h.server, "/internal", h.config.Internal.Auth)
 }
 
-func (h *Engine) createEchoServer(cfg InterfaceConfig, tlsConfig *tls.Config) (*echoAdapter, error) {
+func (h *Engine) createEchoServer() (EchoServer, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 	echoServer.HidePort = true
@@ -139,35 +108,8 @@ func (h *Engine) createEchoServer(cfg InterfaceConfig, tlsConfig *tls.Config) (*
 	// Reverse proxies must set the X-Forwarded-For header to the original client IP.
 	echoServer.IPExtractor = echo.ExtractIPFromXFFHeader()
 
-	var startFn func(address string) error
-	switch cfg.TLSMode {
-	case TLSServerCertMode:
-		log.Logger().Infof("Enabling TLS for HTTP interface: %s", cfg.Address)
-		fallthrough
-	case TLServerClientCertMode:
-		if tlsConfig == nil {
-			return nil, fmt.Errorf("TLS must be enabled (without offloading) to enable it on HTTP endpoints")
-		}
-		serverTLSConfig := tlsConfig.Clone()
-		if cfg.TLSMode == TLServerClientCertMode {
-			log.Logger().Infof("Enabling TLS (with client certificate requirement) for HTTP interface: %s", cfg.Address)
-			serverTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
-		}
-		echoServer.TLSServer.TLSConfig = serverTLSConfig
-		echoServer.TLSServer.Addr = cfg.Address
-		startFn = func(address string) error {
-			return echoServer.StartServer(echoServer.TLSServer)
-		}
-	case "":
-		fallthrough
-	case TLSDisabledMode:
-		startFn = echoServer.Start
-	default:
-		return nil, fmt.Errorf("invalid TLS mode: %s", cfg.TLSMode)
-	}
-
 	return &echoAdapter{
-		startFn:    startFn,
+		startFn:    echoServer.Start,
 		shutdownFn: echoServer.Shutdown,
 		addFn:      echoServer.Add,
 		useFn:      echoServer.Use,
@@ -224,7 +166,7 @@ func matchesPath(requestURI string, path string) bool {
 	return requestURI == path || strings.HasPrefix(requestURI, path)
 }
 
-func (h Engine) applyGlobalMiddleware(echoServer core.EchoRouter, serverConfig core.ServerConfig) {
+func (h Engine) applyRateLimiterMiddleware(echoServer core.EchoRouter, serverConfig core.ServerConfig) {
 	// Always enabled in strict mode
 	if serverConfig.Strictmode || serverConfig.InternalRateLimiter {
 		echoServer.Use(newInternalRateLimiter(map[string][]string{
@@ -243,15 +185,8 @@ func (h Engine) applyGlobalMiddleware(echoServer core.EchoRouter, serverConfig c
 	}
 }
 
-func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludePaths []string, serverConfig core.ServerConfig, cfg InterfaceConfig) error {
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
-
+func (h Engine) applyLoggerMiddleware(echoServer core.EchoRouter, excludePaths []string, logLevel LogLevel) {
 	skipper := func(c echo.Context) bool {
-		if !matchesPath(c.Request().RequestURI, path) {
-			return true
-		}
 		for _, excludePath := range excludePaths {
 			if matchesPath(c.Request().RequestURI, excludePath) {
 				return true
@@ -259,47 +194,25 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 		}
 		return false
 	}
-
-	// Logging
-	loggerSkipper := func(c echo.Context) bool {
-		// Aside from interface-driven skipper, skip logging for calls to /metrics, /status, and /health
-		if skipper(c) {
-			return true
-		}
-		//
-		for _, excludePath := range []string{"/metrics", "/status", "/health"} {
-			if matchesPath(c.Request().RequestURI, excludePath) {
-				return true
-			}
-		}
-		return false
-	}
-	if cfg.Log != LogNothingLevel {
+	if logLevel != LogNothingLevel {
 		// Log when level is set to LogMetadataLevel or LogMetadataAndBodyLevel
-		echoServer.Use(requestLoggerMiddleware(loggerSkipper, log.Logger()))
+		echoServer.Use(requestLoggerMiddleware(skipper, log.Logger()))
 	}
-	if cfg.Log == LogMetadataAndBodyLevel {
+	if logLevel == LogMetadataAndBodyLevel {
 		// Log when level is set to LogMetadataAndBodyLevel
 		echoServer.Use(bodyLoggerMiddleware(skipper, log.Logger()))
 	}
+}
 
+func (h Engine) applyAuthMiddleware(echoServer core.EchoRouter, path string, config AuthConfig) error {
 	address := h.server.getAddressForPath(path)
 
-	// CORS
-	if cfg.CORS.Enabled() {
-		log.Logger().Infof("Enabling CORS for HTTP endpoint: %s%s", address, path)
-		if serverConfig.Strictmode {
-			for _, origin := range cfg.CORS.Origin {
-				if strings.TrimSpace(origin) == "*" {
-					return errors.New("wildcard CORS origin is not allowed in strict mode")
-				}
-			}
-		}
-		echoServer.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: cfg.CORS.Origin, Skipper: skipper}))
+	skipper := func(c echo.Context) bool {
+		return !matchesPath(c.Request().RequestURI, path)
 	}
 
 	// Auth
-	switch cfg.Auth.Type {
+	switch config.Type {
 	// Allow API endpoints without authentication
 	case "":
 		return nil
@@ -328,7 +241,7 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 		log.Logger().Infof("Enabling token authentication (v2) for HTTP interface: %s%s", address, path)
 
 		// Use the configured audience or the hostname by default
-		audience := cfg.Auth.Audience
+		audience := config.Audience
 		if audience == "" {
 			// Get the hostname of the machine
 			var err error
@@ -340,7 +253,7 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 		}
 
 		// Construct the middleware using the specified audience and authorized keys file
-		authenticator, err := tokenV2.NewFromFile(skipper, audience, cfg.Auth.AuthorizedKeysPath)
+		authenticator, err := tokenV2.NewFromFile(skipper, audience, config.AuthorizedKeysPath)
 		if err != nil {
 			return fmt.Errorf("unable to create token v2 middleware: %v", err)
 		}
@@ -350,7 +263,7 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 
 	// Any other configuration value causes an error condition
 	default:
-		return fmt.Errorf("Unsupported authentication engine: %v", cfg.Auth.Type)
+		return fmt.Errorf("unsupported authentication engine: %v", config.Type)
 	}
 
 	return nil

@@ -114,6 +114,16 @@ func (m Manager) create(ctx context.Context, mostSignificantBits string) (*did.D
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Check if it doesn't already exist. Otherwise, it fail later on (unique key constraint) but we might end up with an orphaned private key.
+	exists, err := m.IsOwner(ctx, *newDID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if exists {
+		return nil, nil, management.ErrDIDAlreadyExists
+	}
+
 	verificationMethodKey, verificationMethod, err := m.createVerificationMethod(ctx, *newDID)
 	if err != nil {
 		return nil, nil, err

@@ -102,8 +102,7 @@ type CredentialIssuer struct {
 // IssueVCRequest A request for issuing a new Verifiable Credential.
 type IssueVCRequest struct {
 	// Context The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
-	// Note: it is not needed to provide the "https://www.w3.org/2018/credentials/v1" context here.
-	Context *string `json:"@context,omitempty"`
+	Context *IssueVCRequest_Context `json:"@context,omitempty"`
 
 	// CredentialSubject Subject of a Verifiable Credential identifying the holder and expressing claims.
 	CredentialSubject CredentialSubject `json:"credentialSubject"`
@@ -125,7 +124,7 @@ type IssueVCRequest struct {
 	PublishToNetwork *bool `json:"publishToNetwork,omitempty"`
 
 	// Type Type definition for the credential.
-	Type string `json:"type"`
+	Type IssueVCRequest_Type `json:"type"`
 
 	// Visibility When publishToNetwork is true, the credential can be published publicly or privately to the holder.
 	// This field is mandatory if publishToNetwork is true to prevent accidents. It defaults to "private".
@@ -142,8 +141,30 @@ type IssueVCRequest struct {
 	WithStatusList2021Revocation *bool `json:"withStatusList2021Revocation,omitempty"`
 }
 
+// IssueVCRequestContext0 defines model for .
+type IssueVCRequestContext0 = string
+
+// IssueVCRequestContext1 defines model for .
+type IssueVCRequestContext1 = []interface{}
+
+// IssueVCRequest_Context The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
+type IssueVCRequest_Context struct {
+	union json.RawMessage
+}
+
 // IssueVCRequestFormat Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
 type IssueVCRequestFormat string
+
+// IssueVCRequestType0 defines model for .
+type IssueVCRequestType0 = string
+
+// IssueVCRequestType1 defines model for .
+type IssueVCRequestType1 = []interface{}
+
+// IssueVCRequest_Type Type definition for the credential.
+type IssueVCRequest_Type struct {
+	union json.RawMessage
+}
 
 // IssueVCRequestVisibility When publishToNetwork is true, the credential can be published publicly or privately to the holder.
 // This field is mandatory if publishToNetwork is true to prevent accidents. It defaults to "private".
@@ -258,6 +279,130 @@ type VerifyVCJSONRequestBody = VCVerificationRequest
 
 // VerifyVPJSONRequestBody defines body for VerifyVP for application/json ContentType.
 type VerifyVPJSONRequestBody = VPVerificationRequest
+
+// AsIssueVCRequestContext0 returns the union data inside the IssueVCRequest_Context as a IssueVCRequestContext0
+func (t IssueVCRequest_Context) AsIssueVCRequestContext0() (IssueVCRequestContext0, error) {
+	var body IssueVCRequestContext0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIssueVCRequestContext0 overwrites any union data inside the IssueVCRequest_Context as the provided IssueVCRequestContext0
+func (t *IssueVCRequest_Context) FromIssueVCRequestContext0(v IssueVCRequestContext0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeIssueVCRequestContext0 performs a merge with any union data inside the IssueVCRequest_Context, using the provided IssueVCRequestContext0
+func (t *IssueVCRequest_Context) MergeIssueVCRequestContext0(v IssueVCRequestContext0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsIssueVCRequestContext1 returns the union data inside the IssueVCRequest_Context as a IssueVCRequestContext1
+func (t IssueVCRequest_Context) AsIssueVCRequestContext1() (IssueVCRequestContext1, error) {
+	var body IssueVCRequestContext1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIssueVCRequestContext1 overwrites any union data inside the IssueVCRequest_Context as the provided IssueVCRequestContext1
+func (t *IssueVCRequest_Context) FromIssueVCRequestContext1(v IssueVCRequestContext1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeIssueVCRequestContext1 performs a merge with any union data inside the IssueVCRequest_Context, using the provided IssueVCRequestContext1
+func (t *IssueVCRequest_Context) MergeIssueVCRequestContext1(v IssueVCRequestContext1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t IssueVCRequest_Context) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *IssueVCRequest_Context) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsIssueVCRequestType0 returns the union data inside the IssueVCRequest_Type as a IssueVCRequestType0
+func (t IssueVCRequest_Type) AsIssueVCRequestType0() (IssueVCRequestType0, error) {
+	var body IssueVCRequestType0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIssueVCRequestType0 overwrites any union data inside the IssueVCRequest_Type as the provided IssueVCRequestType0
+func (t *IssueVCRequest_Type) FromIssueVCRequestType0(v IssueVCRequestType0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeIssueVCRequestType0 performs a merge with any union data inside the IssueVCRequest_Type, using the provided IssueVCRequestType0
+func (t *IssueVCRequest_Type) MergeIssueVCRequestType0(v IssueVCRequestType0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsIssueVCRequestType1 returns the union data inside the IssueVCRequest_Type as a IssueVCRequestType1
+func (t IssueVCRequest_Type) AsIssueVCRequestType1() (IssueVCRequestType1, error) {
+	var body IssueVCRequestType1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIssueVCRequestType1 overwrites any union data inside the IssueVCRequest_Type as the provided IssueVCRequestType1
+func (t *IssueVCRequest_Type) FromIssueVCRequestType1(v IssueVCRequestType1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeIssueVCRequestType1 performs a merge with any union data inside the IssueVCRequest_Type, using the provided IssueVCRequestType1
+func (t *IssueVCRequest_Type) MergeIssueVCRequestType1(v IssueVCRequestType1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t IssueVCRequest_Type) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *IssueVCRequest_Type) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error

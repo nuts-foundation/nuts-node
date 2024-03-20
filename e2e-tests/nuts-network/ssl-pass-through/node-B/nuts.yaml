@@ -1,5 +1,8 @@
 url: https://node-B
 verbosity: debug
+http:
+  internal:
+    address: :8081
 auth:
   contractvalidators:
     - dummy

@@ -3,7 +3,10 @@ info:
   title: Auth v2 API (experimental)
   version: 0.0.0
 servers:
-  - url: "http://localhost:1323"
+  - url: http://localhost:8081
+    description: For internal-facing endpoints.
+  - url: http://localhost:8080
+    description: For public-facing endpoints.
 paths:
   /iam/{id}/did.json:
     parameters:
@@ -30,7 +33,7 @@ paths:
                 $ref: '#/components/schemas/DIDDocument'
         "404":
           description: DID does not exist.
-  "/iam/{id}/token":
+  "/oauth2/{did}/token":
     post:
       summary: Used by to request access- or refresh tokens.
       description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint
@@ -38,13 +41,15 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: id
+        - name: did
           in: path
           required: true
-          description: the id part of the web DID
-          schema:
-            type: string
-            example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+          description: DID that is the subject of the token request
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -77,7 +82,7 @@ paths:
                 "$ref": "#/components/schemas/TokenResponse"
         "default":
           $ref: '../common/error_response.yaml'
-  "/iam/{id}/authorize":
+  "/oauth2/{did}/authorize":
     get:
       summary: Used by resource owners to initiate the authorization code flow.
       description: Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
@@ -85,13 +90,15 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: id
+        - name: did
           in: path
           required: true
-          description: the id part of the web DID
-          schema:
-            type: string
-            example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+          description: DID that is the subject of the authorization request
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
         # Way to specify dynamic query parameters
         # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
         - in: query
@@ -117,7 +124,7 @@ paths:
               schema:
                 type: string
                 format: uri
-  "/iam/{id}/callback":
+  "/oauth2/{did}/callback":
     get:
       summary: The OAuth2 callback endpoint of the client.
       description: |
@@ -128,13 +135,15 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: id
+        - name: did
           in: path
           required: true
-          schema:
-            description: must be the key fingerprint identifying the did:web address
-            type: string
-            example: NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs
+          description: DID that is the subject of the callback
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
         - name: code
           in: query
           description: The authorization code received from the authorization server.
@@ -165,7 +174,7 @@ paths:
                 format: uri
         "default":
           $ref: '../common/error_response.yaml'
-  "/iam/{id}/presentation_definition":
+  "/oauth2/{did}/presentation_definition":
     get:
       summary: Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
       description: |
@@ -177,13 +186,15 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: id
+        - name: did
           in: path
           required: true
-          description: the id part of the web DID
-          schema:
-            type: string
-            example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+          description: DID that holds the presentation definition.
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
         - name: scope
           in: query
           required: true
@@ -201,7 +212,7 @@ paths:
                 "$ref": "#/components/schemas/PresentationDefinition"
         "default":
           $ref: '../common/error_response.yaml'
-  "/iam/{id}/response":
+  "/oauth2/{did}/response":
     post:
       summary: Used by wallets to post the authorization response or error to.
       description: | 
@@ -212,13 +223,15 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: id
+        - name: did
           in: path
           required: true
-          description: the id part of the web DID
-          schema:
-            type: string
-            example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+          description: DID that is the subject of the authorization response
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
       requestBody:
         required: true
         content:
@@ -258,11 +271,11 @@ paths:
     get:
       tags:
         - well-known
-      summary: Get the OAuth2 Authorization Server metadata
+      summary: Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> user path.
       description: >
         Specified by https://www.rfc-editor.org/info/rfc8414
         The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
-        
+
         error returns:
         * 400 - invalid input
         * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
@@ -272,10 +285,10 @@ paths:
         - name: id
           in: path
           required: true
-          description: the id part of the web DID
+          description: ID of did:web DID that serves the metadata
           schema:
             type: string
-            example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+            example: did:web:example.com
       responses:
         "200":
           description: OK
@@ -285,7 +298,31 @@ paths:
                 "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
         default:
           $ref: '../common/error_response.yaml'
-  /iam/{id}/oauth-client:
+# Required when root did:web DIDs are supported:
+#  /.well-known/oauth-authorization-server:
+#    get:
+#      tags:
+#        - well-known
+#      summary: Get the OAuth2 Authorization Server metadata of a root did:web DID.
+#      description: >
+#        Specified by https://www.rfc-editor.org/info/rfc8414
+#        The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
+#
+#        error returns:
+#        * 400 - invalid input
+#        * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
+#        * 500 - internal server error
+#      operationId: RootOAuthAuthorizationServerMetadata
+#      responses:
+#        "200":
+#          description: OK
+#          content:
+#            application/json:
+#              schema:
+#                "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
+#        default:
+#          $ref: '../common/error_response.yaml'
+  /oauth2/{did}/oauth-client:
     get:
       tags:
         - well-known
@@ -301,13 +338,15 @@ paths:
         * 500 - internal server error
       operationId: OAuthClientMetadata
       parameters:
-        - name: id
+        - name: did
           in: path
           required: true
-          schema:
-            description: must be the key fingerprint identifying the did:web address
-            type: string
-            example: NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs
+          description: DID that serves the metadata
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
       responses:
         "200":
           description: OK
@@ -532,15 +571,17 @@ paths:
           description: |
             This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
             Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
-  /iam/{id}/statuslist/{page}:
+  /statuslist/{did}/{page}:
     parameters:
-      - name: id
+      - name: did
         in: path
         required: true
-        description: The ID part of the web DID
-        schema:
-          type: string
-          example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+        description: DID that is owns the status list
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: did:web:example.com
       - name: page
         in: path
         required: true

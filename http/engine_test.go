@@ -28,7 +28,6 @@ import (
 	"crypto/tls"
 	b64 "encoding/base64"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/test/pki"
 	"io"
 	"net"
 	"net/http"
@@ -53,13 +52,15 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+const securedPath = "/internal/landing"
+const unsecuredPath = "/other"
+
 func TestEngine_Configure(t *testing.T) {
 	noop := func() {}
 
-	t.Run("ok, no TLS (default)", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		engine := New(noop, nil)
-		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
-		engine.config.InterfaceConfig.TLSMode = ""
+		engine.config = createTestConfig()
 
 		err := engine.Configure(*core.NewServerConfig())
 		require.NoError(t, err)
@@ -67,194 +68,15 @@ func TestEngine_Configure(t *testing.T) {
 		require.NoError(t, err)
 		defer engine.Shutdown()
 
-		assertServerStarted(t, engine.config.InterfaceConfig.Address)
-		assertHTTPRequest(t, engine.config.InterfaceConfig.Address)
+		assertServerStarted(t, engine.config.Internal.Address)
+		assertHTTPRequest(t, engine.config.Internal.Address)
+		assertServerStarted(t, engine.config.Public.Address)
+		assertHTTPRequest(t, engine.config.Public.Address)
 
 		err = engine.Shutdown()
 		assert.NoError(t, err)
-	})
-	t.Run("ok, no TLS (explicitly disabled)", func(t *testing.T) {
-		engine := New(noop, nil)
-		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
-		engine.config.InterfaceConfig.TLSMode = TLSDisabledMode
-
-		err := engine.Configure(*core.NewServerConfig())
-		require.NoError(t, err)
-		err = engine.Start()
-		require.NoError(t, err)
-		defer engine.Shutdown()
-
-		assertServerStarted(t, engine.config.InterfaceConfig.Address)
-		assertHTTPRequest(t, engine.config.InterfaceConfig.Address)
-
-		err = engine.Shutdown()
-		assert.NoError(t, err)
-	})
-	t.Run("TLS", func(t *testing.T) {
-		serverCfg := core.NewServerConfig()
-		serverCfg.TLS.CertFile = pki.CertificateFile(t)
-		serverCfg.TLS.CertKeyFile = serverCfg.TLS.CertFile
-		serverCfg.TLS.TrustStoreFile = pki.TruststoreFile(t)
-		tlsConfig, _, _ := serverCfg.TLS.Load()
-
-		t.Run("error - invalid TLS mode", func(t *testing.T) {
-			engine := New(noop, nil)
-			engine.config.InterfaceConfig.TLSMode = "oopsies"
-
-			err := engine.Configure(*core.NewServerConfig())
-
-			assert.EqualError(t, err, "invalid TLS mode: oopsies")
-		})
-
-		t.Run("error - TLS not configured (default interface)", func(t *testing.T) {
-			engine := New(noop, nil)
-			engine.config.InterfaceConfig.TLSMode = TLSServerCertMode
-
-			err := engine.Configure(*core.NewServerConfig())
-
-			assert.EqualError(t, err, "TLS must be enabled (without offloading) to enable it on HTTP endpoints")
-		})
-		t.Run("error - TLS not configured (alt interface)", func(t *testing.T) {
-			engine := New(noop, nil)
-			engine.config.AltBinds["alt"] = InterfaceConfig{
-				TLSMode: TLSServerCertMode,
-				Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-			}
-
-			err := engine.Configure(*core.NewServerConfig())
-
-			assert.EqualError(t, err, "TLS must be enabled (without offloading) to enable it on HTTP endpoints")
-		})
-		t.Run("server certificate", func(t *testing.T) {
-			engine := New(noop, nil)
-			engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
-			engine.config.InterfaceConfig.TLSMode = TLSServerCertMode
-
-			err := engine.Configure(*serverCfg)
-			require.NoError(t, err)
-			err = engine.Start()
-			require.NoError(t, err)
-			defer engine.Shutdown()
-
-			thisTLSConfig := tlsConfig.Clone()
-			thisTLSConfig.Certificates = nil
-			assertServerStarted(t, engine.config.InterfaceConfig.Address)
-			assertHTTPSRequest(t, engine.config.InterfaceConfig.Address, thisTLSConfig)
-
-			err = engine.Shutdown()
-			assert.NoError(t, err)
-		})
-		t.Run("server and client certificate", func(t *testing.T) {
-			engine := New(noop, nil)
-			engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
-			engine.config.InterfaceConfig.TLSMode = TLServerClientCertMode
-
-			err := engine.Configure(*serverCfg)
-			require.NoError(t, err)
-			err = engine.Start()
-			require.NoError(t, err)
-			defer engine.Shutdown()
-
-			assertServerStarted(t, engine.config.InterfaceConfig.Address)
-			assertHTTPSRequest(t, engine.config.InterfaceConfig.Address, tlsConfig)
-
-			// Sanity check: the same test without client certificate should fail
-			thisTLSConfig := tlsConfig.Clone()
-			thisTLSConfig.Certificates = nil
-			_, err = doHTTPSRequest(thisTLSConfig, engine.config.InterfaceConfig.Address)
-			assert.ErrorContains(t, err, "remote error: tls: certificate required")
-
-			err = engine.Shutdown()
-			assert.NoError(t, err)
-		})
 	})
 	t.Run("middleware", func(t *testing.T) {
-		t.Run("CORS", func(t *testing.T) {
-			assertHTTPHeader := func(t *testing.T, address string, headerName string, headerValue string) {
-				t.Helper()
-				request, _ := http.NewRequest(http.MethodOptions, "http://"+address, nil)
-				request.Header.Set("Origin", "example.com")
-				response, err := http.DefaultClient.Do(request)
-				if err != nil {
-					t.Fatal(err)
-				}
-				assert.Equal(t, headerValue, response.Header.Get(headerName))
-			}
-
-			t.Run("enabled", func(t *testing.T) {
-				engine := New(noop, nil)
-				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-					CORS: CORSConfig{
-						Origin: []string{"example.com"},
-					},
-				}
-
-				err := engine.Configure(*core.NewServerConfig())
-				require.NoError(t, err)
-				err = engine.Start()
-				require.NoError(t, err)
-				defer engine.Shutdown()
-
-				assertServerStarted(t, engine.config.InterfaceConfig.Address)
-				assertHTTPHeader(t, engine.config.InterfaceConfig.Address, "access-control-allow-origin", "example.com")
-				assertHTTPHeader(t, engine.config.InterfaceConfig.Address, "access-control-allow-methods", "GET,HEAD,PUT,PATCH,POST,DELETE")
-
-				err = engine.Shutdown()
-				assert.NoError(t, err)
-			})
-			t.Run("strict mode - wildcard not allowed", func(t *testing.T) {
-				engine := New(noop, nil)
-				engine.config.InterfaceConfig.CORS.Origin = []string{"*"}
-
-				err := engine.Configure(*core.NewServerConfig())
-
-				assert.EqualError(t, err, "wildcard CORS origin is not allowed in strict mode")
-			})
-			t.Run("non-strict mode - wildcard allowed", func(t *testing.T) {
-				engine := New(noop, nil)
-				engine.config.InterfaceConfig.CORS.Origin = []string{"*"}
-
-				err := engine.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
-					config.Strictmode = false
-				}))
-
-				assert.NoError(t, err)
-			})
-
-			t.Run("not enabled in alt bind", func(t *testing.T) {
-				engine := New(noop, nil)
-				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-					CORS: CORSConfig{
-						Origin: []string{"test.nl"},
-					},
-				}
-				engine.config.AltBinds["alt"] = InterfaceConfig{
-					// CORS not enabled
-				}
-
-				err := engine.Configure(*core.NewServerConfig())
-				require.NoError(t, err)
-
-				engine.Router().GET("/some-other-path", func(c echo.Context) error {
-					return nil
-				})
-
-				err = engine.Start()
-				require.NoError(t, err)
-				defer engine.Shutdown()
-
-				assertServerStarted(t, engine.config.InterfaceConfig.Address)
-				// CORS should be enabled on default path and other, but not on alt bind
-				assertHTTPHeader(t, engine.config.InterfaceConfig.Address+"/", "Vary", "Origin")
-				assertHTTPHeader(t, engine.config.InterfaceConfig.Address+"/some-other-path", "Vary", "Origin")
-				assertNotHTTPHeader(t, engine.config.InterfaceConfig.Address+"/alt", "Vary")
-
-				err = engine.Shutdown()
-				assert.NoError(t, err)
-			})
-		})
 		t.Run("auth", func(t *testing.T) {
 			t.Run("bearer token - signing key not found", func(t *testing.T) {
 				ctrl := gomock.NewController(t)
@@ -262,11 +84,9 @@ func TestEngine_Configure(t *testing.T) {
 				keyResolver.EXPECT().Resolve(context.Background(), AdminTokenSigningKID).Return(nil, crypto.ErrPrivateKeyNotFound)
 
 				engine := New(noop, keyResolver)
-				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-					Auth: AuthConfig{
-						Type: BearerTokenAuth,
-					},
+				engine.config = createTestConfig()
+				engine.config.Internal.Auth = AuthConfig{
+					Type: BearerTokenAuth,
 				}
 				_ = engine.Configure(*core.NewServerConfig())
 				engine.Router().GET("/", func(c echo.Context) error {
@@ -274,7 +94,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				_ = engine.Start()
 				defer engine.Shutdown()
-				assertServerStarted(t, engine.config.InterfaceConfig.Address)
+				assertServerStarted(t, engine.config.Internal.Address)
 
 				signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				claims := jwt.New()
@@ -283,7 +103,7 @@ func TestEngine_Configure(t *testing.T) {
 				tokenBytes, _ := jwt.Sign(claims, jwt.WithKey(jwa.ES256, signingKey))
 				token := string(tokenBytes)
 
-				request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address, nil)
+				request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 				request.Header.Set("Authorization", "Bearer "+token)
 				response, err := http.DefaultClient.Do(request)
 
@@ -312,19 +132,10 @@ func TestEngine_Configure(t *testing.T) {
 				}, nil).AnyTimes()
 
 				engine := New(noop, keyResolver)
-				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-				}
-				engine.config.AltBinds["default-with-auth"] = InterfaceConfig{
-					Auth: AuthConfig{
-						Type: BearerTokenAuth,
-					},
-				}
-				engine.config.AltBinds["alt-with-auth"] = InterfaceConfig{
-					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-					Auth: AuthConfig{
-						Type: BearerTokenAuth,
-					},
+				engine.config = createTestConfig()
+				engine.config = createTestConfig()
+				engine.config.Internal.Auth = AuthConfig{
+					Type: BearerTokenAuth,
 				}
 				_ = engine.Configure(*core.NewServerConfig())
 				var capturedUser string
@@ -337,36 +148,25 @@ func TestEngine_Configure(t *testing.T) {
 					capturedUser = userContext.(string)
 					return nil
 				}
-				engine.Router().GET("/", captureUser)
-				engine.Router().GET("/default-with-auth", captureUser)
-				engine.Router().GET("/alt-with-auth", captureUser)
+				engine.Router().GET(securedPath, captureUser)   // requires auth
+				engine.Router().GET(unsecuredPath, captureUser) // publicly available
 				_ = engine.Start()
 				defer engine.Shutdown()
 
-				assertServerStarted(t, engine.config.InterfaceConfig.Address)
+				assertServerStarted(t, engine.config.Internal.Address)
 
-				t.Run("success - no auth on default bind root path", func(t *testing.T) {
+				t.Run("success - no auth", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address, nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Public.Address+unsecuredPath, nil)
 					response, err := http.DefaultClient.Do(request)
 
 					assert.NoError(t, err)
 					assert.Equal(t, http.StatusOK, response.StatusCode)
 					assert.Empty(t, capturedUser)
 				})
-				t.Run("success - auth on default bind subpath path", func(t *testing.T) {
+				t.Run("success - auth on default", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
-					request.Header.Set("Authorization", "Bearer "+token)
-					response, err := http.DefaultClient.Do(request)
-
-					assert.NoError(t, err)
-					assert.Equal(t, http.StatusOK, response.StatusCode)
-					assert.Equal(t, "admin", capturedUser)
-				})
-				t.Run("success - auth on alt bind", func(t *testing.T) {
-					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.AltBinds["alt-with-auth"].Address+"/alt-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 					request.Header.Set("Authorization", "Bearer "+token)
 					response, err := http.DefaultClient.Do(request)
 
@@ -376,7 +176,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("no token", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 					response, err := http.DefaultClient.Do(request)
 
 					assert.NoError(t, err)
@@ -385,7 +185,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("invalid token", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer invalid")
 
@@ -395,7 +195,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("invalid token (incorrect signing key)", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer "+attackerToken)
 
@@ -428,14 +228,12 @@ func TestEngine_Configure(t *testing.T) {
 
 				// Setup a new HTTP engine
 				engine := New(noop, nil)
+				engine.config = createTestConfig()
 
 				// Configure the default interface without authentication
-				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-					Auth: AuthConfig{
-						Type:               BearerTokenAuthV2,
-						AuthorizedKeysPath: authorizedKeysFile.Name(),
-					},
+				engine.config.Internal.Auth = AuthConfig{
+					Type:               BearerTokenAuthV2,
+					AuthorizedKeysPath: authorizedKeysFile.Name(),
 				}
 
 				// Apply the configuration built above
@@ -455,27 +253,25 @@ func TestEngine_Configure(t *testing.T) {
 				}
 
 				// Apply the previously defined request handler at various endpoints on the HTTP engine
-				engine.Router().GET("/", captureUser)
+				engine.Router().GET(securedPath, captureUser)
 
 				// Start the HTTP engine, ensuring it will be shutdown later
 				_ = engine.Start()
 				defer engine.Shutdown()
 
 				// Check that the HTTP server has started listening for requests
-				assertServerStarted(t, engine.config.InterfaceConfig.Address)
+				assertServerStarted(t, engine.config.Internal.Address)
 
 				// Make a test request
-				t.Run("success - auth on default bind root", func(t *testing.T) {
-					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/", nil)
-					log.Logger().Infof("requesting %v", request.URL.String())
-					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
-					response, err := http.DefaultClient.Do(request)
+				capturedUser = ""
+				request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
+				log.Logger().Infof("requesting %v", request.URL.String())
+				request.Header.Set("Authorization", "Bearer "+string(serializedToken))
+				response, err := http.DefaultClient.Do(request)
 
-					assert.NoError(t, err)
-					assert.Equal(t, http.StatusOK, response.StatusCode)
-					assert.Equal(t, "random@test.local", capturedUser)
-				})
+				assert.NoError(t, err)
+				assert.Equal(t, http.StatusOK, response.StatusCode)
+				assert.Equal(t, "random@test.local", capturedUser)
 			})
 
 			t.Run("specific audience", func(t *testing.T) {
@@ -500,29 +296,11 @@ func TestEngine_Configure(t *testing.T) {
 
 				// Setup a new HTTP engine
 				engine := New(noop, nil)
-
-				// Configure the default interface without authentication
-				engine.config.InterfaceConfig = InterfaceConfig{
-					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-				}
-
-				// Configure an alt bind with authentication
-				engine.config.AltBinds["default-with-auth"] = InterfaceConfig{
-					Auth: AuthConfig{
-						Type:               BearerTokenAuthV2,
-						Audience:           "foo",
-						AuthorizedKeysPath: authorizedKeysFile.Name(),
-					},
-				}
-
-				// Configure another alt bind with authentication
-				engine.config.AltBinds["alt-with-auth"] = InterfaceConfig{
-					Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-					Auth: AuthConfig{
-						Type:               BearerTokenAuthV2,
-						Audience:           "foo",
-						AuthorizedKeysPath: authorizedKeysFile.Name(),
-					},
+				engine.config = createTestConfig()
+				engine.config.Internal.Auth = AuthConfig{
+					Type:               BearerTokenAuthV2,
+					Audience:           "foo",
+					AuthorizedKeysPath: authorizedKeysFile.Name(),
 				}
 
 				// Apply the configuration built above
@@ -542,42 +320,19 @@ func TestEngine_Configure(t *testing.T) {
 				}
 
 				// Apply the previously defined request handler at various endpoints on the HTTP engine
-				engine.Router().GET("/", captureUser)
-				engine.Router().GET("/default-with-auth", captureUser)
-				engine.Router().GET("/alt-with-auth", captureUser)
+				engine.Router().GET(securedPath, captureUser)
+				engine.Router().GET(unsecuredPath, captureUser)
 
 				// Start the HTTP engine, ensuring it will be shutdown later
 				_ = engine.Start()
 				defer engine.Shutdown()
 
 				// Check that the HTTP server has started listening for requests
-				assertServerStarted(t, engine.config.InterfaceConfig.Address)
+				assertServerStarted(t, engine.config.Internal.Address)
 
-				// Start running some tests against the server
-				t.Run("success - no auth on default bind root path", func(t *testing.T) {
+				t.Run("success", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address, nil)
-					log.Logger().Infof("requesting %v", request.URL.String())
-					response, err := http.DefaultClient.Do(request)
-
-					assert.NoError(t, err)
-					assert.Equal(t, http.StatusOK, response.StatusCode)
-					assert.Empty(t, capturedUser)
-				})
-				t.Run("success - auth on default bind subpath path", func(t *testing.T) {
-					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
-					log.Logger().Infof("requesting %v", request.URL.String())
-					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
-					response, err := http.DefaultClient.Do(request)
-
-					assert.NoError(t, err)
-					assert.Equal(t, http.StatusOK, response.StatusCode)
-					assert.Equal(t, "random@test.local", capturedUser)
-				})
-				t.Run("success - auth on alt bind", func(t *testing.T) {
-					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.AltBinds["alt-with-auth"].Address+"/alt-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
 					response, err := http.DefaultClient.Do(request)
@@ -588,7 +343,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("no token", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 
@@ -598,7 +353,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("invalid token", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer invalid")
@@ -609,7 +364,7 @@ func TestEngine_Configure(t *testing.T) {
 				})
 				t.Run("invalid token (incorrect signing key)", func(t *testing.T) {
 					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer "+string(serializedAttackerToken))
@@ -634,7 +389,7 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 
 	t.Run("requestLogger", func(t *testing.T) {
 		engine := New(noop, nil)
-		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+		engine.config.Internal.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 
 		err := engine.Configure(*core.NewServerConfig())
 		require.NoError(t, err)
@@ -647,13 +402,13 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 		require.NoError(t, err)
 		defer engine.Shutdown()
 
-		assertServerStarted(t, engine.config.InterfaceConfig.Address)
+		assertServerStarted(t, engine.config.Internal.Address)
 
 		t.Run("applies default filters", func(t *testing.T) {
 			// Calls to /status, ... are not logged
 			for _, path := range []string{"/status", "/metrics", "/health"} {
 				output.Reset()
-				_, _ = http.Get("http://" + engine.config.InterfaceConfig.Address + path)
+				_, _ = http.Get("http://" + engine.config.Internal.Address + path)
 				assert.Empty(t, output.String(), path+" should not be logged")
 			}
 		})
@@ -661,14 +416,14 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 		t.Run("logs requests", func(t *testing.T) {
 			// Call to another, registered path is logged
 			output.Reset()
-			_, _ = http.Get("http://" + engine.config.InterfaceConfig.Address + "/some-path")
+			_, _ = http.Get("http://" + engine.config.Internal.Address + "/some-path")
 			assert.Contains(t, output.String(), "HTTP request")
 		})
 	})
 	t.Run("bodyLogger", func(t *testing.T) {
 		engine := New(noop, nil)
-		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
-		engine.config.InterfaceConfig.Log = LogMetadataAndBodyLevel
+		engine.config = createTestConfig()
+		engine.config.Log = LogMetadataAndBodyLevel
 
 		err := engine.Configure(*core.NewServerConfig())
 		require.NoError(t, err)
@@ -680,11 +435,11 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 		require.NoError(t, err)
 		defer engine.Shutdown()
 
-		assertServerStarted(t, engine.config.InterfaceConfig.Address)
+		assertServerStarted(t, engine.config.Internal.Address)
 
 		t.Run("logs bodies", func(t *testing.T) {
 			output.Reset()
-			_, _ = http.Post("http://"+engine.config.InterfaceConfig.Address, "application/json", bytes.NewReader([]byte("{}")))
+			_, _ = http.Post("http://"+engine.config.Public.Address, "application/json", bytes.NewReader([]byte("{}")))
 			assert.Contains(t, output.String(), "HTTP request body: {}")
 			assert.Contains(t, output.String(), `HTTP response body: \"hello, world\"`)
 		})
@@ -706,15 +461,6 @@ func assertServerStarted(t *testing.T, address string) {
 	t.Fatal("Server did not start in time", err)
 }
 
-func assertHTTPSRequest(t *testing.T, address string, tlsConfig *tls.Config) {
-	t.Helper()
-	response, err := doHTTPSRequest(tlsConfig, address)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, _ = io.ReadAll(response.Body)
-}
-
 func doHTTPSRequest(tlsConfig *tls.Config, address string) (*http.Response, error) {
 	response, err := (&http.Client{Transport: &http.Transport{
 		TLSClientConfig: tlsConfig,
@@ -729,16 +475,6 @@ func assertHTTPRequest(t *testing.T, address string) {
 		t.Fatal(err)
 	}
 	_, _ = io.ReadAll(response.Body)
-}
-
-func assertNotHTTPHeader(t *testing.T, address string, headerName string) {
-	t.Helper()
-	request, _ := http.NewRequest(http.MethodGet, "http://"+address, nil)
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Empty(t, response.Header.Get(headerName))
 }
 
 // generateEd25519TestKey generates a new private key for use in testing also returning a jwt serializer and the ssh authorized_keys representation
@@ -785,4 +521,11 @@ func validJWT(t *testing.T, host string) jwt.Token {
 		Build()
 	require.NoError(t, err)
 	return token
+}
+
+func createTestConfig() Config {
+	testConfig := DefaultConfig()
+	testConfig.Internal.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	testConfig.Public.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	return testConfig
 }

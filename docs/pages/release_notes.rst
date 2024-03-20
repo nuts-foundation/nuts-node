@@ -3,6 +3,58 @@
 Release notes
 #############
 
+*******************
+Peanut (v6 alpha 1)
+*******************
+
+**Release date:** TBD
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...master
+
+New Features
+************
+
+The following new features have been added:
+
+- Resolving and creating ``did:web`` DID documents (see the VDR v2 API reference for usage).
+- Resolving ``did:jwk`` and ``did:key`` DID documents.
+- Running a Discovery Server and Client (see :ref:`discovery`)
+- Added a Verifiable Credential system-wallet, which is used in Presentation Exchanges (e.g. OpenID4VP).
+  See the VCR API reference for usage.
+- Added support for OpenID4VP (OpenID for Verifiable Presentations)
+- Added support for Nuts RFC021, which negotiates an OAuth2 access token for a system through a Presentation Exchange using Verifiable Credentials.
+- Added support for `StatusList2021 <https://www.w3.org/TR/2023/WD-vc-status-list-20230427/>`_ as revocation means for Verifiable Credentials.
+
+Changes
+*******
+
+- Removed support for deprecated network TLS properties. Configuring these properties will now cause the node not to start.
+- Removed usage of deprecated `purposeOfUseClaim` in ``NutsAuthorizationCredential``.
+- Documentation of ``did:nuts``-related features have been removed (refer to v5 documentation).
+- Documentation of specific use cases (e.g. health care in general or eOverdracht) has been moved to the `Nuts wiki <https://wiki.nuts.nl>`_.
+
+The following features have also been changed:
+
+HTTP interface
+==============
+
+The HTTP interface has been reworked to make deployments simpler and more secure:
+
+- No more dynamic binding of endpoints to ports, endpoints are now bound to the internal interface (`8081`) or the public interface (`8080`).
+- Server-side TLS for HTTP has been dropped, since the Nuts node is always expected to be deployed behind a reverse proxy/ingress that handles TLS termination.
+- API authentication is now only applied to `/internal` endpoints, since those are the only API endpoints that should be protected with authentication.
+- CORS support has been removed. As it is only required by user authentication endpoints that are considered to be deprecated, CORS headers can be set by a reverse proxy if still required.
+
+Port configuration
+------------------
+To simplify HTTP configuration and proxying and make the default more secure, HTTP endpoints now map to 2 HTTP interfaces:
+
+- port `8081` for all internal-facing endpoints (`/internal`, `/status`, `/metrics`, `/health`)
+- port `8080` for all public-facing endpoints (all others)
+
+The new HTTP configuration reflects this,
+
+Note that `8081` by default maps to `localhost` only, so you might need to configure it to allow it to be accessible from other machines.
+
 ************************
 Hazelnut update (v5.4.6)
 ************************
@@ -124,7 +176,7 @@ Release date: 2023-05-26
   you now have to configure it explicitly using `network.nodedid`.
 - The ``tls.crl.maxvaliditydays`` config flag has been deprecated. CRLs are now updated more frequently, making this option obsolete.
 - Adds support for RFC019 and RFC020, which describe a new EmployeeIdentity authentication means which allows an employer to make claims
-  about the identity of their employees. This has a lower level of assurance, but can be used when care organisations trust each others employee enrollment process.
+  about the identity of their employees. This has a lower level of assurance, but can be used when parties trust each others employee enrollment process.
 - Fixed issue where VDR could no longer update broken DID Documents.
 - Added API calls to _Didman_ to update endpoints and compound services (previously, they had to be deleted and then recreated to change them).
 - NutsAuthorizationCredentials and NutsOrganizationCredentials now require a valid ``credentialSubject.id`` (meaning it is a DID).
@@ -560,7 +612,7 @@ Deprecated features
 Some features will be deprecated because they have been succeeded by an improved version or when they are no longer used.
 Removing old code helps in reducing maintenance costs of the code base.
 Features that are marked as *deprecated* will be listed here.
-Any vendor using these features will have until next version to migrate to the alternative.
+Any party using these features will have until next version to migrate to the alternative.
 Keep an eye on this section for every release.
 
 - VCR V1 API is deprecated and will be removed in the next release. Please migrate all calls to the V2 API.

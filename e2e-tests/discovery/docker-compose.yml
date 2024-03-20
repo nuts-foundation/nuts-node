@@ -1,10 +1,31 @@
 version: "3.7"
 services:
   nodeA:
+    image: nginx
+    ports:
+      - "443"
+    volumes:
+      - "../shared_config/nodeA-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
+      - "../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
+      - "../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
+      - "../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
+    depends_on:
+      - nodeA-backend
+  nodeB:
+    image: nginx
+    ports:
+      - "443"
+    volumes:
+      - "../shared_config/nodeB-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
+      - "../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/server.pem:ro"
+      - "../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/key.pem:ro"
+      - "../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
+    depends_on:
+      - nodeB-backend
+  nodeA-backend:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
-      - "11323:1323"
-      - "443"
+      - "18081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
@@ -19,11 +40,10 @@ services:
       - "./definitions/:/opt/nuts/definitions:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
-  nodeB:
+  nodeB-backend:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     ports:
-      - "21323:1323"
-      - "443"
+      - "28081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:

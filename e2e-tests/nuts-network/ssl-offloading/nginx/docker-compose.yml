@@ -3,7 +3,7 @@ services:
   nodeA-backend:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
-      - "11323:1323"
+      - "18081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
@@ -14,15 +14,17 @@ services:
       interval: 1s # Make test run quicker by checking health status more often
   nodeA:
     image: nginx:1.25.1
+    expose:
+      - "5555"
     volumes:
-      - "./node-A/nginx.conf:/etc/nginx/nginx.conf:ro"
+      - "../../../shared_config/nodeA-grpc-nginx.conf:/etc/nginx/conf.d/nuts-grpc.conf:ro"
       - "../../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
       - "../../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
       - "../../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
   nodeB:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     ports:
-      - "21323:1323"
+      - "28081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:

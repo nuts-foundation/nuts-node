@@ -3,7 +3,7 @@ services:
   nodeA-backend:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
-      - "11323:1323"
+      - "18081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
@@ -19,7 +19,7 @@ services:
   nodeB:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     ports:
-      - "21323:1323"
+      - "28081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:

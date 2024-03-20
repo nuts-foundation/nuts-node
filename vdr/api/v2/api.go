@@ -50,6 +50,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		did.ErrInvalidDID:                   http.StatusBadRequest,
 		management.ErrInvalidService:        http.StatusBadRequest,
 		management.ErrUnsupportedDIDMethod:  http.StatusBadRequest,
+		management.ErrDIDAlreadyExists:      http.StatusConflict,
 	})
 }
 
@@ -69,7 +70,7 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 	}))
 }
 
-func (w Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
+func (w *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
 	options := management.Create(didweb.MethodName)
 	if request.Body.Id != nil && *request.Body.Id != "" {
 		options = options.With(didweb.UserPath(*request.Body.Id))
@@ -84,7 +85,7 @@ func (w Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) 
 	return CreateDID200JSONResponse(*doc), nil
 }
 
-func (w Wrapper) DeleteDID(ctx context.Context, request DeleteDIDRequestObject) (DeleteDIDResponseObject, error) {
+func (w *Wrapper) DeleteDID(ctx context.Context, request DeleteDIDRequestObject) (DeleteDIDResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -96,7 +97,7 @@ func (w Wrapper) DeleteDID(ctx context.Context, request DeleteDIDRequestObject) 
 	return DeleteDID204Response{}, nil
 }
 
-func (w Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error) {
+func (w *Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -111,8 +112,8 @@ func (w Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject) 
 	}, nil
 }
 
-func (a *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDIDsResponseObject, error) {
-	list, err := a.VDR.ListOwned(ctx)
+func (w *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDIDsResponseObject, error) {
+	list, err := w.VDR.ListOwned(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +124,7 @@ func (a *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDI
 	return ListDIDs200JSONResponse(result), nil
 }
 
-func (w Wrapper) CreateService(ctx context.Context, request CreateServiceRequestObject) (CreateServiceResponseObject, error) {
+func (w *Wrapper) CreateService(ctx context.Context, request CreateServiceRequestObject) (CreateServiceResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -135,7 +136,7 @@ func (w Wrapper) CreateService(ctx context.Context, request CreateServiceRequest
 	return CreateService200JSONResponse(*createdService), nil
 }
 
-func (w Wrapper) DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error) {
+func (w *Wrapper) DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -151,7 +152,7 @@ func (w Wrapper) DeleteService(ctx context.Context, request DeleteServiceRequest
 	return DeleteService204Response{}, nil
 }
 
-func (w Wrapper) UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error) {
+func (w *Wrapper) UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error) {
 	targetDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
@@ -165,6 +166,46 @@ func (w Wrapper) UpdateService(ctx context.Context, request UpdateServiceRequest
 		return nil, err
 	}
 	return UpdateService200JSONResponse(*newService), nil
+}
+
+func (w *Wrapper) FilterServices(_ context.Context, request FilterServicesRequestObject) (FilterServicesResponseObject, error) {
+	subject, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, err
+	}
+	didDocument, _, err := w.VDR.Resolve(*subject, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []did.Service
+	for _, service := range didDocument.Service {
+		if request.Params.Type != nil && *request.Params.Type != service.Type {
+			continue
+		}
+		if request.Params.EndpointType != nil {
+			// The value of the serviceEndpoint property MUST be a string, a map, or a set composed of one or more strings and/or maps.
+			// All string values MUST be valid URIs conforming to [RFC3986] and normalized according to the Normalization and Comparison rules in RFC3986
+			// and to any normalization rules in its applicable URI scheme specification.
+			// (taken from https://www.w3.org/TR/did-core/#services)
+			var endpointType string
+			switch service.ServiceEndpoint.(type) {
+			case string:
+				endpointType = "string"
+			case map[string]interface{}:
+				endpointType = "object"
+			case []map[string]interface{}:
+				endpointType = "array"
+			case []interface{}:
+				endpointType = "array"
+			}
+			if string(*request.Params.EndpointType) != endpointType {
+				continue
+			}
+		}
+		results = append(results, service)
+	}
+	return FilterServices200JSONResponse(results), nil
 }
 
 func (w Wrapper) AddVerificationMethod(_ context.Context, _ AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error) {

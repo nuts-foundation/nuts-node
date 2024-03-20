@@ -49,7 +49,6 @@ const errInvalidSubjectFmt = "invalid jwt.subject: %w"
 const errInvalidVCClaim = "invalid jwt.vcs: %w"
 
 const vcClaim = "vcs"
-const purposeOfUseClaimDeprecated = "purposeOfUseClaim"
 const purposeOfUseClaim = "purposeOfUse"
 const userIdentityClaim = "usi"
 
@@ -314,10 +313,7 @@ func (s *authzServer) validateRequester(context *validationContext) error {
 func (s *authzServer) validatePurposeOfUse(context *validationContext) error {
 	purposeOfUse := context.stringVal(purposeOfUseClaim)
 	if purposeOfUse == nil {
-		purposeOfUse = context.stringVal(purposeOfUseClaimDeprecated)
-		if purposeOfUse == nil {
-			return errors.New("no purposeOfUse given")
-		}
+		return errors.New("no purposeOfUse given")
 	}
 
 	context.purposeOfUse = *purposeOfUse
