@@ -33,11 +33,15 @@ RUN apk update \
   && apk add --no-cache \
              tzdata \
              curl \
-  && update-ca-certificates
+  && update-ca-certificates \
+  && adduser -D -H -u 18081 nuts-usr
 COPY --from=builder /opt/nuts/nuts /usr/bin/nuts
 
 HEALTHCHECK --start-period=30s --timeout=5s --interval=10s \
     CMD curl -f http://localhost:8081/status || exit 1
+
+USER 18081:18081
+WORKDIR /nuts
 
 EXPOSE 8080 8081 5555
 ENTRYPOINT ["/usr/bin/nuts"]
