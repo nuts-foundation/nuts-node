@@ -801,8 +801,9 @@ func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request 
 
 		tokenEndpoint := metadataFromUrl.TokenEndpoint
 		response, err := r.auth.IAMClient().AccessTokenOid4vci(ctx, holderDid.String(), tokenEndpoint, oid4vciSession.RedirectUri, code, &pkceParams.Verifier)
-		println(response.AccessToken)
-
+		if err != nil {
+			return nil, err
+		}
 		credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, metadata.CredentialEndpoint, response.AccessToken, *holderDid, *issuerDid)
 		if err != nil {
 			return nil, err
