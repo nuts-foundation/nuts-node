@@ -12,7 +12,7 @@ User
 
 The default user in the container is ``18081`` that is only part of group ``18081``.
 This is a regular user without root privileges to provide an additional level of security.
-See the section below and documentation of the relevant (container orchestration) platform how to manage privileges needed by the nuts-node.
+See the section below how to manage privileges needed by the nuts-node.
 
 Volume mounts
 *************
@@ -28,24 +28,26 @@ The default working directory within the container is ``/nuts`` that provides de
     │   ├── nuts.yaml      <configfile>
     │   ├── policy/...     <policy.directory>
     │   └── ssl/...        <tls.{truststore,certfile,keyfile}>
-    └── data/...                 <datadir>
+    └── data/...           <datadir>
 
 
-- **/nuts/config/**: Contains all configuration files.
+* **/nuts/config/**: Contains all configuration files.
     Any file changes will take effect *after* a node restart. It is recommended to set read-only privileges (default) to this directory and its contents for additional security.
     (``chmod -R o+r </path/to/host/config-dir>`` assuming the directory on the host is *not* owned by user and/or group ``18081``)
 
-- **/nuts/data/**: Storage directory for data managed by the nuts-node.
+* **/nuts/data/**: Storage directory for data managed by the nuts-node.
     The container user (``18081``) has insufficient privileges by default to write to mounted directories.
     The required permissions can be granted by making the container user the owner of the ``data`` directory on the host. (``chown -R 18081:18081 </path/to/host/data-dir>``)
 
-    *Note*: Nodes running the :ref:`recommended deployment <nuts-node-recommended-deployment>` (external storage configured for ``crypto.storage`` and ``storage.sql.connection``) that do not use did:nuts / gRPC network don't need to mount a ``data`` dir.
+.. note::
 
-    *Note*: *"User ``18081`` already exists on my host."* See documentation of the relevant (container orchestration) platform how to restrict privileges to a user namespace and/or create a user mapping between host and container.
+    - Nodes running the :ref:`recommended deployment <nuts-node-recommended-deployment>` (external storage configured for ``crypto.storage`` and ``storage.sql.connection``) that do not use did:nuts / gRPC network don't need to mount a ``data`` dir.
+
+    - *"User 18081 already exists on my host."* See `docker security <https://docs.docker.com/engine/security/userns-remap/>`_` (or relevant container orchestration platform) documentation how to restrict privileges to a user namespace / create a user mapping between host and container.
 
 Examples
 ********
-The examples the assume the current working directory on the host contains te following structure:
+The examples assume the current working directory on the host contains te following structure:
 
 .. code-block:: none
 

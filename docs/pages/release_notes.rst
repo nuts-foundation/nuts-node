@@ -1,14 +1,19 @@
-
 #############
 Release notes
 #############
 
 *******************
-Peanut (v6 alpha 1)
+Peanut (v6.0.0)
 *******************
 
 **Release date:** TBD
-**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...master
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v6.0.0
+
+Breaking
+********
+
+- Container user has changed from root to 18081.
+  When migrating from v5, change the owner of the data directory on the host to that of the container's user. (``chown -R 18081:18081 /path/to/host/data-dir``)
 
 New Features
 ************
@@ -28,7 +33,7 @@ Changes
 *******
 
 - Removed support for deprecated network TLS properties. Configuring these properties will now cause the node not to start.
-- Removed usage of deprecated `purposeOfUseClaim` in ``NutsAuthorizationCredential``.
+- Removed usage of deprecated ``purposeOfUseClaim`` in ``NutsAuthorizationCredential``.
 - Removed support for the UZI authentication means.
 - Documentation of ``did:nuts``-related features have been removed (refer to v5 documentation).
 - Documentation of specific use cases (e.g. health care in general or eOverdracht) has been moved to the `Nuts wiki <https://wiki.nuts.nl>`_.
@@ -40,21 +45,25 @@ HTTP interface
 
 The HTTP interface has been reworked to make deployments simpler and more secure:
 
-- No more dynamic binding of endpoints to ports, endpoints are now bound to the internal interface (`8081`) or the public interface (`8080`).
+- No more dynamic binding of endpoints to ports, endpoints are now bound to the internal interface (``8081``) or the public interface (``8080``).
 - Server-side TLS for HTTP has been dropped, since the Nuts node is always expected to be deployed behind a reverse proxy/ingress that handles TLS termination.
-- API authentication is now only applied to `/internal` endpoints, since those are the only API endpoints that should be protected with authentication.
+- API authentication is now only applied to ``/internal`` endpoints, since those are the only API endpoints that should be protected with authentication.
 - CORS support has been removed. As it is only required by user authentication endpoints that are considered to be deprecated, CORS headers can be set by a reverse proxy if still required.
 
 Port configuration
 ------------------
 To simplify HTTP configuration and proxying and make the default more secure, HTTP endpoints now map to 2 HTTP interfaces:
 
-- port `8081` for all internal-facing endpoints (`/internal`, `/status`, `/metrics`, `/health`)
-- port `8080` for all public-facing endpoints (all others)
+- port ``8081`` for all internal-facing endpoints (``/internal``, ``/status``, ``/metrics``, ``/health``)
+- port ``8080`` for all public-facing endpoints (all others)
 
 The new HTTP configuration reflects this,
 
+<<<<<<< HEAD
 Note that `8081` by default maps to `127.0.0.1` only, so you might need to configure it to allow it to be accessible from other machines.
+=======
+Note that ``8081`` by default maps to ``localhost`` only, so you might need to configure it to allow it to be accessible from other machines.
+>>>>>>> 5a6fcd01 (Add release note)
 
 ************************
 Hazelnut update (v5.4.6)
