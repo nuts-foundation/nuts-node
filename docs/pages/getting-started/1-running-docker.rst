@@ -7,30 +7,65 @@ If you already use Docker, the easiest way to get your Nuts Node up and running 
 using Docker. This guide helps you to configure the Nuts node in Docker.
 To use the most recent release use ``nutsfoundation/nuts-node:latest``. For production environments it's advised to use a specific version.
 
-First determine the working directory for the Nuts node which will contain configuration and data. These which will be mounted into the Docker container.
-Follow the :ref:`configuration <configure-node>` to setup the configuration of your node.
+User
+****
 
-Mounts
-******
+The default user in the container is ``18081`` that is only part of group ``18081``.
+This is a regular user without root privileges to provide an additional level of security.
+See the section below and documentation of the relevant (container orchestration) platform how to manage privileges needed by the nuts-node.
 
-Using this guide the following resources are mounted:
+Volume mounts
+*************
 
-- Readonly PEM file with TLS certificate and private key. They can be separate but in this example they're contained in 1 file.
-- Readonly PEM file with TLS truststore for the particular network you're connecting to.
-- Readonly ``nuts.yaml`` configuration file.
-- Data directory where data is stored.
+The default working directory within the container is `/nuts` that provides defaults for the various configurable data and config paths used:
+
+.. code-block:: none
+
+    nuts
+    ├── config
+    │   ├── discovery/...  <discovery.definitions.directory>
+    │   ├── jsonld/...     <>
+    │   ├── nuts.yaml      <configfile>
+    │   ├── policy/...     <policy.directory>
+    │   └── ssl/...        <tls.{truststore,certfile,keyfile}>
+    └── data/...                 <datadir>
+
+
+- **/nuts/config/**: Contains all configuration files.
+    Any file changes will take effect *after* a node restart. It is recommended to set read-only privileges (default) to this directory and its contents for additional security.
+(``chmod -R o+r </path/to/host/config-dir>`` assuming the directory on the host is *not* owned by user and/or group ``18081``)
+
+- **/nuts/data/**: Storage directory for data managed by the nuts-node.
+    The container user (``18081``) has insufficient privileges by default to write to mounted directories.
+The required permissions can be granted by making the container user the owner of the ``data`` directory on the host. (``chown -R 18081:18081 </path/to/host/data-dir>``)
+
+    *Note*: Nodes running the :ref:`recommended deployment <nuts-node-recommended-deployment>` (external storage configured for ``crypto.storage`` and ``storage.sql.connection``) that do not use did:nuts / gRPC network don't need to mount a ``data`` dir.
+
+    *Note*: *"User ``18081`` already exists on my host."* See documentation of the relevant (container orchestration) platform how to restrict privileges to a user namespace and/or create a user mapping between host and container.
+
+Examples
+********
+The examples the assume the current working directory on the host contains te following structure:
+
+.. code-block:: none
+
+    .
+    ├── config
+    │   └── nuts.yaml
+    └── data
+
+The data directory must be owned by user ``18081``.
+See the :ref:`configuration<nuts-node-config>` documentation how to setup the nuts.yaml to meet your needs.
 
 Docker ``run``
-**************
+^^^^^^^^^^^^^^
 
 If you want to run without Docker Compose you can use the following command from the working directory:
 
 .. code-block:: shell
 
   docker run --name nuts -p 8080:8080 -p 8081:8081 \
-    --mount type=bind,source="$(pwd)"/nuts.yaml,target=/opt/nuts/nuts.yaml,readonly \
-    --mount type=bind,source="$(pwd)"/data,target=/opt/nuts/data \
-    -e NUTS_CONFIGFILE=/opt/nuts/nuts.yaml \
+    --mount type=bind,source="$(pwd)",target=/nuts \
     nutsfoundation/nuts-node:latest
 
 This setup uses the following ``nuts.yaml`` configuration file:
@@ -50,7 +85,7 @@ You can test whether your Nuts Node is running properly by visiting ``http://loc
 display diagnostic information about the state of the node.
 
 Docker Compose
-**************
+^^^^^^^^^^^^^^
 
 Copy the following YAML file and save it as ``docker-compose.yaml`` in the working directory.
 
@@ -59,14 +94,12 @@ Copy the following YAML file and save it as ``docker-compose.yaml`` in the worki
   services:
     nuts:
       image: nutsfoundation/nuts-node:latest
-      environment:
-        NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       ports:
         - 8080:8080
         - 8081:8081
       volumes:
-        - "./nuts.yaml:/opt/nuts/nuts.yaml:ro"
-        - "./data:/opt/nuts/data:rw"
+        - "./nuts.yaml:/nuts/nuts.yaml:ro"
+        - "./data:/nuts/data:rw"
 
 
 Start the service:
