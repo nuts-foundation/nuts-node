@@ -662,7 +662,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		if err != nil {
 			return nil, err
 		}
-		redirectUri, err := url.Parse("https://" + requesterDidUrl.Host + "/iam/oid4vci/" + state + "/callback")
+		redirectUri, err := url.Parse("https://" + requesterDidUrl.Host + "/iam/oid4vci/callback")
 		if err != nil {
 			return nil, err
 		}
