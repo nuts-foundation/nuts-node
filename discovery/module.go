@@ -101,6 +101,10 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 	if m.config.Definitions.Directory == "" {
 		return nil
 	}
+	if _, err := os.Stat(m.config.Definitions.Directory); os.IsNotExist(err) && m.config.Definitions.Directory == DefaultConfig().Definitions.Directory {
+		// assume this is the default config value and do not fail
+		return nil
+	}
 	var err error
 	m.allDefinitions, err = loadDefinitions(m.config.Definitions.Directory)
 	if err != nil {

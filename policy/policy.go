@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy/api/v1/client"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"net/url"
-	"time"
 )
 
 // NewRouter creates a new policy backend router that can forward requests to the correct backend
@@ -66,7 +65,7 @@ func (b *Router) Configure(config core.ServerConfig) error {
 		}
 		b.backend = &remote{
 			address: b.config.Address,
-			client:  client.NewHTTPClient(config.Strictmode, time.Duration(b.config.HTTPTimeout)*time.Second, tlsConfig),
+			client:  client.NewHTTPClient(config.Strictmode, config.HTTPClient.Timeout, tlsConfig),
 		}
 	}
 	if b.config.Directory != "" {

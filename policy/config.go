@@ -24,6 +24,8 @@ type Config struct {
 	Directory string `koanf:"directory"`
 	// Address is the address of the policy server
 	Address string `koanf:"address"`
-	// HTTPTimeout is the client timeout for http requests
-	HTTPTimeout int `koanf:"http.timeout"`
+}
+
+func defaultConfig() Config {
+	return Config{Directory: "./config/policy"}
 }

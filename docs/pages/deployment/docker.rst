@@ -43,7 +43,7 @@ The default working directory within the container is ``/nuts`` that provides de
 
     - Nodes running the :ref:`recommended deployment <nuts-node-recommended-deployment>` (external storage configured for ``crypto.storage`` and ``storage.sql.connection``) that do not use did:nuts / gRPC network don't need to mount a ``data`` dir.
 
-    - *"User 18081 already exists on my host."* See `docker security <https://docs.docker.com/engine/security/userns-remap/>`_` (or relevant container orchestration platform) documentation how to restrict privileges to a user namespace / create a user mapping between host and container.
+    - *"User 18081 already exists on my host."* See `docker security <https://docs.docker.com/engine/security/userns-remap/>`_ (or relevant container orchestration platform) documentation how to restrict privileges to a user namespace / create a user mapping between host and container.
 
 Examples
 ********
