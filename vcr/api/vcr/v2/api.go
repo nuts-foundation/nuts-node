@@ -404,6 +404,9 @@ func (w *Wrapper) GetCredentialsInWallet(ctx context.Context, request GetCredent
 	if err != nil {
 		return nil, err
 	}
+	if credentials == nil {
+		credentials = []vc.VerifiableCredential{}
+	}
 	return GetCredentialsInWallet200JSONResponse(credentials), nil
 }
 
