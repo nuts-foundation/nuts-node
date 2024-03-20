@@ -17,7 +17,7 @@ See the section below and documentation of the relevant (container orchestration
 Volume mounts
 *************
 
-The default working directory within the container is `/nuts` that provides defaults for the various configurable data and config paths used:
+The default working directory within the container is ``/nuts`` that provides defaults for the various configurable data and config paths used:
 
 .. code-block:: none
 
@@ -33,11 +33,11 @@ The default working directory within the container is `/nuts` that provides defa
 
 - **/nuts/config/**: Contains all configuration files.
     Any file changes will take effect *after* a node restart. It is recommended to set read-only privileges (default) to this directory and its contents for additional security.
-(``chmod -R o+r </path/to/host/config-dir>`` assuming the directory on the host is *not* owned by user and/or group ``18081``)
+    (``chmod -R o+r </path/to/host/config-dir>`` assuming the directory on the host is *not* owned by user and/or group ``18081``)
 
 - **/nuts/data/**: Storage directory for data managed by the nuts-node.
     The container user (``18081``) has insufficient privileges by default to write to mounted directories.
-The required permissions can be granted by making the container user the owner of the ``data`` directory on the host. (``chown -R 18081:18081 </path/to/host/data-dir>``)
+    The required permissions can be granted by making the container user the owner of the ``data`` directory on the host. (``chown -R 18081:18081 </path/to/host/data-dir>``)
 
     *Note*: Nodes running the :ref:`recommended deployment <nuts-node-recommended-deployment>` (external storage configured for ``crypto.storage`` and ``storage.sql.connection``) that do not use did:nuts / gRPC network don't need to mount a ``data`` dir.
 
@@ -54,8 +54,8 @@ The examples the assume the current working directory on the host contains te fo
     │   └── nuts.yaml
     └── data
 
-The data directory must be owned by user ``18081``.
-See the :ref:`configuration<nuts-node-config>` documentation how to setup the nuts.yaml to meet your needs.
+The ``data`` directory must be owned by user ``18081``.
+See the :ref:`configuration<nuts-node-config>` documentation how to setup the ``nuts.yaml`` to meet your needs.
 
 Docker ``run``
 ^^^^^^^^^^^^^^
