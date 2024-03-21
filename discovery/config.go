@@ -35,7 +35,7 @@ type ServiceDefinitionsConfig struct {
 // ServerConfig holds the config for the server
 type ServerConfig struct {
 	// IDs specifies the IDs of the Discovery Services the server serves.
-	IDs []string `koanf:"services"`
+	IDs []string `koanf:"ids"`
 }
 
 // ClientConfig holds the config for the client
