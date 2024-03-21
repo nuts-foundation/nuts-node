@@ -153,8 +153,7 @@ This API Gateway should then introspect the OAuth2 access token at the Nuts node
 Data storage
 ^^^^^^^^^^^^
 
-Primary data storage for all persistent data other than private keys. By default, it stores data on-disk using SQLite.
-For production, MySQL or Postgres is recommended.
+Primary data storage for all persistent data other than private keys. For production, MySQL or Postgres is recommended.
 
 Private Key Storage
 ^^^^^^^^^^^^^^^^^^^

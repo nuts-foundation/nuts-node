@@ -112,6 +112,13 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		})
 		assert.FileExists(t, path.Join(dataDir, "sqlite.db"))
 	})
+	t.Run("no default in strict mode", func(t *testing.T) {
+		e := New()
+		dataDir := io.TestDirectory(t)
+		err := e.Configure(core.ServerConfig{Datadir: dataDir, Strictmode: true})
+		assert.EqualError(t, err, "failed to initialize SQL database: no database configured, set storage.sql.connection")
+		assert.NoFileExists(t, path.Join(dataDir, "sqlite.db"))
+	})
 	t.Run("unable to open SQLite database", func(t *testing.T) {
 		dataDir := io.TestDirectory(t)
 		require.NoError(t, os.Remove(dataDir))

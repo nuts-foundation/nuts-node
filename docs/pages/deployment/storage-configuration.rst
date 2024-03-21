@@ -21,9 +21,9 @@ Also remember to test your backup and restore procedure.
 SQL database
 ************
 
-By default, storage SQLite will be used in a file called ``sqlite.db`` in the configured data directory.
-This can be overridden by configuring a connection string in ``storage.sql.connection``.
-Other supported SQL databases are Postgres and MySQL.
+Supported SQL databases are SQLite, Postgres, and MySQL. SQLite is discouraged in production environments.
+The database can be configured by setting a connection string in ``storage.sql.connection``.
+For development, a SQLite database (``sqlite.db``) will be created in the data directory iff ``strictmode=false`` and no connection string is configured.
 
 Connection strings must be in the following format:
 
