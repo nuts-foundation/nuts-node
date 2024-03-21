@@ -21,7 +21,6 @@ package oauth
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -33,7 +32,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
@@ -42,7 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -284,98 +281,4 @@ func createRPContext(t *testing.T, tlsConfig *tls.Config) *rpTestContext {
 		serviceResolver: serviceResolver,
 		wallet:          wallet,
 	}
-}
-
-type rpOAuthTestContext struct {
-	*rpTestContext
-	authzServerMetadata    *oauth.AuthorizationServerMetadata
-	handler                http.HandlerFunc
-	tlsServer              *httptest.Server
-	verifierDID            did.DID
-	metadata               func(writer http.ResponseWriter)
-	presentationDefinition func(writer http.ResponseWriter)
-	token                  func(writer http.ResponseWriter)
-}
-
-func createOAuthRPContext(t *testing.T) *rpOAuthTestContext {
-	presentationDefinition := `
-{
-  "input_descriptors": [
-	{
-	  "name": "Pick 1",
-      "group": ["A"],
-	  "constraints": {
-		"fields": [
-		  {
-			"path": [
-			  "$.type"
-			],
-			"filter": {
-			  "type": "string",
-			  "const": "NutsOrganizationCredential"
-			}
-		  }
-		]
-	  }
-    }	
-  ]
-}
-`
-	authzServerMetadata := &oauth.AuthorizationServerMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
-	ctx := &rpOAuthTestContext{
-		rpTestContext: createRPContext(t, nil),
-		metadata: func(writer http.ResponseWriter) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusOK)
-			bytes, _ := json.Marshal(*authzServerMetadata)
-			_, _ = writer.Write(bytes)
-			return
-		},
-		presentationDefinition: func(writer http.ResponseWriter) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte(presentationDefinition))
-			return
-		},
-		token: func(writer http.ResponseWriter) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
-			return
-		},
-	}
-
-	ctx.handler = func(writer http.ResponseWriter, request *http.Request) {
-		switch request.URL.Path {
-		case "/.well-known/oauth-authorization-server":
-			if ctx.metadata != nil {
-				ctx.metadata(writer)
-				return
-			}
-		case "/presentation_definition":
-			if ctx.presentationDefinition != nil {
-				scopes := request.URL.Query().Get("scope")
-				if scopes == "" {
-					writer.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				ctx.presentationDefinition(writer)
-				return
-			}
-		case "/token":
-			if ctx.token != nil {
-				ctx.token(writer)
-				return
-			}
-		}
-		writer.WriteHeader(http.StatusNotFound)
-	}
-	ctx.tlsServer = http2.TestTLSServer(t, ctx.handler)
-	ctx.verifierDID = didweb.ServerURLToDIDWeb(t, ctx.tlsServer.URL)
-	authzServerMetadata.TokenEndpoint = ctx.tlsServer.URL + "/token"
-	authzServerMetadata.PresentationDefinitionEndpoint = ctx.tlsServer.URL + "/presentation_definition"
-	authzServerMetadata.AuthorizationEndpoint = ctx.tlsServer.URL + "/authorize"
-	ctx.authzServerMetadata = authzServerMetadata
-
-	return ctx
 }

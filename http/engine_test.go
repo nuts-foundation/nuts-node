@@ -25,7 +25,6 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/tls"
 	b64 "encoding/base64"
 	"fmt"
 	"io"
@@ -459,13 +458,6 @@ func assertServerStarted(t *testing.T, address string) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	t.Fatal("Server did not start in time", err)
-}
-
-func doHTTPSRequest(tlsConfig *tls.Config, address string) (*http.Response, error) {
-	response, err := (&http.Client{Transport: &http.Transport{
-		TLSClientConfig: tlsConfig,
-	}}).Get("https://" + address)
-	return response, err
 }
 
 func assertHTTPRequest(t *testing.T, address string) {

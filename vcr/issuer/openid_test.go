@@ -42,7 +42,6 @@ import (
 var issuerDID = did.MustParseDID("did:nuts:issuer")
 var issuerIdentifier = "https://example.com/" + issuerDID.String()
 var holderDID = did.MustParseDID("did:nuts:holder")
-var walletIdentifier = "https://example.com/" + holderDID.String()
 var keyID = holderDID.String() + "#1"
 
 const definitionsDIR = "./test/valid"

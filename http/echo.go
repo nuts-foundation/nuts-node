@@ -136,12 +136,6 @@ func (c MultiEcho) Use(middleware ...echo.MiddlewareFunc) {
 		curr.Use(middleware...)
 	}
 }
-
-func (c *MultiEcho) getInterface(path string) EchoServer {
-	bind := c.getBindFromPath(path)
-	return c.interfaces[c.binds[bind]]
-}
-
 func (c *MultiEcho) getAddressForPath(path string) string {
 	return c.binds[c.getBindFromPath(path)]
 }

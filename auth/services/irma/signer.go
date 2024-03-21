@@ -46,7 +46,6 @@ import (
 type Signer struct {
 	sessionHandler signingSessionHandler
 	schemeManager  string
-	strictMode     bool
 }
 
 // SessionPtr should be made private when v0 is removed
