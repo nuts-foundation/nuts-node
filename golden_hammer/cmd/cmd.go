@@ -30,5 +30,10 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Bool("goldenhammer.enabled", defs.Enabled, "Whether to enable automatically fixing DID documents with the required endpoints.")
 	flagSet.Duration("goldenhammer.interval", defs.Interval, "The interval in which to check for DID documents to fix.")
 
+	// Server-to-Server OpenID4VCI-related functionality that will probably go away soon.
+	// Should not be relied on.
+	flagSet.VisitAll(func(flag *pflag.Flag) {
+		_ = flagSet.MarkHidden(flag.Name)
+	})
 	return flagSet
 }
