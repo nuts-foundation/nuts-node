@@ -11,3 +11,5 @@ Dockerfile*
 makefile
 nuts-node
 development
+data
+e2e-tests
