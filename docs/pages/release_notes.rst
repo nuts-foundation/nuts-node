@@ -53,7 +53,7 @@ To simplify HTTP configuration and proxying and make the default more secure, HT
 
 The new HTTP configuration reflects this,
 
-Note that `8081` by default maps to `localhost` only, so you might need to configure it to allow it to be accessible from other machines.
+Note that `8081` by default maps to `127.0.0.1` only, so you might need to configure it to allow it to be accessible from other machines.
 
 ************************
 Hazelnut update (v5.4.6)
