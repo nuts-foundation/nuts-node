@@ -32,7 +32,8 @@ func FlagSet() *pflag.FlagSet {
 
 	// Server-to-Server OpenID4VCI-related functionality that will probably go away soon.
 	// Should not be relied on.
-	_ = flagSet.MarkHidden("goldenhammer.enabled")
-	_ = flagSet.MarkHidden("goldenhammer.interval")
+	flagSet.VisitAll(func(flag *pflag.Flag) {
+		_ = flagSet.MarkHidden(flag.Name)
+	})
 	return flagSet
 }

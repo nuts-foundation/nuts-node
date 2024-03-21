@@ -48,6 +48,11 @@ The following options can be configured on the server:
 
 .. marker-for-config-options
 
+.. note::
+
+    did:nuts/gRPC network-related configuration options are not shown in this documentation version.
+    Refer to the Nuts node v5 documentation for documentation on those configuration options.
+
 .. include:: server_options.rst
 
 This table is automatically generated using the configuration flags in the core and engines. When they're changed

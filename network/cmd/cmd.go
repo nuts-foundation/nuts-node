@@ -52,6 +52,12 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.IntSlice("network.protocols", defs.Protocols, "Only used by did:nuts/gRPC. Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.")
 	flagSet.Int("network.v2.gossipinterval", defs.ProtocolV2.GossipInterval, "Only used by did:nuts/gRPC. Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes.")
 	flagSet.Int("network.v2.diagnosticsinterval", defs.ProtocolV2.DiagnosticsInterval, "Only used by did:nuts/gRPC. Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
+
+	// Hide flags for did:nuts/gRPC functionality
+	flagSet.VisitAll(func(flag *pflag.Flag) {
+		_ = flagSet.MarkHidden(flag.Name)
+	})
+
 	return flagSet
 }
 
