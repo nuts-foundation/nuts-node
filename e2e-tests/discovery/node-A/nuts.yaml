@@ -10,7 +10,7 @@ discovery:
   definitions:
     directory: /opt/nuts/definitions
   server:
-    definition_ids:
+    ids:
       - dev:eOverdracht2023
 auth:
   contractvalidators:
