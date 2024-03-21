@@ -50,6 +50,9 @@ The following options can be configured on the server:
 
 .. include:: server_options.rst
 
+Options specific for ``did:nuts``/gRPC
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 The following table contains additional (deprecated) options that are relevant for use cases that use ``did:nuts`` DIDs and/or the gRPC network.
 If your use case does not use these features, you can ignore this table.
 
