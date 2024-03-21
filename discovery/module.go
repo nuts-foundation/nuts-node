@@ -98,18 +98,18 @@ type Module struct {
 }
 
 func (m *Module) Configure(serverConfig core.ServerConfig) error {
-	if m.config.Definitions.Directory == "" {
+	if m.config.Definitions == "" {
 		return nil
 	}
 	var err error
-	m.allDefinitions, err = loadDefinitions(m.config.Definitions.Directory)
+	m.allDefinitions, err = loadDefinitions(m.config.Definitions)
 	if err != nil {
 		return err
 	}
-	if len(m.config.Server.Definitions) > 0 {
+	if len(m.config.Server.IDs) > 0 {
 		// Get the definitions that are enabled for this server
 		serverDefinitions := make(map[string]ServiceDefinition)
-		for _, definitionID := range m.config.Server.Definitions {
+		for _, definitionID := range m.config.Server.IDs {
 			if definition, exists := m.allDefinitions[definitionID]; !exists {
 				return fmt.Errorf("service definition '%s' not found", definitionID)
 			} else {

@@ -20,10 +20,10 @@ It only acts as server for a specific server if configured to do so.
 Configuration
 *************
 
-Service definitions are JSON files loaded from the ``discovery.definitions.directory`` directory.
+Service definitions are JSON files loaded from the ``discovery.definitions`` directory.
 It loads all files wih the ``.json`` extension in this directory. It does not load subdirectories.
 If the directory contains JSON files that are not (valid) service definitions, the node will fail to start.
 
 To act as server for a specific discovery service definition,
-the service ID from the definition needs to be specified in ``discovery.server.defition_ids``.
+the service ID from the definition needs to be specified in ``discovery.server.ids``.
 The IDs in this list must correspond to the ``id`` fields of the loaded service definition, otherwise the node will fail to start.

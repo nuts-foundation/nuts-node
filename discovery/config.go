@@ -22,20 +22,15 @@ import "time"
 
 // Config holds the config of the module
 type Config struct {
-	Server      ServerConfig             `koanf:"server"`
-	Client      ClientConfig             `koanf:"client"`
-	Definitions ServiceDefinitionsConfig `koanf:"definitions"`
-}
-
-// ServiceDefinitionsConfig holds the config for loading Service Definitions.
-type ServiceDefinitionsConfig struct {
-	Directory string `koanf:"directory"`
+	Server      ServerConfig `koanf:"server"`
+	Client      ClientConfig `koanf:"client"`
+	Definitions string       `koanf:"definitions"`
 }
 
 // ServerConfig holds the config for the server
 type ServerConfig struct {
-	// Definitions specifies the IDs of the Discovery Services serves.
-	Definitions []string `koanf:"definitions"`
+	// IDs specifies the IDs of the Discovery Services the server serves.
+	IDs []string `koanf:"services"`
 }
 
 // ClientConfig holds the config for the client
