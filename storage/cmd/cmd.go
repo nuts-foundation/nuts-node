@@ -21,7 +21,6 @@ package cmd
 import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/spf13/pflag"
-	"strings"
 )
 
 // FlagSet contains flags relevant for the engine
@@ -43,14 +42,6 @@ func FlagSet() *pflag.FlagSet {
 		"If not set it, defaults to a SQLite database stored inside the configured data directory. "+
 		"Note: using SQLite is not recommended in production environments. "+
 		"If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').")
-
-	// Hide flags for did:nuts/gRPC functionality
-	flagSet.VisitAll(func(flag *pflag.Flag) {
-		if strings.HasPrefix(flag.Name, "storage.redis") ||
-			strings.HasPrefix(flag.Name, "storage.bbolt") {
-			_ = flagSet.MarkHidden(flag.Name)
-		}
-	})
 
 	return flagSet
 }

@@ -54,12 +54,5 @@ func FlagSet() *pflag.FlagSet {
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
 	_ = flags.MarkDeprecated("auth.http.timeout", "use httpclient.timeout instead")
 
-	// Hide flags for did:nuts/gRPC functionality
-	_ = flags.MarkHidden(ConfIrmaSchemeManager)
-	_ = flags.MarkHidden(ConfAutoUpdateIrmaSchemas)
-	_ = flags.MarkHidden(ConfContractValidators)
-	_ = flags.MarkHidden(ConfClockSkew)
-	_ = flags.MarkHidden(ConfAccessTokenLifeSpan)
-
 	return flags
 }

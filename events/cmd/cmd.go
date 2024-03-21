@@ -45,11 +45,5 @@ func FlagSet() *pflag.FlagSet {
 	flags.String(ConfEventsHostname, defs.Nats.Hostname, "Only used by did:nuts/gRPC. Hostname for the NATS server")
 	flags.String(ConfEventsStorageDir, defs.Nats.StorageDir, "Only used by did:nuts/gRPC. Directory where file-backed streams are stored in the NATS server")
 	flags.Int(ConfEventsTimeout, defs.Nats.Timeout, "Only used by did:nuts/gRPC. Timeout for NATS server operations")
-
-	// Hide flags for did:nuts/gRPC functionality
-	flags.VisitAll(func(flag *pflag.Flag) {
-		_ = flags.MarkHidden(flag.Name)
-	})
-
 	return flags
 }

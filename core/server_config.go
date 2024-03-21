@@ -260,14 +260,6 @@ func FlagSet() *pflag.FlagSet {
 		"Enable by setting it to '%s'. If enabled 'tls.certheader' must be configured as well.", OffloadIncomingTLS))
 	flagSet.String("tls.certheader", defaultCfg.TLS.ClientCertHeaderName, "Only used by did:nuts/gRPC. Name of the HTTP header that will contain the client certificate when TLS is offloaded for gRPC.")
 
-	// Hide flags for did:nuts/gRPC functionality
-	_ = flagSet.MarkHidden("tls.certfile")
-	_ = flagSet.MarkHidden("tls.certkeyfile")
-	_ = flagSet.MarkHidden("tls.truststorefile")
-	_ = flagSet.MarkHidden("tls.offload")
-	_ = flagSet.MarkHidden("tls.certheader")
-	_ = flagSet.MarkHidden("internalratelimiter")
-
 	return flagSet
 }
 
