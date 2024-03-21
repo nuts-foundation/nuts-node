@@ -18,6 +18,15 @@ Building
 
 Just use ``go build``.
 
+ES256 Koblitz support
+=====================
+
+To enable ES256K (Koblitz) support, you need to build with the ``jwx_es256k`` tag:
+
+.. code-block:: shell
+
+    go build -tags jwx_es256k
+
 Building for exotic environments
 ================================
 
