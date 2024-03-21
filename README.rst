@@ -163,11 +163,6 @@ The following options can be configured on the server:
 
 .. marker-for-config-options
 
-.. note::
-
-    did:nuts/gRPC network-related configuration options are not shown in this documentation version.
-    Refer to the Nuts node v5 documentation for documentation on those configuration options.
-
 .. table:: Server Options
     :widths: 20 30 50
     :class: options-table
@@ -178,6 +173,7 @@ The following options can be configured on the server:
     configfile                                 nuts.yaml                                                                                                                                                                                                                                                                                                                                                                                              Nuts config file
     cpuprofile                                                                                                                                                                                                                                                                                                                                                                                                                                        When set, a CPU profile is written to the given path. Ignored when strictmode is set.
     datadir                                    ./data                                                                                                                                                                                                                                                                                                                                                                                                 Directory where the node stores its files.
+    internalratelimiter                        true                                                                                                                                                                                                                                                                                                                                                                                                   When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.
     loggerformat                               text                                                                                                                                                                                                                                                                                                                                                                                                   Log format (text, json)
     strictmode                                 true                                                                                                                                                                                                                                                                                                                                                                                                   When set, insecure settings are forbidden.
     url                                                                                                                                                                                                                                                                                                                                                                                                                                               Public facing URL of the server (required). Must be HTTPS when strictmode is set.
@@ -203,7 +199,7 @@ The following options can be configured on the server:
     http.internal.auth.type                                                                                                                                                                                                                                                                                                                                                                                                                           Whether to enable authentication for /internal endpoints, specify 'token_v2' for bearer token mode or 'token' for legacy bearer token mode.
     http.public.address                        \:8080                                                                                                                                                                                                                                                                                                                                                                                                  Address and port the server will be listening to for public-facing endpoints.
     **JSONLD**
-    jsonld.contexts.localmapping               [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3id.org/vc/status-list/2021/v1=assets/contexts/w3c-statuslist2021.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson]      This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist.
+    jsonld.contexts.localmapping               [https://w3id.org/vc/status-list/2021/v1=assets/contexts/w3c-statuslist2021.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson]      This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist.
     jsonld.contexts.remoteallowlist            [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json,https://w3id.org/vc/status-list/2021/v1]                                                                                                                                                                                                                                 In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here.
     **PKI**
     pki.maxupdatefailhours                     4                                                                                                                                                                                                                                                                                                                                                                                                      Maximum number of hours that a denylist update can fail
@@ -214,6 +210,66 @@ The following options can be configured on the server:
     policy.address                                                                                                                                                                                                                                                                                                                                                                                                                                    The address of a remote policy server. Mutual exclusive with policy.directory.
     policy.directory                                                                                                                                                                                                                                                                                                                                                                                                                                  Directory to read policy files from. Policy files are JSON files that contain a scope to PresentationDefinition mapping. Mutual exclusive with policy.address.
     =====================================      =================================================================================================================================================================================================================================================================================================================================================================================================      ============================================================================================================================================================================================================================================================================================================================================
+
+Options specific for ``did:nuts``/gRPC
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following table contains additional (deprecated) options that are relevant for use cases that use ``did:nuts`` DIDs and/or the gRPC network.
+If your use case does not use these features, you can ignore this table.
+
+.. table:: did:nuts/gRPC Server Options
+    :widths: 20 30 50
+    :class: options-table
+
+    ================================      ===========================      ======================================================================================================================================================================================
+    Key                                   Default                          Description
+    ================================      ===========================      ======================================================================================================================================================================================
+    tls.certfile                                                           PEM file containing the certificate for the gRPC server (also used as client certificate). Required in strict mode.
+    tls.certheader                                                         Name of the HTTP header that will contain the client certificate when TLS is offloaded for gRPC.
+    tls.certkeyfile                                                        PEM file containing the private key of the gRPC server certificate. Required in strict mode.
+    tls.offload                                                            Whether to enable TLS offloading for incoming gRPC connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
+    tls.truststorefile                    truststore.pem                   PEM file containing the trusted CA certificates for authenticating remote gRPC servers. Required in strict mode.
+    **Auth**
+    auth.accesstokenlifespan              60                               defines how long (in seconds) an access token is valid. Uses default in strict mode.
+    auth.clockskew                        5000                             allowed JWT Clock skew in milliseconds
+    auth.contractvalidators               [irma,uzi,dummy,employeeid]      sets the different contract validators to use
+    auth.irma.autoupdateschemas           true                             set if you want automatically update the IRMA schemas every 60 minutes.
+    auth.irma.schememanager               pbdf                             IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.
+    **Events**
+    events.nats.hostname                  0.0.0.0                          Hostname for the NATS server
+    events.nats.port                      4222                             Port where the NATS server listens on
+    events.nats.storagedir                                                 Directory where file-backed streams are stored in the NATS server
+    events.nats.timeout                   30                               Timeout for NATS server operations
+    **GoldenHammer**
+    goldenhammer.enabled                  true                             Whether to enable automatically fixing DID documents with the required endpoints.
+    goldenhammer.interval                 10m0s                            The interval in which to check for DID documents to fix.
+    **Network**
+    network.bootstrapnodes                []                               List of bootstrap nodes ('<host>:<port>') which the node initially connect to.
+    network.connectiontimeout             5000                             Timeout before an outbound connection attempt times out (in milliseconds).
+    network.enablediscovery               true                             Whether to enable automatic connecting to other nodes.
+    network.grpcaddr                      \:5555                            Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
+    network.maxbackoff                    24h0m0s                          Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').
+    network.nodedid                                                        Specifies the DID of the party that operates this node. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
+    network.protocols                     []                               Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
+    network.v2.diagnosticsinterval        5000                             Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).
+    network.v2.gossipinterval             5000                             Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes.
+    **Storage**
+    storage.bbolt.backup.directory                                         Target directory for BBolt database backups.
+    storage.bbolt.backup.interval         0s                               Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
+    storage.redis.address                                                  Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.
+    storage.redis.database                                                 Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
+    storage.redis.password                                                 Redis database password. If set, it overrides the username in the connection URL.
+    storage.redis.username                                                 Redis database username. If set, it overrides the username in the connection URL.
+    storage.redis.sentinel.master                                          Name of the Redis Sentinel master. Setting this property enables Redis Sentinel.
+    storage.redis.sentinel.nodes          []                               Addresses of the Redis Sentinels to connect to initially. Setting this property enables Redis Sentinel.
+    storage.redis.sentinel.password                                        Password for authenticating to Redis Sentinels.
+    storage.redis.sentinel.username                                        Username for authenticating to Redis Sentinels.
+    storage.redis.tls.truststorefile                                       PEM file containing the trusted CA certificate(s) for authenticating remote Redis servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
+    **VCR**
+    vcr.openid4vci.definitionsdir                                          Directory with the additional credential definitions the node could issue (experimental, may change without notice).
+    vcr.openid4vci.enabled                true                             Enable issuing and receiving credentials over OpenID4VCI.
+    vcr.openid4vci.timeout                30s                              Time-out for OpenID4VCI HTTP client operations.
+    ================================      ===========================      ======================================================================================================================================================================================
 
 This table is automatically generated using the configuration flags in the core and engines. When they're changed
 the options table must be regenerated using the Makefile:

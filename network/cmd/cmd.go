@@ -41,22 +41,17 @@ import (
 func FlagSet() *pflag.FlagSet {
 	defs := network.DefaultConfig()
 	flagSet := pflag.NewFlagSet("network", pflag.ContinueOnError)
-	flagSet.String("network.grpcaddr", defs.GrpcAddr, "Only used by did:nuts/gRPC. Local address for gRPC to listen on. "+
+	flagSet.String("network.grpcaddr", defs.GrpcAddr, "Local address for gRPC to listen on. "+
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
 		"(outbound connections can still be made).")
-	flagSet.Int("network.connectiontimeout", defs.ConnectionTimeout, "Only used by did:nuts/gRPC. Timeout before an outbound connection attempt times out (in milliseconds).")
-	flagSet.Duration("network.maxbackoff", defs.MaxBackoff, "Only used by did:nuts/gRPC. Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').")
-	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "Only used by did:nuts/gRPC. List of bootstrap nodes ('<host>:<port>') which the node initially connect to.")
-	flagSet.Bool("network.enablediscovery", defs.EnableDiscovery, "Only used by did:nuts/gRPC. Whether to enable automatic connecting to other nodes.")
-	flagSet.String("network.nodedid", defs.NodeDID, "Only used by did:nuts/gRPC. Specifies the DID of the party that operates this node. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.")
-	flagSet.IntSlice("network.protocols", defs.Protocols, "Only used by did:nuts/gRPC. Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.")
-	flagSet.Int("network.v2.gossipinterval", defs.ProtocolV2.GossipInterval, "Only used by did:nuts/gRPC. Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes.")
-	flagSet.Int("network.v2.diagnosticsinterval", defs.ProtocolV2.DiagnosticsInterval, "Only used by did:nuts/gRPC. Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
-
-	// Hide flags for did:nuts/gRPC functionality
-	flagSet.VisitAll(func(flag *pflag.Flag) {
-		_ = flagSet.MarkHidden(flag.Name)
-	})
+	flagSet.Int("network.connectiontimeout", defs.ConnectionTimeout, "Timeout before an outbound connection attempt times out (in milliseconds).")
+	flagSet.Duration("network.maxbackoff", defs.MaxBackoff, "Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').")
+	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "List of bootstrap nodes ('<host>:<port>') which the node initially connect to.")
+	flagSet.Bool("network.enablediscovery", defs.EnableDiscovery, "Whether to enable automatic connecting to other nodes.")
+	flagSet.String("network.nodedid", defs.NodeDID, "Specifies the DID of the party that operates this node. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.")
+	flagSet.IntSlice("network.protocols", defs.Protocols, "Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.")
+	flagSet.Int("network.v2.gossipinterval", defs.ProtocolV2.GossipInterval, "Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes.")
+	flagSet.Int("network.v2.diagnosticsinterval", defs.ProtocolV2.DiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
 
 	return flagSet
 }

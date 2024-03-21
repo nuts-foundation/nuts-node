@@ -118,7 +118,66 @@ func generateServerOptions(system *core.System) {
 		}
 	})
 
-	generatePartitionedConfigOptionsDocs("Server Options", "docs/pages/deployment/server_options.rst", flags)
+	// We want 2 tables, one with all did:web-related and relevant core flags,
+	// the rest (which is v5/did:nuts/gRPC-specific), goes into a second table below it.
+	// The predicates below define which are v5-related and which are not.
+	v5FlagsPredicates := []func(f *pflag.Flag) bool{
+		func(f *pflag.Flag) bool {
+			return strings.HasPrefix(f.Name, "events.")
+		},
+		func(f *pflag.Flag) bool {
+			return strings.HasPrefix(f.Name, "auth.")
+		},
+		func(f *pflag.Flag) bool {
+			return strings.HasPrefix(f.Name, "tls.")
+		},
+		func(f *pflag.Flag) bool {
+			return strings.HasPrefix(f.Name, "storage.redis.")
+		},
+		func(f *pflag.Flag) bool {
+			return strings.HasPrefix(f.Name, "storage.bbolt.")
+		},
+		func(f *pflag.Flag) bool {
+			return strings.HasPrefix(f.Name, "goldenhammer.")
+		},
+		func(f *pflag.Flag) bool {
+			return strings.HasPrefix(f.Name, "network.")
+		},
+		func(f *pflag.Flag) bool {
+			return strings.HasPrefix(f.Name, "vcr.openid4vci.")
+		},
+	}
+
+	generatePartitionedConfigOptionsDocs("Server Options", "docs/pages/deployment/server_options.rst", filterFlags(flags, v5FlagsPredicates, true))
+	generatePartitionedConfigOptionsDocs("did:nuts/gRPC Server Options", "docs/pages/deployment/server_options_didnuts.rst", filterFlags(flags, v5FlagsPredicates, false))
+}
+
+func filterFlags(flags map[string]*pflag.FlagSet, predicates []func(f *pflag.Flag) bool, exclude bool) map[string]*pflag.FlagSet {
+	result := make(map[string]*pflag.FlagSet)
+	// If !exclude, only properties that match the predicate are included.
+	// Otherwise, only properties that do not match the predicate are included.
+	for engine, flagSet := range flags {
+		result[engine] = pflag.NewFlagSet(engine, pflag.ContinueOnError)
+		flagSet.VisitAll(func(f *pflag.Flag) {
+			keep := exclude
+			for _, predicate := range predicates {
+				if predicate(f) {
+					keep = !exclude
+					break
+				}
+			}
+			if keep {
+				result[engine].AddFlag(f)
+			}
+		})
+	}
+	// Clean up resulting flags, if there are none for the engine, remove it
+	for engine, flagSet := range result {
+		if !flagSet.HasAvailableFlags() {
+			delete(result, engine)
+		}
+	}
+	return result
 }
 
 func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}, engineName string) (*pflag.FlagSet, error) {

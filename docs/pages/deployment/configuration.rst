@@ -48,12 +48,15 @@ The following options can be configured on the server:
 
 .. marker-for-config-options
 
-.. note::
-
-    did:nuts/gRPC network-related configuration options are not shown in this documentation version.
-    Refer to the Nuts node v5 documentation for documentation on those configuration options.
-
 .. include:: server_options.rst
+
+Options specific for ``did:nuts``/gRPC
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following table contains additional (deprecated) options that are relevant for use cases that use ``did:nuts`` DIDs and/or the gRPC network.
+If your use case does not use these features, you can ignore this table.
+
+.. include:: server_options_didnuts.rst
 
 This table is automatically generated using the configuration flags in the core and engines. When they're changed
 the options table must be regenerated using the Makefile:
