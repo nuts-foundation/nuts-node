@@ -123,9 +123,6 @@ func generateServerOptions(system *core.System) {
 	// The predicates below define which are v5-related and which are not.
 	v5FlagsPredicates := []func(f *pflag.Flag) bool{
 		func(f *pflag.Flag) bool {
-			return f.Name == "internalratelimiter"
-		},
-		func(f *pflag.Flag) bool {
 			return strings.HasPrefix(f.Name, "events.")
 		},
 		func(f *pflag.Flag) bool {
