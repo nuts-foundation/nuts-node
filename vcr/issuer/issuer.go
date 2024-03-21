@@ -87,7 +87,6 @@ type issuer struct {
 	store            Store
 	networkPublisher Publisher
 	openidHandlerFn  func(ctx context.Context, id did.DID) (OpenIDHandler, error)
-	serviceResolver  resolver.ServiceResolver
 	keyResolver      keyResolver
 	keyStore         crypto.KeyStore
 	trustConfig      *trust.Config

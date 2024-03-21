@@ -25,7 +25,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"
-	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -94,7 +93,6 @@ type vcr struct {
 	wallet              holder.Wallet
 	issuerStore         issuer.Store
 	verifierStore       verifier.Store
-	walletStore         stoabs.KVStore
 	jsonldManager       jsonld.JSONLD
 	eventManager        events.Event
 	storageClient       storage.Engine
@@ -102,7 +100,6 @@ type vcr struct {
 	localWalletResolver openid4vci.IdentifierResolver
 	issuerHttpClient    core.HTTPRequestDoer
 	walletHttpClient    core.HTTPRequestDoer
-	verifierHttpClient  core.HTTPRequestDoer
 	pkiProvider         pki.Provider
 	vdrInstance         vdr.VDR
 }

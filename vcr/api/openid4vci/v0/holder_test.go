@@ -35,7 +35,6 @@ import (
 )
 
 var holderDID = did.MustParseDID("did:nuts:holder")
-var walletIdentifier = "http://example.com/" + holderDID.String()
 
 func TestWrapper_GetOAuth2ClientMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {

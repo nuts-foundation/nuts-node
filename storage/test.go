@@ -49,7 +49,7 @@ func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
 }
 
 func NewTestStorageEngine(t testing.TB) Engine {
-	oldOpts := append(DefaultBBoltOptions[:])
+	oldOpts := DefaultBBoltOptions[:]
 	t.Cleanup(func() {
 		DefaultBBoltOptions = oldOpts
 	})

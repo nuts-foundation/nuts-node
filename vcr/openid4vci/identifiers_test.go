@@ -23,7 +23,6 @@ import (
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/sirupsen/logrus"
@@ -37,19 +36,12 @@ import (
 	"testing"
 )
 
-var credential = jsonld.TestVC()
 var issuerDID = did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
 var issuerIdentifier = "http://example.com/n2n/identity/" + issuerDID.String()
 var issuerService = did.Service{
 	ServiceEndpoint: "http://example.com/",
 }
 var issuerQuery = ssi.MustParseURI(issuerDID.String() + "/serviceEndpoint?type=" + resolver.BaseURLServiceType)
-var holderDID = did.MustParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
-var holderQuery = ssi.MustParseURI(holderDID.String() + "/serviceEndpoint?type=" + resolver.BaseURLServiceType)
-var holderIdentifier = "http://example.com/n2n/identity/" + holderDID.String()
-var holderService = did.Service{
-	ServiceEndpoint: "http://example.com/",
-}
 
 func TestDIDIdentifierResolver_Resolve(t *testing.T) {
 	t.Run("found", func(t *testing.T) {

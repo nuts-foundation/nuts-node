@@ -219,12 +219,6 @@ func (t *trackingBackoff) Value() time.Duration {
 	return 0
 }
 
-func (t *trackingBackoff) counts() (int, int) {
-	t.mux.Lock()
-	defer t.mux.Unlock()
-	return t.resetCount, t.backoffCount
-}
-
 func (t *trackingBackoff) Reset(value time.Duration) {
 	t.mux.Lock()
 	defer t.mux.Unlock()

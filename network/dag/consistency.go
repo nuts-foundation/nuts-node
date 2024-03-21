@@ -41,7 +41,6 @@ const (
 // The fact is that we can fix the state relatively easy.
 // The loop checks a page (512 LC values) per 10 seconds and continues looping until the network layer signals all is ok again.
 type xorTreeRepair struct {
-	ctx          context.Context
 	cancel       context.CancelFunc
 	ticker       *time.Ticker
 	currentPage  uint32
