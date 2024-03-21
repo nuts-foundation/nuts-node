@@ -426,7 +426,6 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		}
 
 		// append new revocation and re-issue the StatusList2021Credential.
-		issuerRecord.Revocations = append(issuerRecord.Revocations)
 		credRecord := new(credentialRecord)
 		_, credRecord, err = cs.updateCredential(ctx, issuerRecord, key)
 		if err != nil {
