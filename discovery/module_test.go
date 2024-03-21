@@ -268,28 +268,36 @@ func TestModule_Configure(t *testing.T) {
 	serverConfig := core.ServerConfig{}
 	t.Run("duplicate ID", func(t *testing.T) {
 		config := Config{
-			Definitions: "test/duplicate_id",
+			Definitions: ServiceDefinitionsConfig{
+				Directory: "test/duplicate_id",
+			},
 		}
 		err := (&Module{config: config}).Configure(serverConfig)
 		assert.EqualError(t, err, "duplicate service definition ID 'urn:nuts.nl:usecase:eOverdrachtDev2023' in file 'test/duplicate_id/2.json'")
 	})
 	t.Run("invalid JSON", func(t *testing.T) {
 		config := Config{
-			Definitions: "test/invalid_json",
+			Definitions: ServiceDefinitionsConfig{
+				Directory: "test/invalid_json",
+			},
 		}
 		err := (&Module{config: config}).Configure(serverConfig)
 		assert.ErrorContains(t, err, "unable to parse service definition file 'test/invalid_json/1.json'")
 	})
 	t.Run("invalid service definition", func(t *testing.T) {
 		config := Config{
-			Definitions: "test/invalid_definition",
+			Definitions: ServiceDefinitionsConfig{
+				Directory: "test/invalid_definition",
+			},
 		}
 		err := (&Module{config: config}).Configure(serverConfig)
 		assert.ErrorContains(t, err, "unable to parse service definition file 'test/invalid_definition/1.json'")
 	})
 	t.Run("non-existent directory", func(t *testing.T) {
 		config := Config{
-			Definitions: "test/non_existent",
+			Definitions: ServiceDefinitionsConfig{
+				Directory: "test/non_existent",
+			},
 		}
 		err := (&Module{config: config}).Configure(serverConfig)
 		assert.ErrorContains(t, err, "unable to read definitions directory 'test/non_existent'")

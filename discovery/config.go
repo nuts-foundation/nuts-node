@@ -22,9 +22,14 @@ import "time"
 
 // Config holds the config of the module
 type Config struct {
-	Server      ServerConfig `koanf:"server"`
-	Client      ClientConfig `koanf:"client"`
-	Definitions string       `koanf:"definitions"`
+	Server      ServerConfig             `koanf:"server"`
+	Client      ClientConfig             `koanf:"client"`
+	Definitions ServiceDefinitionsConfig `koanf:"definitions"`
+}
+
+// ServiceDefinitionsConfig holds the config for loading Service Definitions.
+type ServiceDefinitionsConfig struct {
+	Directory string `koanf:"directory"`
 }
 
 // ServerConfig holds the config for the server

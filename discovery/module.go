@@ -98,11 +98,11 @@ type Module struct {
 }
 
 func (m *Module) Configure(serverConfig core.ServerConfig) error {
-	if m.config.Definitions == "" {
+	if m.config.Definitions.Directory == "" {
 		return nil
 	}
 	var err error
-	m.allDefinitions, err = loadDefinitions(m.config.Definitions)
+	m.allDefinitions, err = loadDefinitions(m.config.Definitions.Directory)
 	if err != nil {
 		return err
 	}
