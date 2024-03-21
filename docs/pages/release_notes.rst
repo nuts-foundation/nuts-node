@@ -29,6 +29,7 @@ Changes
 
 - Removed support for deprecated network TLS properties. Configuring these properties will now cause the node not to start.
 - Removed usage of deprecated `purposeOfUseClaim` in ``NutsAuthorizationCredential``.
+- Removed support for the UZI authentication means.
 - Documentation of ``did:nuts``-related features have been removed (refer to v5 documentation).
 - Documentation of specific use cases (e.g. health care in general or eOverdracht) has been moved to the `Nuts wiki <https://wiki.nuts.nl>`_.
 

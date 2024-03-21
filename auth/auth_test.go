@@ -40,10 +40,9 @@ func TestAuth_Configure(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		config := DefaultConfig()
-		config.ContractValidators = []string{"uzi"}
+		config.ContractValidators = []string{"dummy"}
 		ctrl := gomock.NewController(t)
 		pkiMock := pki.NewMockProvider(ctrl)
-		pkiMock.EXPECT().AddTruststore(gomock.Any())   // uzi
 		pkiMock.EXPECT().CreateTLSConfig(gomock.Any()) // tlsConfig
 		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
@@ -55,10 +54,9 @@ func TestAuth_Configure(t *testing.T) {
 	t.Run("use legacy auth.http.timeout config", func(t *testing.T) {
 		config := DefaultConfig()
 		config.HTTPTimeout = 10
-		config.ContractValidators = []string{"uzi"}
+		config.ContractValidators = []string{"dummy"}
 		ctrl := gomock.NewController(t)
 		pkiMock := pki.NewMockProvider(ctrl)
-		pkiMock.EXPECT().AddTruststore(gomock.Any())   // uzi
 		pkiMock.EXPECT().CreateTLSConfig(gomock.Any()) // tlsConfig
 		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
