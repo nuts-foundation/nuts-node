@@ -213,7 +213,7 @@ The following options can be configured on the server:
 The following table contains additional (deprecated) options that are relevant for use cases that use ``did:nuts`` DIDs and/or the gRPC network.
 If your use case does not use these features, you can ignore this table.
 
-.. table:: did:nuts/gRPC Server Options
+.. table:: additional Server Options for did:nuts/gRPC
     :widths: 20 30 50
     :class: options-table
 
