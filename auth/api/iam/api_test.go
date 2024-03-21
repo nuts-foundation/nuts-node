@@ -60,6 +60,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+var rootWebDID = did.MustParseDID("did:web:example.com")
 var webDID = did.MustParseDID("did:web:example.com:iam:123")
 var verifierDID = did.MustParseDID("did:web:example.com:iam:verifier")
 
@@ -96,6 +97,20 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "DID resolution failed: unknown error")
 		assert.Nil(t, res)
+	})
+}
+
+func TestWrapper_RootOAuthAuthorizationServerMetadata(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, rootWebDID).Return(true, nil)
+
+		res, err := ctx.client.RootOAuthAuthorizationServerMetadata(nil, RootOAuthAuthorizationServerMetadataRequestObject{})
+
+		require.NoError(t, err)
+		assert.IsType(t, RootOAuthAuthorizationServerMetadata200JSONResponse{}, res)
+		actualIssuer := res.(RootOAuthAuthorizationServerMetadata200JSONResponse).Issuer
+		assert.Equal(t, "https://example.com", actualIssuer)
 	})
 }
 

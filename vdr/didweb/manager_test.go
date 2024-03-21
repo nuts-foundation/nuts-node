@@ -222,7 +222,7 @@ func TestManager_Create(t *testing.T) {
 			PublicKey: publicKey,
 		}, nil)
 		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
-		opts := DefaultCreationOptions().With(UserPath("test"))
+		opts := DefaultCreationOptions().With(UserID("test"))
 		_, _, err := m.Create(audit.TestContext(), opts)
 		require.NoError(t, err)
 
