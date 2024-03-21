@@ -38,7 +38,7 @@ It is interacted with through HTTP by internal and external actors. Internal act
 * Ops tooling (e.g. metric collectors)
 * Resource viewer/consumer application that wants to access protected resources at a remote party
 
-The APIs these internal actors use are on the "internal" HTTP interface, which is bound to ``localhost:8081`` by default.
+The APIs these internal actors use are on the "internal" HTTP interface, which is bound to ``127.0.0.1:8081`` by default.
 
 External actors typically include:
 

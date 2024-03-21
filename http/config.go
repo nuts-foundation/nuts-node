@@ -23,7 +23,7 @@ func DefaultConfig() Config {
 	return Config{
 		Log: LogMetadataLevel,
 		Internal: InternalConfig{
-			Address: "localhost:8081",
+			Address: "127.0.0.1:8081",
 		},
 		Public: PublicConfig{
 			Address: ":8080",
