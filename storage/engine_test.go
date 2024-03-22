@@ -169,4 +169,12 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		assert.NoError(t, row.Scan(&count))
 		assert.Equal(t, len(sqlFiles), count)
 	})
+	t.Run("fails on unsupported database", func(t *testing.T) {
+		dataDir := io.TestDirectory(t)
+		require.NoError(t, os.Remove(dataDir))
+		e := New()
+		e.(*engine).config.SQL.ConnectionString = "fake://user:password@example.com:123/db"
+		err := e.Configure(core.ServerConfig{Datadir: dataDir})
+		assert.ErrorContains(t, err, "failed to initialize SQL database: unsupported SQL database connection: fake://<redacted>@example.com:123/db")
+	})
 }

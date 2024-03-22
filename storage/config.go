@@ -18,6 +18,8 @@
 
 package storage
 
+import "strings"
+
 // Config specifies config for the storage engine.
 type Config struct {
 	BBolt BBoltConfig `koanf:"bbolt"`
@@ -33,5 +35,26 @@ func DefaultConfig() Config {
 // SQLConfig specifies config for the SQL storage engine.
 type SQLConfig struct {
 	// ConnectionString is the connection string for the SQL database.
+	// This string may contain secrets (user:password), so should never be logged. User RedactedConnectionString.
 	ConnectionString string `koanf:"connection"`
+}
+
+// RedactedConnectionString sanitizes the configured connection string so that is can be logged.
+func RedactedConnectionString(connection string) string {
+	if strings.HasPrefix(connection, "sqlite:") {
+		// this may still contain userauth, but this is not supported by nuts node
+		return connection
+	}
+	rest, url, found := strings.Cut(connection, "@")
+	if !found {
+		// does not contain user:pw
+		return connection
+	}
+	result := "<redacted>@" + url
+	protocol, _, found := strings.Cut(rest, "://")
+	if found {
+		// invalid if not found, but try to return as accurate as possible
+		result = protocol + "://" + result
+	}
+	return result
 }
