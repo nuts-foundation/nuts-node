@@ -112,7 +112,6 @@ nuts:
     auth:
         contractvalidators:
         - irma
-        - uzi
         - employeeid
     #storage:
     #  redis:

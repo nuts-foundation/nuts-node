@@ -22,7 +22,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned"
-	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
 )
 
 // Config holds all the configuration params
@@ -49,7 +48,6 @@ func DefaultConfig() Config {
 		ClockSkew: 5000,
 		ContractValidators: []string{
 			string(services.IrmaFormat),
-			uzi.ContractFormat,
 			dummy.ContractFormat,
 			selfsigned.ContractFormat,
 		},
