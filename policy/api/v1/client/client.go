@@ -27,7 +27,6 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -44,8 +43,8 @@ func NewHTTPClient(strictMode bool, timeout time.Duration, tlsConfig *tls.Config
 	}
 }
 
-// PresentationDefinition retrieves the presentation definition from the presentation definition endpoint for the given scope and authorizer.
-func (hb HTTPClient) PresentationDefinition(ctx context.Context, serverAddress string, authorizer did.DID, scopes string) (*pe.PresentationDefinition, error) {
+// PresentationDefinitions retrieves the presentation definitions (as PEXPolicy) from the presentation definition endpoint for the given scope and authorizer.
+func (hb HTTPClient) PresentationDefinitions(ctx context.Context, serverAddress string, authorizer did.DID, scopes string) ([]PEXPolicy, error) {
 	_, err := core.ParsePublicURL(serverAddress, hb.strictMode)
 	if err != nil {
 		return nil, err
@@ -55,11 +54,11 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, serverAddress s
 	if err != nil {
 		return nil, err
 	}
-	params := &PresentationDefinitionParams{
+	params := &PresentationDefinitionsParams{
 		Scope:      scopes,
 		Authorizer: authorizer.String(),
 	}
-	response, err := client.PresentationDefinition(ctx, params)
+	response, err := client.PresentationDefinitions(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call endpoint: %w", err)
 	}
@@ -67,12 +66,16 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, serverAddress s
 		return nil, httpErr
 	}
 
-	presentationDefinitionResponse, err := ParsePresentationDefinitionResponse(response)
+	presentationDefinitionResponse, err := ParsePresentationDefinitionsResponse(response)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
 	}
 
-	return presentationDefinitionResponse.JSON200, nil
+	if presentationDefinitionResponse.JSON200 == nil {
+		return make([]PEXPolicy, 0), nil
+	}
+
+	return *presentationDefinitionResponse.JSON200, nil
 }
 
 // Authorized checks if the given request is authorized by the policy backend.

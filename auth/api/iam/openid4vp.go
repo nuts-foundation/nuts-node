@@ -155,6 +155,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		values[oauth.StateParam] = state
 	}
 	authServerURL, err := r.auth.IAMClient().CreateAuthorizationRequest(ctx, verifier, *walletDID, modifier)
+	// TODO WIP: add PEX IDs completed to the storage, use server state for this
 	openid4vpRequest := OAuthSession{
 		ClientID:    walletID,
 		Scope:       params.get(oauth.ScopeParam),
@@ -426,6 +427,8 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 			}
 		}
 	}
+
+	// TODO WIP if not all PEX Ids have a submission, send another auth request with a new nonce
 
 	// we take the existing OAuthSession and add the credential map to it
 	// the credential map contains InputDescriptor.Id -> VC mappings

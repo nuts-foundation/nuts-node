@@ -35,34 +35,30 @@ import (
 func TestHTTPClient_PresentationDefinition(t *testing.T) {
 	ctx := context.Background()
 	authorizer := did.MustParseDID("did:web:example.com")
-	definition := pe.PresentationDefinition{
-		Id: "123",
-	}
+	policies := []pe.PEXPolicy{{AudienceType: pe.AudienceTypeOrganization, PresentationDefinition: pe.PresentationDefinition{Id: "123"}}}
 
 	t.Run("ok", func(t *testing.T) {
 		var capturedRequest *http.Request
 		handler := func(writer http.ResponseWriter, request *http.Request) {
 			switch request.URL.Path {
-			case "/presentation_definition":
+			case "/presentation_definitions":
 				capturedRequest = request
 				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(http.StatusOK)
-				bytes, _ := json.Marshal(definition)
+				bytes, _ := json.Marshal(policies)
 				writer.Write(bytes)
 			}
 			writer.WriteHeader(http.StatusNotFound)
 		}
 		tlsServer, client := testServerAndClient(t, http.HandlerFunc(handler))
 
-		response, err := client.PresentationDefinition(ctx, tlsServer.URL, authorizer, "test")
+		response, err := client.PresentationDefinitions(ctx, tlsServer.URL, authorizer, "test")
 
 		require.NoError(t, err)
-		require.NotNil(t, definition)
 		require.NotNil(t, response)
-		assert.Equal(t, definition, *response)
+		assert.Equal(t, policies, response)
 		require.NotNil(t, capturedRequest)
 		assert.Equal(t, "GET", capturedRequest.Method)
-		assert.Equal(t, "/presentation_definition", capturedRequest.URL.Path)
 		// check query params
 		require.NotNil(t, capturedRequest.URL.Query().Get("scope"))
 		assert.Equal(t, "test", capturedRequest.URL.Query().Get("scope"))
@@ -73,7 +69,7 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusNotFound}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.PresentationDefinition(ctx, tlsServer.URL, authorizer, "test")
+		response, err := client.PresentationDefinitions(ctx, tlsServer.URL, authorizer, "test")
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "server returned HTTP 404 (expected: 200)")
@@ -83,7 +79,7 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusNotFound}
 		_, client := testServerAndClient(t, &handler)
 
-		response, err := client.PresentationDefinition(ctx, ":", authorizer, "test")
+		response, err := client.PresentationDefinitions(ctx, ":", authorizer, "test")
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
@@ -93,7 +89,7 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}", ResponseHeader: http.Header{"Content-Type": []string{"application/json"}}}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.PresentationDefinition(ctx, tlsServer.URL, authorizer, "test")
+		response, err := client.PresentationDefinitions(ctx, tlsServer.URL, authorizer, "test")
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value")

@@ -31,21 +31,25 @@ import (
 	"strings"
 )
 
+var _ PDPBackend = (*localPDP)(nil)
+
 // localPDP is a backend for presentation definitions
-// It loads a file with the mapping from oauth scope to presentation definition.
+// It loads a file with the mapping from oauth scope to PEX Policy.
 // It allows access when the requester can present a submission according to the Presentation Definition. It does not do any additional authorization checks.
 type localPDP struct {
-	// mapping holds the oauth scope to presentation definition mapping
-	mapping map[string]validatingPresentationDefinition
+	// mapping holds the oauth scope to PEX Policy mapping
+	mapping map[string][]validatingPEXPolicy
 }
 
-func (b *localPDP) PresentationDefinition(_ context.Context, _ did.DID, scope string) (*pe.PresentationDefinition, error) {
-	mapping, ok := b.mapping[scope]
-	if !ok {
+func (b *localPDP) PresentationDefinitions(_ context.Context, _ did.DID, scope string) ([]pe.PEXPolicy, error) {
+	result := make([]pe.PEXPolicy, 0)
+	for _, policy := range b.mapping[scope] {
+		result = append(result, pe.PEXPolicy(policy))
+	}
+	if len(result) == 0 {
 		return nil, ErrNotFound
 	}
-	result := pe.PresentationDefinition(mapping)
-	return &result, nil
+	return result, nil
 }
 
 func (b *localPDP) Authorized(_ context.Context, _ client.AuthorizedRequest) (bool, error) {
@@ -97,21 +101,21 @@ func (s *localPDP) loadFromFile(filename string) error {
 	}
 
 	// unmarshal the bytes into the mapping
-	result := make(map[string]validatingPresentationDefinition)
+	result := make(map[string][]validatingPEXPolicy)
 	err = json.Unmarshal(bytes, &result)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal Presentation Exchange mapping file %s: %w", filename, err)
+		return fmt.Errorf("failed to unmarshal PEX Policy mapping file %s: %w", filename, err)
 	}
 	s.mapping = result
 	return nil
 }
 
 // validatingPresentationDefinition is an alias for PresentationDefinition that validates the JSON on unmarshal.
-type validatingPresentationDefinition pe.PresentationDefinition
+type validatingPEXPolicy pe.PEXPolicy
 
-func (v *validatingPresentationDefinition) UnmarshalJSON(data []byte) error {
-	if err := v2.Validate(data, v2.PresentationDefinition); err != nil {
+func (v *validatingPEXPolicy) UnmarshalJSON(data []byte) error {
+	if err := v2.Validate(data, v2.PEXPolicy); err != nil {
 		return err
 	}
-	return json.Unmarshal(data, (*pe.PresentationDefinition)(v))
+	return json.Unmarshal(data, (*pe.PEXPolicy)(v))
 }

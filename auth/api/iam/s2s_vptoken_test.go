@@ -45,7 +45,7 @@ import (
 func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	issuerDIDStr := "did:web:example.com:iam:123"
 	issuerDID := did.MustParseDID(issuerDIDStr)
-	const requestedScope = "eOverdracht-overdrachtsbericht"
+	const requestedScope = "example-scope"
 	// Create issuer DID document and keys
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	issuerDIDDocument := did.Document{

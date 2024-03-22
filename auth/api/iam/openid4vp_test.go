@@ -756,7 +756,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t), mockPolicy)
 
 		params := map[string]interface{}{
-			"scope":                   "eOverdracht-overdrachtsbericht",
+			"scope":                   "example-scope",
 			"response_type":           "code",
 			"response_mode":           "direct_post",
 			"client_metadata_uri":     "https://example.com/client_metadata.xml",
@@ -774,7 +774,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 	t.Run("invalid response_mode", func(t *testing.T) {
 		instance := New(nil, nil, nil, nil, nil)
 		params := map[string]interface{}{
-			"scope":                   "eOverdracht-overdrachtsbericht",
+			"scope":                   "example-scope",
 			"response_type":           "code",
 			"response_mode":           "invalid",
 			"client_metadata_uri":     "https://example.com/client_metadata.xml",

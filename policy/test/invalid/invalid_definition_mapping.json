@@ -1,5 +1,10 @@
 {
-  "missing input_descriptors": {
-    "id": "pd_any_care_organization"
-  }
+  "example-scope": [
+    {
+      "audience_type": "organization",
+      "presentation_definition": {
+        "id": "pd_any_care_organization"
+      }
+    }
+  ]
 }

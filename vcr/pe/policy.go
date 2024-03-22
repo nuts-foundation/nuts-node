@@ -16,26 +16,20 @@
  *
  */
 
-package policy
+package pe
 
-import (
-	"context"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/policy/api/v1/client"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+// PEXPolicy defines the intended audience for a PresentationDefinition
+type PEXPolicy struct {
+	AudienceType           AudienceType           `json:"audience_type"`
+	PresentationDefinition PresentationDefinition `json:"presentation_definition"`
+}
+
+// AudienceType defines the intended audience for a PresentationDefinition
+type AudienceType string
+
+const (
+	// AudienceTypeOrganization is used in a PEXPolicy when the PresentationDefinition is intended for an organization
+	AudienceTypeOrganization = AudienceType("organization")
+	// AudienceTypeUser is used in a PEXPolicy when the PresentationDefinition is intended for a user
+	AudienceTypeUser = AudienceType("user")
 )
-
-var _ PDPBackend = remote{}
-
-type remote struct {
-	address string
-	client  client.HTTPClient
-}
-
-func (b remote) PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) ([]pe.PEXPolicy, error) {
-	return b.client.PresentationDefinitions(ctx, b.address, authorizer, scope)
-}
-
-func (b remote) Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error) {
-	return b.client.Authorized(ctx, b.address, requestInfo)
-}

@@ -5,7 +5,7 @@ info:
 servers:
   - url: "http://localhost:8080"
 paths:
-  /presentation_definition:
+  /presentation_definitions:
     parameters:
       - name: authorizer
         in: query
@@ -23,13 +23,13 @@ paths:
         schema:
           type: string
     get:
-      summary: Returns a presentation definition for the given DID and scope.
+      summary: Returns a list of presentation definitions for the given DID and scope.
       description: |
         The DID is used for tenant selection. Not all tenants will probably support the same scopes.
         The scope is used as selection criteria for the presentation definition.
         It could be the case that the presentation definition is not found.
         In that case the response will be 201 with an empty body.
-      operationId: "presentationDefinition"
+      operationId: "presentationDefinitions"
       tags:
         - policy
       responses:
@@ -40,7 +40,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PresentationDefinition'
+                type: array
+                items:
+                  $ref: '#/components/schemas/PEXPolicy'
         "201":
           description: The DID is known but the presented scope is not supported.
         "404":
@@ -84,7 +86,7 @@ components:
         - scope
         - request_url
         - request_method
-        - presentation_submission
+        - presentation_submissions
         - vps
       properties:
         audience:
@@ -103,8 +105,10 @@ components:
           description: The method of the resource request.
           type: string
         presentation_submission:
-          description: The presentation submission that was used to request the access token.
-          $ref: '#/components/schemas/PresentationSubmission'
+          description: The presentation submissions that was used to request the access token.
+          type: array
+          items:
+            $ref: '#/components/schemas/PresentationSubmission'
         vps:
           description: | 
             The verifiable presentations that were used to request the access token.
@@ -122,6 +126,19 @@ components:
         authorized:
           description: Indicates if the access token grants access to the requested resource.
           type: boolean
+    PEXPolicy:
+      description: A PEX policy is a JSON object that describes the desired verifiable credentials for a particular audience type.
+      type: object
+      required:
+        - presentation_definition
+        - audience_type
+      properties:
+        audience_type:
+          description: The audience type of the presentation definition.
+          type: string
+          enum: [organization,user]
+        presentation_definition:
+          $ref: '#/components/schemas/PresentationDefinition'
     PresentationDefinition:
       description: |
         A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.

@@ -41,10 +41,18 @@ type OAuthSession struct {
 	PresentationDefinition PresentationDefinition
 	UserID                 string
 	VerifierDID            *did.DID
+
+	// TODO use these 2 fields to track if all OpenID4VP flows have been concluded
+	PresentationDefinitionIDs map[string]string
+	PresentationSubmissions   map[string]pe.PresentationSubmission
+	Presentations             map[string]vc.VerifiablePresentation
 }
 
 // ServerState is a convenience type for extracting different types of data from the session.
 type ServerState map[string]interface{}
+
+// TODO WIP server state should now also hold a submission/list of credentials/presentations per PEX ID
+// maybe add a new field to OAuthSession for this. Split in requested and fulfilled?
 
 const (
 	credentialMapStateKey = "credentialMap"
