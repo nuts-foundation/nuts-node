@@ -7,7 +7,6 @@ services:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
-      - "./node-A/data:/opt/nuts/data:rw"
       - "../../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
       # did:web resolver uses the OS CA bundle, but e2e tests use a self-signed CA which can be found in truststore.pem
@@ -24,7 +23,6 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
-      - "./node-B/data:/opt/nuts/data:rw"
       - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "../../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"

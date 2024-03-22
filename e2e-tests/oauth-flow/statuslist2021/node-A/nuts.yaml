@@ -2,7 +2,6 @@ url: https://nodeA
 verbosity: debug
 strictmode: false
 internalratelimiter: false
-datadir: /opt/nuts/data
 http:
   log: metadata-and-body
   internal:

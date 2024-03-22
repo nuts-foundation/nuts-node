@@ -7,7 +7,6 @@ services:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
-      - "./node-A/data:/opt/nuts/data:rw"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeB-backend:
@@ -17,7 +16,6 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
-      - "./node-B/data:/opt/nuts/data:rw"
       - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often

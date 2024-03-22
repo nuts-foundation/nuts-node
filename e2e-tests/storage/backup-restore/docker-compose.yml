@@ -1,5 +1,6 @@
 services:
   nodeA:
+    user: "$USER:$USER"
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
