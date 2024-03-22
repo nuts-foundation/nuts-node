@@ -125,13 +125,7 @@ Explanation of ambiguous/complex entries in the diagnostics:
 * ``vdr.conflicted_did_documents.total_count`` holds the total number of DID documents that are conflicted (have parallel updates). This may indicate a stolen private key
 * ``vdr.conflicted_did_documents.owned_count`` holds the number of conflicted DID documents you control as a node owner
 
-Conflicted DID documents
-************************
-
-Conflicted DID documents are the result of parallel updates of a DID document.
-It can be caused by a race condition during DID API calls, having a cluster of nodes when this is not supported or if a private key has been stolen.
-To rule out this last cause, every node must make sure their conflicted document count equals ``0``.
-There's an API to get the actual conflicted DID documents. A DID document can be *fixed* by simply updating it.
+Note: the ``network`` and ``vdr`` entries only apply to ``did:nuts``.
 
 Metrics
 *******
@@ -177,23 +171,6 @@ The Nuts service executable exports the following metric namespaces:
 * ``process_`` contains OS metrics related to the process
 * ``go_`` contains Go metrics related to the process
 * ``promhttp_`` contains metrics related to HTTP calls to the Nuts node's ``/metrics`` endpoint
-
-Network DAG Visualization
-*************************
-
-All network transactions form a directed acyclic graph (DAG) which helps achieving consistency and data completeness.
-Since it's a hard to debug, complex structure, the network API provides a visualization which can be queried
-from ``/internal/network/v1/diagnostics/graph``. It is returned in the *dot* format which can then be rendered to an image using
-**dot** or **graphviz** (given you saved the output to ``input.dot``):
-
-.. code-block:: shell
-
-    dot -T png -o output.png input.dot
-
-Using query parameters ``start`` and ``end`` it is possible to retrieve a range of transactions.
-``/internal/network/v1/diagnostics/graph?start=10&end=12`` will return a graph with all transactions containing Lamport Clock 10 and 11.
-Both parameters need to be non-negative integers, and ``start`` < ``end``. If no value is provided, ``start=0`` and ``end=inf``.
-Querying a range can be useful if only a certain range is of interest, but may also be required to generate the graph using ``dot``.
 
 CPU profiling
 *************
