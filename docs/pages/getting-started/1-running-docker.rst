@@ -56,7 +56,6 @@ Copy the following YAML file and save it as ``docker-compose.yaml`` in the worki
 
 .. code-block:: yaml
 
-  version: "3.7"
   services:
     nuts:
       image: nutsfoundation/nuts-node:latest

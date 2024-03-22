@@ -1,4 +1,3 @@
-version: "3.7"
 services:
   nodeA:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
