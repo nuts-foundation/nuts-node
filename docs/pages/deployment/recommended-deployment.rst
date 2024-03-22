@@ -186,3 +186,20 @@ Below is a list of items that should be addressed when running a node in product
    - Consider protecting ``/internal`` with API authentication.
 - Availability
    - Consider (D)DoS detection and protection for the ``/oauth2`` HTTP endpoints.
+
+Resource Requirements
+*********************
+
+The Nuts node is built to be lightweight in terms of CPU and memory usage.
+
+For a production environment you should be able to easily run it on a small cloud VM, which typically start at;
+
+- 1 CPU
+- 512 MB RAM
+- 25 GB storage
+
+SQL storage size is influenced by:
+
+- the number of DIDs created on the node
+- the number of credentials issued or held
+- the size (participating parties) and number of use cases

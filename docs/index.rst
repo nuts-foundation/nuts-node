@@ -31,7 +31,6 @@ Nuts documentation
     pages/deployment/configuration.rst
     pages/deployment/recommended-deployment.rst
     pages/deployment/storage-configuration.rst
-    pages/deployment/resource-requirements.rst
     pages/deployment/custom-credentials.rst
     pages/deployment/logging.rst
     pages/deployment/monitoring.rst
