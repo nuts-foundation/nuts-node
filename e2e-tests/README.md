@@ -8,6 +8,8 @@
 - The `run-test.sh` of each test should be added to the respective group's `/<test-group>/run-tests.sh` script.
 - All `/<test-group>/run-tests.sh` should be added to `/run-tests.sh`
 
+If the `datadir` needs to be mounted for a test, add `USER=$UID` to the top of the test's `run-test.sh`, and add `user: "$USER:$USER"` to each service in the `docker-compose.yml` that mounts a `datadir`.
+
 # Running tests
 ## Prerequisites
 To tun the tests you need the following tools:
@@ -17,7 +19,7 @@ To tun the tests you need the following tools:
 
 ## On your machine
 
-Run `make e2e-tests` from the repository root to build a Docker image of the nuts-node and run the tests.
+Run `./run-tests.sh` in `./e2e-tests`
 
 ## Testing version compatibility
 
