@@ -205,7 +205,7 @@ func (e *engine) initSQLDatabase() error {
 		}
 	}
 	if adapter == nil {
-		return fmt.Errorf("unsupported SQL database connection: %s", RedactedConnectionString(connectionString))
+		return errors.New("unsupported SQL database")
 	}
 
 	// Open connection and migrate
@@ -241,7 +241,7 @@ func (e *engine) initSQLDatabase() error {
 	dbMigrator.AutoDumpSchema = false
 	dbMigrator.Log = sqlMigrationLogger{}
 	if err = dbMigrator.CreateAndMigrate(); err != nil {
-		return fmt.Errorf("failed to migrate database: %w on %s", err, RedactedConnectionString(connectionString))
+		return fmt.Errorf("failed to migrate database: %w", err)
 	}
 
 	e.sqlDB, err = gorm.Open(adapter.connector(sqlDB), &gorm.Config{
