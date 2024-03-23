@@ -576,7 +576,7 @@ paths:
       - name: did
         in: path
         required: true
-        description: DID that is owns the status list
+        description: DID that owns the status list
         content:
           plain/text:
             schema:
