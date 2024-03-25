@@ -32,6 +32,7 @@ Changes
 - Removed support for the UZI authentication means.
 - Documentation of ``did:nuts``-related features have been removed (refer to v5 documentation).
 - Documentation of specific use cases (e.g. health care in general or eOverdracht) has been moved to the `Nuts wiki <https://wiki.nuts.nl>`_.
+- Switched HEALTHCHECK in container from `/status` to `/health`. This is a more fine grained check that the required sub-components are online.
 
 The following features have also been changed:
 
