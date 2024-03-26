@@ -374,7 +374,7 @@ func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clien
 		return resolver.DIDKeyResolver{Resolver: r.vdr}.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
 	}, jwt.WithValidate(true))
 	if err != nil {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "unable to validate request signature", InternalError: err}
 	}
 	claimsAsMap, err := token.AsMap(ctx)
 	if err != nil {
@@ -400,7 +400,7 @@ func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clien
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	didAsString := r.requestedDID("", request.Id).String()
+	didAsString := r.requestedDID(request.Id).String()
 	md, err := r.oauthAuthorizationServerMetadata(ctx, didAsString)
 	if err != nil {
 		return nil, err
@@ -409,7 +409,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 }
 
 func (r Wrapper) RootOAuthAuthorizationServerMetadata(ctx context.Context, request RootOAuthAuthorizationServerMetadataRequestObject) (RootOAuthAuthorizationServerMetadataResponseObject, error) {
-	md, err := r.oauthAuthorizationServerMetadata(ctx, r.requestedDID("", "").String())
+	md, err := r.oauthAuthorizationServerMetadata(ctx, r.requestedDID("").String())
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +435,7 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsStri
 }
 
 func (r Wrapper) GetUserWebDID(_ context.Context, request GetUserWebDIDRequestObject) (GetUserWebDIDResponseObject, error) {
-	ownDID := r.requestedDID("", request.Id)
+	ownDID := r.requestedDID(request.Id)
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -448,7 +448,7 @@ func (r Wrapper) GetUserWebDID(_ context.Context, request GetUserWebDIDRequestOb
 }
 
 func (r Wrapper) GetRootWebDID(ctx context.Context, _ GetRootWebDIDRequestObject) (GetRootWebDIDResponseObject, error) {
-	ownDID := r.requestedDID(getRequestHost(ctx), "")
+	ownDID := r.requestedDID("")
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -631,21 +631,16 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 // - did:web:example:iam:1234
 // When host is given, it is used as base for the did:web DID. If it's absent, the configured URL is used as base.
 // When userID is given, it's appended to the DID as `:iam:<userID>`. If it's absent, the DID is returned as is.
-func (r Wrapper) requestedDID(host string, userID string) did.DID {
-	identityURL := r.identityURL(host, userID)
+func (r Wrapper) requestedDID(userID string) did.DID {
+	identityURL := r.identityURL(userID)
 	result, _ := didweb.URLToDID(*identityURL)
 	return *result
 }
 
 // identityURL is like requestedDID() but returns the base URL for the DID.
 // It is used for resolving metadata and its did:web DID, using the configured Nuts node URL.
-func (r Wrapper) identityURL(host string, userID string) *url.URL {
-	var baseURL *url.URL
-	if host == "" {
-		baseURL = r.auth.PublicURL()
-	} else {
-		baseURL, _ = url.Parse("https://" + host)
-	}
+func (r Wrapper) identityURL(userID string) *url.URL {
+	baseURL := r.auth.PublicURL()
 	if userID == "" {
 		return baseURL
 	}
@@ -670,8 +665,4 @@ func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
 	}
 	return didURL.Parse("/oauth2/" + webDID.String())
-}
-
-func getRequestHost(ctx context.Context) string {
-	return ctx.Value(httpRequestContextKey).(*http.Request).Host
 }

@@ -2,6 +2,10 @@
 source ../../util.sh
 
 echo "------------------------------------"
+echo "Running test ${1}"
+echo "------------------------------------"
+
+echo "------------------------------------"
 echo "Cleaning up running Docker containers and volumes, and key material..."
 echo "------------------------------------"
 docker compose down
@@ -13,7 +17,7 @@ echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
 docker compose up -d --remove-orphans
-docker compose up --wait nodeA nodeB
+docker compose up --wait nodeA nodeB nodeA-backend nodeB-backend
 
 echo "------------------------------------"
 echo "Registering DIDs..."
@@ -45,7 +49,7 @@ echo "Request access token call"
 echo "---------------------------------------"
 # Request access token
 REQUEST="{\"verifier\":\"${PARTY_A_DID}\",\"scope\":\"test\", \"user_id\":\"1\", \"redirect_uri\":\"http://callback\"}"
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/${PARTY_B_DID}/request-user-access-token -H "Content-Type:application/json" -v)
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/${PARTY_B_DID}/request-user-access-token -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "redirect_uri"; then
   LOCATION=$(echo $RESPONSE | sed -E 's/.*"redirect_uri":"([^"]*).*/\1/')
   SESSION=$(echo $RESPONSE | sed -E 's/.*"session_id":"([^"]*).*/\1/')
@@ -62,7 +66,7 @@ echo "Redirect user to local OAuth server..."
 echo "--------------------------------------"
 
 LOCATION=$(echo $LOCATION | sed -E 's/nodeB/localhost:20443/')
-RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -v -k)
+RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -k)
 if grep -q 'Location' ./node-B/data/headers.txt; then
   LOCATION=$(grep 'Location' ./node-B/data/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
   echo "REDIRECTURL: $LOCATION"
@@ -77,7 +81,7 @@ echo "Redirect user to remote OAuth server..."
 echo "---------------------------------------"
 
 LOCATION=$(echo $LOCATION | sed -E 's/nodeA/localhost:10443/')
-RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -v -k)
+RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -k)
 if grep -q 'Location' ./node-B/data/headers.txt; then
   LOCATION=$(grep 'Location' ./node-B/data/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
   echo "REDIRECTURL: $LOCATION"
@@ -92,7 +96,7 @@ echo "Build VP..."
 echo "---------------------------------------"
 
 LOCATION=$(echo $LOCATION | sed -E 's/nodeB/localhost:20443/')
-RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -v -k)
+RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -k)
 if grep -q 'Location' ./node-B/data/headers.txt; then
   LOCATION=$(grep 'Location' ./node-B/data/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
   echo "REDIRECTURL: $LOCATION"
@@ -107,7 +111,7 @@ echo "Redirect user to local OAuth server ..."
 echo "---------------------------------------"
 
 LOCATION=$(echo $LOCATION | sed -E 's/nodeB/localhost:20443/')
-RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -v -k)
+RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -k)
 if grep -q 'Location' ./node-B/data/headers.txt; then
   echo $LOCATION
 else
@@ -120,7 +124,7 @@ echo "--------------------------------------"
 echo "Use flow token to get access token ..."
 echo "--------------------------------------"
 
-RESPONSE=$(curl http://localhost:28081/internal/auth/v2/accesstoken/$SESSION -v -k)
+RESPONSE=$(curl http://localhost:28081/internal/auth/v2/accesstoken/$SESSION -k)
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
   echo "access token stored in ./node-B/data/accesstoken.txt"
@@ -134,7 +138,7 @@ fi
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
-RESPONSE=$(docker compose exec nodeB-backend curl http://resource:80/resource -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
+RESPONSE=$(docker compose exec nodeB-backend curl http://resource:80/resource -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)")
 if echo $RESPONSE | grep -q "OK"; then
   echo "success!"
 else

@@ -316,7 +316,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			Did: verifierDID.String(),
 		})
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid request parameter")
+		requireOAuthError(t, err, oauth.InvalidRequest, "unable to validate request signature")
 		assert.Nil(t, res)
 	})
 	t.Run("error - client_id does not match", func(t *testing.T) {
