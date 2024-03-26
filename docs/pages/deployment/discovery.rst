@@ -62,7 +62,7 @@ The IDs in this list must correspond to the ``id`` fields of the loaded service 
 
 Clients will access the discovery service through ``/discovery`` on the external HTTP interface, so make sure it's available externally.
 
-The endpoint for a Discovery Service MUST be in the following form:
+The endpoint for a Discovery Service MUST be in the following form (unless mapped otherwise in a reverse proxy):
 
 .. code-block:: http
 
