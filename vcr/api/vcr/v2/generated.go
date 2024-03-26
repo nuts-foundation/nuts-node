@@ -222,6 +222,9 @@ type VCVerificationResult struct {
 
 // VPVerificationRequest defines model for VPVerificationRequest.
 type VPVerificationRequest struct {
+	// AllowUntrustedIssuer If set to true, trust in credential issuer is not verified. Non did:nuts use cases should set this to true.
+	AllowUntrustedIssuer *bool `json:"allowUntrustedIssuer,omitempty"`
+
 	// ValidAt Date and time at which the VP should be valid. If not supplied, the current date/time is used.
 	ValidAt *string `json:"validAt,omitempty"`
 

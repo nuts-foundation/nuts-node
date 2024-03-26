@@ -725,6 +725,10 @@ components:
           type: boolean
           description: Indicates whether the Verifiable Credentials within the VP must be verified, default true.
           default: true
+        allowUntrustedIssuer:
+          description: If set to true, trust in credential issuer is not verified. Non did:nuts use cases should set this to true.
+          type: boolean
+          default: false
     VPVerificationResult:
       description: Contains the verifiable presentation verification result.
       type: object

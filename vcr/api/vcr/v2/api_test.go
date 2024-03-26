@@ -952,11 +952,13 @@ func TestWrapper_VerifyVP(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		testContext := newMockContext(t)
 		validAt, validAtStr := parsedTimeStr(time.Now())
+		allowUntrustedIssuer := true
 		request := VPVerificationRequest{
 			VerifiablePresentation: vp,
 			ValidAt:                &validAtStr,
+			AllowUntrustedIssuer:   &allowUntrustedIssuer,
 		}
-		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, false, &validAt).Return(vp.VerifiableCredential, nil)
+		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, true, &validAt).Return(vp.VerifiableCredential, nil)
 		expectedResponse := VerifyVP200JSONResponse(VPVerificationResult{
 			Credentials: &expectedVCs,
 			Validity:    true,

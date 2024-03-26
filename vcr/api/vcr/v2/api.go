@@ -356,6 +356,10 @@ func (w *Wrapper) VerifyVP(ctx context.Context, request VerifyVPRequestObject) (
 	if request.Body.VerifyCredentials != nil {
 		verifyCredentials = *request.Body.VerifyCredentials
 	}
+	var allowUntrustedIssuer bool
+	if request.Body.AllowUntrustedIssuer != nil {
+		allowUntrustedIssuer = *request.Body.AllowUntrustedIssuer
+	}
 
 	var validAt *time.Time
 	if request.Body.ValidAt != nil {
@@ -366,9 +370,9 @@ func (w *Wrapper) VerifyVP(ctx context.Context, request VerifyVPRequestObject) (
 		validAt = &parsedTime
 	}
 
-	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.Body.VerifiablePresentation, verifyCredentials, false, validAt)
+	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.Body.VerifiablePresentation, verifyCredentials, allowUntrustedIssuer, validAt)
 	if err != nil {
-		if errors.Is(err, verifier.VerificationError{}) {
+		if errors.As(err, new(verifier.VerificationError)) {
 			msg := err.Error()
 			return VerifyVP200JSONResponse(VPVerificationResult{Validity: false, Message: &msg}), nil
 		}
