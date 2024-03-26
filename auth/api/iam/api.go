@@ -629,7 +629,6 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 // requestedDID constructs a did:web DID as it was requested by the API caller. It can be a DID with or without user path, e.g.:
 // - did:web:example.com
 // - did:web:example:iam:1234
-// When host is given, it is used as base for the did:web DID. If it's absent, the configured URL is used as base.
 // When userID is given, it's appended to the DID as `:iam:<userID>`. If it's absent, the DID is returned as is.
 func (r Wrapper) requestedDID(userID string) did.DID {
 	identityURL := r.identityURL(userID)
