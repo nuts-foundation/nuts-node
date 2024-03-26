@@ -575,6 +575,7 @@ paths:
 
         error returns:
         * 400 - one of the parameters has the wrong format or an OAuth error occurred
+        * 424 - the issuer does not fulfill the right requirements to issue the requested VC(s)
         * 412 - the organization wallet does not contain the correct credentials
         * 503 - the authorizer could not be reached or returned an error
       tags:
@@ -634,12 +635,21 @@ paths:
       operationId: callbackOid4vciCredentialIssuance
       summary: Callback for the Oid4VCI credential issuance flow.
       description: |
-        Initiates an Oid4VCI flow to request an VC from a Credential Issuer.
-
-        error returns:
-        * 400 - one of the parameters has the wrong format or an OAuth error occurred
-        * 412 - the organization wallet does not contain the correct credentials
-        * 503 - the authorizer could not be reached or returned an error
+        The callback for the requestOid4vciCredentialIssuance request.
+        
+        This method will in most cases try to redirect (302) to the redirect_uri of the 
+        requestOid4vciCredentialIssuance request with an error code. The only case
+        where the status will not be 302 is when something in the processing of the 
+        redirect_uri itself goes wrong.
+        
+        302 error returns:
+        * invalid_request - one of the provided parameters is wrong.
+        * server_error - internal processing of the Oid4VCI flow has a system error.
+        * access_denied - an access problem occurred with the internal processing of the Oid4VCI flow.
+      
+        If the system is somehow not able to return a redirect, the following http status codes will be 
+        returned:
+        * 500 - an system error occurred during processing
       tags:
         - auth
       parameters:

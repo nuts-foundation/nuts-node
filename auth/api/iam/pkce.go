@@ -12,11 +12,11 @@ type PKCEParams struct {
 	Verifier        string
 }
 
-func generatePKCEParams() *PKCEParams {
+func generatePKCEParams() PKCEParams {
 	verifier := crypto.GenerateNonce()
 	sha := sha256.Sum256([]byte(verifier))
 	challenge := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(sha[:])
-	return &PKCEParams{
+	return PKCEParams{
 		Challenge:       challenge,
 		ChallengeMethod: "S256",
 		Verifier:        verifier,
