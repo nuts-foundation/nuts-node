@@ -52,7 +52,7 @@ events:
 `
 
 // StartServer starts a Nuts node and returns the HTTP server URL. configFunc can be used to alter the environment before the node is started.
-func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string, *core.System) {
+func StartServer(t *testing.T, configFunc ...func(internalHttpServerURL, publicHttpServerURL string)) (string, string, *core.System) {
 	testDir := io.TestDirectory(t)
 	system := cmd.CreateSystem(func() {})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -62,26 +62,22 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 	_ = os.WriteFile(configFile, []byte(testServerConfig), os.ModePerm)
 	grpcPort := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 	natsPort := fmt.Sprintf("%d", test.FreeTCPPort())
-	httpInterface := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
-	httpServerURL := "http://" + httpInterface
+	publicHttpInterface := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	internalHttpInterface := fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+	internalHttpServerURL := "http://" + internalHttpInterface
+	publicHttpServerURL := "http://" + publicHttpInterface
 
 	t.Setenv("NUTS_DATADIR", testDir)
 	t.Setenv("NUTS_CONFIGFILE", configFile)
-	t.Setenv("NUTS_HTTP_DEFAULT_ADDRESS", httpInterface)
+	t.Setenv("NUTS_HTTP_INTERNAL_ADDRESS", internalHttpInterface)
+	t.Setenv("NUTS_HTTP_PUBLIC_ADDRESS", publicHttpInterface)
 	t.Setenv("NUTS_NETWORK_GRPCADDR", grpcPort)
 	t.Setenv("NUTS_EVENTS_NATS_PORT", natsPort)
 	t.Setenv("NUTS_EVENTS_NATS_HOSTNAME", "localhost")
-	t.Setenv("NUTS_URL", httpServerURL)
-	certFile := pki.CertificateFile(t)
-	t.Setenv("NUTS_TLS_CERTFILE", certFile)
-	t.Setenv("NUTS_TLS_CERTKEYFILE", certFile)
-	t.Setenv("NUTS_TLS_TRUSTSTOREFILE", pki.TruststoreFile(t))
+	t.Setenv("NUTS_URL", publicHttpServerURL)
 
 	for _, fn := range configFunc {
-		fn(httpServerURL)
-	}
-	if os.Getenv("NUTS_HTTP_DEFAULT_TLS") != "" {
-		httpServerURL = "https://" + httpInterface
+		fn(internalHttpServerURL, publicHttpServerURL)
 	}
 
 	os.Args = []string{"nuts", "server"}
@@ -98,7 +94,7 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 
 	client := tlsClient(t)
 	if !test.WaitFor(t, func() (bool, error) {
-		resp, err := client.Get(httpServerURL + "/status")
+		resp, err := client.Get(internalHttpServerURL + "/status")
 		return err == nil && resp.StatusCode == http.StatusOK, nil
 	}, time.Second*5, "Timeout while waiting for node to become available") {
 		t.Fatal("time-out")
@@ -110,7 +106,7 @@ func StartServer(t *testing.T, configFunc ...func(httpServerURL string)) (string
 		wg.Wait()
 	})
 
-	return httpServerURL, system
+	return internalHttpServerURL, publicHttpServerURL, system
 }
 
 func tlsClient(t *testing.T) http.Client {

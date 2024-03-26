@@ -34,7 +34,6 @@ import (
 )
 
 var issuerDID = did.MustParseDID("did:nuts:issuer")
-var issuerIdentifier = "http://example.com/" + issuerDID.String()
 
 func TestWrapper_GetOpenID4VCIIssuerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {

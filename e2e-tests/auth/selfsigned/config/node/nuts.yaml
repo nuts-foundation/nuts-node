@@ -1,12 +1,10 @@
-url: http://node:1323
+url: http://node:8080
 datadir: /opt/nuts/data
 strictmode: false
-http:
-  default:
-    address: :1323
-    cors:
-      origin: "*"
 verbosity: debug
+http:
+  internal:
+    address: :8081
 auth:
   contractvalidators:
     - selfsigned

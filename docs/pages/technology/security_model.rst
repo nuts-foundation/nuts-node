@@ -13,7 +13,7 @@ The Nuts node's security model aims to provide non-repudiation of operations inv
 
 It focuses on:
 
-- interactions of users (e.g. system administrators) and applications (e.g. an EHR) of the vendor with the Nuts node APIs,
+- interactions of users (e.g. system administrators) and client applications with the Nuts node APIs,
 - security of assets managed by the Nuts node (e.g. private keys).
 
 It does not cover interactions between Nuts nodes and systems specified by the `Nuts specifications <https://nuts-foundation.gitbook.io/drafts/>`_;
@@ -31,7 +31,7 @@ The following are part of the threat model:
       - Providing secure defaults for configuration.
       - Providing "strict mode" which disallows unsafe configuration.
 - Protecting against leaking private key material.
-   - Private keys should be kept secure, since a leak compromises a vendor's presence on the Nuts network.
+   - Private keys should be kept secure, since a leak compromises a party's presence on the Nuts network.
    - Implemented by:
       - Storing keys in a secure storage (e.g. Hashicorp Vault).
       - Not allowing private keys to be exported, only to be created and used (signing/encrypting).
@@ -52,11 +52,11 @@ The following are part of the threat model:
 The following are not part of the threat model:
 
 - Protecting against unauthorized database access.
-   - If an attacker can inject/modify Nuts node database records (e.g. verifiable credentials), confidentiality of EHR data might be compromised.
+   - If an attacker can inject/modify Nuts node database records (e.g. verifiable credentials), confidentiality of data might be compromised.
 - Protecting against arbitrary access to the Nuts node host machine.
    - If an attacker has root access, integrity of configuration is lost and the attacker can alter security settings (e.g. inject authorized API client keys).
    - Why don't we protect against it:
-     - In such circumstances, the attacker can use the system as stepping stone to attack other systems, e.g. the key storage or the EHR system.
+     - In such circumstances, the attacker can use the system as stepping stone to attack other systems, e.g. the key storage or the client application.
        This makes mitigation unfeasible: there's always another way the compromised system can be exploited.
      - High cost: requires implementation in a language that provides full control over application memory (e.g. C, C++ or Rust).
      - Unpractical: requires hardening of host OS to avoid memory dumps/debugging, which is not feasible for all some environments (cloud, Windows).
@@ -79,11 +79,10 @@ External threats
 A typical Nuts Node deployment consists of various parts:
 
 - External API clients:
-   - Remote vendor's EHR system
+   - Remote client application
    - IRMA mobile app
 - Internal API clients:
-   - System administrator using the CLI
-   - Vendor's EHR and administrative system
+   - Client application and administrative system
    - Monitoring system
 - Reverse proxy for HTTP and gRPC traffic (terminates TLS)
 - Nuts Node
@@ -91,8 +90,8 @@ A typical Nuts Node deployment consists of various parts:
    - Network data
    - Private key storage
 
-External actors are remote Nuts nodes, remote EHR systems and IRMA mobile devices.
-Remote Nuts nodes and EHR systems require a trusted TLS client certificate,
+External actors are remote Nuts nodes, remote applications and IRMA mobile devices.
+Remote Nuts nodes and remote applications require a trusted TLS client certificate,
 which makes an attack complex: you need to either steal an organizations certificate (very hard),
 or buy a certificate using your own name (accountable, expensive, and time-consuming, depending on the certificate).
 Then, when the attacker is identified, the certificate can be banned and the legal entity (holder of the certificate) could be held accountable.

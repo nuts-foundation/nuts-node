@@ -141,7 +141,7 @@ func (n *ambassador) handleNetworkEvent(event dag.Event) (bool, error) {
 	if err := n.callback(event.Transaction, event.Payload); err != nil {
 		if !errors.As(err, new(stoabs.ErrDatabase)) {
 			// anything that is not a database error will not be retried
-			return false, dag.EventFatal{err}
+			return false, dag.EventFatal{Err: err}
 		}
 		return false, err
 	}

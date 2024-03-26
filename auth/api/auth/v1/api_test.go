@@ -21,7 +21,6 @@ package v1
 import (
 	"context"
 	"errors"
-	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -43,7 +42,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
 	"testing"
 	"time"
 )
@@ -66,10 +64,6 @@ type mockAuthClient struct {
 	contractNotary *services.MockContractNotary
 	iamClient      *iam.MockClient
 	relyingParty   *oauth.MockRelyingParty
-}
-
-func (m *mockAuthClient) V2APIEnabled() bool {
-	return true
 }
 
 func (m *mockAuthClient) AuthzServer() oauth.AuthorizationServer {
@@ -793,22 +787,6 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		assert.Equal(t, expectedResponse, response)
 		assert.NoError(t, err)
 	})
-}
-
-type signSessionResponseMatcher struct {
-	means string
-}
-
-func (s signSessionResponseMatcher) Matches(x interface{}) bool {
-	if !reflect.TypeOf(x).AssignableTo(reflect.TypeOf(x)) {
-		return false
-	}
-
-	return string(x.(SignSessionResponse).Means) == s.means && x.(SignSessionResponse).SessionPtr["sessionID"] != ""
-}
-
-func (s signSessionResponseMatcher) String() string {
-	return fmt.Sprintf("{%v somePtr}", s.means)
 }
 
 func TestWrapper_CreateSignSession(t *testing.T) {

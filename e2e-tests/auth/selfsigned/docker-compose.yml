@@ -1,11 +1,11 @@
-version: "3.9"
 services:
   node:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     ports:
-      - 1323:1323
+      - 8080:8080
+      - 8081:8081
     volumes:
       - "./config/node/nuts.yaml:/opt/nuts/nuts.yaml"
       - "./data/node:/opt/nuts/data"

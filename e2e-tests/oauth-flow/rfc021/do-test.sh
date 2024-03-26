@@ -43,7 +43,7 @@ echo Vendor B DID: $VENDOR_B_DID
 
 # Issue NutsOrganizationCredential for Vendor B
 REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"withStatusList2021Revocation\": false}"
-RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "VerifiableCredential"; then
   echo "VC issued"
 else
@@ -52,7 +52,7 @@ else
   exitWithDockerLogs 1
 fi
 
-RESPONSE=$(echo $RESPONSE | curl -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/holder/${VENDOR_B_DID}/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $RESPONSE | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/holder/${VENDOR_B_DID}/vc -H "Content-Type:application/json")
 if echo $RESPONSE == ""; then
   echo "VC stored in wallet"
 else
@@ -66,7 +66,7 @@ echo "Perform OAuth 2.0 rfc021 flow..."
 echo "---------------------------------------"
 # Request access token
 REQUEST="{\"verifier\":\"${VENDOR_A_DID}\",\"scope\":\"test\"}"
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:21323/internal/auth/v2/$VENDOR_B_DID/request-service-access-token -H "Content-Type:application/json" -v)
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/request-service-access-token -H "Content-Type:application/json" -v)
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
   echo "access token stored in ./node-B/data/accesstoken.txt"

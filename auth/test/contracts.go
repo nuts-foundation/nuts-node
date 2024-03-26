@@ -18,10 +18,6 @@
 
 package test
 
-const InvalidContract = `
-    { "thisdatas": "smellz bad"}
-	`
-
 // ValidIrmaContract2 is a contract with more attributes that ValidIrmaContract like name and email
 const ValidIrmaContract2 = `
 {

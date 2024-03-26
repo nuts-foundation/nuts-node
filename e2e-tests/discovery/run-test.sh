@@ -18,17 +18,17 @@ mkdir ./node-A/data ./node-B/data  # 'data' dirs will be created with root owner
 echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
-docker compose up --wait nodeB
+docker compose up --wait nodeB-backend nodeB
 
 echo "------------------------------------"
 echo "Registering care organization..."
 echo "------------------------------------"
-DIDDOC=$(docker compose exec nodeB nuts vdr create-did --v2)
+DIDDOC=$(docker compose exec nodeB-backend nuts vdr create-did --v2)
 DID=$(echo $DIDDOC | jq -r .id)
 echo DID: $DID
 
 REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${DID}\", \"credentialSubject\": {\"id\":\"${DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"withStatusList2021Revocation\": false}"
-RESPONSE=$(echo $REQUEST | curl --insecure -s -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $REQUEST | curl --insecure -s -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "VerifiableCredential"; then
   echo "VC issued"
 else
@@ -37,7 +37,7 @@ else
   exitWithDockerLogs 1
 fi
 
-RESPONSE=$(echo $RESPONSE | curl --insecure -s -X POST --data-binary @- http://localhost:21323/internal/vcr/v2/holder/${DID}/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $RESPONSE | curl --insecure -s -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/holder/${DID}/vc -H "Content-Type:application/json")
 if [$RESPONSE -eq ""]; then
   echo "VC stored in wallet"
 else
@@ -49,16 +49,16 @@ fi
 echo "---------------------------------------"
 echo "Registering care organization on Discovery Service..."
 echo "---------------------------------------"
-curl --insecure -s -X POST http://localhost:21323/internal/discovery/v1/dev:eOverdracht2023/${DID}
+curl --insecure -s -X POST http://localhost:28081/internal/discovery/v1/dev:eOverdracht2023/${DID}
 # Start Discovery Server
-docker compose up --wait nodeA
+docker compose up --wait nodeA-backend nodeA
 # Registration refresh interval is 500ms, wait some to make sure the registration is refreshed
 sleep 2
 
 echo "---------------------------------------"
 echo "Searching for care organization registration on Discovery Server..."
 echo "---------------------------------------"
-RESPONSE=$(curl -s --insecure "http://localhost:11323/internal/discovery/v1/dev:eOverdracht2023?credentialSubject.organization.name=Care*")
+RESPONSE=$(curl -s --insecure "http://localhost:18081/internal/discovery/v1/dev:eOverdracht2023?credentialSubject.organization.name=Care*")
 NUM_ITEMS=$(echo $RESPONSE | jq length)
 if [ $NUM_ITEMS -eq 1 ]; then
   echo "Registration found"
@@ -72,7 +72,7 @@ echo "Searching for care organization registration on Discovery Client..."
 echo "---------------------------------------"
 # Service refresh interval is 500ms, wait some to make sure the presentations are loaded
 sleep 2
-RESPONSE=$(curl -s --insecure "http://localhost:21323/internal/discovery/v1/dev:eOverdracht2023?credentialSubject.organization.name=Care*")
+RESPONSE=$(curl -s --insecure "http://localhost:28081/internal/discovery/v1/dev:eOverdracht2023?credentialSubject.organization.name=Care*")
 NUM_ITEMS=$(echo $RESPONSE | jq length)
 if [ $NUM_ITEMS -eq 1 ]; then
   echo "Registration found"

@@ -1,12 +1,11 @@
-version: "3.7"
 services:
-  nodeA:
+  nodeA-backend:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_NETWORK_NODEDID: "${NODEA_DID}"
     ports:
-      - "11323:1323"
+      - "18081:8081"
     volumes:
       - "./node-A/data:/opt/nuts/data"
       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
@@ -14,14 +13,26 @@ services:
       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
-  nodeB:
+  nodeA:
+    image: nginx:1.25.1
+    expose:
+      - 5555
+    volumes:
+      - "../../shared_config/nodeA-grpc-nginx.conf:/etc/nginx/conf.d/nuts-grpc.conf:ro"
+      - "../../shared_config/nodeA-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
+      - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
+    depends_on:
+      - nodeA-backend
+  nodeB-backend:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_NETWORK_NODEDID: "${NODEB_DID}"
       NUTS_NETWORK_BOOTSTRAPNODES: ${BOOTSTRAP_NODES}
     ports:
-      - "21323:1323"
+      - "28081:8081"
     volumes:
       - "./node-B/data:/opt/nuts/data"
       - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
@@ -29,3 +40,15 @@ services:
       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
+  nodeB:
+    image: nginx:1.25.1
+    expose:
+      - 5555
+    volumes:
+      - "../../shared_config/nodeB-grpc-nginx.conf:/etc/nginx/conf.d/nuts-grpc.conf:ro"
+      - "../../shared_config/nodeB-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
+      - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/server.pem:ro"
+      - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/key.pem:ro"
+      - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
+    depends_on:
+      - nodeB-backend

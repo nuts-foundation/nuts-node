@@ -22,7 +22,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned"
-	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
 )
 
 // Config holds all the configuration params
@@ -32,7 +31,6 @@ type Config struct {
 	ClockSkew           int        `koanf:"clockskew"`
 	ContractValidators  []string   `koanf:"contractvalidators"`
 	AccessTokenLifeSpan int        `koanf:"accesstokenlifespan"`
-	V2APIEnabled        bool       `koanf:"v2apienabled"`
 }
 
 type IrmaConfig struct {
@@ -50,7 +48,6 @@ func DefaultConfig() Config {
 		ClockSkew: 5000,
 		ContractValidators: []string{
 			string(services.IrmaFormat),
-			uzi.ContractFormat,
 			dummy.ContractFormat,
 			selfsigned.ContractFormat,
 		},

@@ -22,6 +22,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"path"
 	"strconv"
 	"time"
 
@@ -424,7 +426,6 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		}
 
 		// append new revocation and re-issue the StatusList2021Credential.
-		issuerRecord.Revocations = append(issuerRecord.Revocations)
 		credRecord := new(credentialRecord)
 		_, credRecord, err = cs.updateCredential(ctx, issuerRecord, key)
 		if err != nil {
@@ -437,11 +438,15 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 func toStatusListCredential(issuer did.DID, page int) (string, error) {
 	switch issuer.Method {
 	case "web":
-		issuerAsURL, err := didweb.DIDToURL(issuer) // https://example.com/iam/id
+		issuerAsURL, err := didweb.DIDToURL(issuer)
 		if err != nil {
 			return "", err
 		}
-		return issuerAsURL.JoinPath("statuslist", strconv.Itoa(page)).String(), nil // https://example.com/iam/id/statuslist/page
+		result := new(url.URL)
+		result.Scheme = issuerAsURL.Scheme
+		result.Host = issuerAsURL.Host
+		result.Path = path.Join("statuslist", issuer.String(), strconv.Itoa(page))
+		return result.String(), nil // https://example.com/statuslist/<did>/page
 	}
 	return "", fmt.Errorf("status list: unsupported DID method: %s", issuer.Method)
 }

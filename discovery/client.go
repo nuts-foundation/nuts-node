@@ -137,7 +137,7 @@ func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(c
 	if err != nil {
 		return nil, fmt.Errorf("failed to match Discovery Service's Presentation Definition (service=%s, did=%s): %w", service.ID, subjectDID, err)
 	}
-	if len(matchingCredentials) == 0 {
+	if len(matchingCredentials) == 0 && service.PresentationDefinition.CredentialsRequired() {
 		return nil, fmt.Errorf("DID wallet does not have credentials required for registration on Discovery Service (service=%s, did=%s)", service.ID, subjectDID)
 	}
 	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil)

@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
@@ -71,7 +70,6 @@ type openidHandler struct {
 	resolver            resolver.KeyResolver
 	issuerClientCreator func(ctx context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error)
 	httpClient          core.HTTPRequestDoer
-	jsonldReader        jsonld.Reader
 }
 
 func (h *openidHandler) Metadata() openid4vci.OAuth2ClientMetadata {

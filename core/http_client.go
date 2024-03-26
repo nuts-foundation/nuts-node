@@ -30,6 +30,10 @@ import (
 	"time"
 )
 
+// HttpResponseBodyLogClipAt is the maximum length of a response body to log.
+// If the response body is longer than this, it will be truncated.
+const HttpResponseBodyLogClipAt = 200
+
 // HttpError describes an error returned when invoking a remote server.
 type HttpError struct {
 	error
@@ -51,8 +55,8 @@ func TestResponseCodeWithLog(expectedStatusCode int, response *http.Response, lo
 		if log != nil {
 			// Cut off the response body to 100 characters max to prevent logging of large responses
 			responseBodyString := string(responseData)
-			if len(responseBodyString) > 100 {
-				responseBodyString = responseBodyString[:100] + "...(clipped)"
+			if len(responseBodyString) > HttpResponseBodyLogClipAt {
+				responseBodyString = responseBodyString[:HttpResponseBodyLogClipAt] + "...(clipped)"
 			}
 			log.WithField("http_request_path", response.Request.URL.Path).
 				Infof("Unexpected HTTP response (len=%d): %s", len(responseData), responseBodyString)

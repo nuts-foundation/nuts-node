@@ -39,13 +39,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
-var errResponse = ErrorResponse{
-	Backend: "vault",
-	Detail:  "permission denied",
-	Status:  403,
-	Title:   "Lookup failed, backend returned and error",
-}
-
 func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 	t.Helper()
 	pem, _ := util.PrivateKeyToPem(key)

@@ -39,6 +39,7 @@ import (
 	"gorm.io/gorm"
 )
 
+var rootDID = did.MustParseDID("did:web:example.com")
 var aliceDID = did.MustParseDID("did:web:example.com:iam:alice")
 var bobDID = did.MustParseDID("did:web:example.com:iam:bob")
 
@@ -386,6 +387,24 @@ func TestStatusList2021_buildAndSignVC(t *testing.T) {
 	assert.InDelta(t, time.Now().Add(statusListValidity).Unix(), cred.ValidUntil.Unix(), 2)
 	assert.Nil(t, cred.IssuanceDate)
 	assert.Nil(t, cred.ExpirationDate)
+}
+
+func Test_toStatusListCredential(t *testing.T) {
+	t.Run("root did:web", func(t *testing.T) {
+		subjectID, err := toStatusListCredential(rootDID, 1)
+		require.NoError(t, err)
+		assert.Equal(t, "https://example.com/statuslist/did:web:example.com/1", subjectID)
+	})
+	t.Run("user did:web with port", func(t *testing.T) {
+		subjectID, err := toStatusListCredential(did.MustParseDID("did:web:example.com%3A8080:iam:alice"), 1)
+		require.NoError(t, err)
+		assert.Equal(t, "https://example.com:8080/statuslist/did:web:example.com%253A8080:iam:alice/1", subjectID)
+	})
+	t.Run("user did:web", func(t *testing.T) {
+		subjectID, err := toStatusListCredential(aliceDID, 1)
+		require.NoError(t, err)
+		assert.Equal(t, "https://example.com/statuslist/did:web:example.com:iam:alice/1", subjectID)
+	})
 }
 
 func toMap(t testing.TB, obj any) (result map[string]any) {

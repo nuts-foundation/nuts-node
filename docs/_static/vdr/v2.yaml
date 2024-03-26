@@ -6,7 +6,7 @@ info:
   license:
     name: GPLv3
 servers:
-  - url: http://localhost:1323
+  - url: http://localhost:8081
 paths:
   /internal/vdr/v2/did:
     get:
@@ -39,6 +39,7 @@ paths:
 
         error returns:
         * 400 - Returned in case of malformed DID in the request body
+        * 409 - Returned in case the DID already exists
         * 500 - An error occurred while processing the request
       operationId: "createDID"
       tags:
@@ -146,6 +147,91 @@ paths:
                 $ref: '#/components/schemas/Service'
         default:
           $ref: '../common/error_response.yaml'
+    get:
+      summary: "Filters services of a resolved DID document"
+      parameters:
+        - name: type
+          in: query
+          description: |
+            Type of the service to filter for. If specified, only services with the given service type are returned.
+          required: false
+          schema:
+            type: string
+          example: "api"
+        - name: endpointType
+          in: query
+          description: |
+            The data type of the service endpoint to filter for. If specified, only services with the given endpoint type are returned.
+            Endpoint types as mapped as follows:
+
+            - string: serviceEndpoint contains a JSON string
+            - array: serviceEndpoint contains a JSON array
+            - object: serviceEndpoint contains a JSON object (key-value map) 
+
+            If not specified, services are not filtered on their endpoint data type.
+          required: false
+          schema:
+            type: string
+            enum:
+              - string
+              - object
+              - array
+      description: |
+        Filters services within in a resolved DID document.
+        It returns the services that match specified filter parameters.
+
+        error returns:
+        * 400 - Returned in case of malformed DID.
+        * 404 - DID document could not be found
+        * 500 - An error occurred while processing the request
+      operationId: "filterServices"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: DID document has been resolved, filtered services are returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+              examples:
+                string:
+                  summary: This example shows a response with a service containing a string endpoint.
+                  value: |
+                    [
+                      {
+                        "id": "did:web:example.com:1",
+                        "type": "api",
+                        "serviceEndpoint": "https://example.com/api"
+                      }
+                    ]
+                object:
+                  summary: This example shows a response with a service containing an object endpoint.
+                  value: |
+                    [
+                      {
+                        "id": "did:web:example.com:1",
+                        "type": "api",
+                        "serviceEndpoint": {
+                          "server1": "https://example.com/api",
+                          "server2": "https://alt.example.com/api"
+                        }
+                      }
+                    ]
+                array:
+                  summary: This example shows a response with a service containing an array endpoint.
+                  value: |
+                    [
+                      {
+                        "id": "did:web:example.com:1",
+                        "type": "api",
+                        "serviceEndpoint": ["https://example.com/api", "https://alt.example.com/api"]
+                      }
+                    ]
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vdr/v2/did/{did}/service/{serviceId}:
     parameters:
       - name: did
@@ -209,91 +295,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Service'
-        default:
-          $ref: '../common/error_response.yaml'
-    get:
-      summary: "Filters services of a resolved DID document"
-      parameters:
-        - name: type
-          in: query
-          description: |
-            Type of the service to filter for. If specified, only services with the given service type are returned.
-          required: false
-          schema:
-            type: string
-          example: "api"
-        - name: endpointType
-          in: query
-          description: |
-            The data type of the service endpoint to filter for. If specified, only services with the given endpoint type are returned.
-            Endpoint types as mapped as follows:
-             
-            - string: serviceEndpoint contains a JSON string
-            - array: serviceEndpoint contains a JSON array
-            - object: serviceEndpoint contains a JSON object (key-value map) 
-            
-            If not specified, services are not filtered on their endpoint data type.
-          required: false
-          schema:
-            type: string
-            enum:
-              - string
-              - object
-              - array
-      description: |
-        Filters services within in a resolved DID document.
-        It returns the services that match specified filter parameters.
-
-        error returns:
-        * 400 - Returned in case of malformed DID.
-        * 404 - DID document could not be found
-        * 500 - An error occurred while processing the request
-      operationId: "filterServices"
-      tags:
-        - DID
-      responses:
-        "200":
-          description: DID document has been resolved, filtered services are returned.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Service'
-              examples:
-                string:
-                  summary: This example shows a response with a service containing a string endpoint.
-                  value: |
-                    [
-                      {
-                        "id": "did:web:example.com:1",
-                        "type": "api",
-                        "serviceEndpoint": "https://example.com/api"
-                      }
-                    ]
-                object:
-                  summary: This example shows a response with a service containing an object endpoint.
-                  value: |
-                    [
-                      {
-                        "id": "did:web:example.com:1",
-                        "type": "api",
-                        "serviceEndpoint": {
-                          "server1": "https://example.com/api",
-                          "server2": "https://alt.example.com/api"
-                        }
-                      }
-                    ]
-                array:
-                  summary: This example shows a response with a service containing an array endpoint.
-                  value: |
-                    [
-                      {
-                        "id": "did:web:example.com:1",
-                        "type": "api",
-                        "serviceEndpoint": ["https://example.com/api", "https://alt.example.com/api"]
-                      }
-                    ]
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/did/{did}/verificationmethod:

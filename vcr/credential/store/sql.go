@@ -117,10 +117,17 @@ func (c CredentialStore) Store(db *gorm.DB, credential vc.VerifiableCredential) 
 		FirstOrCreate(&existingCredential).Error; err != nil {
 		return nil, err
 	}
-	if existingCredential.Raw != newCredential.Raw {
+	// compare with all whitespace and linebreaks removed
+	// todo: replace with correct canonicalization from VC spec, once it's available. Should be implemented in go-did.
+	if stripWhitespaceAndLinebreaks(existingCredential.Raw) != stripWhitespaceAndLinebreaks(newCredential.Raw) {
 		return nil, fmt.Errorf("credential with this ID already exists with different contents: %s", newCredential.ID)
 	}
 	return &newCredential, nil
+}
+
+// stripWhitespaceAndLinebreaks removes all whitespace and linebreaks from a string.
+func stripWhitespaceAndLinebreaks(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, " ", ""), "\n", "")
 }
 
 // BuildSearchStatement enriches a Gorm query to search for Verifiable Credentials in the SQL database.

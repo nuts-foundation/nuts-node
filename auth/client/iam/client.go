@@ -157,8 +157,8 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 	if err = json.Unmarshal(responseData, &token); err != nil {
 		// Cut off the response body to 100 characters max to prevent logging of large responses
 		responseBodyString := string(responseData)
-		if len(responseBodyString) > 100 {
-			responseBodyString = responseBodyString[:100] + "...(clipped)"
+		if len(responseBodyString) > core.HttpResponseBodyLogClipAt {
+			responseBodyString = responseBodyString[:core.HttpResponseBodyLogClipAt] + "...(clipped)"
 		}
 		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
 	}

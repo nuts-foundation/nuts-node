@@ -42,5 +42,6 @@ func FlagSet() *pflag.FlagSet {
 		"If not set it, defaults to a SQLite database stored inside the configured data directory. "+
 		"Note: using SQLite is not recommended in production environments. "+
 		"If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').")
+
 	return flagSet
 }

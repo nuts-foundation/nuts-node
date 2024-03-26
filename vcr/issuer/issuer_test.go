@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"path"
@@ -211,20 +210,24 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 	})
 
 	t.Run("error - invalid params", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		keyResolverMock := NewMockkeyResolver(ctrl)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil).AnyTimes()
 		t.Run("wrong amount of credential types", func(t *testing.T) {
-			sut := issuer{}
+			sut := issuer{keyResolver: keyResolverMock, keyStore: keyStore}
 
 			template := vc.VerifiableCredential{
-				Type: []ssi.URI{},
+				Issuer: issuerDID.URI(),
+				Type:   []ssi.URI{ssi.MustParseURI("Type1"), ssi.MustParseURI("Type2")},
 			}
 			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{})
 
-			assert.ErrorIs(t, err, core.InvalidInputError("can only issue credential with 1 type"))
+			assert.ErrorIs(t, err, core.InvalidInputError("can only issue VerifiableCredential with 1 extra type"))
 			assert.Nil(t, result)
 		})
 
 		t.Run("missing issuer", func(t *testing.T) {
-			sut := issuer{}
+			sut := issuer{keyResolver: keyResolverMock, keyStore: keyStore}
 
 			template := vc.VerifiableCredential{
 				Type: []ssi.URI{credentialType},
@@ -235,12 +238,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			assert.Nil(t, result)
 		})
 		t.Run("unsupported proof format", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(signingKey, nil)
-			jsonldManager := jsonld.NewTestJSONLDManager(t)
-			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
+			sut := issuer{keyResolver: keyResolverMock, keyStore: keyStore}
 
 			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{Format: "paper"})
 
@@ -470,12 +468,11 @@ func Test_issuer_Issue(t *testing.T) {
 	})
 
 	t.Run("error - from used services", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		keyResolverMock := NewMockkeyResolver(ctrl)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil).AnyTimes()
 		t.Run("could not store credential", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
 			sut := issuer{
@@ -493,11 +490,7 @@ func Test_issuer_Issue(t *testing.T) {
 		})
 
 		t.Run("could not publish credential", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			mockPublisher := NewMockPublisher(ctrl)
 			mockPublisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
@@ -516,7 +509,7 @@ func Test_issuer_Issue(t *testing.T) {
 		})
 
 		t.Run("validator fails (missing type)", func(t *testing.T) {
-			sut := issuer{}
+			sut := issuer{keyResolver: keyResolverMock}
 
 			credentialOptions := vc.VerifiableCredential{
 				Type:   []ssi.URI{},
@@ -527,16 +520,12 @@ func Test_issuer_Issue(t *testing.T) {
 				Publish: true,
 				Public:  true,
 			})
-			assert.EqualError(t, err, "can only issue credential with 1 type")
+			assert.EqualError(t, err, "can only issue VerifiableCredential with at most 1 extra type")
 			assert.Nil(t, result)
 
 		})
 
 		t.Run("validator fails (undefined fields)", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-
-			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			mockStore := NewMockStore(ctrl)
 			sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
 
@@ -927,8 +916,6 @@ func TestIssuer_isRevoked(t *testing.T) {
 
 func TestIssuer_StatusList(t *testing.T) {
 	issuerDID := did.MustParseDID("did:web:example.com:iam:123")
-	issuerURL, err := didweb.DIDToURL(issuerDID)
-	require.NoError(t, err)
 
 	ctx := audit.TestContext()
 	const kid = "did:web:example.com:iam:123#abc"
@@ -939,12 +926,10 @@ func TestIssuer_StatusList(t *testing.T) {
 	require.NoError(t, err)
 
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
-	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 	t.Run("ok", func(t *testing.T) {
 		sut := issuer{
 			jsonldManager: jsonldManager,
 			keyStore:      keyStore,
-			trustConfig:   trustConfig,
 			statusList:    newTestStatusList2021(t, signingKey, issuerDID),
 		}
 		sut.statusList.(*revocation.StatusList2021).Sign = sut.buildJSONLDCredential
@@ -957,7 +942,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Contains(t, result.Context, revocation.StatusList2021ContextURI)
-		assert.Equal(t, result.Issuer.String(), issuerDID.String())
+		assert.Equal(t, issuerDID.String(), result.Issuer.String())
 		assert.True(t, result.IsType(ssi.MustParseURI(revocation.StatusList2021CredentialType)))
 		assert.Nil(t, result.IssuanceDate)
 		assert.Nil(t, result.ExpirationDate)
@@ -969,10 +954,10 @@ func TestIssuer_StatusList(t *testing.T) {
 		err = result.UnmarshalCredentialSubject(&subjects)
 		require.NoError(t, err)
 		require.Len(t, subjects, 1)
-		assert.Equal(t, subjects[0].ID, issuerURL.JoinPath("statuslist", "1").String())
-		assert.Equal(t, subjects[0].Type, revocation.StatusList2021CredentialSubjectType)
-		assert.Equal(t, subjects[0].StatusPurpose, revocation.StatusPurposeRevocation)
-		assert.NotEmpty(t, subjects[0].EncodedList, "")
+		assert.Equal(t, "https://example.com/statuslist/did:web:example.com:iam:123/1", subjects[0].ID)
+		assert.Equal(t, revocation.StatusList2021CredentialSubjectType, subjects[0].Type)
+		assert.Equal(t, revocation.StatusPurposeRevocation, subjects[0].StatusPurpose)
+		assert.NotEmpty(t, subjects[0].EncodedList)
 
 		// verify credential; revocation.StatusList2021 does not test signatures on StatusList2021Credentials it produces
 		ctrl := gomock.NewController(t)
@@ -982,7 +967,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		vDIDResolverMock.EXPECT().Resolve(gomock.Any(), gomock.Any())
 		vKeyResolverMock := resolver.NewMockKeyResolver(ctrl)
 		vKeyResolverMock.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(signingKey.Public(), nil)
-		verif := verifier.NewVerifier(vStoreMock, vDIDResolverMock, vKeyResolverMock, jsonldManager, trustConfig, &revocation.StatusList2021{})
+		verif := verifier.NewVerifier(vStoreMock, vDIDResolverMock, vKeyResolverMock, jsonldManager, nil, &revocation.StatusList2021{})
 		assert.NoError(t, verif.Verify(*result, true, true, nil))
 	})
 	t.Run("error - unknown status list credential", func(t *testing.T) {

@@ -1104,8 +1104,11 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	}
 
 	instance := &Network{
-		config:          config,
-		didStore:        didStore,
+		config:   config,
+		didStore: didStore,
+		didDocumentFinder: &didstore.Finder{
+			Store: didStore,
+		},
 		keyStore:        keyStore,
 		keyResolver:     resolver.DIDKeyResolver{Resolver: didStore},
 		serviceResolver: resolver.DIDServiceResolver{Resolver: didStore},

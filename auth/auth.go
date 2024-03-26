@@ -72,11 +72,6 @@ func (auth *Auth) Config() interface{} {
 	return &auth.config
 }
 
-// V2APIEnabled returns true if the v2 API is enabled
-func (auth *Auth) V2APIEnabled() bool {
-	return auth.config.V2APIEnabled
-}
-
 // PublicURL returns the public URL of the node.
 func (auth *Auth) PublicURL() *url.URL {
 	return auth.publicURL
@@ -141,11 +136,6 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidity:      contractValidity,
 		StrictMode:            config.Strictmode,
 	}, auth.vcr, resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}, auth.keyStore, auth.jsonldManager, auth.pkiProvider)
-
-	tlsEnabled := config.TLS.Enabled()
-	if config.Strictmode && !tlsEnabled {
-		return errors.New("in strictmode TLS must be enabled")
-	}
 
 	auth.tlsConfig, err = auth.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 	if err != nil {

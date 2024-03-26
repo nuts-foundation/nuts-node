@@ -37,8 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
 	"github.com/nuts-foundation/nuts-node/auth/services/irma"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned"
-	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
-	"github.com/nuts-foundation/nuts-node/auth/services/x509"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/pki"
@@ -179,28 +177,6 @@ func (n *notary) Configure() error {
 
 		n.verifiers[dummy.VerifiablePresentationType] = d
 		n.signers[dummy.ContractFormat] = d
-	}
-
-	if n.config.hasContractValidator(uzi.ContractFormat) {
-		truststore, err := x509.LoadUziTruststore(x509.UziAcceptation)
-		if err != nil {
-			return err
-		}
-
-		// seed pkiValidator with uzi certificate chain
-		err = n.pkiValidator.AddTruststore(truststore.Certificates())
-		if err != nil {
-			return fmt.Errorf("could not add uzi certificates to validator: %w", err)
-		}
-
-		uziValidator, err := x509.NewUziValidator(truststore, &contract.StandardContractTemplates, n.pkiValidator)
-		uziVerifier := uzi.Verifier{UziValidator: uziValidator}
-
-		if err != nil {
-			return fmt.Errorf("could not initiate uzi validator: %w", err)
-		}
-
-		n.verifiers[uzi.VerifiablePresentationType] = uziVerifier
 	}
 
 	if n.config.hasContractValidator(selfsigned.ContractFormat) {

@@ -27,7 +27,6 @@ import (
 
 	"github.com/privacybydesign/irmago/server/irmaserver"
 
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
 
@@ -153,7 +152,6 @@ func TestService_SigningSessionStatus(t *testing.T) {
 
 type mockContext struct {
 	ctrl       *gomock.Controller
-	signer     *crypto.MockJWTSigner
 	vcResolver *vcr.MockResolver
 	service    *Signer
 }

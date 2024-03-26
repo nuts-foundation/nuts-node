@@ -35,7 +35,8 @@ import (
 func TestQueue_register(t *testing.T) {
 	t.Run("creates a subContext", func(t *testing.T) {
 		q := peerQueue{}
-		ctx, _ := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		sub := q.registerContext(ctx)
 

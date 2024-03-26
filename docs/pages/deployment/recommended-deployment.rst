@@ -3,10 +3,10 @@
 Recommended Deployment
 ######################
 
-This document aims to describe the systems and their components involved in deploying a Nuts node in a production environment.
-The target audience are engineers that want to deploy a Nuts Node in their environment for a Service Provider (SP).
+This document describes the systems and their components involved in deploying a Nuts node in a production environment.
+The target audience are engineers that want to deploy a Nuts Node.
 
-It does not detail services and interfaces specified by Bolts: those should be documented by the particular Bolts and should be regarded as extensions to the deployment described here.
+It does not detail services and interfaces specified by use cases: those should be documented by the particular use case and should be regarded as extensions to the deployment described here.
 
 The container diagram documents the recommended way of deploying a Nuts node using the features supported by the Nuts node's version.
 
@@ -15,124 +15,152 @@ The diagrams are in `C4 model <https://c4model.com/>`_ notation.
 System Landscape
 ****************
 
-The diagram below depicts the users and systems that interact with the Nuts node of the local SP.
+The diagram below depicts the actors that interact with the Nuts node of the local party.
 
 .. image:: ../../_static/images/diagrams/deployment-diagram-System-Landscape-Diagram.svg
 
 Containers
 **********
 
-This section details the system with involved containers (which can be native or containerized processes, physical or remote database servers or even networked filesystems).
+This section details the system with involved containers (which can be native or containerized processes, physical or remote database servers).
 It lists the interfaces of the Nuts node, who uses them and how they should be secured.
 
 .. image:: ../../_static/images/diagrams/deployment-diagram-Container-Diagram.svg
-
-.. note::
-
-    There are features that might change the recommended deployment, e.g.:
-
-    * Clustering support
 
 Nuts Node
 ^^^^^^^^^
 
 Server that implements the Nuts specification that connects to the Nuts network. It will usually run as Docker container or Kubernetes pod.
 
-Interfaces/Endpoints
---------------------
+It is interacted with through HTTP by internal and external actors. Internal actors typically include:
 
-* **HTTP /internal**: for managing everything related to DIDs, VCs and the Nuts Node itself. Very sensitive endpoints with no additional built-in security, so care should be taken that no unauthorized parties can access it.
-  Since it binds to the shared HTTP interface by default (port ``1323``),
-  it is recommended to :ref:`bind it to an alternative interface <production-configuration>` to securer routing.
+* Administrative applications (e.g. customer management application in a multi-tenant environment)
+* Ops tooling (e.g. metric collectors)
+* Resource viewer/consumer application that wants to access protected resources at a remote party
 
-  *Users*: operators, SPs administrative and EHR applications.
+The APIs these internal actors use are on the "internal" HTTP interface, which is bound to ``127.0.0.1:8081`` by default.
 
-  *Security*: restrict access through network separation and platform authentication.
+External actors typically include:
 
-* **HTTP /public**: for accessing public services, e.g. IRMA authentication.
+* Verifiable Credential issuers, verifiers and/or wallets
+* OAuth2 client applications (e.g. a viewer accessing a protected resource on the Resource Server)
 
-  *Users*: IRMA app.
+The APIs these external actors use are on the "public" HTTP interface, which is bound to ``:8080`` by default.
 
-  *Security*: HTTPS with **publicly trusted** server certificate (on proxy). Monitor traffic to detect attacks.
+Public Endpoints
+----------------
+This section describes HTTP endpoints that need to be reachable for third parties.
+These HTTP endpoints are available on ``:8080``.
 
-* **HTTP /n2n**: for providing Nuts services to other nodes (e.g. creating access tokens).
-  The local node also calls other nodes on their `/n2n` endpoint, these outgoing calls are subject to the same security requirements.
+* **/iam**: for resolving DID documents.
 
-  *Users*: Nuts nodes of other SPs.
+   *Users*: Verifiable Credential issuers and verifiers, OAuth2 client applications (e.g. other Nuts nodes, resource viewers)
 
-  *Security*: HTTPS with server- and client certificates (mTLS) **according to network trust anchors** (on proxy). Monitor traffic to detect attacks.
+   *Security*: HTTPS with **publicly trusted** server certificate (on proxy).
 
-* **gRPC**: for communicating with other Nuts nodes according to the network protocol. Uses HTTP/2 as transport, both outbound and inbound.
+* **/oauth2**: for accessing OAuth2 and OpenID services.
 
-  *Users*: Nuts nodes of other SPs.
+   *Users*: Verifiable Credential issuers and verifiers, OAuth2 client applications (e.g. other Nuts nodes, resource viewers)
 
-  *Security*: HTTPS with server- and client certificates (mTLS) **according to network trust anchors** (on proxy). This is provided by the Nuts node.
+   *Security*: HTTPS with **publicly trusted** server certificate (on proxy). Monitor traffic to detect attacks.
 
-* **HTTP /status**: for inspecting the health of the server, returns ``OK`` if healthy.
+* **/.well-known**: for resolving DID documents, OpenID and OAuth2 metadata
 
-  *Users*: monitoring tooling.
+   *Users*: Other Nuts nodes, Verifiable Credential issuers and verifiers.
 
-  *Security*: Not strictly required, but advised to restrict access.
+   *Security*: HTTPS with **publicly trusted** server certificate (on proxy).
 
-* **HTTP /status/diagnostics**: for inspecting diagnostic information of the server.
+* **/statuslist**: for retrieving the Verifiable Credential revocations.
 
-  *Users*: monitoring tooling, system administrators.
+   *Users*: Verifiable Credential verifiers (e.g. other Nuts nodes).
 
-  *Security*: Not strictly required, but advised to restrict access.
+   *Security*: HTTPS with **publicly trusted** server certificate (on proxy).
 
-* **HTTP /metrics**: for scraping metrics in Prometheus format.
+Internal Endpoints
+------------------
+This section describes HTTP endpoints that must only be reachable by your own applications integrating with the Nuts node.
+These endpoints are by default available on ``127.0.0.1:8081``.
+If you need to access them from another host, you can bind it to a different interface (e.g. ``:8081`` for all interfaces).
 
-  *Users*: monitoring/metrics tooling.
+* **/internal**: for managing everything related to DIDs, VCs and the Nuts Node itself. Very sensitive endpoints with no additional built-in security, so care should be taken that no unauthorized parties can access it.
 
-  *Security*: Not strictly required, but advised to restrict access.
+   *Users*: operators, administrative and resource owner applications.
 
-* **stdout**: the server logs to standard out, which can be configured to output in JSON format for integration with existing log tooling.
+   *Security*: restrict access through network separation and platform authentication.
 
-Subdomains
-----------
+* **/status**: for inspecting the health of the server, returns ``OK`` if healthy.
 
-There are several endpoints that need to be accessed by external systems.
-You typically configure 2 subdomains for these, given `example.com` and the acceptance environment:
+   *Users*: monitoring tooling.
 
-* `nuts-acc.example.com` for traffic between nodes:
+   *Security*: restrict access through network separation.
 
-   * HTTP traffic to ``/n2n``
+* **/status/diagnostics**: for inspecting diagnostic information of the server.
 
-   * gRPC traffic, which will have to be bound on a separate port, e.g. ``5555`` (default).
+   *Users*: monitoring tooling, system administrators.
 
-* ``nuts-public-acc.example.com`` for HTTP traffic to ``/public``
+   *Security*: restrict access through network separation.
 
-These exact subdomain names are by no means required and can be adjusted to your organization's requirements.
+* **/metrics**: for scraping metrics in Prometheus format.
 
-Reverse Proxy
-^^^^^^^^^^^^^
+   *Users*: monitoring/metrics tooling.
 
-Process that protects and routes HTTP and gRPC access (specified above) to the Nuts Node. Typically a standalone HTTP proxy (e.g. NGINX or HAProxy) that resides in a DMZ and/or an ingress service on a cloud platform.
-It will act as TLS terminator, with only a server certificate or requiring a client certificate as well (depending on the endpoint).
+   *Security*: restrict access through network separation.
 
-When terminating TLS on this proxy, make sure to properly verify client certificates for gRPC traffic and HTTP calls to ``/n2n``.
-HTTP calls to ``/public`` require a publicly trusted certificate, because mobile devices will query it (the IRMA app).
+* **/health:** for checking the health of the server, returns ``OK`` if healthy.
 
-The Nuts Node looks for a header called ``X-Forwarded-For`` to determine the client IP when logging HTTP and gRPC calls.
+   *Users*: Docker or Kubernetes health checks.
+
+   *Security*: restrict access through network separation.
+
+Legacy Endpoints
+----------------
+
+There are deprecated endpoints that are still supported for backwards compatibility.
+If your use case does not require ``did:nuts`` DIDs and/or the gRPC network, you can limit/disable access to these endpoints.
+
+* **/n2n** (public): for providing Nuts services to other nodes (e.g. creating access tokens).
+   The local node also calls other nodes on their ``/n2n`` endpoint, these outgoing calls are subject to the same security requirements.
+
+   *Users*: Other Nuts nodes.
+
+   *Security*: HTTPS with server- and client certificates (mTLS) **according to network trust anchors** (on proxy). Monitor traffic to detect attacks.
+
+* **/public** (public): for accessing public services, e.g. IRMA authentication.
+
+   *Users*: IRMA app.
+
+   *Security*: HTTPS with **publicly trusted** server certificate (on proxy). Monitor traffic to detect attacks.
+
+* **gRPC**: for communicating with other Nuts nodes according to the network protocol. Uses HTTP/2 on port ``5555`` as transport, both outbound and inbound.
+
+   *Users*: Other Nuts nodes.
+
+   *Security*: HTTPS with server- and client certificates (mTLS) **according to network trust anchors** (on proxy). This is provided by the Nuts node.
+
+Proxy / API Gateway
+^^^^^^^^^^^^^^^^^^^
+
+Process that protects and routes HTTP (specified above) to the Nuts Node.
+Typically a standalone HTTP proxy (e.g. NGINX or HAProxy) that resides in a DMZ and/or an ingress service on a cloud platform.
+It will act as TLS terminator.
+
+The Nuts Node looks for a header called ``X-Forwarded-For`` to determine the client IP when logging calls.
 Refer to the documentation of your proxy on how to set this header.
 
-Nuts Node Client
-^^^^^^^^^^^^^^^^
+This process can also act as API Gateway to give external parties access to the Resource Server.
+This API Gateway should then introspect the OAuth2 access token at the Nuts node and perform additional authorization checks (depending on the use case).
 
-CLI application used by system administrators to manage the Nuts Node and the SPs presence on the network, which calls the REST API of the Nuts Node.
-It is included in the Nuts Node server, so it can be executed in the Docker container (using ``docker exec``) or standalone process.
+Data storage
+^^^^^^^^^^^^
 
-Database
-^^^^^^^^
-
-BBolt database where the Nuts Node stores its data. The database is on disk (by default in ``/opt/nuts/data``) so make sure the data is retained, especially in a cloud environment.
-It is recommended to backup the database using the provided backup feature (see config options of the storage engine).
+Primary data storage for all persistent data other than private keys. By default, it stores data on-disk using SQLite.
+For production, MySQL or Postgres is recommended.
 
 Private Key Storage
 ^^^^^^^^^^^^^^^^^^^
 
 Creating DID documents causes private keys to be generated, which need to be safely stored so the Nuts node can access them.
-It is recommended to store them in `Vault <https://www.vaultproject.io/>`_.
+It is recommended to store them in `Vault <https://www.vaultproject.io/>`_ or other secure key store.
 Refer to the config options of the crypto engine and `Vault documentation <https://www.vaultproject.io/docs>`_ for configuring it.
 
 Production Checklist
@@ -140,19 +168,38 @@ Production Checklist
 
 Below is a list of items that should be addressed when running a node in production:
 
-- TLS
+- Reverse proxy
    - Use a proxy in front of the node which terminates TLS
-   - Require client certificate on HTTP ``/n2n`` and gRPC endpoints.
-   - Make sure only correct CA certificates are in truststore (depends on network)
+   - Make sure the reverse proxy sends the ``X-Forwarded-For`` header to log correct IP addresses
 - Key Management
    - Have a scheduled key rotation procedure
 - Backup Management
-   - Make sure data is backed up
+   - Make sure data is backed up (data stored in SQL and private keys)
    - Have a tested backup/restore procedure
 - Configuration
-   - Make sure ``strictmode`` is enabled
+   - Make sure ``strictmode`` is enabled (default)
 - Security
-   - Only allow public access to ``/public``, ``/n2n`` and gRPC endpoints (but the latter 2 still require a client certificate).
-   - Make sure ``/internal`` is properly protected
+   - If not using ``did:nuts``, prevent access to:
+      - The gRPC endpoint (e.g. by not mapping it in Docker).
+      - The public ``/n2n`` and ``/public`` endpoints on HTTP ``:8080``. See the v5 documentation for deployments still using ``did:nuts``.
+   - Make sure internal HTTP endpoints (``:8081``) are not available from the outside.
+   - Consider protecting ``/internal`` with API authentication.
 - Availability
-   - Consider (D)DoS detection and protection for ``/public``, ``/n2n`` and gRPC endpoints
+   - Consider (D)DoS detection and protection for the ``/oauth2`` HTTP endpoints.
+
+Resource Requirements
+*********************
+
+The Nuts node is built to be lightweight in terms of CPU and memory usage.
+
+For a production environment you should be able to easily run it on a small cloud VM, which typically start at;
+
+- 1 CPU
+- 512 MB RAM
+- 25 GB storage
+
+SQL storage size is influenced by:
+
+- the number of DIDs created on the node
+- the number of credentials issued or held
+- the size (participating parties) and number of use cases

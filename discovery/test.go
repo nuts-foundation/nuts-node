@@ -171,7 +171,7 @@ func createPresentationCustom(subjectDID did.DID, visitor func(claims map[string
 		jws.TypeKey: "JWT",
 	}
 	innerVP := &vc.VerifiablePresentation{
-		Type:                 append([]ssi.URI{ssi.MustParseURI("VerifiablePresentation")}),
+		Type:                 []ssi.URI{ssi.MustParseURI("VerifiablePresentation")},
 		VerifiableCredential: credentials,
 	}
 	claims := map[string]interface{}{

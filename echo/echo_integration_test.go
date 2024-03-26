@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/test/node"
@@ -44,7 +45,7 @@ type operation struct {
 func TestStatusCodes(t *testing.T) {
 	t.Run("404s", func(t *testing.T) {
 		hook := logTest.NewGlobal()
-		baseUrl, _ := node.StartServer(t)
+		internalBaseURL, externalBaseURL, _ := node.StartServer(t)
 
 		testCases := []operation{
 			{module: "Auth", operation: "GetSignSessionStatus", url: "/internal/auth/v1/signature/session/1"},
@@ -58,11 +59,19 @@ func TestStatusCodes(t *testing.T) {
 		}
 
 		for _, testCase := range testCases {
-			resp, err := http.Get(fmt.Sprintf("%s%s", baseUrl, testCase.url))
+			t.Run(fmt.Sprintf("%s %s", testCase.module, testCase.operation), func(t *testing.T) {
+				var baseUrl string
+				if strings.HasPrefix(testCase.url, "/internal") {
+					baseUrl = internalBaseURL
+				} else {
+					baseUrl = externalBaseURL
+				}
+				resp, err := http.Get(fmt.Sprintf("%s%s", baseUrl, testCase.url))
 
-			require.NoError(t, err)
-			assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-			assert.True(t, containsLogEntry(hook, testCase))
+				require.NoError(t, err)
+				assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+				assert.True(t, containsLogEntry(hook, testCase))
+			})
 		}
 	})
 	t.Run("400s", func(t *testing.T) {
@@ -73,19 +82,27 @@ func TestStatusCodes(t *testing.T) {
 		}
 
 		for _, testCase := range testCases {
-			hook := logTest.NewGlobal()
-			baseUrl, _ := node.StartServer(t)
-			var resp *http.Response
-			var err error
-			if testCase.body != nil {
-				body, _ := json.Marshal(testCase.body)
-				resp, err = http.Post(fmt.Sprintf("%s%s", baseUrl, testCase.url), "application/json", bytes.NewReader(body))
-			} else {
-				resp, err = http.Get(fmt.Sprintf("%s%s", baseUrl, testCase.url))
-			}
-			require.NoError(t, err)
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-			assert.True(t, containsLogEntry(hook, testCase))
+			t.Run(fmt.Sprintf("%s %s", testCase.module, testCase.operation), func(t *testing.T) {
+				hook := logTest.NewGlobal()
+				internalBaseURL, externalBaseURL, _ := node.StartServer(t)
+				var baseUrl string
+				if strings.HasPrefix(testCase.url, "/internal") {
+					baseUrl = internalBaseURL
+				} else {
+					baseUrl = externalBaseURL
+				}
+				var resp *http.Response
+				var err error
+				if testCase.body != nil {
+					body, _ := json.Marshal(testCase.body)
+					resp, err = http.Post(fmt.Sprintf("%s%s", baseUrl, testCase.url), "application/json", bytes.NewReader(body))
+				} else {
+					resp, err = http.Get(fmt.Sprintf("%s%s", baseUrl, testCase.url))
+				}
+				require.NoError(t, err)
+				assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+				assert.True(t, containsLogEntry(hook, testCase))
+			})
 		}
 	})
 }

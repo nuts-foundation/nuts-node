@@ -45,6 +45,5 @@ func FlagSet() *pflag.FlagSet {
 	flags.String(ConfEventsHostname, defs.Nats.Hostname, "Hostname for the NATS server")
 	flags.String(ConfEventsStorageDir, defs.Nats.StorageDir, "Directory where file-backed streams are stored in the NATS server")
 	flags.Int(ConfEventsTimeout, defs.Nats.Timeout, "Timeout for NATS server operations")
-
 	return flags
 }
