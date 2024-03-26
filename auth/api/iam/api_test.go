@@ -153,6 +153,44 @@ func TestWrapper_GetUserWebDID(t *testing.T) {
 	})
 }
 
+func TestWrapper_GetRootWebDID(t *testing.T) {
+	ctx := audit.TestContext()
+	expectedWebDIDDoc := did.Document{
+		ID: rootWebDID,
+	}
+	// remarshal expectedWebDIDDoc to make sure in-memory format is the same as the one returned by the API
+	data, _ := json.Marshal(expectedWebDIDDoc)
+	_ = expectedWebDIDDoc.UnmarshalJSON(data)
+
+	t.Run("ok", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdr.EXPECT().ResolveManaged(rootWebDID).Return(&expectedWebDIDDoc, nil)
+
+		response, err := test.client.GetRootWebDID(ctx, GetRootWebDIDRequestObject{})
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetRootWebDID200JSONResponse)))
+	})
+	t.Run("unknown DID", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdr.EXPECT().ResolveManaged(rootWebDID).Return(nil, resolver.ErrNotFound)
+
+		response, err := test.client.GetRootWebDID(ctx, GetRootWebDIDRequestObject{})
+
+		assert.NoError(t, err)
+		assert.IsType(t, GetRootWebDID404Response{}, response)
+	})
+	t.Run("other error", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdr.EXPECT().ResolveManaged(rootWebDID).Return(nil, errors.New("failed"))
+
+		response, err := test.client.GetRootWebDID(ctx, GetRootWebDIDRequestObject{})
+
+		assert.EqualError(t, err, "unable to resolve DID")
+		assert.Nil(t, response)
+	})
+}
+
 func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
