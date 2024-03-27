@@ -104,6 +104,19 @@ type TokenIntrospectionResponse struct {
 // TokenIntrospectionResponseAssuranceLevel Assurance level of the identity of the End-User.
 type TokenIntrospectionResponseAssuranceLevel string
 
+// UserDetails Claims about the user, when not using an OpenID Connect Identity Provider.
+// Specified according to https://www.iana.org/assignments/jwt/jwt.xhtml
+type UserDetails struct {
+	// Id Machine-readable identifier, uniquely identifying the user in the issuing system.
+	Id string `json:"id"`
+
+	// Name Human-readable name of the user.
+	Name string `json:"name"`
+
+	// Role Role of the user.
+	Role string `json:"role"`
+}
+
 // RequestServiceAccessTokenJSONBody defines parameters for RequestServiceAccessToken.
 type RequestServiceAccessTokenJSONBody struct {
 	// Scope The scope that will be the service for which this access token can be used.
@@ -113,6 +126,10 @@ type RequestServiceAccessTokenJSONBody struct {
 
 // RequestUserAccessTokenJSONBody defines parameters for RequestUserAccessToken.
 type RequestUserAccessTokenJSONBody struct {
+	// PreauthorizedUser Claims about the user, when not using an OpenID Connect Identity Provider.
+	// Specified according to https://www.iana.org/assignments/jwt/jwt.xhtml
+	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
+
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
 	// This is the URL of the calling application.
 	// The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
@@ -120,9 +137,6 @@ type RequestUserAccessTokenJSONBody struct {
 
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
-
-	// UserId The ID of the user for which this access token is requested.
-	UserId string `json:"user_id"`
 
 	// Verifier The DID of the verifier, the relying party for which this access token is requested.
 	Verifier string `json:"verifier"`

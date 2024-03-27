@@ -39,8 +39,15 @@ type OAuthSession struct {
 	ServerState            ServerState
 	ResponseType           string
 	PresentationDefinition PresentationDefinition
-	UserID                 string
 	VerifierDID            *did.DID
+	Wallet                 SessionWallet
+}
+
+// SessionWallet is a session-bound Verifiable Credential wallet.
+type SessionWallet struct {
+	Credentials []vc.VerifiableCredential
+	// JWK is an in-memory key pair associated with the user's wallet in JWK form.
+	JWK []byte
 }
 
 // ServerState is a convenience type for extracting different types of data from the session.
