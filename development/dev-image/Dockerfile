@@ -11,7 +11,7 @@ COPY --from=nutsnode /usr/bin/nuts /usr/bin/nuts
 RUN chmod +x /usr/bin/nuts
 
 HEALTHCHECK --start-period=60s --timeout=5s --interval=10s \
-    CMD curl -f http://localhost:8081/health || exit 1
+    CMD curl -f http://localhost:8081/status || exit 1
 
 EXPOSE 8080 8081 5555
 ENTRYPOINT ["/entrypoint.sh"]
