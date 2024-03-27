@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -26,8 +27,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"net/http"
 	"time"
 
@@ -86,11 +91,10 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// TODO: Here, support for OpenID Connect can be added in the future
-	userJWK, err := generateUserSessionJWK()
+	wallet, err := r.createUserSessionWallet(echoCtx.Request().Context(), *verifier, *accessTokenRequest.Body.PreauthorizedUser)
 	if err != nil {
-		return err
+		return fmt.Errorf("create user session wallet: %w", err)
 	}
-	r.issueEmployeeCredential(accessTokenRequest.Body.PreauthorizedUser)
 
 	// burn token
 	err = store.Delete(token)
@@ -106,7 +110,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		VerifierDID: verifier,
 		SessionID:   redirectSession.SessionID,
 		RedirectURI: accessTokenRequest.Body.RedirectUri,
-		UserDetails: *accessTokenRequest.Body.PreauthorizedUser,
+		Wallet:      *wallet,
 	}
 	// store user session in session store under sessionID and clientState
 	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession)
@@ -145,8 +149,47 @@ func (r Wrapper) oauthCodeStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthCodeKey...)
 }
 
-func (r Wrapper) createUserSessionWallet(userDetails UserDetails) (*SessionWallet, error) {
-
+func (r Wrapper) createUserSessionWallet(ctx context.Context, issuerDID did.DID, userDetails UserDetails) (*SessionWallet, error) {
+	userJWK, userDID, err := generateUserSessionJWK()
+	if err != nil {
+		return nil, err
+	}
+	userJWKBytes, err := json.Marshal(userJWK)
+	if err != nil {
+		return nil, err
+	}
+	// create user session wallet
+	wallet := SessionWallet{
+		JWK: userJWKBytes,
+	}
+	issuanceDate := time.Now()
+	expirationData := issuanceDate.Add(userSessionTimeout)
+	template := vc.VerifiableCredential{
+		Context:        []ssi.URI{credential.NutsV1ContextURI},
+		Type:           []ssi.URI{ssi.MustParseURI("EmployeeCredential")},
+		Issuer:         issuerDID.URI(),
+		IssuanceDate:   &issuanceDate,
+		ExpirationDate: &expirationData,
+		CredentialSubject: []interface{}{
+			map[string]string{
+				"id":         userDID.String(),
+				"identifier": userDetails.Id,
+				"name":       userDetails.Name,
+				"roleName":   userDetails.Role,
+			},
+		},
+	}
+	employeeCredential, err := r.vcr.Issuer().Issue(ctx, template, issuer.CredentialOptions{
+		Format:                   vc.JWTCredentialProofFormat,
+		Publish:                  false,
+		Public:                   false,
+		WithStatusListRevocation: false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("issue EmployeeCredential: %w", err)
+	}
+	wallet.Credentials = append(wallet.Credentials, *employeeCredential)
+	return &wallet, nil
 }
 
 func generateUserSessionJWK() (jwk.Key, *did.DID, error) {
