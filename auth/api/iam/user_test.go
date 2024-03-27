@@ -35,14 +35,16 @@ import (
 func TestWrapper_handleUserLanding(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
-	userID := "user"
+	userDetails := UserDetails{
+		Id: "test",
+	}
 	redirectSession := RedirectSession{
 		OwnDID: walletDID,
 		AccessTokenRequest: RequestUserAccessTokenRequestObject{
 			Body: &RequestUserAccessTokenJSONRequestBody{
-				Scope:    "first second",
-				UserId:   userID,
-				Verifier: verifierDID.String(),
+				Scope:             "first second",
+				PreauthorizedUser: &userDetails,
+				Verifier:          verifierDID.String(),
 			},
 			Did: walletDID.String(),
 		},
@@ -103,9 +105,9 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			OwnDID: walletDID,
 			AccessTokenRequest: RequestUserAccessTokenRequestObject{
 				Body: &RequestUserAccessTokenJSONRequestBody{
-					Scope:    "first second",
-					UserId:   userID,
-					Verifier: "invalid",
+					Scope:             "first second",
+					PreauthorizedUser: &userDetails,
+					Verifier:          "invalid",
 				},
 				Did: walletDID.String(),
 			},

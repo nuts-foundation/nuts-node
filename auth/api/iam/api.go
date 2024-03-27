@@ -528,9 +528,9 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}
 
 	if request.Body.PreauthorizedUser == nil {
-		return nil, core.InvalidInputError("missing userID")
+		return nil, core.InvalidInputError("missing preauthorized_user")
 	}
-	// require RedirectURL
+
 	if request.Body.RedirectUri == "" {
 		return nil, core.InvalidInputError("missing redirect_uri")
 	}

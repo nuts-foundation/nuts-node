@@ -788,6 +788,15 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		err = ctx.client.accessTokenClientStore().Get(redirectResponse.SessionId, &tokenResponse)
 		assert.Equal(t, oauth.AccessTokenRequestStatusPending, *tokenResponse.Status)
 	})
+	t.Run("error - missing preauthorized_user", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", RedirectUri: redirectURI}
+
+		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.EqualError(t, err, "missing preauthorized_user")
+	})
 	t.Run("error - invalid DID", func(t *testing.T) {
 		ctx := newTestClient(t)
 
