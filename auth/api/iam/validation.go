@@ -83,7 +83,7 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 //
 // Errors are returned as OAuth2 errors.
 func (r Wrapper) validatePresentationSubmission(ctx context.Context, authorizer did.DID, scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (map[string]vc.VerifiableCredential, *PresentationDefinition, error) {
-	definition, err := r.policyBackend.PresentationDefinition(ctx, authorizer, scope)
+	definitions, err := r.policyBackend.PresentationDefinitions(ctx, authorizer, scope)
 	if err != nil {
 		if errors.Is(err, policy.ErrNotFound) {
 			return nil, nil, oauth.OAuth2Error{
@@ -97,6 +97,18 @@ func (r Wrapper) validatePresentationSubmission(ctx context.Context, authorizer 
 			InternalError: err,
 			Description:   fmt.Sprintf("failed to retrieve presentation definition for scope (%s): %s", scope, err.Error()),
 		}
+	}
+
+	// todo, for now take the organization definition
+	var definition *pe.PresentationDefinition
+	for _, def := range definitions {
+		if def.AudienceType == pe.AudienceTypeOrganization {
+			definition = &def.PresentationDefinition
+			break
+		}
+	}
+	if definition == nil {
+		return nil, nil, oauthError(oauth.ServerError, "no presentation definition found for organization wallet")
 	}
 
 	credentialMap, err := submission.Validate(*pexEnvelope, *definition)

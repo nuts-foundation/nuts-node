@@ -29,6 +29,9 @@ type PresentationDefinition = pe.PresentationDefinition
 // PresentationSubmission is a type alias for the PresentationSubmission from the nuts-node/vcr/pe package.
 type PresentationSubmission = pe.PresentationSubmission
 
+// MultiPEX is a type alias for the MultiPEX from the nuts-node/policy package.
+type MultiPEX = pe.MultiPEX
+
 // AuthorizedRequest contains the information about the request
 type AuthorizedRequest struct {
 	// Audience contains the audience of the access token. This is the identifier (DID) of the authorizer and issuer of the access token.

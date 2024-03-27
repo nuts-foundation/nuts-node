@@ -38,6 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
@@ -119,7 +120,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
 	ctx.Set(core.OperationIDContextKey, operationID)
 	ctx.Set(core.ModuleNameContextKey, apiModuleName)
-	
+
 	// Add http.Request to context, to allow reading URL query parameters
 	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
@@ -453,7 +454,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		return nil, err
 	}
 
-	presentationDefinition, err := r.policyBackend.PresentationDefinition(ctx, *authorizer, request.Params.Scope)
+	definitions, err := r.policyBackend.PresentationDefinitions(ctx, *authorizer, request.Params.Scope)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidScope,
@@ -461,7 +462,18 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		}
 	}
 
-	return PresentationDefinition200JSONResponse(*presentationDefinition), nil
+	var definition *pe.PresentationDefinition
+	for _, def := range definitions {
+		if def.AudienceType == pe.AudienceTypeOrganization {
+			definition = &def.PresentationDefinition
+			break
+		}
+	}
+	if definition == nil {
+		return nil, oauthError(oauth.ServerError, "no presentation definition found for organization wallet")
+	}
+
+	return PresentationDefinition200JSONResponse(*definition), nil
 }
 
 // toOwnedDIDForOAuth2 is like toOwnedDID but wraps the errors in oauth.OAuth2Error to make sure they're returned as specified by the OAuth2 RFC.

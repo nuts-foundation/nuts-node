@@ -35,7 +35,7 @@ func TestStore_LoadFromFile(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Len(t, store.mapping, 1)
-		assert.NotNil(t, store.mapping["eOverdracht-overdrachtsbericht"])
+		assert.NotNil(t, store.mapping["example-scope"])
 	})
 
 	t.Run("returns an error if the file doesn't exist", func(t *testing.T) {
@@ -59,7 +59,7 @@ func TestStore_ByScope(t *testing.T) {
 	t.Run("err - not found", func(t *testing.T) {
 		store := localPDP{}
 
-		_, err := store.PresentationDefinition(context.Background(), did.DID{}, "eOverdracht-overdrachtsbericht2")
+		_, err := store.PresentationDefinitions(context.Background(), did.DID{}, "example-scope2")
 
 		assert.Equal(t, ErrNotFound, err)
 	})
@@ -69,7 +69,7 @@ func TestStore_ByScope(t *testing.T) {
 		err := store.loadFromFile("test/definition_mapping.json")
 		require.NoError(t, err)
 
-		result, err := store.PresentationDefinition(context.Background(), did.DID{}, "eOverdracht-overdrachtsbericht")
+		result, err := store.PresentationDefinitions(context.Background(), did.DID{}, "example-scope")
 
 		require.NoError(t, err)
 		assert.NotNil(t, result)

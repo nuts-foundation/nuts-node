@@ -155,6 +155,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		values[oauth.StateParam] = state
 	}
 	authServerURL, err := r.auth.IAMClient().CreateAuthorizationRequest(ctx, verifier, *walletDID, modifier)
+	// TODO WIP: add PEX IDs completed to the storage, use server state for this
 	openid4vpRequest := OAuthSession{
 		ClientID:    walletID,
 		Scope:       params.get(oauth.ScopeParam),
@@ -427,6 +428,8 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		}
 	}
 
+	// TODO WIP if not all PEX Ids have a submission, send another auth request with a new nonce
+
 	// we take the existing OAuthSession and add the credential map to it
 	// the credential map contains InputDescriptor.Id -> VC mappings
 	// todo: use the InputDescriptor.Path to map the Id to Value@JSONPath since this will be later used to set the state for the access token
@@ -542,9 +545,20 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, verifier did.DID,
 
 	presentations := oauthSession.ServerState.VerifiablePresentations()
 	submission := oauthSession.ServerState.PresentationSubmission()
-	definition, err := r.policyBackend.PresentationDefinition(ctx, verifier, oauthSession.Scope)
+	definitions, err := r.policyBackend.PresentationDefinitions(ctx, verifier, oauthSession.Scope)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to fetch presentation definition: %s", err.Error())), callbackURI)
+	}
+	// todo, for now take the organization definition
+	var definition *pe.PresentationDefinition
+	for _, def := range definitions {
+		if def.AudienceType == pe.AudienceTypeOrganization {
+			definition = &def.PresentationDefinition
+			break
+		}
+	}
+	if definition == nil {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "no presentation definition found for organization wallet"), callbackURI)
 	}
 	credentialMap := oauthSession.ServerState.CredentialMap()
 	subject, _ := did.ParseDID(oauthSession.ClientID)
