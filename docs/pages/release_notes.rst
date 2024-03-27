@@ -12,7 +12,7 @@ Peanut (v6.0.0)
 Breaking
 ********
 
-- Container user has changed from root to 18081.
+- Container user has changed from root to ``18081``. (see :ref:`docker`)
   When migrating from v5, change the owner of the data directory on the host to that of the container's user. (``chown -R 18081:18081 /path/to/host/data-dir``)
 
 New Features
@@ -59,11 +59,7 @@ To simplify HTTP configuration and proxying and make the default more secure, HT
 
 The new HTTP configuration reflects this,
 
-<<<<<<< HEAD
-Note that `8081` by default maps to `127.0.0.1` only, so you might need to configure it to allow it to be accessible from other machines.
-=======
-Note that ``8081`` by default maps to ``localhost`` only, so you might need to configure it to allow it to be accessible from other machines.
->>>>>>> 5a6fcd01 (Add release note)
+Note that ``8081`` by default maps to ``127.0.0.1`` only, so you might need to configure it to allow it to be accessible from other machines.
 
 ************************
 Hazelnut update (v5.4.6)

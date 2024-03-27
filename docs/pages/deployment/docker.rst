@@ -3,8 +3,7 @@
 Running on Docker
 #################
 
-If you already use Docker, the easiest way to get your Nuts Node up and running for development or production is
-using Docker. This guide helps you to configure the Nuts node in Docker.
+This guide helps you to configure the Nuts node in Docker.
 To use the most recent release use ``nutsfoundation/nuts-node:latest``. For production environments it's advised to use a specific version.
 
 User
@@ -12,7 +11,7 @@ User
 
 The default user in the container is ``18081`` that is only part of group ``18081``.
 This is a regular user without root privileges to provide an additional level of security.
-See the section below how to manage privileges needed by the nuts-node.
+If ``datadir`` config value points to a mounted directory, see the section below how to manage privileges needed by the nuts-node.
 
 Volume mounts
 *************
@@ -47,7 +46,7 @@ The default working directory within the container is ``/nuts`` that provides de
 
 Examples
 ********
-The examples assume the current working directory on the host contains te following structure:
+The examples assume the current working directory on the host contains the following structure:
 
 .. code-block:: none
 
@@ -81,7 +80,7 @@ This setup uses the following ``nuts.yaml`` configuration file:
     The command above uses ``pwd`` and ``bash`` functions, which do not work on Windows. If running on Windows replace
     it with the path of the working directory.
     
-    If your use case makes use of did:nuts DIDs, you also need to map port ``5555``, which is used for gRPC traffic by the Nuts network.
+    If your use case makes use of ``did:nuts`` DIDs, you also need to map port ``5555``, which is used for gRPC traffic by the Nuts network.
 
 You can test whether your Nuts Node is running properly by visiting ``http://localhost:8081/status/diagnostics``. It should
 display diagnostic information about the state of the node.

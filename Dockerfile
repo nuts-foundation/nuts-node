@@ -33,13 +33,13 @@ RUN apk update \
   && apk add --no-cache \
              tzdata \
              curl \
-  && update-ca-certificates \
-  && adduser -D -H -u 18081 nuts-usr
+  && update-ca-certificates
 COPY --from=builder /opt/nuts/nuts /usr/bin/nuts
 
 HEALTHCHECK --start-period=30s --timeout=5s --interval=10s \
     CMD curl -f http://localhost:8081/status || exit 1
 
+RUN adduser -D -H -u 18081 nuts-usr
 USER 18081:18081
 WORKDIR /nuts
 

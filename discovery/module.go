@@ -101,11 +101,16 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 	if m.config.Definitions.Directory == "" {
 		return nil
 	}
-	if _, err := os.Stat(m.config.Definitions.Directory); os.IsNotExist(err) && m.config.Definitions.Directory == DefaultConfig().Definitions.Directory {
-		// assume this is the default config value and do not fail
-		return nil
+	// check if directory exists
+	_, err := os.Stat(m.config.Definitions.Directory)
+	if err != nil {
+		if os.IsNotExist(err) && m.config.Definitions.Directory == DefaultConfig().Definitions.Directory {
+			// assume this is the default config value and do not fail
+			return nil
+		}
+		return fmt.Errorf("failed to load discovery defintions: %w", err)
 	}
-	var err error
+
 	m.allDefinitions, err = loadDefinitions(m.config.Definitions.Directory)
 	if err != nil {
 		return err
