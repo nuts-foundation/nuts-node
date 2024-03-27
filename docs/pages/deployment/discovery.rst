@@ -3,27 +3,69 @@
 Discovery
 #########
 
-.. warning::
-    This feature is under development and subject to change.
-
 Discovery allows parties to publish information about themselves as a Verifiable Presentation,
 so that other parties can discover them for further (data) exchange.
 
-In this Discovery Service protocol there are clients and servers: clients register their Verifiable Presentations on a server,
-which can be queried by other clients.
-Where to find the server and what is allowed in the Verifiable Presentations is defined in a Discovery Service Definition.
-These are JSON documents that are loaded by both client and server.
+A Discovery Service is hosted on a server (also a Nuts node), by an organization that is agreed upon by the parties to be the server for that particular use case.
+The parties implementing that use case then configure their Nuts nodes with the service definition that defines the server.
 
-The Nuts node always acts as client for every loaded service definition, meaning it can register itself on the server and query it.
-It only acts as server for a specific server if configured to do so.
+The service definition is a JSON document agreed upon (and loaded) by all parties that specifies:
 
-Configuration
-*************
+- which Verifiable Credentials are required for the service,
+- where the Discovery Service is hosted, and
+- how often the Verifiable Presentations must be updated.
 
-Service definitions are JSON files loaded from the ``discovery.definitions`` directory.
-It loads all files wih the ``.json`` extension in this directory. It does not load subdirectories.
-If the directory contains JSON files that are not (valid) service definitions, the node will fail to start.
+Service definitions are loaded from the ``discovery.definitions.directory`` directory by both client and server.
+It does not load subdirectories. If the directory contains JSON files that are not (valid) service definitions, the node will fail to start.
 
-To act as server for a specific discovery service definition,
-the service ID from the definition needs to be specified in ``discovery.server.ids``.
+Clients
+*******
+
+Clients will periodically query the Discovery Service for new registrations.
+Applications can then search for entries in the Discovery Service (in this case ``coffeecorner``), e.g.:
+
+.. code-block:: http
+
+    GET /internal/discovery/v1/discovery/coffeecorner/?credentialSubject.name=John%20Doe
+
+Any string property in the Verifiable Credential(s) can be queried, including nested properties.
+Arrays, numbers or booleans are not supported. Wildcards can be used to search for partial matches, e.g. ``Hospital*`` or ``*First``.
+If multiple query parameters are specified, all of them must match a single Verifiable Credential.
+
+Registration
+============
+
+To register a DID on a Discovery Service, the DID must be activated for the service.
+The Nuts node will then register a Verifiable Presentation of the DID on the service, and periodically refresh it.
+E.g., for service ``coffeecorner`` and DID ``did:web:example.com``:
+
+.. code-block:: http
+
+    POST /internal/discovery/v1/coffeecorner/did:web:example.com
+
+The DID's wallet must contain the Verifiable Credential(s) that are required by the service definition,
+otherwise registration will fail. If the wallet does not contain the credentials,
+the Nuts node will retry registration periodically.
+
+Servers
+*******
+To act as server for a specific discovery service, its service ID needs to be specified in ``discovery.server.ids``, e.g.:
+
+.. code-block:: yaml
+
+    discovery:
+      server:
+        ids:
+          - "coffeecorner"
+
 The IDs in this list must correspond to the ``id`` fields of the loaded service definition, otherwise the node will fail to start.
+
+Clients will access the discovery service through ``/discovery`` on the external HTTP interface, so make sure it's available externally.
+
+The endpoint for a Discovery Service MUST be in the following form (unless mapped otherwise in a reverse proxy):
+
+.. code-block:: http
+
+    https://<host>/discovery/<service_id>
+
+Where ``<service_id>`` is the ID of the service, e.g.: ``/discovery/coffeecorner``.
