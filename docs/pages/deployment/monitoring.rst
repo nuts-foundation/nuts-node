@@ -6,10 +6,29 @@ Monitoring
 Health checks
 *************
 
+Status
+------
+
+The status endpoint check that the service has been started. It can be used as a ``readiness probe``.
+It does not provide any information on the individual engines running as part of the executable.
+The main goal of the service is to give a YES/NO answer for if the service is running:
+
+.. code-block:: text
+
+    GET /status
+
+Returns an "OK" response body with status code ``200``.
+
+.. note::
+
+    The provided Docker containers are configured to perform this healthcheck out of the box.
+    However, if the internal endpoints port (:8081) has been changed, the healthcheck will fail and Docker will mark the container as unhealthy.
+    Override the default healthcheck to solve this.
+
 Health
 ------
 
-An endpoint is provided to perform health checks on the Nuts node.
+The health endpoint provides performs more fine grained health checks on the Nuts node. It can be used as a ``liveness probe``.
 It reports in a format compatible with `Spring Boot's Health Actuator <https://docs.spring.io/spring-boot/docs/2.0.x/actuator-api/html/#health>`__.
 The endpoint is available over HTTP:
 
@@ -55,24 +74,6 @@ Example response when one or more checks failed:
       }
     }
 
-.. note::
-
-    The provided Docker containers are configured to perform this healthcheck out of the box.
-    However, if the internal endpoints port (:8081) has been changed, the healthcheck will fail and Docker will mark the container as unhealthy.
-    Override the default healthcheck to solve this.
-
-Status
-------
-
-There's also a status endpoint to check whether the service has been started.
-It does not provide any information on the individual engines running as part of the executable.
-The main goal of the service is to give a YES/NO answer for if the service is running:
-
-.. code-block:: text
-
-    GET /status
-
-Returns an "OK" response body with status code ``200``.
 
 Basic diagnostics
 *****************
@@ -80,6 +81,10 @@ Basic diagnostics
 .. code-block:: text
 
     GET /status/diagnostics
+
+.. note::
+
+    this page is intended to be read by humans, not machines
 
 Returns the status of the various services in ``yaml`` format:
 
