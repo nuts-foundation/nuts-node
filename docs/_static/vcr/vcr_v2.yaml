@@ -139,7 +139,7 @@ paths:
       summary: "Searches for verifiable credentials issued by this node which matches the search params"
       description: >
         The SearchVCResult contains a list of matching credentials regardless of the validity.
-        The entry may contain a revocation which means the credential has been revoked.
+        The entry may contain a revocation if the credential has been revoked with a credential of type CredentialRevocation. 
 
         error returns:
         * 400 - Invalid search parameters
@@ -611,7 +611,10 @@ components:
             $ref: "#/components/schemas/SearchVCResult"
     SearchVCResult:
       type: object
-      description: result of a Search operation.
+      description: |
+        Result of a Search operation.
+        The revocation property may be  if a credential is revoked with a Verifiable Credential of type CredentialRevocation.
+        The absence of a the revocation property does not indicate a valid credential, use the /internal/vcr/v2/verifier/vc API for this.
       required:
         - verifiableCredential
       properties:

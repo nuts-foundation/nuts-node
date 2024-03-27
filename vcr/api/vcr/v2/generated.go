@@ -184,7 +184,9 @@ type SearchVCRequest struct {
 	SearchOptions *SearchOptions         `json:"searchOptions,omitempty"`
 }
 
-// SearchVCResult result of a Search operation.
+// SearchVCResult Result of a Search operation.
+// The revocation property may be  if a credential is revoked with a Verifiable Credential of type CredentialRevocation.
+// The absence of a the revocation property does not indicate a valid credential, use the /internal/vcr/v2/verifier/vc API for this.
 type SearchVCResult struct {
 	// Revocation Credential revocation record
 	Revocation *Revocation `json:"revocation,omitempty"`
@@ -201,6 +203,7 @@ type SearchVCResults struct {
 // VCVerificationOptions defines model for VCVerificationOptions.
 type VCVerificationOptions struct {
 	// AllowUntrustedIssuer If set to true, an untrusted credential issuer is allowed.
+	// Deprecated:
 	AllowUntrustedIssuer *bool `json:"allowUntrustedIssuer,omitempty"`
 }
 
