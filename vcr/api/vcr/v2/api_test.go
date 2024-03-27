@@ -70,7 +70,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 			CredentialSubject: expectedRequestedVC.CredentialSubject,
 			Visibility:        &public,
 		}
-		_ = request.Type.FromIssueVCRequestType1([]any{credentialType.String()})
+		_ = request.Type.FromIssueVCRequestType1([]string{credentialType.String()})
 		// assert that credential.NutsV1ContextURI is added if the request does not contain @context
 		testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, expectedRequestedVC, issuer.CredentialOptions{
 			Publish: true,
@@ -95,8 +95,8 @@ func TestWrapper_IssueVC(t *testing.T) {
 			CredentialSubject: expectedRequestedVC.CredentialSubject,
 			Visibility:        &public,
 		}
-		require.NoError(t, request.Context.FromIssueVCRequestContext1([]any{vc.VCContextV1, credential.NutsV1ContextURI}))
-		require.NoError(t, request.Type.FromIssueVCRequestType1([]any{vc.VerifiableCredentialType, credentialType.String()}))
+		require.NoError(t, request.Context.FromIssueVCRequestContext1([]string{vc.VCContextV1, credential.NutsV1ContextURI.String()}))
+		require.NoError(t, request.Type.FromIssueVCRequestType1([]string{vc.VerifiableCredentialType, credentialType.String()}))
 		testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, expectedRequestedVC, issuer.CredentialOptions{
 			Publish: true,
 			Public:  true,

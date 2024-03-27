@@ -145,7 +145,7 @@ type IssueVCRequest struct {
 type IssueVCRequestContext0 = string
 
 // IssueVCRequestContext1 defines model for .
-type IssueVCRequestContext1 = []interface{}
+type IssueVCRequestContext1 = []string
 
 // IssueVCRequest_Context The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
 type IssueVCRequest_Context struct {
@@ -159,7 +159,7 @@ type IssueVCRequestFormat string
 type IssueVCRequestType0 = string
 
 // IssueVCRequestType1 defines model for .
-type IssueVCRequestType1 = []interface{}
+type IssueVCRequestType1 = []string
 
 // IssueVCRequest_Type Type definition for the credential.
 type IssueVCRequest_Type struct {

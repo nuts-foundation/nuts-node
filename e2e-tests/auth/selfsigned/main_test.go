@@ -128,7 +128,7 @@ func issueOrganizationCredential(organization *did.Document, name, city string) 
 		},
 		Visibility: &visibility,
 	}
-	err := request.Type.FromIssueVCRequestType1([]any{"VerifiableCredential", "NutsOrganizationCredential"})
+	err := request.Type.FromIssueVCRequestType1([]string{"VerifiableCredential", "NutsOrganizationCredential"})
 	if err != nil {
 		return err
 	}

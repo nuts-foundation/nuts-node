@@ -534,6 +534,8 @@ components:
             - type: string
               example: "https://nuts.nl/credentials/v1"
             - type: array
+              items:
+                type: string
               example: ["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"]
           default: ["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"]
         type:
@@ -542,6 +544,8 @@ components:
             - type: string
               example: "VerifiableCredential"
             - type: array
+              items:
+                type: string
               example: ["VerifiableCredential", "NutsOrganizationCredential"]
         issuer:
           description: DID according to Nuts specification.
