@@ -52,13 +52,28 @@ func TestWrapper_CreateDID(t *testing.T) {
 	})
 	t.Run("with user ID", func(t *testing.T) {
 		ctx := newMockContext(t)
-		opts := didweb.DefaultCreationOptions().With(didweb.UserPath("1"))
+		opts := didweb.DefaultCreationOptions().With(didweb.UserID("1"))
 		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(&didDoc, nil, nil)
 
 		var userId = "1"
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
 			Body: &CreateDIDJSONRequestBody{
-				Id: &userId,
+				UserId: &userId,
+			},
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, id, response.(CreateDID200JSONResponse).ID)
+	})
+	t.Run("with DID", func(t *testing.T) {
+		ctx := newMockContext(t)
+		opts := didweb.DefaultCreationOptions().With(didweb.DID(id))
+		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(&didDoc, nil, nil)
+
+		var newDID = id.String()
+		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
+			Body: &CreateDIDJSONRequestBody{
+				Did: &newDID,
 			},
 		})
 

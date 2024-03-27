@@ -32,21 +32,30 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"net/url"
+	"strings"
 )
 
 func DefaultCreationOptions() management.CreationOptions {
 	return management.Create(MethodName)
 }
 
-type userPathOption struct {
-	path string
+type userIDOption struct {
+	id string
 }
 
-// UserPath is an option to set a user for the did:web document.
+// UserID is an option to set a user for the did:web document.
 // It will be used as last path part of the DID.
-// If not set, a random UUID will be used.
-func UserPath(path string) management.CreationOption {
-	return userPathOption{path: path}
+func UserID(id string) management.CreationOption {
+	return userIDOption{id: id}
+}
+
+type didOption struct {
+	value did.DID
+}
+
+// DID is an option to set the DID for the did:web document.
+func DID(did did.DID) management.CreationOption {
+	return didOption{value: did}
 }
 
 var _ management.DocumentManager = (*Manager)(nil)
@@ -97,26 +106,37 @@ func (m Manager) AddVerificationMethod(_ context.Context, _ did.DID, _ managemen
 
 // Create creates a new did:web document.
 func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*did.Document, crypto.Key, error) {
-	pathPart := uuid.NewString()
+	var newDID *did.DID
 	for _, opt := range opts.All() {
+		if newDID != nil {
+			return nil, nil, errors.New("multiple DID options provided")
+		}
 		switch option := opt.(type) {
-		case userPathOption:
-			pathPart = option.path
+		case userIDOption:
+			// Make sure url config we use does not
+			newDID, _ = URLToDID(*(m.baseURL).JoinPath(option.id))
+		case didOption:
+			// if it contains a user path, it must be in format did:web:<host>:iam:<user id>
+			idParts := strings.Split(option.value.ID, ":")
+			if (len(idParts) > 2 && (idParts[1] != "iam" || len(idParts) > 3)) ||
+				// it must not contain empty path parts
+				strings.HasSuffix(option.value.ID, ":") || strings.HasSuffix(option.value.ID, "::") {
+				return nil, nil, errors.New("invalid user path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<user id>'")
+			}
+			newDID = &option.value
 		default:
 			return nil, nil, fmt.Errorf("unknown option: %T", option)
 		}
 	}
-	return m.create(ctx, pathPart)
+	if newDID == nil {
+		newDID, _ = URLToDID(*(m.baseURL).JoinPath(uuid.NewString()))
+	}
+	return m.create(ctx, *newDID)
 }
 
-func (m Manager) create(ctx context.Context, mostSignificantBits string) (*did.Document, crypto.Key, error) {
-	newDID, err := URLToDID(*m.baseURL.JoinPath(mostSignificantBits))
-	if err != nil {
-		return nil, nil, err
-	}
-
+func (m Manager) create(ctx context.Context, newDID did.DID) (*did.Document, crypto.Key, error) {
 	// Check if it doesn't already exist. Otherwise, it fail later on (unique key constraint) but we might end up with an orphaned private key.
-	exists, err := m.IsOwner(ctx, *newDID)
+	exists, err := m.IsOwner(ctx, newDID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -124,15 +144,15 @@ func (m Manager) create(ctx context.Context, mostSignificantBits string) (*did.D
 		return nil, nil, management.ErrDIDAlreadyExists
 	}
 
-	verificationMethodKey, verificationMethod, err := m.createVerificationMethod(ctx, *newDID)
+	verificationMethodKey, verificationMethod, err := m.createVerificationMethod(ctx, newDID)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := m.store.create(*newDID, *verificationMethod); err != nil {
+	if err := m.store.create(newDID, *verificationMethod); err != nil {
 		return nil, nil, fmt.Errorf("store new DID: %w", err)
 	}
 
-	document := buildDocument(*newDID, []did.VerificationMethod{*verificationMethod}, nil)
+	document := buildDocument(newDID, []did.VerificationMethod{*verificationMethod}, nil)
 	return &document, verificationMethodKey, nil
 }
 
