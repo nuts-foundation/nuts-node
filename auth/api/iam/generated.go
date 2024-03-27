@@ -230,12 +230,12 @@ type ServerInterface interface {
 	// Used by wallets to post the authorization response or error to.
 	// (POST /oauth2/{did}/response)
 	HandleAuthorizeResponse(ctx echo.Context, did string) error
-	// Get the StatusList2021Credential for the given DID and page
-	// (GET /oauth2/{did}/statuslist/{page})
-	StatusList(ctx echo.Context, did string, page int) error
 	// Used by to request access- or refresh tokens.
 	// (POST /oauth2/{did}/token)
 	HandleTokenRequest(ctx echo.Context, did string) error
+	// Get the StatusList2021Credential for the given DID and page
+	// (GET /statuslist/{did}/{page})
+	StatusList(ctx echo.Context, did string, page int) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -461,6 +461,21 @@ func (w *ServerInterfaceWrapper) HandleAuthorizeResponse(ctx echo.Context) error
 	return err
 }
 
+// HandleTokenRequest converts echo context to params.
+func (w *ServerInterfaceWrapper) HandleTokenRequest(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	did = ctx.Param("did")
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.HandleTokenRequest(ctx, did)
+	return err
+}
+
 // StatusList converts echo context to params.
 func (w *ServerInterfaceWrapper) StatusList(ctx echo.Context) error {
 	var err error
@@ -481,21 +496,6 @@ func (w *ServerInterfaceWrapper) StatusList(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.StatusList(ctx, did, page)
-	return err
-}
-
-// HandleTokenRequest converts echo context to params.
-func (w *ServerInterfaceWrapper) HandleTokenRequest(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
-
-	did = ctx.Param("did")
-
-	ctx.Set(JwtBearerAuthScopes, []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.HandleTokenRequest(ctx, did)
 	return err
 }
 
@@ -538,8 +538,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/oauth2/:did/oauth-client", wrapper.OAuthClientMetadata)
 	router.GET(baseURL+"/oauth2/:did/presentation_definition", wrapper.PresentationDefinition)
 	router.POST(baseURL+"/oauth2/:did/response", wrapper.HandleAuthorizeResponse)
-	router.GET(baseURL+"/oauth2/:did/statuslist/:page", wrapper.StatusList)
 	router.POST(baseURL+"/oauth2/:did/token", wrapper.HandleTokenRequest)
+	router.GET(baseURL+"/statuslist/:did/:page", wrapper.StatusList)
 
 }
 
@@ -928,45 +928,6 @@ func (response HandleAuthorizeResponse200JSONResponse) VisitHandleAuthorizeRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
-type StatusListRequestObject struct {
-	Did  string `json:"did"`
-	Page int    `json:"page"`
-}
-
-type StatusListResponseObject interface {
-	VisitStatusListResponse(w http.ResponseWriter) error
-}
-
-type StatusList200JSONResponse VerifiableCredential
-
-func (response StatusList200JSONResponse) VisitStatusListResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type StatusListdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-	StatusCode int
-}
-
-func (response StatusListdefaultApplicationProblemPlusJSONResponse) VisitStatusListResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(response.StatusCode)
-
-	return json.NewEncoder(w).Encode(response.Body)
-}
-
 type HandleTokenRequestRequestObject struct {
 	Did  string `json:"did"`
 	Body *HandleTokenRequestFormdataRequestBody
@@ -1000,6 +961,45 @@ type HandleTokenRequestdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response HandleTokenRequestdefaultApplicationProblemPlusJSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type StatusListRequestObject struct {
+	Did  string `json:"did"`
+	Page int    `json:"page"`
+}
+
+type StatusListResponseObject interface {
+	VisitStatusListResponse(w http.ResponseWriter) error
+}
+
+type StatusList200JSONResponse VerifiableCredential
+
+func (response StatusList200JSONResponse) VisitStatusListResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StatusListdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response StatusListdefaultApplicationProblemPlusJSONResponse) VisitStatusListResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -1041,12 +1041,12 @@ type StrictServerInterface interface {
 	// Used by wallets to post the authorization response or error to.
 	// (POST /oauth2/{did}/response)
 	HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error)
-	// Get the StatusList2021Credential for the given DID and page
-	// (GET /oauth2/{did}/statuslist/{page})
-	StatusList(ctx context.Context, request StatusListRequestObject) (StatusListResponseObject, error)
 	// Used by to request access- or refresh tokens.
 	// (POST /oauth2/{did}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
+	// Get the StatusList2021Credential for the given DID and page
+	// (GET /statuslist/{did}/{page})
+	StatusList(ctx context.Context, request StatusListRequestObject) (StatusListResponseObject, error)
 }
 
 type StrictHandlerFunc = strictecho.StrictEchoHandlerFunc
@@ -1369,32 +1369,6 @@ func (sh *strictHandler) HandleAuthorizeResponse(ctx echo.Context, did string) e
 	return nil
 }
 
-// StatusList operation middleware
-func (sh *strictHandler) StatusList(ctx echo.Context, did string, page int) error {
-	var request StatusListRequestObject
-
-	request.Did = did
-	request.Page = page
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.StatusList(ctx.Request().Context(), request.(StatusListRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "StatusList")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(StatusListResponseObject); ok {
-		return validResponse.VisitStatusListResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
 // HandleTokenRequest operation middleware
 func (sh *strictHandler) HandleTokenRequest(ctx echo.Context, did string) error {
 	var request HandleTokenRequestRequestObject
@@ -1424,6 +1398,32 @@ func (sh *strictHandler) HandleTokenRequest(ctx echo.Context, did string) error 
 		return err
 	} else if validResponse, ok := response.(HandleTokenRequestResponseObject); ok {
 		return validResponse.VisitHandleTokenRequestResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// StatusList operation middleware
+func (sh *strictHandler) StatusList(ctx echo.Context, did string, page int) error {
+	var request StatusListRequestObject
+
+	request.Did = did
+	request.Page = page
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.StatusList(ctx.Request().Context(), request.(StatusListRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StatusList")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(StatusListResponseObject); ok {
+		return validResponse.VisitStatusListResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

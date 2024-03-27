@@ -44,7 +44,6 @@ func TestHTTPClient(t *testing.T) {
 	defer server.Close()
 
 	t.Run("no auth token", func(t *testing.T) {
-
 		authToken = ""
 		client, err := CreateHTTPClient(ClientConfig{}, nil)
 		require.NoError(t, err)
@@ -145,8 +144,8 @@ func TestTestResponseCodeWithLog(t *testing.T) {
 		assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
 		assert.Equal(t, "Unexpected HTTP response (len=13): hello, world!", hook.LastEntry().Message)
 	})
-	t.Run("large response body (>100), clipped", func(t *testing.T) {
-		data := strings.Repeat("a", 101)
+	t.Run("large response body (>200), clipped", func(t *testing.T) {
+		data := strings.Repeat("a", 201)
 		status := stdHttp.StatusUnauthorized
 		logger := logrus.New()
 		hook := test.NewLocal(logger)
@@ -155,7 +154,7 @@ func TestTestResponseCodeWithLog(t *testing.T) {
 
 		_ = TestResponseCodeWithLog(stdHttp.StatusOK, &stdHttp.Response{StatusCode: status, Body: readCloser(data), Request: request}, logger.WithFields(nil))
 
-		assert.Equal(t, "Unexpected HTTP response (len=101): "+strings.Repeat("a", 100)+"...(clipped)", hook.LastEntry().Message)
+		assert.Equal(t, "Unexpected HTTP response (len=201): "+strings.Repeat("a", HttpResponseBodyLogClipAt)+"...(clipped)", hook.LastEntry().Message)
 	})
 }
 

@@ -23,8 +23,8 @@ Nuts documentation
 
     pages/deployment/configuration.rst
     pages/deployment/recommended-deployment.rst
-    pages/deployment/storage-configuration.rst
     pages/deployment/docker.rst
+    pages/deployment/storage.rst
     pages/deployment/custom-credentials.rst
     pages/deployment/logging.rst
     pages/deployment/monitoring.rst

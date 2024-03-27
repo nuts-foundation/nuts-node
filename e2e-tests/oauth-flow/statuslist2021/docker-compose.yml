@@ -1,5 +1,5 @@
 services:
-  nodeA-backend:
+  nodeA:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
       - "18081:8081"
@@ -7,6 +7,9 @@ services:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      # did:web resolver uses the OS CA bundle, but e2e tests use a self-signed CA which can be found in truststore.pem
+      # So we need to mount that file to the OS CA bundle location, otherwise did:web resolving will fail due to untrusted certs.
+      - "../../tls-certs/truststore.pem:/etc/ssl/certs/Nuts_RootCA.pem:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeB-backend:
@@ -19,15 +22,6 @@ services:
       - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
-  nodeA:
-    image: nginx:1.25.1
-    volumes:
-      - "../../shared_config/nodeA-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
-      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
-      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
-      - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
-    ports:
-      - "10443:443"
   nodeB:
     image: nginx:1.25.1
     volumes:

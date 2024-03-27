@@ -49,6 +49,7 @@ var redactedConfigKeys = []string{
 	"crypto.vault.token",
 	"storage.redis.password",
 	"storage.redis.sentinel.password",
+	"storage.sql.connection",
 }
 
 // ServerConfig has global server settings.
