@@ -755,9 +755,13 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
-	userID := "test"
+	userDetails := UserDetails{
+		Id:   "test",
+		Name: "Titus Tester",
+		Role: "Test Manager",
+	}
 	redirectURI := "https://test.test/oauth2/" + walletDID.String() + "/cb"
-	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", UserId: userID, RedirectUri: redirectURI}
+	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", PreauthorizedUser: &userDetails, RedirectUri: redirectURI}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)

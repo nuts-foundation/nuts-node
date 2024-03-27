@@ -458,9 +458,13 @@ paths:
       operationId: requestUserAccessToken
       summary: Start the authorization code flow to get an access token from a remote authorization server when user context is required.
       description: |
-        Initiates an OAuth2 flow to request an access token from a remote authorization server.
-        A user_id must be given, it's used to select the right ID Wallet. This call will initiate an OpenID4VP flow.
-
+        Initiates an OAuth2 flow to request an access token from a remote authorization server. This call will initiate an OpenID4VP flow.
+        The user must be authorized by the calling system and provided in the preauthorized_user field.
+        The user's ID must be stable across sessions, as it's used to select the right ID Wallet.
+        
+        Note: in the future, OpenID Connect will be supported to authorize the user.
+        Then, the caller must not provide the preauthorized_user field as the details will be fetched from the OpenID Connect Identity Provider. 
+        
         error returns:
         * 400 - one of the parameters has the wrong format or an OAuth error occurred
         * 412 - the organization wallet does not contain the correct credentials
@@ -485,7 +489,6 @@ paths:
               required:
                 - redirect_uri
                 - scope
-                - user_id
                 - verifier
               properties:
                 verifier:
@@ -496,15 +499,14 @@ paths:
                   type: string
                   description: The scope that will be the service for which this access token can be used.
                   example: eOverdracht-sender
-                user_id:
-                  type: string
-                  description: The ID of the user for which this access token is requested.
                 redirect_uri:
                   type: string
                   description: |
                     The URL to which the user-agent will be redirected after the authorization request.
                     This is the URL of the calling application. 
                     The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
+                preauthorized_user:
+                  $ref: '#/components/schemas/UserDetails'
       responses:
         '200':
           description: | 
@@ -637,6 +639,30 @@ components:
           type: string
           description: The session ID that can be used to retrieve the access token by the calling application.
           example: "eyJhbGciOiJSUzI1NiIsI"
+    UserDetails:
+      type: object
+      description: |
+        Claims about the user, to be provided when not using an OpenID Connect Identity Provider.
+      required:
+        - name
+        - id
+        - role
+      properties:
+        name:
+          type: string
+          description: Human-readable name of the user.
+          example: "Wouter de Bruijn"
+        id:
+          type: string
+          description: Machine-readable identifier, uniquely identifying the user in the issuing system.
+          example:
+            - "wdebruijn"
+            - "123456"
+            - "wdebruijn@example.com"
+        role:
+          type: string
+          description: Role of the user.
+          example: "Verpleegkundige niveau 4"
     VerifiableCredential:
       $ref: '../common/ssi_types.yaml#/components/schemas/VerifiableCredential'
     TokenResponse:

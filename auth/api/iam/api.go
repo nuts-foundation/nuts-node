@@ -119,7 +119,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
 	ctx.Set(core.OperationIDContextKey, operationID)
 	ctx.Set(core.ModuleNameContextKey, apiModuleName)
-	
+
 	// Add http.Request to context, to allow reading URL query parameters
 	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
@@ -527,7 +527,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, err
 	}
 
-	if request.Body.UserId == "" {
+	if request.Body.PreauthorizedUser == nil {
 		return nil, core.InvalidInputError("missing userID")
 	}
 	// require RedirectURL
