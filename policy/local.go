@@ -57,10 +57,6 @@ func (s *localPDP) loadFromDirectory(directory string) error {
 	// open the directory
 	dir, err := os.Open(directory)
 	if err != nil {
-		if os.IsNotExist(err) && directory == defaultConfig().Directory {
-			// assume this is the default config value and do not fail
-			return nil
-		}
 		return err
 	}
 	defer dir.Close()
