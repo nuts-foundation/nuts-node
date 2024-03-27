@@ -60,6 +60,17 @@ const httpRequestContextKey = "http-request"
 // TODO: Might want to make this configurable at some point
 const accessTokenValidity = 15 * time.Minute
 
+// userSessionCookieName is the name of the cookie used to store the user session.
+// It uses the __Host prefix, that instructs the user agent to treat it as a secure cookie:
+// - Must be set with the Secure attribute
+// - Must be set from an HTTPS uri
+// - Must not contain a Domain attribute
+// - Must contain a Path attribute
+// Also see:
+// - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/02-Testing_for_Cookies_Attributes
+// - https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
+const userSessionCookieName = "__Host-SID"
+
 //go:embed assets
 var assets embed.FS
 
