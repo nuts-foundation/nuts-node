@@ -6,6 +6,74 @@ Running on Docker
 This guide helps you to configure the Nuts node in Docker.
 To use the most recent release use ``nutsfoundation/nuts-node:latest``. For production environments it's advised to use a specific version.
 
+Examples
+********
+The examples assume the current working directory on the host contains the following structure:
+
+.. code-block:: none
+
+    .
+    ├── config
+    │   └── nuts.yaml
+    └── data
+
+The ``data`` directory must be owned by container user ``18081``. (``chown -R 18081:18081 ./data``)
+
+These examples use the following ``nuts.yaml`` configuration file:
+
+.. code-block:: yaml
+
+  strictmode: false
+  http:
+    internal:
+      address: :8081
+
+See the :ref:`configuration<nuts-node-config>` documentation how to setup the ``nuts.yaml`` to meet your needs.
+
+Docker Compose
+^^^^^^^^^^^^^^
+
+Copy the following YAML file and save it as ``docker-compose.yaml`` in the working directory.
+
+.. code-block:: yaml
+
+  services:
+    nuts:
+      image: nutsfoundation/nuts-node:latest
+      ports:
+        - 8080:8080
+        - 8081:8081
+      volumes:
+        - "./nuts.yaml:/nuts/nuts.yaml:ro"
+        - "./data:/nuts/data:rw"
+
+Start the service:
+
+.. code-block:: shell
+
+  docker compose up
+
+Docker ``run``
+^^^^^^^^^^^^^^
+
+If you want to run without Docker Compose you can use the following command from the working directory:
+
+.. code-block:: shell
+
+  docker run --name nuts -p 8080:8080 -p 8081:8081 \
+    --mount type=bind,source="$(pwd)",target=/nuts \
+    nutsfoundation/nuts-node:latest
+
+.. note::
+
+    The command above uses ``pwd`` and ``bash`` functions, which do not work on Windows. If running on Windows replace
+    it with the path of the working directory.
+
+    If your use case makes use of ``did:nuts`` DIDs, you also need to map port ``5555``, which is used for gRPC traffic by the Nuts network.
+
+You can test whether your Nuts Node is running properly by visiting ``http://localhost:8081/status/diagnostics``. It should
+display diagnostic information about the state of the node.
+
 User
 ****
 
@@ -43,71 +111,6 @@ The default working directory within the container is ``/nuts`` that provides de
     - Nodes running the :ref:`recommended deployment <nuts-node-recommended-deployment>` (external storage configured for ``crypto.storage`` and ``storage.sql.connection``) that do not use did:nuts / gRPC network don't need to mount a ``data`` dir.
 
     - *"User 18081 already exists on my host."* See `docker security <https://docs.docker.com/engine/security/userns-remap/>`_ (or relevant container orchestration platform) documentation how to restrict privileges to a user namespace / create a user mapping between host and container.
-
-Examples
-********
-The examples assume the current working directory on the host contains the following structure:
-
-.. code-block:: none
-
-    .
-    ├── config
-    │   └── nuts.yaml
-    └── data
-
-The ``data`` directory must be owned by user ``18081``.
-See the :ref:`configuration<nuts-node-config>` documentation how to setup the ``nuts.yaml`` to meet your needs.
-
-Docker ``run``
-^^^^^^^^^^^^^^
-
-If you want to run without Docker Compose you can use the following command from the working directory:
-
-.. code-block:: shell
-
-  docker run --name nuts -p 8080:8080 -p 8081:8081 \
-    --mount type=bind,source="$(pwd)",target=/nuts \
-    nutsfoundation/nuts-node:latest
-
-This setup uses the following ``nuts.yaml`` configuration file:
-
-.. code-block:: yaml
-
-  strictmode: false
-
-.. note::
-
-    The command above uses ``pwd`` and ``bash`` functions, which do not work on Windows. If running on Windows replace
-    it with the path of the working directory.
-    
-    If your use case makes use of ``did:nuts`` DIDs, you also need to map port ``5555``, which is used for gRPC traffic by the Nuts network.
-
-You can test whether your Nuts Node is running properly by visiting ``http://localhost:8081/status/diagnostics``. It should
-display diagnostic information about the state of the node.
-
-Docker Compose
-^^^^^^^^^^^^^^
-
-Copy the following YAML file and save it as ``docker-compose.yaml`` in the working directory.
-
-.. code-block:: yaml
-
-  services:
-    nuts:
-      image: nutsfoundation/nuts-node:latest
-      ports:
-        - 8080:8080
-        - 8081:8081
-      volumes:
-        - "./nuts.yaml:/nuts/nuts.yaml:ro"
-        - "./data:/nuts/data:rw"
-
-
-Start the service:
-
-.. code-block:: shell
-
-  docker compose up
 
 Development image
 *****************
