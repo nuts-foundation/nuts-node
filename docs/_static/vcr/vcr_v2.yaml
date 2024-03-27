@@ -253,7 +253,7 @@ paths:
         * Signature of the verifiable presentation and the verifiable credentials
         * Expiration
         * Revocation status
-        * If the issuers of the verifiable credentials are trusted
+        * If the issuers of the verifiable credentials are trusted (only for did:nuts VP subjects)
         * If the issuers of the verifiable credentials were not deactivated at time of issuing
 
         If the verification can be performed successfully (regardless whether checks failed), HTTP status 200 is returned.
@@ -639,6 +639,7 @@ components:
       type: object
       properties:
         allowUntrustedIssuer:
+          deprecated: true
           description: If set to true, an untrusted credential issuer is allowed.
           type: boolean
           default: false
