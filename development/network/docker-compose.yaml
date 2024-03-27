@@ -1,4 +1,3 @@
-version: "3.7"
 services:
   node1:
     image: &image nutsfoundation/nuts-node:latest

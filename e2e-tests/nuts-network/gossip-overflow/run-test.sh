@@ -23,14 +23,14 @@ echo "------------------------------------"
 
 for _ in {1..200}
 do
-   curl -s -X POST http://localhost:11323/internal/vdr/v1/did >/dev/null
+   curl -s -X POST http://localhost:18081/internal/vdr/v1/did >/dev/null
 done
 
 echo "------------------------------------"
 echo "Performing assertions..."
 echo "------------------------------------"
 
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 200 20
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 200 20
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."

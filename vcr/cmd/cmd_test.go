@@ -22,6 +22,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 	"github.com/stretchr/testify/require"
@@ -153,8 +154,12 @@ func TestCmd_Trust(t *testing.T) {
 func TestCmd_Issue(t *testing.T) {
 	const issuerDID = "did:nuts:1"
 	const credentialType = "VCType"
+	var credentialTypeAPI v2.IssueVCRequest_Type
+	require.NoError(t, credentialTypeAPI.FromIssueVCRequestType0(credentialType))
 	const credentialSubject = `{"ID": "did:nuts:subject"}`
 	var contextURI = "http://context"
+	var contextURIAPI v2.IssueVCRequest_Context
+	require.NoError(t, contextURIAPI.FromIssueVCRequestContext0(contextURI))
 	var visibility = v2.IssueVCRequestVisibility("private")
 	truep := func() *bool { t := true; return &t }
 
@@ -179,13 +184,41 @@ func TestCmd_Issue(t *testing.T) {
 
 		assert.NoError(t, err)
 		var request = v2.IssueVCRequest{
-			Context: &contextURI,
+			Context: &contextURIAPI,
 			CredentialSubject: map[string]interface{}{
 				"ID": "did:nuts:subject",
 			},
 			Issuer:           issuerDID,
 			PublishToNetwork: truep(),
-			Type:             credentialType,
+			Type:             credentialTypeAPI,
+			Visibility:       &visibility,
+		}
+		expected, _ := json.Marshal(request)
+		assert.JSONEq(t, string(expected), string(handler.RequestData))
+	})
+	t.Run("ok - plural parameters", func(t *testing.T) {
+		otherContextURI := "http://other-context"
+		var contextURIsAPI v2.IssueVCRequest_Context
+		require.NoError(t, contextURIsAPI.FromIssueVCRequestContext1([]any{contextURI, otherContextURI}))
+		otherCredentialType := "other-type"
+		var credentialTypesAPI v2.IssueVCRequest_Type
+		require.NoError(t, credentialTypesAPI.FromIssueVCRequestType1([]any{credentialType, otherCredentialType}))
+		cmd := newCmd(t)
+		handler := setupServer(t, http.StatusOK, "{}")
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+		cmd.SetArgs([]string{"issue", fmt.Sprintf("%s,%s", contextURI, otherContextURI), fmt.Sprintf("%s,%s", credentialType, otherCredentialType), issuerDID, credentialSubject})
+
+		err := cmd.Execute()
+
+		assert.NoError(t, err)
+		var request = v2.IssueVCRequest{
+			Context: &contextURIsAPI,
+			CredentialSubject: map[string]interface{}{
+				"ID": "did:nuts:subject",
+			},
+			Issuer:           issuerDID,
+			PublishToNetwork: truep(),
+			Type:             credentialTypesAPI,
 			Visibility:       &visibility,
 		}
 		expected, _ := json.Marshal(request)
@@ -202,13 +235,13 @@ func TestCmd_Issue(t *testing.T) {
 
 		assert.NoError(t, err)
 		var request = v2.IssueVCRequest{
-			Context: &contextURI,
+			Context: &contextURIAPI,
 			CredentialSubject: map[string]interface{}{
 				"ID": "did:nuts:subject",
 			},
 			Issuer:           issuerDID,
 			PublishToNetwork: truep(),
-			Type:             credentialType,
+			Type:             credentialTypeAPI,
 			Visibility:       &visibility,
 			ExpirationDate:   &expirationDate,
 		}
@@ -225,13 +258,13 @@ func TestCmd_Issue(t *testing.T) {
 
 		assert.NoError(t, err)
 		var request = v2.IssueVCRequest{
-			Context: &contextURI,
+			Context: &contextURIAPI,
 			CredentialSubject: map[string]interface{}{
 				"ID": "did:nuts:subject",
 			},
 			Issuer:           issuerDID,
 			PublishToNetwork: new(bool),
-			Type:             credentialType,
+			Type:             credentialTypeAPI,
 		}
 		expected, _ := json.Marshal(request)
 		assert.JSONEq(t, string(expected), string(handler.RequestData))

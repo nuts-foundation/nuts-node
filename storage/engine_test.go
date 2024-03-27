@@ -169,4 +169,13 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		assert.NoError(t, row.Scan(&count))
 		assert.Equal(t, len(sqlFiles), count)
 	})
+	t.Run("unsupported protocol doesn't log secrets", func(t *testing.T) {
+		dataDir := io.TestDirectory(t)
+		require.NoError(t, os.Remove(dataDir))
+		e := New()
+		e.(*engine).config.SQL.ConnectionString = "fake://user:password@example.com:123/db"
+		err := e.Configure(core.ServerConfig{Datadir: dataDir})
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), "user:password")
+	})
 }

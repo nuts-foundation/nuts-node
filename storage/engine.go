@@ -170,7 +170,6 @@ func (e *engine) GetSQLDatabase() *gorm.DB {
 
 // initSQLDatabase initializes the SQL database connection.
 // If the connection string is not configured, it defaults to a SQLite database, stored in the node's data directory.
-// Note: only SQLite is supported for now
 func (e *engine) initSQLDatabase() error {
 	connectionString := e.config.SQL.ConnectionString
 	if len(connectionString) == 0 {
@@ -206,7 +205,7 @@ func (e *engine) initSQLDatabase() error {
 		}
 	}
 	if adapter == nil {
-		return fmt.Errorf("unsupported SQL database connection: %s", connectionString)
+		return errors.New("unsupported SQL database")
 	}
 
 	// Open connection and migrate
@@ -242,7 +241,7 @@ func (e *engine) initSQLDatabase() error {
 	dbMigrator.AutoDumpSchema = false
 	dbMigrator.Log = sqlMigrationLogger{}
 	if err = dbMigrator.CreateAndMigrate(); err != nil {
-		return fmt.Errorf("failed to migrate database: %w on %s", err, connectionString)
+		return fmt.Errorf("failed to migrate database: %w", err)
 	}
 
 	e.sqlDB, err = gorm.Open(adapter.connector(sqlDB), &gorm.Config{

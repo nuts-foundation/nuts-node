@@ -60,12 +60,6 @@ func TestHTTPClient_Create(t *testing.T) {
 	})
 }
 
-type errReader struct{}
-
-func (e errReader) Read(_ []byte) (n int, err error) {
-	return 0, assert.AnError
-}
-
 func getClient(url string) *HTTPClient {
 	return &HTTPClient{
 		ClientConfig: core.ClientConfig{

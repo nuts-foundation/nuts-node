@@ -23,13 +23,13 @@ waitForDiagnostic "nodeB" connected_peers_count 1
 echo "------------------------------------"
 echo "Creating transaction"
 echo "------------------------------------"
-curl -s -X POST http://localhost:11323/internal/vdr/v1/did >/dev/null
+curl -s -X POST http://localhost:18081/internal/vdr/v1/did >/dev/null
 echo "------------------------------------"
 echo "Performing assertions (number of transactions)..."
 echo "------------------------------------"
 
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 1 10
-waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 1 10
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 1 10
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 1 10
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."

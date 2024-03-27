@@ -20,7 +20,6 @@ Nuts documentation
     pages/integrating/api-authentication.rst
     pages/integrating/vc.rst
     pages/integrating/supported-protocols-formats.rst
-    pages/integrating/faq-errors.rst
     pages/release_notes.rst
     pages/roadmap.rst
 
@@ -29,9 +28,9 @@ Nuts documentation
     :caption: Deployment & Configuration:
     :glob:
 
-    pages/deployment/recommended-deployment.rst
-    pages/deployment/resource-requirements.rst
     pages/deployment/configuration.rst
+    pages/deployment/recommended-deployment.rst
+    pages/deployment/storage.rst
     pages/deployment/custom-credentials.rst
     pages/deployment/logging.rst
     pages/deployment/monitoring.rst
@@ -40,9 +39,6 @@ Nuts documentation
     pages/deployment/discovery.rst
     pages/deployment/backup-restore.rst
     pages/deployment/key-rotation.rst
-    pages/deployment/storage-configuration.rst
-    pages/deployment/tls-configuration.rst
-    pages/deployment/production-configuration.rst
     pages/deployment/audit-logging.rst
 
 .. toctree::

@@ -85,10 +85,9 @@ var HttpClientTrace *httptrace.ClientTrace = nil
 type defaultIssuerAPIClient struct {
 	httpOAuth2Client
 
-	identifier       string
-	httpClient       core.HTTPRequestDoer
-	metadata         CredentialIssuerMetadata
-	providerMetadata ProviderMetadata
+	identifier string
+	httpClient core.HTTPRequestDoer
+	metadata   CredentialIssuerMetadata
 }
 
 func (h defaultIssuerAPIClient) RequestCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {

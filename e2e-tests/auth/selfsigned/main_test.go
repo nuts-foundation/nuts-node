@@ -63,7 +63,7 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 	require.NoError(t, err)
 
 	selfSigned := apps.SelfSigned{
-		URL:     "http://localhost:1323",
+		URL:     "http://localhost:8081",
 		Context: ctx,
 	}
 	roleName := "Soulpeeker"
@@ -117,8 +117,7 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 func issueOrganizationCredential(organization *did.Document, name, city string) error {
 	vcrClient := vcrAPI.HTTPClient{ClientConfig: apps.NodeClientConfig}
 	visibility := vcrAPI.Public
-	_, err := vcrClient.IssueVC(vcrAPI.IssueVCRequest{
-		Type:   "NutsOrganizationCredential",
+	request := vcrAPI.IssueVCRequest{
 		Issuer: organization.ID.String(),
 		CredentialSubject: map[string]interface{}{
 			"id": organization.ID.String(),
@@ -128,14 +127,19 @@ func issueOrganizationCredential(organization *did.Document, name, city string) 
 			},
 		},
 		Visibility: &visibility,
-	})
+	}
+	err := request.Type.FromIssueVCRequestType1([]any{"VerifiableCredential", "NutsOrganizationCredential"})
+	if err != nil {
+		return err
+	}
+	_, err = vcrClient.IssueVC(request)
 	return err
 }
 
 func registerCompoundService(id did.DID, compoundServiceType string) error {
 	client := didmanAPI.HTTPClient{ClientConfig: apps.NodeClientConfig}
 	_, err := client.AddCompoundService(id.String(), compoundServiceType, map[string]string{
-		"oauth": apps.NodeClientConfig.Address + "/n2n/auth/v1/accesstoken",
+		"oauth": apps.PublicNodeAddress + "/n2n/auth/v1/accesstoken",
 	})
 	return err
 }

@@ -2,6 +2,9 @@ url: "http://nodeA"
 verbosity: debug
 strictmode: false
 internalratelimiter: false
+http:
+  internal:
+    address: :8081
 auth:
   contractvalidators:
     - dummy

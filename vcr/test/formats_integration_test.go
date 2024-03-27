@@ -36,13 +36,12 @@ import (
 // TestCredentialFormats tests issuing and verifying different VC.
 func TestCredentialFormats(t *testing.T) {
 	ctx := audit.TestContext()
-	_, system := node.StartServer(t)
+	_, _, system := node.StartServer(t)
 
 	issuerDID := registerDID(t, system)
 	subjectDID := registerDID(t, system)
 	publish := false
 	credentialRequestTemplate := v2.IssueVCRequest{
-		Type: "NutsOrganizationCredential",
 		CredentialSubject: map[string]interface{}{
 			"id": subjectDID.String(),
 			"organization": map[string]interface{}{
@@ -53,6 +52,7 @@ func TestCredentialFormats(t *testing.T) {
 		Issuer:           issuerDID.String(),
 		PublishToNetwork: &publish,
 	}
+	_ = credentialRequestTemplate.Type.FromIssueVCRequestType0("NutsOrganizationCredential")
 	vcrAPI := v2.Wrapper{VCR: system.FindEngineByName("vcr").(vcr.VCR)}
 
 	t.Run("VC in JSON-LD format", func(t *testing.T) {

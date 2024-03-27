@@ -33,5 +33,6 @@ func DefaultConfig() Config {
 // SQLConfig specifies config for the SQL storage engine.
 type SQLConfig struct {
 	// ConnectionString is the connection string for the SQL database.
+	// This string may contain secrets (user:password), so should never be logged.
 	ConnectionString string `koanf:"connection"`
 }

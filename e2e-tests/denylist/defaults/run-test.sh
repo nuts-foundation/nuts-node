@@ -37,7 +37,7 @@ echo "Connecting (defaults) with allowed cert.."
 echo "------------------------------------"
 for x in $(seq ${TEST_REPEAT_COUNT}); do
 	# Connect to the nuts-node with a valid client certificate
-	#curl --fail --cert client-allowed.crt --key client-allowed.key "https://localhost:1323/status/diagnostics"
+	#curl --fail --cert client-allowed.crt --key client-allowed.key "https://localhost:8081/status/diagnostics"
 	openssl s_client -connect localhost:15555 -cert ../client-allowed.crt -key ../client-allowed.key -CAfile ../truststore-development.pem -verify_return_error -tls1_2 < <(echo "Hello Nuts 🥜")
 	if [ $? -ne 0 ]; then
 		echo "ERROR: failed to contact nuts-node-defaults with valid certificate"

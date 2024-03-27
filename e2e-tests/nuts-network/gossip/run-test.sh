@@ -20,7 +20,7 @@ echo "------------------------------------"
 echo "Creating root"
 echo "------------------------------------"
 
-curl -s -X POST http://localhost:11323/internal/vdr/v1/did >/dev/null
+curl -s -X POST http://localhost:18081/internal/vdr/v1/did >/dev/null
 
 sleep 2
 
@@ -31,18 +31,18 @@ echo "------------------------------------"
 
 for _ in {1..20}
 do
-   curl -s -X POST http://localhost:11323/internal/vdr/v1/did >/dev/null
-   curl -s -X POST http://localhost:21323/internal/vdr/v1/did >/dev/null
-   curl -s -X POST http://localhost:31323/internal/vdr/v1/did >/dev/null
-   curl -s -X POST http://localhost:41323/internal/vdr/v1/did >/dev/null
+   curl -s -X POST http://localhost:18081/internal/vdr/v1/did >/dev/null
+   curl -s -X POST http://localhost:28081/internal/vdr/v1/did >/dev/null
+   curl -s -X POST http://localhost:38081/internal/vdr/v1/did >/dev/null
+   curl -s -X POST http://localhost:48081/internal/vdr/v1/did >/dev/null
 done
 
 echo "------------------------------------"
 echo "Performing assertions..."
 echo "------------------------------------"
 
-waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 81 10
-waitForTXCount "NodeD" "http://localhost:41323/status/diagnostics" 81 10
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 81 10
+waitForTXCount "NodeD" "http://localhost:48081/status/diagnostics" 81 10
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."

@@ -1,10 +1,8 @@
-version: "3.7"
 services:
-  nodeA:
+  nodeA-backend:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
-      - "10443:443"
-      - "11323:1323"
+      - "18081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
@@ -15,15 +13,13 @@ services:
       # did:web resolver uses the OS CA bundle, but e2e tests use a self-signed CA which can be found in truststore.pem
       # So we need to mount that file to the OS CA bundle location, otherwise did:web resolving will fail due to untrusted certs.
       - "../../tls-certs/truststore.pem:/etc/ssl/certs/Nuts_RootCA.pem:ro"
-      - "../../tls-certs/truststore.pem:/etc/ssl/certs/truststore.pem:ro"
       - "./node-A/presentationexchangemapping.json:/opt/nuts/policies/presentationexchangemapping.json:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
-  nodeB:
+  nodeB-backend:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     ports:
-      - "20443:443"
-      - "21323:1323"
+      - "28081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
@@ -34,10 +30,27 @@ services:
       # did:web resolver uses the OS CA bundle, but e2e tests use a self-signed CA which can be found in truststore.pem
       # So we need to mount that file to the OS CA bundle location, otherwise did:web resolving will fail due to untrusted certs.
       - "../../tls-certs/truststore.pem:/etc/ssl/certs/Nuts_RootCA.pem:ro"
-      - "../../tls-certs/truststore.pem:/etc/ssl/certs/truststore.pem:ro"
       - "./node-B/presentationexchangemapping.json:/opt/nuts/policies/presentationexchangemapping.json:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
+  nodeA:
+    image: nginx:1.25.1
+    volumes:
+      - "../../shared_config/nodeA-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
+      - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
+    ports:
+      - "10443:443"
+  nodeB:
+    image: nginx:1.25.1
+    volumes:
+      - "../../shared_config/nodeB-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
+      - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/server.pem:ro"
+      - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/key.pem:ro"
+      - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
+    ports:
+      - "20443:443"
   resource:
     image: nginx:1.25.1
     volumes:

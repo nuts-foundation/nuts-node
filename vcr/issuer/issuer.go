@@ -87,7 +87,6 @@ type issuer struct {
 	store            Store
 	networkPublisher Publisher
 	openidHandlerFn  func(ctx context.Context, id did.DID) (OpenIDHandler, error)
-	serviceResolver  resolver.ServiceResolver
 	keyResolver      keyResolver
 	keyStore         crypto.KeyStore
 	trustConfig      *trust.Config
@@ -195,10 +194,6 @@ func (i issuer) issueUsingOpenID4VCI(ctx context.Context, credential vc.Verifiab
 }
 
 func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
-	if len(template.Type) != 1 {
-		return nil, core.InvalidInputError("can only issue credential with 1 type")
-	}
-
 	issuerDID, err := did.ParseDID(template.Issuer.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
@@ -215,6 +210,7 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 		return nil, fmt.Errorf(errString, err)
 	}
 
+	issuanceDate := TimeFunc()
 	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
 	unsignedCredential := vc.VerifiableCredential{
 		Context:           template.Context,
@@ -222,10 +218,12 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 		Type:              template.Type,
 		CredentialSubject: template.CredentialSubject,
 		Issuer:            template.Issuer,
+		IssuanceDate:      &issuanceDate,
 		ExpirationDate:    template.ExpirationDate,
 		//CredentialStatus:  template.CredentialStatus, // not allowed for now since it requires API changes to be able to determine what status to revoke.
 	}
 
+	// statuslist
 	if options.WithStatusListRevocation {
 		// add credential status
 		credentialStatusEntry, err := i.statusList.Entry(ctx, *issuerDID, revocation.StatusPurposeRevocation)
@@ -240,18 +238,23 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 		}
 	}
 
-	issuanceDate := TimeFunc()
-	unsignedCredential.IssuanceDate = &issuanceDate
-
+	// context
 	if !unsignedCredential.ContainsContext(vc.VCContextV1URI()) {
-		unsignedCredential.Context = append(unsignedCredential.Context, vc.VCContextV1URI())
+		// @context is an ordered list that MUST start with the base VC context: https://www.w3.org/TR/vc-data-model/#contexts
+		unsignedCredential.Context = append([]ssi.URI{vc.VCContextV1URI()}, unsignedCredential.Context...)
 	}
 
-	defaultType := vc.VerifiableCredentialTypeV1URI()
-	if !unsignedCredential.IsType(defaultType) {
-		unsignedCredential.Type = append(unsignedCredential.Type, defaultType)
+	// type
+	if len(template.Type) == 0 || // programming error
+		len(template.Type) > 2 || // too many types
+		(len(template.Type) == 2 && !template.IsType(vc.VerifiableCredentialTypeV1URI())) { // too many types
+		return nil, core.InvalidInputError("can only issue VerifiableCredential with at most 1 extra type")
+	}
+	if !unsignedCredential.IsType(vc.VerifiableCredentialTypeV1URI()) {
+		unsignedCredential.Type = append(unsignedCredential.Type, vc.VerifiableCredentialTypeV1URI())
 	}
 
+	// sign
 	switch options.Format {
 	case vc.JWTCredentialProofFormat:
 		return vc.CreateJWTVerifiableCredential(ctx, unsignedCredential, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {

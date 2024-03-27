@@ -8,7 +8,7 @@ info:
   license:
     name: GPLv3
 servers:
-  - url: http://localhost:1323
+  - url: http://localhost:8081
 paths:
   /internal/vcr/v2/vc/{id}:
     parameters:
@@ -530,14 +530,19 @@ components:
         "@context":
           description: |
             The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
-            Note: it is not needed to provide the "https://www.w3.org/2018/credentials/v1" context here.
-          type: string
-          example: "http://schema.org"
-          default: "https://nuts.nl/credentials/v1"
+          oneOf:
+            - type: string
+              example: "https://nuts.nl/credentials/v1"
+            - type: array
+              example: ["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"]
+          default: ["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"]
         type:
           description: Type definition for the credential.
-          type: string
-          example: "NutsOrganizationCredential"
+          oneOf:
+            - type: string
+              example: "VerifiableCredential"
+            - type: array
+              example: ["VerifiableCredential", "NutsOrganizationCredential"]
         issuer:
           description: DID according to Nuts specification.
           type: string

@@ -1,11 +1,10 @@
-version: "3.7"
 services:
   node:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     ports:
-      - "11323:1323"
+      - "18081:8081"
     volumes:
       - "./nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "../../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"

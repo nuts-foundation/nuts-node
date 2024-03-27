@@ -34,7 +34,7 @@ import (
 const defaultClientTimeout = 10 * time.Second
 const clientTimeoutFlag = "timeout"
 const clientAddressFlag = "address"
-const defaultAddress = "localhost:1323"
+const defaultAddress = "localhost:8081"
 const clientConfigFileName = ".nuts-client.cfg"
 
 // userHomeDirFn is settable for testing purposes

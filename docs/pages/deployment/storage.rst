@@ -1,68 +1,29 @@
 .. _storage-configuration:
 
-Storage Configuration
-#####################
+Storage
+#######
 
 The Nuts node supports different backends for storage. This page describes the particulars of each backend and how to configure it.
 
 .. note::
 
-    The node does not automatically back up your data or keys.
-    This is something :ref:`you need to set up <backup-restore>` regardless the backend you use.
+    This page does not describe how to configure storage when using ``did:nuts`` DIDs and/or the Nuts gRPC network,
+    which require specific storage configuration. If your use case require these features, refer to the v5 documentation for configuration storage.
 
-.. note::
+The Nuts node uses two types of storage:
 
-    Clustering is not supported. Even if you use a backend that supports concurrent access (e.g. Redis),
-    you can't have multiple Nuts nodes use the same data storage.
+- SQL database for storing (``did:web``) DID documents and Verifiable Credentials.
+- Private key storage for securely storing cryptographic private keys.
 
-Data
-****
+The Nuts node does not backup your data, remember to backup the data in these storages regularly.
+Also remember to test your backup and restore procedure.
 
-Data is everything your node produces and stores, except private keys. It is also everything that is produced and published by other nodes in the network.
-
-.. note::
-
-    Even if you configure external data storage (Redis), certain data is still stored on disk (e.g. search indexes).
-    Although this does not need to be in backup, depending on the network state size it can take a long time to rebuild it.
-    So you should always retain the data directory when restarting or upgrading the node.
-
-BBolt
-=====
-
-By default, all data (aside from private keys) is stored on disk using BBolt. You don't need to configure anything to get it working, but don't forget the backup procedure.
-If an alternative data store is configured (e.g. Redis), volatile data (projections that are generally quick to rebuild) is still stored in BBolt.
-You can back up volatile data, but it is not required.
-
-Redis
-=====
-
-If the node is configured to use Redis it stores network state in the configured Redis server.
-To use Redis, configure ``storage.redis.address``.
-You can configure username/password authentication using ``storage.redis.username`` and ``storage.redis.password``.
-
-If you need to prefix the keys (e.g. you have multiple Nuts nodes using the same Redis server) you can set ``storage.redis.database``
-with an alphanumeric string. All keys written to Redis will then have that prefix followed by a separator.
-
-You can connect to your Redis server over TLS by specifying a Redis connection URL in ``storage.redis.address``,
-e.g.: ``rediss://database.mycluster.com:1234567``.
-The server's certificate will be verified against the OS' CA bundle.
-
-.. note::
-
-    Make sure to `configure persistence for your Redis server <https://redis.io/docs/manual/persistence/>`_.
-
-SQL
-===
-
-.. note::
-
-    When your use case only produces/consumes ``did:web`` DIDs and related Verifiable Credentials,
-    all data (except private keys) is stored in a SQL database.
-    If you consume/produce ``did:nuts`` DIDs, you still need the other storage options (BBolt and/or Redis) described by this document.
+SQL database
+************
 
 By default, storage SQLite will be used in a file called ``sqlite.db`` in the configured data directory.
 This can be overridden by configuring a connection string in ``storage.sql.connection``.
-Other supported SQL databases are PostgreSQL and MySQL.
+Other supported SQL databases are Postgres and MySQL.
 
 Connection strings must be in the following format:
 
@@ -77,31 +38,6 @@ Examples:
 - Postgres: ``postgres://user:password@localhost:5432/dbname?sslmode=disable``
 - MySql: ``mysql://user:password@localhost:3306/dbname?charset=utf8mb4&parseTime=True&loc=Local``
 - SQLite: ``sqlite:file:/some/path/sqlite.db?_journal_mode=WAL&_foreign_keys=on``
-
-Redis Sentinel
-^^^^^^^^^^^^^^
-
-You can enable Redis Sentinel by configuring ``storage.redis.sentinel``. The following properties must be configured:
-
-- ``master`` must contain the name of the Redis Sentinel master
-- ``nodes`` must contain a list of Redis Sentinel to initially connect to.
-
-If using a connection URL for ``storage.redis.address`` (e.g. to enable TLS) the host in the URL won't be used.
-However, it still must be provided but can be any arbitrary value.
-Other configuration and connection URL parameters (not specific) to Sentinel still apply.
-
-.. code-block:: yaml
-
-    storage:
-      redis:
-        address: redis://irrelevant
-        sentinel:
-          master: mymaster
-          nodes:
-            - instance1:1234
-            - instance2:5678
-
-Review the configuration reference for additional Redis Sentinel configuration parameters.
 
 Private Keys
 ************
@@ -191,10 +127,3 @@ The following list contains all the known implementations of the Nuts external s
 - `Nuts Vault proxy <https://github.com/nuts-foundation/hashicorp-vault-proxy>`__. This is a proxy that integrates with Hashicorp Vault. It uses the Vault KV store to store the keys. The proxy is developed by the Nuts foundation and is available under an open source license.
 
 If you want to build your own store, take a look at the documentation at :ref:`external-secret-store`.
-
-
-Trusted issuers
-***************
-
-The Nuts node stores your trusted issuers in ``<datadir>/vcr/trusted_issuers.yaml``.
-This file should be kept persistent and should be part of the backup procedure.

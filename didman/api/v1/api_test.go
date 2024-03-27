@@ -152,7 +152,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 
 	t.Run("error - invalid service", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, didnuts.InvalidServiceError{errors.New("custom error")})
+		test.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, didnuts.InvalidServiceError{Cause: errors.New("custom error")})
 
 		response, err := test.wrapper.AddEndpoint(ctx, request)
 
@@ -384,7 +384,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 
 	t.Run("error - invalid service", func(t *testing.T) {
 		test := newMockContext(t)
-		test.didman.EXPECT().AddCompoundService(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, didnuts.InvalidServiceError{errors.New("custom error")})
+		test.didman.EXPECT().AddCompoundService(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, didnuts.InvalidServiceError{Cause: errors.New("custom error")})
 
 		response, err := test.wrapper.AddCompoundService(ctx, request)
 
@@ -496,7 +496,7 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 	t.Run("error mapping", func(t *testing.T) {
 		ctx := newMockContext(t)
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(resolver.ErrServiceNotFound))
-		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(resolver.ServiceQueryError{errors.New("arbitrary")}))
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(resolver.ServiceQueryError{Err: errors.New("arbitrary")}))
 		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(resolver.ErrServiceReferenceToDeep))
 		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrReferencedServiceNotAnEndpoint{}))
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(resolver.ErrNotFound))

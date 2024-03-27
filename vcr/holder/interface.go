@@ -52,6 +52,7 @@ type Wallet interface {
 	BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
 
 	// List returns all credentials in the wallet for the given holder.
+	// If the wallet does not contain any credentials for the given holder, it returns an empty list.
 	List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)
 
 	// Remove removes the given credential from the wallet.

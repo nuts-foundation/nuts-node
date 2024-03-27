@@ -20,11 +20,8 @@ All problems will be fixed and the release candidate version is increased on eve
 When no more problems are found the major/minor version is released without a ``-rc.<rc>`` postfix.
 This approach prevents the docker ``latest`` tags to be updated to a new version automatically.
 
-Aside from the Nuts Node itself, the projects below need to be released.
+Aside from the Nuts Node itself, all projects that follow the same versions need to be released.
 They follow the major version from the Nuts Node, but minor and patch versions may differ.
-
-- `Registry Admin Demo <https://github.com/nuts-foundation/nuts-registry-admin-demo/releases>`_
-- `Demo EHR <https://github.com/nuts-foundation/nuts-demo-ehr/releases>`_
 
 Major release
 *************

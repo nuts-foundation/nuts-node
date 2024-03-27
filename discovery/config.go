@@ -34,8 +34,8 @@ type ServiceDefinitionsConfig struct {
 
 // ServerConfig holds the config for the server
 type ServerConfig struct {
-	// DefinitionIDs specifies which use case lists the server serves.
-	DefinitionIDs []string `koanf:"definition_ids"`
+	// IDs specifies the IDs of the Discovery Services the server serves.
+	IDs []string `koanf:"ids"`
 }
 
 // ClientConfig holds the config for the client

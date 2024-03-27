@@ -1,4 +1,3 @@
-version: "3.7"
 services:
   nuts-node-github:
     container_name: denylist-nuts-node-github

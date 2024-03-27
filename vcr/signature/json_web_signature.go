@@ -47,7 +47,7 @@ func (s JSONWebSignature2020) Sign(ctx context.Context, doc []byte, key crypto.K
 // CanonicalizeDocument canonicalizes a document using the LD canonicalization algorithm.
 // Can be used for both the LD proof as the document. It requires the document to have a valid context.
 func (s JSONWebSignature2020) CanonicalizeDocument(doc interface{}) ([]byte, error) {
-	res, err := jsonld.LDUtil{s.ContextLoader}.Canonicalize(doc)
+	res, err := jsonld.LDUtil{LDDocumentLoader: s.ContextLoader}.Canonicalize(doc)
 	if err != nil {
 		return nil, fmt.Errorf("canonicalization failed: %w", err)
 	}
