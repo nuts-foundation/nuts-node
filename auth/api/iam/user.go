@@ -19,7 +19,13 @@
 package iam
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"net/http"
@@ -79,6 +85,13 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		return err
 	}
 
+	// TODO: Here, support for OpenID Connect can be added in the future
+	userJWK, err := generateUserSessionJWK()
+	if err != nil {
+		return err
+	}
+	r.issueEmployeeCredential(accessTokenRequest.Body.PreauthorizedUser)
+
 	// burn token
 	err = store.Delete(token)
 	if err != nil {
@@ -130,4 +143,37 @@ func (r Wrapper) oauthClientStateStore() storage.SessionStore {
 
 func (r Wrapper) oauthCodeStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthCodeKey...)
+}
+
+func (r Wrapper) createUserSessionWallet(userDetails UserDetails) (*SessionWallet, error) {
+
+}
+
+func generateUserSessionJWK() (jwk.Key, *did.DID, error) {
+	// Generate a EC key pair and JWK for storage
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+	userJWK, err := jwk.FromRaw(key)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Now derive the did:jwk DID
+	publicKey := key.Public()
+	publicUserJWK, err := jwk.FromRaw(publicKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	publicUserJWKData, err := json.Marshal(publicUserJWK)
+	if err != nil {
+		return nil, nil, err
+	}
+	userDID, err := did.ParseDID("did:jwk:" + base64.RawStdEncoding.EncodeToString(publicUserJWKData))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return userJWK, userDID, nil
 }
