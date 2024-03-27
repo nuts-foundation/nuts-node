@@ -36,11 +36,18 @@ components:
           example: "2012-01-02T12:00:00Z"
         credentialSubject:
           $ref: '#/components/schemas/CredentialSubject'
+        credentialStatus:
+          $ref: '#/components/schemas/CredentialStatus'
         proof:
           description: one or multiple cryptographic proofs
 
     CredentialSubject:
       description: Subject of a Verifiable Credential identifying the holder and expressing claims.
+
+    CredentialStatus:
+      description: |
+        Object enabling the discovery of information related to the status of a verifiable credential, such as whether it is suspended or revoked.
+        Interpretation of the credentialStatus is defined by its 'type' property.
 
     Revocation:
       type: object
