@@ -39,8 +39,23 @@ type OAuthSession struct {
 	ServerState            ServerState
 	ResponseType           string
 	PresentationDefinition PresentationDefinition
-	UserDetails            UserDetails
 	VerifierDID            *did.DID
+}
+
+// UserSession is a session-bound Verifiable Credential wallet.
+type UserSession struct {
+	// TenantDID is the requesting DID when the user session was created, typically the employer's (of the user) DID.
+	// A session needs to be scoped to the tenant DID, since the session gives access to the tenant's wallet,
+	// and the user session might contain session-bound credentials (e.g. EmployeeCredential) that were issued by the tenant.
+	TenantDID did.DID    `json:"tenantDID"`
+	Wallet    UserWallet `json:"wallet"`
+}
+
+// UserWallet is a session-bound Verifiable Credential wallet.
+type UserWallet struct {
+	Credentials []vc.VerifiableCredential
+	// JWK is an in-memory key pair associated with the user's wallet in JWK form.
+	JWK []byte
 }
 
 // ServerState is a convenience type for extracting different types of data from the session.
