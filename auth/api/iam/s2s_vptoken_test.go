@@ -57,7 +57,10 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	require.NoError(t, err)
 	issuerDIDDocument.AddAssertionMethod(verificationMethod)
 
-	var definition pe.PresentationDefinition
+	multiPex := []pe.MultiPEX{{
+		AudienceType: pe.AudienceTypeOrganization,
+	},
+	}
 	require.NoError(t, json.Unmarshal([]byte(`
 {
 	"format": {
@@ -85,7 +88,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		  	}
 		}
 	]
-}`), &definition))
+}`), &multiPex[0].PresentationDefinition))
 
 	var submission pe.PresentationSubmission
 	require.NoError(t, json.Unmarshal([]byte(`
@@ -110,7 +113,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("JSON-LD VP", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
-		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(multiPex, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
@@ -157,7 +160,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 			require.NoError(t, token.Set(jwt.AudienceKey, issuerDID.String()))
 		}, verifiableCredential)
-		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(multiPex, nil)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
@@ -192,7 +195,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		t.Run("replay attack (nonce is reused)", func(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
-			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil).Times(2)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(multiPex, nil).Times(2)
 
 			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 			require.NoError(t, err)
@@ -203,7 +206,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("JSON-LD VP is missing nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(multiPex, nil)
 			proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
 				proof.Domain = &issuerDIDStr
 				proof.Nonce = nil
@@ -216,7 +219,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("JSON-LD VP has empty nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(multiPex, nil)
 			proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
 				proof.Domain = &issuerDIDStr
 				proof.Nonce = new(string)
@@ -229,7 +232,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("JWT VP is missing nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(multiPex, nil)
 			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerDID.String())
 				_ = token.Remove("nonce")
@@ -241,7 +244,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("JWT VP has empty nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(multiPex, nil)
 			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerDID.String())
 				_ = token.Set("nonce", "")
@@ -253,7 +256,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("JWT VP nonce is not a string", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(multiPex, nil)
 			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerDID.String())
 				_ = token.Set("nonce", true)
@@ -289,7 +292,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("VP verification fails", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(nil, errors.New("invalid"))
-		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(multiPex, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
@@ -334,7 +337,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("unsupported scope", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, "everything").Return(nil, policy.ErrNotFound)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, "everything").Return(nil, policy.ErrNotFound)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, "everything", submissionJSON, presentation.Raw())
 
@@ -356,7 +359,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, otherVerifiableCredential)
 
 		ctx := newTestClient(t)
-		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), issuerDID, requestedScope).Return(&definition, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(multiPex, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 		assert.EqualError(t, err, "invalid_request - presentation submission doesn't match presentation definition - presentation submission does not conform to Presentation Definition")

@@ -171,11 +171,11 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 func TestWrapper_PresentationDefinition(t *testing.T) {
 	webDID := did.MustParseDID("did:web:example.com:iam:123")
 	ctx := audit.TestContext()
-	presentationDefinition := pe.PresentationDefinition{Id: "test"}
+	multiPlex := []pe.MultiPEX{{AudienceType: pe.AudienceTypeOrganization, PresentationDefinition: pe.PresentationDefinition{Id: "test"}}}
 
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinition(gomock.Any(), webDID, "example-scope").Return(&presentationDefinition, nil)
+		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(multiPlex, nil)
 		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope"}})
@@ -200,7 +200,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 	t.Run("error - unknown scope", func(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		test.policy.EXPECT().PresentationDefinition(gomock.Any(), webDID, "unknown").Return(nil, policy.ErrNotFound)
+		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "unknown").Return(nil, policy.ErrNotFound)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "unknown"}})
 

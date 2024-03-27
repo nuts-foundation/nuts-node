@@ -42,7 +42,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/PEXPolicy'
+                  $ref: '#/components/schemas/MultiPEX'
         "201":
           description: The DID is known but the presented scope is not supported.
         "404":
@@ -126,8 +126,8 @@ components:
         authorized:
           description: Indicates if the access token grants access to the requested resource.
           type: boolean
-    PEXPolicy:
-      description: A PEX policy is a JSON object that describes the desired verifiable credentials for a particular audience type.
+    MultiPEX:
+      description: A PEX policy as a JSON object that describes the desired verifiable credentials for a particular audience type.
       type: object
       required:
         - presentation_definition

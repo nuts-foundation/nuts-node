@@ -36,7 +36,7 @@ var ErrNotFound = errors.New("not found")
 type PDPBackend interface {
 	// PresentationDefinitions returns the PresentationDefinitions (as PEXPolicy) for the given scope
 	// scopes are space delimited. It's up to the backend to decide how to handle this
-	PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) ([]pe.PEXPolicy, error)
+	PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) ([]pe.MultiPEX, error)
 
 	// Authorized returns true if the policy backends authorizes the given request information fall within the policy definition
 	Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error)

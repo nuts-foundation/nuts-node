@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "PEX Policy",
+  "title": "Multi PEX",
   "type": "object",
   "properties": {
     "audience_type": {

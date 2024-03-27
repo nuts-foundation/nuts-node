@@ -29,8 +29,8 @@ type PresentationDefinition = pe.PresentationDefinition
 // PresentationSubmission is a type alias for the PresentationSubmission from the nuts-node/vcr/pe package.
 type PresentationSubmission = pe.PresentationSubmission
 
-// PEXPolicy is a type alias for the PEXPolicy from the nuts-node/policy package.
-type PEXPolicy = pe.PEXPolicy
+// MultiPEX is a type alias for the MultiPEX from the nuts-node/policy package.
+type MultiPEX = pe.MultiPEX
 
 // AuthorizedRequest contains the information about the request
 type AuthorizedRequest struct {

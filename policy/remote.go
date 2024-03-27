@@ -32,7 +32,7 @@ type remote struct {
 	client  client.HTTPClient
 }
 
-func (b remote) PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) ([]pe.PEXPolicy, error) {
+func (b remote) PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) ([]pe.MultiPEX, error) {
 	return b.client.PresentationDefinitions(ctx, b.address, authorizer, scope)
 }
 

@@ -545,9 +545,20 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, verifier did.DID,
 
 	presentations := oauthSession.ServerState.VerifiablePresentations()
 	submission := oauthSession.ServerState.PresentationSubmission()
-	definition, err := r.policyBackend.PresentationDefinition(ctx, verifier, oauthSession.Scope)
+	definitions, err := r.policyBackend.PresentationDefinitions(ctx, verifier, oauthSession.Scope)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to fetch presentation definition: %s", err.Error())), callbackURI)
+	}
+	// todo, for now take the organization definition
+	var definition *pe.PresentationDefinition
+	for _, def := range definitions {
+		if def.AudienceType == pe.AudienceTypeOrganization {
+			definition = &def.PresentationDefinition
+			break
+		}
+	}
+	if definition == nil {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "no presentation definition found for organization wallet"), callbackURI)
 	}
 	credentialMap := oauthSession.ServerState.CredentialMap()
 	subject, _ := did.ParseDID(oauthSession.ClientID)

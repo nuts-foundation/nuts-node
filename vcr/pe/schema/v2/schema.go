@@ -40,14 +40,14 @@ const (
 	submissionRequirements                        = "http://identity.foundation/presentation-exchange/schemas/submission-requirements.json"
 	presentationSubmissionClaimFormatDesignations = "http://identity.foundation/claim-format-registry/schemas/presentation-submission-claim-format-designations.json"
 	presentationDefinitionClaimFormatDesignations = "http://identity.foundation/claim-format-registry/schemas/presentation-definition-claim-format-designations.json"
-	pexPolicy                                     = "http://nuts.nl/schemas/pex-policy.json"
+	multiPEX                                      = "http://nuts.nl/schemas/multipex.json"
 )
 
 //go:embed *.json
 var schemaFiles embed.FS
 
-// PEXPolicy is the JSON schema for a PEX policy.
-var PEXPolicy *jsonschema.Schema
+// MultiPEX is the JSON schema for a MultiPEX (presentation definition with a specific audience).
+var MultiPEX *jsonschema.Schema
 
 // PresentationDefinition is the JSON schema for a presentation definition.
 var PresentationDefinition *jsonschema.Schema
@@ -74,7 +74,7 @@ func init() {
 	compiler := Compiler()
 	PresentationDefinition = compiler.MustCompile(presentationDefinition)
 	PresentationSubmission = compiler.MustCompile(presentationSubmission)
-	PEXPolicy = compiler.MustCompile(pexPolicy)
+	MultiPEX = compiler.MustCompile(multiPEX)
 }
 
 func loadSchemas(reader fs.ReadFileFS, compiler *jsonschema.Compiler) error {
@@ -90,7 +90,7 @@ func loadSchemas(reader fs.ReadFileFS, compiler *jsonschema.Compiler) error {
 		submissionRequirements,
 		presentationSubmissionClaimFormatDesignations,
 		presentationDefinitionClaimFormatDesignations,
-		pexPolicy,
+		multiPEX,
 	}
 	for _, schemaURL := range schemaURLs {
 		// Last part of schema URL matches the embedded file's name

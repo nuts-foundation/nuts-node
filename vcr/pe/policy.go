@@ -18,8 +18,8 @@
 
 package pe
 
-// PEXPolicy defines the intended audience for a PresentationDefinition
-type PEXPolicy struct {
+// MultiPEX defines the intended audience for a PresentationDefinition
+type MultiPEX struct {
 	AudienceType           AudienceType           `json:"audience_type"`
 	PresentationDefinition PresentationDefinition `json:"presentation_definition"`
 }
@@ -28,8 +28,8 @@ type PEXPolicy struct {
 type AudienceType string
 
 const (
-	// AudienceTypeOrganization is used in a PEXPolicy when the PresentationDefinition is intended for an organization
+	// AudienceTypeOrganization is used in a MultiPEX when the PresentationDefinition is intended for an organization
 	AudienceTypeOrganization = AudienceType("organization")
-	// AudienceTypeUser is used in a PEXPolicy when the PresentationDefinition is intended for a user
+	// AudienceTypeUser is used in a MultiPEX when the PresentationDefinition is intended for a user
 	AudienceTypeUser = AudienceType("user")
 )
