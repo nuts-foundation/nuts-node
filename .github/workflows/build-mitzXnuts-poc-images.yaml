@@ -9,6 +9,11 @@ on:
     branches:
       - mitzXnuts
 
+# cancel build action if superseded by new commit on same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   docker:
     runs-on: ubuntu-latest
