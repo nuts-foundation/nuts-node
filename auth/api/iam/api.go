@@ -25,9 +25,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/log"
@@ -60,6 +62,8 @@ const httpRequestContextKey = "http-request"
 // TODO: Might want to make this configurable at some point
 const accessTokenValidity = 15 * time.Minute
 
+const oid4vicSessionValidity = 15 * time.Minute
+
 //go:embed assets
 var assets embed.FS
 
@@ -71,6 +75,15 @@ type Wrapper struct {
 	policyBackend policy.PDPBackend
 	templates     *template.Template
 	storageEngine storage.Engine
+	keyStore      crypto.KeyStore
+}
+
+type Oid4vciSession struct {
+	HolderDid   string
+	IssuerDid   string
+	RedirectUrl string
+	RedirectUri string
+	PKCEParams  PKCEParams
 }
 
 func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend) *Wrapper {
@@ -119,7 +132,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
 	ctx.Set(core.OperationIDContextKey, operationID)
 	ctx.Set(core.ModuleNameContextKey, apiModuleName)
-	
+
 	// Add http.Request to context, to allow reading URL query parameters
 	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
@@ -595,6 +608,203 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 	return StatusList200JSONResponse(*cred), nil
 }
 
+func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request RequestOid4vciCredentialIssuanceRequestObject) (RequestOid4vciCredentialIssuanceResponseObject, error) {
+	if request.Body == nil {
+		// why did oapi-codegen generate a pointer for the body??
+		return nil, core.InvalidInputError("missing request body")
+	}
+	// Parse and check the requester
+	requestHolder, err := did.ParseDID(request.Did)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("could not resolve DID: %s", request.Did)
+		return nil, core.NotFoundError("did not found: %w", err)
+	}
+	isWallet, err := r.vdr.IsOwner(ctx, *requestHolder)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("unknown DID in this node: %s", request.Did)
+		return nil, err
+	}
+	if !isWallet {
+		err := core.InvalidInputError(fmt.Sprintf("did not owned by this node: %s", request.Did))
+		log.Logger().WithError(err).Errorf("did not owned by this node: %s", request.Did)
+		return nil, err
+	}
+
+	// Parse the issuer
+	issuerDid, err := did.ParseDID(request.Body.Issuer)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("could not resolve Issuer DID: %s", request.Body.Issuer)
+		return nil, core.NotFoundError("did not found: %w", err)
+	}
+	// Fetch the endpoints
+	authorizationEndpoint, _, _, err := r.tokenEndpoint(ctx, *issuerDid)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("cannot locate endpoints for did: %s", issuerDid.String())
+		return nil, err
+	}
+	endpoint, err := url.Parse(*authorizationEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	// Read and parse the authorization details
+	authorizationDetails := []byte("[]")
+	if len(request.Body.AuthorizationDetails) > 0 {
+		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
+		if err != nil {
+			log.Logger().WithError(err).Errorf("failed to parse the authorization details")
+			return nil, err
+		}
+	}
+	// Generate the state and PKCE
+	state := uuid.NewString()
+	pkceParams := generatePKCEParams()
+	if err != nil {
+		log.Logger().WithError(err).Errorf("failed to create the PKCE parameters")
+		return nil, err
+	}
+	// Figure out our own redirect URL by parsing the did:web and extracting the host.
+	requesterDidUrl, err := didweb.DIDToURL(*requestHolder)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("failed to create the PKCE parameters")
+		return nil, err
+	}
+	redirectUri, err := url.Parse("https://" + requesterDidUrl.Host + "/iam/oid4vci/callback")
+	if err != nil {
+		log.Logger().WithError(err).Errorf("failed to create the url for host: %s", requesterDidUrl.Host)
+		return nil, err
+	}
+	// Store the session
+	err = r.oid4vciSssionStore().Put(state, &Oid4vciSession{
+		HolderDid:   requestHolder.String(),
+		IssuerDid:   issuerDid.String(),
+		RedirectUrl: request.Body.RedirectUri,
+		RedirectUri: redirectUri.String(),
+		PKCEParams:  pkceParams,
+	})
+	if err != nil {
+		log.Logger().WithError(err).Errorf("failed to store the session")
+		return nil, err
+	}
+	// Build the redirect URL, the client browser should be redirected to.
+	redirectUrl := http2.AddQueryParams(*endpoint, map[string]string{
+		"response_type":         "code",
+		"state":                 state,
+		"client_id":             requestHolder.String(),
+		"authorization_details": string(authorizationDetails),
+		"redirect_uri":          redirectUri.String(),
+		"code_challenge":        pkceParams.Challenge,
+		"code_challenge_method": pkceParams.ChallengeMethod,
+	})
+
+	log.Logger().Debugf("generated the following redirect_uri for did %s, to issuer %s: %s", requestHolder.String(), issuerDid.String(), redirectUri.String())
+
+	return RequestOid4vciCredentialIssuance200JSONResponse{
+		RedirectUri: redirectUrl.String(),
+		SessionId:   state,
+	}, nil
+}
+
+func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request CallbackOid4vciCredentialIssuanceRequestObject) (CallbackOid4vciCredentialIssuanceResponseObject, error) {
+	state := request.Params.State
+	oid4vciSession := Oid4vciSession{}
+	err := r.oid4vciSssionStore().Get(state, &oid4vciSession)
+	if err != nil {
+		return nil, err
+	}
+	if request.Params.Error != nil {
+		return r.errorResponse(oid4vciSession, *request.Params.Error, request.Params.ErrorDescription)
+	}
+	code := request.Params.Code
+	pkceParams := oid4vciSession.PKCEParams
+	issuerDid, err := did.ParseDID(oid4vciSession.IssuerDid)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("could not resolve Issuer DID: %s", oid4vciSession.IssuerDid)
+		return r.errorResponse(oid4vciSession, "invalid_request", nil)
+	}
+	holderDid, err := did.ParseDID(oid4vciSession.HolderDid)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("could not resolve Holder DID: %s", oid4vciSession.IssuerDid)
+		return r.errorResponse(oid4vciSession, "invalid_request", nil)
+	}
+	_, tokenEndpoint, credentialEndpoint, err := r.tokenEndpoint(ctx, *issuerDid)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("cannot fetch the right endpoints")
+		return r.errorResponse(oid4vciSession, "server_error", nil)
+	}
+	response, err := r.auth.IAMClient().AccessTokenOid4vci(ctx, holderDid.String(), *tokenEndpoint, oid4vciSession.RedirectUri, code, &pkceParams.Verifier)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("error while fetching the access_token from endpoint: %s", *tokenEndpoint)
+		return r.errorResponse(oid4vciSession, "access_denied", nil)
+	}
+	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, *credentialEndpoint, response.AccessToken, *holderDid, *issuerDid)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("error while fetching the credential from endpoint: %s", *credentialEndpoint)
+		return r.errorResponse(oid4vciSession, "server_error", nil)
+	}
+	credential, err := vc.ParseVerifiableCredential(credentials.Credential)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("error while parsing the credential: %s", credentials.Credential)
+		return r.errorResponse(oid4vciSession, "server_error", nil)
+	}
+	err = r.vcr.Verifier().Verify(*credential, true, true, nil)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("error while verifing the credential with id: %s", credential.ID)
+		return r.errorResponse(oid4vciSession, "server_error", nil)
+	}
+	err = r.vcr.Wallet().Put(ctx, *credential)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("error while storing credential with id: %s", credential.ID)
+		return r.errorResponse(oid4vciSession, "server_error", nil)
+	}
+
+	log.Logger().Debugf("stored the credential with id: %s, now redirecting to %s", credential.ID, oid4vciSession.RedirectUrl)
+
+	return CallbackOid4vciCredentialIssuance302Response{
+		Headers: CallbackOid4vciCredentialIssuance302ResponseHeaders{Location: oid4vciSession.RedirectUrl},
+	}, nil
+}
+
+func (r Wrapper) errorResponse(oid4vciSession Oid4vciSession, errMsg string, errorDescription *string) (CallbackOid4vciCredentialIssuanceResponseObject, error) {
+	redirectUrl, err := url.Parse(oid4vciSession.RedirectUrl)
+	if err != nil {
+		return nil, err
+	}
+	redirectLocation := http2.AddQueryParams(*redirectUrl, map[string]string{
+		"error": errMsg,
+	})
+	if errorDescription != nil {
+		redirectLocation = http2.AddQueryParams(redirectLocation, map[string]string{
+			"error_description": *errorDescription,
+		})
+	}
+	return CallbackOid4vciCredentialIssuance302Response{
+		Headers: CallbackOid4vciCredentialIssuance302ResponseHeaders{Location: redirectLocation.String()},
+	}, nil
+}
+
+func (r Wrapper) tokenEndpoint(ctx context.Context, issuerDid did.DID) (*string, *string, *string, error) {
+	metadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, issuerDid)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	for i := range metadata.AuthorizationServers {
+		serverURL, err := url.Parse(metadata.AuthorizationServers[i])
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		openIdConfiguration, err := r.auth.IAMClient().OpenIdConfiguration(ctx, *serverURL)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		authorizationEndpoint := openIdConfiguration.AuthorizationEndpoint
+		tokenEndpoint := openIdConfiguration.TokenEndpoint
+		credentialEndpoint := metadata.CredentialEndpoint
+		return &authorizationEndpoint, &tokenEndpoint, &credentialEndpoint, nil
+	}
+	err = errors.New(fmt.Sprintf("cannot locate any authorization endpoint in %s", issuerDid.String()))
+	return nil, nil, nil, err
+}
+
 // idToDID converts the tenant-specific part of a did:web DID (e.g. 123)
 // to a fully qualified did:web DID (e.g. did:web:example.com:123), using the configured Nuts node URL.
 func (r Wrapper) idToDID(id string) did.DID {
@@ -621,4 +831,8 @@ func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
 	}
 	return didURL.Parse("/oauth2/" + webDID.String())
+}
+
+func (r Wrapper) oid4vciSssionStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(oid4vicSessionValidity, "oid4vci")
 }

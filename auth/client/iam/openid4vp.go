@@ -24,20 +24,20 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/url"
-	"time"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/url"
+	"time"
 )
 
 var _ Client = (*OpenID4VPClient)(nil)
@@ -263,4 +263,76 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		TokenType:   token.TokenType,
 		Scope:       &scopes,
 	}, nil
+}
+func (c *OpenID4VPClient) OpenIdConfiguration(ctx context.Context, serverURL url.URL) (*oauth.OpenIDConfigurationMetadata, error) {
+	iamClient := c.newHTTPClient()
+	rsp, err := iamClient.OpenIdConfiguration(ctx, serverURL)
+	if err != nil {
+		return nil, err
+	}
+	return rsp, nil
+}
+
+func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, webDID did.DID) (*oauth.OpenIDCredentialIssuerMetadata, error) {
+	iamClient := c.newHTTPClient()
+	rsp, err := iamClient.OpenIdCredentialIssuerMetadata(ctx, webDID)
+	if err != nil {
+		return nil, err
+	}
+	return rsp, nil
+}
+
+func (c *OpenID4VPClient) AccessTokenOid4vci(ctx context.Context, clientId string, tokenEndpoint string, redirectUri string, code string, pkceCodeVerifier *string) (*oauth.Oid4vciTokenResponse, error) {
+	iamClient := c.newHTTPClient()
+	data := url.Values{}
+	data.Set("client_id", clientId)
+	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
+	data.Set(oauth.CodeParam, code)
+	data.Set("redirect_uri", redirectUri)
+	if pkceCodeVerifier != nil {
+		data.Set("code_verifier", *pkceCodeVerifier)
+	}
+	presentationDefinitionURL, err := url.Parse(tokenEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	rsp, err := iamClient.AccessTokenOid4vci(ctx, *presentationDefinitionURL, data)
+	if err != nil {
+		return nil, err
+	}
+	return rsp, nil
+}
+
+func (c *OpenID4VPClient) proofJwt(ctx context.Context, issuerDid did.DID, audienceDid did.DID) (string, error) {
+	kid, _, err := c.keyResolver.ResolveKey(issuerDid, nil, resolver.NutsSigningKeyType)
+	if err != nil {
+		return "", err
+	}
+	jti, err := uuid.NewUUID()
+	if err != nil {
+		return "", err
+	}
+	claims := map[string]interface{}{
+		"iss": issuerDid.String(),
+		"aud": audienceDid.String(),
+		"jti": jti.String(),
+	}
+	proofJwt, err := c.jwtSigner.SignJWT(ctx, claims, nil, kid.String())
+	if err != nil {
+		return "", err
+	}
+	return proofJwt, nil
+}
+func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, issuerDid did.DID, audienceDid did.DID) (*CredentialResponse, error) {
+	proofJwt, err := c.proofJwt(ctx, issuerDid, audienceDid)
+	if err != nil {
+		return nil, err
+	}
+	iamClient := c.newHTTPClient()
+	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJwt)
+	if err != nil {
+		return nil, err
+	}
+	return rsp, nil
 }

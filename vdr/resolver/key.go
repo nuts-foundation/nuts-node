@@ -25,6 +25,8 @@ import (
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"reflect"
+	"strings"
 	"time"
 )
 
@@ -75,16 +77,44 @@ func (r DIDKeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relatio
 	if err != nil {
 		return nil, err
 	}
+	baseUrl := r.baseUrl(doc)
 	relationships, err := resolveRelationships(doc, relationType)
 	if err != nil {
 		return nil, err
 	}
 	for _, rel := range relationships {
-		if rel.ID.String() == keyID {
+		localKeyId := rel.ID.String()
+		if localKeyId == keyID {
 			return rel.PublicKey()
+		} else if baseUrl != nil && strings.HasPrefix(localKeyId, "#") {
+			localKeyId = *baseUrl + localKeyId
+			if localKeyId == keyID {
+				return rel.PublicKey()
+			}
 		}
 	}
 	return nil, ErrKeyNotFound
+}
+
+// baseUrl returns the base URL of the given DID Document.
+// It searches for the "@base" field in the DID Document's context.
+// If the context is a map and contains the "@base" field, it returns the value of "@base".
+// If the context does not contain the "@base" field, it returns nil.
+func (r DIDKeyResolver) baseUrl(doc *did.Document) (baseUrl *string) {
+	context := doc.Context
+	for i := range context {
+		ctx := context[i]
+		if reflect.ValueOf(ctx).Kind() == reflect.Map {
+			m := ctx.(map[string]interface{})
+			if val, ok := m["@base"]; ok {
+				valStr := val.(string)
+				baseUrl = &valStr
+				break
+			}
+
+		}
+	}
+	return baseUrl
 }
 
 func (r DIDKeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (ssi.URI, crypto.PublicKey, error) {

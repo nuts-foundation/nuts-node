@@ -104,6 +104,34 @@ type TokenIntrospectionResponse struct {
 // TokenIntrospectionResponseAssuranceLevel Assurance level of the identity of the End-User.
 type TokenIntrospectionResponseAssuranceLevel string
 
+// CallbackOid4vciCredentialIssuanceParams defines parameters for CallbackOid4vciCredentialIssuance.
+type CallbackOid4vciCredentialIssuanceParams struct {
+	// Code The oauth2 code response.
+	Code string `form:"code" json:"code"`
+
+	// State The oauth2 state, required as the authorize request sends it.
+	State string `form:"state" json:"state"`
+
+	// Error The error code.
+	Error *string `form:"error,omitempty" json:"error,omitempty"`
+
+	// ErrorDescription The error description.
+	ErrorDescription *string `form:"error_description,omitempty" json:"error_description,omitempty"`
+}
+
+// RequestOid4vciCredentialIssuanceJSONBody defines parameters for RequestOid4vciCredentialIssuance.
+type RequestOid4vciCredentialIssuanceJSONBody struct {
+	AuthorizationDetails []struct {
+		CredentialDefinition *map[string]interface{} `json:"credential_definition,omitempty"`
+		Format               *string                 `json:"format,omitempty"`
+		Type                 *string                 `json:"type,omitempty"`
+	} `json:"authorization_details"`
+	Issuer string `json:"issuer"`
+
+	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
+	RedirectUri string `json:"redirect_uri"`
+}
+
 // RequestServiceAccessTokenJSONBody defines parameters for RequestServiceAccessToken.
 type RequestServiceAccessTokenJSONBody struct {
 	// Scope The scope that will be the service for which this access token can be used.
@@ -183,6 +211,9 @@ type HandleTokenRequestFormdataBody struct {
 // IntrospectAccessTokenFormdataRequestBody defines body for IntrospectAccessToken for application/x-www-form-urlencoded ContentType.
 type IntrospectAccessTokenFormdataRequestBody = TokenIntrospectionRequest
 
+// RequestOid4vciCredentialIssuanceJSONRequestBody defines body for RequestOid4vciCredentialIssuance for application/json ContentType.
+type RequestOid4vciCredentialIssuanceJSONRequestBody RequestOid4vciCredentialIssuanceJSONBody
+
 // RequestServiceAccessTokenJSONRequestBody defines body for RequestServiceAccessToken for application/json ContentType.
 type RequestServiceAccessTokenJSONRequestBody RequestServiceAccessTokenJSONBody
 
@@ -200,6 +231,9 @@ type ServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> user path.
 	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	OAuthAuthorizationServerMetadata(ctx echo.Context, id string) error
+	// Callback for the Oid4VCI credential issuance flow.
+	// (GET /iam/oid4vci/callback)
+	CallbackOid4vciCredentialIssuance(ctx echo.Context, params CallbackOid4vciCredentialIssuanceParams) error
 	// Returns the did:web version of a Nuts DID document
 	// (GET /iam/{id}/did.json)
 	GetWebDID(ctx echo.Context, id string) error
@@ -209,6 +243,9 @@ type ServerInterface interface {
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx echo.Context, sessionID string) error
+	// Start the Oid4VCI authorization flow.
+	// (POST /internal/auth/v2/{did}/request-credential)
+	RequestOid4vciCredentialIssuance(ctx echo.Context, did string) error
 	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{did}/request-service-access-token)
 	RequestServiceAccessToken(ctx echo.Context, did string) error
@@ -261,6 +298,47 @@ func (w *ServerInterfaceWrapper) OAuthAuthorizationServerMetadata(ctx echo.Conte
 	return err
 }
 
+// CallbackOid4vciCredentialIssuance converts echo context to params.
+func (w *ServerInterfaceWrapper) CallbackOid4vciCredentialIssuance(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CallbackOid4vciCredentialIssuanceParams
+	// ------------- Required query parameter "code" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "code", ctx.QueryParams(), &params.Code)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter code: %s", err))
+	}
+
+	// ------------- Required query parameter "state" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "state", ctx.QueryParams(), &params.State)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter state: %s", err))
+	}
+
+	// ------------- Optional query parameter "error" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "error", ctx.QueryParams(), &params.Error)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter error: %s", err))
+	}
+
+	// ------------- Optional query parameter "error_description" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "error_description", ctx.QueryParams(), &params.ErrorDescription)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter error_description: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CallbackOid4vciCredentialIssuance(ctx, params)
+	return err
+}
+
 // GetWebDID converts echo context to params.
 func (w *ServerInterfaceWrapper) GetWebDID(ctx echo.Context) error {
 	var err error
@@ -305,6 +383,21 @@ func (w *ServerInterfaceWrapper) RetrieveAccessToken(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.RetrieveAccessToken(ctx, sessionID)
+	return err
+}
+
+// RequestOid4vciCredentialIssuance converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestOid4vciCredentialIssuance(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	did = ctx.Param("did")
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RequestOid4vciCredentialIssuance(ctx, did)
 	return err
 }
 
@@ -528,9 +621,11 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:id", wrapper.OAuthAuthorizationServerMetadata)
+	router.GET(baseURL+"/iam/oid4vci/callback", wrapper.CallbackOid4vciCredentialIssuance)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetWebDID)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
+	router.POST(baseURL+"/internal/auth/v2/:did/request-credential", wrapper.RequestOid4vciCredentialIssuance)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-service-access-token", wrapper.RequestServiceAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-user-access-token", wrapper.RequestUserAccessToken)
 	router.GET(baseURL+"/oauth2/:did/authorize", wrapper.HandleAuthorizeRequest)
@@ -575,6 +670,49 @@ type OAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse s
 }
 
 func (response OAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse) VisitOAuthAuthorizationServerMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type CallbackOid4vciCredentialIssuanceRequestObject struct {
+	Params CallbackOid4vciCredentialIssuanceParams
+}
+
+type CallbackOid4vciCredentialIssuanceResponseObject interface {
+	VisitCallbackOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error
+}
+
+type CallbackOid4vciCredentialIssuance302ResponseHeaders struct {
+	Location string
+}
+
+type CallbackOid4vciCredentialIssuance302Response struct {
+	Headers CallbackOid4vciCredentialIssuance302ResponseHeaders
+}
+
+func (response CallbackOid4vciCredentialIssuance302Response) VisitCallbackOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type CallbackOid4vciCredentialIssuancedefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response CallbackOid4vciCredentialIssuancedefaultApplicationProblemPlusJSONResponse) VisitCallbackOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -663,6 +801,45 @@ type RetrieveAccessTokendefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response RetrieveAccessTokendefaultApplicationProblemPlusJSONResponse) VisitRetrieveAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type RequestOid4vciCredentialIssuanceRequestObject struct {
+	Did  string `json:"did"`
+	Body *RequestOid4vciCredentialIssuanceJSONRequestBody
+}
+
+type RequestOid4vciCredentialIssuanceResponseObject interface {
+	VisitRequestOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error
+}
+
+type RequestOid4vciCredentialIssuance200JSONResponse RedirectResponseWithID
+
+func (response RequestOid4vciCredentialIssuance200JSONResponse) VisitRequestOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestOid4vciCredentialIssuancedefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RequestOid4vciCredentialIssuancedefaultApplicationProblemPlusJSONResponse) VisitRequestOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -1011,6 +1188,9 @@ type StrictServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> user path.
 	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error)
+	// Callback for the Oid4VCI credential issuance flow.
+	// (GET /iam/oid4vci/callback)
+	CallbackOid4vciCredentialIssuance(ctx context.Context, request CallbackOid4vciCredentialIssuanceRequestObject) (CallbackOid4vciCredentialIssuanceResponseObject, error)
 	// Returns the did:web version of a Nuts DID document
 	// (GET /iam/{id}/did.json)
 	GetWebDID(ctx context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error)
@@ -1020,6 +1200,9 @@ type StrictServerInterface interface {
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
+	// Start the Oid4VCI authorization flow.
+	// (POST /internal/auth/v2/{did}/request-credential)
+	RequestOid4vciCredentialIssuance(ctx context.Context, request RequestOid4vciCredentialIssuanceRequestObject) (RequestOid4vciCredentialIssuanceResponseObject, error)
 	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{did}/request-service-access-token)
 	RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error)
@@ -1080,6 +1263,31 @@ func (sh *strictHandler) OAuthAuthorizationServerMetadata(ctx echo.Context, id s
 		return err
 	} else if validResponse, ok := response.(OAuthAuthorizationServerMetadataResponseObject); ok {
 		return validResponse.VisitOAuthAuthorizationServerMetadataResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CallbackOid4vciCredentialIssuance operation middleware
+func (sh *strictHandler) CallbackOid4vciCredentialIssuance(ctx echo.Context, params CallbackOid4vciCredentialIssuanceParams) error {
+	var request CallbackOid4vciCredentialIssuanceRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CallbackOid4vciCredentialIssuance(ctx.Request().Context(), request.(CallbackOid4vciCredentialIssuanceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CallbackOid4vciCredentialIssuance")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CallbackOid4vciCredentialIssuanceResponseObject); ok {
+		return validResponse.VisitCallbackOid4vciCredentialIssuanceResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -1163,6 +1371,37 @@ func (sh *strictHandler) RetrieveAccessToken(ctx echo.Context, sessionID string)
 		return err
 	} else if validResponse, ok := response.(RetrieveAccessTokenResponseObject); ok {
 		return validResponse.VisitRetrieveAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RequestOid4vciCredentialIssuance operation middleware
+func (sh *strictHandler) RequestOid4vciCredentialIssuance(ctx echo.Context, did string) error {
+	var request RequestOid4vciCredentialIssuanceRequestObject
+
+	request.Did = did
+
+	var body RequestOid4vciCredentialIssuanceJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestOid4vciCredentialIssuance(ctx.Request().Context(), request.(RequestOid4vciCredentialIssuanceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestOid4vciCredentialIssuance")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RequestOid4vciCredentialIssuanceResponseObject); ok {
+		return validResponse.VisitRequestOid4vciCredentialIssuanceResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
