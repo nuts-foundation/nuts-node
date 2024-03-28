@@ -22,10 +22,11 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// FlagSet contains flags relevant for JSON-LD
+// FlagSet contains flags relevant for policy
 func FlagSet() *pflag.FlagSet {
+	defCfg := defaultConfig()
 	flagSet := pflag.NewFlagSet("policy", pflag.ContinueOnError)
-	flagSet.String("policy.directory", "", "Directory to read policy files from. Policy files are JSON files that contain a scope to PresentationDefinition mapping. Mutual exclusive with policy.address.")
-	flagSet.String("policy.address", "", "The address of a remote policy server. Mutual exclusive with policy.directory.")
+	flagSet.String("policy.directory", defCfg.Directory, "Directory to read policy files from. Policy files are JSON files that contain a scope to PresentationDefinition mapping. Mutual exclusive with policy.address.")
+	flagSet.String("policy.address", defCfg.Address, "The address of a remote policy server. Mutual exclusive with policy.directory.")
 	return flagSet
 }

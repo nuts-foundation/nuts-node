@@ -2,7 +2,6 @@ url: https://nodeA
 verbosity: debug
 strictmode: true
 internalratelimiter: false
-datadir: /opt/nuts/data
 http:
   internal:
     address: :8081

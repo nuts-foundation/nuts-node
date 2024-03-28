@@ -36,7 +36,7 @@ import (
 	"time"
 )
 
-const defaultConfigFile = "nuts.yaml"
+const defaultConfigFile = "./config/nuts.yaml"
 const configFileFlag = "configfile"
 
 const defaultEnvPrefix = "NUTS_"
@@ -157,7 +157,7 @@ func NewServerConfig() *ServerConfig {
 		InternalRateLimiter: true,
 		Datadir:             "./data",
 		TLS: TLSConfig{
-			TrustStoreFile: "truststore.pem",
+			TrustStoreFile: "./config/ssl/truststore.pem",
 			Offload:        NoOffloading,
 		},
 		HTTPClient: HTTPClientConfig{

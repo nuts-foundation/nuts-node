@@ -11,9 +11,6 @@ echo "------------------------------------"
 echo "Cleaning up running Docker containers and volumes, and key material..."
 echo "------------------------------------"
 docker compose down
-docker compose rm -f -v
-rm -rf ./node-*/data
-mkdir ./node-A/data ./node-B/data  # 'data' dirs will be created with root owner by docker if they do not exit. This creates permission issues on CI.
 
 echo "------------------------------------"
 echo "Starting Docker containers..."
@@ -38,7 +35,7 @@ else
 fi
 
 RESPONSE=$(echo $RESPONSE | curl --insecure -s -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/holder/${DID}/vc -H "Content-Type:application/json")
-if [$RESPONSE -eq ""]; then
+if [[ $RESPONSE -eq "" ]]; then
   echo "VC stored in wallet"
 else
   echo "FAILED: Could not load NutsOrganizationCredential" 1>&2

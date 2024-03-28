@@ -293,13 +293,22 @@ func TestModule_Configure(t *testing.T) {
 		err := (&Module{config: config}).Configure(serverConfig)
 		assert.ErrorContains(t, err, "unable to parse service definition file 'test/invalid_definition/1.json'")
 	})
-	t.Run("non-existent directory", func(t *testing.T) {
+	t.Run("non-existent directory 1", func(t *testing.T) {
 		config := Config{
 			Definitions: ServiceDefinitionsConfig{
 				Directory: "test/non_existent",
 			},
 		}
 		err := (&Module{config: config}).Configure(serverConfig)
+		assert.ErrorContains(t, err, "failed to load discovery defintions: stat test/non_existent: no such file or directory")
+	})
+	t.Run("non-existent directory 2", func(t *testing.T) {
+		config := Config{
+			Definitions: ServiceDefinitionsConfig{
+				Directory: "test/non_existent",
+			},
+		}
+		_, err := loadDefinitions(config.Definitions.Directory)
 		assert.ErrorContains(t, err, "unable to read definitions directory 'test/non_existent'")
 	})
 }

@@ -51,5 +51,6 @@ func DefaultConfig() Config {
 		Client: ClientConfig{
 			RefreshInterval: 10 * time.Minute,
 		},
+		Definitions: ServiceDefinitionsConfig{Directory: "./config/discovery"},
 	}
 }

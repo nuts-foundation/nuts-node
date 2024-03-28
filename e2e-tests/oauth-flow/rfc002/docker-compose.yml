@@ -1,5 +1,6 @@
 services:
   nodeA-backend:
+    user: "$USER:$USER"
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
       - "18081:8081"
@@ -21,6 +22,7 @@ services:
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
       - "./node-A/html:/etc/nginx/html:ro"
   nodeB:
+    user: "$USER:$USER"
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     ports:
       - "28081:8081"

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 source ../../util.sh
+USER=$UID
 
 echo "------------------------------------"
 echo "Cleaning up running Docker containers and volumes, and key material..."
