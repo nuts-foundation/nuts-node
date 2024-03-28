@@ -246,7 +246,6 @@ func TestStatusList2021_update(t *testing.T) {
 		statusList2021Credential := test.ValidStatusList2021Credential(t)
 		expectedExpires := time.Now().Truncate(time.Second)
 		statusList2021Credential.ExpirationDate = &expectedExpires
-		statusList2021Credential.ValidUntil = nil
 		statusList2021Credential.CredentialSubject[0].(map[string]any)["id"] = ts.URL
 		credBytes, err := json.Marshal(statusList2021Credential)
 		require.NoError(t, err)
@@ -444,15 +443,12 @@ func TestStatusList2021_validate(t *testing.T) {
 	t.Run("issuance date", func(t *testing.T) {
 		t.Run("ok - issuance date", func(t *testing.T) {
 			cred := test.ValidStatusList2021Credential(t)
-			cred.IssuanceDate = cred.ValidFrom // default uses validFrom
-			cred.ValidFrom = nil
 			_, err := cs.validate(cred)
 			assert.NoError(t, err)
 		})
 		t.Run("error - missing", func(t *testing.T) {
 			cred := test.ValidStatusList2021Credential(t)
-			cred.IssuanceDate = &time.Time{}
-			cred.ValidFrom = nil
+			cred.IssuanceDate = time.Time{}
 			_, err := cs.validate(cred)
 			assert.EqualError(t, err, "'issuanceDate' or 'validFrom' is required")
 		})

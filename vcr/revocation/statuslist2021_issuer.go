@@ -229,7 +229,7 @@ func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *cr
 	}
 
 	// create new credentialRecord
-	expires := statusListCredential.ValidUntil.Unix()
+	expires := statusListCredential.ExpirationDate.Unix()
 	credRecord := &credentialRecord{
 		SubjectID:     credSubject.ID,
 		StatusPurpose: credSubject.StatusPurpose,
@@ -257,8 +257,8 @@ func (cs *StatusList2021) buildAndSignVC(ctx context.Context, issuerDID did.DID,
 		ID:                &credentialID,
 		CredentialSubject: []any{credSubject},
 		Issuer:            issuerDID.URI(),
-		ValidFrom:         &iss,
-		ValidUntil:        &exp,
+		IssuanceDate:      iss,
+		ExpirationDate:    &exp,
 	}
 
 	// sign the StatusList2021Credential

@@ -60,7 +60,7 @@ func Test_Marshalling(t *testing.T) {
 		r := CreateVP200JSONResponse(VerifiablePresentation{
 			VerifiableCredential: []VerifiableCredential{
 				{
-					IssuanceDate: &issuanceDate,
+					IssuanceDate: issuanceDate,
 				},
 			},
 		})

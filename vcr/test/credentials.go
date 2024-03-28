@@ -48,7 +48,7 @@ func ValidNutsAuthorizationCredential(t testing.TB) vc.VerifiableCredential {
 		ID:           &id,
 		Type:         []ssi.URI{ssi.MustParseURI("NutsAuthorizationCredential"), vc.VerifiableCredentialTypeV1URI()},
 		Issuer:       ssi.MustParseURI(vdr.TestDIDA.String()),
-		IssuanceDate: &issuanceDate,
+		IssuanceDate: issuanceDate,
 		CredentialSubject: []interface{}{
 			map[string]any{
 				"id":           vdr.TestDIDB.String(),
@@ -112,8 +112,8 @@ func ValidStatusList2021Credential(t testing.TB) vc.VerifiableCredential {
 		ID:               &id,
 		Type:             []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("StatusList2021Credential")},
 		Issuer:           ssi.MustParseURI("did:example:12345"),
-		ValidFrom:        &validFrom,
-		ValidUntil:       &validUntilTomorrow,
+		IssuanceDate:     validFrom,
+		ExpirationDate:   &validUntilTomorrow,
 		CredentialStatus: nil,
 		CredentialSubject: []any{
 			map[string]any{
