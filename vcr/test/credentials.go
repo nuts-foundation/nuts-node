@@ -48,7 +48,7 @@ func ValidNutsAuthorizationCredential(t testing.TB) vc.VerifiableCredential {
 		ID:           &id,
 		Type:         []ssi.URI{ssi.MustParseURI("NutsAuthorizationCredential"), vc.VerifiableCredentialTypeV1URI()},
 		Issuer:       ssi.MustParseURI(vdr.TestDIDA.String()),
-		IssuanceDate: &issuanceDate,
+		IssuanceDate: issuanceDate,
 		CredentialSubject: []interface{}{
 			map[string]any{
 				"id":           vdr.TestDIDB.String(),
@@ -105,15 +105,15 @@ func ValidStatusList2021Credential(t testing.TB) vc.VerifiableCredential {
 		panic("can only be used in tests")
 	}
 	id := ssi.MustParseURI("https://example.com/credentials/status/3")
-	validFrom := time.Now()
-	validUntilTomorrow := validFrom.Add(24 * time.Hour)
+	issuanceDate := time.Now()
+	expirationDate := issuanceDate.Add(24 * time.Hour)
 	return vc.VerifiableCredential{
 		Context:          []ssi.URI{vc.VCContextV1URI(), ssi.MustParseURI("https://w3id.org/vc/status-list/2021/v1")},
 		ID:               &id,
 		Type:             []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("StatusList2021Credential")},
 		Issuer:           ssi.MustParseURI("did:example:12345"),
-		ValidFrom:        &validFrom,
-		ValidUntil:       &validUntilTomorrow,
+		IssuanceDate:     issuanceDate,
+		ExpirationDate:   &expirationDate,
 		CredentialStatus: nil,
 		CredentialSubject: []any{
 			map[string]any{

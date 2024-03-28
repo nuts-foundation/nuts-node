@@ -163,7 +163,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 		sv, mockKeyResolver := signatureVerifierTestSetup(t)
 		vc2 := testCredential(t)
 		issuanceDate := time.Now()
-		vc2.IssuanceDate = &issuanceDate
+		vc2.IssuanceDate = issuanceDate
 
 		mockKeyResolver.EXPECT().ResolveKeyByID(testKID, nil, resolver.NutsSigningKeyType).Return(pk, nil)
 

@@ -119,13 +119,13 @@ func (v *signer) createVP(ctx context.Context, s types.Session, issuanceDate tim
 		return nil, fmt.Errorf("invalid issuer DID: %w", err)
 	}
 
-	expirationData := issuanceDate.Add(24 * time.Hour)
+	expirationDate := issuanceDate.Add(24 * time.Hour)
 	template := vc.VerifiableCredential{
 		Context:           []ssi.URI{credential.NutsV1ContextURI},
 		Type:              []ssi.URI{ssi.MustParseURI(credentialType)},
 		Issuer:            issuerID.URI(),
-		IssuanceDate:      &issuanceDate,
-		ExpirationDate:    &expirationData,
+		IssuanceDate:      issuanceDate,
+		ExpirationDate:    &expirationDate,
 		CredentialSubject: s.CredentialSubject(),
 	}
 	verifiableCredential, err := v.vcr.Issuer().Issue(ctx, template, issuer.CredentialOptions{})

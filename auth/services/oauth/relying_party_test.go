@@ -132,7 +132,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		ID:           &id,
 		Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 		Issuer:       vdr.TestDIDA.URI(),
-		IssuanceDate: &issuanceDate,
+		IssuanceDate: issuanceDate,
 		CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
 			ID:           vdr.TestDIDB.String(),
 			PurposeOfUse: "eTransfer",
