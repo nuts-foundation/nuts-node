@@ -57,7 +57,6 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 		return fmt.Errorf("%w: 'ID' is required", errValidation)
 	}
 
-	// 'issuanceDate' must be present, but can be zero if replaced by alias 'validFrom'
 	if credential.IssuanceDate.IsZero() {
 		return fmt.Errorf("%w: 'issuanceDate' is required", errValidation)
 	}

@@ -450,7 +450,7 @@ func TestStatusList2021_validate(t *testing.T) {
 			cred := test.ValidStatusList2021Credential(t)
 			cred.IssuanceDate = time.Time{}
 			_, err := cs.validate(cred)
-			assert.EqualError(t, err, "'issuanceDate' or 'validFrom' is required")
+			assert.EqualError(t, err, "issuanceDate is required")
 		})
 	})
 	t.Run("error - jsonld without proof", func(t *testing.T) {
