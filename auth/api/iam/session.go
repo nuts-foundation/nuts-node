@@ -39,7 +39,7 @@ type OAuthSession struct {
 	ServerState            ServerState
 	ResponseType           string
 	PresentationDefinition PresentationDefinition
-	UserID                 string
+	UserDetails            UserDetails
 	VerifierDID            *did.DID
 }
 
