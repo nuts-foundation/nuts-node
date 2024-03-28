@@ -210,7 +210,6 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 		return nil, fmt.Errorf(errString, err)
 	}
 
-	issuanceDate := TimeFunc()
 	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
 	unsignedCredential := vc.VerifiableCredential{
 		Context:           template.Context,
@@ -218,7 +217,7 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 		Type:              template.Type,
 		CredentialSubject: template.CredentialSubject,
 		Issuer:            template.Issuer,
-		IssuanceDate:      &issuanceDate,
+		IssuanceDate:      TimeFunc(),
 		ExpirationDate:    template.ExpirationDate,
 		//CredentialStatus:  template.CredentialStatus, // not allowed for now since it requires API changes to be able to determine what status to revoke.
 	}
@@ -274,17 +273,7 @@ func (i issuer) buildJSONLDCredential(ctx context.Context, unsignedCredential vc
 	b, _ := json.Marshal(unsignedCredential)
 	_ = json.Unmarshal(b, &credentialAsMap)
 
-	// get issuance timestamp. statuslist2021 uses 'validFrom', everything else uses 'issuanceDate'.
-	// IssuanceDate and ValidFrom are mutually exclusive, but this is untested.
-	var created *time.Time
-	if unsignedCredential.ValidFrom != nil && !unsignedCredential.ValidFrom.IsZero() {
-		created = unsignedCredential.ValidFrom
-	}
-	if unsignedCredential.IssuanceDate != nil && !unsignedCredential.IssuanceDate.IsZero() {
-		created = unsignedCredential.IssuanceDate
-	}
-
-	proofOptions := proof.ProofOptions{Created: *created}
+	proofOptions := proof.ProofOptions{Created: unsignedCredential.IssuanceDate}
 
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
 	signingResult, err := proof.NewLDProof(proofOptions).Sign(ctx, credentialAsMap, webSig, key)

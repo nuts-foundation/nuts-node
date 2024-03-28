@@ -145,7 +145,7 @@ func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject m
 		ID:                &vcIDURI,
 		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("TestCredential")},
 		Issuer:            issuerDID.URI(),
-		IssuanceDate:      &issuanceDate,
+		IssuanceDate:      issuanceDate,
 		ExpirationDate:    &expirationDate,
 		CredentialSubject: []interface{}{credentialSubject},
 	}, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
