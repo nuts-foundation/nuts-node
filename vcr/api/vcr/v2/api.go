@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -31,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -259,11 +261,14 @@ func (w *Wrapper) SearchIssuedVCs(ctx context.Context, request SearchIssuedVCsRe
 func (w *Wrapper) VerifyVC(ctx context.Context, request VerifyVCRequestObject) (VerifyVCResponseObject, error) {
 	requestedVC := request.Body.VerifiableCredential
 
-	allowUntrustedIssuer := false
-
-	if options := request.Body.VerificationOptions; options != nil {
-		if allowUntrusted := options.AllowUntrustedIssuer; allowUntrusted != nil {
-			allowUntrustedIssuer = *allowUntrusted
+	// trust for non did:nuts issuers is configured in the presentation definition, for did:nuts issuers it is configurable
+	allowUntrustedIssuer := true
+	if strings.HasPrefix(request.Body.VerifiableCredential.Issuer.String(), "did:nuts") {
+		allowUntrustedIssuer = false
+		if options := request.Body.VerificationOptions; options != nil {
+			if allowUntrusted := options.AllowUntrustedIssuer; allowUntrusted != nil {
+				allowUntrustedIssuer = *allowUntrusted
+			}
 		}
 	}
 
@@ -366,7 +371,17 @@ func (w *Wrapper) VerifyVP(ctx context.Context, request VerifyVPRequestObject) (
 		validAt = &parsedTime
 	}
 
-	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.Body.VerifiablePresentation, verifyCredentials, false, validAt)
+	signerDID, err := credential.PresentationSigner(request.Body.VerifiablePresentation)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine subject of VP: %w", err)
+	}
+
+	allowUntrustedIssuers := true
+	if signerDID.Method == "nuts" {
+		allowUntrustedIssuers = false
+	}
+
+	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.Body.VerifiablePresentation, verifyCredentials, allowUntrustedIssuers, validAt)
 	if err != nil {
 		if errors.Is(err, verifier.VerificationError{}) {
 			msg := err.Error()
