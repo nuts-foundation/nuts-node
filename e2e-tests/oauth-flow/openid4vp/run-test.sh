@@ -53,7 +53,7 @@ echo "---------------------------------------"
 echo "Request access token call"
 echo "---------------------------------------"
 # Request access token
-REQUEST='{\"verifier\":\"${PARTY_A_DID}\",\"scope\":\"test\", \"preauthorized_user\":{\"id\":\"1\", \"name\": \"John Doe\", \"role\": \"Janitor\"}, \"redirect_uri\":\"http://callback\"}'
+REQUEST="{\"verifier\":\"${PARTY_A_DID}\",\"scope\":\"test\", \"preauthorized_user\":{\"id\":\"1\", \"name\": \"John Doe\", \"role\": \"Janitor\"}, \"redirect_uri\":\"http://callback\"}"
 RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/${PARTY_B_DID}/request-user-access-token -H "Content-Type:application/json" -v)
 if echo $RESPONSE | grep -q "redirect_uri"; then
   LOCATION=$(echo $RESPONSE | sed -E 's/.*"redirect_uri":"([^"]*).*/\1/')
