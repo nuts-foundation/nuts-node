@@ -41,14 +41,6 @@ type HTTPClient struct {
 	httpClient core.HTTPRequestDoer
 }
 
-// NewHTTPClient creates a new api client.
-func (c *OpenID4VPClient) newHTTPClient() HTTPClient {
-	return HTTPClient{
-		strictMode: c.strictMode,
-		httpClient: core.NewStrictHTTPClient(c.strictMode, c.httpClientTimeout, c.httpClientTLS),
-	}
-}
-
 // OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given web DID.
 func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDID did.DID) (*oauth.AuthorizationServerMetadata, error) {
 	serverURL, err := didweb.DIDToURL(webDID)

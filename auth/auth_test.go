@@ -19,16 +19,15 @@
 package auth
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"go.uber.org/mock/gomock"
-	"testing"
-
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+	"testing"
 )
 
 func TestAuth_Configure(t *testing.T) {
@@ -108,4 +107,20 @@ func TestAuth_Name(t *testing.T) {
 
 func TestAuth_Config(t *testing.T) {
 	assert.Equal(t, Config{}, *(&Auth{}).Config().(*Config))
+}
+
+func TestAuth_IAMClient(t *testing.T) {
+	t.Run("it does not use PKI module", func(t *testing.T) {
+		config := DefaultConfig()
+		config.ContractValidators = []string{"dummy"}
+		ctrl := gomock.NewController(t)
+		pkiMock := pki.NewMockProvider(ctrl) // no calls are expected
+		vdrInstance := vdr.NewMockVDR(ctrl)
+		vdrInstance.EXPECT().Resolver().AnyTimes()
+
+		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
+
+		assert.NotNil(t, i.IAMClient())
+	})
+
 }
