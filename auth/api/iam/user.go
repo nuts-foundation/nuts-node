@@ -235,13 +235,13 @@ func (r Wrapper) createUserWallet(ctx context.Context, issuerDID did.DID, userDe
 		JWK: userJWKBytes,
 	}
 	issuanceDate := time.Now()
-	expirationData := issuanceDate.Add(userSessionTimeout)
+	expirationDate := issuanceDate.Add(userSessionTimeout)
 	template := vc.VerifiableCredential{
 		Context:        []ssi.URI{credential.NutsV1ContextURI},
 		Type:           []ssi.URI{ssi.MustParseURI("EmployeeCredential")},
 		Issuer:         issuerDID.URI(),
-		IssuanceDate:   &issuanceDate,
-		ExpirationDate: &expirationData,
+		IssuanceDate:   issuanceDate,
+		ExpirationDate: &expirationDate,
 		CredentialSubject: []interface{}{
 			map[string]string{
 				"id":         userDID.String(),
