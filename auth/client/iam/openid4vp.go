@@ -42,26 +42,29 @@ import (
 var _ Client = (*OpenID4VPClient)(nil)
 
 type OpenID4VPClient struct {
-	httpClientTimeout time.Duration
-	jwtSigner         nutsCrypto.JWTSigner
-	keyResolver       resolver.KeyResolver
-	strictMode        bool
-	wallet            holder.Wallet
+	httpClient  HTTPClient
+	jwtSigner   nutsCrypto.JWTSigner
+	keyResolver resolver.KeyResolver
+	strictMode  bool
+	wallet      holder.Wallet
 }
 
 // NewClient returns an implementation of Holder
 func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner nutsCrypto.JWTSigner, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
 	return &OpenID4VPClient{
-		httpClientTimeout: httpClientTimeout,
-		keyResolver:       keyResolver,
-		jwtSigner:         jwtSigner,
-		strictMode:        strictMode,
-		wallet:            wallet,
+		httpClient: HTTPClient{
+			strictMode: strictMode,
+			httpClient: core.NewStrictHTTPClient(strictMode, httpClientTimeout, nil),
+		},
+		keyResolver: keyResolver,
+		jwtSigner:   jwtSigner,
+		strictMode:  strictMode,
+		wallet:      wallet,
 	}
 }
 
 func (c *OpenID4VPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 
 	metadata, err := iamClient.ClientMetadata(ctx, endpoint)
 	if err != nil {
@@ -71,7 +74,7 @@ func (c *OpenID4VPClient) ClientMetadata(ctx context.Context, endpoint string) (
 }
 
 func (c *OpenID4VPClient) PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (string, error) {
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 
 	responseURL, err := core.ParsePublicURL(verifierResponseURI, c.strictMode)
 	if err != nil {
@@ -92,7 +95,7 @@ func (c *OpenID4VPClient) PostError(ctx context.Context, auth2Error oauth.OAuth2
 }
 
 func (c *OpenID4VPClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error) {
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 
 	responseURL, err := core.ParsePublicURL(verifierResponseURI, c.strictMode)
 	if err != nil {
@@ -107,7 +110,7 @@ func (c *OpenID4VPClient) PostAuthorizationResponse(ctx context.Context, vp vc.V
 }
 
 func (c *OpenID4VPClient) PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error) {
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 	parsedURL, err := core.ParsePublicURL(endpoint, c.strictMode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
@@ -120,7 +123,7 @@ func (c *OpenID4VPClient) PresentationDefinition(ctx context.Context, endpoint s
 }
 
 func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 	// the wallet/client acts as authorization server
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, webdid)
 	if err != nil {
@@ -130,7 +133,7 @@ func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, webdi
 }
 
 func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error) {
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
@@ -154,7 +157,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier
 func (c *OpenID4VPClient) CreateAuthorizationRequest(ctx context.Context, client did.DID, server did.DID, modifier RequestModifier) (*url.URL, error) {
 	// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
 	// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, server)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
@@ -212,7 +215,7 @@ func (c *OpenID4VPClient) CreateAuthorizationRequest(ctx context.Context, client
 }
 
 func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
