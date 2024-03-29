@@ -21,7 +21,6 @@ package iam
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -44,7 +43,6 @@ var _ Client = (*OpenID4VPClient)(nil)
 
 type OpenID4VPClient struct {
 	httpClientTimeout time.Duration
-	httpClientTLS     *tls.Config
 	jwtSigner         nutsCrypto.JWTSigner
 	keyResolver       resolver.KeyResolver
 	strictMode        bool
@@ -52,10 +50,9 @@ type OpenID4VPClient struct {
 }
 
 // NewClient returns an implementation of Holder
-func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner nutsCrypto.JWTSigner, strictMode bool, httpClientTimeout time.Duration, httpClientTLS *tls.Config) *OpenID4VPClient {
+func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner nutsCrypto.JWTSigner, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
 	return &OpenID4VPClient{
 		httpClientTimeout: httpClientTimeout,
-		httpClientTLS:     httpClientTLS,
 		keyResolver:       keyResolver,
 		jwtSigner:         jwtSigner,
 		strictMode:        strictMode,

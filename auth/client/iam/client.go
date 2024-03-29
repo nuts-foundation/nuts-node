@@ -45,7 +45,7 @@ type HTTPClient struct {
 func (c *OpenID4VPClient) newHTTPClient() HTTPClient {
 	return HTTPClient{
 		strictMode: c.strictMode,
-		httpClient: core.NewStrictHTTPClient(c.strictMode, c.httpClientTimeout, c.httpClientTLS),
+		httpClient: core.NewStrictHTTPClient(c.strictMode, c.httpClientTimeout, nil),
 	}
 }
 
