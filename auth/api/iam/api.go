@@ -527,8 +527,19 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, err
 	}
 
+	// TODO: When we support authentication at an external IdP,
+	//       the properties below become conditionally required.
 	if request.Body.PreauthorizedUser == nil {
 		return nil, core.InvalidInputError("missing preauthorized_user")
+	}
+	if request.Body.PreauthorizedUser.Id == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.id")
+	}
+	if request.Body.PreauthorizedUser.Name == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.name")
+	}
+	if request.Body.PreauthorizedUser.Role == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.role")
 	}
 
 	if request.Body.RedirectUri == "" {
