@@ -62,7 +62,7 @@ const httpRequestContextKey = "http-request"
 // TODO: Might want to make this configurable at some point
 const accessTokenValidity = 15 * time.Minute
 
-const oid4vicSessionValidity = 15 * time.Minute
+const oid4vciSessionValidity = 15 * time.Minute
 
 //go:embed assets
 var assets embed.FS
@@ -834,5 +834,5 @@ func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 }
 
 func (r Wrapper) oid4vciSssionStore() storage.SessionStore {
-	return r.storageEngine.GetSessionDatabase().GetStore(oid4vicSessionValidity, "oid4vci")
+	return r.storageEngine.GetSessionDatabase().GetStore(oid4vciSessionValidity, "oid4vci")
 }
