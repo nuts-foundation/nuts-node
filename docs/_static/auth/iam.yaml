@@ -18,10 +18,10 @@ paths:
         schema:
           type: string
     get:
-      summary: Returns the did:web DID at the specified user path.
+      summary: Returns the did:web DID for the specified tenant.
       description: |
-        Returns the did:web DID at the specified user path, if it is owned by this node.
-      operationId: "getUserWebDID"
+        Returns the did:web DID for the specified tenant, if it is owned by this node.
+      operationId: "getTenantWebDID"
       tags:
         - DID
       responses:
@@ -288,7 +288,7 @@ paths:
     get:
       tags:
         - well-known
-      summary: Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> user path.
+      summary: Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> path.
       description: >
         Specified by https://www.rfc-editor.org/info/rfc8414
         The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3

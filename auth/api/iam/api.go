@@ -434,17 +434,17 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsStri
 	return &md, nil
 }
 
-func (r Wrapper) GetUserWebDID(_ context.Context, request GetUserWebDIDRequestObject) (GetUserWebDIDResponseObject, error) {
+func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
 	ownDID := r.requestedDID(request.Id)
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
-			return GetUserWebDID404Response{}, nil
+			return GetTenantWebDID404Response{}, nil
 		}
-		log.Logger().WithError(err).Errorf("Could not resolve user did:web: %s", ownDID.String())
+		log.Logger().WithError(err).Errorf("Could not resolve tenant did:web: %s", ownDID.String())
 		return nil, errors.New("unable to resolve DID")
 	}
-	return GetUserWebDID200JSONResponse(*document), nil
+	return GetTenantWebDID200JSONResponse(*document), nil
 }
 
 func (r Wrapper) GetRootWebDID(ctx context.Context, _ GetRootWebDIDRequestObject) (GetRootWebDIDResponseObject, error) {

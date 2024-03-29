@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
-	"net/url"
 	"strings"
 )
 
@@ -39,14 +38,14 @@ func DefaultCreationOptions() management.CreationOptions {
 	return management.Create(MethodName)
 }
 
-type userIDOption struct {
+type tenantOption struct {
 	id string
 }
 
-// UserID is an option to set a user for the did:web document.
+// Tenant is an option to set a tenant ID for the did:web document.
 // It will be used as last path part of the DID.
-func UserID(id string) management.CreationOption {
-	return userIDOption{id: id}
+func Tenant(id string) management.CreationOption {
+	return tenantOption{id: id}
 }
 
 type didOption struct {
@@ -61,19 +60,21 @@ func DID(did did.DID) management.CreationOption {
 var _ management.DocumentManager = (*Manager)(nil)
 
 // NewManager creates a new Manager to create and update did:web DID documents.
-func NewManager(baseURL url.URL, keyStore crypto.KeyStore, db *gorm.DB) *Manager {
+func NewManager(rootDID did.DID, tenantPath string, keyStore crypto.KeyStore, db *gorm.DB) *Manager {
 	return &Manager{
-		store:    &sqlStore{db: db},
-		baseURL:  baseURL,
-		keyStore: keyStore,
+		store:      &sqlStore{db: db},
+		rootDID:    rootDID,
+		tenantPath: tenantPath,
+		keyStore:   keyStore,
 	}
 }
 
 // Manager creates and updates did:web documents
 type Manager struct {
-	baseURL  url.URL
-	store    store
-	keyStore crypto.KeyStore
+	rootDID    did.DID
+	store      store
+	keyStore   crypto.KeyStore
+	tenantPath string
 }
 
 func (m Manager) Deactivate(ctx context.Context, subjectDID did.DID) error {
@@ -106,35 +107,42 @@ func (m Manager) AddVerificationMethod(_ context.Context, _ did.DID, _ managemen
 
 // Create creates a new did:web document.
 func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*did.Document, crypto.Key, error) {
-	var newDID *did.DID
+	var newDID did.DID
 	for _, opt := range opts.All() {
-		if newDID != nil {
+		if !newDID.Empty() {
 			return nil, nil, errors.New("multiple DID options provided")
 		}
 		switch option := opt.(type) {
-		case userIDOption:
-			// Make sure url config we use does not
-			newDID, _ = URLToDID(*(m.baseURL).JoinPath(option.id))
+		case tenantOption:
+			newDID = m.rootDID
+			newDID.ID += ":" + m.tenantPath + ":" + option.id
 		case didOption:
-			// if it contains a user path, it must be in format did:web:<host>:iam:<user id>
-			idParts := strings.Split(option.value.ID, ":")
-			if (len(idParts) > 2 && (idParts[1] != "iam" || len(idParts) > 3)) ||
-				// it must not contain empty path parts
-				strings.HasSuffix(option.value.ID, ":") || strings.HasSuffix(option.value.ID, "::") {
-				return nil, nil, errors.New("invalid user path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<user id>'")
-			}
-			newDID = &option.value
+			newDID = option.value
 		default:
 			return nil, nil, fmt.Errorf("unknown option: %T", option)
 		}
 	}
-	if newDID == nil {
-		newDID, _ = URLToDID(*(m.baseURL).JoinPath(uuid.NewString()))
+	if newDID.Empty() {
+		newDID = m.rootDID
+		newDID.ID += ":" + m.tenantPath + ":" + uuid.NewString()
 	}
-	return m.create(ctx, *newDID)
+	parsedNewDID, _ := did.ParseDID(newDID.String()) // make sure internal state is consistent (DecodedID)
+	return m.create(ctx, *parsedNewDID)
 }
 
 func (m Manager) create(ctx context.Context, newDID did.DID) (*did.Document, crypto.Key, error) {
+	// in any case, the DID to created (with or without path) should be scoped to the configured URL (translated to DID)
+	if !strings.HasPrefix(newDID.String(), m.rootDID.String()) {
+		return nil, nil, fmt.Errorf("invalid DID, does not match configured base URL, translated to DID: %s", m.rootDID.String())
+	}
+	// if it contains an optional path, it must be in format did:web:<host>:iam:<tenant>
+	idParts := strings.Split(newDID.ID, ":")
+	if (len(idParts) > 2 && (idParts[1] != m.tenantPath || len(idParts) > 3)) ||
+		// it must not contain empty path parts
+		strings.HasSuffix(newDID.ID, ":") || strings.HasSuffix(newDID.ID, "::") {
+		return nil, nil, errors.New("invalid path in did:web DID, it must follow the pattern 'did:web:<host>:" + m.tenantPath + ":<tenant>'")
+	}
+
 	// Check if it doesn't already exist. Otherwise, it fail later on (unique key constraint) but we might end up with an orphaned private key.
 	exists, err := m.IsOwner(ctx, newDID)
 	if err != nil {

@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
@@ -38,8 +37,11 @@ import (
 	"testing"
 )
 
-var baseURL = test.MustParseURL("https://example.com/iam")
-var subjectDID = did.MustParseDID("did:web:example.com:1234")
+var rootDID = did.MustParseDID("did:web:example.com")
+
+const tenantPath = "iam"
+
+var subjectDID = did.MustParseDID("did:web:example.com:iam:1234")
 var ctx = context.Background()
 
 func TestManager_Create(t *testing.T) {
@@ -64,9 +66,9 @@ func TestManager_Create(t *testing.T) {
 		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
 			PublicKey: publicKey,
 		}, nil)
-		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, keyStore, storageEngine.GetSQLDatabase())
 
-		document, key, err := m.Create(audit.TestContext(), management.Create(MethodName).With(UserID("e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4")))
+		document, key, err := m.Create(audit.TestContext(), management.Create(MethodName).With(Tenant("e9d4b80d-59eb-4f35-ada8-c75f6e14bbc4")))
 		require.NoError(t, err)
 		require.NotNil(t, document)
 		require.NotNil(t, key)
@@ -110,16 +112,16 @@ func TestManager_Create(t *testing.T) {
 		actual, _ := json.Marshal(document)
 		assert.JSONEq(t, expected, string(actual))
 	})
-	t.Run("with UserID option", func(t *testing.T) {
+	t.Run("with Tenant option", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
 		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
 			PublicKey: publicKey,
 		}, nil)
-		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, keyStore, storageEngine.GetSQLDatabase())
 
-		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(UserID("test")))
+		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(Tenant("test")))
 		require.NoError(t, err)
 		require.NotNil(t, document)
 		require.NotNil(t, key)
@@ -132,7 +134,7 @@ func TestManager_Create(t *testing.T) {
 		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
 			PublicKey: publicKey,
 		}, nil)
-		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, keyStore, storageEngine.GetSQLDatabase())
 		expected := did.MustParseDID("did:web:example.com")
 
 		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
@@ -141,14 +143,14 @@ func TestManager_Create(t *testing.T) {
 		require.NotNil(t, key)
 		assert.Equal(t, expected, document.ID)
 	})
-	t.Run("with DID (containing user path) option", func(t *testing.T) {
+	t.Run("with DID (containing optional path) option", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
 		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
 			PublicKey: publicKey,
 		}, nil)
-		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, keyStore, storageEngine.GetSQLDatabase())
 		expected := did.MustParseDID("did:web:example.com:iam:1234")
 
 		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
@@ -164,7 +166,7 @@ func TestManager_Create(t *testing.T) {
 		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
 			PublicKey: publicKey,
 		}, nil)
-		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, keyStore, storageEngine.GetSQLDatabase())
 
 		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
@@ -172,44 +174,52 @@ func TestManager_Create(t *testing.T) {
 		require.NotNil(t, key)
 		assert.True(t, strings.HasPrefix(document.ID.String(), "did:web:example.com:iam:"))
 	})
-	t.Run("with invalid user ID (contains subpath) DID option", func(t *testing.T) {
+	t.Run("with invalid root DID (does not match with configured root DID)", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nil, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nil, storageEngine.GetSQLDatabase())
+		expected := did.MustParseDID("did:web:example.org")
+
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
+		require.EqualError(t, err, "invalid DID, does not match configured base URL, translated to DID: "+rootDID.String())
+	})
+	t.Run("with invalid tenant (contains subpath) DID option", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nil, storageEngine.GetSQLDatabase())
 		expected := did.MustParseDID("did:web:example.com:iam:invalid:1234")
 
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
-		require.EqualError(t, err, "invalid user path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<user id>'")
+		require.EqualError(t, err, "invalid path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<tenant>'")
 	})
-	t.Run("with invalid user ID (path does not start with /iam) DID option", func(t *testing.T) {
+	t.Run("with invalid tenant (path does not start with /iam) DID option", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nil, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nil, storageEngine.GetSQLDatabase())
 		expected := did.MustParseDID("did:web:example.com:iam:1234:invalid")
 
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
-		require.EqualError(t, err, "invalid user path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<user id>'")
+		require.EqualError(t, err, "invalid path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<tenant>'")
 	})
-	t.Run("with empty user ID DID option", func(t *testing.T) {
+	t.Run("with empty tenant DID option", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nil, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nil, storageEngine.GetSQLDatabase())
 		expected := did.MustParseDID("did:web:example.com:iam:")
 
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(expected)))
-		require.EqualError(t, err, "invalid user path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<user id>'")
+		require.EqualError(t, err, "invalid path in did:web DID, it must follow the pattern 'did:web:<host>:iam:<tenant>'")
 	})
-	t.Run("with both DID and userID options", func(t *testing.T) {
+	t.Run("with both DID and tenant options", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
-		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, keyStore, storageEngine.GetSQLDatabase())
 
-		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(subjectDID)).With(UserID("test")))
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(DID(subjectDID)).With(Tenant("test")))
 		require.EqualError(t, err, "multiple DID options provided")
 	})
 	t.Run("with unknown option", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
-		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, keyStore, storageEngine.GetSQLDatabase())
 
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(""))
 		require.EqualError(t, err, "unknown option: string")
@@ -221,8 +231,8 @@ func TestManager_Create(t *testing.T) {
 		keyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nutsCrypto.TestPublicKey{
 			PublicKey: publicKey,
 		}, nil)
-		m := NewManager(*baseURL, keyStore, storageEngine.GetSQLDatabase())
-		opts := DefaultCreationOptions().With(UserID("test"))
+		m := NewManager(rootDID, tenantPath, keyStore, storageEngine.GetSQLDatabase())
+		opts := DefaultCreationOptions().With(Tenant("test"))
 		_, _, err := m.Create(audit.TestContext(), opts)
 		require.NoError(t, err)
 
@@ -238,7 +248,7 @@ func TestManager_IsOwner(t *testing.T) {
 
 	t.Run("not owned (empty store)", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
 
 		owned, err := m.IsOwner(audit.TestContext(), subjectDID)
 		require.NoError(t, err)
@@ -246,7 +256,7 @@ func TestManager_IsOwner(t *testing.T) {
 	})
 	t.Run("not owned (other DID)", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
@@ -256,7 +266,7 @@ func TestManager_IsOwner(t *testing.T) {
 	})
 	t.Run("owned", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
 		document, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
@@ -272,7 +282,7 @@ func TestManager_ListOwned(t *testing.T) {
 
 	t.Run("empty store", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
 
 		dids, err := m.ListOwned(audit.TestContext())
 		require.NoError(t, err)
@@ -280,7 +290,7 @@ func TestManager_ListOwned(t *testing.T) {
 	})
 	t.Run("single DID", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
 		document, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 
@@ -290,7 +300,7 @@ func TestManager_ListOwned(t *testing.T) {
 	})
 	t.Run("multiple DIDs", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
 		document1, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 		document2, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
@@ -308,7 +318,7 @@ func TestManager_Resolve(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
 
 		document, _, err := m.Resolve(did.MustParseDID("did:web:example.com:1234"), nil)
 		require.ErrorIs(t, err, resolver.ErrNotFound)
@@ -316,7 +326,7 @@ func TestManager_Resolve(t *testing.T) {
 	})
 	t.Run("ok", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
 		document, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
 		expected, _ := document.MarshalJSON()
@@ -332,7 +342,7 @@ func TestManager_CreateService(t *testing.T) {
 	t.Run("with ID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockstore(ctrl)
-		m := NewManager(*baseURL, nil, nil)
+		m := NewManager(rootDID, tenantPath, nil, nil)
 		m.store = store
 
 		expected := did.Service{
@@ -350,7 +360,7 @@ func TestManager_CreateService(t *testing.T) {
 	t.Run("random ID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockstore(ctrl)
-		m := NewManager(*baseURL, nil, nil)
+		m := NewManager(rootDID, tenantPath, nil, nil)
 		m.store = store
 
 		input := did.Service{
@@ -376,7 +386,7 @@ func TestManager_UpdateService(t *testing.T) {
 	t.Run("ID not set", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockstore(ctrl)
-		m := NewManager(*baseURL, nil, nil)
+		m := NewManager(rootDID, tenantPath, nil, nil)
 		m.store = store
 
 		serviceID := ssi.MustParseURI(subjectDID.String() + "#api")
@@ -399,7 +409,7 @@ func TestManager_UpdateService(t *testing.T) {
 	t.Run("ID is set", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockstore(ctrl)
-		m := NewManager(*baseURL, nil, nil)
+		m := NewManager(rootDID, tenantPath, nil, nil)
 		m.store = store
 
 		serviceID := ssi.MustParseURI(subjectDID.String() + "#api")
@@ -423,7 +433,7 @@ func TestManager_UpdateService(t *testing.T) {
 func TestManager_DeleteService(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	store := NewMockstore(ctrl)
-	m := NewManager(*baseURL, nil, nil)
+	m := NewManager(rootDID, tenantPath, nil, nil)
 	m.store = store
 
 	serviceID := ssi.MustParseURI(subjectDID.String() + "#api")
@@ -441,7 +451,7 @@ func TestManager_Deactivate(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		m := NewManager(*baseURL, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, nutsCrypto.NewMemoryCryptoInstance(), storageEngine.GetSQLDatabase())
 
 		err := m.Deactivate(ctx, subjectDID)
 		require.ErrorIs(t, err, resolver.ErrNotFound)
@@ -449,7 +459,7 @@ func TestManager_Deactivate(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
-		m := NewManager(*baseURL, cryptoInstance, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, cryptoInstance, storageEngine.GetSQLDatabase())
 		document, _, err := m.Create(ctx, DefaultCreationOptions())
 		require.NoError(t, err)
 
@@ -468,7 +478,7 @@ func TestManager_Deactivate(t *testing.T) {
 	t.Run("unable to delete private key", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
-		m := NewManager(*baseURL, cryptoInstance, storageEngine.GetSQLDatabase())
+		m := NewManager(rootDID, tenantPath, cryptoInstance, storageEngine.GetSQLDatabase())
 		document, _, err := m.Create(ctx, DefaultCreationOptions())
 		require.NoError(t, err)
 
