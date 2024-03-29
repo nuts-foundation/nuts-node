@@ -1,3 +1,5 @@
+//go:build jwx_es256k
+
 /*
  * Copyright (C) 2024 Nuts community
  *
@@ -15,8 +17,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-
-//go:build jwx_es256k
 
 package oauth
 
