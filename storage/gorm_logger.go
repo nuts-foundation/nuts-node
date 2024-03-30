@@ -55,7 +55,7 @@ func (g gormLogrusLogger) Error(ctx context.Context, msg string, args ...interfa
 
 func (g gormLogrusLogger) Trace(_ context.Context, begin time.Time, fn func() (sql string, rowsAffected int64), err error) {
 	// If time since begin is greater than slowThreshold, log as warning
-	// Otherwise, log on DEBUG
+	// Otherwise, log on TRACE
 	elapsed := nowFunc().Sub(begin)
 	sql, _ := fn()
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -65,6 +65,6 @@ func (g gormLogrusLogger) Trace(_ context.Context, begin time.Time, fn func() (s
 	if elapsed >= g.slowThreshold {
 		g.underlying.Warnf("Slow query (took %s): %s", elapsed, sql)
 	} else {
-		g.underlying.Debugf("Query (took %s): %s", elapsed, sql)
+		g.underlying.Tracef("Query (took %s): %s", elapsed, sql)
 	}
 }
