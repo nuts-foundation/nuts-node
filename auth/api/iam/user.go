@@ -92,7 +92,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// TODO: When we support external Identity Providers, we should try to load the existing user session
-	wallet, err := r.createUserWallet(echoCtx.Request().Context(), *verifier, *accessTokenRequest.Body.PreauthorizedUser)
+	wallet, err := r.createUserWallet(echoCtx.Request().Context(), redirectSession.OwnDID, *accessTokenRequest.Body.PreauthorizedUser)
 	if err != nil {
 		return fmt.Errorf("create user wallet: %w", err)
 	}
