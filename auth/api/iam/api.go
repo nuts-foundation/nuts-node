@@ -97,7 +97,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, NewStrictHandler(r, []StrictMiddlewareFunc{
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
-				return r.middleware(ctx, request, operationID, f)
+				return r.strictMiddleware(ctx, request, operationID, f)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
@@ -105,21 +105,29 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		},
 	}))
 	// The following handlers are used for the user facing OAuth2 flows.
-	router.GET("/oauth2/:did/user", r.handleUserLanding, audit.Middleware(apiModuleName))
+	router.GET("/oauth2/:did/user", r.handleUserLanding, func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			middleware(c, "handleUserLanding")
+			return next(c)
+		}
+	}, audit.Middleware(apiModuleName))
 }
 
-func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
+func (r Wrapper) strictMiddleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
+	middleware(ctx, operationID)
+	return f(ctx, request)
+}
+
+func middleware(ctx echo.Context, operationID string) {
 	ctx.Set(core.OperationIDContextKey, operationID)
 	ctx.Set(core.ModuleNameContextKey, apiModuleName)
 
 	// Add http.Request to context, to allow reading URL query parameters
 	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
-	if strings.HasPrefix(ctx.Request().URL.Path, "/iam/") {
+	if strings.HasPrefix(ctx.Request().URL.Path, "/oauth2/") {
 		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{})
 	}
-
-	return f(ctx, request)
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
