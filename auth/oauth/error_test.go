@@ -23,6 +23,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
+	"html/template"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -57,22 +58,44 @@ func Test_oauth2ErrorWriter_Write(t *testing.T) {
 		assert.Equal(t, "https://example.com?error=invalid_request&error_description=failure", rec.Header().Get("Location"))
 	})
 	t.Run("user-agent is browser without redirect URI", func(t *testing.T) {
-		server := echo.New()
-		httpRequest := httptest.NewRequest("GET", "/", nil)
-		rec := httptest.NewRecorder()
-		ctx := server.NewContext(httpRequest, rec)
+		t.Run("text/html (from template)", func(t *testing.T) {
+			server := echo.New()
+			httpRequest := httptest.NewRequest("GET", "/", nil)
+			rec := httptest.NewRecorder()
+			ctx := server.NewContext(httpRequest, rec)
 
-		err := Oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
-			Code:        InvalidRequest,
-			Description: "failure",
+			err := Oauth2ErrorWriter{
+				HtmlPageTemplate: template.Must(template.New("error").Parse("Error: {{.Code}} - {{.Description}}")),
+			}.Write(ctx, 0, "", OAuth2Error{
+				Code:        InvalidRequest,
+				Description: "failure",
+			})
+
+			assert.NoError(t, err)
+			body, _ := io.ReadAll(rec.Body)
+			assert.Equal(t, http.StatusBadRequest, rec.Code)
+			assert.Equal(t, "text/html; charset=UTF-8", rec.Header().Get("Content-Type"))
+			assert.Equal(t, "Error: invalid_request - failure", string(body))
+			assert.Empty(t, rec.Header().Get("Location"))
 		})
+		t.Run("text/plain (no template)", func(t *testing.T) {
+			server := echo.New()
+			httpRequest := httptest.NewRequest("GET", "/", nil)
+			rec := httptest.NewRecorder()
+			ctx := server.NewContext(httpRequest, rec)
 
-		assert.NoError(t, err)
-		body, _ := io.ReadAll(rec.Body)
-		assert.Equal(t, http.StatusBadRequest, rec.Code)
-		assert.Equal(t, "text/plain; charset=UTF-8", rec.Header().Get("Content-Type"))
-		assert.Equal(t, "invalid_request - failure", string(body))
-		assert.Empty(t, rec.Header().Get("Location"))
+			err := Oauth2ErrorWriter{}.Write(ctx, 0, "", OAuth2Error{
+				Code:        InvalidRequest,
+				Description: "failure",
+			})
+
+			assert.NoError(t, err)
+			body, _ := io.ReadAll(rec.Body)
+			assert.Equal(t, http.StatusBadRequest, rec.Code)
+			assert.Equal(t, "text/plain; charset=UTF-8", rec.Header().Get("Content-Type"))
+			assert.Equal(t, "invalid_request - failure", string(body))
+			assert.Empty(t, rec.Header().Get("Location"))
+		})
 	})
 	t.Run("user-agent is API client (sent JSON)", func(t *testing.T) {
 		server := echo.New()
