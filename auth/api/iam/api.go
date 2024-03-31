@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	crypto2 "crypto"
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/api/iam/assets"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -43,6 +45,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -73,6 +76,9 @@ const oid4vciSessionValidity = 15 * time.Minute
 // - https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
 const userSessionCookieName = "__Host-SID"
 
+//go:embed assets
+var assetsFS embed.FS
+
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
 	auth          auth.AuthenticationServices
@@ -84,6 +90,11 @@ type Wrapper struct {
 }
 
 func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend) *Wrapper {
+	templates := template.New("oauth2 templates")
+	_, err := templates.ParseFS(assetsFS, "assets/*.html")
+	if err != nil {
+		panic(err)
+	}
 	return &Wrapper{
 		auth:          authInstance,
 		policyBackend: policyBackend,
@@ -126,7 +137,9 @@ func middleware(ctx echo.Context, operationID string) {
 	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
 	if strings.HasPrefix(ctx.Request().URL.Path, "/oauth2/") {
-		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{})
+		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{
+			HtmlPageTemplate: assets.Template("error.html"),
+		})
 	}
 }
 
