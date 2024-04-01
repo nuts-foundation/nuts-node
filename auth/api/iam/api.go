@@ -138,7 +138,7 @@ func middleware(ctx echo.Context, operationID string) {
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
 	if strings.HasPrefix(ctx.Request().URL.Path, "/oauth2/") {
 		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{
-			HtmlPageTemplate: assets.Template("error.html"),
+			HtmlPageTemplate: assets.ErrorTemplate,
 		})
 	}
 }

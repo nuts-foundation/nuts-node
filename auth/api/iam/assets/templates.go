@@ -8,12 +8,10 @@ import (
 //go:embed *.html
 var assets embed.FS
 
-var Templates *template.Template
+// ErrorTemplate is the template used to render error pages.
+var ErrorTemplate *template.Template
 
 func init() {
-	Templates = template.Must(template.ParseFS(assets, "*.html"))
-}
-
-func Template(name string) *template.Template {
-	return Templates.Lookup(name)
+	templates := template.Must(template.ParseFS(assets, "*.html"))
+	ErrorTemplate = templates.Lookup("error.html")
 }

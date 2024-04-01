@@ -46,7 +46,7 @@ const (
 	oAuthFlowTimeout = time.Minute
 	// userRedirectTimeout is the timeout for the user redirect session.
 	// This is the maximum time between the creation of the redirect for the user and the actual GET request to the user/wallet page.
-	userRedirectTimeout = time.Second * 10
+	userRedirectTimeout = time.Second * 5
 	// userSessionTimeout is the timeout for the user session.
 	// This is the TTL of the server side state and the cookie.
 	userSessionTimeout = time.Hour
