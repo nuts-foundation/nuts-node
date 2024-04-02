@@ -1,6 +1,6 @@
 .. _pex:
 
-Presentation definition mapping
+Presentation Definition mapping
 ###############################
 
 Wallet functionality uses `Presentation Definitions <https://identity.foundation/presentation-exchange/>`_ to determine the required credentials for a given presentation request.
@@ -10,7 +10,7 @@ The mapping between scopes and presentation definitions is defined in a configur
 Configuration
 *************
 
-The Nuts config supports two ways to define the mapping between scopes and presentation definitions:
+The Nuts config supports two ways to define the mapping between OAuth2 scopes and presentation definitions:
 - using a file-based configuration
 - using a policy backend
 
@@ -47,7 +47,14 @@ JSON files used for file-based configuration must have the following structure:
 			"audience_type": "organization",
 			"presentation_definition": {
 				"id": "example",
-				"format": "ldp_vp",
+				"format": {
+					"ldp_vc": {
+        				"proof_type": ["JsonWebSignature2020"]
+      				},
+      				"ldp_vp": {
+        				"proof_type": ["JsonWebSignature2020"]
+      				}
+    			},
 				"definition": {
 					"input_descriptors": [
 						{
@@ -77,11 +84,10 @@ The `audience_type` field is used to determine the audience type of the presenta
 Policy backend API definition
 *****************************
 
-The policy backend API is defined in the `OpenAPI 3.0 <https://swagger.io/specification/>`_ format.
-The API must have the following endpoints:
+The policy backend API is defined in the `OpenAPI 3.x <https://spec.openapis.org/oas/latest.html>`_ format.
+The API must have the following endpoint:
 
 - `GET /presentation_definitions?scope=X&authorizer=Y`: Get the presentation definition for a given scope and tenant.
-- `POST /authorized`: Given an authorize request, check if a VP that matches the presentation definition is allowed to access a given resource.
 
 The full API definition can be found in the `API reference <nuts-node-api>`_ under *policy*.
 

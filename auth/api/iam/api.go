@@ -464,6 +464,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 
 	var definition *pe.PresentationDefinition
 	for _, def := range definitions {
+		// todo: for now only for the organization wallet to keep things working, maybe add type as query param.
 		if def.AudienceType == pe.AudienceTypeOrganization {
 			definition = &def.PresentationDefinition
 			break

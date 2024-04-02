@@ -59,8 +59,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 	multiPex := []pe.MultiPEX{{
 		AudienceType: pe.AudienceTypeOrganization,
-	},
-	}
+	}}
 	require.NoError(t, json.Unmarshal([]byte(`
 {
 	"format": {
