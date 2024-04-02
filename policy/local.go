@@ -102,7 +102,15 @@ func (s *localPDP) loadFromFile(filename string) error {
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal Presentation Exchange mapping file %s: %w", filename, err)
 	}
-	s.mapping = result
+	if s.mapping == nil {
+		s.mapping = make(map[string]validatingPresentationDefinition)
+	}
+	for scope, defs := range result {
+		if _, exists := s.mapping[scope]; exists {
+			return fmt.Errorf("mapping for scope '%s' already exists (file=%s)", scope, filename)
+		}
+		s.mapping[scope] = defs
+	}
 	return nil
 }
 
