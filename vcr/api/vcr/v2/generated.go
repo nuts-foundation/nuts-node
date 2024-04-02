@@ -185,7 +185,7 @@ type SearchVCRequest struct {
 }
 
 // SearchVCResult Result of a Search operation.
-// The revocation property may be  if a credential is revoked with a Verifiable Credential of type CredentialRevocation.
+// The revocation property is only present if a credential is revoked with a Verifiable Credential of type CredentialRevocation.
 // The absence of a the revocation property does not indicate a valid credential, use the /internal/vcr/v2/verifier/vc API for this.
 type SearchVCResult struct {
 	// Revocation Credential revocation record
