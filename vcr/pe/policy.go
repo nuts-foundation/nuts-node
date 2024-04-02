@@ -18,18 +18,15 @@
 
 package pe
 
-// MultiPEX defines the intended audience for a PresentationDefinition
-type MultiPEX struct {
-	AudienceType           AudienceType           `json:"audience_type"`
-	PresentationDefinition PresentationDefinition `json:"presentation_definition"`
-}
+// WalletOwnerMapping is a map of WalletOwnerType to PresentationDefinition
+type WalletOwnerMapping map[WalletOwnerType]PresentationDefinition
 
-// AudienceType defines the intended audience for a PresentationDefinition
-type AudienceType string
+// WalletOwnerType defines the intended audience for a PresentationDefinition
+type WalletOwnerType string
 
 const (
-	// AudienceTypeOrganization is used in a MultiPEX when the PresentationDefinition is intended for an organization
-	AudienceTypeOrganization = AudienceType("organization")
-	// AudienceTypeUser is used in a MultiPEX when the PresentationDefinition is intended for a user
-	AudienceTypeUser = AudienceType("user")
+	// WalletOwnerOrganization is used in a WalletOwnerMapping when the PresentationDefinition is intended for an organization
+	WalletOwnerOrganization = WalletOwnerType("organization")
+	// WalletOwnerUser is used in a WalletOwnerMapping when the PresentationDefinition is intended for a user
+	WalletOwnerUser = WalletOwnerType("user")
 )

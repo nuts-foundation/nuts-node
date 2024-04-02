@@ -35,7 +35,7 @@ import (
 func TestHTTPClient_PresentationDefinition(t *testing.T) {
 	ctx := context.Background()
 	authorizer := did.MustParseDID("did:web:example.com")
-	policies := []pe.MultiPEX{{AudienceType: pe.AudienceTypeOrganization, PresentationDefinition: pe.PresentationDefinition{Id: "123"}}}
+	policies := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "123"}}
 
 	t.Run("ok", func(t *testing.T) {
 		var capturedRequest *http.Request

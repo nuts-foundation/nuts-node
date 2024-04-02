@@ -276,11 +276,9 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		// simple vp
 		vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{"id":"did:web:example.com:iam:holder"}},"proof":{"challenge":"challenge","domain":"did:web:example.com:iam:verifier","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
 		// simple definition
-		multiPlex := []pe.MultiPEX{{
-			AudienceType: pe.AudienceTypeOrganization,
-			PresentationDefinition: pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
-				{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
-			}}},
+		walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
+			{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
+		}},
 		}
 		// simple submission
 		submissionAsStr := `{"id":"1", "definition_id":"1", "descriptor_map":[{"id":"1","format":"ldp_vc","path":"$.verifiableCredential"}]}`
@@ -298,7 +296,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(multiPlex, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(walletOwnerMapping, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
@@ -312,7 +310,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(multiPlex, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(walletOwnerMapping, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, assert.AnError)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
@@ -423,7 +421,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			submission := `{"id":"1", "definition_id":"2", "descriptor_map":[{"id":"2","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 			request.Body.PresentationSubmission = &submission
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(multiPlex, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(walletOwnerMapping, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -472,11 +470,9 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 	vpStr := `{"type":"VerifiablePresentation", "id":"vp", "verifiableCredential":{"type":"VerifiableCredential", "id":"vc", "credentialSubject":{"id":"did:web:example.com:iam:holder"}}}`
 	vp, err := vc.ParseVerifiablePresentation(vpStr)
 	require.NoError(t, err)
-	multiPlex := []pe.MultiPEX{{
-		AudienceType: pe.AudienceTypeOrganization,
-		PresentationDefinition: pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
-			{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
-		}}},
+	walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
+		{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
+	}},
 	}
 	submissionAsStr := `{"id":"1", "definition_id":"1", "descriptor_map":[{"id":"1","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 	var submission pe.PresentationSubmission
@@ -494,7 +490,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		putSession(ctx, code, validSession)
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "scope").Return(multiPlex, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "scope").Return(walletOwnerMapping, nil)
 
 		response, err := ctx.client.handleAccessTokenRequest(context.Background(), verifierDID, &code, &redirectURI, &clientID)
 

@@ -329,7 +329,7 @@ func (r CheckAuthorizedResponse) StatusCode() int {
 type PresentationDefinitionsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *[]MultiPEX
+	JSON200      *WalletOwnerMapping
 }
 
 // Status returns HTTPResponse.Status
@@ -415,7 +415,7 @@ func ParsePresentationDefinitionsResponse(rsp *http.Response) (*PresentationDefi
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []MultiPEX
+		var dest WalletOwnerMapping
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

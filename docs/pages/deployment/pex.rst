@@ -43,18 +43,17 @@ JSON files used for file-based configuration must have the following structure:
 .. code-block:: json
 
 	{
-		"example_scope": [{
-			"audience_type": "organization",
-			"presentation_definition": {
+		"example_scope": {
+			"organization": {
 				"id": "example",
 				"format": {
 					"ldp_vc": {
-        				"proof_type": ["JsonWebSignature2020"]
-      				},
-      				"ldp_vp": {
-        				"proof_type": ["JsonWebSignature2020"]
-      				}
-    			},
+						"proof_type": ["JsonWebSignature2020"]
+					},
+					"ldp_vp": {
+						"proof_type": ["JsonWebSignature2020"]
+					}
+				},
 				"definition": {
 					"input_descriptors": [
 						{
@@ -74,12 +73,12 @@ JSON files used for file-based configuration must have the following structure:
 					]
 				}
 			}
-		}]
+		}
 	}
 
 Where `example_scope` is the scope that the presentation definition is associated with.
 The `presentation_definition` object contains the presentation definition that should be used for the given scope.
-The `audience_type` field is used to determine the audience type of the presentation definition, valid values are `organization` and `user`.
+The `wallet_owner_type` field is used to determine the audience type of the presentation definition, valid values are `organization` and `user`.
 
 Policy backend API definition
 *****************************

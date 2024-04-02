@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"net/http"
 	"time"
 
@@ -43,8 +44,8 @@ func NewHTTPClient(strictMode bool, timeout time.Duration, tlsConfig *tls.Config
 	}
 }
 
-// PresentationDefinitions retrieves the presentation definitions (as MultiPEX) from the presentation definition endpoint for the given scope and authorizer.
-func (hb HTTPClient) PresentationDefinitions(ctx context.Context, serverAddress string, authorizer did.DID, scopes string) ([]MultiPEX, error) {
+// PresentationDefinitions retrieves the presentation definitions (as WalletOwnerMapping) from the presentation definition endpoint for the given scope and authorizer.
+func (hb HTTPClient) PresentationDefinitions(ctx context.Context, serverAddress string, authorizer did.DID, scopes string) (pe.WalletOwnerMapping, error) {
 	_, err := core.ParsePublicURL(serverAddress, hb.strictMode)
 	if err != nil {
 		return nil, err
@@ -72,7 +73,7 @@ func (hb HTTPClient) PresentationDefinitions(ctx context.Context, serverAddress 
 	}
 
 	if presentationDefinitionResponse.JSON200 == nil {
-		return make([]MultiPEX, 0), nil
+		return pe.WalletOwnerMapping{}, nil
 	}
 
 	return *presentationDefinitionResponse.JSON200, nil

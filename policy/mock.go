@@ -58,10 +58,10 @@ func (mr *MockPDPBackendMockRecorder) Authorized(ctx, requestInfo any) *gomock.C
 }
 
 // PresentationDefinitions mocks base method.
-func (m *MockPDPBackend) PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) ([]pe.MultiPEX, error) {
+func (m *MockPDPBackend) PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PresentationDefinitions", ctx, authorizer, scope)
-	ret0, _ := ret[0].([]pe.MultiPEX)
+	ret0, _ := ret[0].(pe.WalletOwnerMapping)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

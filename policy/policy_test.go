@@ -102,7 +102,7 @@ func TestRouterForwarding(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctx := context.Background()
 	testDID := did.MustParseDID("did:web:example.com:test")
-	policies := []pe.MultiPEX{{AudienceType: pe.AudienceTypeOrganization, PresentationDefinition: pe.PresentationDefinition{}}}
+	policies := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{}}
 	router := Router{
 		backend: NewMockPDPBackend(ctrl),
 	}

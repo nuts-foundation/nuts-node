@@ -29,8 +29,8 @@ type PresentationDefinition = pe.PresentationDefinition
 // PresentationSubmission is a type alias for the PresentationSubmission from the nuts-node/vcr/pe package.
 type PresentationSubmission = pe.PresentationSubmission
 
-// MultiPEX is a type alias for the MultiPEX from the nuts-node/policy package.
-type MultiPEX = pe.MultiPEX
+// WalletOwnerMapping is a type alias for the WalletOwnerMapping from the nuts-node/policy package.
+type WalletOwnerMapping = pe.WalletOwnerMapping
 
 // AuthorizedRequest contains the information about the request
 type AuthorizedRequest struct {

@@ -454,7 +454,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		return nil, err
 	}
 
-	definitions, err := r.policyBackend.PresentationDefinitions(ctx, *authorizer, request.Params.Scope)
+	mapping, err := r.policyBackend.PresentationDefinitions(ctx, *authorizer, request.Params.Scope)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidScope,
@@ -462,19 +462,11 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		}
 	}
 
-	var definition *pe.PresentationDefinition
-	for _, def := range definitions {
-		// todo: for now only for the organization wallet to keep things working, maybe add type as query param.
-		if def.AudienceType == pe.AudienceTypeOrganization {
-			definition = &def.PresentationDefinition
-			break
-		}
-	}
-	if definition == nil {
+	if _, ok := mapping[pe.WalletOwnerOrganization]; !ok {
 		return nil, oauthError(oauth.ServerError, "no presentation definition found for organization wallet")
 	}
 
-	return PresentationDefinition200JSONResponse(*definition), nil
+	return PresentationDefinition200JSONResponse(mapping[pe.WalletOwnerOrganization]), nil
 }
 
 // toOwnedDIDForOAuth2 is like toOwnedDID but wraps the errors in oauth.OAuth2Error to make sure they're returned as specified by the OAuth2 RFC.

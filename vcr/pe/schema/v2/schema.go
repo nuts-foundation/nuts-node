@@ -40,14 +40,14 @@ const (
 	submissionRequirements                        = "http://identity.foundation/presentation-exchange/schemas/submission-requirements.json"
 	presentationSubmissionClaimFormatDesignations = "http://identity.foundation/claim-format-registry/schemas/presentation-submission-claim-format-designations.json"
 	presentationDefinitionClaimFormatDesignations = "http://identity.foundation/claim-format-registry/schemas/presentation-definition-claim-format-designations.json"
-	multiPEX                                      = "http://nuts.nl/schemas/multipex.json"
+	multiPEX                                      = "http://nuts.nl/schemas/walletownermapping.json"
 )
 
 //go:embed *.json
 var schemaFiles embed.FS
 
-// MultiPEX is the JSON schema for a MultiPEX (presentation definition with a specific audience).
-var MultiPEX *jsonschema.Schema
+// WalletOwnerMapping is the JSON schema for a WalletOwnerMapping (presentation definition with a specific audience).
+var WalletOwnerMapping *jsonschema.Schema
 
 // PresentationDefinition is the JSON schema for a presentation definition.
 var PresentationDefinition *jsonschema.Schema
@@ -74,7 +74,7 @@ func init() {
 	compiler := Compiler()
 	PresentationDefinition = compiler.MustCompile(presentationDefinition)
 	PresentationSubmission = compiler.MustCompile(presentationSubmission)
-	MultiPEX = compiler.MustCompile(multiPEX)
+	WalletOwnerMapping = compiler.MustCompile(multiPEX)
 }
 
 func loadSchemas(reader fs.ReadFileFS, compiler *jsonschema.Compiler) error {

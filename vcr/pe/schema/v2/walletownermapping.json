@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Wallet owner type to Presentation Definition mapping",
+  "type": "object",
+  "properties": {
+    "organization": {
+      "$ref": "http://identity.foundation/presentation-exchange/schemas/presentation-definition.json"
+    },
+    "user": {
+      "$ref": "http://identity.foundation/presentation-exchange/schemas/presentation-definition.json"
+    }
+  },
+  "additionalProperties": {"type": "object"}
+}

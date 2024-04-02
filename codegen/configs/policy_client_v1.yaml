@@ -7,7 +7,7 @@ generate:
 output-options:
   skip-prune: true
   exclude-schemas:
-  - MultiPEX
+  - WalletOwnerMapping
   - PresentationDefinition
   - PresentationSubmission
   - AuthorizedRequest

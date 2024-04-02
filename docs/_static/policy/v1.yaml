@@ -40,9 +40,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/MultiPEX'
+                $ref: '#/components/schemas/WalletOwnerMapping'
         "201":
           description: The DID is known but the presented scope is not supported.
         "404":
@@ -126,19 +124,9 @@ components:
         authorized:
           description: Indicates if the access token grants access to the requested resource.
           type: boolean
-    MultiPEX:
-      description: A PEX policy as a JSON object that describes the desired verifiable credentials for a particular audience type.
+    WalletOwnerMapping:
+      description: A mapping from wallet type (user, organization) to presentation definition.
       type: object
-      required:
-        - presentation_definition
-        - audience_type
-      properties:
-        audience_type:
-          description: The audience type of the presentation definition.
-          type: string
-          enum: [organization,user]
-        presentation_definition:
-          $ref: '#/components/schemas/PresentationDefinition'
     PresentationDefinition:
       description: |
         A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.

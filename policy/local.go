@@ -38,13 +38,13 @@ var _ PDPBackend = (*localPDP)(nil)
 // It allows access when the requester can present a submission according to the Presentation Definition. It does not do any additional authorization checks.
 type localPDP struct {
 	// mapping holds the oauth scope to PEX Policy mapping
-	mapping map[string][]validatingMultiPEX
+	mapping map[string]validatingWalletOwnerMapping
 }
 
-func (b *localPDP) PresentationDefinitions(_ context.Context, _ did.DID, scope string) ([]pe.MultiPEX, error) {
-	result := make([]pe.MultiPEX, 0)
-	for _, policy := range b.mapping[scope] {
-		result = append(result, pe.MultiPEX(policy))
+func (b *localPDP) PresentationDefinitions(_ context.Context, _ did.DID, scope string) (pe.WalletOwnerMapping, error) {
+	result := pe.WalletOwnerMapping{}
+	for walletOwnerType, policy := range b.mapping[scope] {
+		result[walletOwnerType] = policy
 	}
 	if len(result) == 0 {
 		return nil, ErrNotFound
@@ -101,7 +101,7 @@ func (s *localPDP) loadFromFile(filename string) error {
 	}
 
 	// unmarshal the bytes into the mapping
-	result := make(map[string][]validatingMultiPEX)
+	result := make(map[string]validatingWalletOwnerMapping)
 	err = json.Unmarshal(bytes, &result)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal PEX Policy mapping file %s: %w", filename, err)
@@ -111,11 +111,11 @@ func (s *localPDP) loadFromFile(filename string) error {
 }
 
 // validatingPresentationDefinition is an alias for PresentationDefinition that validates the JSON on unmarshal.
-type validatingMultiPEX pe.MultiPEX
+type validatingWalletOwnerMapping pe.WalletOwnerMapping
 
-func (v *validatingMultiPEX) UnmarshalJSON(data []byte) error {
-	if err := v2.Validate(data, v2.MultiPEX); err != nil {
+func (v *validatingWalletOwnerMapping) UnmarshalJSON(data []byte) error {
+	if err := v2.Validate(data, v2.WalletOwnerMapping); err != nil {
 		return err
 	}
-	return json.Unmarshal(data, (*pe.MultiPEX)(v))
+	return json.Unmarshal(data, (*pe.WalletOwnerMapping)(v))
 }

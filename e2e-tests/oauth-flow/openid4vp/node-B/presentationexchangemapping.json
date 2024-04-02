@@ -1,7 +1,7 @@
 {
   "test": [
     {
-      "audience_type": "organization",
+      "wallet_owner_type": "organization",
       "presentation_definition": {
         "format": {
           "ldp_vp": {

@@ -1,10 +1,7 @@
 {
-  "example-scope": [
-    {
-      "audience_type": "organization",
-      "presentation_definition": {
-        "id": "pd_any_care_organization"
-      }
+"example-scope":{
+    "organization": {
+      "id": "pd_any_care_organization"
     }
-  ]
+  }
 }
