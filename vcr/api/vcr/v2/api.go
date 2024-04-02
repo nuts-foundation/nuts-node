@@ -145,7 +145,7 @@ func parseCredentialOptions(request IssueVCRequestObject) (*issuer.CredentialOpt
 
 	// Set format
 	if request.Body.Format != nil {
-		options.Format = string(*request.Body.Format)
+		options.Format = credential.VCDataModel11CredentialFormat(*request.Body.Format)
 	}
 
 	// Valid CredentialOptions:

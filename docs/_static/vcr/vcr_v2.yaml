@@ -565,12 +565,15 @@ components:
           type: boolean
           default: false
         format:
-          description: Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
-          default: ldp_vc
+          description: >
+            Credential and proof format for the credential. Options:
+            - json-ld+ld-proofs (default) for JSON-LD format with Linked Data Proof of type JsonWebSignature2020
+            - json-ld+jwt for JWT format with JWT proof, signed with ES256.
+          default: json-ld+ld-proofs
           type: string
           enum:
-            - ldp_vc
-            - jwt_vc
+            - json-ld+ld-proofs
+            - json-ld+jwt
         publishToNetwork:
           description: |
             If set, the node publishes this credential to the network. This is the default behaviour.

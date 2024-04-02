@@ -89,9 +89,8 @@ type CredentialSearcher interface {
 
 // CredentialOptions specifies options for issuing a credential.
 type CredentialOptions struct {
-	// Format specifies the proof format for the issued credential. If not set, it defaults to JSON-LD.
-	// Valid options are: ldp_vc or jwt_vc
-	Format string
+	// Format specifies the proof format for the issued credential. If not set, it defaults to JSON-LD with Linked Data proof.
+	Format credential.VCDataModel11CredentialFormat
 	// Publish param indicates if the credential should be published to the network.
 	Publish bool
 	// Public param instructs the Publisher to publish the param with a certain visibility.
