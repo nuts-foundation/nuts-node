@@ -193,7 +193,7 @@ func (r Wrapper) loadUserSession(cookies CookieReader, tenantDID did.DID, preAut
 	// If the existing session was created for a pre-authorized user, the call to RequestUserAccessToken() must be
 	// for the same user.
 	// TODO: When we support external Identity Providers, make sure the existing session was not for a preauthorized user.
-	if *preAuthorizedUser != *session.PreAuthorizedUser {
+	if preAuthorizedUser != nil && *preAuthorizedUser != *session.PreAuthorizedUser {
 		return nil, errors.New("session belongs to another pre-authorized user")
 	}
 	return session, nil

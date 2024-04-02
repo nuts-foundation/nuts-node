@@ -29,9 +29,19 @@ func NewChrome(headless bool) (context.Context, context.CancelFunc) {
 	var execCtx context.Context
 	var execCtxCancel context.CancelFunc
 	if headless {
+		// TODO: Fix acceptInsecureCerts for headless
 		execCtx, execCtxCancel = chromedp.NewRemoteAllocator(context.Background(), "http://localhost:9222")
 	} else {
-		execCtx, execCtxCancel = chromedp.NewExecAllocator(context.Background(), append(chromedp.DefaultExecAllocatorOptions[:], chromedp.Flag("headless", false))...)
+		options := append(chromedp.DefaultExecAllocatorOptions[:],
+			chromedp.Flag("headless", false),
+			// Required for non-headless mode, which runs on the host machine.
+			// Otherwise, it can't resolve docker hostnames (so map them to localhost).
+			chromedp.Flag("host-resolver-rules", "MAP nodeA localhost"),
+			chromedp.Flag("host-rules", "MAP nodeA localhost"),
+			chromedp.Flag("ignore-certificate-errors", true),
+			chromedp.Flag("acceptInsecureCerts", true),
+		)
+		execCtx, execCtxCancel = chromedp.NewExecAllocator(context.Background(), options...)
 	}
 
 	ctx, cancel := chromedp.NewContext(

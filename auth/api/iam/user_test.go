@@ -311,3 +311,11 @@ func TestWrapper_loadUserSession(t *testing.T) {
 		assert.Nil(t, actual)
 	})
 }
+
+func Test_generateUserSessionJWK(t *testing.T) {
+	key, userDID, err := generateUserSessionJWK()
+	require.NoError(t, err)
+	require.NotNil(t, key)
+	require.NotNil(t, userDID)
+	assert.True(t, strings.HasPrefix(userDID.String(), "did:jwk:"))
+}

@@ -83,36 +83,47 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 //
 // Errors are returned as OAuth2 errors.
 func (r Wrapper) validatePresentationSubmission(ctx context.Context, authorizer did.DID, scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (map[string]vc.VerifiableCredential, *PresentationDefinition, error) {
+	mapping, err := r.presentationDefinitionForScope(ctx, authorizer, scope)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Find the Presentation Definition referenced by the Submission in the mapping
+	var definition *PresentationDefinition
+	for _, curr := range mapping {
+		if curr.Id == submission.DefinitionId {
+			definition = &curr
+		}
+	}
+	if definition == nil {
+		return nil, nil, oauthError(oauth.InvalidRequest, "Presentation Submission references Presentation Definition that isn't requested")
+	}
+	credentialMap, err := submission.Validate(*pexEnvelope, *definition)
+	if err != nil {
+		return nil, nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   fmt.Sprintf("Presentation Submission does not conform to Presentation Definition (id=%s)", definition.Id),
+			InternalError: err,
+		}
+	}
+	return credentialMap, definition, err
+}
+
+func (r Wrapper) presentationDefinitionForScope(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error) {
 	mapping, err := r.policyBackend.PresentationDefinitions(ctx, authorizer, scope)
 	if err != nil {
 		if errors.Is(err, policy.ErrNotFound) {
-			return nil, nil, oauth.OAuth2Error{
+			return nil, oauth.OAuth2Error{
 				Code:          oauth.InvalidScope,
 				InternalError: err,
 				Description:   fmt.Sprintf("unsupported scope (%s) for presentation exchange: %s", scope, err.Error()),
 			}
 		}
-		return nil, nil, oauth.OAuth2Error{
+		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
 			InternalError: err,
 			Description:   fmt.Sprintf("failed to retrieve presentation definition for scope (%s): %s", scope, err.Error()),
 		}
 	}
-
-	// todo, for now take the organization definition
-	var definition PresentationDefinition
-	var ok bool
-	if definition, ok = mapping[pe.WalletOwnerOrganization]; !ok {
-		return nil, nil, oauthError(oauth.ServerError, "no presentation definition found for organization wallet")
-	}
-
-	credentialMap, err := submission.Validate(*pexEnvelope, mapping[pe.WalletOwnerOrganization])
-	if err != nil {
-		return nil, nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidRequest,
-			Description:   "presentation submission does not conform to Presentation Definition",
-			InternalError: err,
-		}
-	}
-	return credentialMap, &definition, err
+	return mapping, err
 }

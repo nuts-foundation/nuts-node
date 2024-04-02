@@ -1,0 +1,29 @@
+services:
+  nodeA-backend:
+#    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    image: nutsfoundation/nuts-node:local
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    ports:
+      - 8080:8080
+      - 8081:8081
+    volumes:
+      - "./config/nuts.yaml:/opt/nuts/nuts.yaml"
+      - "./config/policy/:/opt/nuts/policy:ro"
+      - "./data/node:/opt/nuts/data"
+      # did:web resolver uses the OS CA bundle, but e2e tests use a self-signed CA which can be found in truststore.pem
+      # So we need to mount that file to the OS CA bundle location, otherwise did:web resolving will fail due to untrusted certs.
+      - "../../tls-certs/truststore.pem:/etc/ssl/certs/Nuts_RootCA.pem:ro"
+  nodeA:
+    image: nginx:1.25.1
+    ports:
+      - "443:443"
+    volumes:
+      - "../../shared_config/nodeA-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
+      - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
+  chrome-headless-shell:
+    image: chromedp/headless-shell:latest
+    ports:
+      - 9222:9222

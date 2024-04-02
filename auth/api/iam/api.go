@@ -35,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	http2 "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -78,18 +79,22 @@ type Wrapper struct {
 	auth          auth.AuthenticationServices
 	policyBackend policy.PDPBackend
 	storageEngine storage.Engine
+	JSONLDManager jsonld.JSONLD
 	keyStore      crypto.KeyStore
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 }
 
-func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend) *Wrapper {
+func New(
+	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine,
+	policyBackend policy.PDPBackend, jsonldManager jsonld.JSONLD) *Wrapper {
 	return &Wrapper{
 		auth:          authInstance,
 		policyBackend: policyBackend,
 		storageEngine: storageEngine,
 		vcr:           vcrInstance,
 		vdr:           vdrInstance,
+		JSONLDManager: jsonldManager,
 	}
 }
 
@@ -235,35 +240,22 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := IntrospectAccessToken200JSONResponse{
-		Active:   true,
-		Iat:      &iat,
-		Exp:      &exp,
-		Iss:      &token.Issuer,
-		Sub:      &token.Issuer,
-		ClientId: &token.ClientId,
-		Scope:    &token.Scope,
-		Vps:      &token.VPToken,
-	}
-
-	// set presentation definition if in token
-	var err error
-	response.PresentationDefinition, err = toAnyMap(token.PresentationDefinition)
-	if err != nil {
-		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to marshal presentation definition")
-		return IntrospectAccessToken200JSONResponse{}, err
-	}
-
-	// set presentation submission if in token
-	response.PresentationSubmission, err = toAnyMap(token.PresentationSubmission)
-	if err != nil {
-		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to marshal presentation submission")
-		return IntrospectAccessToken200JSONResponse{}, err
+		Active:                  true,
+		Iat:                     &iat,
+		Exp:                     &exp,
+		Iss:                     &token.Issuer,
+		Sub:                     &token.Issuer,
+		ClientId:                &token.ClientId,
+		Scope:                   &token.Scope,
+		Vps:                     &token.VPToken,
+		PresentationDefinitions: &token.PresentationDefinitions,
+		PresentationSubmissions: &token.PresentationSubmissions,
 	}
 
 	if token.InputDescriptorConstraintIdMap != nil {
 		for _, reserved := range []string{"iss", "sub", "exp", "iat", "active", "client_id", "scope"} {
-			if _, exists := token.InputDescriptorConstraintIdMap[reserved]; exists {
-				return nil, errors.New(fmt.Sprintf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name '%s'", reserved))
+			if _, isReserved := token.InputDescriptorConstraintIdMap[reserved]; isReserved {
+				return nil, fmt.Errorf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name: %s", reserved)
 			}
 		}
 		response.AdditionalProperties = token.InputDescriptorConstraintIdMap
@@ -304,14 +296,16 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 	// if the request param is present, JAR (RFC9101, JWT Authorization Request) is used
 	// we parse the request and validate
+	requestObject := params
 	if rawToken := params.get(oauth.RequestParam); rawToken != "" {
-		params, err = r.validateJARRequest(ctx, rawToken, clientId)
+		requestObject, err = r.validateJARRequest(ctx, rawToken, clientId)
 		if err != nil {
 			return nil, err
 		}
 	} // else, we'll allow for now, since other flows will break if we require JAR at this point.
 
-	session := createSession(params, *ownDID)
+	// todo: store session in database? Isn't session specific for a particular flow?
+	session := createSession(requestObject, *ownDID)
 
 	switch session.ResponseType {
 	case responseTypeCode:
@@ -329,7 +323,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		clientId := session.ClientID
 		if strings.HasPrefix(clientId, "did:web:") {
 			// client is a cloud wallet with user
-			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, params)
+			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, requestObject)
 		} else {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
@@ -339,7 +333,14 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	case responseTypeVPToken:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
-		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, params)
+		// non-spec: wallet_owner_type is an unsigned parameter that hints whether the request targets an organization or user wallet.
+		// Requests to user wallets can be rendered as QR-code.
+		walletOwnerType := pe.WalletOwnerType(params.get("wallet_owner_type"))
+		if walletOwnerType != pe.WalletOwnerOrganization && walletOwnerType != pe.WalletOwnerUser {
+			// default to organization
+			walletOwnerType = pe.WalletOwnerOrganization
+		}
+		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, requestObject, walletOwnerType)
 	default:
 		// TODO: This should be a redirect?
 		redirectURI, _ := url.Parse(session.RedirectURI)
@@ -553,7 +554,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, err
 	}
 
-	// TODO: When we support authentication at an external IdP,
+	// Note: When we support authentication at an external IdP,
 	//       the properties below become conditionally required.
 	if request.Body.PreauthorizedUser == nil {
 		return nil, core.InvalidInputError("missing preauthorized_user")
@@ -611,7 +612,6 @@ func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
 	session.ClientID = params.get(oauth.ClientIDParam)
 	session.Scope = params.get(oauth.ScopeParam)
 	session.ClientState = params.get(oauth.StateParam)
-	session.ServerState = ServerState{}
 	session.RedirectURI = params.get(oauth.RedirectURIParam)
 	session.OwnDID = &ownDID
 	session.ResponseType = params.get(oauth.ResponseTypeParam)

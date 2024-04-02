@@ -347,6 +347,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		expectedURL := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:holder/authorize")
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
 		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), verifierDID, holderDID, gomock.Any()).DoAndReturn(func(ctx context.Context, verifierDID, holderDID did.DID, modifier iam.RequestModifier) (*url.URL, error) {
 			// check the parameters
@@ -437,6 +438,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	t.Run("ok - code response type - from holder", func(t *testing.T) {
 		ctx := newTestClient(t)
 		expectedURL := test.MustParseURL("https://example.com/iam/holder/authorize")
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil)
 		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), verifierDID, holderDID, gomock.Any()).DoAndReturn(func(ctx context.Context, verifierDID, holderDID did.DID, modifier iam.RequestModifier) (*url.URL, error) {
@@ -551,10 +553,17 @@ func TestWrapper_Callback(t *testing.T) {
 	state := "state"
 	token := "token"
 
+	session := OAuthSession{
+		SessionID:   "token",
+		OwnDID:      &holderDID,
+		RedirectURI: "https://example.com/iam/holder/cb",
+		VerifierDID: &verifierDID,
+	}
+
 	t.Run("ok - error flow", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		putState(ctx, state)
+		putState(ctx, session)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -570,7 +579,7 @@ func TestWrapper_Callback(t *testing.T) {
 	})
 	t.Run("ok - success flow", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putState(ctx, state)
+		putState(ctx, session)
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
@@ -720,8 +729,8 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			Scope:                          "test",
 			InputDescriptorConstraintIdMap: map[string]any{"key": "value"},
 			VPToken:                        []VerifiablePresentation{presentation},
-			PresentationSubmission:         &pe.PresentationSubmission{},
-			PresentationDefinition:         &pe.PresentationDefinition{},
+			PresentationSubmissions:        &pe.PresentationSubmission{},
+			PresentationDefinitions:        &pe.PresentationDefinition{},
 		}
 
 		require.NoError(t, ctx.client.accessTokenServerStore().Put(token.Token, token))

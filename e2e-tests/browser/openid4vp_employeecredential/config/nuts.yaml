@@ -1,0 +1,12 @@
+url: https://nodeA
+datadir: /opt/nuts/data
+strictmode: false
+verbosity: debug
+http:
+  internal:
+    address: :8081
+auth:
+  contractvalidators:
+    - dummy
+policy:
+  directory: /opt/nuts/policy
