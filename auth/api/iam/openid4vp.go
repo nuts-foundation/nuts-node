@@ -59,6 +59,8 @@ var oauthNonceKey = []string{"oauth", "nonce"}
 // scope, OPTIONAL. The scope that maps to a presentation definition, if not set we just want an empty VP
 // state, RECOMMENDED.  Opaque value used to maintain state between the request and the callback.
 // nonce, REQUIRED. Random value, may only be used once.
+// code_challenge, REQUIRED.  Code challenge. (RFC7636)
+// code_challenge_method, REQUIRED.  Code challenge method. (RFC7636)
 func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier did.DID, params oauthParameters) (HandleAuthorizeRequestResponseObject, error) {
 	// first we check the redirect URL because later errors will redirect to this URL
 	// from RFC6749:
@@ -90,6 +92,14 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	if params.get(oauth.NonceParam) == "" {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "missing nonce parameter"), redirectURL)
 	}
+	// we require PKCE (RFC7636) for authorization code flows
+	// check code_challenge and code_challenge_method
+	if params.get(oauth.CodeChallengeParam) == "" {
+		return nil, oauthError(oauth.InvalidRequest, "missing code_challenge parameter")
+	}
+	if params.get(oauth.CodeChallengeMethodParam) == "" || params.get(oauth.CodeChallengeMethodParam) != "S256" {
+		return nil, oauthError(oauth.InvalidRequest, "invalid value for code_challenge_method parameter, only S256 is supported")
+	}
 
 	// GET authorization server metadata for wallet
 	walletID := params.get(oauth.ClientIDParam)
@@ -120,8 +130,6 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	//    &client_id_scheme=did
 	//    &client_metadata_uri=https%3A%2F%2Fexample.com%2Fiam%2F123%2F%2Fclient_metadata
 	//    &client_id=did:web:example.com:iam:123
-	//    &client_id_scheme=did
-	//    &client_metadata_uri=https%3A%2F%2Fexample.com%2F.well-known%2Fauthorization-server%2Fiam%2F123%2F%2F
 	//    &response_uri=https%3A%2F%2Fexample.com%2Fiam%2F123%2F%2Fresponse
 	//    &presentation_definition_uri=...
 	//    &response_mode=direct_post
@@ -155,6 +163,10 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		OwnDID:      &verifier,
 		ClientState: params.get(oauth.StateParam),
 		RedirectURI: redirectURL.String(),
+		PKCEParams: PKCEParams{ // store params, when generating authorization code we take the params from the nonceStore and encrypt them in the authorization code
+			Challenge:       params.get(oauth.CodeChallengeParam),
+			ChallengeMethod: params.get(oauth.CodeChallengeMethodParam),
+		},
 	}
 	// use nonce and state to store authorization request in session store
 	if err = r.oauthNonceStore().Put(nonce, openid4vpRequest); err != nil {
@@ -510,47 +522,48 @@ func (r Wrapper) validatePresentationNonce(presentations []vc.VerifiablePresenta
 	return returnErr
 }
 
-func (r Wrapper) handleAccessTokenRequest(ctx context.Context, verifier did.DID, authorizationCode *string, redirectURI *string, clientId *string) (HandleTokenRequestResponseObject, error) {
-	// first check redirectURI
-	if redirectURI == nil {
-		return nil, oauthError(oauth.InvalidRequest, "missing redirect_uri parameter")
+func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTokenRequestFormdataRequestBody) (HandleTokenRequestResponseObject, error) {
+	// check if code is present
+	if request.Code == nil {
+		return nil, oauthError(oauth.InvalidRequest, "missing code parameter")
 	}
-	callbackURI, err := url.Parse(*redirectURI)
-	if err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid redirect_uri parameter")
+	// check if code_verifier is present
+	if request.CodeVerifier == nil {
+		return nil, oauthError(oauth.InvalidRequest, "missing code_verifier parameter")
 	}
-
+	// check if client_id is present
+	if request.ClientId == nil {
+		return nil, oauthError(oauth.InvalidRequest, "missing client_id parameter")
+	}
 	// check if the authorization code is valid
 	var oauthSession OAuthSession
-	err = r.oauthCodeStore().Get(*authorizationCode, &oauthSession)
+	err := r.oauthCodeStore().Get(*request.Code, &oauthSession)
 	if err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid authorization code")
+		return nil, oauthError(oauth.InvalidGrant, "invalid authorization code")
 	}
-
-	// check if the redirectURI matches the one from the authorization request
-	if oauthSession.redirectURI() != nil && oauthSession.redirectURI().String() != *redirectURI {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("redirect_uri does not match: %s vs %s", oauthSession.RedirectURI, *redirectURI)), callbackURI)
-	}
-
 	// check if the client_id matches the one from the authorization request
-	if oauthSession.ClientID != *clientId {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("client_id does not match: %s vs %s", oauthSession.ClientID, *clientId)), callbackURI)
+	if oauthSession.ClientID != *request.ClientId {
+		return nil, oauthError(oauth.InvalidRequest, fmt.Sprintf("client_id does not match: %s vs %s", oauthSession.ClientID, *request.ClientId))
 	}
-
-  	state := oauthSession.ServerState
-	mapping, err := r.policyBackend.PresentationDefinitions(ctx, verifier, oauthSession.Scope)
+	// check if the code_verifier is valid
+	oauthSession.PKCEParams.Verifier = *request.CodeVerifier
+	if !validatePKCEParams(oauthSession.PKCEParams) {
+		return nil, oauthError(oauth.InvalidGrant, "invalid code_verifier")
+	}
+	state := oauthSession.ServerState
+	mapping, err := r.policyBackend.PresentationDefinitions(ctx, *oauthSession.OwnDID, oauthSession.Scope)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to fetch presentation definition: %s", err.Error())), callbackURI)
+		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to fetch presentation definition: %s", err.Error()))
 	}
 	// todo, for now take the organization definition
 	if _, ok := mapping[pe.WalletOwnerOrganization]; !ok {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, "no presentation definition found for organization wallet"), callbackURI)
+		return nil, oauthError(oauth.ServerError, "no presentation definition found for organization wallet")
 	}
 	subject, _ := did.ParseDID(oauthSession.ClientID)
 
-	response, err := r.createAccessToken(verifier, time.Now(), state.Presentations, state.PresentationSubmission, mapping[pe.WalletOwnerOrganization], oauthSession.Scope, *subject, state.CredentialMap)
+	response, err := r.createAccessToken(*oauthSession.OwnDID, time.Now(), state.Presentations, state.PresentationSubmission, mapping[pe.WalletOwnerOrganization], oauthSession.Scope, *subject, state.CredentialMap)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error())), callbackURI)
+		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
@@ -613,7 +626,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	checkURL = checkURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}

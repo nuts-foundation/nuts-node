@@ -50,11 +50,12 @@ func TestIAMClient_AccessToken(t *testing.T) {
 	code := "code"
 	callbackURI := "https://test.test/iam/123/callback"
 	clientID := did.MustParseDID("did:web:test.test:iam:123")
+	codeVerifier := "code_verifier"
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -65,7 +66,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.token = nil
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier)
 
 		assert.EqualError(t, err, "remote server: error creating access token: server returned HTTP 404 (expected: 200)")
 		assert.Nil(t, response)

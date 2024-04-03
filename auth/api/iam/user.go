@@ -54,6 +54,7 @@ const (
 
 var oauthClientStateKey = []string{"oauth", "client_state"}
 var oauthCodeKey = []string{"oauth", "code"}
+var oauthServerStateKey = []string{"oauth", "server_state"}
 var userRedirectSessionKey = []string{"user", "redirect"}
 var userSessionKey = []string{"user", "session"}
 
@@ -118,9 +119,11 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	oauthSession := OAuthSession{
 		ClientState: crypto.GenerateNonce(),
 		OwnDID:      &redirectSession.OwnDID,
-		VerifierDID: verifier,
-		SessionID:   redirectSession.SessionID,
+		PKCEParams:  generatePKCEParams(),
 		RedirectURI: accessTokenRequest.Body.RedirectUri,
+		SessionID:   redirectSession.SessionID,
+		UserDetails: *accessTokenRequest.Body.PreauthorizedUser,
+		VerifierDID: verifier,
 	}
 	// store user session in session store under sessionID and clientState
 	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession)
@@ -135,6 +138,8 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
 	modifier := func(values map[string]interface{}) {
+		values[oauth.CodeChallengeParam] = oauthSession.PKCEParams.Challenge
+		values[oauth.CodeChallengeMethodParam] = oauthSession.PKCEParams.ChallengeMethod
 		values[oauth.RedirectURIParam] = callbackURL.String()
 		values[oauth.ResponseTypeParam] = responseTypeCode
 		values[oauth.StateParam] = oauthSession.ClientState

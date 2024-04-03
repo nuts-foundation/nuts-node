@@ -45,14 +45,16 @@ var issuerDID = did.MustParseDID("did:web:example.com:iam:issuer")
 func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	defaultParams := func() oauthParameters {
 		return map[string]interface{}{
-			oauth.ClientIDParam:     holderDID.String(),
-			oauth.RedirectURIParam:  "https://example.com",
-			oauth.ResponseTypeParam: "code",
-			oauth.ScopeParam:        "test",
-			oauth.StateParam:        "state",
-			jwt.AudienceKey:         []string{verifierDID.String()},
-			jwt.IssuerKey:           holderDID.String(),
-			oauth.NonceParam:        "nonce",
+			oauth.ClientIDParam:            holderDID.String(),
+			oauth.RedirectURIParam:         "https://example.com",
+			oauth.ResponseTypeParam:        "code",
+			oauth.ScopeParam:               "test",
+			oauth.StateParam:               "state",
+			jwt.AudienceKey:                []string{verifierDID.String()},
+			jwt.IssuerKey:                  holderDID.String(),
+			oauth.NonceParam:               "nonce",
+			oauth.CodeChallengeParam:       "code_challenge",
+			oauth.CodeChallengeMethodParam: "S256",
 		}
 	}
 
@@ -103,6 +105,25 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "wallet metadata does not contain did in client_id_schemes_supported")
+	})
+	t.Run("missing code_challenge", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, oauth.CodeChallengeParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing code_challenge parameter")
+
+	})
+	t.Run("missing code_challenge_method", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, oauth.CodeChallengeMethodParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid value for code_challenge_method parameter, only S256 is supported")
 	})
 	t.Run("error on authorization server metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -479,13 +500,17 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 			Presentations:          []vc.VerifiablePresentation{*vp},
 			PresentationSubmission: &submission,
 		},
+		PKCEParams: generatePKCEParams(),
 	}
+	requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
+
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putSession(ctx, code, validSession)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "scope").Return(walletOwnerMapping, nil)
+		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
+		putCodeSession(ctx, code, validSession)
 
-		response, err := ctx.client.handleAccessTokenRequest(context.Background(), verifierDID, &code, &redirectURI, &clientID)
+		response, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		require.NoError(t, err)
 		token, ok := response.(HandleTokenRequest200JSONResponse)
@@ -498,44 +523,76 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("invalid authorization code", func(t *testing.T) {
 		ctx := newTestClient(t)
+		putCodeSession(ctx, code, validSession)
+		verifier := "verifier"
+		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &verifier}
 
-		_, err := ctx.client.handleAccessTokenRequest(context.Background(), verifierDID, &code, &redirectURI, &clientID)
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		require.Error(t, err)
-		_ = assertOAuthError(t, err, "invalid authorization code")
+		oauthErr, ok := err.(oauth.OAuth2Error)
+		require.True(t, ok, "expected oauth error")
+		assert.Equal(t, oauth.InvalidGrant, oauthErr.Code)
+		assert.Equal(t, "invalid code_verifier", oauthErr.Description)
 	})
 	t.Run("invalid client_id", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putSession(ctx, code, validSession)
+		putCodeSession(ctx, code, validSession)
 		clientID := "other"
+		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
 
-		_, err := ctx.client.handleAccessTokenRequest(context.Background(), verifierDID, &code, &redirectURI, &clientID)
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
-		require.Error(t, err)
 		_ = assertOAuthError(t, err, "client_id does not match: did:web:example.com:iam:holder vs other")
-	})
-	t.Run("invalid redirectURI", func(t *testing.T) {
-		ctx := newTestClient(t)
-		putSession(ctx, code, validSession)
-		redirectURI := "other"
-
-		_, err := ctx.client.handleAccessTokenRequest(context.Background(), verifierDID, &code, &redirectURI, &clientID)
-
-		require.Error(t, err)
-		_ = assertOAuthError(t, err, "redirect_uri does not match: https://example.com/iam/holder/cb vs other")
 	})
 	t.Run("presentation definition backend server error", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putSession(ctx, code, validSession)
+		putCodeSession(ctx, code, validSession)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "scope").Return(nil, assert.AnError)
 
-		_, err := ctx.client.handleAccessTokenRequest(context.Background(), verifierDID, &code, &redirectURI, &clientID)
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		require.Error(t, err)
 		oauthErr, ok := err.(oauth.OAuth2Error)
 		require.True(t, ok)
 		assert.Equal(t, oauth.ServerError, oauthErr.Code)
 		assert.Equal(t, "failed to fetch presentation definition: assert.AnError general error for testing", oauthErr.Description)
+	})
+	t.Run("missing code", func(t *testing.T) {
+		ctx := newTestClient(t)
+		requestBody := HandleTokenRequestFormdataRequestBody{ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
+
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
+
+		_ = assertOAuthError(t, err, "missing code parameter")
+	})
+	t.Run("missing code_verifier", func(t *testing.T) {
+		ctx := newTestClient(t)
+		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID}
+
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
+
+		_ = assertOAuthError(t, err, "missing code_verifier parameter")
+	})
+	t.Run("expired session", func(t *testing.T) {
+		ctx := newTestClient(t)
+		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
+
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
+
+		require.Error(t, err)
+		oauthErr, ok := err.(oauth.OAuth2Error)
+		require.True(t, ok)
+		assert.Equal(t, oauth.InvalidGrant, oauthErr.Code)
+		assert.Equal(t, "invalid authorization code", oauthErr.Description)
+	})
+	t.Run("missing client_id", func(t *testing.T) {
+		ctx := newTestClient(t)
+		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, CodeVerifier: &validSession.PKCEParams.Verifier}
+
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
+
+		_ = assertOAuthError(t, err, "missing client_id parameter")
 	})
 }
 
@@ -584,8 +641,9 @@ func Test_handleCallback(t *testing.T) {
 	t.Run("err - failed to retrieve access token", func(t *testing.T) {
 		ctx := newTestClient(t)
 		putState(ctx, state)
+		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -768,13 +826,21 @@ func putState(ctx *testCtx, state string) {
 		OwnDID:      &holderDID,
 		RedirectURI: "https://example.com/iam/holder/cb",
 		VerifierDID: &verifierDID,
+		PKCEParams:  generatePKCEParams(),
 	})
+}
+
+func getState(ctx *testCtx, state string) OAuthSession {
+	var session OAuthSession
+	_ = ctx.client.oauthClientStateStore().Get(state, &session)
+	return session
 }
 
 func putNonce(ctx *testCtx, nonce string) {
 	_ = ctx.client.oauthNonceStore().Put(nonce, OAuthSession{Scope: "test", ClientState: "state", OwnDID: &verifierDID, RedirectURI: "https://example.com/iam/holder/cb"})
 }
 
-func putSession(ctx *testCtx, code string, oauthSession OAuthSession) {
+func putCodeSession(ctx *testCtx, code string, oauthSession OAuthSession) {
 	_ = ctx.client.oauthCodeStore().Put(code, oauthSession)
+
 }
