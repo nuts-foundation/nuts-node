@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/http"
@@ -52,27 +53,42 @@ const (
 	submissionStateKey    = "presentationSubmission"
 )
 
+func (s ServerState) unmarshal(key string, target interface{}) bool {
+	if s[key] == nil {
+		return false
+	}
+	data, err := json.Marshal(s[key])
+	if err != nil {
+		return false
+	}
+	err = json.Unmarshal(data, &target)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 // VerifiablePresentations returns the verifiable presentations from the server state.
 // If the server state does not contain a verifiable presentation, an empty slice is returned.
 func (s ServerState) VerifiablePresentations() []vc.VerifiablePresentation {
-	presentations := make([]vc.VerifiablePresentation, 0)
-	if val, ok := s[presentationsStateKey]; ok {
-		// each entry should be castable to a VerifiablePresentation
-		if arr, ok := val.([]interface{}); ok {
-			for _, v := range arr {
-				if vp, ok := v.(vc.VerifiablePresentation); ok {
-					presentations = append(presentations, vp)
-				}
-			}
-		}
+	if val, ok := s[presentationsStateKey].([]vc.VerifiablePresentation); ok {
+		return val
 	}
-	return presentations
+	var result []vc.VerifiablePresentation
+	if s.unmarshal(presentationsStateKey, &result) {
+		return result
+	}
+	return nil
 }
 
 // PresentationSubmission returns the Presentation Submission from the server state.
 func (s ServerState) PresentationSubmission() *pe.PresentationSubmission {
 	if val, ok := s[submissionStateKey].(pe.PresentationSubmission); ok {
 		return &val
+	}
+	var result pe.PresentationSubmission
+	if s.unmarshal(submissionStateKey, &result) {
+		return &result
 	}
 	return nil
 }
@@ -82,7 +98,11 @@ func (s ServerState) CredentialMap() map[string]vc.VerifiableCredential {
 	if mapped, ok := s[credentialMapStateKey].(map[string]vc.VerifiableCredential); ok {
 		return mapped
 	}
-	return map[string]vc.VerifiableCredential{}
+	var result map[string]vc.VerifiableCredential
+	if s.unmarshal(credentialMapStateKey, &result) {
+		return result
+	}
+	return nil
 }
 
 // RedirectSession is the session object that is used to redirect the user to a Nuts node website.
