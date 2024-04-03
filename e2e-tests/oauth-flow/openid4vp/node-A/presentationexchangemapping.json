@@ -1,14 +1,17 @@
 {
-  "test": [
-    {
-      "wallet_owner_type": "organization",
+  "test": {
+    "organization": {
       "presentation_definition": {
         "format": {
           "ldp_vp": {
-            "proof_type": ["JsonWebSignature2020"]
+            "proof_type": [
+              "JsonWebSignature2020"
+            ]
           },
           "ldp_vc": {
-            "proof_type": ["JsonWebSignature2020"]
+            "proof_type": [
+              "JsonWebSignature2020"
+            ]
           }
         },
         "id": "pd_any_care_organization",
@@ -20,20 +23,26 @@
             "constraints": {
               "fields": [
                 {
-                  "path": ["$.type"],
+                  "path": [
+                    "$.type"
+                  ],
                   "filter": {
                     "type": "string",
                     "const": "NutsOrganizationCredential"
                   }
                 },
                 {
-                  "path": ["$.credentialSubject.organization.name"],
+                  "path": [
+                    "$.credentialSubject.organization.name"
+                  ],
                   "filter": {
                     "type": "string"
                   }
                 },
                 {
-                  "path": ["$.credentialSubject.organization.city"],
+                  "path": [
+                    "$.credentialSubject.organization.city"
+                  ],
                   "filter": {
                     "type": "string"
                   }
@@ -44,5 +53,5 @@
         ]
       }
     }
-  ]
+  }
 }
