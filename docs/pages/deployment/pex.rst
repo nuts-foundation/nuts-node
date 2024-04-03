@@ -88,7 +88,7 @@ The API must have the following endpoint:
 
 - `GET /presentation_definitions?scope=X&authorizer=Y`: Get the presentation definition for a given scope and tenant.
 
-The full API definition can be found in the `API reference <nuts-node-api>`_ under *policy*.
+The full API definition can be downloaded `here <../../_static/policy/v1.yaml>`_.
 
 .. note::
 
