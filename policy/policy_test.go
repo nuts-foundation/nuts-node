@@ -78,7 +78,7 @@ func TestRouter_Configure(t *testing.T) {
 		cfg.Directory = "unknown"
 		err := router.Configure(core.ServerConfig{})
 
-		assert.EqualError(t, err, "failed to load policy from directory: open unknown: no such file or directory")
+		assert.EqualError(t, err, "failed to load policy from directory: stat unknown: no such file or directory")
 	})
 
 	t.Run("err - address is invalid", func(t *testing.T) {

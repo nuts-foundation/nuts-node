@@ -1,5 +1,6 @@
 services:
   nodeA-backend:
+    user: "$USER:$USER"
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
@@ -26,6 +27,7 @@ services:
     depends_on:
       - nodeA-backend
   nodeB-backend:
+    user: "$USER:$USER"
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml

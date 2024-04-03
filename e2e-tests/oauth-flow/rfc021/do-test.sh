@@ -13,8 +13,6 @@ echo "Cleaning up running Docker containers and volumes, and key material..."
 echo "------------------------------------"
 $db_dc down
 $db_dc rm -f -v
-rm -rf ./node-*/data
-mkdir ./node-A/data ./node-B/data  # 'data' dirs will be created with root owner by docker if they do not exit. This creates permission issues on CI.
 
 echo "------------------------------------"
 echo "Creating databases..."
@@ -68,8 +66,8 @@ echo "---------------------------------------"
 REQUEST="{\"verifier\":\"${VENDOR_A_DID}\",\"scope\":\"test\"}"
 RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/request-service-access-token -H "Content-Type:application/json" -v)
 if echo $RESPONSE | grep -q "access_token"; then
-  echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
-  echo "access token stored in ./node-B/data/accesstoken.txt"
+  echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/accesstoken.txt
+  echo "access token stored in ./node-B/accesstoken.txt"
 else
   echo "FAILED: Could not get access token from node-A" 1>&2
   echo $RESPONSE
@@ -79,7 +77,7 @@ fi
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
-RESPONSE=$($db_dc exec nodeB curl --http1.1 --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/resource -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
+RESPONSE=$($db_dc exec nodeB curl --http1.1 --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/resource -H "Authorization: bearer $(cat ./node-B/accesstoken.txt)" -v)
 if echo $RESPONSE | grep -q "OK"; then
   echo "success!"
 else
@@ -92,3 +90,4 @@ echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"
 $db_dc stop
+rm node-*/accesstoken.txt
