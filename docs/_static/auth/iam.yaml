@@ -639,7 +639,7 @@ components:
     UserDetails:
       type: object
       description: |
-        Claims about the user, to be provided when not using an external Identity Provider (not supported yet).
+        Claims about the authorized user.
       required:
         - name
         - id
