@@ -755,9 +755,13 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
-	userID := "test"
+	userDetails := UserDetails{
+		Id:   "test",
+		Name: "Titus Tester",
+		Role: "Test Manager",
+	}
 	redirectURI := "https://test.test/oauth2/" + walletDID.String() + "/cb"
-	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", UserId: userID, RedirectUri: redirectURI}
+	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", PreauthorizedUser: &userDetails, RedirectUri: redirectURI}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -784,6 +788,39 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		err = ctx.client.accessTokenClientStore().Get(redirectResponse.SessionId, &tokenResponse)
 		assert.Equal(t, oauth.AccessTokenRequestStatusPending, *tokenResponse.Status)
 	})
+	t.Run("preauthorized_user", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).AnyTimes().Return(true, nil)
+		t.Run("error - missing preauthorized_user", func(t *testing.T) {
+			body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", RedirectUri: redirectURI}
+
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+			require.EqualError(t, err, "missing preauthorized_user")
+		})
+		t.Run("error - missing preauthorized_user.id", func(t *testing.T) {
+			body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", PreauthorizedUser: &UserDetails{Name: "Titus Tester"}, RedirectUri: redirectURI}
+
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+			require.EqualError(t, err, "missing preauthorized_user.id")
+		})
+		t.Run("error - missing preauthorized_user.name", func(t *testing.T) {
+			body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", PreauthorizedUser: &UserDetails{Id: "test"}, RedirectUri: redirectURI}
+
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+			require.EqualError(t, err, "missing preauthorized_user.name")
+		})
+		t.Run("error - missing preauthorized_user.role", func(t *testing.T) {
+			body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", PreauthorizedUser: &UserDetails{Id: "test", Name: "Titus Tester"}, RedirectUri: redirectURI}
+
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+			require.EqualError(t, err, "missing preauthorized_user.role")
+		})
+	})
+
 	t.Run("error - invalid DID", func(t *testing.T) {
 		ctx := newTestClient(t)
 

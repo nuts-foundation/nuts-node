@@ -93,7 +93,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		VerifierDID: verifier,
 		SessionID:   redirectSession.SessionID,
 		RedirectURI: accessTokenRequest.Body.RedirectUri,
-		UserID:      accessTokenRequest.Body.UserId,
+		UserDetails: *accessTokenRequest.Body.PreauthorizedUser,
 	}
 	// store user session in session store under sessionID and clientState
 	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession)

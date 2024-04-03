@@ -119,7 +119,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
 	ctx.Set(core.OperationIDContextKey, operationID)
 	ctx.Set(core.ModuleNameContextKey, apiModuleName)
-	
+
 	// Add http.Request to context, to allow reading URL query parameters
 	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
@@ -527,10 +527,21 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, err
 	}
 
-	if request.Body.UserId == "" {
-		return nil, core.InvalidInputError("missing userID")
+	// TODO: When we support authentication at an external IdP,
+	//       the properties below become conditionally required.
+	if request.Body.PreauthorizedUser == nil {
+		return nil, core.InvalidInputError("missing preauthorized_user")
 	}
-	// require RedirectURL
+	if request.Body.PreauthorizedUser.Id == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.id")
+	}
+	if request.Body.PreauthorizedUser.Name == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.name")
+	}
+	if request.Body.PreauthorizedUser.Role == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.role")
+	}
+
 	if request.Body.RedirectUri == "" {
 		return nil, core.InvalidInputError("missing redirect_uri")
 	}
