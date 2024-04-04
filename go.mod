@@ -23,7 +23,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multicodec v0.9.0
 	github.com/nats-io/nats-server/v2 v2.10.12
-	github.com/nats-io/nats.go v1.34.0
+	github.com/nats-io/nats.go v1.34.1
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.13.0
 	github.com/nuts-foundation/go-leia/v4 v4.0.1
@@ -33,7 +33,7 @@ require (
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
 	github.com/privacybydesign/irmago v0.15.2
 	github.com/prometheus/client_golang v1.19.0
-	github.com/prometheus/client_model v0.6.0
+	github.com/prometheus/client_model v0.6.1
 	github.com/redis/go-redis/v9 v9.5.1
 	github.com/santhosh-tekuri/jsonschema v1.2.4
 	github.com/sirupsen/logrus v1.9.3
@@ -47,7 +47,7 @@ require (
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.21.0
 	golang.org/x/time v0.5.0
-	google.golang.org/grpc v1.62.1
+	google.golang.org/grpc v1.63.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
@@ -92,7 +92,6 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
@@ -157,7 +156,7 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
-	golang.org/x/net v0.22.0 // indirect
+	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
