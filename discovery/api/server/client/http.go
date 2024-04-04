@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/discovery/api/v1/model"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
 	"io"
 	"net/http"
@@ -86,7 +85,7 @@ func (h DefaultHTTPClient) Get(ctx context.Context, serviceEndpointURL string, t
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
-	var result model.PresentationsResponse
+	var result PresentationsResponse
 	if err := json.Unmarshal(responseData, &result); err != nil {
 		return nil, "", fmt.Errorf("failed to unmarshal response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}

@@ -16,7 +16,7 @@
  *
  */
 
-package model
+package client
 
 import "github.com/nuts-foundation/go-did/vc"
 
