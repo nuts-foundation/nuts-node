@@ -53,11 +53,18 @@ type UserSession struct {
 	// TenantDID is the requesting DID when the user session was created, typically the employer's (of the user) DID.
 	// A session needs to be scoped to the tenant DID, since the session gives access to the tenant's wallet,
 	// and the user session might contain session-bound credentials (e.g. EmployeeCredential) that were issued by the tenant.
-	TenantDID did.DID    `json:"tenantDID"`
-	Wallet    UserWallet `json:"wallet"`
+	TenantDID did.DID `json:"tenantDID"`
+	// PreAuthorizedUser is the user that is pre-authorized by the client application.
+	// It is stored to later assert that subsequent RequestUserAccessToken() calls that (accidentally or intentionally)
+	// re-use the browser session, are indeed for the same client application user.
+	PreAuthorizedUser *UserDetails `json:"preauthorized_user"`
+	Wallet            UserWallet   `json:"wallet"`
 }
 
 // UserWallet is a session-bound Verifiable Credential wallet.
+// It's an in-memory wallet which contains the user's private key in plain text.
+// This is OK, since the associated credentials are intended for protocol compatibility (OpenID4VP with a low-assurance EmployeeCredential),
+// when an actual user wallet is involved, this wallet isn't used.
 type UserWallet struct {
 	Credentials []vc.VerifiableCredential
 	// JWK is an in-memory key pair associated with the user's wallet in JWK form.

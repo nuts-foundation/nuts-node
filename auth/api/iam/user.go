@@ -91,17 +91,23 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		return err
 	}
 
-	// TODO: When we support external Identity Providers, we should try to load the existing user session
-	wallet, err := r.createUserWallet(echoCtx.Request().Context(), redirectSession.OwnDID, *accessTokenRequest.Body.PreauthorizedUser)
+	session, err := r.loadUserSession(echoCtx, redirectSession.OwnDID, accessTokenRequest.Body.PreauthorizedUser)
 	if err != nil {
-		return fmt.Errorf("create user wallet: %w", err)
+		// Should only really occur in exceptional circumstances (e.g. cookie survived after intended max age).
+		log.Logger().WithError(err).Info("Invalid user session, a new session will be created")
 	}
-	// this causes the session cookie to be set
-	if err = r.createUserSession(echoCtx, UserSession{
-		TenantDID: redirectSession.OwnDID,
-		Wallet:    *wallet,
-	}); err != nil {
-		return fmt.Errorf("create user session: %w", err)
+	if session == nil {
+		wallet, err := r.createUserWallet(echoCtx.Request().Context(), redirectSession.OwnDID, *accessTokenRequest.Body.PreauthorizedUser)
+		if err != nil {
+			return fmt.Errorf("create user wallet: %w", err)
+		}
+		// this causes the session cookie to be set
+		if err = r.createUserSession(echoCtx, UserSession{
+			TenantDID: redirectSession.OwnDID,
+			Wallet:    *wallet,
+		}); err != nil {
+			return fmt.Errorf("create user session: %w", err)
+		}
 	}
 
 	// burn token
@@ -164,7 +170,7 @@ func (r Wrapper) oauthCodeStore() storage.SessionStore {
 // loadUserSession loads the user session given the session ID in the cookie.
 // If there is no session cookie (not yet authenticated, or the session expired), nil is returned.
 // If another, technical error occurs when retrieving the session.
-func (r Wrapper) loadUserSession(ctx echo.Context, tenantDID did.DID) (*UserSession, error) {
+func (r Wrapper) loadUserSession(ctx echo.Context, tenantDID did.DID, preAuthorizedUser *UserDetails) (*UserSession, error) {
 	cookie, err := ctx.Cookie(userSessionCookieName)
 	if err != nil {
 		// sadly, no cookie for you
@@ -186,6 +192,12 @@ func (r Wrapper) loadUserSession(ctx echo.Context, tenantDID did.DID) (*UserSess
 	// it depends on the session store to clean up when it expires.
 	if !session.TenantDID.Equals(tenantDID) {
 		return nil, fmt.Errorf("session belongs to another tenant (%s)", session.TenantDID)
+	}
+	// If the existing session was created for a pre-authorized user, the call to RequestUserAccessToken() must be
+	// for the same user.
+	// TODO: When we support external Identity Providers, make sure the existing session was not for a preauthorized user.
+	if *preAuthorizedUser != *session.PreAuthorizedUser {
+		return nil, errors.New("session belongs to another pre-authorized user")
 	}
 	return session, nil
 }
