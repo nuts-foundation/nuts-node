@@ -70,7 +70,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 			CredentialSubject: expectedRequestedVC.CredentialSubject,
 			Visibility:        &public,
 		}
-		_ = request.Type.FromIssueVCRequestType1([]any{credentialType.String()})
+		_ = request.Type.FromIssueVCRequestType1([]string{credentialType.String()})
 		// assert that credential.NutsV1ContextURI is added if the request does not contain @context
 		testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, expectedRequestedVC, issuer.CredentialOptions{
 			Publish: true,
@@ -95,8 +95,8 @@ func TestWrapper_IssueVC(t *testing.T) {
 			CredentialSubject: expectedRequestedVC.CredentialSubject,
 			Visibility:        &public,
 		}
-		require.NoError(t, request.Context.FromIssueVCRequestContext1([]any{vc.VCContextV1, credential.NutsV1ContextURI}))
-		require.NoError(t, request.Type.FromIssueVCRequestType1([]any{vc.VerifiableCredentialType, credentialType.String()}))
+		require.NoError(t, request.Context.FromIssueVCRequestContext1([]string{vc.VCContextV1, credential.NutsV1ContextURI.String()}))
+		require.NoError(t, request.Type.FromIssueVCRequestType1([]string{vc.VerifiableCredentialType, credentialType.String()}))
 		testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, expectedRequestedVC, issuer.CredentialOptions{
 			Publish: true,
 			Public:  true,
@@ -645,6 +645,34 @@ func TestWrapper_VerifyVC(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expectedResponse, response)
 	})
+	t.Run("allowUntrustedIssuer is ignored for did:web", func(t *testing.T) {
+		issuerURI := ssi.MustParseURI("did:web:example.com")
+		credentialType := ssi.MustParseURI("ExampleType")
+
+		allowUntrustedThatWillBeIgnored := false
+		options := VCVerificationOptions{
+			AllowUntrustedIssuer: &allowUntrustedThatWillBeIgnored,
+		}
+
+		expectedVC := vc.VerifiableCredential{
+			Type:              []ssi.URI{credentialType},
+			Issuer:            issuerURI,
+			CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:123"}},
+		}
+
+		expectedVerifyRequest := VCVerificationRequest{
+			VerifiableCredential: expectedVC,
+			VerificationOptions:  &options,
+		}
+		testContext := newMockContext(t)
+		expectedResponse := VerifyVC200JSONResponse(VCVerificationResult{Validity: true})
+
+		testContext.mockVerifier.EXPECT().Verify(expectedVC, true, true, nil)
+
+		response, err := testContext.client.VerifyVC(testContext.requestCtx, VerifyVCRequestObject{Body: &expectedVerifyRequest})
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
+	})
 }
 
 func TestWrapper_RevokeVC(t *testing.T) {
@@ -945,8 +973,13 @@ func TestWrapper_VerifyVP(t *testing.T) {
 	}
 	vp := vc.VerifiablePresentation{
 		VerifiableCredential: []VerifiableCredential{verifiableCredential},
-		Proof:                []interface{}{"It's a very good proof. I know it because I made it myself. ALl the rest is fake."},
+		Proof: []interface{}{proof.LDProof{
+			VerificationMethod: ssi.MustParseURI("did:nuts:123#this-is-my-key"),
+			Signature:          "It's a very good proof. I know it because I made it myself. ALl the rest is fake.",
+		}},
 	}
+	vpBS, _ := json.Marshal(vp)
+	require.NoError(t, json.Unmarshal(vpBS, &vp))
 	expectedVCs := []VerifiableCredential{vp.VerifiableCredential[0]}
 
 	t.Run("ok", func(t *testing.T) {
@@ -956,7 +989,37 @@ func TestWrapper_VerifyVP(t *testing.T) {
 			VerifiablePresentation: vp,
 			ValidAt:                &validAtStr,
 		}
+		// assert that allowUntrustedVCs=false default for did:nuts
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, false, &validAt).Return(vp.VerifiableCredential, nil)
+		expectedResponse := VerifyVP200JSONResponse(VPVerificationResult{
+			Credentials: &expectedVCs,
+			Validity:    true,
+		})
+
+		response, err := testContext.client.VerifyVP(testContext.requestCtx, VerifyVPRequestObject{Body: &request})
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
+	})
+	t.Run("ok - did:web", func(t *testing.T) {
+		vp := vc.VerifiablePresentation{
+			VerifiableCredential: []VerifiableCredential{verifiableCredential},
+			Proof: []interface{}{proof.LDProof{
+				VerificationMethod: ssi.MustParseURI("did:web:example.com#secret-key"),
+				Signature:          "It's a very good proof. I know it because I made it myself. ALl the rest is fake.",
+			}},
+		}
+		vpBS, _ := json.Marshal(vp)
+		require.NoError(t, json.Unmarshal(vpBS, &vp))
+
+		testContext := newMockContext(t)
+		validAt, validAtStr := parsedTimeStr(time.Now())
+		request := VPVerificationRequest{
+			VerifiablePresentation: vp,
+			ValidAt:                &validAtStr,
+		}
+		// assert that allowUntrustedVCs=true default for did:web
+		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, true, &validAt).Return(vp.VerifiableCredential, nil)
 		expectedResponse := VerifyVP200JSONResponse(VPVerificationResult{
 			Credentials: &expectedVCs,
 			Validity:    true,

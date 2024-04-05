@@ -276,9 +276,10 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		// simple vp
 		vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{"id":"did:web:example.com:iam:holder"}},"proof":{"challenge":"challenge","domain":"did:web:example.com:iam:verifier","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
 		// simple definition
-		definition := pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
+		walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
 			{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
-		}}
+		}},
+		}
 		// simple submission
 		submissionAsStr := `{"id":"1", "definition_id":"1", "descriptor_map":[{"id":"1","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 		// simple request
@@ -295,7 +296,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), gomock.Any(), "test").Return(&definition, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(walletOwnerMapping, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
@@ -309,7 +310,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), gomock.Any(), "test").Return(&definition, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(walletOwnerMapping, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, assert.AnError)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
@@ -420,7 +421,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			submission := `{"id":"1", "definition_id":"2", "descriptor_map":[{"id":"2","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 			request.Body.PresentationSubmission = &submission
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-			ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), gomock.Any(), "test").Return(&definition, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(walletOwnerMapping, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -469,9 +470,10 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 	vpStr := `{"type":"VerifiablePresentation", "id":"vp", "verifiableCredential":{"type":"VerifiableCredential", "id":"vc", "credentialSubject":{"id":"did:web:example.com:iam:holder"}}}`
 	vp, err := vc.ParseVerifiablePresentation(vpStr)
 	require.NoError(t, err)
-	definition := pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
+	walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
 		{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
-	}}
+	}},
+	}
 	submissionAsStr := `{"id":"1", "definition_id":"1", "descriptor_map":[{"id":"1","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 	var submission pe.PresentationSubmission
 	_ = json.Unmarshal([]byte(submissionAsStr), &submission)
@@ -480,15 +482,15 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		OwnDID:      &verifierDID,
 		RedirectURI: redirectURI,
 		Scope:       "scope",
-		ServerState: map[string]interface{}{
-			"presentations":          []vc.VerifiablePresentation{*vp},
-			"presentationSubmission": submission,
+		ServerState: ServerState{
+			Presentations:          []vc.VerifiablePresentation{*vp},
+			PresentationSubmission: &submission,
 		},
 	}
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		putSession(ctx, code, validSession)
-		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), verifierDID, "scope").Return(&definition, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "scope").Return(walletOwnerMapping, nil)
 
 		response, err := ctx.client.handleAccessTokenRequest(context.Background(), verifierDID, &code, &redirectURI, &clientID)
 
@@ -532,7 +534,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 	t.Run("presentation definition backend server error", func(t *testing.T) {
 		ctx := newTestClient(t)
 		putSession(ctx, code, validSession)
-		ctx.policy.EXPECT().PresentationDefinition(gomock.Any(), verifierDID, "scope").Return(nil, assert.AnError)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "scope").Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleAccessTokenRequest(context.Background(), verifierDID, &code, &redirectURI, &clientID)
 
@@ -756,7 +758,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 		instance := New(mockAuth, mockVCR, mockVDR, storage.NewTestStorageEngine(t), mockPolicy)
 
 		params := map[string]interface{}{
-			"scope":                   "eOverdracht-overdrachtsbericht",
+			"scope":                   "example-scope",
 			"response_type":           "code",
 			"response_mode":           "direct_post",
 			"client_metadata_uri":     "https://example.com/client_metadata.xml",
@@ -774,7 +776,7 @@ func TestWrapper_handlePresentationRequest(t *testing.T) {
 	t.Run("invalid response_mode", func(t *testing.T) {
 		instance := New(nil, nil, nil, nil, nil)
 		params := map[string]interface{}{
-			"scope":                   "eOverdracht-overdrachtsbericht",
+			"scope":                   "example-scope",
 			"response_type":           "code",
 			"response_mode":           "invalid",
 			"client_metadata_uri":     "https://example.com/client_metadata.xml",

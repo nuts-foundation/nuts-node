@@ -1,5 +1,5 @@
 # golang alpine
-FROM golang:1.22.1-alpine as builder
+FROM golang:1.22.2-alpine as builder
 
 ARG TARGETARCH
 ARG TARGETOS
@@ -38,6 +38,10 @@ COPY --from=builder /opt/nuts/nuts /usr/bin/nuts
 
 HEALTHCHECK --start-period=30s --timeout=5s --interval=10s \
     CMD curl -f http://localhost:8081/status || exit 1
+
+RUN adduser -D -H -u 18081 nuts-usr
+USER 18081:18081
+WORKDIR /nuts
 
 EXPOSE 8080 8081 5555
 ENTRYPOINT ["/usr/bin/nuts"]

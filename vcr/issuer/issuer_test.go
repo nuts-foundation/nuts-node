@@ -145,7 +145,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			// Assert JWT
 			require.NotNil(t, result.JWT())
 			assert.Equal(t, subjectDID, result.JWT().Subject())
-			assert.Equal(t, *result.IssuanceDate, result.JWT().NotBefore())
+			assert.Equal(t, result.IssuanceDate, result.JWT().NotBefore())
 			assert.Equal(t, *result.ExpirationDate, result.JWT().Expiration())
 			assert.Equal(t, result.ID.String(), result.JWT().JwtID())
 		})
@@ -198,7 +198,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			Context:      []ssi.URI{vc.VCContextV1URI()},
 			Type:         []ssi.URI{credentialType},
 			Issuer:       issuerID,
-			IssuanceDate: &issuanceDate,
+			IssuanceDate: issuanceDate,
 		}
 
 		result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{})
@@ -944,10 +944,8 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.Contains(t, result.Context, revocation.StatusList2021ContextURI)
 		assert.Equal(t, issuerDID.String(), result.Issuer.String())
 		assert.True(t, result.IsType(ssi.MustParseURI(revocation.StatusList2021CredentialType)))
-		assert.Nil(t, result.IssuanceDate)
-		assert.Nil(t, result.ExpirationDate)
-		assert.InDelta(t, result.ValidFrom.Unix(), time.Now().Unix(), 2) // allow for 2 sec diff on slow CI
-		assert.Greater(t, result.ValidUntil.Unix(), result.ValidFrom.Unix())
+		assert.InDelta(t, result.IssuanceDate.Unix(), time.Now().Unix(), 2) // allow for 2 sec diff on slow CI
+		assert.Greater(t, result.ExpirationDate.Unix(), result.IssuanceDate.Unix())
 
 		// credential subject
 		var subjects []revocation.StatusList2021CredentialSubject

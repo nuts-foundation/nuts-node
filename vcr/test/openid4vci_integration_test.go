@@ -244,7 +244,7 @@ func testCredential() vc.VerifiableCredential {
 		Type: []ssi.URI{
 			ssi.MustParseURI("NutsAuthorizationCredential"),
 		},
-		IssuanceDate: &issuanceDate,
+		IssuanceDate: issuanceDate,
 	}
 }
 

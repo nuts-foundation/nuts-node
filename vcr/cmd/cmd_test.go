@@ -199,10 +199,10 @@ func TestCmd_Issue(t *testing.T) {
 	t.Run("ok - plural parameters", func(t *testing.T) {
 		otherContextURI := "http://other-context"
 		var contextURIsAPI v2.IssueVCRequest_Context
-		require.NoError(t, contextURIsAPI.FromIssueVCRequestContext1([]any{contextURI, otherContextURI}))
+		require.NoError(t, contextURIsAPI.FromIssueVCRequestContext1([]string{contextURI, otherContextURI}))
 		otherCredentialType := "other-type"
 		var credentialTypesAPI v2.IssueVCRequest_Type
-		require.NoError(t, credentialTypesAPI.FromIssueVCRequestType1([]any{credentialType, otherCredentialType}))
+		require.NoError(t, credentialTypesAPI.FromIssueVCRequestType1([]string{credentialType, otherCredentialType}))
 		cmd := newCmd(t)
 		handler := setupServer(t, http.StatusOK, "{}")
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())

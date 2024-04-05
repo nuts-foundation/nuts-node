@@ -155,6 +155,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		values[oauth.StateParam] = state
 	}
 	authServerURL, err := r.auth.IAMClient().CreateAuthorizationRequest(ctx, verifier, *walletDID, modifier)
+	// TODO WIP: add PEX IDs completed to the storage, use server state for this
 	openid4vpRequest := OAuthSession{
 		ClientID:    walletID,
 		Scope:       params.get(oauth.ScopeParam),
@@ -427,13 +428,16 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		}
 	}
 
+	// TODO WIP if not all PEX Ids have a submission, send another auth request with a new nonce
+
 	// we take the existing OAuthSession and add the credential map to it
 	// the credential map contains InputDescriptor.Id -> VC mappings
 	// todo: use the InputDescriptor.Path to map the Id to Value@JSONPath since this will be later used to set the state for the access token
-	oauthSession.ServerState = ServerState{}
-	oauthSession.ServerState[credentialMapStateKey] = credentialMap
-	oauthSession.ServerState[presentationsStateKey] = pexEnvelope.Presentations
-	oauthSession.ServerState[submissionStateKey] = *submission
+	oauthSession.ServerState = ServerState{
+		CredentialMap:          credentialMap,
+		Presentations:          pexEnvelope.Presentations,
+		PresentationSubmission: submission,
+	}
 
 	authorizationCode := crypto.GenerateNonce()
 	err = r.oauthCodeStore().Put(authorizationCode, oauthSession)
@@ -540,16 +544,18 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, verifier did.DID,
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("client_id does not match: %s vs %s", oauthSession.ClientID, *clientId)), callbackURI)
 	}
 
-	presentations := oauthSession.ServerState.VerifiablePresentations()
-	submission := oauthSession.ServerState.PresentationSubmission()
-	definition, err := r.policyBackend.PresentationDefinition(ctx, verifier, oauthSession.Scope)
+  state := oauthSession.ServerState
+	mapping, err := r.policyBackend.PresentationDefinitions(ctx, verifier, oauthSession.Scope)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to fetch presentation definition: %s", err.Error())), callbackURI)
 	}
-	credentialMap := oauthSession.ServerState.CredentialMap()
+	// todo, for now take the organization definition
+	if _, ok := mapping[pe.WalletOwnerOrganization]; !ok {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "no presentation definition found for organization wallet"), callbackURI)
+	}
 	subject, _ := did.ParseDID(oauthSession.ClientID)
 
-	response, err := r.createAccessToken(verifier, time.Now(), presentations, submission, *definition, oauthSession.Scope, *subject, credentialMap)
+	response, err := r.createAccessToken(verifier, time.Now(), state.Presentations, state.PresentationSubmission, mapping[pe.WalletOwnerOrganization], oauthSession.Scope, *subject, state.CredentialMap)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error())), callbackURI)
 	}
@@ -737,7 +743,6 @@ func (r Wrapper) handlePresentationRequest(ctx context.Context, params oauthPara
 			credentialIDs = append(credentialIDs, matchingCredential.ID.String())
 		}
 	}
-	session.ServerState["openid4vp_credentials"] = credentialIDs
 
 	sessionID := uuid.NewString()
 	err = r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, session.OwnDID.String(), "session").Put(sessionID, *session)

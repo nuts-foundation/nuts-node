@@ -1,5 +1,4 @@
 url: http://node:8080
-datadir: /opt/nuts/data
 strictmode: false
 verbosity: debug
 http:

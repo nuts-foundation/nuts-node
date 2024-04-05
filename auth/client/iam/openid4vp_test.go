@@ -23,9 +23,11 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
@@ -391,10 +393,13 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 		audit: audit.TestContext(),
 		ctrl:  ctrl,
 		client: &OpenID4VPClient{
-			httpClientTLS: tlsConfig,
-			jwtSigner:     jwtSigner,
-			keyResolver:   keyResolver,
-			wallet:        wallet,
+			jwtSigner:   jwtSigner,
+			keyResolver: keyResolver,
+			wallet:      wallet,
+			httpClient: HTTPClient{
+				strictMode: false,
+				httpClient: core.NewStrictHTTPClient(false, 10*time.Second, tlsConfig),
+			},
 		},
 		jwtSigner:   jwtSigner,
 		keyResolver: keyResolver,

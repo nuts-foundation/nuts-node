@@ -39,50 +39,21 @@ type OAuthSession struct {
 	ServerState            ServerState
 	ResponseType           string
 	PresentationDefinition PresentationDefinition
-	UserID                 string
+	UserDetails            UserDetails
 	VerifierDID            *did.DID
+
+	// TODO use these 2 fields to track if all OpenID4VP flows have been concluded
+	// PresentationSubmissions tracks which PresentationSubmissions have been submitted through OpenID4VP
+	PresentationSubmissions map[string]pe.PresentationSubmission
+	// Presentations tracks which VerifiablePresentations have been received through OpenID4VP
+	Presentations map[string]vc.VerifiablePresentation
 }
 
 // ServerState is a convenience type for extracting different types of data from the session.
-type ServerState map[string]interface{}
-
-const (
-	credentialMapStateKey = "credentialMap"
-	presentationsStateKey = "presentations"
-	submissionStateKey    = "presentationSubmission"
-)
-
-// VerifiablePresentations returns the verifiable presentations from the server state.
-// If the server state does not contain a verifiable presentation, an empty slice is returned.
-func (s ServerState) VerifiablePresentations() []vc.VerifiablePresentation {
-	presentations := make([]vc.VerifiablePresentation, 0)
-	if val, ok := s[presentationsStateKey]; ok {
-		// each entry should be castable to a VerifiablePresentation
-		if arr, ok := val.([]interface{}); ok {
-			for _, v := range arr {
-				if vp, ok := v.(vc.VerifiablePresentation); ok {
-					presentations = append(presentations, vp)
-				}
-			}
-		}
-	}
-	return presentations
-}
-
-// PresentationSubmission returns the Presentation Submission from the server state.
-func (s ServerState) PresentationSubmission() *pe.PresentationSubmission {
-	if val, ok := s[submissionStateKey].(pe.PresentationSubmission); ok {
-		return &val
-	}
-	return nil
-}
-
-// CredentialMap returns the credential map from the server state.
-func (s ServerState) CredentialMap() map[string]vc.VerifiableCredential {
-	if mapped, ok := s[credentialMapStateKey].(map[string]vc.VerifiableCredential); ok {
-		return mapped
-	}
-	return map[string]vc.VerifiableCredential{}
+type ServerState struct {
+	CredentialMap          map[string]vc.VerifiableCredential
+	Presentations          []vc.VerifiablePresentation
+	PresentationSubmission *pe.PresentationSubmission
 }
 
 // RedirectSession is the session object that is used to redirect the user to a Nuts node website.

@@ -10,8 +10,6 @@ echo "Cleaning up running Docker containers and volumes, and key material..."
 echo "------------------------------------"
 docker compose down
 docker compose rm -f -v
-rm -rf ./node-*/data
-mkdir ./node-A/data ./node-B/data  # 'data' dirs will be created with root owner by docker if they do not exit. This creates permission issues on CI.
 
 echo "------------------------------------"
 echo "Starting Docker containers..."
@@ -48,7 +46,7 @@ echo "---------------------------------------"
 echo "Request access token call"
 echo "---------------------------------------"
 # Request access token
-REQUEST="{\"verifier\":\"${PARTY_A_DID}\",\"scope\":\"test\", \"user_id\":\"1\", \"redirect_uri\":\"http://callback\"}"
+REQUEST="{\"verifier\":\"${PARTY_A_DID}\",\"scope\":\"test\", \"preauthorized_user\":{\"id\":\"1\", \"name\": \"John Doe\", \"role\": \"Janitor\"}, \"redirect_uri\":\"http://callback\"}"
 RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/${PARTY_B_DID}/request-user-access-token -H "Content-Type:application/json")
 if echo $RESPONSE | grep -q "redirect_uri"; then
   LOCATION=$(echo $RESPONSE | sed -E 's/.*"redirect_uri":"([^"]*).*/\1/')
@@ -151,3 +149,4 @@ echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"
 docker compose stop
+rm ./node-B/*.txt

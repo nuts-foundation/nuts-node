@@ -25,13 +25,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
+var _ PDPBackend = remote{}
+
 type remote struct {
 	address string
 	client  client.HTTPClient
 }
 
-func (b remote) PresentationDefinition(ctx context.Context, authorizer did.DID, scope string) (*pe.PresentationDefinition, error) {
-	return b.client.PresentationDefinition(ctx, b.address, authorizer, scope)
+func (b remote) PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error) {
+	return b.client.PresentationDefinitions(ctx, b.address, authorizer, scope)
 }
 
 func (b remote) Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error) {

@@ -31,21 +31,25 @@ import (
 	"strings"
 )
 
+var _ PDPBackend = (*localPDP)(nil)
+
 // localPDP is a backend for presentation definitions
-// It loads a file with the mapping from oauth scope to presentation definition.
+// It loads a file with the mapping from oauth scope to PEX Policy.
 // It allows access when the requester can present a submission according to the Presentation Definition. It does not do any additional authorization checks.
 type localPDP struct {
-	// mapping holds the oauth scope to presentation definition mapping
-	mapping map[string]validatingPresentationDefinition
+	// mapping holds the oauth scope to PEX Policy mapping
+	mapping map[string]validatingWalletOwnerMapping
 }
 
-func (b *localPDP) PresentationDefinition(_ context.Context, _ did.DID, scope string) (*pe.PresentationDefinition, error) {
-	mapping, ok := b.mapping[scope]
-	if !ok {
+func (b *localPDP) PresentationDefinitions(_ context.Context, _ did.DID, scope string) (pe.WalletOwnerMapping, error) {
+	result := pe.WalletOwnerMapping{}
+	for walletOwnerType, policy := range b.mapping[scope] {
+		result[walletOwnerType] = policy
+	}
+	if len(result) == 0 {
 		return nil, ErrNotFound
 	}
-	result := pe.PresentationDefinition(mapping)
-	return &result, nil
+	return result, nil
 }
 
 func (b *localPDP) Authorized(_ context.Context, _ client.AuthorizedRequest) (bool, error) {
@@ -97,21 +101,29 @@ func (s *localPDP) loadFromFile(filename string) error {
 	}
 
 	// unmarshal the bytes into the mapping
-	result := make(map[string]validatingPresentationDefinition)
+	result := make(map[string]validatingWalletOwnerMapping)
 	err = json.Unmarshal(bytes, &result)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal Presentation Exchange mapping file %s: %w", filename, err)
+		return fmt.Errorf("failed to unmarshal PEX Policy mapping file %s: %w", filename, err)
 	}
-	s.mapping = result
+	if s.mapping == nil {
+		s.mapping = make(map[string]validatingWalletOwnerMapping)
+	}
+	for scope, defs := range result {
+		if _, exists := s.mapping[scope]; exists {
+			return fmt.Errorf("mapping for scope '%s' already exists (file=%s)", scope, filename)
+		}
+		s.mapping[scope] = defs
+	}
 	return nil
 }
 
 // validatingPresentationDefinition is an alias for PresentationDefinition that validates the JSON on unmarshal.
-type validatingPresentationDefinition pe.PresentationDefinition
+type validatingWalletOwnerMapping pe.WalletOwnerMapping
 
-func (v *validatingPresentationDefinition) UnmarshalJSON(data []byte) error {
-	if err := v2.Validate(data, v2.PresentationDefinition); err != nil {
+func (v *validatingWalletOwnerMapping) UnmarshalJSON(data []byte) error {
+	if err := v2.Validate(data, v2.WalletOwnerMapping); err != nil {
 		return err
 	}
-	return json.Unmarshal(data, (*pe.PresentationDefinition)(v))
+	return json.Unmarshal(data, (*pe.WalletOwnerMapping)(v))
 }

@@ -2,6 +2,8 @@
 
 set -e
 
+USER=$UID
+
 source ../../util.sh
 
 function searchAuthCredentials() {

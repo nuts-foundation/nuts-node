@@ -9,8 +9,6 @@ echo "Setting up fresh environment"
 echo "------------------------------------"
 docker compose down
 docker compose rm -f -v
-rm -rf ./node-*/data
-mkdir ./node-A/data ./node-B/data  # 'data' dirs will be created with root owner by docker if they do not exit. This creates permission issues on CI.
 docker compose up --wait
 
 echo "------------------------------------"
