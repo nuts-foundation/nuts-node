@@ -38,6 +38,7 @@ func NewRouter(pkiInstance pki.Provider) *Router {
 	}
 }
 
+// Router is a policy backend router that can forward requests to the correct backend
 type Router struct {
 	backend     PDPBackend
 	config      Config
@@ -98,11 +99,11 @@ func (b *Router) Config() interface{} {
 	return &b.config
 }
 
-func (b *Router) PresentationDefinition(ctx context.Context, authorizer did.DID, scope string) (*pe.PresentationDefinition, error) {
+func (b *Router) PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error) {
 	if b.backend == nil {
 		return nil, errors.New("no policy backend configured")
 	}
-	return b.backend.PresentationDefinition(ctx, authorizer, scope)
+	return b.backend.PresentationDefinitions(ctx, authorizer, scope)
 }
 
 func (b *Router) Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error) {

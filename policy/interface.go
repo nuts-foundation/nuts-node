@@ -34,9 +34,9 @@ var ErrNotFound = errors.New("not found")
 // PDPBackend is the interface for the policy backend
 // Both the remote and local policy backend implement this interface
 type PDPBackend interface {
-	// PresentationDefinition returns the PresentationDefinition for the given scope
+	// PresentationDefinitions returns the PresentationDefinitions (mapped to a WalletOwnerType) for the given scope
 	// scopes are space delimited. It's up to the backend to decide how to handle this
-	PresentationDefinition(ctx context.Context, authorizer did.DID, scope string) (*pe.PresentationDefinition, error)
+	PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error)
 
 	// Authorized returns true if the policy backends authorizes the given request information fall within the policy definition
 	Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error)
