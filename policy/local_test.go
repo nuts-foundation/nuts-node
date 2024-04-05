@@ -75,3 +75,41 @@ func TestStore_ByScope(t *testing.T) {
 		assert.NotNil(t, result)
 	})
 }
+
+func Test_localPDP_loadFromDirectory(t *testing.T) {
+	t.Run("no files", func(t *testing.T) {
+		store := localPDP{}
+
+		err := store.loadFromDirectory("test/no_files")
+		require.NoError(t, err)
+	})
+	t.Run("1 file", func(t *testing.T) {
+		store := localPDP{}
+
+		err := store.loadFromDirectory("test")
+		require.NoError(t, err)
+
+		_, err = store.PresentationDefinition(context.Background(), did.DID{}, "eOverdracht-overdrachtsbericht")
+		require.NoError(t, err)
+	})
+	t.Run("2 files, 3 scopes", func(t *testing.T) {
+		store := localPDP{}
+
+		err := store.loadFromDirectory("test/2_files")
+		require.NoError(t, err)
+
+		_, err = store.PresentationDefinition(context.Background(), did.DID{}, "1")
+		require.NoError(t, err)
+		_, err = store.PresentationDefinition(context.Background(), did.DID{}, "2")
+		require.NoError(t, err)
+		_, err = store.PresentationDefinition(context.Background(), did.DID{}, "3")
+		require.NoError(t, err)
+	})
+	t.Run("2 files, duplicate scope", func(t *testing.T) {
+		store := localPDP{}
+
+		err := store.loadFromDirectory("test/2_files_duplicate")
+
+		require.EqualError(t, err, "mapping for scope '1' already exists (file=test/2_files_duplicate/2.json)")
+	})
+}

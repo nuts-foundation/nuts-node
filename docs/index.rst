@@ -6,13 +6,6 @@ Nuts documentation
 
 .. toctree::
     :maxdepth: 1
-    :caption: Getting Started:
-    :glob:
-
-    pages/getting-started/**
-
-.. toctree::
-    :maxdepth: 1
     :caption: Integrating:
     :glob:
 
@@ -30,7 +23,8 @@ Nuts documentation
 
     pages/deployment/configuration.rst
     pages/deployment/recommended-deployment.rst
-    pages/deployment/storage-configuration.rst
+    pages/deployment/docker.rst
+    pages/deployment/storage.rst
     pages/deployment/custom-credentials.rst
     pages/deployment/logging.rst
     pages/deployment/monitoring.rst

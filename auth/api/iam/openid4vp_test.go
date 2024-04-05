@@ -482,9 +482,9 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		OwnDID:      &verifierDID,
 		RedirectURI: redirectURI,
 		Scope:       "scope",
-		ServerState: map[string]interface{}{
-			"presentations":          []vc.VerifiablePresentation{*vp},
-			"presentationSubmission": submission,
+		ServerState: ServerState{
+			Presentations:          []vc.VerifiablePresentation{*vp},
+			PresentationSubmission: &submission,
 		},
 	}
 	t.Run("ok", func(t *testing.T) {

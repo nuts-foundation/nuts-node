@@ -41,14 +41,6 @@ type HTTPClient struct {
 	httpClient core.HTTPRequestDoer
 }
 
-// NewHTTPClient creates a new api client.
-func (c *OpenID4VPClient) newHTTPClient() HTTPClient {
-	return HTTPClient{
-		strictMode: c.strictMode,
-		httpClient: core.NewStrictHTTPClient(c.strictMode, c.httpClientTimeout, c.httpClientTLS),
-	}
-}
-
 // OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given web DID.
 func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDID did.DID) (*oauth.AuthorizationServerMetadata, error) {
 	serverURL, err := didweb.DIDToURL(webDID)
@@ -156,8 +148,8 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 	if err = json.Unmarshal(responseData, &token); err != nil {
 		// Cut off the response body to 100 characters max to prevent logging of large responses
 		responseBodyString := string(responseData)
-		if len(responseBodyString) > 100 {
-			responseBodyString = responseBodyString[:100] + "...(clipped)"
+		if len(responseBodyString) > core.HttpResponseBodyLogClipAt {
+			responseBodyString = responseBodyString[:core.HttpResponseBodyLogClipAt] + "...(clipped)"
 		}
 		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
 	}

@@ -36,7 +36,7 @@ import (
 	"time"
 )
 
-const defaultConfigFile = "nuts.yaml"
+const defaultConfigFile = "./config/nuts.yaml"
 const configFileFlag = "configfile"
 
 const defaultEnvPrefix = "NUTS_"
@@ -49,6 +49,7 @@ var redactedConfigKeys = []string{
 	"crypto.vault.token",
 	"storage.redis.password",
 	"storage.redis.sentinel.password",
+	"storage.sql.connection",
 }
 
 // ServerConfig has global server settings.
@@ -156,7 +157,7 @@ func NewServerConfig() *ServerConfig {
 		InternalRateLimiter: true,
 		Datadir:             "./data",
 		TLS: TLSConfig{
-			TrustStoreFile: "truststore.pem",
+			TrustStoreFile: "./config/ssl/truststore.pem",
 			Offload:        NoOffloading,
 		},
 		HTTPClient: HTTPClientConfig{

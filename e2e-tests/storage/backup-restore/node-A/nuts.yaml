@@ -2,6 +2,7 @@ url: "http://nodeA"
 verbosity: debug
 strictmode: false
 internalratelimiter: false
+datadir: /data
 http:
   internal:
     address: :8081

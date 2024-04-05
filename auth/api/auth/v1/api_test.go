@@ -493,7 +493,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				ID:           &ssi.URI{},
 				Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 				Issuer:       vdr.TestDIDA.URI(),
-				IssuanceDate: &issuanceDate,
+				IssuanceDate: issuanceDate,
 				CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
 					ID:           vdr.TestDIDB.String(),
 					PurposeOfUse: "eTransfer",

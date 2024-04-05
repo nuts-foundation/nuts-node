@@ -28,7 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy/api/v1/client"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"net/url"
-	"time"
+	"os"
 )
 
 // NewRouter creates a new policy backend router that can forward requests to the correct backend
@@ -50,6 +50,20 @@ func (b *Router) Name() string {
 }
 
 func (b *Router) Configure(config core.ServerConfig) error {
+	// check if directory exists
+	if b.config.Directory != "" {
+		_, err := os.Stat(b.config.Directory)
+		if err != nil {
+			if os.IsNotExist(err) && b.config.Directory == defaultConfig().Directory {
+				// assume this is the default config value and remove it
+				b.config.Directory = ""
+			} else {
+				return fmt.Errorf("failed to load policy from directory: %w", err)
+			}
+		}
+		// keep valid directory
+	}
+
 	// if both directory and address are set, return error
 	if b.config.Directory != "" && b.config.Address != "" {
 		return errors.New("both policy.directory and policy.address are set, please choose one")
@@ -67,7 +81,7 @@ func (b *Router) Configure(config core.ServerConfig) error {
 		}
 		b.backend = &remote{
 			address: b.config.Address,
-			client:  client.NewHTTPClient(config.Strictmode, time.Duration(b.config.HTTPTimeout)*time.Second, tlsConfig),
+			client:  client.NewHTTPClient(config.Strictmode, config.HTTPClient.Timeout, tlsConfig),
 		}
 	}
 	if b.config.Directory != "" {

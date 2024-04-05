@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/PaesslerAG/jsonpath v0.1.2-0.20230323094847-3484786d6f97
 	github.com/alicebob/miniredis/v2 v2.32.1
-	github.com/amacneil/dbmate/v2 v2.13.0
+	github.com/amacneil/dbmate/v2 v2.14.0
 	github.com/avast/retry-go/v4 v4.5.1
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.9.5
@@ -23,9 +23,9 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multicodec v0.9.0
 	github.com/nats-io/nats-server/v2 v2.10.12
-	github.com/nats-io/nats.go v1.34.0
+	github.com/nats-io/nats.go v1.34.1
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
-	github.com/nuts-foundation/go-did v0.12.0
+	github.com/nuts-foundation/go-did v0.13.0
 	github.com/nuts-foundation/go-leia/v4 v4.0.1
 	github.com/nuts-foundation/go-stoabs v1.9.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
@@ -33,7 +33,7 @@ require (
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
 	github.com/privacybydesign/irmago v0.15.2
 	github.com/prometheus/client_golang v1.19.0
-	github.com/prometheus/client_model v0.6.0
+	github.com/prometheus/client_model v0.6.1
 	github.com/redis/go-redis/v9 v9.5.1
 	github.com/santhosh-tekuri/jsonschema v1.2.4
 	github.com/sirupsen/logrus v1.9.3
@@ -47,7 +47,7 @@ require (
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.21.0
 	golang.org/x/time v0.5.0
-	google.golang.org/grpc v1.62.1
+	google.golang.org/grpc v1.63.0
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
@@ -85,15 +85,13 @@ require (
 	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/go-redsync/redsync/v4 v4.8.1 // indirect
-	github.com/go-sql-driver/mysql v1.8.0 // indirect
+	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.3.2 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/flatbuffers v2.0.8+incompatible // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
@@ -158,15 +156,14 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
-	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/net v0.22.0 // indirect
+	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240325203815-454cdb8f5daa // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
 	gorm.io/driver/sqlite v1.5.5
-	gorm.io/gorm v1.25.8
+	gorm.io/gorm v1.25.9
 	rsc.io/qr v0.2.0 // indirect
 )
 
@@ -183,7 +180,7 @@ require (
 	github.com/jackc/pgx/v5 v5.5.4 // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/microsoft/go-mssqldb v1.6.0 // indirect
-	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	gorm.io/driver/sqlserver v1.5.2 // indirect
 )

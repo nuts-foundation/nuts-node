@@ -1,7 +1,7 @@
 .. _storage-configuration:
 
-Storage Configuration
-#####################
+Storage
+#######
 
 The Nuts node supports different backends for storage. This page describes the particulars of each backend and how to configure it.
 

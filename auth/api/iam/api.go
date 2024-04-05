@@ -532,10 +532,21 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, err
 	}
 
-	if request.Body.UserId == "" {
-		return nil, core.InvalidInputError("missing userID")
+	// TODO: When we support authentication at an external IdP,
+	//       the properties below become conditionally required.
+	if request.Body.PreauthorizedUser == nil {
+		return nil, core.InvalidInputError("missing preauthorized_user")
 	}
-	// require RedirectURL
+	if request.Body.PreauthorizedUser.Id == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.id")
+	}
+	if request.Body.PreauthorizedUser.Name == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.name")
+	}
+	if request.Body.PreauthorizedUser.Role == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.role")
+	}
+
 	if request.Body.RedirectUri == "" {
 		return nil, core.InvalidInputError("missing redirect_uri")
 	}
@@ -579,7 +590,7 @@ func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
 	session.ClientID = params.get(oauth.ClientIDParam)
 	session.Scope = params.get(oauth.ScopeParam)
 	session.ClientState = params.get(oauth.StateParam)
-	session.ServerState = map[string]interface{}{}
+	session.ServerState = ServerState{}
 	session.RedirectURI = params.get(oauth.RedirectURIParam)
 	session.OwnDID = &ownDID
 	session.ResponseType = params.get(oauth.ResponseTypeParam)

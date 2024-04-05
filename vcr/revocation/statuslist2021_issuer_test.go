@@ -383,10 +383,8 @@ func TestStatusList2021_buildAndSignVC(t *testing.T) {
 	assert.Contains(t, cred.ID.String(), aliceDID.String())
 	assert.Equal(t, toMap(t, expectedCS), cred.CredentialSubject[0])
 	assert.Equal(t, aliceDID.String(), cred.Issuer.String())
-	assert.InDelta(t, time.Now().Unix(), cred.ValidFrom.Unix(), 2)
-	assert.InDelta(t, time.Now().Add(statusListValidity).Unix(), cred.ValidUntil.Unix(), 2)
-	assert.Nil(t, cred.IssuanceDate)
-	assert.Nil(t, cred.ExpirationDate)
+	assert.InDelta(t, time.Now().Unix(), cred.IssuanceDate.Unix(), 2)
+	assert.InDelta(t, time.Now().Add(statusListValidity).Unix(), cred.ExpirationDate.Unix(), 2)
 }
 
 func Test_toStatusListCredential(t *testing.T) {

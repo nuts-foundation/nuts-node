@@ -157,14 +157,9 @@ func (cs *StatusList2021) update(statusListCredential string) (*credentialRecord
 		return nil, err
 	}
 
-	// expiration: specced as validUntil, but also accept expirationDate
 	var expiresPtr *int64
 	if cred.ExpirationDate != nil && !cred.ExpirationDate.IsZero() {
 		expires := cred.ExpirationDate.Unix()
-		expiresPtr = &expires
-	}
-	if cred.ValidUntil != nil && !cred.ValidUntil.IsZero() {
-		expires := cred.ValidUntil.Unix()
 		expiresPtr = &expires
 	}
 
@@ -272,10 +267,8 @@ func (cs *StatusList2021) validate(cred vc.VerifiableCredential) (*StatusList202
 			return nil, errors.New("'ID' is required")
 		}
 
-		// 'issuanceDate' must be present, but can be zero if replaced by alias 'validFrom'
-		if (cred.IssuanceDate == nil || cred.IssuanceDate.IsZero()) &&
-			(cred.ValidFrom == nil || cred.ValidFrom.IsZero()) {
-			return nil, errors.New("'issuanceDate' or 'validFrom' is required")
+		if cred.IssuanceDate.IsZero() {
+			return nil, errors.New("issuanceDate is required")
 		}
 
 		if cred.Format() == vc.JSONLDCredentialProofFormat && cred.Proof == nil {

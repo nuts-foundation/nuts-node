@@ -6,8 +6,6 @@ echo "Cleaning up running Docker containers and volumes, and key material..."
 echo "------------------------------------"
 docker compose down
 docker compose rm -f -v
-rm -rf ./node-*/data
-mkdir ./node-A/data ./node-B/data  # 'data' dirs will be created with root owner by docker if they do not exit. This creates permission issues on CI.
 
 echo "------------------------------------"
 echo "Starting Docker containers..."
@@ -72,7 +70,8 @@ echo "---------------------------------------"
 
 # confirm revoked by StatusList2021Credential on node-B, uses internal store
 RESPONSE=$(echo $VALIDATION_REQUEST | curl -s -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/verifier/vc -H "Content-Type:application/json")
-if [[ $( echo $RESPONSE | jq -r .validity ) ==  "false" ]]; then
+echo nodeB response: $RESPONSE
+if [[ $( echo $RESPONSE | jq -r .message ) ==  *"credential is revoked" ]]; then
   echo "  VC considered revoked by node-B"
 else
   echo "  FAILED: Credential not revoked on node-B" 1>&2
@@ -82,7 +81,8 @@ fi
 
 # confirm revoked by StatusList2021Credential on node-A, fetches StatusList2021Credential from node-B using APIs
 RESPONSE=$(echo $VALIDATION_REQUEST | curl -s -X POST --data-binary @- http://localhost:18081/internal/vcr/v2/verifier/vc -H "Content-Type:application/json")
-if [[ $( echo $RESPONSE | jq -r .validity ) ==  "false" ]]; then
+echo nodeA response: $RESPONSE
+if [[ $( echo $RESPONSE | jq -r .message ) ==  *"credential is revoked" ]]; then
   echo "  VC considered revoked by node-A"
 else
   echo "  FAILED: Credential not revoked on node-A" 1>&2
