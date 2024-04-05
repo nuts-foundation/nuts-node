@@ -18,10 +18,27 @@ paths:
         schema:
           type: string
     get:
-      summary: "Returns the did:web version of a Nuts DID document"
+      summary: Returns the did:web DID for the specified tenant.
       description: |
-        Returns the did:web DID document, if it is owned by this node.
-      operationId: "getWebDID"
+        Returns the did:web DID for the specified tenant, if it is owned by this node.
+      operationId: "getTenantWebDID"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: DID has been found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DIDDocument'
+        "404":
+          description: DID does not exist.
+  /.well-known/did.json:
+    get:
+      summary: Returns the root did:web DID of this domain.
+      description: |
+        Returns the root did:web DID of this domain, if it is owned by this node.
+      operationId: "getRootWebDID"
       tags:
         - DID
       responses:
@@ -271,7 +288,7 @@ paths:
     get:
       tags:
         - well-known
-      summary: Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> user path.
+      summary: Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> path.
       description: >
         Specified by https://www.rfc-editor.org/info/rfc8414
         The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
@@ -298,30 +315,29 @@ paths:
                 "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
         default:
           $ref: '../common/error_response.yaml'
-# Required when root did:web DIDs are supported:
-#  /.well-known/oauth-authorization-server:
-#    get:
-#      tags:
-#        - well-known
-#      summary: Get the OAuth2 Authorization Server metadata of a root did:web DID.
-#      description: >
-#        Specified by https://www.rfc-editor.org/info/rfc8414
-#        The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
-#
-#        error returns:
-#        * 400 - invalid input
-#        * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
-#        * 500 - internal server error
-#      operationId: RootOAuthAuthorizationServerMetadata
-#      responses:
-#        "200":
-#          description: OK
-#          content:
-#            application/json:
-#              schema:
-#                "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
-#        default:
-#          $ref: '../common/error_response.yaml'
+  /.well-known/oauth-authorization-server:
+    get:
+      tags:
+        - well-known
+      summary: Get the OAuth2 Authorization Server metadata of a root did:web DID.
+      description: >
+        Specified by https://www.rfc-editor.org/info/rfc8414
+        The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
+
+        error returns:
+        * 400 - invalid input
+        * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
+        * 500 - internal server error
+      operationId: RootOAuthAuthorizationServerMetadata
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
+        default:
+          $ref: '../common/error_response.yaml'
   /oauth2/{did}/oauth-client:
     get:
       tags:

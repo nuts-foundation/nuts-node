@@ -129,7 +129,11 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-	manager := didweb.NewManager(*publicURL.JoinPath("iam"), r.keyStore, r.storageInstance.GetSQLDatabase())
+	rootDID, err := didweb.URLToDID(*publicURL)
+	if err != nil {
+		return err
+	}
+	manager := didweb.NewManager(*rootDID, "iam", r.keyStore, r.storageInstance.GetSQLDatabase())
 	r.documentManagers[didweb.MethodName] = manager
 	// did:web resolver should first look in own database, then resolve over the web
 	webResolver := resolver.ChainedDIDResolver{

@@ -29,10 +29,18 @@ const (
 	String FilterServicesParamsEndpointType = "string"
 )
 
-// CreateDIDOptions defines model for CreateDIDOptions.
+// CreateDIDOptions Options for the DID creation. If neither `did` nor `tenant` is given, a random UUID is used as tenant.
+// It's invalid to provide both `did` and `tenant` at the same time.
 type CreateDIDOptions struct {
-	// Id The ID of the DID document. If not given, a random UUID is generated.
-	Id *string `json:"id,omitempty"`
+	// Did The DID of the DID document. If it's a did:web DID and it contains a path, it must follow the format `did:web:example.com:iam:1234`.
+	// It can be used, for instance, to create a root did:web DID (one without path).
+	//
+	// The DID to create must conform to the node's configured URL (e.g., `did:web:example.com` for `https://example.com`).
+	Did *string `json:"did,omitempty"`
+
+	// Tenant The tenant of the DID document. If this option is given, the did:web DID will contain a path that ends with the given tenant ID.
+	// It can be used, for instance, to serve multiple did:web DIDs from the same node.
+	Tenant *string `json:"tenant,omitempty"`
 }
 
 // DIDResolutionResult defines model for DIDResolutionResult.
