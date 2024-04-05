@@ -59,6 +59,9 @@ type OAuthAuthorizationServerMetadata = oauth.AuthorizationServerMetadata
 // OAuthClientMetadata is an alias
 type OAuthClientMetadata = oauth.OAuthClientMetadata
 
+// WalletOwnerType is an alias
+type WalletOwnerType = pe.WalletOwnerType
+
 const (
 	sessionExpiry = 5 * time.Minute
 )

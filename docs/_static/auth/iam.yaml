@@ -203,6 +203,10 @@ paths:
             description: | 
               The scope for which a presentation definition is requested. Multiple scopes can be specified by separating them with a space.
             example: usecase patient:x:read
+        - name: wallet_owner_type
+          in: query
+          schema:
+            $ref: '#/components/schemas/WalletOwnerType'
       responses:
         "200":
           description: PresentationDefinition that matches scope is found.
@@ -819,6 +823,14 @@ components:
         user_role:
           type: string
           description: Role of the End-User.
+    WalletOwnerType:
+      type: string
+      description: |
+        Wallet owner type that should fulfill the presentation definition.
+        Can either be an organization wallet or a user (personal) wallet.
+      enum:
+        - organization
+        - user
   securitySchemes:
     jwtBearerAuth:
       type: http

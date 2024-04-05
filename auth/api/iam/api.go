@@ -462,11 +462,16 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		}
 	}
 
-	if _, ok := mapping[pe.WalletOwnerOrganization]; !ok {
-		return nil, oauthError(oauth.ServerError, "no presentation definition found for organization wallet")
+	walletOwnerType := pe.WalletOwnerOrganization
+	if request.Params.WalletOwnerType != nil {
+		walletOwnerType = *request.Params.WalletOwnerType
+	}
+	result, exists := mapping[walletOwnerType]
+	if !exists {
+		return nil, oauthError(oauth.InvalidRequest, fmt.Sprintf("no presentation definition found for '%s' wallet", walletOwnerType))
 	}
 
-	return PresentationDefinition200JSONResponse(mapping[pe.WalletOwnerOrganization]), nil
+	return PresentationDefinition200JSONResponse(result), nil
 }
 
 // toOwnedDIDForOAuth2 is like toOwnedDID but wraps the errors in oauth.OAuth2Error to make sure they're returned as specified by the OAuth2 RFC.

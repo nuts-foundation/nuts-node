@@ -104,8 +104,7 @@ type TokenIntrospectionResponse struct {
 // TokenIntrospectionResponseAssuranceLevel Assurance level of the identity of the End-User.
 type TokenIntrospectionResponseAssuranceLevel string
 
-// UserDetails Claims about the user, when not using an OpenID Connect Identity Provider.
-// Specified according to https://www.iana.org/assignments/jwt/jwt.xhtml
+// UserDetails Claims about the authorized user.
 type UserDetails struct {
 	// Id Machine-readable identifier, uniquely identifying the user in the issuing system.
 	Id string `json:"id"`
@@ -126,8 +125,7 @@ type RequestServiceAccessTokenJSONBody struct {
 
 // RequestUserAccessTokenJSONBody defines parameters for RequestUserAccessToken.
 type RequestUserAccessTokenJSONBody struct {
-	// PreauthorizedUser Claims about the user, when not using an OpenID Connect Identity Provider.
-	// Specified according to https://www.iana.org/assignments/jwt/jwt.xhtml
+	// PreauthorizedUser Claims about the authorized user.
 	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
 
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
@@ -164,7 +162,8 @@ type CallbackParams struct {
 
 // PresentationDefinitionParams defines parameters for PresentationDefinition.
 type PresentationDefinitionParams struct {
-	Scope string `form:"scope" json:"scope"`
+	Scope           string           `form:"scope" json:"scope"`
+	WalletOwnerType *WalletOwnerType `form:"wallet_owner_type,omitempty" json:"wallet_owner_type,omitempty"`
 }
 
 // HandleAuthorizeResponseFormdataBody defines parameters for HandleAuthorizeResponse.
@@ -453,6 +452,13 @@ func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error 
 	err = runtime.BindQueryParameter("form", true, true, "scope", ctx.QueryParams(), &params.Scope)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter scope: %s", err))
+	}
+
+	// ------------- Optional query parameter "wallet_owner_type" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "wallet_owner_type", ctx.QueryParams(), &params.WalletOwnerType)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter wallet_owner_type: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
