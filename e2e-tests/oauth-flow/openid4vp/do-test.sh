@@ -64,9 +64,9 @@ echo "Redirect user to local OAuth server..."
 echo "--------------------------------------"
 
 LOCATION=$(echo $LOCATION | sed -E 's/nodeB/localhost:20443/')
-RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -k)
-if grep -q 'Location' ./node-B/data/headers.txt; then
-  LOCATION=$(grep 'Location' ./node-B/data/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
+RESPONSE=$(curl -D ./node-B/headers.txt $LOCATION -k)
+if grep -q 'Location' ./node-B/headers.txt; then
+  LOCATION=$(grep 'Location' ./node-B/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
   echo "REDIRECTURL: $LOCATION"
 else
   echo $RESPONSE
@@ -79,9 +79,9 @@ echo "Redirect user to remote OAuth server..."
 echo "---------------------------------------"
 
 LOCATION=$(echo $LOCATION | sed -E 's/nodeA/localhost:10443/')
-RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -k)
-if grep -q 'Location' ./node-B/data/headers.txt; then
-  LOCATION=$(grep 'Location' ./node-B/data/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
+RESPONSE=$(curl -D ./node-B/headers.txt $LOCATION -k)
+if grep -q 'Location' ./node-B/headers.txt; then
+  LOCATION=$(grep 'Location' ./node-B/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
   echo "REDIRECTURL: $LOCATION"
 else
   echo $RESPONSE
@@ -94,9 +94,9 @@ echo "Build VP..."
 echo "---------------------------------------"
 
 LOCATION=$(echo $LOCATION | sed -E 's/nodeB/localhost:20443/')
-RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -k)
-if grep -q 'Location' ./node-B/data/headers.txt; then
-  LOCATION=$(grep 'Location' ./node-B/data/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
+RESPONSE=$(curl -D ./node-B/headers.txt $LOCATION -k)
+if grep -q 'Location' ./node-B/headers.txt; then
+  LOCATION=$(grep 'Location' ./node-B/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
   echo "REDIRECTURL: $LOCATION"
 else
   echo $RESPONSE
@@ -109,8 +109,8 @@ echo "Redirect user to local OAuth server ..."
 echo "---------------------------------------"
 
 LOCATION=$(echo $LOCATION | sed -E 's/nodeB/localhost:20443/')
-RESPONSE=$(curl -D ./node-B/data/headers.txt $LOCATION -k)
-if grep -q 'Location' ./node-B/data/headers.txt; then
+RESPONSE=$(curl -D ./node-B/headers.txt $LOCATION -k)
+if grep -q 'Location' ./node-B/headers.txt; then
   echo $LOCATION
 else
   echo $RESPONSE
@@ -124,8 +124,8 @@ echo "--------------------------------------"
 
 RESPONSE=$(curl http://localhost:28081/internal/auth/v2/accesstoken/$SESSION -k)
 if echo $RESPONSE | grep -q "access_token"; then
-  echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
-  echo "access token stored in ./node-B/data/accesstoken.txt"
+  echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/accesstoken.txt
+  echo "access token stored in ./node-B/accesstoken.txt"
 else
   echo "FAILED: Could not get access token from node-A" 1>&2
   echo $RESPONSE
@@ -136,7 +136,7 @@ fi
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
-RESPONSE=$(docker compose exec nodeB-backend curl http://resource:80/resource -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)")
+RESPONSE=$(docker compose exec nodeB-backend curl http://resource:80/resource -H "Authorization: bearer $(cat ./node-B/accesstoken.txt)")
 if echo $RESPONSE | grep -q "OK"; then
   echo "success!"
 else
