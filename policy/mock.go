@@ -57,17 +57,17 @@ func (mr *MockPDPBackendMockRecorder) Authorized(ctx, requestInfo any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authorized", reflect.TypeOf((*MockPDPBackend)(nil).Authorized), ctx, requestInfo)
 }
 
-// PresentationDefinition mocks base method.
-func (m *MockPDPBackend) PresentationDefinition(ctx context.Context, authorizer did.DID, scope string) (*pe.PresentationDefinition, error) {
+// PresentationDefinitions mocks base method.
+func (m *MockPDPBackend) PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PresentationDefinition", ctx, authorizer, scope)
-	ret0, _ := ret[0].(*pe.PresentationDefinition)
+	ret := m.ctrl.Call(m, "PresentationDefinitions", ctx, authorizer, scope)
+	ret0, _ := ret[0].(pe.WalletOwnerMapping)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// PresentationDefinition indicates an expected call of PresentationDefinition.
-func (mr *MockPDPBackendMockRecorder) PresentationDefinition(ctx, authorizer, scope any) *gomock.Call {
+// PresentationDefinitions indicates an expected call of PresentationDefinitions.
+func (mr *MockPDPBackendMockRecorder) PresentationDefinitions(ctx, authorizer, scope any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockPDPBackend)(nil).PresentationDefinition), ctx, authorizer, scope)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinitions", reflect.TypeOf((*MockPDPBackend)(nil).PresentationDefinitions), ctx, authorizer, scope)
 }

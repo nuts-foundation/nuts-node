@@ -16,26 +16,17 @@
  *
  */
 
-package policy
+package pe
 
-import (
-	"context"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/policy/api/v1/client"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+// WalletOwnerMapping is a map of WalletOwnerType to PresentationDefinition
+type WalletOwnerMapping map[WalletOwnerType]PresentationDefinition
+
+// WalletOwnerType defines the intended audience for a PresentationDefinition
+type WalletOwnerType string
+
+const (
+	// WalletOwnerOrganization is used in a WalletOwnerMapping when the PresentationDefinition is intended for an organization
+	WalletOwnerOrganization = WalletOwnerType("organization")
+	// WalletOwnerUser is used in a WalletOwnerMapping when the PresentationDefinition is intended for a user
+	WalletOwnerUser = WalletOwnerType("user")
 )
-
-var _ PDPBackend = remote{}
-
-type remote struct {
-	address string
-	client  client.HTTPClient
-}
-
-func (b remote) PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error) {
-	return b.client.PresentationDefinitions(ctx, b.address, authorizer, scope)
-}
-
-func (b remote) Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error) {
-	return b.client.Authorized(ctx, b.address, requestInfo)
-}

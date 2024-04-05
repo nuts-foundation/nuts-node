@@ -24,8 +24,8 @@ type AuthorizedResponse struct {
 	Authorized bool `json:"authorized"`
 }
 
-// PresentationDefinitionParams defines parameters for PresentationDefinition.
-type PresentationDefinitionParams struct {
+// PresentationDefinitionsParams defines parameters for PresentationDefinitions.
+type PresentationDefinitionsParams struct {
 	// Authorizer URLEncoded DID.
 	Authorizer string `form:"authorizer" json:"authorizer"`
 
@@ -115,8 +115,8 @@ type ClientInterface interface {
 
 	CheckAuthorized(ctx context.Context, body CheckAuthorizedJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PresentationDefinition request
-	PresentationDefinition(ctx context.Context, params *PresentationDefinitionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PresentationDefinitions request
+	PresentationDefinitions(ctx context.Context, params *PresentationDefinitionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) CheckAuthorizedWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -143,8 +143,8 @@ func (c *Client) CheckAuthorized(ctx context.Context, body CheckAuthorizedJSONRe
 	return c.Client.Do(req)
 }
 
-func (c *Client) PresentationDefinition(ctx context.Context, params *PresentationDefinitionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPresentationDefinitionRequest(c.Server, params)
+func (c *Client) PresentationDefinitions(ctx context.Context, params *PresentationDefinitionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPresentationDefinitionsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -195,8 +195,8 @@ func NewCheckAuthorizedRequestWithBody(server string, contentType string, body i
 	return req, nil
 }
 
-// NewPresentationDefinitionRequest generates requests for PresentationDefinition
-func NewPresentationDefinitionRequest(server string, params *PresentationDefinitionParams) (*http.Request, error) {
+// NewPresentationDefinitionsRequest generates requests for PresentationDefinitions
+func NewPresentationDefinitionsRequest(server string, params *PresentationDefinitionsParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -204,7 +204,7 @@ func NewPresentationDefinitionRequest(server string, params *PresentationDefinit
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/presentation_definition")
+	operationPath := fmt.Sprintf("/presentation_definitions")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -300,8 +300,8 @@ type ClientWithResponsesInterface interface {
 
 	CheckAuthorizedWithResponse(ctx context.Context, body CheckAuthorizedJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckAuthorizedResponse, error)
 
-	// PresentationDefinitionWithResponse request
-	PresentationDefinitionWithResponse(ctx context.Context, params *PresentationDefinitionParams, reqEditors ...RequestEditorFn) (*PresentationDefinitionResponse, error)
+	// PresentationDefinitionsWithResponse request
+	PresentationDefinitionsWithResponse(ctx context.Context, params *PresentationDefinitionsParams, reqEditors ...RequestEditorFn) (*PresentationDefinitionsResponse, error)
 }
 
 type CheckAuthorizedResponse struct {
@@ -326,14 +326,14 @@ func (r CheckAuthorizedResponse) StatusCode() int {
 	return 0
 }
 
-type PresentationDefinitionResponse struct {
+type PresentationDefinitionsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *PresentationDefinition
+	JSON200      *WalletOwnerMapping
 }
 
 // Status returns HTTPResponse.Status
-func (r PresentationDefinitionResponse) Status() string {
+func (r PresentationDefinitionsResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -341,7 +341,7 @@ func (r PresentationDefinitionResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PresentationDefinitionResponse) StatusCode() int {
+func (r PresentationDefinitionsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -365,13 +365,13 @@ func (c *ClientWithResponses) CheckAuthorizedWithResponse(ctx context.Context, b
 	return ParseCheckAuthorizedResponse(rsp)
 }
 
-// PresentationDefinitionWithResponse request returning *PresentationDefinitionResponse
-func (c *ClientWithResponses) PresentationDefinitionWithResponse(ctx context.Context, params *PresentationDefinitionParams, reqEditors ...RequestEditorFn) (*PresentationDefinitionResponse, error) {
-	rsp, err := c.PresentationDefinition(ctx, params, reqEditors...)
+// PresentationDefinitionsWithResponse request returning *PresentationDefinitionsResponse
+func (c *ClientWithResponses) PresentationDefinitionsWithResponse(ctx context.Context, params *PresentationDefinitionsParams, reqEditors ...RequestEditorFn) (*PresentationDefinitionsResponse, error) {
+	rsp, err := c.PresentationDefinitions(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePresentationDefinitionResponse(rsp)
+	return ParsePresentationDefinitionsResponse(rsp)
 }
 
 // ParseCheckAuthorizedResponse parses an HTTP response from a CheckAuthorizedWithResponse call
@@ -400,22 +400,22 @@ func ParseCheckAuthorizedResponse(rsp *http.Response) (*CheckAuthorizedResponse,
 	return response, nil
 }
 
-// ParsePresentationDefinitionResponse parses an HTTP response from a PresentationDefinitionWithResponse call
-func ParsePresentationDefinitionResponse(rsp *http.Response) (*PresentationDefinitionResponse, error) {
+// ParsePresentationDefinitionsResponse parses an HTTP response from a PresentationDefinitionsWithResponse call
+func ParsePresentationDefinitionsResponse(rsp *http.Response) (*PresentationDefinitionsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PresentationDefinitionResponse{
+	response := &PresentationDefinitionsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest PresentationDefinition
+		var dest WalletOwnerMapping
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

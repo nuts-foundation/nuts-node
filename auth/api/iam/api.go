@@ -38,6 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
@@ -464,7 +465,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		return nil, err
 	}
 
-	presentationDefinition, err := r.policyBackend.PresentationDefinition(ctx, *authorizer, request.Params.Scope)
+	mapping, err := r.policyBackend.PresentationDefinitions(ctx, *authorizer, request.Params.Scope)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidScope,
@@ -472,7 +473,11 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		}
 	}
 
-	return PresentationDefinition200JSONResponse(*presentationDefinition), nil
+	if _, ok := mapping[pe.WalletOwnerOrganization]; !ok {
+		return nil, oauthError(oauth.ServerError, "no presentation definition found for organization wallet")
+	}
+
+	return PresentationDefinition200JSONResponse(mapping[pe.WalletOwnerOrganization]), nil
 }
 
 // toOwnedDIDForOAuth2 is like toOwnedDID but wraps the errors in oauth.OAuth2Error to make sure they're returned as specified by the OAuth2 RFC.
@@ -596,7 +601,7 @@ func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
 	session.ClientID = params.get(oauth.ClientIDParam)
 	session.Scope = params.get(oauth.ScopeParam)
 	session.ClientState = params.get(oauth.StateParam)
-	session.ServerState = map[string]interface{}{}
+	session.ServerState = ServerState{}
 	session.RedirectURI = params.get(oauth.RedirectURIParam)
 	session.OwnDID = &ownDID
 	session.ResponseType = params.get(oauth.ResponseTypeParam)

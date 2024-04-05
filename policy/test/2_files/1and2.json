@@ -1,98 +1,122 @@
 {
   "1": {
-    "format": {
-      "ldp_vc": {
-        "proof_type": ["JsonWebSignature2020"]
-      }
-    },
-    "id": "pd_any_care_organization",
-    "name": "Care organization",
-    "purpose": "Finding a care organization for authorizing access to medical metadata",
-    "input_descriptors": [
-      {
-        "id": "id_nuts_care_organization_cred",
-        "constraints": {
-          "fields": [
-            {
-              "path": ["$.type"],
-              "filter": {
-                "type": "string",
-                "const": "NutsOrganizationCredential"
-              }
-            },
-            {
-              "path": ["$.issuer"],
-              "filter": {
-                "type": "string",
-                "filter": {
-                    "type": "string",
-                    "pattern": "^did:example:123456789abcdefghi$"
-                }
-              }
-            },
-            {
-              "path": ["$.credentialSubject.organization.name"],
-              "filter": {
-                "type": "string"
-              }
-            },
-            {
-              "path": ["$.credentialSubject.organization.city"],
-              "filter": {
-                "type": "string"
-              }
-            }
+    "organization": {
+      "format": {
+        "ldp_vc": {
+          "proof_type": [
+            "JsonWebSignature2020"
           ]
         }
-      }
-    ]
-  },
-  "2": {
-    "format": {
-      "ldp_vc": {
-        "proof_type": ["JsonWebSignature2020"]
-      }
-    },
-    "id": "pd_any_care_organization",
-    "name": "Care organization",
-    "purpose": "Finding a care organization for authorizing access to medical metadata",
-    "input_descriptors": [
-      {
-        "id": "id_nuts_care_organization_cred",
-        "constraints": {
-          "fields": [
-            {
-              "path": ["$.type"],
-              "filter": {
-                "type": "string",
-                "const": "NutsOrganizationCredential"
-              }
-            },
-            {
-              "path": ["$.issuer"],
-              "filter": {
-                "type": "string",
+      },
+      "id": "pd_any_care_organization",
+      "name": "Care organization",
+      "purpose": "Finding a care organization for authorizing access to medical metadata",
+      "input_descriptors": [
+        {
+          "id": "id_nuts_care_organization_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
                 "filter": {
                   "type": "string",
-                  "pattern": "^did:example:123456789abcdefghi$"
+                  "const": "NutsOrganizationCredential"
+                }
+              },
+              {
+                "path": [
+                  "$.issuer"
+                ],
+                "filter": {
+                  "type": "string",
+                  "filter": {
+                    "type": "string",
+                    "pattern": "^did:example:123456789abcdefghi$"
+                  }
+                }
+              },
+              {
+                "path": [
+                  "$.credentialSubject.organization.name"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "path": [
+                  "$.credentialSubject.organization.city"
+                ],
+                "filter": {
+                  "type": "string"
                 }
               }
-            },
-            {
-              "path": ["$.credentialSubject.organization.name"],
-              "filter": {
-                "type": "string"
-              }
-            },
-            {
-              "path": ["$.credentialSubject.organization.city"],
-              "filter": {
-                "type": "string"
-              }
-            }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "2": {
+    "organization": {
+      "format": {
+        "ldp_vc": {
+          "proof_type": [
+            "JsonWebSignature2020"
           ]
         }
-      }
-    ]
+      },
+      "id": "pd_any_care_organization",
+      "name": "Care organization",
+      "purpose": "Finding a care organization for authorizing access to medical metadata",
+      "input_descriptors": [
+        {
+          "id": "id_nuts_care_organization_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "NutsOrganizationCredential"
+                }
+              },
+              {
+                "path": [
+                  "$.issuer"
+                ],
+                "filter": {
+                  "type": "string",
+                  "filter": {
+                    "type": "string",
+                    "pattern": "^did:example:123456789abcdefghi$"
+                  }
+                }
+              },
+              {
+                "path": [
+                  "$.credentialSubject.organization.name"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "path": [
+                  "$.credentialSubject.organization.city"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
   }
 }
