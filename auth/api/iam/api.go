@@ -585,7 +585,7 @@ func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
 	session.ClientID = params.get(oauth.ClientIDParam)
 	session.Scope = params.get(oauth.ScopeParam)
 	session.ClientState = params.get(oauth.StateParam)
-	session.ServerState = map[string]interface{}{}
+	session.ServerState = ServerState{}
 	session.RedirectURI = params.get(oauth.RedirectURIParam)
 	session.OwnDID = &ownDID
 	session.ResponseType = params.get(oauth.ResponseTypeParam)

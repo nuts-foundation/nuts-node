@@ -430,10 +430,11 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 	// we take the existing OAuthSession and add the credential map to it
 	// the credential map contains InputDescriptor.Id -> VC mappings
 	// todo: use the InputDescriptor.Path to map the Id to Value@JSONPath since this will be later used to set the state for the access token
-	oauthSession.ServerState = ServerState{}
-	oauthSession.ServerState[credentialMapStateKey] = credentialMap
-	oauthSession.ServerState[presentationsStateKey] = pexEnvelope.Presentations
-	oauthSession.ServerState[submissionStateKey] = *submission
+	oauthSession.ServerState = ServerState{
+		CredentialMap:          credentialMap,
+		Presentations:          pexEnvelope.Presentations,
+		PresentationSubmission: submission,
+	}
 
 	authorizationCode := crypto.GenerateNonce()
 	err = r.oauthCodeStore().Put(authorizationCode, oauthSession)
@@ -540,16 +541,14 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, verifier did.DID,
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("client_id does not match: %s vs %s", oauthSession.ClientID, *clientId)), callbackURI)
 	}
 
-	presentations := oauthSession.ServerState.VerifiablePresentations()
-	submission := oauthSession.ServerState.PresentationSubmission()
+	state := oauthSession.ServerState
 	definition, err := r.policyBackend.PresentationDefinition(ctx, verifier, oauthSession.Scope)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to fetch presentation definition: %s", err.Error())), callbackURI)
 	}
-	credentialMap := oauthSession.ServerState.CredentialMap()
 	subject, _ := did.ParseDID(oauthSession.ClientID)
 
-	response, err := r.createAccessToken(verifier, time.Now(), presentations, submission, *definition, oauthSession.Scope, *subject, credentialMap)
+	response, err := r.createAccessToken(verifier, time.Now(), state.Presentations, state.PresentationSubmission, *definition, oauthSession.Scope, *subject, state.CredentialMap)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error())), callbackURI)
 	}
@@ -737,7 +736,6 @@ func (r Wrapper) handlePresentationRequest(ctx context.Context, params oauthPara
 			credentialIDs = append(credentialIDs, matchingCredential.ID.String())
 		}
 	}
-	session.ServerState["openid4vp_credentials"] = credentialIDs
 
 	sessionID := uuid.NewString()
 	err = r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, session.OwnDID.String(), "session").Put(sessionID, *session)
