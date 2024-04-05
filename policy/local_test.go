@@ -89,7 +89,7 @@ func Test_localPDP_loadFromDirectory(t *testing.T) {
 		err := store.loadFromDirectory("test")
 		require.NoError(t, err)
 
-		_, err = store.PresentationDefinition(context.Background(), did.DID{}, "eOverdracht-overdrachtsbericht")
+		_, err = store.PresentationDefinitions(context.Background(), did.DID{}, "example-scope")
 		require.NoError(t, err)
 	})
 	t.Run("2 files, 3 scopes", func(t *testing.T) {
@@ -98,11 +98,11 @@ func Test_localPDP_loadFromDirectory(t *testing.T) {
 		err := store.loadFromDirectory("test/2_files")
 		require.NoError(t, err)
 
-		_, err = store.PresentationDefinition(context.Background(), did.DID{}, "1")
+		_, err = store.PresentationDefinitions(context.Background(), did.DID{}, "1")
 		require.NoError(t, err)
-		_, err = store.PresentationDefinition(context.Background(), did.DID{}, "2")
+		_, err = store.PresentationDefinitions(context.Background(), did.DID{}, "2")
 		require.NoError(t, err)
-		_, err = store.PresentationDefinition(context.Background(), did.DID{}, "3")
+		_, err = store.PresentationDefinitions(context.Background(), did.DID{}, "3")
 		require.NoError(t, err)
 	})
 	t.Run("2 files, duplicate scope", func(t *testing.T) {

@@ -107,7 +107,7 @@ func (s *localPDP) loadFromFile(filename string) error {
 		return fmt.Errorf("failed to unmarshal PEX Policy mapping file %s: %w", filename, err)
 	}
 	if s.mapping == nil {
-		s.mapping = make(map[string]validatingPresentationDefinition)
+		s.mapping = make(map[string]validatingWalletOwnerMapping)
 	}
 	for scope, defs := range result {
 		if _, exists := s.mapping[scope]; exists {
