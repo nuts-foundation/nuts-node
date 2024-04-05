@@ -41,6 +41,12 @@ type OAuthSession struct {
 	PresentationDefinition PresentationDefinition
 	UserDetails            UserDetails
 	VerifierDID            *did.DID
+
+	// TODO use these 2 fields to track if all OpenID4VP flows have been concluded
+	// PresentationSubmissions tracks which PresentationSubmissions have been submitted through OpenID4VP
+	PresentationSubmissions map[string]pe.PresentationSubmission
+	// Presentations tracks which VerifiablePresentations have been received through OpenID4VP
+	Presentations map[string]vc.VerifiablePresentation
 }
 
 // ServerState is a convenience type for extracting different types of data from the session.
