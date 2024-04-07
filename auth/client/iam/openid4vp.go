@@ -239,7 +239,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		Expires:  time.Now().Add(time.Second * 5),
 		Nonce:    nutsCrypto.GenerateNonce(),
 	}
-	vp, submission, err := c.wallet.BuildSubmission(ctx, requester, *presentationDefinition, metadata.VPFormats, params)
+	vp, submission, err := c.wallet.BuildSubmission(ctx, nil, requester, *presentationDefinition, metadata.VPFormats, params)
 	if err != nil {
 		return nil, err
 	}

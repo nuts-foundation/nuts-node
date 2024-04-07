@@ -350,22 +350,35 @@ func TestWallet_BuildSubmission(t *testing.T) {
 		keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(key.KID()), key.Public(), nil)
 
 		w := New(keyResolver, keyStore, nil, jsonldManager, storageEngine)
-		err := w.Put(context.Background(), credentials...)
-		require.NoError(t, err)
 
-		vp, submission, err := w.BuildSubmission(ctx, walletDID, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+		vp, submission, err := w.BuildSubmission(ctx, credentials, walletDID, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
 		require.NotNil(t, submission)
+	})
+	t.Run("credentials from wallet", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(key.KID()), key.Public(), nil)
 
+		w := New(keyResolver, keyStore, nil, jsonldManager, storageEngine)
+		err := w.Put(context.Background(), credentials...)
+		require.NoError(t, err)
+
+		vp, submission, err := w.BuildSubmission(ctx, credentials, walletDID, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+
+		assert.NoError(t, err)
+		require.NotNil(t, vp)
+		require.NotNil(t, submission)
 	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 
 		w := New(nil, keyStore, nil, jsonldManager, storageEngine)
 
-		vp, submission, err := w.BuildSubmission(ctx, walletDID, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+		vp, submission, err := w.BuildSubmission(ctx, []vc.VerifiableCredential{}, walletDID, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
 		assert.Equal(t, ErrNoCredentials, err)
 		assert.Nil(t, vp)
@@ -378,7 +391,7 @@ func TestWallet_BuildSubmission(t *testing.T) {
 		keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(key.KID()), key.Public(), nil)
 		w := New(keyResolver, keyStore, nil, jsonldManager, storageEngine)
 
-		vp, submission, err := w.BuildSubmission(ctx, walletDID, pe.PresentationDefinition{}, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+		vp, submission, err := w.BuildSubmission(ctx, []vc.VerifiableCredential{}, walletDID, pe.PresentationDefinition{}, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
 		assert.Nil(t, err)
 		assert.NotNil(t, vp)

@@ -104,8 +104,7 @@ type TokenIntrospectionResponse struct {
 // TokenIntrospectionResponseAssuranceLevel Assurance level of the identity of the End-User.
 type TokenIntrospectionResponseAssuranceLevel string
 
-// UserDetails Claims about the user, when not using an OpenID Connect Identity Provider.
-// Specified according to https://www.iana.org/assignments/jwt/jwt.xhtml
+// UserDetails Claims about the authorized user.
 type UserDetails struct {
 	// Id Machine-readable identifier, uniquely identifying the user in the issuing system.
 	Id string `json:"id"`
@@ -126,8 +125,7 @@ type RequestServiceAccessTokenJSONBody struct {
 
 // RequestUserAccessTokenJSONBody defines parameters for RequestUserAccessToken.
 type RequestUserAccessTokenJSONBody struct {
-	// PreauthorizedUser Claims about the user, when not using an OpenID Connect Identity Provider.
-	// Specified according to https://www.iana.org/assignments/jwt/jwt.xhtml
+	// PreauthorizedUser Claims about the authorized user.
 	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
 
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.

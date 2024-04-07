@@ -249,7 +249,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 		Expires:  time.Now().Add(15 * time.Minute),
 		Nonce:    nonce,
 	}
-	vp, submission, err := r.vcr.Wallet().BuildSubmission(ctx, walletDID, *presentationDefinition, metadata.VPFormats, buildParams)
+	vp, submission, err := r.vcr.Wallet().BuildSubmission(ctx, nil, walletDID, *presentationDefinition, metadata.VPFormats, buildParams)
 	if err != nil {
 		if errors.Is(err, holder.ErrNoCredentials) {
 			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "no credentials available"}, responseURI, state)
@@ -544,7 +544,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, verifier did.DID,
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("client_id does not match: %s vs %s", oauthSession.ClientID, *clientId)), callbackURI)
 	}
 
-  state := oauthSession.ServerState
+	state := oauthSession.ServerState
 	mapping, err := r.policyBackend.PresentationDefinitions(ctx, verifier, oauthSession.Scope)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to fetch presentation definition: %s", err.Error())), callbackURI)

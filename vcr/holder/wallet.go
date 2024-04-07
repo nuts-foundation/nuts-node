@@ -81,11 +81,14 @@ type BuildParams struct {
 	Nonce    string
 }
 
-func (h wallet) BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
-	// get VCs from own wallet
-	credentials, err := h.List(ctx, walletDID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
+func (h wallet) BuildSubmission(ctx context.Context, credentials []vc.VerifiableCredential, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	if credentials == nil {
+		// get VCs from own wallet
+		var err error
+		credentials, err = h.List(ctx, walletDID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
+		}
 	}
 
 	// match against the wallet's credentials

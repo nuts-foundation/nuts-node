@@ -49,7 +49,9 @@ type Wallet interface {
 	BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error)
 
 	// BuildSubmission builds a Verifiable Presentation based on the given presentation definition.
-	BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
+	// If credentials is nil, it will use credentials in the wallet for the given wallet DID.
+	// If credentials is not nil (len=0 is also considered not nil)
+	BuildSubmission(ctx context.Context, credentials []vc.VerifiableCredential, holderDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
 
 	// List returns all credentials in the wallet for the given holder.
 	// If the wallet does not contain any credentials for the given holder, it returns an empty list.
