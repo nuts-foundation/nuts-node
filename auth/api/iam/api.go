@@ -668,7 +668,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		log.Logger().WithError(err).Errorf("failed to create the PKCE parameters")
 		return nil, err
 	}
-	redirectUri, err := url.Parse("https://" + requesterDidUrl.Host + "/iam/oid4vci/callback")
+	redirectUri, err := url.Parse("/iam/oid4vci/callback")
 	if err != nil {
 		log.Logger().WithError(err).Errorf("failed to create the url for host: %s", requesterDidUrl.Host)
 		return nil, err
