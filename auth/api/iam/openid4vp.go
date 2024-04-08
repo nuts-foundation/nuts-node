@@ -19,21 +19,14 @@
 package iam
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwt"
-	"net/http"
 	"net/url"
 	"slices"
-	"strings"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -544,7 +537,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, verifier did.DID,
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("client_id does not match: %s vs %s", oauthSession.ClientID, *clientId)), callbackURI)
 	}
 
-  state := oauthSession.ServerState
+	state := oauthSession.ServerState
 	mapping, err := r.policyBackend.PresentationDefinitions(ctx, verifier, oauthSession.Scope)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to fetch presentation definition: %s", err.Error())), callbackURI)
@@ -635,227 +628,8 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	}, nil
 }
 
-// createPresentationRequest creates a new Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
-// It is sent by a verifier to a wallet, to request one or more verifiable credentials as verifiable presentation from the wallet.
-func (r Wrapper) sendPresentationRequest(_ context.Context, response http.ResponseWriter, scope string,
-	redirectURL url.URL, verifierIdentifier url.URL, walletIdentifier url.URL) error {
-	// TODO: Lookup wallet metadata for correct authorization endpoint. But for Nuts nodes, we derive it from the walletIdentifier
-	authzEndpoint := walletIdentifier.JoinPath("/authorize")
-	params := make(map[string]string)
-	params[oauth.ScopeParam] = scope
-	params[oauth.RedirectURIParam] = redirectURL.String()
-	// TODO: Check this
-	params[clientMetadataURIParam] = verifierIdentifier.JoinPath("/.well-known/openid-wallet-metadata/metadata.xml").String()
-	params[responseModeParam] = responseModeDirectPost
-	params[oauth.ResponseTypeParam] = responseTypeVPIDToken
-	// TODO: Depending on parameter size, we either use redirect with query parameters or a form post.
-	//       For simplicity, we now just query parameters.
-	result := httpNuts.AddQueryParams(*authzEndpoint, params)
-	response.Header().Add("Location", result.String())
-	response.WriteHeader(http.StatusFound)
-	return nil
-}
-
-// handlePresentationRequest handles an Authorization Request as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
-// It is handled by a wallet, called by a verifier who wants the wallet to present one or more verifiable credentials.
-func (r Wrapper) handlePresentationRequest(ctx context.Context, params oauthParameters, session *OAuthSession) (HandleAuthorizeRequestResponseObject, error) {
-	// Todo: for compatibility, we probably need to support presentation_definition and/or presentation_definition_uri.
-	if err := assertParamNotPresent(params, presentationDefUriParam); err != nil {
-		return nil, err
-	}
-	if err := assertParamPresent(params, presentationDefParam); err != nil {
-		return nil, err
-	}
-	if err := assertParamPresent(params, oauth.ScopeParam); err != nil {
-		return nil, err
-	}
-	if err := assertParamPresent(params, oauth.ResponseTypeParam); err != nil {
-		return nil, err
-	}
-	// Not supported: client_id_schema, client_metadata
-	if err := assertParamNotPresent(params, clientIDSchemeParam, clientMetadataParam); err != nil {
-		return nil, err
-	}
-	// Required: client_metadata_uri
-	if err := assertParamPresent(params, clientMetadataURIParam); err != nil {
-		return nil, err
-	}
-	// Response mode is always direct_post for now
-	if params.get(responseModeParam) != responseModeDirectPost {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: "response_mode must be direct_post",
-			RedirectURI: session.redirectURI(),
-		}
-	}
-
-	presentationDefinition, err := pe.ParsePresentationDefinition([]byte(params.get(presentationDefParam)))
-	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: fmt.Sprintf("unsupported scope for presentation exchange: %s", params.get(oauth.ScopeParam)),
-			RedirectURI: session.redirectURI(),
-		}
-	}
-	session.PresentationDefinition = *presentationDefinition
-
-	// Render HTML
-	templateParams := struct {
-		SessionID            string
-		RequiresUserIdentity bool
-		VerifierName         string
-		Credentials          []CredentialInfo
-	}{
-		// TODO: Maybe this should the verifier name be read from registered client metadata?
-		VerifierName:         ssi.MustParseURI(session.RedirectURI).Host,
-		RequiresUserIdentity: strings.Contains(session.ResponseType, "id_token"),
-	}
-
-	credentials, err := r.vcr.Wallet().List(ctx, *session.OwnDID)
-	if err != nil {
-		return nil, err
-	}
-	var ownCredentials []vc.VerifiableCredential
-	for _, cred := range credentials {
-		var subject []credential.NutsOrganizationCredentialSubject
-		if err = cred.UnmarshalCredentialSubject(&subject); err != nil {
-			return nil, fmt.Errorf("unable to unmarshal credential: %w", err)
-		}
-		if len(subject) != 1 {
-			continue
-		}
-		isOwner, _ := r.vdr.IsOwner(ctx, did.MustParseDID(subject[0].ID))
-		if isOwner {
-			ownCredentials = append(ownCredentials, cred)
-		}
-	}
-
-	submissionBuilder := presentationDefinition.PresentationSubmissionBuilder()
-	submissionBuilder.AddWallet(*session.OwnDID, ownCredentials)
-	_, signInstructions, err := submissionBuilder.Build("ldp_vp")
-	if err != nil {
-		return nil, fmt.Errorf("unable to match presentation definition: %w", err)
-	}
-	var credentialIDs []string
-	for _, signInstruction := range signInstructions {
-		for _, matchingCredential := range signInstruction.VerifiableCredentials {
-			templateParams.Credentials = append(templateParams.Credentials, makeCredentialInfo(matchingCredential))
-			credentialIDs = append(credentialIDs, matchingCredential.ID.String())
-		}
-	}
-
-	sessionID := uuid.NewString()
-	err = r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, session.OwnDID.String(), "session").Put(sessionID, *session)
-	if err != nil {
-		return nil, err
-	}
-	templateParams.SessionID = sessionID
-
-	// TODO: Support multiple languages
-	buf := new(bytes.Buffer)
-	err = r.templates.ExecuteTemplate(buf, "authz_wallet_en.html", templateParams)
-	if err != nil {
-		return nil, fmt.Errorf("unable to render authz page: %w", err)
-	}
-	return HandleAuthorizeRequest200TexthtmlResponse{
-		Body:          buf,
-		ContentLength: int64(buf.Len()),
-	}, nil
-}
-
-// handleAuthConsent handles the authorization consent form submission.
-func (r Wrapper) handlePresentationRequestAccept(c echo.Context) error {
-	// TODO: Needs authentication?
-	sessionID := c.FormValue("sessionID")
-	if sessionID == "" {
-		return errors.New("missing sessionID parameter")
-	}
-
-	var session OAuthSession
-	sessionStore := r.storageEngine.GetSessionDatabase().GetStore(sessionExpiry, "openid", session.OwnDID.String(), "session")
-	err := sessionStore.Get(sessionID, &session)
-	if err != nil {
-		return fmt.Errorf("invalid session: %w", err)
-	}
-
-	credentials, err := r.vcr.Wallet().List(c.Request().Context(), *session.OwnDID)
-	if err != nil {
-		return err
-	}
-	presentationDefinition := session.PresentationDefinition
-	// TODO: Options (including format)
-	resultParams := map[string]string{}
-	submissionBuilder := presentationDefinition.PresentationSubmissionBuilder()
-	submissionBuilder.AddWallet(*session.OwnDID, credentials)
-	submission, signInstructions, err := submissionBuilder.Build("ldp_vp")
-	if err != nil {
-		return err
-	}
-	presentationSubmissionJSON, _ := json.Marshal(submission)
-	resultParams[presentationSubmissionParam] = string(presentationSubmissionJSON)
-	if len(signInstructions) != 1 {
-		// todo support multiple wallets (org + user)
-		return errors.New("expected to create exactly one presentation")
-	}
-	verifiablePresentation, err := r.vcr.Wallet().BuildPresentation(c.Request().Context(), signInstructions[0].VerifiableCredentials, holder.PresentationOptions{}, &signInstructions[0].Holder, false)
-	if err != nil {
-		return err
-	}
-	verifiablePresentationJSON, _ := verifiablePresentation.MarshalJSON()
-	resultParams[vpTokenParam] = string(verifiablePresentationJSON)
-
-	// TODO: check response mode, and submit accordingly (direct_post)
-	return c.Redirect(http.StatusFound, session.CreateRedirectURI(resultParams))
-}
-
-func (r Wrapper) handlePresentationRequestCompleted(ctx echo.Context) error {
-	// TODO: response direct_post mode
-	vpToken := ctx.QueryParams()[vpTokenParam]
-	if len(vpToken) == 0 {
-		// TODO: User-agent is a browser, need to render an HTML page
-		return errors.New("missing parameter " + vpTokenParam)
-	}
-	vp := vc.VerifiablePresentation{}
-	if err := vp.UnmarshalJSON([]byte(vpToken[0])); err != nil {
-		// TODO: User-agent is a browser, need to render an HTML page
-		return err
-	}
-	// TODO: verify signature and credentials of VP
-	var credentials []CredentialInfo
-	for _, cred := range vp.VerifiableCredential {
-		credentials = append(credentials, makeCredentialInfo(cred))
-	}
-	buf := new(bytes.Buffer)
-	if err := r.templates.ExecuteTemplate(buf, "openid4vp_demo_completed.html", struct {
-		Credentials []CredentialInfo
-	}{
-		Credentials: credentials,
-	}); err != nil {
-		return err
-	}
-	return ctx.HTML(http.StatusOK, buf.String())
-}
-
 func (r Wrapper) oauthNonceStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthNonceKey...)
-}
-
-func assertParamPresent(params oauthParameters, param ...string) error {
-	for _, curr := range param {
-		if params.get(curr) == "" {
-			return fmt.Errorf("%s parameter must be present", curr)
-		}
-	}
-	return nil
-}
-
-func assertParamNotPresent(params oauthParameters, param ...string) error {
-	for _, curr := range param {
-		if params.get(curr) != "" {
-			return fmt.Errorf("%s parameter must not be present", curr)
-		}
-	}
-	return nil
 }
 
 func oauthError(code oauth.ErrorCode, description string) oauth.OAuth2Error {

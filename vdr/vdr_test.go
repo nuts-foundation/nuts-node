@@ -465,7 +465,7 @@ func TestVDR_Configure(t *testing.T) {
 			instance := NewVDR(crypto.NewMemoryCryptoInstance(), nil, nil, nil, storageInstance)
 			err := instance.Configure(core.ServerConfig{URL: "https://example.com"})
 			require.NoError(t, err)
-			_, _, err = instance.Create(audit.TestContext(), management.Create("web").With(didweb.UserPath("root")))
+			_, _, err = instance.Create(audit.TestContext(), management.Create("web").With(didweb.Tenant("root")))
 			require.NoError(t, err)
 
 			doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com:iam:root"), nil)
