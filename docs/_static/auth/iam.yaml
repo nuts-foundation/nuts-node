@@ -618,7 +618,6 @@ paths:
         * 400 - one of the parameters has the wrong format or an OAuth error occurred
         * 424 - the issuer does not fulfill the right requirements to issue the requested VC(s)
         * 412 - the organization wallet does not contain the correct credentials
-        * 503 - the authorizer could not be reached or returned an error
       tags:
         - auth
       parameters:
@@ -918,24 +917,6 @@ components:
         user_role:
           type: string
           description: Role of the End-User.
-    SearchVCResults:
-      type: object
-      description: result of a Search operation.
-      required:
-        - verifiableCredentials
-      properties:
-        verifiableCredentials:
-          type: array
-          items:
-            $ref: "#/components/schemas/SearchVCResult"
-    SearchVCResult:
-      type: object
-      description: result of a Search operation.
-      required:
-        - verifiableCredential
-      properties:
-        verifiableCredential:
-          $ref: "#/components/schemas/VerifiableCredential"
   securitySchemes:
     jwtBearerAuth:
       type: http

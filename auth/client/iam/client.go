@@ -226,9 +226,9 @@ func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, targe
 	return nil
 }
 
-func (hb HTTPClient) OpenIdConfiguration(ctx context.Context, serverURL url.URL) (*oauth.OpenIDConfigurationMetadata, error) {
+func (hb HTTPClient) OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error) {
 
-	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL.String(), oauth.OpenIdConfigurationWellKnown, hb.strictMode)
+	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func (hb HTTPClient) OpenIdConfiguration(ctx context.Context, serverURL url.URL)
 	}
 	response, err := hb.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to call endpoint: %w", err)
 	}
 
 	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
@@ -276,7 +276,7 @@ func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, webDID 
 	}
 	response, err := hb.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to call endpoint: %w", err)
 	}
 
 	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
@@ -341,15 +341,20 @@ func (hb HTTPClient) AccessTokenOid4vci(ctx context.Context, presentationDefinit
 	return &token, nil
 }
 
+// CredentialRequest represents ths request to fetch a credential, the JSON object holds the proof as
+// CredentialRequestProof.
 type CredentialRequest struct {
 	Proof CredentialRequestProof `json:"proof"`
 }
 
+// CredentialRequestProof holds the ProofType and Jwt for a credential request
 type CredentialRequestProof struct {
 	ProofType string `json:"proof_type"`
 	Jwt       string `json:"jwt"`
 }
 
+// CredentialResponse represents the response of a verifiable credential request.
+// It contains the Format and the actual Credential in JSON format.
 type CredentialResponse struct {
 	Format     string `json:"format"`
 	Credential string `json:"credential"`

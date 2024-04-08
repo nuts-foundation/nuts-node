@@ -120,7 +120,7 @@ func (mr *MockClientMockRecorder) CreateAuthorizationRequest(ctx, client, server
 }
 
 // OpenIdConfiguration mocks base method.
-func (m *MockClient) OpenIdConfiguration(ctx context.Context, serverURL url.URL) (*oauth.OpenIDConfigurationMetadata, error) {
+func (m *MockClient) OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "OpenIdConfiguration", ctx, serverURL)
 	ret0, _ := ret[0].(*oauth.OpenIDConfigurationMetadata)
@@ -210,16 +210,16 @@ func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, requestHolder, v
 }
 
 // VerifiableCredentials mocks base method.
-func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken string, issuerDid, audienceDid did.DID) (*CredentialResponse, error) {
+func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken string, holderDid, audienceDid did.DID) (*CredentialResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VerifiableCredentials", ctx, credentialEndpoint, accessToken, issuerDid, audienceDid)
+	ret := m.ctrl.Call(m, "VerifiableCredentials", ctx, credentialEndpoint, accessToken, holderDid, audienceDid)
 	ret0, _ := ret[0].(*CredentialResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // VerifiableCredentials indicates an expected call of VerifiableCredentials.
-func (mr *MockClientMockRecorder) VerifiableCredentials(ctx, credentialEndpoint, accessToken, issuerDid, audienceDid any) *gomock.Call {
+func (mr *MockClientMockRecorder) VerifiableCredentials(ctx, credentialEndpoint, accessToken, holderDid, audienceDid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifiableCredentials", reflect.TypeOf((*MockClient)(nil).VerifiableCredentials), ctx, credentialEndpoint, accessToken, issuerDid, audienceDid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifiableCredentials", reflect.TypeOf((*MockClient)(nil).VerifiableCredentials), ctx, credentialEndpoint, accessToken, holderDid, audienceDid)
 }

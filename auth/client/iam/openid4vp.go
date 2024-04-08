@@ -264,11 +264,11 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		Scope:       &scopes,
 	}, nil
 }
-func (c *OpenID4VPClient) OpenIdConfiguration(ctx context.Context, serverURL url.URL) (*oauth.OpenIDConfigurationMetadata, error) {
+func (c *OpenID4VPClient) OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error) {
 	iamClient := c.newHTTPClient()
 	rsp, err := iamClient.OpenIdConfiguration(ctx, serverURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve Openid configuration: %w", err)
 	}
 	return rsp, nil
 }
@@ -277,7 +277,7 @@ func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, we
 	iamClient := c.newHTTPClient()
 	rsp, err := iamClient.OpenIdCredentialIssuerMetadata(ctx, webDID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve Openid credential issuer metadata: %w", err)
 	}
 	return rsp, nil
 }
@@ -299,40 +299,40 @@ func (c *OpenID4VPClient) AccessTokenOid4vci(ctx context.Context, clientId strin
 
 	rsp, err := iamClient.AccessTokenOid4vci(ctx, *presentationDefinitionURL, data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("remote server: failed to retrieve an access_token: %w", err)
 	}
 	return rsp, nil
 }
 
-func (c *OpenID4VPClient) proofJwt(ctx context.Context, issuerDid did.DID, audienceDid did.DID) (string, error) {
-	kid, _, err := c.keyResolver.ResolveKey(issuerDid, nil, resolver.NutsSigningKeyType)
+func (c *OpenID4VPClient) proofJwt(ctx context.Context, holderDid did.DID, audienceDid did.DID) (string, error) {
+	kid, _, err := c.keyResolver.ResolveKey(holderDid, nil, resolver.NutsSigningKeyType)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to resolve key for did (%s): %w", holderDid.String(), err)
 	}
 	jti, err := uuid.NewUUID()
 	if err != nil {
 		return "", err
 	}
 	claims := map[string]interface{}{
-		"iss": issuerDid.String(),
+		"iss": holderDid.String(),
 		"aud": audienceDid.String(),
 		"jti": jti.String(),
 	}
 	proofJwt, err := c.jwtSigner.SignJWT(ctx, claims, nil, kid.String())
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid.String(), err)
 	}
 	return proofJwt, nil
 }
-func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, issuerDid did.DID, audienceDid did.DID) (*CredentialResponse, error) {
-	proofJwt, err := c.proofJwt(ctx, issuerDid, audienceDid)
+func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, holderDid did.DID, audienceDid did.DID) (*CredentialResponse, error) {
+	proofJwt, err := c.proofJwt(ctx, holderDid, audienceDid)
 	if err != nil {
 		return nil, err
 	}
 	iamClient := c.newHTTPClient()
 	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJwt)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("remote server: failed to retrieve credentials: %w", err)
 	}
 	return rsp, nil
 }
