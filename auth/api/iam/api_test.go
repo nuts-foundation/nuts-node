@@ -897,7 +897,7 @@ func TestWrapper_RequestOid4vciCredentialIssuance(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, issuance)
 		actual := issuance.(RequestOid4vciCredentialIssuance200JSONResponse)
-		redirectUri, _ := url.Parse(actual.RedirectUri)
+		redirectUri, _ := url.Parse(actual.RedirectURI)
 		assert.Equal(t, "auth.server", redirectUri.Host)
 		assert.Equal(t, "/authorize", redirectUri.Path)
 		assert.True(t, redirectUri.Query().Has("state"))
@@ -926,7 +926,7 @@ func TestWrapper_RequestOid4vciCredentialIssuance(t *testing.T) {
 		ctx.vdr.EXPECT().IsOwner(nil, holderDID).Return(false, nil)
 		_, err := ctx.client.RequestOid4vciCredentialIssuance(nil, requestCredentials(holderDID, issuerDID, redirectURI))
 		require.Error(t, err)
-		assert.EqualError(t, err, "DID document not managed by this node")
+		assert.EqualError(t, err, "problem with owner DID: DID document not managed by this node")
 	})
 	t.Run("no_auth_endpoint_err_2", func(t *testing.T) {
 		ctx := newTestClient(t)

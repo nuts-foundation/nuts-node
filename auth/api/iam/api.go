@@ -646,7 +646,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		log.Logger().WithError(err).Errorf("failed convert did (%s) to url", requestHolder.String())
 		return nil, err
 	}
-	redirectUri, err := url.Parse("/iam/oid4vci/callback")
+	redirectUri, err := url.Parse(fmt.Sprintf("https://%s/iam/oid4vci/callback", requesterDidUrl.Host))
 	if err != nil {
 		log.Logger().WithError(err).Errorf("failed to create the url for host: %s", requesterDidUrl.Host)
 		return nil, err
