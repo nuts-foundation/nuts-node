@@ -1236,6 +1236,7 @@ func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.Verifiable
 		Context:           []ssi.URI{credential.NutsV1ContextURI},
 		Type:              []ssi.URI{credType},
 		CredentialSubject: []interface{}{map[string]interface{}{"id": holderDID.String()}},
+		IssuanceDate:      time.Now(),
 	}
 	verifiableCredential, _ := vc.CreateJWTVerifiableCredential(nil, template, captureFn)
 	return verifiableCredential
