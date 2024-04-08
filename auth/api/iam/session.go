@@ -19,6 +19,9 @@
 package iam
 
 import (
+	"errors"
+	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/http"
@@ -69,6 +72,21 @@ type UserWallet struct {
 	Credentials []vc.VerifiableCredential
 	// JWK is an in-memory key pair associated with the user's wallet in JWK form.
 	JWK []byte
+	// DID is the did:jwk DID of the user's wallet.
+	DID did.DID
+}
+
+// Key returns the JWK as jwk.Key
+func (w UserWallet) Key() (jwk.Key, error) {
+	set, err := jwk.Parse(w.JWK)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JWK: %w", err)
+	}
+	result, available := set.Key(0)
+	if !available {
+		return nil, errors.New("expected exactly 1 key in the JWK set")
+	}
+	return result, nil
 }
 
 // ServerState is a convenience type for extracting different types of data from the session.

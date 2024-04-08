@@ -20,9 +20,6 @@ package iam
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -170,16 +167,12 @@ func (r Wrapper) oauthCodeStore() storage.SessionStore {
 // loadUserSession loads the user session given the session ID in the cookie.
 // If there is no session cookie (not yet authenticated, or the session expired), nil is returned.
 // If another, technical error occurs when retrieving the session.
-func (r Wrapper) loadUserSession(ctx echo.Context, tenantDID did.DID, preAuthorizedUser *UserDetails) (*UserSession, error) {
-	cookie, err := ctx.Cookie(userSessionCookieName)
+func (r Wrapper) loadUserSession(cookies CookieReader, tenantDID did.DID, preAuthorizedUser *UserDetails) (*UserSession, error) {
+	cookie, err := cookies.Cookie(userSessionCookieName)
 	if err != nil {
 		// sadly, no cookie for you
 		// Cookie only returns http.ErrNoCookie
 		return nil, nil
-	}
-	// Note to reviewer: do we need to check these, just to be certain?
-	if !cookie.Secure || !cookie.HttpOnly {
-		return nil, errors.New("user session cookie must be secure and httpOnly")
 	}
 	session := new(UserSession)
 	if err = r.userSessionStore().Get(cookie.Value, session); errors.Is(err, storage.ErrNotFound) {
@@ -245,6 +238,7 @@ func (r Wrapper) createUserWallet(ctx context.Context, issuerDID did.DID, userDe
 	// create user session wallet
 	wallet := UserWallet{
 		JWK: userJWKBytes,
+		DID: *userDID,
 	}
 	issuanceDate := time.Now()
 	expirationDate := issuanceDate.Add(userSessionTimeout)
@@ -277,28 +271,25 @@ func (r Wrapper) createUserWallet(ctx context.Context, issuerDID did.DID, userDe
 }
 
 func generateUserSessionJWK() (jwk.Key, *did.DID, error) {
-	// Generate a EC key pair and JWK for storage
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	// Generate a key pair and JWK for storage
+	userJWK, err := crypto.GenerateJWK()
 	if err != nil {
 		return nil, nil, err
 	}
-	userJWK, err := jwk.FromRaw(key)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// Now derive the did:jwk DID
-	publicKey := key.Public()
-	publicUserJWK, err := jwk.FromRaw(publicKey)
+	publicKey, err := userJWK.PublicKey()
 	if err != nil {
 		return nil, nil, err
 	}
-	publicUserJWKData, err := json.Marshal(publicUserJWK)
+	publicUserJSON, err := json.Marshal(publicKey)
 	if err != nil {
 		return nil, nil, err
 	}
-	userDID, err := did.ParseDID("did:jwk:" + base64.RawStdEncoding.EncodeToString(publicUserJWKData))
+	userDID, err := did.ParseDID("did:jwk:" + base64.RawStdEncoding.EncodeToString(publicUserJSON))
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := userJWK.Set(jwk.KeyIDKey, userDID.String()+"#0"); err != nil {
 		return nil, nil, err
 	}
 
