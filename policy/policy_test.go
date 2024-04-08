@@ -78,7 +78,7 @@ func TestRouter_Configure(t *testing.T) {
 		cfg.Directory = "unknown"
 		err := router.Configure(core.ServerConfig{})
 
-		assert.EqualError(t, err, "failed to load policy from directory: open unknown: no such file or directory")
+		assert.EqualError(t, err, "failed to load policy from directory: stat unknown: no such file or directory")
 	})
 
 	t.Run("err - address is invalid", func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestRouterForwarding(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctx := context.Background()
 	testDID := did.MustParseDID("did:web:example.com:test")
-	presentationDefinition := pe.PresentationDefinition{}
+	policies := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{}}
 	router := Router{
 		backend: NewMockPDPBackend(ctrl),
 	}
@@ -126,15 +126,15 @@ func TestRouterForwarding(t *testing.T) {
 
 	t.Run("PresentationDefinition", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			router.backend.(*MockPDPBackend).EXPECT().PresentationDefinition(ctx, testDID, "test").Return(&presentationDefinition, nil)
+			router.backend.(*MockPDPBackend).EXPECT().PresentationDefinitions(ctx, testDID, "test").Return(policies, nil)
 
-			result, err := router.PresentationDefinition(ctx, testDID, "test")
+			result, err := router.PresentationDefinitions(ctx, testDID, "test")
 
 			require.NoError(t, err)
-			assert.Equal(t, presentationDefinition, *result)
+			assert.Equal(t, policies, result)
 		})
 		t.Run("no backend configured", func(t *testing.T) {
-			result, err := (&Router{}).PresentationDefinition(ctx, testDID, "test")
+			result, err := (&Router{}).PresentationDefinitions(ctx, testDID, "test")
 
 			require.EqualError(t, err, "no policy backend configured")
 			assert.Nil(t, result)

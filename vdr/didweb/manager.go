@@ -31,40 +31,50 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
-	"net/url"
+	"strings"
 )
 
 func DefaultCreationOptions() management.CreationOptions {
 	return management.Create(MethodName)
 }
 
-type userPathOption struct {
-	path string
+type tenantOption struct {
+	id string
 }
 
-// UserPath is an option to set a user for the did:web document.
+// Tenant is an option to set a tenant ID for the did:web document.
 // It will be used as last path part of the DID.
-// If not set, a random UUID will be used.
-func UserPath(path string) management.CreationOption {
-	return userPathOption{path: path}
+func Tenant(id string) management.CreationOption {
+	return tenantOption{id: id}
+}
+
+type didOption struct {
+	value did.DID
+}
+
+// DID is an option to set the DID for the did:web document.
+func DID(did did.DID) management.CreationOption {
+	return didOption{value: did}
 }
 
 var _ management.DocumentManager = (*Manager)(nil)
 
 // NewManager creates a new Manager to create and update did:web DID documents.
-func NewManager(baseURL url.URL, keyStore crypto.KeyStore, db *gorm.DB) *Manager {
+func NewManager(rootDID did.DID, tenantPath string, keyStore crypto.KeyStore, db *gorm.DB) *Manager {
 	return &Manager{
-		store:    &sqlStore{db: db},
-		baseURL:  baseURL,
-		keyStore: keyStore,
+		store:      &sqlStore{db: db},
+		rootDID:    rootDID,
+		tenantPath: tenantPath,
+		keyStore:   keyStore,
 	}
 }
 
 // Manager creates and updates did:web documents
 type Manager struct {
-	baseURL  url.URL
-	store    store
-	keyStore crypto.KeyStore
+	rootDID    did.DID
+	store      store
+	keyStore   crypto.KeyStore
+	tenantPath string
 }
 
 func (m Manager) Deactivate(ctx context.Context, subjectDID did.DID) error {
@@ -97,26 +107,44 @@ func (m Manager) AddVerificationMethod(_ context.Context, _ did.DID, _ managemen
 
 // Create creates a new did:web document.
 func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*did.Document, crypto.Key, error) {
-	pathPart := uuid.NewString()
+	var newDID did.DID
 	for _, opt := range opts.All() {
+		if !newDID.Empty() {
+			return nil, nil, errors.New("multiple DID options provided")
+		}
 		switch option := opt.(type) {
-		case userPathOption:
-			pathPart = option.path
+		case tenantOption:
+			newDID = m.rootDID
+			newDID.ID += ":" + m.tenantPath + ":" + option.id
+		case didOption:
+			newDID = option.value
 		default:
 			return nil, nil, fmt.Errorf("unknown option: %T", option)
 		}
 	}
-	return m.create(ctx, pathPart)
+	if newDID.Empty() {
+		newDID = m.rootDID
+		newDID.ID += ":" + m.tenantPath + ":" + uuid.NewString()
+	}
+	parsedNewDID, _ := did.ParseDID(newDID.String()) // make sure internal state is consistent (DecodedID)
+	return m.create(ctx, *parsedNewDID)
 }
 
-func (m Manager) create(ctx context.Context, mostSignificantBits string) (*did.Document, crypto.Key, error) {
-	newDID, err := URLToDID(*m.baseURL.JoinPath(mostSignificantBits))
-	if err != nil {
-		return nil, nil, err
+func (m Manager) create(ctx context.Context, newDID did.DID) (*did.Document, crypto.Key, error) {
+	// in any case, the DID to created (with or without path) should be scoped to the configured URL (translated to DID)
+	if !strings.HasPrefix(newDID.String(), m.rootDID.String()) {
+		return nil, nil, fmt.Errorf("invalid DID, does not match configured base URL, translated to DID: %s", m.rootDID.String())
+	}
+	// if it contains an optional path, it must be in format did:web:<host>:iam:<tenant>
+	idParts := strings.Split(newDID.ID, ":")
+	if (len(idParts) > 2 && (idParts[1] != m.tenantPath || len(idParts) > 3)) ||
+		// it must not contain empty path parts
+		strings.HasSuffix(newDID.ID, ":") || strings.HasSuffix(newDID.ID, "::") {
+		return nil, nil, errors.New("invalid path in did:web DID, it must follow the pattern 'did:web:<host>:" + m.tenantPath + ":<tenant>'")
 	}
 
 	// Check if it doesn't already exist. Otherwise, it fail later on (unique key constraint) but we might end up with an orphaned private key.
-	exists, err := m.IsOwner(ctx, *newDID)
+	exists, err := m.IsOwner(ctx, newDID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -124,15 +152,15 @@ func (m Manager) create(ctx context.Context, mostSignificantBits string) (*did.D
 		return nil, nil, management.ErrDIDAlreadyExists
 	}
 
-	verificationMethodKey, verificationMethod, err := m.createVerificationMethod(ctx, *newDID)
+	verificationMethodKey, verificationMethod, err := m.createVerificationMethod(ctx, newDID)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := m.store.create(*newDID, *verificationMethod); err != nil {
+	if err := m.store.create(newDID, *verificationMethod); err != nil {
 		return nil, nil, fmt.Errorf("store new DID: %w", err)
 	}
 
-	document := buildDocument(*newDID, []did.VerificationMethod{*verificationMethod}, nil)
+	document := buildDocument(newDID, []did.VerificationMethod{*verificationMethod}, nil)
 	return &document, verificationMethodKey, nil
 }
 

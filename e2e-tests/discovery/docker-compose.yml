@@ -29,7 +29,6 @@ services:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
-      - "./node-A/data:/opt/nuts/data:rw"
       - "../tls-certs/nodeA-backend-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
       - "../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
       - "../tls-certs/truststore.pem:/etc/ssl/certs/truststore.pem:ro"
@@ -46,7 +45,6 @@ services:
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     volumes:
-      - "./node-B/data:/opt/nuts/data:rw"
       - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
       - "../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"

@@ -18,10 +18,27 @@ paths:
         schema:
           type: string
     get:
-      summary: "Returns the did:web version of a Nuts DID document"
+      summary: Returns the did:web DID for the specified tenant.
       description: |
-        Returns the did:web DID document, if it is owned by this node.
-      operationId: "getWebDID"
+        Returns the did:web DID for the specified tenant, if it is owned by this node.
+      operationId: "getTenantWebDID"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: DID has been found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DIDDocument'
+        "404":
+          description: DID does not exist.
+  /.well-known/did.json:
+    get:
+      summary: Returns the root did:web DID of this domain.
+      description: |
+        Returns the root did:web DID of this domain, if it is owned by this node.
+      operationId: "getRootWebDID"
       tags:
         - DID
       responses:
@@ -271,7 +288,7 @@ paths:
     get:
       tags:
         - well-known
-      summary: Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> user path.
+      summary: Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> path.
       description: >
         Specified by https://www.rfc-editor.org/info/rfc8414
         The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
@@ -298,30 +315,29 @@ paths:
                 "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
         default:
           $ref: '../common/error_response.yaml'
-# Required when root did:web DIDs are supported:
-#  /.well-known/oauth-authorization-server:
-#    get:
-#      tags:
-#        - well-known
-#      summary: Get the OAuth2 Authorization Server metadata of a root did:web DID.
-#      description: >
-#        Specified by https://www.rfc-editor.org/info/rfc8414
-#        The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
-#
-#        error returns:
-#        * 400 - invalid input
-#        * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
-#        * 500 - internal server error
-#      operationId: RootOAuthAuthorizationServerMetadata
-#      responses:
-#        "200":
-#          description: OK
-#          content:
-#            application/json:
-#              schema:
-#                "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
-#        default:
-#          $ref: '../common/error_response.yaml'
+  /.well-known/oauth-authorization-server:
+    get:
+      tags:
+        - well-known
+      summary: Get the OAuth2 Authorization Server metadata of a root did:web DID.
+      description: >
+        Specified by https://www.rfc-editor.org/info/rfc8414
+        The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
+
+        error returns:
+        * 400 - invalid input
+        * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
+        * 500 - internal server error
+      operationId: RootOAuthAuthorizationServerMetadata
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
+        default:
+          $ref: '../common/error_response.yaml'
   /oauth2/{did}/oauth-client:
     get:
       tags:
@@ -458,9 +474,10 @@ paths:
       operationId: requestUserAccessToken
       summary: Start the authorization code flow to get an access token from a remote authorization server when user context is required.
       description: |
-        Initiates an OAuth2 flow to request an access token from a remote authorization server.
-        A user_id must be given, it's used to select the right ID Wallet. This call will initiate an OpenID4VP flow.
-
+        Initiates an OAuth2 flow to request an access token from a remote authorization server. This call will initiate an OpenID4VP flow.
+        The user must be authorized by the calling system and provided in the preauthorized_user field.
+        The user's ID must be stable across sessions, as it's used to select the right ID Wallet.
+        
         error returns:
         * 400 - one of the parameters has the wrong format or an OAuth error occurred
         * 412 - the organization wallet does not contain the correct credentials
@@ -485,7 +502,6 @@ paths:
               required:
                 - redirect_uri
                 - scope
-                - user_id
                 - verifier
               properties:
                 verifier:
@@ -496,15 +512,14 @@ paths:
                   type: string
                   description: The scope that will be the service for which this access token can be used.
                   example: eOverdracht-sender
-                user_id:
-                  type: string
-                  description: The ID of the user for which this access token is requested.
                 redirect_uri:
                   type: string
                   description: |
                     The URL to which the user-agent will be redirected after the authorization request.
                     This is the URL of the calling application. 
                     The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
+                preauthorized_user:
+                  $ref: '#/components/schemas/UserDetails'
       responses:
         '200':
           description: | 
@@ -758,6 +773,30 @@ components:
           type: string
           description: The session ID that can be used to retrieve the access token by the calling application.
           example: "eyJhbGciOiJSUzI1NiIsI"
+    UserDetails:
+      type: object
+      description: |
+        Claims about the authorized user.
+      required:
+        - name
+        - id
+        - role
+      properties:
+        name:
+          type: string
+          description: Human-readable name of the user.
+          example: "John Doe"
+        id:
+          type: string
+          description: Machine-readable identifier, uniquely identifying the user in the issuing system.
+          example:
+            - "jdoe"
+            - "123456"
+            - "jdoe@example.com"
+        role:
+          type: string
+          description: Role of the user.
+          example: "Verpleegkundige niveau 4"
     VerifiableCredential:
       $ref: '../common/ssi_types.yaml#/components/schemas/VerifiableCredential'
     TokenResponse:

@@ -108,7 +108,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		issuanceDate := time.Now()
 		credentialToPublish := vc.VerifiableCredential{
 			Issuer:            issuerID,
-			IssuanceDate:      &issuanceDate,
+			IssuanceDate:      issuanceDate,
 			CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
 		}
 		payload, _ := json.Marshal(credentialToPublish)
@@ -150,7 +150,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		issuanceDate := time.Now()
 		credentialToPublish := vc.VerifiableCredential{
 			Issuer:            issuerID,
-			IssuanceDate:      &issuanceDate,
+			IssuanceDate:      issuanceDate,
 			CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
 		}
 		payload, _ := json.Marshal(credentialToPublish)
@@ -265,7 +265,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			issuanceDate := time.Now()
 			credentialToPublish := vc.VerifiableCredential{
 				Issuer:            issuerID,
-				IssuanceDate:      &issuanceDate,
+				IssuanceDate:      issuanceDate,
 				CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
 			}
 			payload, _ := json.Marshal(credentialToPublish)

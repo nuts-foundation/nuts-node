@@ -21,7 +21,6 @@ package iam
 import (
 	"context"
 	crypto2 "crypto"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,11 +38,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -63,33 +62,23 @@ const accessTokenValidity = 15 * time.Minute
 
 const oid4vciSessionValidity = 15 * time.Minute
 
-//go:embed assets
-var assets embed.FS
-
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 	auth          auth.AuthenticationServices
 	policyBackend policy.PDPBackend
-	templates     *template.Template
 	storageEngine storage.Engine
 	keyStore      crypto.KeyStore
 }
 
 func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend) *Wrapper {
-	templates := template.New("oauth2 templates")
-	_, err := templates.ParseFS(assets, "assets/*.html")
-	if err != nil {
-		panic(err)
-	}
 	return &Wrapper{
 		storageEngine: storageEngine,
 		auth:          authInstance,
 		policyBackend: policyBackend,
 		vcr:           vcrInstance,
 		vdr:           vdrInstance,
-		templates:     templates,
 	}
 }
 
@@ -104,20 +93,8 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, apiModuleName, operationID)
 		},
 	}))
-	auditMiddleware := audit.Middleware(apiModuleName)
-	// The following handler is of the OpenID4VCI wallet which is called by the holder (wallet owner)
-	// when accepting an OpenID4VP authorization request.
-	router.POST("/iam/:did/openid4vp_authz_accept", r.handlePresentationRequestAccept, auditMiddleware)
-	// The following handler is of the OpenID4VP verifier where the browser will be redirected to by the wallet,
-	// after completing a presentation exchange.
-	router.GET("/iam/:did/openid4vp_completed", r.handlePresentationRequestCompleted, auditMiddleware)
-	// The following 2 handlers are used to test/demo the OpenID4VP flow.
-	// - GET renders an HTML page with a form to start the flow.
-	// - POST handles the form submission, initiating the flow.
-	router.GET("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoLanding, auditMiddleware)
-	router.POST("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoSendRequest, auditMiddleware)
 	// The following handlers are used for the user facing OAuth2 flows.
-	router.GET("/oauth2/:did/user", r.handleUserLanding, auditMiddleware)
+	router.GET("/oauth2/:did/user", r.handleUserLanding, audit.Middleware(apiModuleName))
 }
 
 func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
@@ -354,10 +331,6 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
 		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, params)
-	case responseTypeVPIDToken:
-		// Options:
-		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
-		return r.handlePresentationRequest(ctx, params, session)
 	default:
 		// TODO: This should be a redirect?
 		redirectURI, _ := url.Parse(session.RedirectURI)
@@ -378,7 +351,7 @@ func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clien
 		return resolver.DIDKeyResolver{Resolver: r.vdr}.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
 	}, jwt.WithValidate(true))
 	if err != nil {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "unable to validate request signature", InternalError: err}
 	}
 	claimsAsMap, err := token.AsMap(ctx)
 	if err != nil {
@@ -404,7 +377,24 @@ func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clien
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	ownDID, err := r.toOwnedDID(ctx, r.idToDID(request.Id).String())
+	didAsString := r.requestedDID(request.Id).String()
+	md, err := r.oauthAuthorizationServerMetadata(ctx, didAsString)
+	if err != nil {
+		return nil, err
+	}
+	return OAuthAuthorizationServerMetadata200JSONResponse(*md), nil
+}
+
+func (r Wrapper) RootOAuthAuthorizationServerMetadata(ctx context.Context, request RootOAuthAuthorizationServerMetadataRequestObject) (RootOAuthAuthorizationServerMetadataResponseObject, error) {
+	md, err := r.oauthAuthorizationServerMetadata(ctx, r.requestedDID("").String())
+	if err != nil {
+		return nil, err
+	}
+	return RootOAuthAuthorizationServerMetadata200JSONResponse(*md), nil
+}
+
+func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsString string) (*oauth.AuthorizationServerMetadata, error) {
+	ownDID, err := r.toOwnedDID(ctx, didAsString)
 	if err != nil {
 		return nil, err
 	}
@@ -417,20 +407,34 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 		// can't fail, already did DIDToURL above
 		return nil, err
 	}
-	return OAuthAuthorizationServerMetadata200JSONResponse(authorizationServerMetadata(*identity, *oauth2BaseURL)), nil
+	md := authorizationServerMetadata(*identity, *oauth2BaseURL)
+	return &md, nil
 }
 
-func (r Wrapper) GetWebDID(_ context.Context, request GetWebDIDRequestObject) (GetWebDIDResponseObject, error) {
-	ownDID := r.idToDID(request.Id)
+func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
+	ownDID := r.requestedDID(request.Id)
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
-			return GetWebDID404Response{}, nil
+			return GetTenantWebDID404Response{}, nil
 		}
-		log.Logger().WithError(err).Errorf("Could not resolve Web DID: %s", ownDID.String())
+		log.Logger().WithError(err).Errorf("Could not resolve tenant did:web: %s", ownDID.String())
 		return nil, errors.New("unable to resolve DID")
 	}
-	return GetWebDID200JSONResponse(*document), nil
+	return GetTenantWebDID200JSONResponse(*document), nil
+}
+
+func (r Wrapper) GetRootWebDID(ctx context.Context, _ GetRootWebDIDRequestObject) (GetRootWebDIDResponseObject, error) {
+	ownDID := r.requestedDID("")
+	document, err := r.vdr.ResolveManaged(ownDID)
+	if err != nil {
+		if resolver.IsFunctionalResolveError(err) {
+			return GetRootWebDID404Response{}, nil
+		}
+		log.Logger().WithError(err).Errorf("Could not resolve root did:web: %s", ownDID.String())
+		return nil, errors.New("unable to resolve DID")
+	}
+	return GetRootWebDID200JSONResponse(*document), nil
 }
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
@@ -457,7 +461,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		return nil, err
 	}
 
-	presentationDefinition, err := r.policyBackend.PresentationDefinition(ctx, *authorizer, request.Params.Scope)
+	mapping, err := r.policyBackend.PresentationDefinitions(ctx, *authorizer, request.Params.Scope)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidScope,
@@ -465,7 +469,11 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		}
 	}
 
-	return PresentationDefinition200JSONResponse(*presentationDefinition), nil
+	if _, ok := mapping[pe.WalletOwnerOrganization]; !ok {
+		return nil, oauthError(oauth.ServerError, "no presentation definition found for organization wallet")
+	}
+
+	return PresentationDefinition200JSONResponse(mapping[pe.WalletOwnerOrganization]), nil
 }
 
 // toOwnedDIDForOAuth2 is like toOwnedDID but wraps the errors in oauth.OAuth2Error to make sure they're returned as specified by the OAuth2 RFC.
@@ -531,10 +539,21 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, err
 	}
 
-	if request.Body.UserId == "" {
-		return nil, core.InvalidInputError("missing userID")
+	// TODO: When we support authentication at an external IdP,
+	//       the properties below become conditionally required.
+	if request.Body.PreauthorizedUser == nil {
+		return nil, core.InvalidInputError("missing preauthorized_user")
 	}
-	// require RedirectURL
+	if request.Body.PreauthorizedUser.Id == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.id")
+	}
+	if request.Body.PreauthorizedUser.Name == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.name")
+	}
+	if request.Body.PreauthorizedUser.Role == "" {
+		return nil, core.InvalidInputError("missing preauthorized_user.role")
+	}
+
 	if request.Body.RedirectUri == "" {
 		return nil, core.InvalidInputError("missing redirect_uri")
 	}
@@ -578,7 +597,7 @@ func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
 	session.ClientID = params.get(oauth.ClientIDParam)
 	session.Scope = params.get(oauth.ScopeParam)
 	session.ClientState = params.get(oauth.StateParam)
-	session.ServerState = map[string]interface{}{}
+	session.ServerState = ServerState{}
 	session.RedirectURI = params.get(oauth.RedirectURIParam)
 	session.OwnDID = &ownDID
 	session.ResponseType = params.get(oauth.ResponseTypeParam)
@@ -763,12 +782,24 @@ func (r Wrapper) openidIssuerEndpoints(ctx context.Context, issuerDid did.DID) (
 	return "", "", "", err
 }
 
-// idToDID converts the tenant-specific part of a did:web DID (e.g. 123)
-// to a fully qualified did:web DID (e.g. did:web:example.com:123), using the configured Nuts node URL.
-func (r Wrapper) idToDID(id string) did.DID {
-	identityURL := r.auth.PublicURL().JoinPath("iam", id)
+// requestedDID constructs a did:web DID as it was requested by the API caller. It can be a DID with or without user path, e.g.:
+// - did:web:example.com
+// - did:web:example:iam:1234
+// When userID is given, it's appended to the DID as `:iam:<userID>`. If it's absent, the DID is returned as is.
+func (r Wrapper) requestedDID(userID string) did.DID {
+	identityURL := r.identityURL(userID)
 	result, _ := didweb.URLToDID(*identityURL)
 	return *result
+}
+
+// identityURL is like requestedDID() but returns the base URL for the DID.
+// It is used for resolving metadata and its did:web DID, using the configured Nuts node URL.
+func (r Wrapper) identityURL(userID string) *url.URL {
+	baseURL := r.auth.PublicURL()
+	if userID == "" {
+		return baseURL
+	}
+	return baseURL.JoinPath("iam", userID)
 }
 
 // accessTokenClientStore is used by the client to store pending access tokens and return them to the calling app.

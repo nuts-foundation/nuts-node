@@ -361,17 +361,6 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("ok - ValidFrom instead of IssuanceDate", func(t *testing.T) {
-		v := test.ValidNutsOrganizationCredential(t)
-		v.IssuanceDate, v.ValidFrom = v.ValidFrom, v.IssuanceDate
-
-		err := validator.Validate(v)
-
-		assert.Nil(t, v.IssuanceDate)
-		assert.NotEmpty(t, v.ValidFrom)
-		assert.NoError(t, err)
-	})
-
 	t.Run("ok - unknown credentialStatus.type is ignored", func(t *testing.T) {
 		v := test.ValidNutsOrganizationCredential(t)
 		v.CredentialStatus = []any{
@@ -422,18 +411,9 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		assert.EqualError(t, err, "validation failed: type 'VerifiableCredential' is required")
 	})
 
-	t.Run("failed - issuanceDate and validFrom both missing", func(t *testing.T) {
-		v := test.ValidNutsOrganizationCredential(t)
-		v.IssuanceDate = nil
-
-		err := validator.Validate(v)
-
-		assert.EqualError(t, err, "validation failed: 'issuanceDate' is required")
-	})
-
 	t.Run("failed - issuanceDate is zero", func(t *testing.T) {
 		v := test.ValidNutsOrganizationCredential(t)
-		v.IssuanceDate = new(time.Time)
+		v.IssuanceDate = time.Time{}
 
 		err := validator.Validate(v)
 
