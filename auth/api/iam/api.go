@@ -679,8 +679,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 	log.Logger().Debugf("generated the following redirect_uri for did %s, to issuer %s: %s", requestHolder.String(), issuerDid.String(), redirectUri.String())
 
 	return RequestOid4vciCredentialIssuance200JSONResponse{
-		RedirectUri: redirectUrl.String(),
-		SessionId:   state,
+		RedirectURI: redirectUrl.String(),
 	}, nil
 }
 

@@ -816,7 +816,7 @@ type RequestOid4vciCredentialIssuanceResponseObject interface {
 	VisitRequestOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error
 }
 
-type RequestOid4vciCredentialIssuance200JSONResponse RedirectResponseWithID
+type RequestOid4vciCredentialIssuance200JSONResponse RedirectResponse
 
 func (response RequestOid4vciCredentialIssuance200JSONResponse) VisitRequestOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
