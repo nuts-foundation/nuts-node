@@ -265,7 +265,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 	}, nil
 }
 func (c *OpenID4VPClient) OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error) {
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 	rsp, err := iamClient.OpenIdConfiguration(ctx, serverURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve Openid configuration: %w", err)
@@ -274,7 +274,7 @@ func (c *OpenID4VPClient) OpenIdConfiguration(ctx context.Context, serverURL str
 }
 
 func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, webDID did.DID) (*oauth.OpenIDCredentialIssuerMetadata, error) {
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 	rsp, err := iamClient.OpenIdCredentialIssuerMetadata(ctx, webDID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve Openid credential issuer metadata: %w", err)
@@ -283,7 +283,7 @@ func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, we
 }
 
 func (c *OpenID4VPClient) AccessTokenOid4vci(ctx context.Context, clientId string, tokenEndpoint string, redirectUri string, code string, pkceCodeVerifier *string) (*oauth.Oid4vciTokenResponse, error) {
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 	data := url.Values{}
 	data.Set("client_id", clientId)
 	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
@@ -329,7 +329,7 @@ func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialE
 	if err != nil {
 		return nil, err
 	}
-	iamClient := c.newHTTPClient()
+	iamClient := c.httpClient
 	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJwt)
 	if err != nil {
 		return nil, fmt.Errorf("remote server: failed to retrieve credentials: %w", err)
