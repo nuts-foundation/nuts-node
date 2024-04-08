@@ -60,6 +60,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+var rootWebDID = did.MustParseDID("did:web:example.com")
 var webDID = did.MustParseDID("did:web:example.com:iam:123")
 var verifierDID = did.MustParseDID("did:web:example.com:iam:verifier")
 
@@ -99,7 +100,21 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	})
 }
 
-func TestWrapper_GetWebDID(t *testing.T) {
+func TestWrapper_RootOAuthAuthorizationServerMetadata(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(nil, rootWebDID).Return(true, nil)
+
+		res, err := ctx.client.RootOAuthAuthorizationServerMetadata(nil, RootOAuthAuthorizationServerMetadataRequestObject{})
+
+		require.NoError(t, err)
+		assert.IsType(t, RootOAuthAuthorizationServerMetadata200JSONResponse{}, res)
+		actualIssuer := res.(RootOAuthAuthorizationServerMetadata200JSONResponse).Issuer
+		assert.Equal(t, "https://example.com", actualIssuer)
+	})
+}
+
+func TestWrapper_GetTenantWebDID(t *testing.T) {
 	const webIDPart = "123"
 	ctx := audit.TestContext()
 	expectedWebDIDDoc := did.Document{
@@ -113,25 +128,63 @@ func TestWrapper_GetWebDID(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().ResolveManaged(webDID).Return(&expectedWebDIDDoc, nil)
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{webIDPart})
+		response, err := test.client.GetTenantWebDID(ctx, GetTenantWebDIDRequestObject{webIDPart})
 
 		assert.NoError(t, err)
-		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetWebDID200JSONResponse)))
+		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetTenantWebDID200JSONResponse)))
 	})
 	t.Run("unknown DID", func(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, resolver.ErrNotFound)
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{webIDPart})
+		response, err := test.client.GetTenantWebDID(ctx, GetTenantWebDIDRequestObject{webIDPart})
 
 		assert.NoError(t, err)
-		assert.IsType(t, GetWebDID404Response{}, response)
+		assert.IsType(t, GetTenantWebDID404Response{}, response)
 	})
 	t.Run("other error", func(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, errors.New("failed"))
 
-		response, err := test.client.GetWebDID(ctx, GetWebDIDRequestObject{webIDPart})
+		response, err := test.client.GetTenantWebDID(ctx, GetTenantWebDIDRequestObject{webIDPart})
+
+		assert.EqualError(t, err, "unable to resolve DID")
+		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_GetRootWebDID(t *testing.T) {
+	ctx := audit.TestContext()
+	expectedWebDIDDoc := did.Document{
+		ID: rootWebDID,
+	}
+	// remarshal expectedWebDIDDoc to make sure in-memory format is the same as the one returned by the API
+	data, _ := json.Marshal(expectedWebDIDDoc)
+	_ = expectedWebDIDDoc.UnmarshalJSON(data)
+
+	t.Run("ok", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdr.EXPECT().ResolveManaged(rootWebDID).Return(&expectedWebDIDDoc, nil)
+
+		response, err := test.client.GetRootWebDID(ctx, GetRootWebDIDRequestObject{})
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetRootWebDID200JSONResponse)))
+	})
+	t.Run("unknown DID", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdr.EXPECT().ResolveManaged(rootWebDID).Return(nil, resolver.ErrNotFound)
+
+		response, err := test.client.GetRootWebDID(ctx, GetRootWebDIDRequestObject{})
+
+		assert.NoError(t, err)
+		assert.IsType(t, GetRootWebDID404Response{}, response)
+	})
+	t.Run("other error", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdr.EXPECT().ResolveManaged(rootWebDID).Return(nil, errors.New("failed"))
+
+		response, err := test.client.GetRootWebDID(ctx, GetRootWebDIDRequestObject{})
 
 		assert.EqualError(t, err, "unable to resolve DID")
 		assert.Nil(t, response)
@@ -329,7 +382,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			Did: verifierDID.String(),
 		})
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid request parameter")
+		requireOAuthError(t, err, oauth.InvalidRequest, "unable to validate request signature")
 		assert.Nil(t, res)
 	})
 	t.Run("error - client_id does not match", func(t *testing.T) {
