@@ -21,7 +21,6 @@ package iam
 import (
 	"context"
 	crypto2 "crypto"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,7 +42,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -61,32 +59,22 @@ const httpRequestContextKey = "http-request"
 // TODO: Might want to make this configurable at some point
 const accessTokenValidity = 15 * time.Minute
 
-//go:embed assets
-var assets embed.FS
-
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 	auth          auth.AuthenticationServices
 	policyBackend policy.PDPBackend
-	templates     *template.Template
 	storageEngine storage.Engine
 }
 
 func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend) *Wrapper {
-	templates := template.New("oauth2 templates")
-	_, err := templates.ParseFS(assets, "assets/*.html")
-	if err != nil {
-		panic(err)
-	}
 	return &Wrapper{
 		storageEngine: storageEngine,
 		auth:          authInstance,
 		policyBackend: policyBackend,
 		vcr:           vcrInstance,
 		vdr:           vdrInstance,
-		templates:     templates,
 	}
 }
 
@@ -101,20 +89,8 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, apiModuleName, operationID)
 		},
 	}))
-	auditMiddleware := audit.Middleware(apiModuleName)
-	// The following handler is of the OpenID4VCI wallet which is called by the holder (wallet owner)
-	// when accepting an OpenID4VP authorization request.
-	router.POST("/iam/:did/openid4vp_authz_accept", r.handlePresentationRequestAccept, auditMiddleware)
-	// The following handler is of the OpenID4VP verifier where the browser will be redirected to by the wallet,
-	// after completing a presentation exchange.
-	router.GET("/iam/:did/openid4vp_completed", r.handlePresentationRequestCompleted, auditMiddleware)
-	// The following 2 handlers are used to test/demo the OpenID4VP flow.
-	// - GET renders an HTML page with a form to start the flow.
-	// - POST handles the form submission, initiating the flow.
-	router.GET("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoLanding, auditMiddleware)
-	router.POST("/iam/:did/openid4vp_demo", r.handleOpenID4VPDemoSendRequest, auditMiddleware)
 	// The following handlers are used for the user facing OAuth2 flows.
-	router.GET("/oauth2/:did/user", r.handleUserLanding, auditMiddleware)
+	router.GET("/oauth2/:did/user", r.handleUserLanding, audit.Middleware(apiModuleName))
 }
 
 func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
@@ -351,10 +327,6 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
 		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, params)
-	case responseTypeVPIDToken:
-		// Options:
-		// - OpenID4VP+SIOP flow, vp_token is sent in Authorization Response
-		return r.handlePresentationRequest(ctx, params, session)
 	default:
 		// TODO: This should be a redirect?
 		redirectURI, _ := url.Parse(session.RedirectURI)
