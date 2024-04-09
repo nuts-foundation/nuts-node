@@ -83,6 +83,18 @@
         "@vocab": "schema"
       }
     },
+    "NutsURACredential": {
+      "@id": "nuts:NutsURACredential",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "@propagate": true,
+
+        "id": "@id",
+        "type": "@type",
+        "uraNummer": "nuts:uraNummer"
+      }
+    },
     "NutsSelfSignedPresentation": "nuts:NutsSelfSignedPresentation"
   }
 }
