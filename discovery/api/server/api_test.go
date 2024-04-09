@@ -16,7 +16,7 @@
  *
  */
 
-package v1
+package server
 
 import (
 	"errors"
