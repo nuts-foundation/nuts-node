@@ -219,26 +219,14 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := IntrospectAccessToken200JSONResponse{
-		Active:                         true,
-		Iat:                            &iat,
-		Exp:                            &exp,
-		Iss:                            &token.Issuer,
-		Sub:                            &token.Issuer,
-		ClientId:                       &token.ClientId,
-		Scope:                          &token.Scope,
-		InputDescriptorConstraintIdMap: &token.InputDescriptorConstraintIdMap,
-		PresentationDefinition:         nil,
-		PresentationSubmission:         nil,
-		Vps:                            &token.VPToken,
-
-		// TODO: user authentication, used in OpenID4VP flow
-		FamilyName:     nil,
-		Prefix:         nil,
-		Initials:       nil,
-		AssuranceLevel: nil,
-		Email:          nil,
-		UserRole:       nil,
-		Username:       nil,
+		Active:   true,
+		Iat:      &iat,
+		Exp:      &exp,
+		Iss:      &token.Issuer,
+		Sub:      &token.Issuer,
+		ClientId: &token.ClientId,
+		Scope:    &token.Scope,
+		Vps:      &token.VPToken,
 	}
 
 	// set presentation definition if in token
@@ -255,6 +243,22 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to marshal presentation submission")
 		return IntrospectAccessToken200JSONResponse{}, err
 	}
+
+	if token.InputDescriptorConstraintIdMap != nil {
+		// Make sure InputDescriptorConstraintIdMap does not override existing properties (e.g. client_id)
+		// We could use a hardcoded list, but that risks getting outdated. So just remarshal into a map
+		// and check if any of the fields would be overwritten.
+		responseAsJSON, _ := json.Marshal(response)
+		responseAsMap := make(map[string]interface{})
+		_ = json.Unmarshal(responseAsJSON, &responseAsMap)
+		for reservedClaimName, _ := range responseAsMap {
+			if _, exists := token.InputDescriptorConstraintIdMap[reservedClaimName]; exists {
+				return nil, errors.New(fmt.Sprintf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name '%s'", reservedClaimName))
+			}
+		}
+		response.AdditionalProperties = token.InputDescriptorConstraintIdMap
+	}
+
 	return response, nil
 }
 

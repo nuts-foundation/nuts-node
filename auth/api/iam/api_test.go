@@ -638,6 +638,36 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		require.True(t, ok)
 		assert.True(t, tokenResponse.Active)
 	})
+	t.Run("with claims from InputDescriptorConstraintIdMap", func(t *testing.T) {
+		token := AccessToken{
+			Expiration: time.Now().Add(time.Second),
+			InputDescriptorConstraintIdMap: map[string]any{
+				"family_name": "Doe",
+			},
+		}
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
+
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+
+		require.NoError(t, err)
+		tokenResponse, ok := res.(IntrospectAccessToken200JSONResponse)
+		require.True(t, ok)
+		assert.Equal(t, "Doe", tokenResponse.AdditionalProperties["family_name"])
+	})
+	t.Run("InputDescriptorConstraintIdMap contains reserved claim", func(t *testing.T) {
+		token := AccessToken{
+			Expiration: time.Now().Add(time.Second),
+			InputDescriptorConstraintIdMap: map[string]any{
+				"iss": "value",
+			},
+		}
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
+
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+
+		require.EqualError(t, err, "IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name 'iss'")
+		require.Nil(t, res)
+	})
 
 	t.Run(" ok - s2s flow", func(t *testing.T) {
 		// TODO: this should be an integration test to make sure all fields are set
@@ -662,17 +692,17 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 
 		require.NoError(t, ctx.client.accessTokenServerStore().Put(token.Token, token))
 		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
-			Active:                         true,
-			ClientId:                       ptrTo("client"),
-			Exp:                            ptrTo(int(tNow.Add(time.Minute).Unix())),
-			Iat:                            ptrTo(int(tNow.Unix())),
-			Iss:                            ptrTo("resource-owner"),
-			Scope:                          ptrTo("test"),
-			Sub:                            ptrTo("resource-owner"),
-			Vps:                            &[]VerifiablePresentation{presentation},
-			InputDescriptorConstraintIdMap: ptrTo(map[string]any{"key": "value"}),
-			PresentationSubmission:         ptrTo(map[string]interface{}{"definition_id": "", "descriptor_map": nil, "id": ""}),
-			PresentationDefinition:         ptrTo(map[string]interface{}{"id": "", "input_descriptors": nil}),
+			Active:                 true,
+			ClientId:               ptrTo("client"),
+			Exp:                    ptrTo(int(tNow.Add(time.Minute).Unix())),
+			Iat:                    ptrTo(int(tNow.Unix())),
+			Iss:                    ptrTo("resource-owner"),
+			Scope:                  ptrTo("test"),
+			Sub:                    ptrTo("resource-owner"),
+			Vps:                    &[]VerifiablePresentation{presentation},
+			PresentationSubmission: ptrTo(map[string]interface{}{"definition_id": "", "descriptor_map": nil, "id": ""}),
+			PresentationDefinition: ptrTo(map[string]interface{}{"id": "", "input_descriptors": nil}),
+			AdditionalProperties:   map[string]interface{}{"key": "value"},
 		})
 		require.NoError(t, err)
 
