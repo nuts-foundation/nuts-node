@@ -179,45 +179,6 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
 }
 
-func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL.String(), strings.NewReader(form.Encode()))
-	if err != nil {
-		return "", err
-	}
-	request.Header.Add("Accept", "application/json")
-	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	var redirect oauth.Redirect
-	if err := hb.doRequest(ctx, request, &redirect); err != nil {
-		return "", err
-	}
-	return redirect.RedirectURI, nil
-}
-
-func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, target interface{}) error {
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return fmt.Errorf("failed to call endpoint: %w", err)
-	}
-	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
-		rse := httpErr.(core.HttpError)
-		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidScope); ok {
-			return oauthErr
-		}
-		return httpErr
-	}
-
-	var data []byte
-
-	if data, err = io.ReadAll(response.Body); err != nil {
-		return fmt.Errorf("unable to read response: %w", err)
-	}
-	if err = json.Unmarshal(data, &target); err != nil {
-		return fmt.Errorf("unable to unmarshal response: %w", err)
-	}
-
-	return nil
-}
-
 func (hb HTTPClient) OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error) {
 
 	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
@@ -393,4 +354,42 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 	}
 	return &credential, nil
 
+}
+func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL.String(), strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", err
+	}
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	var redirect oauth.Redirect
+	if err := hb.doRequest(ctx, request, &redirect); err != nil {
+		return "", err
+	}
+	return redirect.RedirectURI, nil
+}
+
+func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, target interface{}) error {
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
+		rse := httpErr.(core.HttpError)
+		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidScope); ok {
+			return oauthErr
+		}
+		return httpErr
+	}
+
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &target); err != nil {
+		return fmt.Errorf("unable to unmarshal response: %w", err)
+	}
+
+	return nil
 }
