@@ -746,7 +746,10 @@ components:
           description: Code identifying the error that occurred.
           example: "invalid_request"
     TokenIntrospectionRequest:
-      description: Token introspection request as described in RFC7662 section 2.1
+      description: >
+        Token introspection request as described in RFC7662 section 2.1
+        
+        Alongside the defined properties, it can return values (additionalProperties) from the Verifiable Credentials that resulted from the Presentation Exchange.
       required:
         - token
       properties:
@@ -758,6 +761,7 @@ components:
       description: Token introspection response as described in RFC7662 section 2.2
       required:
         - active
+      additionalProperties: {}
       properties:
         active:
           type: boolean
@@ -787,11 +791,6 @@ components:
         scope:
           type: string
           description: granted scopes
-        input_descriptor_constraint_id_map:
-          type: object
-          description: |
-            Mapping from the ID field of a 'presentation_definition' input descriptor constraints to the value provided in the 'vps' for the constraints.
-            The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
         presentation_definition:
           type: object
           description: presentation definition, as described in presentation exchange specification, fulfilled to obtain the access token
@@ -805,36 +804,6 @@ components:
           items:
             $ref: '#/components/schemas/VerifiablePresentation'
           description: The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
-# TODO: below is copied from introspection/v1. Remove anything unused when flows are finalized.
-# TODO: existing contract validator responses
-        family_name:
-          type: string
-          description: Surname(s) or last name(s) of the End-User.
-          example: Bruijn
-        prefix:
-          type: string
-          description: Surname prefix
-          example: de
-        initials:
-          type: string
-          description: Initials of the End-User.
-          example: I.
-        username:
-          type: string
-          description: Identifier uniquely identifying the End-User's account in the issuing system.
-        assurance_level:
-          type: string
-          description: Assurance level of the identity of the End-User.
-          format: enum
-          enum: [low, substantial, high]
-# TODO: ???
-        email:
-          type: string
-          description: End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.
-          example: w.debruijn@example.org
-        user_role:
-          type: string
-          description: Role of the End-User.
   securitySchemes:
     jwtBearerAuth:
       type: http

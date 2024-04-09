@@ -230,26 +230,14 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := IntrospectAccessToken200JSONResponse{
-		Active:                         true,
-		Iat:                            &iat,
-		Exp:                            &exp,
-		Iss:                            &token.Issuer,
-		Sub:                            &token.Issuer,
-		ClientId:                       &token.ClientId,
-		Scope:                          &token.Scope,
-		InputDescriptorConstraintIdMap: &token.InputDescriptorConstraintIdMap,
-		PresentationDefinition:         nil,
-		PresentationSubmission:         nil,
-		Vps:                            &token.VPToken,
-
-		// TODO: user authentication, used in OpenID4VP flow
-		FamilyName:     nil,
-		Prefix:         nil,
-		Initials:       nil,
-		AssuranceLevel: nil,
-		Email:          nil,
-		UserRole:       nil,
-		Username:       nil,
+		Active:   true,
+		Iat:      &iat,
+		Exp:      &exp,
+		Iss:      &token.Issuer,
+		Sub:      &token.Issuer,
+		ClientId: &token.ClientId,
+		Scope:    &token.Scope,
+		Vps:      &token.VPToken,
 	}
 
 	// set presentation definition if in token
@@ -266,6 +254,16 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to marshal presentation submission")
 		return IntrospectAccessToken200JSONResponse{}, err
 	}
+
+	if token.InputDescriptorConstraintIdMap != nil {
+		for _, reserved := range []string{"iss", "sub", "exp", "iat", "active", "client_id", "scope"} {
+			if _, exists := token.InputDescriptorConstraintIdMap[reserved]; exists {
+				return nil, errors.New(fmt.Sprintf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name '%s'", reserved))
+			}
+		}
+		response.AdditionalProperties = token.InputDescriptorConstraintIdMap
+	}
+
 	return response, nil
 }
 
