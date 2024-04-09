@@ -92,7 +92,7 @@
 
         "id": "@id",
         "type": "@type",
-        "uraNummer": "nuts:uraNummer"
+        "ura": "nuts:ura"
       }
     },
     "NutsSelfSignedPresentation": "nuts:NutsSelfSignedPresentation"
