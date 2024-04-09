@@ -245,15 +245,9 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	}
 
 	if token.InputDescriptorConstraintIdMap != nil {
-		// Make sure InputDescriptorConstraintIdMap does not override existing properties (e.g. client_id)
-		// We could use a hardcoded list, but that risks getting outdated. So just remarshal into a map
-		// and check if any of the fields would be overwritten.
-		responseAsJSON, _ := json.Marshal(response)
-		responseAsMap := make(map[string]interface{})
-		_ = json.Unmarshal(responseAsJSON, &responseAsMap)
-		for reservedClaimName, _ := range responseAsMap {
-			if _, exists := token.InputDescriptorConstraintIdMap[reservedClaimName]; exists {
-				return nil, errors.New(fmt.Sprintf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name '%s'", reservedClaimName))
+		for _, reserved := range []string{"iss", "sub", "exp", "iat", "active", "client_id", "scope"} {
+			if _, exists := token.InputDescriptorConstraintIdMap[reserved]; exists {
+				return nil, errors.New(fmt.Sprintf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name '%s'", reserved))
 			}
 		}
 		response.AdditionalProperties = token.InputDescriptorConstraintIdMap
