@@ -226,6 +226,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 	webDID := did.MustParseDID("did:web:example.com:iam:123")
 	ctx := audit.TestContext()
 	walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}
+	userWalletType := pe.WalletOwnerUser
 
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
@@ -249,6 +250,33 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		require.NotNil(t, response)
 		_, ok := response.(PresentationDefinition200JSONResponse)
 		assert.True(t, ok)
+	})
+
+	t.Run("ok - user wallet", func(t *testing.T) {
+		walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerUser: pe.PresentationDefinition{Id: "test"}}
+
+		test := newTestClient(t)
+		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(walletOwnerMapping, nil)
+		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		_, ok := response.(PresentationDefinition200JSONResponse)
+		assert.True(t, ok)
+	})
+
+	t.Run("err - unknown wallet type", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(walletOwnerMapping, nil)
+
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
+
+		require.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, "invalid_request - no presentation definition found for 'user' wallet", err.Error())
 	})
 
 	t.Run("error - unknown scope", func(t *testing.T) {
@@ -639,6 +667,36 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		require.True(t, ok)
 		assert.True(t, tokenResponse.Active)
 	})
+	t.Run("with claims from InputDescriptorConstraintIdMap", func(t *testing.T) {
+		token := AccessToken{
+			Expiration: time.Now().Add(time.Second),
+			InputDescriptorConstraintIdMap: map[string]any{
+				"family_name": "Doe",
+			},
+		}
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
+
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+
+		require.NoError(t, err)
+		tokenResponse, ok := res.(IntrospectAccessToken200JSONResponse)
+		require.True(t, ok)
+		assert.Equal(t, "Doe", tokenResponse.AdditionalProperties["family_name"])
+	})
+	t.Run("InputDescriptorConstraintIdMap contains reserved claim", func(t *testing.T) {
+		token := AccessToken{
+			Expiration: time.Now().Add(time.Second),
+			InputDescriptorConstraintIdMap: map[string]any{
+				"iss": "value",
+			},
+		}
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
+
+		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+
+		require.EqualError(t, err, "IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name 'iss'")
+		require.Nil(t, res)
+	})
 
 	t.Run(" ok - s2s flow", func(t *testing.T) {
 		// TODO: this should be an integration test to make sure all fields are set
@@ -663,17 +721,17 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 
 		require.NoError(t, ctx.client.accessTokenServerStore().Put(token.Token, token))
 		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
-			Active:                         true,
-			ClientId:                       ptrTo("client"),
-			Exp:                            ptrTo(int(tNow.Add(time.Minute).Unix())),
-			Iat:                            ptrTo(int(tNow.Unix())),
-			Iss:                            ptrTo("resource-owner"),
-			Scope:                          ptrTo("test"),
-			Sub:                            ptrTo("resource-owner"),
-			Vps:                            &[]VerifiablePresentation{presentation},
-			InputDescriptorConstraintIdMap: ptrTo(map[string]any{"key": "value"}),
-			PresentationSubmission:         ptrTo(map[string]interface{}{"definition_id": "", "descriptor_map": nil, "id": ""}),
-			PresentationDefinition:         ptrTo(map[string]interface{}{"id": "", "input_descriptors": nil}),
+			Active:                 true,
+			ClientId:               ptrTo("client"),
+			Exp:                    ptrTo(int(tNow.Add(time.Minute).Unix())),
+			Iat:                    ptrTo(int(tNow.Unix())),
+			Iss:                    ptrTo("resource-owner"),
+			Scope:                  ptrTo("test"),
+			Sub:                    ptrTo("resource-owner"),
+			Vps:                    &[]VerifiablePresentation{presentation},
+			PresentationSubmission: ptrTo(map[string]interface{}{"definition_id": "", "descriptor_map": nil, "id": ""}),
+			PresentationDefinition: ptrTo(map[string]interface{}{"id": "", "input_descriptors": nil}),
+			AdditionalProperties:   map[string]interface{}{"key": "value"},
 		})
 		require.NoError(t, err)
 

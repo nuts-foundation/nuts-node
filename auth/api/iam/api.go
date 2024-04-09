@@ -62,6 +62,17 @@ const accessTokenValidity = 15 * time.Minute
 
 const oid4vciSessionValidity = 15 * time.Minute
 
+// userSessionCookieName is the name of the cookie used to store the user session.
+// It uses the __Host prefix, that instructs the user agent to treat it as a secure cookie:
+// - Must be set with the Secure attribute
+// - Must be set from an HTTPS uri
+// - Must not contain a Domain attribute
+// - Must contain a Path attribute
+// Also see:
+// - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/02-Testing_for_Cookies_Attributes
+// - https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
+const userSessionCookieName = "__Host-SID"
+
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
 	vcr           vcr.VCR
@@ -223,26 +234,14 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := IntrospectAccessToken200JSONResponse{
-		Active:                         true,
-		Iat:                            &iat,
-		Exp:                            &exp,
-		Iss:                            &token.Issuer,
-		Sub:                            &token.Issuer,
-		ClientId:                       &token.ClientId,
-		Scope:                          &token.Scope,
-		InputDescriptorConstraintIdMap: &token.InputDescriptorConstraintIdMap,
-		PresentationDefinition:         nil,
-		PresentationSubmission:         nil,
-		Vps:                            &token.VPToken,
-
-		// TODO: user authentication, used in OpenID4VP flow
-		FamilyName:     nil,
-		Prefix:         nil,
-		Initials:       nil,
-		AssuranceLevel: nil,
-		Email:          nil,
-		UserRole:       nil,
-		Username:       nil,
+		Active:   true,
+		Iat:      &iat,
+		Exp:      &exp,
+		Iss:      &token.Issuer,
+		Sub:      &token.Issuer,
+		ClientId: &token.ClientId,
+		Scope:    &token.Scope,
+		Vps:      &token.VPToken,
 	}
 
 	// set presentation definition if in token
@@ -259,6 +258,16 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to marshal presentation submission")
 		return IntrospectAccessToken200JSONResponse{}, err
 	}
+
+	if token.InputDescriptorConstraintIdMap != nil {
+		for _, reserved := range []string{"iss", "sub", "exp", "iat", "active", "client_id", "scope"} {
+			if _, exists := token.InputDescriptorConstraintIdMap[reserved]; exists {
+				return nil, errors.New(fmt.Sprintf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name '%s'", reserved))
+			}
+		}
+		response.AdditionalProperties = token.InputDescriptorConstraintIdMap
+	}
+
 	return response, nil
 }
 
@@ -469,11 +478,16 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		}
 	}
 
-	if _, ok := mapping[pe.WalletOwnerOrganization]; !ok {
-		return nil, oauthError(oauth.ServerError, "no presentation definition found for organization wallet")
+	walletOwnerType := pe.WalletOwnerOrganization
+	if request.Params.WalletOwnerType != nil {
+		walletOwnerType = *request.Params.WalletOwnerType
+	}
+	result, exists := mapping[walletOwnerType]
+	if !exists {
+		return nil, oauthError(oauth.InvalidRequest, fmt.Sprintf("no presentation definition found for '%s' wallet", walletOwnerType))
 	}
 
-	return PresentationDefinition200JSONResponse(mapping[pe.WalletOwnerOrganization]), nil
+	return PresentationDefinition200JSONResponse(result), nil
 }
 
 // toOwnedDIDForOAuth2 is like toOwnedDID but wraps the errors in oauth.OAuth2Error to make sure they're returned as specified by the OAuth2 RFC.

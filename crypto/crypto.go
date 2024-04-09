@@ -26,6 +26,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"path"
 	"time"
 
@@ -194,6 +195,20 @@ func generateKeyPairAndKID(namingFunc KIDNamingFunc) (*ecdsa.PrivateKey, string,
 
 func generateECKeyPair() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+}
+
+// GenerateJWK a new in-memory key pair and returns it as JWK.
+// It sets the alg field of the JWK.
+func GenerateJWK() (jwk.Key, error) {
+	keyPair, err := generateECKeyPair()
+	if err != nil {
+		return nil, nil
+	}
+	result, err := jwkKey(keyPair)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // Exists checks storage for an entry for the given legal entity and returns true if it exists

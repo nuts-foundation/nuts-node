@@ -327,6 +327,15 @@ func TestStatusList2021_Credential(t *testing.T) {
 		assert.NotEmpty(t, cred)
 	})
 	t.Run("ok - refresh expired credential", func(t *testing.T) {
+		old := s.Sign
+		defer func() { s.Sign = old }()
+		s.Sign = func(ctx context.Context, unsignedCredential vc.VerifiableCredential, key crypto.Key) (*vc.VerifiableCredential, error) {
+			info := audit.InfoFromContext(ctx)
+			require.NotNil(t, info)
+			assert.Equal(t, info.Actor, "_system_signing_expired_statuslist2021credential")
+			assert.Equal(t, info.Operation, "TestModule.TestOperation") // confirm unchanged
+			return noopSign(ctx, unsignedCredential, key)
+		}
 		// change expires so that time.Now is between refresh and expired
 		err = s.db.Model(new(credentialRecord)).Where("subject_id = ?", entry.StatusListCredential).
 			UpdateColumn("expires", time.Now().Add(minTimeUntilExpired-time.Second).Unix()).Error
