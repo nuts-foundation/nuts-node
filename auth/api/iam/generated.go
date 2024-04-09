@@ -129,7 +129,8 @@ type CallbackParams struct {
 
 // PresentationDefinitionParams defines parameters for PresentationDefinition.
 type PresentationDefinitionParams struct {
-	Scope string `form:"scope" json:"scope"`
+	Scope           string           `form:"scope" json:"scope"`
+	WalletOwnerType *WalletOwnerType `form:"wallet_owner_type,omitempty" json:"wallet_owner_type,omitempty"`
 }
 
 // HandleAuthorizeResponseFormdataBody defines parameters for HandleAuthorizeResponse.
@@ -662,6 +663,13 @@ func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error 
 	err = runtime.BindQueryParameter("form", true, true, "scope", ctx.QueryParams(), &params.Scope)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter scope: %s", err))
+	}
+
+	// ------------- Optional query parameter "wallet_owner_type" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "wallet_owner_type", ctx.QueryParams(), &params.WalletOwnerType)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter wallet_owner_type: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
