@@ -62,7 +62,7 @@ type Client interface {
 
 	AccessTokenOid4vci(ctx context.Context, clientId string, tokenEndpoint string, redirectUri string, code string, pkceCodeVerifier *string) (*oauth.Oid4vciTokenResponse, error)
 
-	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, holderDid did.DID, audienceDid did.DID) (*CredentialResponse, error)
+	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, cNonce *string, holderDid did.DID, audienceDid did.DID) (*CredentialResponse, error)
 }
 
 // RequestModifier is a function that modifies the claims/params of a unsigned or signed request (JWT)

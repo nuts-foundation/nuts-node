@@ -634,6 +634,7 @@ func TestIAMClient_AccessTokenOid4vci(t *testing.T) {
 func TestIAMClient_VerifiableCredentials(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	accessToken := "code"
+	cNonce := crypto.GenerateNonce()
 
 	t.Run("ok", func(t *testing.T) {
 		keyId := walletDID.URI()
@@ -651,7 +652,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 			return "signed JWT", nil
 		})
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, walletDID, ctx.issuerDID)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -676,7 +677,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 
 		ctx.credentials = nil
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, walletDID, ctx.issuerDID)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
 
 		assert.EqualError(t, err, "remote server: failed to retrieve credentials: server returned HTTP 404 (expected: 200)")
 		assert.Nil(t, response)
@@ -704,7 +705,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 			return
 		}
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, walletDID, ctx.issuerDID)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
 
 		assert.Error(t, err)
 		assert.Nil(t, response)
@@ -719,7 +720,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 
 		ctx.credentials = nil
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, walletDID, ctx.issuerDID)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
 
 		assert.EqualError(t, err, "failed to resolve key for did (did:web:test.test:iam:123): "+resolver.ErrKeyNotFound.Error())
 		assert.Nil(t, response)
@@ -736,7 +737,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 			return "", errors.New("signature failed")
 		})
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, walletDID, ctx.issuerDID)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
 
 		assert.EqualError(t, err, "failed to sign the JWT with kid (did:web:test.test:iam:123#1): signature failed")
 		assert.Nil(t, response)

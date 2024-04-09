@@ -304,7 +304,7 @@ func (c *OpenID4VPClient) AccessTokenOid4vci(ctx context.Context, clientId strin
 	return rsp, nil
 }
 
-func (c *OpenID4VPClient) proofJwt(ctx context.Context, holderDid did.DID, audienceDid did.DID) (string, error) {
+func (c *OpenID4VPClient) proofJwt(ctx context.Context, holderDid did.DID, audienceDid did.DID, nonce *string) (string, error) {
 	kid, _, err := c.keyResolver.ResolveKey(holderDid, nil, resolver.NutsSigningKeyType)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve key for did (%s): %w", holderDid.String(), err)
@@ -318,14 +318,18 @@ func (c *OpenID4VPClient) proofJwt(ctx context.Context, holderDid did.DID, audie
 		"aud": audienceDid.String(),
 		"jti": jti.String(),
 	}
+	if nonce != nil {
+		claims["nonce"] = nonce
+	}
 	proofJwt, err := c.jwtSigner.SignJWT(ctx, claims, nil, kid.String())
 	if err != nil {
 		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid.String(), err)
 	}
 	return proofJwt, nil
 }
-func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, holderDid did.DID, audienceDid did.DID) (*CredentialResponse, error) {
-	proofJwt, err := c.proofJwt(ctx, holderDid, audienceDid)
+func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, cNonce *string, holderDid did.DID, audienceDid did.DID) (*CredentialResponse, error) {
+	// The cNonce becomes the nonce in the JWT proof of possession.
+	proofJwt, err := c.proofJwt(ctx, holderDid, audienceDid, cNonce)
 	if err != nil {
 		return nil, err
 	}

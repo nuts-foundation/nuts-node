@@ -734,7 +734,7 @@ func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request 
 		log.Logger().WithError(err).Errorf("error while fetching the access_token from endpoint: %s", tokenEndpoint)
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error : %s", tokenEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
-	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, credentialEndpoint, response.AccessToken, *holderDid, *issuerDid)
+	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, credentialEndpoint, response.AccessToken, response.CNonce, *holderDid, *issuerDid)
 	if err != nil {
 		log.Logger().WithError(err).Errorf("error while fetching the credential from endpoint: %s", credentialEndpoint)
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error : %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())

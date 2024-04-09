@@ -1068,6 +1068,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	redirectURI := "https://test.test/iam/123/cb"
 	authServer := "https://auth.server"
 	tokenEndpoint := authServer + "/token"
+	cNonce := crypto.GenerateNonce()
 	credEndpoint := authServer + "/credz"
 	pkceParams := generatePKCEParams()
 	code := "code"
@@ -1088,6 +1089,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	tokenResponse := oauth.Oid4vciTokenResponse{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
+		CNonce:      &cNonce,
 	}
 	credentialResponse := iam.CredentialResponse{
 		Format:     "jwt_vc",
@@ -1097,7 +1099,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session)
 		ctx.iamClient.EXPECT().AccessTokenOid4vci(nil, holderDID.String(), tokenEndpoint, redirectURI, code, &pkceParams.Verifier).Return(&tokenResponse, nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, holderDID, issuerDID).Return(&credentialResponse, nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, &cNonce, holderDID, issuerDID).Return(&credentialResponse, nil)
 		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
 		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
 
@@ -1163,7 +1165,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session)
 		ctx.iamClient.EXPECT().AccessTokenOid4vci(nil, holderDID.String(), tokenEndpoint, redirectURI, code, &pkceParams.Verifier).Return(&tokenResponse, nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, holderDID, issuerDID).Return(nil, errors.New("FAIL"))
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, &cNonce, holderDID, issuerDID).Return(nil, errors.New("FAIL"))
 
 		callback, err := ctx.client.CallbackOid4vciCredentialIssuance(nil, CallbackOid4vciCredentialIssuanceRequestObject{
 			Params: CallbackOid4vciCredentialIssuanceParams{
@@ -1180,7 +1182,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session)
 		ctx.iamClient.EXPECT().AccessTokenOid4vci(nil, holderDID.String(), tokenEndpoint, redirectURI, code, &pkceParams.Verifier).Return(&tokenResponse, nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, holderDID, issuerDID).Return(&credentialResponse, nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, &cNonce, holderDID, issuerDID).Return(&credentialResponse, nil)
 		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil).Return(errors.New("FAIL"))
 
 		callback, err := ctx.client.CallbackOid4vciCredentialIssuance(nil, CallbackOid4vciCredentialIssuanceRequestObject{
