@@ -12,6 +12,7 @@ package crypto
 import (
 	context "context"
 	crypto "crypto"
+	http "net/http"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -247,6 +248,21 @@ func (mr *MockKeyStoreMockRecorder) New(ctx, namingFunc any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockKeyStore)(nil).New), ctx, namingFunc)
 }
 
+// NewDPoP mocks base method.
+func (m *MockKeyStore) NewDPoP(ctx context.Context, request http.Request, kid string, tokenHash *string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewDPoP", ctx, request, kid, tokenHash)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewDPoP indicates an expected call of NewDPoP.
+func (mr *MockKeyStoreMockRecorder) NewDPoP(ctx, request, kid, tokenHash any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewDPoP", reflect.TypeOf((*MockKeyStore)(nil).NewDPoP), ctx, request, kid, tokenHash)
+}
+
 // Resolve mocks base method.
 func (m *MockKeyStore) Resolve(ctx context.Context, kid string) (Key, error) {
 	m.ctrl.T.Helper()
@@ -382,6 +398,21 @@ func (m *MockJWTSigner) EncryptJWE(ctx context.Context, payload []byte, headers 
 func (mr *MockJWTSignerMockRecorder) EncryptJWE(ctx, payload, headers, publicKey any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EncryptJWE", reflect.TypeOf((*MockJWTSigner)(nil).EncryptJWE), ctx, payload, headers, publicKey)
+}
+
+// NewDPoP mocks base method.
+func (m *MockJWTSigner) NewDPoP(ctx context.Context, request http.Request, kid string, tokenHash *string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewDPoP", ctx, request, kid, tokenHash)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewDPoP indicates an expected call of NewDPoP.
+func (mr *MockJWTSignerMockRecorder) NewDPoP(ctx, request, kid, tokenHash any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewDPoP", reflect.TypeOf((*MockJWTSigner)(nil).NewDPoP), ctx, request, kid, tokenHash)
 }
 
 // SignJWS mocks base method.

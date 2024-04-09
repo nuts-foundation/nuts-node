@@ -19,6 +19,60 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// Defines values for ServiceAccessTokenRequestTokenType.
+const (
+	ServiceAccessTokenRequestTokenTypeBearer ServiceAccessTokenRequestTokenType = "bearer"
+	ServiceAccessTokenRequestTokenTypeDPoP   ServiceAccessTokenRequestTokenType = "DPoP"
+)
+
+// Defines values for UserAccessTokenRequestTokenType.
+const (
+	UserAccessTokenRequestTokenTypeBearer UserAccessTokenRequestTokenType = "bearer"
+	UserAccessTokenRequestTokenTypeDPoP   UserAccessTokenRequestTokenType = "DPoP"
+)
+
+// DPoPRequest defines model for DPoPRequest.
+type DPoPRequest struct {
+	// Method The HTTP method for which the DPoP header is requested.
+	Method string `json:"method"`
+
+	// Token The access token for which the DPoP header is requested.
+	Token string `json:"token"`
+
+	// Url The URL for which the DPoP header is requested.
+	Url string `json:"url"`
+}
+
+// DPoPResponse defines model for DPoPResponse.
+type DPoPResponse struct {
+	// Dpop The DPoP header as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+	Dpop string `json:"dpop"`
+}
+
+// DPoPValidateRequest defines model for DPoPValidateRequest.
+type DPoPValidateRequest struct {
+	// Dpop The DPoP Proof header as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+	Dpop string `json:"dpop"`
+
+	// Method The HTTP method for which the DPoP header is requested.
+	Method string `json:"method"`
+
+	// Thumbprint The thumbprint of the public key used to sign the DPoP proof header. Base64url encoded.
+	Thumbprint string `json:"thumbprint"`
+
+	// Token The access token for which the DPoP header is requested.
+	Token string `json:"token"`
+
+	// Url The URL for which the DPoP header is requested.
+	Url string `json:"url"`
+}
+
+// DPoPValidateResponse defines model for DPoPValidateResponse.
+type DPoPValidateResponse struct {
+	// Valid True if the DPoP Proof header is valid for the access token and http request, false if it is not.
+	Valid bool `json:"valid"`
+}
+
 // RedirectResponseWithID defines model for RedirectResponseWithID.
 type RedirectResponseWithID struct {
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
@@ -27,6 +81,19 @@ type RedirectResponseWithID struct {
 	// SessionId The session ID that can be used to retrieve the access token by the calling application.
 	SessionId string `json:"session_id"`
 }
+
+// ServiceAccessTokenRequest Request for an access token for a service.
+type ServiceAccessTokenRequest struct {
+	// Scope The scope that will be the service for which this access token can be used.
+	Scope string `json:"scope"`
+
+	// TokenType The type of access token that is prefered, default: DPoP
+	TokenType *ServiceAccessTokenRequestTokenType `json:"tokenType,omitempty"`
+	Verifier  string                              `json:"verifier"`
+}
+
+// ServiceAccessTokenRequestTokenType The type of access token that is prefered, default: DPoP
+type ServiceAccessTokenRequestTokenType string
 
 // TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
 // Alongside the defined properties, it can return values (additionalProperties) from the Verifiable Credentials that resulted from the Presentation Exchange.
@@ -44,6 +111,7 @@ type TokenIntrospectionResponse struct {
 
 	// ClientId The client (DID) the access token was issued to
 	ClientId *string `json:"client_id,omitempty"`
+	Cnf      *Cnf    `json:"cnf,omitempty"`
 
 	// Exp Expiration date in seconds since UNIX epoch
 	Exp *int `json:"exp,omitempty"`
@@ -71,6 +139,29 @@ type TokenIntrospectionResponse struct {
 	AdditionalProperties map[string]interface{}    `json:"-"`
 }
 
+// UserAccessTokenRequest Request for an access token for a user.
+type UserAccessTokenRequest struct {
+	// PreauthorizedUser Claims about the authorized user.
+	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
+
+	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
+	// This is the URL of the calling application.
+	// The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
+	RedirectUri string `json:"redirect_uri"`
+
+	// Scope The scope that will be the service for which this access token can be used.
+	Scope string `json:"scope"`
+
+	// TokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP
+	TokenType *UserAccessTokenRequestTokenType `json:"tokenType,omitempty"`
+
+	// Verifier The DID of the verifier, the relying party for which this access token is requested.
+	Verifier string `json:"verifier"`
+}
+
+// UserAccessTokenRequestTokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP
+type UserAccessTokenRequestTokenType string
+
 // UserDetails Claims about the authorized user.
 type UserDetails struct {
 	// Id Machine-readable identifier, uniquely identifying the user in the issuing system.
@@ -81,6 +172,12 @@ type UserDetails struct {
 
 	// Role Role of the user.
 	Role string `json:"role"`
+}
+
+// Cnf defines model for cnf.
+type Cnf struct {
+	// Jkt JWK thumbprint
+	Jkt string `json:"jkt"`
 }
 
 // CallbackOid4vciCredentialIssuanceParams defines parameters for CallbackOid4vciCredentialIssuance.
@@ -109,30 +206,6 @@ type RequestOid4vciCredentialIssuanceJSONBody struct {
 
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
 	RedirectUri string `json:"redirect_uri"`
-}
-
-// RequestServiceAccessTokenJSONBody defines parameters for RequestServiceAccessToken.
-type RequestServiceAccessTokenJSONBody struct {
-	// Scope The scope that will be the service for which this access token can be used.
-	Scope    string `json:"scope"`
-	Verifier string `json:"verifier"`
-}
-
-// RequestUserAccessTokenJSONBody defines parameters for RequestUserAccessToken.
-type RequestUserAccessTokenJSONBody struct {
-	// PreauthorizedUser Claims about the authorized user.
-	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
-
-	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
-	// This is the URL of the calling application.
-	// The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
-	RedirectUri string `json:"redirect_uri"`
-
-	// Scope The scope that will be the service for which this access token can be used.
-	Scope string `json:"scope"`
-
-	// Verifier The DID of the verifier, the relying party for which this access token is requested.
-	Verifier string `json:"verifier"`
 }
 
 // HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
@@ -191,14 +264,20 @@ type HandleTokenRequestFormdataBody struct {
 // IntrospectAccessTokenFormdataRequestBody defines body for IntrospectAccessToken for application/x-www-form-urlencoded ContentType.
 type IntrospectAccessTokenFormdataRequestBody = TokenIntrospectionRequest
 
+// ValidateDPoPProofJSONRequestBody defines body for ValidateDPoPProof for application/json ContentType.
+type ValidateDPoPProofJSONRequestBody = DPoPValidateRequest
+
+// CreateDPoPProofJSONRequestBody defines body for CreateDPoPProof for application/json ContentType.
+type CreateDPoPProofJSONRequestBody = DPoPRequest
+
 // RequestOid4vciCredentialIssuanceJSONRequestBody defines body for RequestOid4vciCredentialIssuance for application/json ContentType.
 type RequestOid4vciCredentialIssuanceJSONRequestBody RequestOid4vciCredentialIssuanceJSONBody
 
 // RequestServiceAccessTokenJSONRequestBody defines body for RequestServiceAccessToken for application/json ContentType.
-type RequestServiceAccessTokenJSONRequestBody RequestServiceAccessTokenJSONBody
+type RequestServiceAccessTokenJSONRequestBody = ServiceAccessTokenRequest
 
 // RequestUserAccessTokenJSONRequestBody defines body for RequestUserAccessToken for application/json ContentType.
-type RequestUserAccessTokenJSONRequestBody RequestUserAccessTokenJSONBody
+type RequestUserAccessTokenJSONRequestBody = UserAccessTokenRequest
 
 // HandleAuthorizeResponseFormdataRequestBody defines body for HandleAuthorizeResponse for application/x-www-form-urlencoded ContentType.
 type HandleAuthorizeResponseFormdataRequestBody HandleAuthorizeResponseFormdataBody
@@ -253,6 +332,14 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 			return fmt.Errorf("error reading 'client_id': %w", err)
 		}
 		delete(object, "client_id")
+	}
+
+	if raw, found := object["cnf"]; found {
+		err = json.Unmarshal(raw, &a.Cnf)
+		if err != nil {
+			return fmt.Errorf("error reading 'cnf': %w", err)
+		}
+		delete(object, "cnf")
 	}
 
 	if raw, found := object["exp"]; found {
@@ -357,6 +444,13 @@ func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		}
 	}
 
+	if a.Cnf != nil {
+		object["cnf"], err = json.Marshal(a.Cnf)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'cnf': %w", err)
+		}
+	}
+
 	if a.Exp != nil {
 		object["exp"], err = json.Marshal(a.Exp)
 		if err != nil {
@@ -445,6 +539,12 @@ type ServerInterface interface {
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx echo.Context, sessionID string) error
+	// Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resources server, this is a convenience API.
+	// (POST /internal/auth/v2/dpop_validate)
+	ValidateDPoPProof(ctx echo.Context) error
+	// Create a DPoP proof header as specified by RFC9449 for a given access token
+	// (POST /internal/auth/v2/{did}/dpop)
+	CreateDPoPProof(ctx echo.Context, did string) error
 	// Start the Oid4VCI authorization flow.
 	// (POST /internal/auth/v2/{did}/request-credential)
 	RequestOid4vciCredentialIssuance(ctx echo.Context, did string) error
@@ -607,6 +707,32 @@ func (w *ServerInterfaceWrapper) RetrieveAccessToken(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.RetrieveAccessToken(ctx, sessionID)
+	return err
+}
+
+// ValidateDPoPProof converts echo context to params.
+func (w *ServerInterfaceWrapper) ValidateDPoPProof(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ValidateDPoPProof(ctx)
+	return err
+}
+
+// CreateDPoPProof converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateDPoPProof(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	did = ctx.Param("did")
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CreateDPoPProof(ctx, did)
 	return err
 }
 
@@ -858,6 +984,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetTenantWebDID)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
+	router.POST(baseURL+"/internal/auth/v2/dpop_validate", wrapper.ValidateDPoPProof)
+	router.POST(baseURL+"/internal/auth/v2/:did/dpop", wrapper.CreateDPoPProof)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-credential", wrapper.RequestOid4vciCredentialIssuance)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-service-access-token", wrapper.RequestServiceAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-user-access-token", wrapper.RequestUserAccessToken)
@@ -1099,6 +1227,57 @@ func (response RetrieveAccessTokendefaultApplicationProblemPlusJSONResponse) Vis
 	w.WriteHeader(response.StatusCode)
 
 	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ValidateDPoPProofRequestObject struct {
+	Body *ValidateDPoPProofJSONRequestBody
+}
+
+type ValidateDPoPProofResponseObject interface {
+	VisitValidateDPoPProofResponse(w http.ResponseWriter) error
+}
+
+type ValidateDPoPProof200JSONResponse DPoPValidateResponse
+
+func (response ValidateDPoPProof200JSONResponse) VisitValidateDPoPProofResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ValidateDPoPProof401Response struct {
+}
+
+func (response ValidateDPoPProof401Response) VisitValidateDPoPProofResponse(w http.ResponseWriter) error {
+	w.WriteHeader(401)
+	return nil
+}
+
+type CreateDPoPProofRequestObject struct {
+	Did  string `json:"did"`
+	Body *CreateDPoPProofJSONRequestBody
+}
+
+type CreateDPoPProofResponseObject interface {
+	VisitCreateDPoPProofResponse(w http.ResponseWriter) error
+}
+
+type CreateDPoPProof200JSONResponse DPoPResponse
+
+func (response CreateDPoPProof200JSONResponse) VisitCreateDPoPProofResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateDPoPProof401Response struct {
+}
+
+func (response CreateDPoPProof401Response) VisitCreateDPoPProofResponse(w http.ResponseWriter) error {
+	w.WriteHeader(401)
+	return nil
 }
 
 type RequestOid4vciCredentialIssuanceRequestObject struct {
@@ -1491,6 +1670,12 @@ type StrictServerInterface interface {
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
+	// Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resources server, this is a convenience API.
+	// (POST /internal/auth/v2/dpop_validate)
+	ValidateDPoPProof(ctx context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error)
+	// Create a DPoP proof header as specified by RFC9449 for a given access token
+	// (POST /internal/auth/v2/{did}/dpop)
+	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
 	// Start the Oid4VCI authorization flow.
 	// (POST /internal/auth/v2/{did}/request-credential)
 	RequestOid4vciCredentialIssuance(ctx context.Context, request RequestOid4vciCredentialIssuanceRequestObject) (RequestOid4vciCredentialIssuanceResponseObject, error)
@@ -1708,6 +1893,66 @@ func (sh *strictHandler) RetrieveAccessToken(ctx echo.Context, sessionID string)
 		return err
 	} else if validResponse, ok := response.(RetrieveAccessTokenResponseObject); ok {
 		return validResponse.VisitRetrieveAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ValidateDPoPProof operation middleware
+func (sh *strictHandler) ValidateDPoPProof(ctx echo.Context) error {
+	var request ValidateDPoPProofRequestObject
+
+	var body ValidateDPoPProofJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ValidateDPoPProof(ctx.Request().Context(), request.(ValidateDPoPProofRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ValidateDPoPProof")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ValidateDPoPProofResponseObject); ok {
+		return validResponse.VisitValidateDPoPProofResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateDPoPProof operation middleware
+func (sh *strictHandler) CreateDPoPProof(ctx echo.Context, did string) error {
+	var request CreateDPoPProofRequestObject
+
+	request.Did = did
+
+	var body CreateDPoPProofJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateDPoPProof(ctx.Request().Context(), request.(CreateDPoPProofRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateDPoPProof")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateDPoPProofResponseObject); ok {
+		return validResponse.VisitCreateDPoPProofResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

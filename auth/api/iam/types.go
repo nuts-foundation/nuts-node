@@ -163,3 +163,8 @@ const presentationSubmissionParam = "presentation_submission"
 // vpTokenParam is the name of the OpenID4VP vp_token parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-response-type-vp_token
 const vpTokenParam = "vp_token"
+
+const (
+	AccessTokenTypeBearer = "Bearer"
+	AccessTokenTypeDPoP   = "DPoP"
+)

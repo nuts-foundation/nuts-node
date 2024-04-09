@@ -24,13 +24,14 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	http2 "net/http"
 	"net/url"
 )
 
 // Client defines OpenID4VP client methods using the IAM OpenAPI Spec.
 type Client interface {
 	// AccessToken requests an access token at the oauth2 token endpoint.
-	AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string) (*oauth.TokenResponse, error)
+	AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error)
 	// AuthorizationServerMetadata returns the metadata of the remote wallet.
 	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
 	// ClientMetadata returns the metadata of the remote verifier.
@@ -47,6 +48,10 @@ type Client interface {
 	// - nonce
 	// any of these params can be overridden by the RequestModifier.
 	CreateAuthorizationRequest(ctx context.Context, client did.DID, server did.DID, modifier RequestModifier) (*url.URL, error)
+	// DPoP creates a DPoP header for the given requestURI and requester.
+	DPoP(ctx context.Context, requester did.DID, request http2.Request) (string, error)
+	// DPoPProof creates a DPoP proof for the given requestURI and requester.
+	DPoPProof(ctx context.Context, requester did.DID, request http2.Request, accessToken string) (string, error)
 	// PostError posts an error to the verifier. If it fails, an error is returned.
 	PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (string, error)
 	// PostAuthorizationResponse posts the authorization response to the verifier. If it fails, an error is returned.
@@ -54,7 +59,7 @@ type Client interface {
 	// PresentationDefinition returns the presentation definition from the given endpoint.
 	PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error)
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC021.
-	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error)
+	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, useDPoP bool) (*oauth.TokenResponse, error)
 
 	OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error)
 

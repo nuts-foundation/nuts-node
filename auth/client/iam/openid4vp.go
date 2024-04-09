@@ -23,6 +23,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	http2 "net/http"
+	"net/url"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -35,8 +39,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/url"
-	"time"
 )
 
 var _ Client = (*OpenID4VPClient)(nil)
@@ -132,7 +134,7 @@ func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, webdi
 	return metadata, nil
 }
 
-func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string) (*oauth.TokenResponse, error) {
+func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
 	if err != nil {
@@ -148,7 +150,21 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier
 	data.Set(oauth.CodeParam, code)
 	data.Set(oauth.RedirectURIParam, callbackURI)
 	data.Set(oauth.CodeVerifierParam, codeVerifier)
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data)
+
+	var dpopHeader string
+	if useDPoP {
+		// create DPoP header
+		request, err := http2.NewRequestWithContext(ctx, http2.MethodPost, metadata.TokenEndpoint, nil)
+		if err != nil {
+			return nil, err
+		}
+		dpopHeader, err = c.DPoP(ctx, clientID, *request)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create DPoP header: %w", err)
+		}
+	}
+
+	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
 	if err != nil {
 		return nil, fmt.Errorf("remote server: error creating access token: %w", err)
 	}
@@ -215,7 +231,7 @@ func (c *OpenID4VPClient) CreateAuthorizationRequest(ctx context.Context, client
 	return &redirectURL, nil
 }
 
-func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
+func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
 	if err != nil {
@@ -240,7 +256,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		Expires:  time.Now().Add(time.Second * 5),
 		Nonce:    nutsCrypto.GenerateNonce(),
 	}
-	vp, submission, err := c.wallet.BuildSubmission(ctx, requester, *presentationDefinition, metadata.VPFormats, params)
+	vp, submission, err := c.wallet.BuildSubmission(ctx, requestHolder, *presentationDefinition, metadata.VPFormats, params)
 	if err != nil {
 		return nil, err
 	}
@@ -252,8 +268,22 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 	data.Set(oauth.AssertionParam, assertion)
 	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
 	data.Set(oauth.ScopeParam, scopes)
+
+	// create DPoP header
+	var dpopHeader string
+	if useDPoP {
+		request, err := http2.NewRequestWithContext(ctx, http2.MethodPost, metadata.TokenEndpoint, nil)
+		if err != nil {
+			return nil, err
+		}
+		dpopHeader, err = c.DPoP(ctx, requestHolder, *request)
+		if err != nil {
+			return nil, fmt.Errorf("failed tocreate DPoP header: %w", err)
+		}
+	}
+
 	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data)
+	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
 	if err != nil {
 		// the error could be a http error, we just relay it here to make use of any 400 status codes.
 		return nil, err
@@ -340,4 +370,25 @@ func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialE
 		return nil, fmt.Errorf("remote server: failed to retrieve credentials: %w", err)
 	}
 	return rsp, nil
+}
+
+func (c *OpenID4VPClient) DPoP(ctx context.Context, requester did.DID, request http2.Request) (string, error) {
+	// find the key to sign the DPoP token with
+	keyID, _, err := c.keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
+	if err != nil {
+		return "", err
+	}
+	// create the DPoP token
+	return c.jwtSigner.NewDPoP(ctx, request, keyID.String(), nil)
+}
+
+func (c *OpenID4VPClient) DPoPProof(ctx context.Context, requester did.DID, request http2.Request, accessToken string) (string, error) {
+	// find the key to sign the DPoP token with
+	keyID, _, err := c.keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
+	if err != nil {
+		return "", err
+	}
+
+	// create the DPoP token
+	return c.jwtSigner.NewDPoP(ctx, request, keyID.String(), &accessToken)
 }

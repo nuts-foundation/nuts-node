@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	crypto2 "crypto"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +35,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
+	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	http2 "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -123,7 +126,7 @@ func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID s
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
-func (w Wrapper) ResolveStatusCode(err error) int {
+func (r Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		vcrTypes.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
@@ -204,6 +207,75 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 	return RetrieveAccessToken200JSONResponse(token), nil
 }
 
+func (r Wrapper) CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error) {
+	// check method and url
+	if request.Body.Method == "" {
+		return nil, core.InvalidInputError("missing method")
+	}
+	if request.Body.Url == "" {
+		return nil, core.InvalidInputError("missing url")
+	}
+	// check access token status
+	if request.Body.Token == "" {
+		return nil, core.InvalidInputError("missing token")
+	}
+
+	// extract DID from request path
+	ownDID, err := r.toOwnedDID(ctx, request.Did)
+	if err != nil {
+		return nil, err
+	}
+	// create new DPoP header
+	httpRequest, err := http.NewRequest(request.Body.Method, request.Body.Url, nil)
+	if err != nil {
+		return nil, core.InvalidInputError(err.Error())
+	}
+	dpop, err := r.auth.IAMClient().DPoPProof(ctx, *ownDID, *httpRequest, request.Body.Token)
+	return CreateDPoPProof200JSONResponse{Dpop: dpop}, err
+}
+
+func (r Wrapper) ValidateDPoPProof(_ context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error) {
+	dpopToken, err := dpop.Parse(request.Body.Dpop)
+	if err != nil {
+		log.Logger().WithError(err).Debug("ValidateDPoPProof: failed to parse DPoP header")
+		return ValidateDPoPProof200JSONResponse{}, nil
+	}
+	if ok, err := dpopToken.Match(request.Body.Thumbprint, request.Body.Method, request.Body.Url); !ok {
+		log.Logger().Debugf("ValidateDPoPProof: %s", err.Error())
+		return ValidateDPoPProof200JSONResponse{}, nil
+	}
+	// check if ath claim matches hash of access_token
+	ath, ok := dpopToken.Token.Get(dpop.ATHKey)
+	if !ok {
+		log.Logger().Debug("ValidateDPoPProof: missing ath claim")
+		return ValidateDPoPProof200JSONResponse{}, nil
+	}
+	hash := hash2.SHA256Sum([]byte(request.Body.Token))
+	if ath != base64.RawURLEncoding.EncodeToString(hash.Slice()) {
+		log.Logger().Debug("ValidateDPoPProof: ath/token claim mismatch")
+		return ValidateDPoPProof200JSONResponse{}, nil
+	}
+	// check if the jti is already used, if not add it to the store for the duration of the access token lifetime
+	var target struct{}
+	if err := r.useNonceOnceStore().Get(dpopToken.Token.JwtID(), &target); err != nil {
+		if !errors.Is(err, storage.ErrNotFound) {
+			log.Logger().WithError(err).Error("ValidateDPoPProof: failed to retrieve jti usage state")
+			return nil, err
+		}
+
+		if err := r.useNonceOnceStore().Put(dpopToken.Token.JwtID(), target); err != nil {
+			log.Logger().WithError(err).Error("ValidateDPoPProof: failed to store jti usage state")
+			return nil, err
+		}
+	} else {
+		// jti already used
+		log.Logger().Debug("ValidateDPoPProof: jti already used")
+		return ValidateDPoPProof200JSONResponse{}, nil
+	}
+
+	return ValidateDPoPProof200JSONResponse{Valid: true}, nil
+}
+
 // IntrospectAccessToken allows the resource server (XIS/EHR) to introspect details of an access token issued by this node
 func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
 	// Validate token
@@ -231,11 +303,23 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 		return IntrospectAccessToken200JSONResponse{}, nil
 	}
 
+	// Optional:
+	// Use DPoP from token to generate JWK thumbprint for public key
+	// deserialization of the DPoP struct from the accessTokenServerStore triggers validation of the DPoP header
+	// SHA256 hashing won't fail.
+	var cnf *Cnf
+	if token.DPoP != nil {
+		hash, _ := token.DPoP.Headers.JWK().Thumbprint(crypto2.SHA256)
+		base64Hash := base64.RawURLEncoding.EncodeToString(hash)
+		cnf = &Cnf{Jkt: base64Hash}
+	}
+
 	// Create and return introspection response
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := IntrospectAccessToken200JSONResponse{
 		Active:   true,
+		Cnf:      cnf,
 		Iat:      &iat,
 		Exp:      &exp,
 		Iss:      &token.Issuer,
@@ -352,7 +436,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 // validateJARRequest validates a JAR (JWT Authorization Request) and returns the JWT claims.
 // the client_id must match the signer of the JWT.
-func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clientId string) (oauthParameters, error) {
+func (r Wrapper) validateJARRequest(ctx context.Context, rawToken string, clientId string) (oauthParameters, error) {
 	var signerKid string
 	// Parse and validate the JWT
 	token, err := crypto.ParseJWT(rawToken, func(kid string) (crypto2.PublicKey, error) {
@@ -539,7 +623,11 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		return nil, core.InvalidInputError("invalid verifier: %w", err)
 	}
 
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope)
+	useDPoP := true
+	if request.Body.TokenType != nil && strings.ToLower(string(*request.Body.TokenType)) == strings.ToLower(AccessTokenTypeBearer) {
+		useDPoP = false
+	}
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope, useDPoP)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -828,6 +916,12 @@ func (r Wrapper) accessTokenClientStore() storage.SessionStore {
 // accessTokenServerStore is used by the Auth server to store issued access tokens
 func (r Wrapper) accessTokenServerStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "serveraccesstoken")
+}
+
+// useNonceOnceStore is used to store nonces that are used once, e.g. DPoP jti
+// it uses the access token validity as the expiration time
+func (r Wrapper) useNonceOnceStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "nonceonce")
 }
 
 // createOAuth2BaseURL creates an OAuth2 base URL for an owned did:web DID

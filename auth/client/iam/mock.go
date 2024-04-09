@@ -11,6 +11,7 @@ package iam
 
 import (
 	context "context"
+	http "net/http"
 	url "net/url"
 	reflect "reflect"
 
@@ -45,18 +46,18 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // AccessToken mocks base method.
-func (m *MockClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string) (*oauth.TokenResponse, error) {
+func (m *MockClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AccessToken", ctx, code, verifier, callbackURI, clientID, codeVerifier)
+	ret := m.ctrl.Call(m, "AccessToken", ctx, code, verifier, callbackURI, clientID, codeVerifier, useDPoP)
 	ret0, _ := ret[0].(*oauth.TokenResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AccessToken indicates an expected call of AccessToken.
-func (mr *MockClientMockRecorder) AccessToken(ctx, code, verifier, callbackURI, clientID, codeVerifier any) *gomock.Call {
+func (mr *MockClientMockRecorder) AccessToken(ctx, code, verifier, callbackURI, clientID, codeVerifier, useDPoP any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccessToken", reflect.TypeOf((*MockClient)(nil).AccessToken), ctx, code, verifier, callbackURI, clientID, codeVerifier)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccessToken", reflect.TypeOf((*MockClient)(nil).AccessToken), ctx, code, verifier, callbackURI, clientID, codeVerifier, useDPoP)
 }
 
 // AccessTokenOid4vci mocks base method.
@@ -117,6 +118,36 @@ func (m *MockClient) CreateAuthorizationRequest(ctx context.Context, client, ser
 func (mr *MockClientMockRecorder) CreateAuthorizationRequest(ctx, client, server, modifier any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAuthorizationRequest", reflect.TypeOf((*MockClient)(nil).CreateAuthorizationRequest), ctx, client, server, modifier)
+}
+
+// DPoP mocks base method.
+func (m *MockClient) DPoP(ctx context.Context, requester did.DID, request http.Request) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DPoP", ctx, requester, request)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DPoP indicates an expected call of DPoP.
+func (mr *MockClientMockRecorder) DPoP(ctx, requester, request any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DPoP", reflect.TypeOf((*MockClient)(nil).DPoP), ctx, requester, request)
+}
+
+// DPoPProof mocks base method.
+func (m *MockClient) DPoPProof(ctx context.Context, requester did.DID, request http.Request, accessToken string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DPoPProof", ctx, requester, request, accessToken)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DPoPProof indicates an expected call of DPoPProof.
+func (mr *MockClientMockRecorder) DPoPProof(ctx, requester, request, accessToken any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DPoPProof", reflect.TypeOf((*MockClient)(nil).DPoPProof), ctx, requester, request, accessToken)
 }
 
 // OpenIdConfiguration mocks base method.
@@ -195,18 +226,18 @@ func (mr *MockClientMockRecorder) PresentationDefinition(ctx, endpoint any) *gom
 }
 
 // RequestRFC021AccessToken mocks base method.
-func (m *MockClient) RequestRFC021AccessToken(ctx context.Context, requestHolder, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
+func (m *MockClient) RequestRFC021AccessToken(ctx context.Context, requestHolder, verifier did.DID, scopes string, useDPoP bool) (*oauth.TokenResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestRFC021AccessToken", ctx, requestHolder, verifier, scopes)
+	ret := m.ctrl.Call(m, "RequestRFC021AccessToken", ctx, requestHolder, verifier, scopes, useDPoP)
 	ret0, _ := ret[0].(*oauth.TokenResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RequestRFC021AccessToken indicates an expected call of RequestRFC021AccessToken.
-func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, requestHolder, verifier, scopes any) *gomock.Call {
+func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, requestHolder, verifier, scopes, useDPoP any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestRFC021AccessToken", reflect.TypeOf((*MockClient)(nil).RequestRFC021AccessToken), ctx, requestHolder, verifier, scopes)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestRFC021AccessToken", reflect.TypeOf((*MockClient)(nil).RequestRFC021AccessToken), ctx, requestHolder, verifier, scopes, useDPoP)
 }
 
 // VerifiableCredentials mocks base method.

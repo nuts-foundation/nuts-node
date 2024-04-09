@@ -177,6 +177,9 @@ type AuthorizationServerMetadata struct {
 	// ClientIdSchemesSupported defines the `client_id_schemes` currently supported.
 	// If omitted, the default value is `pre-registered` (referring to the client), which is currently not supported.
 	ClientIdSchemesSupported []string `json:"client_id_schemes_supported,omitempty"`
+
+	// DPoPSigningAlgValuesSupported is a JSON array containing a list of the DPoP proof JWS signing algorithms ("alg" values) supported by the token endpoint.
+	DPoPSigningAlgValuesSupported []string `json:"dpop_signing_alg_values_supported,omitempty"`
 }
 
 // OAuthClientMetadata defines the OAuth Client metadata.

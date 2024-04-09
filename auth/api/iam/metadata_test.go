@@ -31,18 +31,19 @@ func Test_authorizationServerMetadata(t *testing.T) {
 	identity := test.MustParseURL("https://example.com/iam/123")
 	oauth2Base := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:123")
 	expected := oauth.AuthorizationServerMetadata{
-		Issuer:                 identity.String(),
-		AuthorizationEndpoint:  oauth2Base.String() + "/authorize",
-		ResponseTypesSupported: []string{"code", "vp_token", "vp_token id_token"},
-		ResponseModesSupported: []string{"query", "direct_post"},
-		TokenEndpoint:          oauth2Base.String() + "/token",
-		GrantTypesSupported:    []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
+		AuthorizationEndpoint:                      oauth2Base.String() + "/authorize",
+		ClientIdSchemesSupported:                   []string{"did"},
+		DPoPSigningAlgValuesSupported:              []string{"ES256", "ES384", "ES512", "PS256", "PS384", "PS512"},
+		GrantTypesSupported:                        []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
+		Issuer:                                     identity.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionEndpoint:             oauth2Base.String() + "/presentation_definition",
 		RequireSignedRequestObject:                 true,
+		ResponseTypesSupported:                     []string{"code", "vp_token", "vp_token id_token"},
+		ResponseModesSupported:                     []string{"query", "direct_post"},
+		TokenEndpoint:                              oauth2Base.String() + "/token",
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
-		ClientIdSchemesSupported:                   []string{"did"},
 	}
 	assert.Equal(t, expected, authorizationServerMetadata(*identity, *oauth2Base))
 }

@@ -132,11 +132,28 @@ else
   exitWithDockerLogs 1
 fi
 
+ACCESS_TOKEN=$(cat ./node-B/accesstoken.txt)
+
+echo "------------------------------------"
+echo "Create DPoP header..."
+echo "------------------------------------"
+REQUEST="{\"method\":\"GET\",\"url\":\"https://resource:80/resource\", \"token\":\"$ACCESS_TOKEN\"}"
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$PARTY_B_DID/dpop -H "Content-Type: application/json" -v)
+if echo $RESPONSE | grep -q "dpop"; then
+  echo $RESPONSE | sed -E 's/.*"dpop":"([^"]*).*/\1/' > ./node-B/dpop.txt
+  echo "dpop token stored in ./node-B/dpop.txt"
+else
+  echo "FAILED: Could not get dpop token from node-B" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+DPOP=$(cat ./node-B/dpop.txt)
 
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
-RESPONSE=$(docker compose exec nodeB-backend curl http://resource:80/resource -H "Authorization: bearer $(cat ./node-B/accesstoken.txt)")
+RESPONSE=$(docker compose exec nodeB-backend curl http://resource:80/resource -H "Authorization: DPoP $ACCESS_TOKEN" -H "DPoP: $DPOP" -v)
 if echo $RESPONSE | grep -q "OK"; then
   echo "success!"
 else
@@ -149,4 +166,4 @@ echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"
 docker compose stop
-rm ./node-B/*.txt
+rm node-*/*.txt

@@ -451,7 +451,6 @@ func TestSignJWS(t *testing.T) {
 			assert.Contains(t, signature, "..")
 		})
 	})
-
 }
 
 func TestCrypto_convertHeaders(t *testing.T) {

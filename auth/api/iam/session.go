@@ -33,13 +33,15 @@ import (
 // The client state (and nonce/redirectToken as well) is used to refer to this session.
 // Both the client and the server use this session to store information about the request.
 type OAuthSession struct {
-	ClientID               string
-	Scope                  string
-	OwnDID                 *did.DID
-	ClientState            string
-	SessionID              string
-	RedirectURI            string
-	ServerState            ServerState
+	ClientID    string
+	Scope       string
+	OwnDID      *did.DID
+	ClientState string
+	SessionID   string
+	RedirectURI string
+	ServerState ServerState
+	// UseDPoP determines if DPoP is used.
+	UseDPoP                bool
 	ResponseType           string
 	PKCEParams             PKCEParams
 	PresentationDefinition PresentationDefinition

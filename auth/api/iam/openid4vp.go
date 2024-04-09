@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"net/http"
 	"net/url"
 	"slices"
 	"time"
@@ -550,6 +551,12 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	if !validatePKCEParams(oauthSession.PKCEParams) {
 		return nil, oauthError(oauth.InvalidGrant, "invalid code_verifier")
 	}
+	// Parse optional DPoP header
+	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
+	dpopProof, err := dpopFromRequest(*httpRequest)
+	if err != nil {
+		return nil, err
+	}
 	state := oauthSession.ServerState
 	mapping, err := r.policyBackend.PresentationDefinitions(ctx, *oauthSession.OwnDID, oauthSession.Scope)
 	if err != nil {
@@ -561,7 +568,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	}
 	subject, _ := did.ParseDID(oauthSession.ClientID)
 
-	response, err := r.createAccessToken(*oauthSession.OwnDID, time.Now(), state.Presentations, state.PresentationSubmission, mapping[pe.WalletOwnerOrganization], oauthSession.Scope, *subject, state.CredentialMap)
+	response, err := r.createAccessToken(*oauthSession.OwnDID, time.Now(), state.Presentations, state.PresentationSubmission, mapping[pe.WalletOwnerOrganization], oauthSession.Scope, *subject, state.CredentialMap, dpopProof)
 	if err != nil {
 		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}
@@ -626,7 +633,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	checkURL = checkURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}

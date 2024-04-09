@@ -19,7 +19,6 @@
 package iam
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -503,20 +502,27 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		PKCEParams: generatePKCEParams(),
 	}
 	requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
-
+	// valid dpop token
+	dpop := "eyJhbGciOiJFUzI1NiIsImp3ayI6eyJhbGciOiJFUzI1NiIsImNydiI6IlAtMjU2Iiwia3R5IjoiRUMiLCJ4IjoiUHNnZ0pLTlpoQjBpSDUxNmZOdi1ucVpyRkZwZVJJOE9saDRsQVZpSHRkMCIsInkiOiJoblo4eGJpNVQxQTBBMjlYRDY2anl4cVYyZlE5TWE1SWJxeXpXRkx1X1VVIn0sInR5cCI6ImRwb3Arand0In0.eyJodG0iOiJQT1NUIiwiaHR1IjoiaHR0cHM6Ly9zZXJ2ZXIuZXhhbXBsZS5jb20vdG9rZW4iLCJpYXQiOjE3MTI2NTU2MDksImp0aSI6Ikk1a3JELXg4YWVia0hyV1o3Qy15MUEifQ.IN-y9dvoPC0b05w9bsHXLJsCiHQBxKHFtfghSmUDlt5dMG9at_0W6perVxHCo7N_LfwJ1FrgUG5V2nRw9HMW0g"
+	httpRequest := &http.Request{
+		Header: http.Header{
+			"Dpop": []string{dpop},
+		},
+	}
+	contextWithValue := context.WithValue(context.Background(), httpRequestContextKey, httpRequest)
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "scope").Return(walletOwnerMapping, nil)
 		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
 		putCodeSession(ctx, code, validSession)
 
-		response, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
+		response, err := ctx.client.handleAccessTokenRequest(contextWithValue, requestBody)
 
 		require.NoError(t, err)
 		token, ok := response.(HandleTokenRequest200JSONResponse)
 		require.True(t, ok)
 		assert.NotEmpty(t, token.AccessToken)
-		assert.Equal(t, "bearer", token.TokenType)
+		assert.Equal(t, "DPoP", token.TokenType)
 		assert.Equal(t, 900, *token.ExpiresIn)
 		assert.Equal(t, "scope", *token.Scope)
 
@@ -550,7 +556,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		putCodeSession(ctx, code, validSession)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "scope").Return(nil, assert.AnError)
 
-		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
+		_, err := ctx.client.handleAccessTokenRequest(contextWithValue, requestBody)
 
 		require.Error(t, err)
 		oauthErr, ok := err.(oauth.OAuth2Error)
@@ -643,7 +649,7 @@ func Test_handleCallback(t *testing.T) {
 		putState(ctx, state)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier, true).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -795,38 +801,23 @@ func assertOAuthError(t *testing.T, err error, expectedDescription string) oauth
 	return oauthErr
 }
 
-type stubResponseWriter struct {
-	headers    http.Header
-	body       *bytes.Buffer
-	statusCode int
-}
-
-func (s *stubResponseWriter) Header() http.Header {
-	if s.headers == nil {
-		s.headers = make(http.Header)
-	}
-	return s.headers
-
-}
-
-func (s *stubResponseWriter) Write(i []byte) (int, error) {
-	if s.body == nil {
-		s.body = new(bytes.Buffer)
-	}
-	return s.body.Write(i)
-}
-
-func (s *stubResponseWriter) WriteHeader(statusCode int) {
-	s.statusCode = statusCode
+func assertOAuthErrorWithCode(t *testing.T, err error, expectedCode oauth.ErrorCode, expectedDescription string) oauth.OAuth2Error {
+	require.Error(t, err)
+	oauthErr, ok := err.(oauth.OAuth2Error)
+	require.True(t, ok, "expected oauth error")
+	assert.Equal(t, expectedCode, oauthErr.Code)
+	assert.Equal(t, expectedDescription, oauthErr.Description)
+	return oauthErr
 }
 
 func putState(ctx *testCtx, state string) {
 	_ = ctx.client.oauthClientStateStore().Put(state, OAuthSession{
-		SessionID:   "token",
 		OwnDID:      &holderDID,
-		RedirectURI: "https://example.com/iam/holder/cb",
-		VerifierDID: &verifierDID,
 		PKCEParams:  generatePKCEParams(),
+		RedirectURI: "https://example.com/iam/holder/cb",
+		SessionID:   "token",
+		UseDPoP:     true,
+		VerifierDID: &verifierDID,
 	})
 }
 

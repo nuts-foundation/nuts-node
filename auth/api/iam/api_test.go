@@ -574,7 +574,7 @@ func TestWrapper_Callback(t *testing.T) {
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID, codeVerifier).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -593,6 +593,32 @@ func TestWrapper_Callback(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, oauth.AccessTokenRequestStatusActive, *tokenResponse.Status)
 		assert.Equal(t, "access", tokenResponse.AccessToken)
+	})
+	t.Run("ok - no DPoP", func(t *testing.T) {
+		ctx := newTestClient(t)
+		_ = ctx.client.oauthClientStateStore().Put(state, OAuthSession{
+			OwnDID:      &holderDID,
+			PKCEParams:  generatePKCEParams(),
+			RedirectURI: "https://example.com/iam/holder/cb",
+			SessionID:   "token",
+			UseDPoP:     false,
+			VerifierDID: &verifierDID,
+		})
+		putToken(ctx, token)
+		codeVerifier := getState(ctx, state).PKCEParams.Verifier
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+
+		res, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Did: webDID.String(),
+			Params: CallbackParams{
+				Code:  &code,
+				State: &state,
+			},
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, res)
 	})
 	t.Run("unknown did", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -633,6 +659,7 @@ func TestWrapper_RetrieveAccessToken(t *testing.T) {
 func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	// mvp to store access token
 	ctx := newTestClient(t)
+	dpopToken, _, thumbprint := newSignedTestDPoP()
 
 	// validate all fields are there after introspection
 	t.Run("error - no token provided", func(t *testing.T) {
@@ -662,7 +689,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
 	})
 	t.Run("ok", func(t *testing.T) {
-		token := AccessToken{Expiration: time.Now().Add(time.Second)}
+		token := AccessToken{Expiration: time.Now().Add(time.Second), DPoP: dpopToken}
 		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
 
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
@@ -712,6 +739,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		}
 		tNow := time.Now()
 		token := AccessToken{
+			DPoP:                           dpopToken,
 			Token:                          "token",
 			Issuer:                         "resource-owner",
 			ClientId:                       "client",
@@ -728,6 +756,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
 			Active:                 true,
 			ClientId:               ptrTo("client"),
+			Cnf:                    &Cnf{Jkt: thumbprint},
 			Exp:                    ptrTo(int(tNow.Add(time.Minute).Unix())),
 			Iat:                    ptrTo(int(tNow.Unix())),
 			Iss:                    ptrTo("resource-owner"),
@@ -822,10 +851,21 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
 	body := &RequestServiceAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second"}
 
-	t.Run("ok - service flow", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(&oauth.TokenResponse{}, nil)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second", true).Return(&oauth.TokenResponse{}, nil)
+
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.NoError(t, err)
+	})
+	t.Run("ok - no DPoP", func(t *testing.T) {
+		ctx := newTestClient(t)
+		tokenTypeBearer := ServiceAccessTokenRequestTokenType("bearer")
+		body := &RequestServiceAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", TokenType: &tokenTypeBearer}
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second", false).Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
@@ -860,7 +900,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	t.Run("error - verifier error", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second", true).Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
@@ -872,13 +912,14 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
+	tokenType := UserAccessTokenRequestTokenType("dpop")
 	userDetails := UserDetails{
 		Id:   "test",
 		Name: "Titus Tester",
 		Role: "Test Manager",
 	}
 	redirectURI := "https://test.test/oauth2/" + walletDID.String() + "/cb"
-	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", PreauthorizedUser: &userDetails, RedirectUri: redirectURI}
+	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", PreauthorizedUser: &userDetails, RedirectUri: redirectURI, TokenType: &tokenType}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -898,6 +939,9 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		err = ctx.client.userRedirectStore().Get(redirectURI.Query().Get("token"), &target)
 		require.NoError(t, err)
 		assert.Equal(t, walletDID, target.OwnDID)
+		require.NotNil(t, target.AccessTokenRequest)
+		require.NotNil(t, target.AccessTokenRequest.Body.TokenType)
+		assert.Equal(t, tokenType, *target.AccessTokenRequest.Body.TokenType)
 
 		// assert flow
 		var tokenResponse TokenResponse
@@ -972,6 +1016,163 @@ func TestWrapper_StatusList(t *testing.T) {
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Nil(t, res)
+	})
+}
+
+func TestWrapper_CreateDPoPProof(t *testing.T) {
+	accesstoken := "token"
+	request, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.com", nil)
+	requestBody := CreateDPoPProofJSONRequestBody{
+		Method: "GET",
+		Token:  accesstoken,
+		Url:    "https://example.com",
+	}
+	requestObject := CreateDPoPProofRequestObject{
+		Body: &requestBody,
+		Did:  webDID.String(),
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.iamClient.EXPECT().DPoPProof(gomock.Any(), webDID, *request, accesstoken).Return("dpop", nil)
+
+		res, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
+
+		require.NoError(t, err)
+		assert.Equal(t, "dpop", res.(CreateDPoPProof200JSONResponse).Dpop)
+	})
+	t.Run("missing method", func(t *testing.T) {
+		ctx := newTestClient(t)
+		requestBody.Method = ""
+		defer (func() { requestBody.Method = "GET" })()
+
+		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
+
+		assert.EqualError(t, err, "missing method")
+	})
+	t.Run("invalid method", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		requestBody.Method = "\\"
+		defer (func() { requestBody.Method = "GET" })()
+
+		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
+
+		assert.EqualError(t, err, "net/http: invalid method \"\\\\\"")
+	})
+	t.Run("missing token", func(t *testing.T) {
+		ctx := newTestClient(t)
+		requestBody.Token = ""
+		defer (func() { requestBody.Token = accesstoken })()
+
+		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
+
+		assert.EqualError(t, err, "missing token")
+	})
+	t.Run("missing url", func(t *testing.T) {
+		ctx := newTestClient(t)
+		requestBody.Url = ""
+		defer (func() { requestBody.Url = "https://example.com" })()
+
+		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
+
+		assert.EqualError(t, err, "missing url")
+	})
+	t.Run("did not owned", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(false, nil)
+
+		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
+
+		assert.EqualError(t, err, "DID document not managed by this node")
+	})
+	t.Run("proof error", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.iamClient.EXPECT().DPoPProof(gomock.Any(), webDID, *request, accesstoken).Return("dpop", assert.AnError)
+
+		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
+
+		assert.Equal(t, assert.AnError, err)
+	})
+}
+
+func TestWrapper_ValidateDPoPProof(t *testing.T) {
+	accessToken := "token"
+	dpopToken, dpopProof, thumbprint := newSignedTestDPoP()
+	request := ValidateDPoPProofRequestObject{
+		Body: &ValidateDPoPProofJSONRequestBody{
+			Dpop:       dpopProof.String(),
+			Method:     "POST",
+			Thumbprint: thumbprint,
+			Token:      accessToken,
+			Url:        "https://server.example.com/token",
+		},
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		resp, err := ctx.client.ValidateDPoPProof(nil, request)
+
+		require.NoError(t, err)
+		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
+		assert.True(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
+	})
+	t.Run("no match", func(t *testing.T) {
+		ctx := newTestClient(t)
+		request.Body.Method = "GET"
+		defer (func() { request.Body.Method = "POST" })()
+
+		resp, err := ctx.client.ValidateDPoPProof(nil, request)
+
+		require.NoError(t, err)
+		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
+		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
+	})
+	t.Run("missing ath header", func(t *testing.T) {
+		ctx := newTestClient(t)
+		request.Body.Dpop = dpopToken.String()
+		defer (func() { request.Body.Dpop = dpopProof.String() })()
+
+		resp, err := ctx.client.ValidateDPoPProof(nil, request)
+
+		require.NoError(t, err)
+		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
+		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
+	})
+	t.Run("parsing failed", func(t *testing.T) {
+		ctx := newTestClient(t)
+		request.Body.Dpop = "invalid"
+		defer (func() { request.Body.Dpop = dpopProof.String() })()
+
+		resp, err := ctx.client.ValidateDPoPProof(nil, request)
+
+		require.NoError(t, err)
+		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
+		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
+	})
+	t.Run("invalid accestoken", func(t *testing.T) {
+		ctx := newTestClient(t)
+		request.Body.Token = "invalid"
+		defer (func() { request.Body.Token = accessToken })()
+
+		resp, err := ctx.client.ValidateDPoPProof(nil, request)
+
+		require.NoError(t, err)
+		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
+		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
+	})
+	t.Run("already used once", func(t *testing.T) {
+		ctx := newTestClient(t)
+		_ = ctx.client.useNonceOnceStore().Put(dpopProof.Token.JwtID(), struct{}{})
+
+		resp, err := ctx.client.ValidateDPoPProof(nil, request)
+
+		require.NoError(t, err)
+		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
+		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
 	})
 }
 

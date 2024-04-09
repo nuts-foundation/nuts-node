@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto"
 	"errors"
+	"net/http"
 )
 
 // ErrPrivateKeyNotFound is returned when the private key doesn't exist
@@ -92,6 +93,11 @@ type JWTSigner interface {
 	// DecryptJWE decrypts a message as bytes into a decrypted body and headers.
 	// The corresponding private key must be located in the KeyID (kid) header.
 	DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, err error)
+
+	// NewDPoP creates a DPoP token for the given request and kid.
+	// It adds the requested key as jwk header to the DPoP token.
+	// This method is used for both the initial DPoP header as the DPoP proof.
+	NewDPoP(ctx context.Context, request http.Request, kid string, tokenHash *string) (string, error)
 }
 
 // Key is a helper interface that describes a private key in the crypto module, specifying its KID and public part.

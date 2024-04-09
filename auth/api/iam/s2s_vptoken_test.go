@@ -25,8 +25,10 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"go.uber.org/mock/gomock"
+	"net/http"
 	"testing"
 	"time"
 
@@ -107,18 +109,24 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		proof.Domain = &issuerDIDStr
 	})
 	presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
-
+	dpopHeader, _, _ := newSignedTestDPoP()
+	httpRequest := &http.Request{
+		Header: http.Header{
+			"Dpop": []string{dpopHeader.String()},
+		},
+	}
+	contextWithValue := context.WithValue(context.Background(), httpRequestContextKey, httpRequest)
 	t.Run("JSON-LD VP", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.NoError(t, err)
 		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
 		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
-		assert.Equal(t, "bearer", tokenResponse.TokenType)
+		assert.Equal(t, "DPoP", tokenResponse.TokenType)
 		assert.Equal(t, requestedScope, *tokenResponse.Scope)
 		assert.Equal(t, int(accessTokenValidity.Seconds()), *tokenResponse.ExpiresIn)
 		assert.NotEmpty(t, tokenResponse.AccessToken)
@@ -161,12 +169,12 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.NoError(t, err)
 		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
 		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
-		assert.Equal(t, "bearer", tokenResponse.TokenType)
+		assert.Equal(t, "DPoP", tokenResponse.TokenType)
 		assert.Equal(t, requestedScope, *tokenResponse.Scope)
 		assert.Equal(t, int(accessTokenValidity.Seconds()), *tokenResponse.ExpiresIn)
 		assert.NotEmpty(t, tokenResponse.AccessToken)
@@ -195,7 +203,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil).Times(2)
 
-			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
+			_, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerDID, requestedScope, submissionJSON, presentation.Raw())
 			require.NoError(t, err)
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
@@ -292,7 +300,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(nil, errors.New("invalid"))
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
 		assert.EqualError(t, err, "invalid_request - invalid - presentation(s) or contained credential(s) are invalid")
 		assert.Nil(t, resp)
@@ -363,6 +371,18 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		assert.EqualError(t, err, "invalid_request - presentation submission doesn't match presentation definition - presentation submission does not conform to Presentation Definition")
 		assert.Nil(t, resp)
 	})
+	t.Run("invalid DPoP header", func(t *testing.T) {
+		ctx := newTestClient(t)
+		httpRequest := &http.Request{Header: http.Header{"Dpop": []string{"invalid"}}}
+		httpRequest.Header.Set("DPoP", "invalid")
+		contextWithValue := context.WithValue(context.Background(), httpRequestContextKey, httpRequest)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerDID, requestedScope, submissionJSON, presentation.Raw())
+
+		_ = assertOAuthErrorWithCode(t, err, oauth.InvalidDPopProof, "DPoP header is invalid")
+		assert.Nil(t, resp)
+	})
 }
 
 func TestWrapper_createAccessToken(t *testing.T) {
@@ -384,15 +404,16 @@ func TestWrapper_createAccessToken(t *testing.T) {
 	definition := pe.PresentationDefinition{
 		Id: "definitive",
 	}
+	dpopToken, _, _ := newSignedTestDPoP()
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		vps := []VerifiablePresentation{test.ParsePresentation(t, presentation)}
-		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), vps, &submission, definition, "everything", credentialSubjectID, nil)
+		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), vps, &submission, definition, "everything", credentialSubjectID, nil, dpopToken)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)
-		assert.Equal(t, "bearer", accessToken.TokenType)
+		assert.Equal(t, "DPoP", accessToken.TokenType)
 		assert.Equal(t, 900, *accessToken.ExpiresIn)
 		assert.Equal(t, "everything", *accessToken.Scope)
 
@@ -407,5 +428,14 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		assert.JSONEq(t, string(expectedVPJSON), string(actualVPJSON))
 		assert.Equal(t, issuerDID.String(), storedToken.Issuer)
 		assert.NotEmpty(t, storedToken.Expiration)
+	})
+	t.Run("ok - bearer token", func(t *testing.T) {
+		ctx := newTestClient(t)
+		vps := []VerifiablePresentation{test.ParsePresentation(t, presentation)}
+		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), vps, &submission, definition, "everything", credentialSubjectID, nil, nil)
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, accessToken.AccessToken)
+		assert.Equal(t, "Bearer", accessToken.TokenType)
 	})
 }

@@ -35,6 +35,7 @@ Nuts documentation
     pages/deployment/backup-restore.rst
     pages/deployment/key-rotation.rst
     pages/deployment/audit-logging.rst
+    pages/deployment/oauth.rst
 
 .. toctree::
     :maxdepth: 1
