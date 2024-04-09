@@ -22,9 +22,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -144,6 +146,15 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 		}
 		// log broken StatusList2021Credential in DB and try to issue a new one
 		log.Logger().WithError(err).WithField("StatusList2021Credential", statusListCredentialURL).Error("Failed to parse managed StatusList2021Credential in database")
+	}
+
+	// Rewrite audit context. This is a system action and should not be logged against an external party.
+	info := audit.InfoFromContext(ctx)
+	if info != nil {
+		module, operation, ok := strings.Cut(info.Operation, ".")
+		if ok {
+			ctx = audit.Context(ctx, "_system_signing_expired_statuslist2021credential", module, operation)
+		}
 	}
 
 	// resolve signing key outside of transaction

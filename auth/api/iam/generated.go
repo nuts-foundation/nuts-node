@@ -19,13 +19,6 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
-// Defines values for TokenIntrospectionResponseAssuranceLevel.
-const (
-	High        TokenIntrospectionResponseAssuranceLevel = "high"
-	Low         TokenIntrospectionResponseAssuranceLevel = "low"
-	Substantial TokenIntrospectionResponseAssuranceLevel = "substantial"
-)
-
 // RedirectResponseWithID defines model for RedirectResponseWithID.
 type RedirectResponseWithID struct {
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
@@ -36,6 +29,7 @@ type RedirectResponseWithID struct {
 }
 
 // TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
+// Alongside the defined properties, it can return values (additionalProperties) from the Verifiable Credentials that resulted from the Presentation Exchange.
 type TokenIntrospectionRequest struct {
 	Token string `json:"token"`
 }
@@ -45,39 +39,20 @@ type TokenIntrospectionResponse struct {
 	// Active True if the token is active, false if the token is expired, malformed etc. Required per RFC7662
 	Active bool `json:"active"`
 
-	// AssuranceLevel Assurance level of the identity of the End-User.
-	AssuranceLevel *TokenIntrospectionResponseAssuranceLevel `json:"assurance_level,omitempty"`
-
 	// Aud RFC7662 - Service-specific string identifier or list of string identifiers representing the intended audience for this token, as defined in JWT [RFC7519].
 	Aud *string `json:"aud,omitempty"`
 
 	// ClientId The client (DID) the access token was issued to
 	ClientId *string `json:"client_id,omitempty"`
 
-	// Email End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.
-	Email *string `json:"email,omitempty"`
-
 	// Exp Expiration date in seconds since UNIX epoch
 	Exp *int `json:"exp,omitempty"`
-
-	// FamilyName Surname(s) or last name(s) of the End-User.
-	FamilyName *string `json:"family_name,omitempty"`
 
 	// Iat Issuance time in seconds since UNIX epoch
 	Iat *int `json:"iat,omitempty"`
 
-	// Initials Initials of the End-User.
-	Initials *string `json:"initials,omitempty"`
-
-	// InputDescriptorConstraintIdMap Mapping from the ID field of a 'presentation_definition' input descriptor constraints to the value provided in the 'vps' for the constraints.
-	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
-	InputDescriptorConstraintIdMap *map[string]interface{} `json:"input_descriptor_constraint_id_map,omitempty"`
-
 	// Iss Contains the DID of the authorizer. Should be equal to 'sub'
 	Iss *string `json:"iss,omitempty"`
-
-	// Prefix Surname prefix
-	Prefix *string `json:"prefix,omitempty"`
 
 	// PresentationDefinition presentation definition, as described in presentation exchange specification, fulfilled to obtain the access token
 	PresentationDefinition *map[string]interface{} `json:"presentation_definition,omitempty"`
@@ -91,18 +66,10 @@ type TokenIntrospectionResponse struct {
 	// Sub Contains the DID of the resource owner
 	Sub *string `json:"sub,omitempty"`
 
-	// UserRole Role of the End-User.
-	UserRole *string `json:"user_role,omitempty"`
-
-	// Username Identifier uniquely identifying the End-User's account in the issuing system.
-	Username *string `json:"username,omitempty"`
-
 	// Vps The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
-	Vps *[]VerifiablePresentation `json:"vps,omitempty"`
+	Vps                  *[]VerifiablePresentation `json:"vps,omitempty"`
+	AdditionalProperties map[string]interface{}    `json:"-"`
 }
-
-// TokenIntrospectionResponseAssuranceLevel Assurance level of the identity of the End-User.
-type TokenIntrospectionResponseAssuranceLevel string
 
 // UserDetails Claims about the authorized user.
 type UserDetails struct {
@@ -162,8 +129,7 @@ type CallbackParams struct {
 
 // PresentationDefinitionParams defines parameters for PresentationDefinition.
 type PresentationDefinitionParams struct {
-	Scope           string           `form:"scope" json:"scope"`
-	WalletOwnerType *WalletOwnerType `form:"wallet_owner_type,omitempty" json:"wallet_owner_type,omitempty"`
+	Scope string `form:"scope" json:"scope"`
 }
 
 // HandleAuthorizeResponseFormdataBody defines parameters for HandleAuthorizeResponse.
@@ -207,6 +173,222 @@ type HandleAuthorizeResponseFormdataRequestBody HandleAuthorizeResponseFormdataB
 
 // HandleTokenRequestFormdataRequestBody defines body for HandleTokenRequest for application/x-www-form-urlencoded ContentType.
 type HandleTokenRequestFormdataRequestBody HandleTokenRequestFormdataBody
+
+// Getter for additional properties for TokenIntrospectionResponse. Returns the specified
+// element and whether it was found
+func (a TokenIntrospectionResponse) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for TokenIntrospectionResponse
+func (a *TokenIntrospectionResponse) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for TokenIntrospectionResponse to handle AdditionalProperties
+func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["active"]; found {
+		err = json.Unmarshal(raw, &a.Active)
+		if err != nil {
+			return fmt.Errorf("error reading 'active': %w", err)
+		}
+		delete(object, "active")
+	}
+
+	if raw, found := object["aud"]; found {
+		err = json.Unmarshal(raw, &a.Aud)
+		if err != nil {
+			return fmt.Errorf("error reading 'aud': %w", err)
+		}
+		delete(object, "aud")
+	}
+
+	if raw, found := object["client_id"]; found {
+		err = json.Unmarshal(raw, &a.ClientId)
+		if err != nil {
+			return fmt.Errorf("error reading 'client_id': %w", err)
+		}
+		delete(object, "client_id")
+	}
+
+	if raw, found := object["exp"]; found {
+		err = json.Unmarshal(raw, &a.Exp)
+		if err != nil {
+			return fmt.Errorf("error reading 'exp': %w", err)
+		}
+		delete(object, "exp")
+	}
+
+	if raw, found := object["iat"]; found {
+		err = json.Unmarshal(raw, &a.Iat)
+		if err != nil {
+			return fmt.Errorf("error reading 'iat': %w", err)
+		}
+		delete(object, "iat")
+	}
+
+	if raw, found := object["iss"]; found {
+		err = json.Unmarshal(raw, &a.Iss)
+		if err != nil {
+			return fmt.Errorf("error reading 'iss': %w", err)
+		}
+		delete(object, "iss")
+	}
+
+	if raw, found := object["presentation_definition"]; found {
+		err = json.Unmarshal(raw, &a.PresentationDefinition)
+		if err != nil {
+			return fmt.Errorf("error reading 'presentation_definition': %w", err)
+		}
+		delete(object, "presentation_definition")
+	}
+
+	if raw, found := object["presentation_submission"]; found {
+		err = json.Unmarshal(raw, &a.PresentationSubmission)
+		if err != nil {
+			return fmt.Errorf("error reading 'presentation_submission': %w", err)
+		}
+		delete(object, "presentation_submission")
+	}
+
+	if raw, found := object["scope"]; found {
+		err = json.Unmarshal(raw, &a.Scope)
+		if err != nil {
+			return fmt.Errorf("error reading 'scope': %w", err)
+		}
+		delete(object, "scope")
+	}
+
+	if raw, found := object["sub"]; found {
+		err = json.Unmarshal(raw, &a.Sub)
+		if err != nil {
+			return fmt.Errorf("error reading 'sub': %w", err)
+		}
+		delete(object, "sub")
+	}
+
+	if raw, found := object["vps"]; found {
+		err = json.Unmarshal(raw, &a.Vps)
+		if err != nil {
+			return fmt.Errorf("error reading 'vps': %w", err)
+		}
+		delete(object, "vps")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for TokenIntrospectionResponse to handle AdditionalProperties
+func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	object["active"], err = json.Marshal(a.Active)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'active': %w", err)
+	}
+
+	if a.Aud != nil {
+		object["aud"], err = json.Marshal(a.Aud)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'aud': %w", err)
+		}
+	}
+
+	if a.ClientId != nil {
+		object["client_id"], err = json.Marshal(a.ClientId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'client_id': %w", err)
+		}
+	}
+
+	if a.Exp != nil {
+		object["exp"], err = json.Marshal(a.Exp)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'exp': %w", err)
+		}
+	}
+
+	if a.Iat != nil {
+		object["iat"], err = json.Marshal(a.Iat)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'iat': %w", err)
+		}
+	}
+
+	if a.Iss != nil {
+		object["iss"], err = json.Marshal(a.Iss)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'iss': %w", err)
+		}
+	}
+
+	if a.PresentationDefinition != nil {
+		object["presentation_definition"], err = json.Marshal(a.PresentationDefinition)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'presentation_definition': %w", err)
+		}
+	}
+
+	if a.PresentationSubmission != nil {
+		object["presentation_submission"], err = json.Marshal(a.PresentationSubmission)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'presentation_submission': %w", err)
+		}
+	}
+
+	if a.Scope != nil {
+		object["scope"], err = json.Marshal(a.Scope)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'scope': %w", err)
+		}
+	}
+
+	if a.Sub != nil {
+		object["sub"], err = json.Marshal(a.Sub)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'sub': %w", err)
+		}
+	}
+
+	if a.Vps != nil {
+		object["vps"], err = json.Marshal(a.Vps)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'vps': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -480,13 +662,6 @@ func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error 
 	err = runtime.BindQueryParameter("form", true, true, "scope", ctx.QueryParams(), &params.Scope)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter scope: %s", err))
-	}
-
-	// ------------- Optional query parameter "wallet_owner_type" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "wallet_owner_type", ctx.QueryParams(), &params.WalletOwnerType)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter wallet_owner_type: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments

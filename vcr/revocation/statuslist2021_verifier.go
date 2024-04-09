@@ -109,7 +109,7 @@ func (cs *StatusList2021) statusList(statusListCredential string) (*credentialRe
 		return cs.update(statusListCredential)
 	}
 
-	// managed StatusList2021Credentials are always up-to-date, does not matter that it is expired
+	// managed StatusList2021Credentials are always up-to-date, does not matter if it is expired
 	if cs.isManaged(statusListCredential) {
 		return cr, nil
 	}
