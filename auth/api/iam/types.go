@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/http"
 	"time"
 )
 
@@ -62,6 +63,13 @@ type OAuthClientMetadata = oauth.OAuthClientMetadata
 const (
 	sessionExpiry = 5 * time.Minute
 )
+
+// CookieReader is an interface for reading cookies from an HTTP request.
+// It is implemented by echo.Context and http.Request.
+type CookieReader interface {
+	// Cookie returns the named cookie provided in the request.
+	Cookie(name string) (*http.Cookie, error)
+}
 
 const (
 	// oauth.ResponseTypeParam is the name of the response_type parameter.
