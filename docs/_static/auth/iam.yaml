@@ -804,36 +804,6 @@ components:
           items:
             $ref: '#/components/schemas/VerifiablePresentation'
           description: The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
-# TODO: below is copied from introspection/v1. Remove anything unused when flows are finalized.
-# TODO: existing contract validator responses
-        family_name:
-          type: string
-          description: Surname(s) or last name(s) of the End-User.
-          example: Bruijn
-        prefix:
-          type: string
-          description: Surname prefix
-          example: de
-        initials:
-          type: string
-          description: Initials of the End-User.
-          example: I.
-        username:
-          type: string
-          description: Identifier uniquely identifying the End-User's account in the issuing system.
-        assurance_level:
-          type: string
-          description: Assurance level of the identity of the End-User.
-          format: enum
-          enum: [low, substantial, high]
-# TODO: ???
-        email:
-          type: string
-          description: End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.
-          example: w.debruijn@example.org
-        user_role:
-          type: string
-          description: Role of the End-User.
   securitySchemes:
     jwtBearerAuth:
       type: http

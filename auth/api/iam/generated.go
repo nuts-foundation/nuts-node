@@ -19,13 +19,6 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
-// Defines values for TokenIntrospectionResponseAssuranceLevel.
-const (
-	High        TokenIntrospectionResponseAssuranceLevel = "high"
-	Low         TokenIntrospectionResponseAssuranceLevel = "low"
-	Substantial TokenIntrospectionResponseAssuranceLevel = "substantial"
-)
-
 // RedirectResponseWithID defines model for RedirectResponseWithID.
 type RedirectResponseWithID struct {
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
@@ -46,35 +39,20 @@ type TokenIntrospectionResponse struct {
 	// Active True if the token is active, false if the token is expired, malformed etc. Required per RFC7662
 	Active bool `json:"active"`
 
-	// AssuranceLevel Assurance level of the identity of the End-User.
-	AssuranceLevel *TokenIntrospectionResponseAssuranceLevel `json:"assurance_level,omitempty"`
-
 	// Aud RFC7662 - Service-specific string identifier or list of string identifiers representing the intended audience for this token, as defined in JWT [RFC7519].
 	Aud *string `json:"aud,omitempty"`
 
 	// ClientId The client (DID) the access token was issued to
 	ClientId *string `json:"client_id,omitempty"`
 
-	// Email End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.
-	Email *string `json:"email,omitempty"`
-
 	// Exp Expiration date in seconds since UNIX epoch
 	Exp *int `json:"exp,omitempty"`
-
-	// FamilyName Surname(s) or last name(s) of the End-User.
-	FamilyName *string `json:"family_name,omitempty"`
 
 	// Iat Issuance time in seconds since UNIX epoch
 	Iat *int `json:"iat,omitempty"`
 
-	// Initials Initials of the End-User.
-	Initials *string `json:"initials,omitempty"`
-
 	// Iss Contains the DID of the authorizer. Should be equal to 'sub'
 	Iss *string `json:"iss,omitempty"`
-
-	// Prefix Surname prefix
-	Prefix *string `json:"prefix,omitempty"`
 
 	// PresentationDefinition presentation definition, as described in presentation exchange specification, fulfilled to obtain the access token
 	PresentationDefinition *map[string]interface{} `json:"presentation_definition,omitempty"`
@@ -88,19 +66,10 @@ type TokenIntrospectionResponse struct {
 	// Sub Contains the DID of the resource owner
 	Sub *string `json:"sub,omitempty"`
 
-	// UserRole Role of the End-User.
-	UserRole *string `json:"user_role,omitempty"`
-
-	// Username Identifier uniquely identifying the End-User's account in the issuing system.
-	Username *string `json:"username,omitempty"`
-
 	// Vps The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
 	Vps                  *[]VerifiablePresentation `json:"vps,omitempty"`
 	AdditionalProperties map[string]interface{}    `json:"-"`
 }
-
-// TokenIntrospectionResponseAssuranceLevel Assurance level of the identity of the End-User.
-type TokenIntrospectionResponseAssuranceLevel string
 
 // UserDetails Claims about the authorized user.
 type UserDetails struct {
@@ -238,14 +207,6 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 		delete(object, "active")
 	}
 
-	if raw, found := object["assurance_level"]; found {
-		err = json.Unmarshal(raw, &a.AssuranceLevel)
-		if err != nil {
-			return fmt.Errorf("error reading 'assurance_level': %w", err)
-		}
-		delete(object, "assurance_level")
-	}
-
 	if raw, found := object["aud"]; found {
 		err = json.Unmarshal(raw, &a.Aud)
 		if err != nil {
@@ -262,28 +223,12 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 		delete(object, "client_id")
 	}
 
-	if raw, found := object["email"]; found {
-		err = json.Unmarshal(raw, &a.Email)
-		if err != nil {
-			return fmt.Errorf("error reading 'email': %w", err)
-		}
-		delete(object, "email")
-	}
-
 	if raw, found := object["exp"]; found {
 		err = json.Unmarshal(raw, &a.Exp)
 		if err != nil {
 			return fmt.Errorf("error reading 'exp': %w", err)
 		}
 		delete(object, "exp")
-	}
-
-	if raw, found := object["family_name"]; found {
-		err = json.Unmarshal(raw, &a.FamilyName)
-		if err != nil {
-			return fmt.Errorf("error reading 'family_name': %w", err)
-		}
-		delete(object, "family_name")
 	}
 
 	if raw, found := object["iat"]; found {
@@ -294,28 +239,12 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 		delete(object, "iat")
 	}
 
-	if raw, found := object["initials"]; found {
-		err = json.Unmarshal(raw, &a.Initials)
-		if err != nil {
-			return fmt.Errorf("error reading 'initials': %w", err)
-		}
-		delete(object, "initials")
-	}
-
 	if raw, found := object["iss"]; found {
 		err = json.Unmarshal(raw, &a.Iss)
 		if err != nil {
 			return fmt.Errorf("error reading 'iss': %w", err)
 		}
 		delete(object, "iss")
-	}
-
-	if raw, found := object["prefix"]; found {
-		err = json.Unmarshal(raw, &a.Prefix)
-		if err != nil {
-			return fmt.Errorf("error reading 'prefix': %w", err)
-		}
-		delete(object, "prefix")
 	}
 
 	if raw, found := object["presentation_definition"]; found {
@@ -350,22 +279,6 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 		delete(object, "sub")
 	}
 
-	if raw, found := object["user_role"]; found {
-		err = json.Unmarshal(raw, &a.UserRole)
-		if err != nil {
-			return fmt.Errorf("error reading 'user_role': %w", err)
-		}
-		delete(object, "user_role")
-	}
-
-	if raw, found := object["username"]; found {
-		err = json.Unmarshal(raw, &a.Username)
-		if err != nil {
-			return fmt.Errorf("error reading 'username': %w", err)
-		}
-		delete(object, "username")
-	}
-
 	if raw, found := object["vps"]; found {
 		err = json.Unmarshal(raw, &a.Vps)
 		if err != nil {
@@ -398,13 +311,6 @@ func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("error marshaling 'active': %w", err)
 	}
 
-	if a.AssuranceLevel != nil {
-		object["assurance_level"], err = json.Marshal(a.AssuranceLevel)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'assurance_level': %w", err)
-		}
-	}
-
 	if a.Aud != nil {
 		object["aud"], err = json.Marshal(a.Aud)
 		if err != nil {
@@ -419,24 +325,10 @@ func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	if a.Email != nil {
-		object["email"], err = json.Marshal(a.Email)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'email': %w", err)
-		}
-	}
-
 	if a.Exp != nil {
 		object["exp"], err = json.Marshal(a.Exp)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling 'exp': %w", err)
-		}
-	}
-
-	if a.FamilyName != nil {
-		object["family_name"], err = json.Marshal(a.FamilyName)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'family_name': %w", err)
 		}
 	}
 
@@ -447,24 +339,10 @@ func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	if a.Initials != nil {
-		object["initials"], err = json.Marshal(a.Initials)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'initials': %w", err)
-		}
-	}
-
 	if a.Iss != nil {
 		object["iss"], err = json.Marshal(a.Iss)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling 'iss': %w", err)
-		}
-	}
-
-	if a.Prefix != nil {
-		object["prefix"], err = json.Marshal(a.Prefix)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'prefix': %w", err)
 		}
 	}
 
@@ -493,20 +371,6 @@ func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		object["sub"], err = json.Marshal(a.Sub)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling 'sub': %w", err)
-		}
-	}
-
-	if a.UserRole != nil {
-		object["user_role"], err = json.Marshal(a.UserRole)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'user_role': %w", err)
-		}
-	}
-
-	if a.Username != nil {
-		object["username"], err = json.Marshal(a.Username)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'username': %w", err)
 		}
 	}
 
