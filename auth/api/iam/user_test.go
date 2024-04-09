@@ -39,6 +39,7 @@ import (
 )
 
 var walletDID = did.MustParseDID("did:web:example.com:iam:123")
+var userDID = did.MustParseDID("did:jwk:really-a-jwk")
 
 var sessionCookie = http.Cookie{
 	Name:     "__Host-SID",
@@ -150,6 +151,9 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		session := UserSession{
 			TenantDID:         walletDID,
 			PreAuthorizedUser: &userDetails,
+			Wallet: UserWallet{
+				DID: userDID,
+			},
 		}
 		require.NoError(t, ctx.client.userSessionStore().Put(sessionCookie.Value, session))
 
@@ -232,6 +236,9 @@ func TestWrapper_loadUserSession(t *testing.T) {
 		expected := UserSession{
 			TenantDID:         walletDID,
 			PreAuthorizedUser: user,
+			Wallet: UserWallet{
+				DID: userDID,
+			},
 		}
 		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
 		ctrl := gomock.NewController(t)
@@ -265,36 +272,13 @@ func TestWrapper_loadUserSession(t *testing.T) {
 		assert.EqualError(t, err, "unknown or expired session")
 		assert.Nil(t, actual)
 	})
-	t.Run("error - cookie not secure", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctrl := gomock.NewController(t)
-		echoCtx := mock.NewMockContext(ctrl)
-		cookie := sessionCookie
-		cookie.Secure = false
-		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&cookie, nil)
-
-		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
-
-		assert.EqualError(t, err, "user session cookie must be secure and httpOnly")
-		assert.Nil(t, actual)
-	})
-	t.Run("error - cookie not HttpOnly", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctrl := gomock.NewController(t)
-		echoCtx := mock.NewMockContext(ctrl)
-		cookie := sessionCookie
-		cookie.HttpOnly = false
-		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&cookie, nil)
-
-		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
-
-		assert.EqualError(t, err, "user session cookie must be secure and httpOnly")
-		assert.Nil(t, actual)
-	})
 	t.Run("error - session belongs to a different tenant", func(t *testing.T) {
 		ctx := newTestClient(t)
 		expected := UserSession{
 			TenantDID: did.MustParseDID("did:web:someone-else"),
+			Wallet: UserWallet{
+				DID: userDID,
+			},
 		}
 		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
 		ctrl := gomock.NewController(t)
@@ -311,7 +295,11 @@ func TestWrapper_loadUserSession(t *testing.T) {
 		expected := UserSession{
 			TenantDID:         walletDID,
 			PreAuthorizedUser: &UserDetails{Id: "someone-else"},
+			Wallet: UserWallet{
+				DID: userDID,
+			},
 		}
+
 		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
 		ctrl := gomock.NewController(t)
 		echoCtx := mock.NewMockContext(ctrl)
