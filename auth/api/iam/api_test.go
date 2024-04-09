@@ -225,6 +225,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 	webDID := did.MustParseDID("did:web:example.com:iam:123")
 	ctx := audit.TestContext()
 	walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}
+	userWalletType := pe.WalletOwnerUser
 
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
@@ -248,6 +249,33 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		require.NotNil(t, response)
 		_, ok := response.(PresentationDefinition200JSONResponse)
 		assert.True(t, ok)
+	})
+
+	t.Run("ok - user wallet", func(t *testing.T) {
+		walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerUser: pe.PresentationDefinition{Id: "test"}}
+
+		test := newTestClient(t)
+		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(walletOwnerMapping, nil)
+		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		_, ok := response.(PresentationDefinition200JSONResponse)
+		assert.True(t, ok)
+	})
+
+	t.Run("err - unknown wallet type", func(t *testing.T) {
+		test := newTestClient(t)
+		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(walletOwnerMapping, nil)
+
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
+
+		require.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, "invalid_request - no presentation definition found for 'user' wallet", err.Error())
 	})
 
 	t.Run("error - unknown scope", func(t *testing.T) {
