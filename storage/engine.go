@@ -24,6 +24,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"path"
 	"strings"
@@ -57,20 +58,22 @@ var sqlMigrationsFS embed.FS
 // New creates a new instance of the storage engine.
 func New() Engine {
 	return &engine{
-		storesMux:       &sync.Mutex{},
-		stores:          map[string]stoabs.Store{},
-		sessionDatabase: NewInMemorySessionDatabase(),
+		storesMux:          &sync.Mutex{},
+		stores:             map[string]stoabs.Store{},
+		sessionDatabase:    NewInMemorySessionDatabase(),
+		sqlMigrationLogger: logrusInfoLogWriter{},
 	}
 }
 
 type engine struct {
-	datadir         string
-	storesMux       *sync.Mutex
-	stores          map[string]stoabs.Store
-	databases       []database
-	sessionDatabase SessionDatabase
-	sqlDB           *gorm.DB
-	config          Config
+	datadir            string
+	storesMux          *sync.Mutex
+	stores             map[string]stoabs.Store
+	databases          []database
+	sessionDatabase    SessionDatabase
+	sqlDB              *gorm.DB
+	config             Config
+	sqlMigrationLogger io.Writer
 }
 
 func (e *engine) Config() interface{} {
@@ -239,7 +242,7 @@ func (e *engine) initSQLDatabase() error {
 	dbMigrator.FS = sqlMigrationsFS
 	dbMigrator.MigrationsDir = []string{"sql_migrations"}
 	dbMigrator.AutoDumpSchema = false
-	dbMigrator.Log = sqlMigrationLogger{}
+	dbMigrator.Log = e.sqlMigrationLogger
 	if err = dbMigrator.CreateAndMigrate(); err != nil {
 		return fmt.Errorf("failed to migrate database: %w", err)
 	}
@@ -316,10 +319,10 @@ func (p *provider) getStore(moduleName string, name string, adapter database) (s
 	return store, err
 }
 
-type sqlMigrationLogger struct {
+type logrusInfoLogWriter struct {
 }
 
-func (m sqlMigrationLogger) Write(p []byte) (n int, err error) {
+func (m logrusInfoLogWriter) Write(p []byte) (n int, err error) {
 	log.Logger().Info(string(p))
 	return len(p), nil
 }

@@ -23,6 +23,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	stdIO "io"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -34,6 +35,9 @@ import (
 
 func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
 	result := New().(*engine)
+	// Prevent dbmate and gorm from logging database creation and applied schema migrations.
+	// These are logged on INFO, which is good for production but annoying in unit tests.
+	result.sqlMigrationLogger = new(blackhole)
 
 	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
 	err := result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
@@ -95,4 +99,13 @@ func AddDIDtoSQLDB(t testing.TB, db *gorm.DB, dids ...did.DID) {
 		// use gorm EXEC since it accepts '?' as the argument placeholder for all DBs
 		require.NoError(t, db.Exec("INSERT INTO did ( did ) VALUES ( ? )", id.String()).Error)
 	}
+}
+
+var _ stdIO.Writer = &blackhole{}
+
+type blackhole struct {
+}
+
+func (b blackhole) Write(d []byte) (_ int, _ error) {
+	return len(d), nil
 }
