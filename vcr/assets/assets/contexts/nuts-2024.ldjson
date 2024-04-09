@@ -1,0 +1,35 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    "@base": "https://nuts.nl/credentials/2024",
+
+    "id": "@id",
+    "type": "@type",
+    "schema": "http://schema.org/",
+    "nuts": "https://nuts.nl/credentials/2024#",
+    "NutsUraCredential": {
+      "@id": "nuts:NutsUraCredential",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "@propagate": true,
+
+        "id": "@id",
+        "type": "@type",
+
+        "organization": {
+          "@id":"schema:organization",
+          "@type": "@id",
+          "@context": {
+            "@version": 1.1,
+            "@protected": true,
+            "ura": "nuts:ura",
+            "name": "schema:legalname",
+            "city": "schema:city"
+          }
+        }
+      }
+    }
+  }
+}

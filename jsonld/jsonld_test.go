@@ -50,7 +50,7 @@ func TestNewJSONLDInstance(t *testing.T) {
 			config := injectable.Config()
 			assert.IsType(t, &Config{}, config)
 			jsonldConfig := config.(*Config)
-			assert.Len(t, jsonldConfig.Contexts.LocalFileMapping, 5)
+			assert.Len(t, jsonldConfig.Contexts.LocalFileMapping, 6)
 		})
 
 		t.Run("as an configurable", func(t *testing.T) {
