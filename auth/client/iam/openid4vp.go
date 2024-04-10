@@ -132,7 +132,7 @@ func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, webdi
 	return metadata, nil
 }
 
-func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error) {
+func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
 	if err != nil {
@@ -147,6 +147,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier
 	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
 	data.Set(oauth.CodeParam, code)
 	data.Set(oauth.RedirectURIParam, callbackURI)
+	data.Set(oauth.CodeVerifierParam, codeVerifier)
 	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data)
 	if err != nil {
 		return nil, fmt.Errorf("remote server: error creating access token: %w", err)

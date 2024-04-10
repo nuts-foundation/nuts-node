@@ -33,6 +33,8 @@ import (
 type ErrorCode string
 
 const (
+	// InvalidGrant is returned when the authorization grant or refresh token is invalid, expired, revoked, does not match the redirection URI used in the authorization request, or was issued to another client.
+	InvalidGrant ErrorCode = "invalid_grant"
 	// InvalidRequest is returned when the request is missing a required parameter, includes an invalid parameter value,
 	// includes a parameter more than once, or is otherwise malformed.
 	InvalidRequest ErrorCode = "invalid_request"
