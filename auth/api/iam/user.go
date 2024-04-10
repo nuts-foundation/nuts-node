@@ -122,7 +122,6 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		PKCEParams:  generatePKCEParams(),
 		RedirectURI: accessTokenRequest.Body.RedirectUri,
 		SessionID:   redirectSession.SessionID,
-		UserDetails: *accessTokenRequest.Body.PreauthorizedUser,
 		VerifierDID: verifier,
 	}
 	// store user session in session store under sessionID and clientState
