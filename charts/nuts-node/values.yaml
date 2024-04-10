@@ -25,10 +25,12 @@ serviceAccount:
 
 podAnnotations: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+podSecurityContext:
+ fsGroup: 18081
 
-securityContext: {}
+securityContext:
+  runAsUser: 18081
+  runAsGroup: 18081
   # capabilities:
   #   drop:
   #   - ALL
