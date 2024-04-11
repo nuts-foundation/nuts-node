@@ -60,12 +60,12 @@ spec:
     {{- end }}
 {{- end }}
 ---
-{{- if .Values.ingress.external.enabled -}}
+{{- if .Values.ingress.internal.enabled -}}
 {{- $fullName := include "chart.fullname" . -}}
-{{- $svcPort := .Values.service.external.port -}}
-{{- if and .Values.ingress.external.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
-  {{- if not (hasKey .Values.ingress.external.annotations "kubernetes.io/ingress.class") }}
-  {{- $_ := set .Values.ingress.external.annotations "kubernetes.io/ingress.class" .Values.ingress.external.className}}
+{{- $svcPort := .Values.service.internal.port -}}
+{{- if and .Values.ingress.internal.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
+  {{- if not (hasKey .Values.ingress.internal.annotations "kubernetes.io/ingress.class") }}
+  {{- $_ := set .Values.ingress.internal.annotations "kubernetes.io/ingress.class" .Values.ingress.internal.className}}
   {{- end }}
 {{- end }}
 {{- if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
@@ -77,20 +77,20 @@ apiVersion: extensions/v1beta1
 {{- end }}
 kind: Ingress
 metadata:
-  name: "{{ $fullName }}-external"
+  name: "{{ $fullName }}-internal"
   labels:
     {{- include "chart.labels" . | nindent 4 }}
-  {{- with .Values.ingress.external.annotations }}
+  {{- with .Values.ingress.internal.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- if and .Values.ingress.external.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
-  ingressClassName: {{ .Values.ingress.external.className }}
+  {{- if and .Values.ingress.internal.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  ingressClassName: {{ .Values.ingress.internal.className }}
   {{- end }}
-  {{- if .Values.ingress.external.tls }}
+  {{- if .Values.ingress.internal.tls }}
   tls:
-    {{- range .Values.ingress.external.tls }}
+    {{- range .Values.ingress.internal.tls }}
     - hosts:
         {{- range .hosts }}
         - {{ . | quote }}
@@ -99,7 +99,7 @@ spec:
     {{- end }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.external.hosts }}
+    {{- range .Values.ingress.internal.hosts }}
     - host: {{ .host | quote }}
       http:
         paths:
@@ -111,11 +111,11 @@ spec:
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
               service:
-                name: "{{ $fullName }}-external"
+                name: "{{ $fullName }}-internal"
                 port:
                   number: {{ $svcPort }}
               {{- else }}
-              serviceName: "{{ $fullName }}-external"
+              serviceName: "{{ $fullName }}-internal"
               servicePort: {{ $svcPort }}
               {{- end }}
           {{- end }}
