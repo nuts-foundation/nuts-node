@@ -1,0 +1,24 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    "@base": "https://nuts.nl/credentials/experimental",
+
+    "id": "@id",
+    "type": "@type",
+    "schema": "http://schema.org/",
+    "nuts": "https://nuts.nl/credentials/experimental#",
+    "NutsURACredential": {
+      "@id": "nuts:NutsURACredential",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "@propagate": true,
+
+        "id": "@id",
+        "type": "@type",
+        "ura": "nuts:ura"
+      }
+    }
+  }
+}
