@@ -182,9 +182,9 @@ type HandleTokenRequestFormdataBody struct {
 	Assertion              *string `form:"assertion,omitempty" json:"assertion,omitempty"`
 	ClientId               *string `form:"client_id,omitempty" json:"client_id,omitempty"`
 	Code                   *string `form:"code,omitempty" json:"code,omitempty"`
+	CodeVerifier           *string `form:"code_verifier,omitempty" json:"code_verifier,omitempty"`
 	GrantType              string  `form:"grant_type" json:"grant_type"`
 	PresentationSubmission *string `form:"presentation_submission,omitempty" json:"presentation_submission,omitempty"`
-	RedirectUri            *string `form:"redirect_uri,omitempty" json:"redirect_uri,omitempty"`
 	Scope                  *string `form:"scope,omitempty" json:"scope,omitempty"`
 }
 
@@ -1417,22 +1417,13 @@ func (response HandleTokenRequest200JSONResponse) VisitHandleTokenRequestRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type HandleTokenRequestdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+type HandleTokenRequestdefaultJSONResponse struct {
+	Body       ErrorResponse
 	StatusCode int
 }
 
-func (response HandleTokenRequestdefaultApplicationProblemPlusJSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
+func (response HandleTokenRequestdefaultJSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(response.StatusCode)
 
 	return json.NewEncoder(w).Encode(response.Body)

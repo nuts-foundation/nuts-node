@@ -30,7 +30,7 @@ import (
 // Client defines OpenID4VP client methods using the IAM OpenAPI Spec.
 type Client interface {
 	// AccessToken requests an access token at the oauth2 token endpoint.
-	AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error)
+	AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string) (*oauth.TokenResponse, error)
 	// AuthorizationServerMetadata returns the metadata of the remote wallet.
 	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
 	// ClientMetadata returns the metadata of the remote verifier.

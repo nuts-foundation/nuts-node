@@ -16,3 +16,4 @@ output-options:
     - VerifiablePresentation
     - VerifiableCredential
     - WalletOwnerType
+    - ErrorResponse

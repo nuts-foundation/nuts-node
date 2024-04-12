@@ -45,18 +45,18 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // AccessToken mocks base method.
-func (m *MockClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID) (*oauth.TokenResponse, error) {
+func (m *MockClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string) (*oauth.TokenResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AccessToken", ctx, code, verifier, callbackURI, clientID)
+	ret := m.ctrl.Call(m, "AccessToken", ctx, code, verifier, callbackURI, clientID, codeVerifier)
 	ret0, _ := ret[0].(*oauth.TokenResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AccessToken indicates an expected call of AccessToken.
-func (mr *MockClientMockRecorder) AccessToken(ctx, code, verifier, callbackURI, clientID any) *gomock.Call {
+func (mr *MockClientMockRecorder) AccessToken(ctx, code, verifier, callbackURI, clientID, codeVerifier any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccessToken", reflect.TypeOf((*MockClient)(nil).AccessToken), ctx, code, verifier, callbackURI, clientID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccessToken", reflect.TypeOf((*MockClient)(nil).AccessToken), ctx, code, verifier, callbackURI, clientID, codeVerifier)
 }
 
 // AccessTokenOid4vci mocks base method.

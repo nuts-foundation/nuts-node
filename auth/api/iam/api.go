@@ -75,19 +75,19 @@ const userSessionCookieName = "__Host-SID"
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	vcr           vcr.VCR
-	vdr           vdr.VDR
 	auth          auth.AuthenticationServices
 	policyBackend policy.PDPBackend
 	storageEngine storage.Engine
 	keyStore      crypto.KeyStore
+	vcr           vcr.VCR
+	vdr           vdr.VDR
 }
 
 func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend) *Wrapper {
 	return &Wrapper{
-		storageEngine: storageEngine,
 		auth:          authInstance,
 		policyBackend: policyBackend,
+		storageEngine: storageEngine,
 		vcr:           vcrInstance,
 		vdr:           vdrInstance,
 	}
@@ -141,7 +141,8 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		// Options:
 		// - OpenID4VCI
 		// - OpenID4VP
-		return r.handleAccessTokenRequest(ctx, *ownDID, request.Body.Code, request.Body.RedirectUri, request.Body.ClientId)
+		// verifier DID is taken from code->oauthSession storage
+		return r.handleAccessTokenRequest(ctx, *request.Body)
 	case "urn:ietf:params:oauth:grant-type:pre-authorized_code":
 		// Options:
 		// - OpenID4VCI
@@ -310,7 +311,6 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		}
 	} // else, we'll allow for now, since other flows will break if we require JAR at this point.
 
-	// todo: store session in database? Isn't session specific for a particular flow?
 	session := createSession(params, *ownDID)
 
 	switch session.ResponseType {
@@ -615,6 +615,10 @@ func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
 	session.RedirectURI = params.get(oauth.RedirectURIParam)
 	session.OwnDID = &ownDID
 	session.ResponseType = params.get(oauth.ResponseTypeParam)
+	session.PKCEParams = PKCEParams{
+		Challenge:       params.get(oauth.CodeChallengeParam),
+		ChallengeMethod: params.get(oauth.CodeChallengeMethodParam),
+	}
 
 	return &session
 }

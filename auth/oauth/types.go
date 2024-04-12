@@ -60,6 +60,12 @@ const (
 	AuthorizationCodeGrantType = "authorization_code"
 	// ClientIDParam is the parameter name for the client_id parameter
 	ClientIDParam = "client_id"
+	// CodeChallengeParam is the parameter name for the code_challenge parameter
+	CodeChallengeParam = "code_challenge"
+	// CodeChallengeMethodParam is the parameter name for the code_challenge_method parameter
+	CodeChallengeMethodParam = "code_challenge_method"
+	// CodeVerifierParam is the parameter name for the code_verifier parameter
+	CodeVerifierParam = "code_verifier"
 	// CodeParam is the parameter name for the code parameter
 	CodeParam = "code"
 	// GrantTypeParam is the parameter name for the grant_type parameter

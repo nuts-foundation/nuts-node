@@ -41,6 +41,7 @@ type OAuthSession struct {
 	RedirectURI            string
 	ServerState            ServerState
 	ResponseType           string
+	PKCEParams             PKCEParams
 	PresentationDefinition PresentationDefinition
 	VerifierDID            *did.DID
 

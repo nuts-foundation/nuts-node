@@ -337,6 +337,8 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		_ = request.Set(oauth.ResponseTypeParam, responseTypeCode)
 		_ = request.Set(oauth.ScopeParam, "test")
 		_ = request.Set(oauth.StateParam, "state")
+		_ = request.Set(oauth.CodeChallengeParam, "code_challenge")
+		_ = request.Set(oauth.CodeChallengeMethodParam, "S256")
 		headers := jws.NewHeaders()
 		headers.Set(jws.KeyIDKey, kid)
 		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
@@ -452,14 +454,16 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		})
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
-			jwt.AudienceKey:         verifierDID.String(),
-			jwt.IssuerKey:           holderDID.String(),
-			oauth.ClientIDParam:     holderDID.String(),
-			oauth.NonceParam:        "nonce",
-			oauth.RedirectURIParam:  "https://example.com",
-			oauth.ResponseTypeParam: responseTypeCode,
-			oauth.ScopeParam:        "test",
-			oauth.StateParam:        "state",
+			jwt.AudienceKey:                verifierDID.String(),
+			jwt.IssuerKey:                  holderDID.String(),
+			oauth.ClientIDParam:            holderDID.String(),
+			oauth.NonceParam:               "nonce",
+			oauth.RedirectURIParam:         "https://example.com",
+			oauth.ResponseTypeParam:        responseTypeCode,
+			oauth.ScopeParam:               "test",
+			oauth.StateParam:               "state",
+			oauth.CodeChallengeParam:       "code_challenge",
+			oauth.CodeChallengeMethodParam: "S256",
 		}), HandleAuthorizeRequestRequestObject{
 			Did: verifierDID.String(),
 		})
@@ -568,8 +572,9 @@ func TestWrapper_Callback(t *testing.T) {
 		ctx := newTestClient(t)
 		putState(ctx, state)
 		putToken(ctx, token)
+		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID, codeVerifier).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -1357,9 +1362,9 @@ func statusCodeFrom(err error) int {
 }
 
 type testCtx struct {
+	authnServices *auth.MockAuthenticationServices
 	ctrl          *gomock.Controller
 	client        *Wrapper
-	authnServices *auth.MockAuthenticationServices
 	iamClient     *iam.MockClient
 	policy        *policy.MockPDPBackend
 	resolver      *resolver.MockDIDResolver

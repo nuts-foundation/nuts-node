@@ -86,9 +86,9 @@ paths:
                   type: string
                 presentation_submission:
                   type: string
-                redirect_uri:
-                  type: string
                 scope:
+                  type: string
+                code_verifier:
                   type: string
       responses:
         "200":
@@ -98,7 +98,11 @@ paths:
               schema:
                 "$ref": "#/components/schemas/TokenResponse"
         "default":
-          $ref: '../common/error_response.yaml'
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   "/oauth2/{did}/authorize":
     get:
       summary: Used by resource owners to initiate the authorization code flow.
@@ -869,7 +873,11 @@ components:
         error:
           type: string
           description: Code identifying the error that occurred.
-          example: "invalid_request"
+          example: invalid_request
+        error_description:
+          type: string
+          description: Human-readable description of the error.
+          example: The request is missing a required parameter.
     TokenIntrospectionRequest:
       description: >
         Token introspection request as described in RFC7662 section 2.1
