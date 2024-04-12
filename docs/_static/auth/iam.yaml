@@ -630,6 +630,127 @@ paths:
                 "$ref": "#/components/schemas/VerifiableCredential"
         default:
           $ref: '../common/error_response.yaml'
+  /internal/auth/v2/{did}/request-credential:
+    post:
+      operationId: requestOid4vciCredentialIssuance
+      summary: Start the Oid4VCI authorization flow.
+      description: |
+        Initiates an Oid4VCI flow to request an VC from a Credential Issuer.
+
+        error returns:
+        * 400 - one of the parameters has the wrong format or an OAuth error occurred
+        * 424 - the issuer does not fulfill the right requirements to issue the requested VC(s)
+        * 412 - the organization wallet does not contain the correct credentials
+      tags:
+        - auth
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: The DID of the requester, a Wallet owner at this node.
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - issuer
+                - authorization_details
+                - redirect_uri
+              properties:
+                issuer:
+                  type: string
+                  example: did:web:example.com
+                authorization_details:
+                  type: array
+                  items:
+                    type: object
+                    description: | 
+                      The request parameter authorization_details defined in Section 2 of [RFC9396] MUST be used to convey the details about the Credentials the Wallet wants to obtain..
+                    properties:
+                      type:
+                        type: string
+                      format:
+                        type: string
+                      credential_definition:
+                        type: object
+                redirect_uri:
+                  type: string
+                  description: |
+                    The URL to which the user-agent will be redirected after the authorization request.
+      responses:
+        '200':
+          description: | 
+            Successful request. Responds with a redirect_uri for the user and a session_id for correlation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectResponse'
+        default:
+          $ref: '../common/error_response.yaml'
+  /iam/oid4vci/callback:
+    get:
+      operationId: callbackOid4vciCredentialIssuance
+      summary: Callback for the Oid4VCI credential issuance flow.
+      description: |
+        The callback for the requestOid4vciCredentialIssuance request.
+        
+        This method will in most cases try to redirect (302) to the redirect_uri of the 
+        requestOid4vciCredentialIssuance request with an error code. The only case
+        where the status will not be 302 is when something in the processing of the 
+        redirect_uri itself goes wrong.
+        
+        302 error returns:
+        * invalid_request - one of the provided parameters is wrong.
+        * server_error - internal processing of the Oid4VCI flow has a system error.
+        * access_denied - an access problem occurred with the internal processing of the Oid4VCI flow.
+      
+        If the system is somehow not able to return a redirect, the following http status codes will be 
+        returned:
+        * 500 - an system error occurred during processing
+      tags:
+        - auth
+      parameters:
+        - name: code
+          in: query
+          required: true
+          description: The oauth2 code response.
+          schema:
+            type: string
+            example: 55d7a35d-d7bf-436f-80f7-3fef4077f8a8
+        - name: state
+          in: query
+          required: true
+          description: The oauth2 state, required as the authorize request sends it.
+          schema:
+            type: string
+            example: 55d7a35d-d7bf-436f-80f7-3fef4077f8a8
+        - name: error
+          in: query
+          description: The error code.
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          description: The error description.
+          schema:
+            type: string
+      responses:
+        '302':
+          description: |
+            The user-agent is redirected to the redirect_uri submitted at the request-credential request.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     DIDDocument:

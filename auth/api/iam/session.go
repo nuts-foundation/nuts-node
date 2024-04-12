@@ -117,3 +117,31 @@ func (s OAuthSession) redirectURI() *url.URL {
 	redirectURL, _ := url.Parse(s.RedirectURI)
 	return redirectURL
 }
+
+// The Oid4vciSession is used to hold the state of an OIDC4VCi request between the moment
+// the client application does the request, the OIDC4VCi flow and the redirect back to the
+// client. The Oid4vciSession is referred to by a generated session id shared with the downstream
+// OIDC4VCi issuer.
+type Oid4vciSession struct {
+	// HolderDid: the DID of the wallet holder to who the VC will be issued to.
+	HolderDid *did.DID
+	// IssuerDid: the DID of the VC issuer, the party that will issue the VC to the holders' wallet
+	IssuerDid *did.DID
+	// RemoteRedirectUri: The redirect URL as provided by the external application requesting the issuance.
+	RemoteRedirectUri string
+	// RedirectUri: the URL send to the issuer as the redirect_uri of this nuts-node.
+	RedirectUri string
+	// PKCEParams: a set of Proof Key for Code Exchange parameters generated for this request.
+	PKCEParams PKCEParams
+	// IssuerTokenEndpoint: the endpoint for fetching the access token of the issuer.
+	IssuerTokenEndpoint string
+	// IssuerCredentialEndpoint: the endpoint for fetching the credential from the issuer with
+	// the access_token fetched from the IssuerTokenEndpoint.
+	IssuerCredentialEndpoint string
+}
+
+// The remoteRedirectUri returns the RemoteRedirectUri as pared URL reference.
+func (s Oid4vciSession) remoteRedirectUri() *url.URL {
+	redirectURL, _ := url.Parse(s.RemoteRedirectUri)
+	return redirectURL
+}

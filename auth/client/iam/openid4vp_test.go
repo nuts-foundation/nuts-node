@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
@@ -419,25 +420,38 @@ type clientTestContext struct {
 
 type clientServerTestContext struct {
 	*clientTestContext
-	authzServerMetadata    *oauth.AuthorizationServerMetadata
-	handler                http.HandlerFunc
-	tlsServer              *httptest.Server
-	verifierDID            did.DID
-	errorResponse          func(writer http.ResponseWriter)
-	metadata               func(writer http.ResponseWriter)
-	presentationDefinition func(writer http.ResponseWriter)
-	response               func(writer http.ResponseWriter)
-	token                  func(writer http.ResponseWriter)
+	authzServerMetadata            *oauth.AuthorizationServerMetadata
+	openIDConfigurationMetadata    *oauth.OpenIDConfigurationMetadata
+	openIDCredentialIssuerMetadata *oauth.OpenIDCredentialIssuerMetadata
+	handler                        http.HandlerFunc
+	tlsServer                      *httptest.Server
+	verifierDID                    did.DID
+	issuerDID                      did.DID
+	errorResponse                  func(writer http.ResponseWriter)
+	metadata                       func(writer http.ResponseWriter)
+	credentialIssuerMetadata       func(writer http.ResponseWriter)
+	presentationDefinition         func(writer http.ResponseWriter)
+	response                       func(writer http.ResponseWriter)
+	token                          func(writer http.ResponseWriter)
+	credentials                    func(writer http.ResponseWriter)
 }
 
 func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	metadata := &oauth.AuthorizationServerMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
+	credentialIssuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{}
 	ctx := &clientServerTestContext{
 		clientTestContext: createClientTestContext(t, nil),
 		metadata: func(writer http.ResponseWriter) {
 			writer.Header().Add("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusOK)
 			bytes, _ := json.Marshal(*metadata)
+			_, _ = writer.Write(bytes)
+			return
+		},
+		credentialIssuerMetadata: func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(*credentialIssuerMetadata)
 			_, _ = writer.Write(bytes)
 			return
 		},
@@ -472,6 +486,12 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
 			return
 		},
+		credentials: func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte(`{"format": "format", "credential": "credential"}`))
+			return
+		},
 	}
 
 	ctx.handler = func(writer http.ResponseWriter, request *http.Request) {
@@ -479,6 +499,16 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 		case "/.well-known/oauth-authorization-server":
 			if ctx.metadata != nil {
 				ctx.metadata(writer)
+				return
+			}
+		case "/.well-known/openid-configuration":
+			if ctx.metadata != nil {
+				ctx.metadata(writer)
+				return
+			}
+		case "/.well-known/openid-credential-issuer/issuer":
+			if ctx.credentialIssuerMetadata != nil {
+				ctx.credentialIssuerMetadata(writer)
 				return
 			}
 		case "/error":
@@ -505,16 +535,212 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 				ctx.token(writer)
 				return
 			}
+		case "/credentials":
+			if ctx.credentials != nil {
+				ctx.credentials(writer)
+				return
+			}
 		}
 		writer.WriteHeader(http.StatusNotFound)
 	}
 	ctx.tlsServer = http2.TestTLSServer(t, ctx.handler)
 	ctx.verifierDID = didweb.ServerURLToDIDWeb(t, ctx.tlsServer.URL)
+	ctx.issuerDID = didweb.ServerURLToDIDWeb(t, ctx.tlsServer.URL+"/issuer")
 	ctx.authzServerMetadata = metadata
 	ctx.authzServerMetadata.TokenEndpoint = ctx.tlsServer.URL + "/token"
 	ctx.authzServerMetadata.PresentationDefinitionEndpoint = ctx.tlsServer.URL + "/presentation_definition"
 	ctx.authzServerMetadata.AuthorizationEndpoint = ctx.tlsServer.URL + "/authorize"
 	ctx.authzServerMetadata.RequireSignedRequestObject = true
 
+	ctx.openIDConfigurationMetadata = metadata
+	ctx.openIDCredentialIssuerMetadata = credentialIssuerMetadata
+	ctx.openIDCredentialIssuerMetadata.AuthorizationServers = []string{ctx.authzServerMetadata.AuthorizationEndpoint}
+	ctx.openIDCredentialIssuerMetadata.CredentialIssuer = "issuer"
+	ctx.openIDCredentialIssuerMetadata.CredentialEndpoint = ctx.tlsServer.URL + "/credentials"
+
 	return ctx
+}
+
+func TestIAMClient_OpenIdConfiguration(t *testing.T) {
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+
+		serverURL := ctx.tlsServer.URL
+		metadata, err := ctx.client.OpenIdConfiguration(context.Background(), serverURL)
+
+		require.NoError(t, err)
+		require.NotNil(t, metadata)
+		assert.Equal(t, *ctx.openIDConfigurationMetadata, *metadata)
+	})
+	t.Run("error - failed to get access token", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.metadata = nil
+
+		serverURL := ctx.tlsServer.URL
+		response, err := ctx.client.OpenIdConfiguration(context.Background(), serverURL)
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "failed to retrieve Openid configuration: server returned HTTP 404 (expected: 200)")
+	})
+}
+func TestIAMClient_OpenIdCredentialIssuerMetadata(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.issuerDID)
+
+		require.NoError(t, err)
+		require.NotNil(t, metadata)
+		assert.Equal(t, *ctx.openIDCredentialIssuerMetadata, *metadata)
+	})
+	t.Run("error - failed to get metadata", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.credentialIssuerMetadata = nil
+
+		response, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.issuerDID)
+
+		require.Error(t, err)
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "failed to retrieve Openid credential issuer metadata: server returned HTTP 404 (expected: 200)")
+	})
+
+}
+func TestIAMClient_AccessTokenOid4vci(t *testing.T) {
+	code := "code"
+	redirectUri := "https://test.test/callback"
+	pkceCodeVerifier := "verifier"
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+
+		response, err := ctx.client.AccessTokenOid4vci(context.Background(), ctx.verifierDID.String(), ctx.openIDConfigurationMetadata.TokenEndpoint, redirectUri, code, &pkceCodeVerifier)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "token", response.AccessToken)
+		assert.Equal(t, "bearer", response.TokenType)
+	})
+	t.Run("error - failed to get access token", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.token = nil
+
+		response, err := ctx.client.AccessTokenOid4vci(context.Background(), ctx.verifierDID.String(), ctx.openIDConfigurationMetadata.TokenEndpoint, redirectUri, code, &pkceCodeVerifier)
+
+		assert.EqualError(t, err, "remote server: failed to retrieve an access_token: server returned HTTP 404 (expected: 200)")
+		assert.Nil(t, response)
+	})
+}
+func TestIAMClient_VerifiableCredentials(t *testing.T) {
+	walletDID := did.MustParseDID("did:web:test.test:iam:123")
+	accessToken := "code"
+	cNonce := crypto.GenerateNonce()
+
+	t.Run("ok", func(t *testing.T) {
+		keyId := walletDID.URI()
+		keyId.Fragment = "1"
+		privKey := crypto.NewTestKey(keyId.String())
+
+		ctx := createClientServerTestContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
+			assert.Equal(t, keyId.String(), key)
+			assert.Equal(t, walletDID.String(), claims[jwt.IssuerKey])
+			assert.Equal(t, ctx.issuerDID.String(), claims[jwt.AudienceKey])
+			assert.NotEmpty(t, claims[jwt.JwtIDKey])
+			return "signed JWT", nil
+		})
+
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "credential", response.Credential)
+		assert.Equal(t, "format", response.Format)
+	})
+	t.Run("error - failed to get access token", func(t *testing.T) {
+		keyId := walletDID.URI()
+		keyId.Fragment = "1"
+		privKey := crypto.NewTestKey(keyId.String())
+
+		ctx := createClientServerTestContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
+			assert.Equal(t, keyId.String(), key)
+			assert.Equal(t, walletDID.String(), claims[jwt.IssuerKey])
+			assert.Equal(t, ctx.issuerDID.String(), claims[jwt.AudienceKey])
+			assert.NotEmpty(t, claims[jwt.JwtIDKey])
+			return "signed JWT", nil
+		})
+
+		ctx.credentials = nil
+
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
+
+		assert.EqualError(t, err, "remote server: failed to retrieve credentials: server returned HTTP 404 (expected: 200)")
+		assert.Nil(t, response)
+	})
+	t.Run("error - invalid access token", func(t *testing.T) {
+		keyId := walletDID.URI()
+		keyId.Fragment = "1"
+		privKey := crypto.NewTestKey(keyId.String())
+
+		ctx := createClientServerTestContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
+			assert.Equal(t, keyId.String(), key)
+			assert.Equal(t, walletDID.String(), claims[jwt.IssuerKey])
+			assert.Equal(t, ctx.issuerDID.String(), claims[jwt.AudienceKey])
+			assert.NotEmpty(t, claims[jwt.JwtIDKey])
+			return "signed JWT", nil
+		})
+
+		ctx.credentials = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte(`{"format": "format", "credential": fail}`))
+			return
+		}
+
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+	})
+	t.Run("error - key not found", func(t *testing.T) {
+		keyId := walletDID.URI()
+		keyId.Fragment = "1"
+
+		ctx := createClientServerTestContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.URI{}, nil, resolver.ErrKeyNotFound)
+
+		ctx.credentials = nil
+
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
+
+		assert.EqualError(t, err, "failed to resolve key for did (did:web:test.test:iam:123): "+resolver.ErrKeyNotFound.Error())
+		assert.Nil(t, response)
+	})
+	t.Run("error - signature failure", func(t *testing.T) {
+		keyId := walletDID.URI()
+		keyId.Fragment = "1"
+		privKey := crypto.NewTestKey(keyId.String())
+
+		ctx := createClientServerTestContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
+			return "", errors.New("signature failed")
+		})
+
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
+
+		assert.EqualError(t, err, "failed to sign the JWT with kid (did:web:test.test:iam:123#1): signature failed")
+		assert.Nil(t, response)
+	})
 }

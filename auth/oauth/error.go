@@ -38,6 +38,9 @@ const (
 	// InvalidRequest is returned when the request is missing a required parameter, includes an invalid parameter value,
 	// includes a parameter more than once, or is otherwise malformed.
 	InvalidRequest ErrorCode = "invalid_request"
+	// AccessDenied is returned wthen the resource owner or authorization server denied the
+	// request.
+	AccessDenied ErrorCode = "access_denied"
 	// UnsupportedGrantType is returned when the authorization grant type is not supported by the authorization server.
 	UnsupportedGrantType ErrorCode = "unsupported_grant_type"
 	// UnsupportedResponseType is returned when the authorization server does not support obtaining an authorization code using this method.

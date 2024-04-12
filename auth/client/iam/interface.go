@@ -55,6 +55,14 @@ type Client interface {
 	PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error)
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC021.
 	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error)
+
+	OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error)
+
+	OpenIdCredentialIssuerMetadata(ctx context.Context, webDID did.DID) (*oauth.OpenIDCredentialIssuerMetadata, error)
+
+	AccessTokenOid4vci(ctx context.Context, clientId string, tokenEndpoint string, redirectUri string, code string, pkceCodeVerifier *string) (*oauth.Oid4vciTokenResponse, error)
+
+	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, cNonce *string, holderDid did.DID, audienceDid did.DID) (*CredentialResponse, error)
 }
 
 // RequestModifier is a function that modifies the claims/params of a unsigned or signed request (JWT)

@@ -27,6 +27,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/log"
@@ -59,6 +60,8 @@ const httpRequestContextKey = "http-request"
 // TODO: Might want to make this configurable at some point
 const accessTokenValidity = 15 * time.Minute
 
+const oid4vciSessionValidity = 15 * time.Minute
+
 // userSessionCookieName is the name of the cookie used to store the user session.
 // It uses the __Host prefix, that instructs the user agent to treat it as a secure cookie:
 // - Must be set with the Secure attribute
@@ -75,6 +78,7 @@ type Wrapper struct {
 	auth          auth.AuthenticationServices
 	policyBackend policy.PDPBackend
 	storageEngine storage.Engine
+	keyStore      crypto.KeyStore
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 }
@@ -632,6 +636,170 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 	return StatusList200JSONResponse(*cred), nil
 }
 
+func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request RequestOid4vciCredentialIssuanceRequestObject) (RequestOid4vciCredentialIssuanceResponseObject, error) {
+	if request.Body == nil {
+		// why did oapi-codegen generate a pointer for the body??
+		return nil, core.InvalidInputError("missing request body")
+	}
+	// Parse and check the requester
+	requestHolder, err := r.toOwnedDID(ctx, request.Did)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("problem with owner DID: %s", request.Did)
+		return nil, core.NotFoundError("problem with owner DID: %s", err.Error())
+	}
+
+	// Parse the issuer
+	issuerDid, err := did.ParseDID(request.Body.Issuer)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("could not parse Issuer DID: %s", request.Body.Issuer)
+		return nil, core.InvalidInputError("could not parse Issuer DID: %s", request.Body.Issuer)
+	}
+	// Fetch the endpoints
+	authorizationEndpoint, tokenEndpoint, credentialEndpoint, err := r.openidIssuerEndpoints(ctx, *issuerDid)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("cannot locate endpoints for did: %s", issuerDid.String())
+		return nil, core.Error(http.StatusFailedDependency, "cannot locate endpoints for did: %s", issuerDid.String())
+	}
+	endpoint, err := url.Parse(authorizationEndpoint)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("failed to parse the authorization_endpoint: %s", authorizationEndpoint)
+		return nil, fmt.Errorf("failed to parse the authorization_endpoint: %s", authorizationEndpoint)
+	}
+	// Read and parse the authorization details
+	authorizationDetails := []byte("[]")
+	if len(request.Body.AuthorizationDetails) > 0 {
+		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
+	}
+	// Generate the state and PKCE
+	state := crypto.GenerateNonce()
+	pkceParams := generatePKCEParams()
+	if err != nil {
+		log.Logger().WithError(err).Errorf("failed to create the PKCE parameters")
+		return nil, err
+	}
+	// Figure out our own redirect URL by parsing the did:web and extracting the host.
+	requesterDidUrl, err := didweb.DIDToURL(*requestHolder)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("failed convert did (%s) to url", requestHolder.String())
+		return nil, err
+	}
+	redirectUri, err := url.Parse(fmt.Sprintf("https://%s/iam/oid4vci/callback", requesterDidUrl.Host))
+	if err != nil {
+		log.Logger().WithError(err).Errorf("failed to create the url for host: %s", requesterDidUrl.Host)
+		return nil, err
+	}
+	// Store the session
+	err = r.oid4vciSssionStore().Put(state, &Oid4vciSession{
+		HolderDid:                requestHolder,
+		IssuerDid:                issuerDid,
+		RemoteRedirectUri:        request.Body.RedirectUri,
+		RedirectUri:              redirectUri.String(),
+		PKCEParams:               pkceParams,
+		IssuerTokenEndpoint:      tokenEndpoint,
+		IssuerCredentialEndpoint: credentialEndpoint,
+	})
+	if err != nil {
+		log.Logger().WithError(err).Errorf("failed to store the session")
+		return nil, err
+	}
+	// Build the redirect URL, the client browser should be redirected to.
+	redirectUrl := http2.AddQueryParams(*endpoint, map[string]string{
+		"response_type":         "code",
+		"state":                 state,
+		"client_id":             requestHolder.String(),
+		"authorization_details": string(authorizationDetails),
+		"redirect_uri":          redirectUri.String(),
+		"code_challenge":        pkceParams.Challenge,
+		"code_challenge_method": pkceParams.ChallengeMethod,
+	})
+
+	log.Logger().Debugf("generated the following redirect_uri for did %s, to issuer %s: %s", requestHolder.String(), issuerDid.String(), redirectUri.String())
+
+	return RequestOid4vciCredentialIssuance200JSONResponse{
+		RedirectURI: redirectUrl.String(),
+	}, nil
+}
+
+func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request CallbackOid4vciCredentialIssuanceRequestObject) (CallbackOid4vciCredentialIssuanceResponseObject, error) {
+	state := request.Params.State
+	oid4vciSession := Oid4vciSession{}
+	err := r.oid4vciSssionStore().Get(state, &oid4vciSession)
+	if err != nil {
+		return nil, core.NotFoundError("Cannot locate active session for state: %s", state)
+	}
+	if request.Params.Error != nil {
+		errorCode := oauth.ErrorCode(*request.Params.Error)
+		errorDescription := ""
+		if request.Params.ErrorDescription != nil {
+			errorDescription = *request.Params.ErrorDescription
+		} else {
+			errorDescription = fmt.Sprintf("Issuer returned error code: %s", *request.Params.Error)
+		}
+		return nil, withCallbackURI(oauthError(errorCode, errorDescription), oid4vciSession.remoteRedirectUri())
+	}
+	code := request.Params.Code
+	pkceParams := oid4vciSession.PKCEParams
+	issuerDid := oid4vciSession.IssuerDid
+	holderDid := oid4vciSession.HolderDid
+	tokenEndpoint := oid4vciSession.IssuerTokenEndpoint
+	credentialEndpoint := oid4vciSession.IssuerCredentialEndpoint
+	if err != nil {
+		log.Logger().WithError(err).Errorf("cannot fetch the right endpoints")
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("cannot fetch the right endpoints: %s", err.Error())), oid4vciSession.remoteRedirectUri())
+	}
+	response, err := r.auth.IAMClient().AccessTokenOid4vci(ctx, holderDid.String(), tokenEndpoint, oid4vciSession.RedirectUri, code, &pkceParams.Verifier)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("error while fetching the access_token from endpoint: %s", tokenEndpoint)
+		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error : %s", tokenEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
+	}
+	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, credentialEndpoint, response.AccessToken, response.CNonce, *holderDid, *issuerDid)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("error while fetching the credential from endpoint: %s", credentialEndpoint)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error : %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
+	}
+	credential, err := vc.ParseVerifiableCredential(credentials.Credential)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("error while parsing the credential: %s", credentials.Credential)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error : %s", credentials.Credential, err.Error())), oid4vciSession.remoteRedirectUri())
+	}
+	err = r.vcr.Verifier().Verify(*credential, true, true, nil)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("error while verifying the credential from issuer: %s", credential.Issuer.String())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while verifying the credential from issuer: %s, error : %s", credential.Issuer.String(), err.Error())), oid4vciSession.remoteRedirectUri())
+	}
+	err = r.vcr.Wallet().Put(ctx, *credential)
+	if err != nil {
+		log.Logger().WithError(err).Errorf("error while storing credential with id: %s", credential.ID)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while storing credential with id: %s, error : %s", credential.ID, err.Error())), oid4vciSession.remoteRedirectUri())
+	}
+
+	log.Logger().Debugf("stored the credential with id: %s, now redirecting to %s", credential.ID, oid4vciSession.RemoteRedirectUri)
+
+	return CallbackOid4vciCredentialIssuance302Response{
+		Headers: CallbackOid4vciCredentialIssuance302ResponseHeaders{Location: oid4vciSession.RemoteRedirectUri},
+	}, nil
+}
+
+func (r Wrapper) openidIssuerEndpoints(ctx context.Context, issuerDid did.DID) (string, string, string, error) {
+	metadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, issuerDid)
+	if err != nil {
+		return "", "", "", err
+	}
+	for i := range metadata.AuthorizationServers {
+		serverURL := metadata.AuthorizationServers[i]
+		openIdConfiguration, err := r.auth.IAMClient().OpenIdConfiguration(ctx, serverURL)
+		if err != nil {
+			return "", "", "", err
+		}
+		authorizationEndpoint := openIdConfiguration.AuthorizationEndpoint
+		tokenEndpoint := openIdConfiguration.TokenEndpoint
+		credentialEndpoint := metadata.CredentialEndpoint
+		return authorizationEndpoint, tokenEndpoint, credentialEndpoint, nil
+	}
+	err = errors.New(fmt.Sprintf("cannot locate any authorization endpoint in %s", issuerDid.String()))
+	return "", "", "", err
+}
+
 // requestedDID constructs a did:web DID as it was requested by the API caller. It can be a DID with or without user path, e.g.:
 // - did:web:example.com
 // - did:web:example:iam:1234
@@ -670,4 +838,8 @@ func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
 	}
 	return didURL.Parse("/oauth2/" + webDID.String())
+}
+
+func (r Wrapper) oid4vciSssionStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(oid4vciSessionValidity, "oid4vci")
 }

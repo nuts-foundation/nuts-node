@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -178,6 +179,182 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
 }
 
+func (hb HTTPClient) OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error) {
+
+	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
+	if err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	}
+
+	var metadata oauth.OpenIDConfigurationMetadata
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return nil, fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &metadata); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(data))
+	}
+
+	return &metadata, nil
+}
+
+func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, webDID did.DID) (*oauth.OpenIDCredentialIssuerMetadata, error) {
+	serverURL, err := didweb.DIDToURL(webDID)
+	if err != nil {
+		return nil, err
+	}
+
+	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL.String(), oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
+	if err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	}
+
+	var metadata oauth.OpenIDCredentialIssuerMetadata
+	var data []byte
+
+	if data, err = io.ReadAll(response.Body); err != nil {
+		return nil, fmt.Errorf("unable to read response: %w", err)
+	}
+	if err = json.Unmarshal(data, &metadata); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(data))
+	}
+
+	return &metadata, nil
+}
+
+func (hb HTTPClient) AccessTokenOid4vci(ctx context.Context, presentationDefinitionURL url.URL, data url.Values) (*oauth.Oid4vciTokenResponse, error) {
+	// create a POST request with x-www-form-urlencoded body
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, presentationDefinitionURL.String(), strings.NewReader(data.Encode()))
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	if err != nil {
+		return nil, err
+	}
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		// check for oauth error
+		if innerErr := core.TestResponseCode(http.StatusBadRequest, response); innerErr != nil {
+			// a non oauth error, the response body could contain a lot of stuff. We'll log and return the entire error
+			log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
+			return nil, err
+		}
+		httpErr := err.(core.HttpError)
+		oauthError := oauth.OAuth2Error{}
+		if err := json.Unmarshal(httpErr.ResponseBody, &oauthError); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal OAuth error response: %w", err)
+		}
+
+		return nil, oauthError
+	}
+
+	var responseData []byte
+	if responseData, err = io.ReadAll(response.Body); err != nil {
+		return nil, fmt.Errorf("unable to read response: %w", err)
+	}
+
+	var token oauth.Oid4vciTokenResponse
+	if err = json.Unmarshal(responseData, &token); err != nil {
+		// Cut off the response body to 100 characters max to prevent logging of large responses
+		responseBodyString := string(responseData)
+		if len(responseBodyString) > 100 {
+			responseBodyString = responseBodyString[:100] + "...(clipped)"
+		}
+		return nil, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
+	}
+	return &token, nil
+}
+
+// CredentialRequest represents ths request to fetch a credential, the JSON object holds the proof as
+// CredentialRequestProof.
+type CredentialRequest struct {
+	Proof CredentialRequestProof `json:"proof"`
+}
+
+// CredentialRequestProof holds the ProofType and Jwt for a credential request
+type CredentialRequestProof struct {
+	ProofType string `json:"proof_type"`
+	Jwt       string `json:"jwt"`
+}
+
+// CredentialResponse represents the response of a verifiable credential request.
+// It contains the Format and the actual Credential in JSON format.
+type CredentialResponse struct {
+	Format     string `json:"format"`
+	Credential string `json:"credential"`
+}
+
+func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJwt string) (*CredentialResponse, error) {
+
+	credentialEndpointURL, err := url.Parse(credentialEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	credentialRequest := CredentialRequest{
+		Proof: CredentialRequestProof{
+			ProofType: "jwt",
+			Jwt:       proofJwt,
+		},
+	}
+	jsonBody, err := json.Marshal(credentialRequest)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, credentialEndpointURL.String(), bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Authorization", "Bearer "+accessToken)
+
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Logger().WithError(err).Warn("Trouble closing reader")
+		}
+	}(response.Body)
+	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+		return nil, err
+	}
+	var credential CredentialResponse
+	if err = json.NewDecoder(response.Body).Decode(&credential); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &credential, nil
+
+}
 func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL.String(), strings.NewReader(form.Encode()))
 	if err != nil {
