@@ -231,7 +231,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
 	// Create holder/wallet
-	c.wallet = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager, c.storageClient)
+	c.wallet = holder.NewSQLWallet(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager, c.storageClient)
 
 	if err = c.store.HandleRestore(); err != nil {
 		return err
