@@ -20,6 +20,8 @@
 package v2
 
 import (
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -204,5 +206,47 @@ func TestHttpClient_IssueVC(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, credential)
+	})
+}
+
+func TestHttpClient_LoadVC(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNoContent})
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: s.URL,
+				Timeout: time.Second,
+			},
+		}
+
+		err := c.LoadVC(did.DID{}, vc.VerifiableCredential{})
+
+		assert.NoError(t, err)
+	})
+	t.Run("error - not status 204", func(t *testing.T) {
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError})
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: s.URL,
+				Timeout: time.Second,
+			},
+		}
+
+		err := c.LoadVC(did.DID{}, vc.VerifiableCredential{})
+
+		assert.Error(t, err)
+	})
+	t.Run("error - not status 200", func(t *testing.T) {
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK})
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: s.URL,
+				Timeout: time.Second,
+			},
+		}
+
+		err := c.LoadVC(did.DID{}, vc.VerifiableCredential{})
+
+		assert.Error(t, err)
 	})
 }

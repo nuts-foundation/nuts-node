@@ -23,6 +23,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 	"net/http"
@@ -88,6 +90,19 @@ func (hb HTTPClient) Untrusted(credentialType string) ([]string, error) {
 	ctx := context.Background()
 
 	return handleTrustedResponse(hb.client().ListUntrusted(ctx, credentialType))
+}
+
+// LoadVC loads the given Verifiable Credential into the holder's wallet.
+func (hb HTTPClient) LoadVC(holder did.DID, credential vc.VerifiableCredential) error {
+	ctx := context.Background()
+
+	httpResponse, err := hb.client().LoadVC(ctx, holder.String(), credential)
+	if err != nil {
+		return err
+	} else if err := core.TestResponseCode(http.StatusNoContent, httpResponse); err != nil {
+		return err
+	}
+	return nil
 }
 
 // IssueVC issues a new Verifiable Credential and returns it
