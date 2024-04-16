@@ -360,7 +360,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
-		assert.EqualError(t, err, "invalid_request - presentation submission doesn't match presentation definition - presentation submission does not conform to Presentation Definition")
+		assert.EqualError(t, err, "invalid_request - presentation submission doesn't match presentation definition - Presentation Submission does not conform to Presentation Definition (id=)")
 		assert.Nil(t, resp)
 	})
 }
@@ -388,7 +388,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		ctx := newTestClient(t)
 
 		vps := []VerifiablePresentation{test.ParsePresentation(t, presentation)}
-		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), vps, &submission, definition, "everything", credentialSubjectID, nil)
+		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), vps, []PresentationSubmission{submission}, []PresentationDefinition{definition}, "everything", credentialSubjectID, nil)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)
@@ -400,8 +400,8 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		err = ctx.client.accessTokenServerStore().Get(accessToken.AccessToken, &storedToken)
 		require.NoError(t, err)
 		assert.Equal(t, accessToken.AccessToken, storedToken.Token)
-		assert.Equal(t, submission, *storedToken.PresentationSubmission)
-		assert.Equal(t, definition, *storedToken.PresentationDefinition)
+		assert.Equal(t, submission, storedToken.PresentationSubmissions[0])
+		assert.Equal(t, definition, storedToken.PresentationDefinitions[0])
 		expectedVPJSON, _ := presentation.MarshalJSON()
 		actualVPJSON, _ := storedToken.VPToken[0].MarshalJSON()
 		assert.JSONEq(t, string(expectedVPJSON), string(actualVPJSON))

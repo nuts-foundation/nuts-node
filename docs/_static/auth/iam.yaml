@@ -924,14 +924,16 @@ components:
         scope:
           type: string
           description: granted scopes
-        presentation_definition:
-          type: object
-          description: presentation definition, as described in presentation exchange specification, fulfilled to obtain the access token
+        presentation_definitions:
+          type: array
+          description: Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token
           items:
             $ref: '#/components/schemas/PresentationDefinition'
-        presentation_submission:
-          type: object
-          description: mapping of 'vps' contents to the 'presentation_definition'
+        presentation_submissions:
+          type: array
+          description: Mapping of 'vps' contents to the 'presentation_definitions'
+          items:
+            $ref: '#/components/schemas/PresentationSubmission'
         vps:
           type: array
           items:

@@ -97,18 +97,35 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	}
 
 	// All OK, allow access
-	response, err := r.createAccessToken(issuer, time.Now(), pexEnvelope.Presentations, submission, *definition, scope, credentialSubjectID, credentialMap)
+	response, err := r.createAccessToken(issuer, time.Now(),
+		pexEnvelope.Presentations, []PresentationSubmission{*submission}, []PresentationDefinition{*definition},
+		scope, credentialSubjectID, credentialMap)
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submission *pe.PresentationSubmission, definition PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
-	fieldsMap, err := definition.ResolveConstraintsFields(credentialMap)
-	if err != nil {
-		return nil, fmt.Errorf("unable to resolve Presentation Definition Constraints Fields: %w", err)
+func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submissions []pe.PresentationSubmission, definitions []PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+	fieldsMap := make(map[string]any)
+	for _, definition := range definitions {
+		currFields, err := definition.ResolveConstraintsFields(credentialMap)
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve Presentation Definition Constraints Fields: %w", err)
+		}
+		for k, v := range currFields {
+			if _, exists := fieldsMap[k]; exists {
+				// Should be prevented by Presentation Definition author,
+				// but still check this for security reasons.
+				return nil, oauth.OAuth2Error{
+					Code:        oauth.ServerError,
+					Description: "duplicate mapped field in Presentation Definitions",
+				}
+			}
+			fieldsMap[k] = v
+		}
 	}
+
 	accessToken := AccessToken{
 		Token:                          crypto.GenerateNonce(),
 		Issuer:                         issuer.String(),
@@ -117,11 +134,11 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 		Expiration:                     issueTime.Add(accessTokenValidity),
 		Scope:                          scope,
 		VPToken:                        presentations,
-		PresentationDefinition:         &definition,
-		PresentationSubmission:         submission,
+		PresentationDefinitions:        definitions,
+		PresentationSubmissions:        submissions,
 		InputDescriptorConstraintIdMap: fieldsMap,
 	}
-	err = r.accessTokenServerStore().Put(accessToken.Token, accessToken)
+	err := r.accessTokenServerStore().Put(accessToken.Token, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
@@ -228,8 +245,8 @@ type AccessToken struct {
 
 	// VPToken contains the VPs provided in the 'assertion' field of the s2s AT request.
 	VPToken []VerifiablePresentation
-	// PresentationSubmission as provided in the 'presentation_submission' field of the s2s AT request.
-	PresentationSubmission *pe.PresentationSubmission
-	// PresentationDefinition fulfilled to obtain the AT in the s2s flow.
-	PresentationDefinition *pe.PresentationDefinition
+	// PresentationSubmissions as provided in by the wallet to fulfill the required Presentation Definition(s).
+	PresentationSubmissions []pe.PresentationSubmission
+	// PresentationDefinitions that were required by the verifier to fulfill the request.
+	PresentationDefinitions []pe.PresentationDefinition
 }
