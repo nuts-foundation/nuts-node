@@ -89,7 +89,7 @@ func Test_oauth2ErrorWriter_Write(t *testing.T) {
 		assert.NoError(t, err)
 		body, _ := io.ReadAll(rec.Body)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
-		assert.Equal(t, "application/json; charset=UTF-8", rec.Header().Get("Content-Type"))
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 		assert.Equal(t, `{"error":"invalid_request","error_description":"failure"}`, strings.TrimSpace(string(body)))
 		assert.Empty(t, rec.Header().Get("Location"))
 	})
