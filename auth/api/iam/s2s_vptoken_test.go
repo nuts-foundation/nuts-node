@@ -381,14 +381,34 @@ func TestWrapper_createAccessToken(t *testing.T) {
 	submission := pe.PresentationSubmission{
 		Id: "submissive",
 	}
+	fieldId := "credential_type"
 	definition := pe.PresentationDefinition{
 		Id: "definitive",
+		InputDescriptors: []*pe.InputDescriptor{
+			{
+				Id: "1",
+				Constraints: &pe.Constraints{
+					Fields: []pe.Field{
+						{
+							Path: []string{"$.type"},
+							Id:   &fieldId,
+							Filter: &pe.Filter{
+								Type: "string",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	credentialMap := map[string]vc.VerifiableCredential{
+		"1": *credential,
 	}
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		vps := []VerifiablePresentation{test.ParsePresentation(t, presentation)}
-		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), vps, []PresentationSubmission{submission}, []PresentationDefinition{definition}, "everything", credentialSubjectID, nil)
+		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), vps, []PresentationSubmission{submission}, []PresentationDefinition{definition}, "everything", credentialSubjectID, credentialMap)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)
@@ -402,6 +422,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		assert.Equal(t, accessToken.AccessToken, storedToken.Token)
 		assert.Equal(t, submission, storedToken.PresentationSubmissions[0])
 		assert.Equal(t, definition, storedToken.PresentationDefinitions[0])
+		assert.Equal(t, []interface{}{"NutsOrganizationCredential", "VerifiableCredential"}, storedToken.InputDescriptorConstraintIdMap["credential_type"])
 		expectedVPJSON, _ := presentation.MarshalJSON()
 		actualVPJSON, _ := storedToken.VPToken[0].MarshalJSON()
 		assert.JSONEq(t, string(expectedVPJSON), string(actualVPJSON))
