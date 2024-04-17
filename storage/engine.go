@@ -38,6 +38,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
+	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 
 	"github.com/amacneil/dbmate/v2/pkg/dbmate"
@@ -197,6 +198,11 @@ func (e *engine) initSQLDatabase() error {
 		"mysql": {
 			connector: func(sqlDB *sql.DB) gorm.Dialector {
 				return mysql.New(mysql.Config{Conn: sqlDB})
+			},
+		},
+		"mssql": {
+			connector: func(sqlDB *sql.DB) gorm.Dialector {
+				return sqlserver.New(sqlserver.Config{Conn: sqlDB})
 			},
 		},
 	}
