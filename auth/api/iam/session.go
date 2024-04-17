@@ -47,6 +47,7 @@ type OAuthSession struct {
 }
 
 // OpenID4VPVerifier tracks the verifier's state of multiple OpenID4VP flows that all relate to a single OAuthSession (e.g. Authorization Code flow).
+// It's a sort of state machine with 2 states.
 type OpenID4VPVerifier struct {
 	WalletDID                       did.DID
 	RequiredPresentationDefinitions pe.WalletOwnerMapping

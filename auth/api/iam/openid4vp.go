@@ -171,7 +171,7 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 
 	if walletOwnerType == nil {
 		// All OpenID4VP flows completed
-		return nil, nil
+		return nil, errors.New("all OpenID4VP flows already completed")
 	}
 
 	// own generic endpoint

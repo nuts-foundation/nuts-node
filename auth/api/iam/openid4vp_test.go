@@ -320,7 +320,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 				Did: verifierDID.String(),
 			}
 		}
-		t.Run("ok", func(t *testing.T) {
+		t.Run("ok - all Presentation Definitions fulfilled - code issued", func(t *testing.T) {
 			ctx := newTestClient(t)
 			putState(ctx, session)
 			putNonce(ctx, challenge)
@@ -335,6 +335,51 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			assert.True(t, strings.HasPrefix(redirectURI.String(), "https://example.com/iam/holder/cb?code"))
 			assert.True(t, redirectURI.Query().Has("code"))
 			assert.Equal(t, "client-state", redirectURI.Query().Get("state"))
+		})
+		t.Run("ok - another Presentation Definition needs to be fulfilled", func(t *testing.T) {
+			walletOwnerMapping := pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization: pe.PresentationDefinition{
+					Id: "1",
+					InputDescriptors: []*pe.InputDescriptor{
+						{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
+					},
+				},
+				pe.WalletOwnerUser: pe.PresentationDefinition{
+					Id: "2",
+					InputDescriptors: []*pe.InputDescriptor{
+						{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
+					},
+				},
+			}
+			session := OAuthSession{
+				SessionID:   "token",
+				OwnDID:      &verifierDID,
+				RedirectURI: "https://example.com/iam/holder/cb",
+				Scope:       "test",
+				ClientState: "client-state",
+				OpenID4VPVerifier: &OpenID4VPVerifier{
+					WalletDID:                       holderDID,
+					RequiredPresentationDefinitions: walletOwnerMapping,
+					Submissions:                     map[string]pe.PresentationSubmission{},
+					Credentials:                     map[string]vc.VerifiableCredential{},
+				},
+			}
+
+			ctx := newTestClient(t)
+			putState(ctx, session)
+			putNonce(ctx, challenge)
+			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(walletOwnerMapping, nil)
+			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
+			redirectURL, _ := url.Parse("https://redirect-url")
+			ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), verifierDID, holderDID, gomock.Any()).
+				Return(redirectURL, nil)
+
+			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
+
+			require.NoError(t, err)
+			actualRedirectURL, _ := url.Parse(response.(HandleAuthorizeResponse200JSONResponse).RedirectURI)
+			assert.Equal(t, redirectURL.String(), actualRedirectURL.String())
 		})
 		t.Run("failed to verify vp", func(t *testing.T) {
 			ctx := newTestClient(t)
