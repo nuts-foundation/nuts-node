@@ -142,6 +142,17 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid verifier DID")
 	})
+	t.Run("failed to generate authorization request", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+			ClientIdSchemesSupported: []string{didScheme},
+		}, nil).Times(2)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.ServerError, "failed to authorize client")
+	})
 }
 
 func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {

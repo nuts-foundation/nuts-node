@@ -157,9 +157,14 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	}
 	authServerURL, err := r.CreateAuthorizationRequest(ctx, verifier, *walletDID, modifier)
 	if err != nil {
-		// TODO: fix error return
-		return nil, err
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			Description:   "failed to authorize client",
+			InternalError: fmt.Errorf("failed to generate authorization request URL: %w", err),
+			RedirectURI:   redirectURL,
+		}
 	}
+
 	// TODO WIP: add PEX IDs completed to the storage, use server state for this
 	openid4vpRequest := OAuthSession{
 		ClientID:    walletID,
