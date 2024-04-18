@@ -6,7 +6,7 @@ require (
 	github.com/PaesslerAG/jsonpath v0.1.2-0.20230323094847-3484786d6f97
 	github.com/alicebob/miniredis/v2 v2.32.1
 	github.com/amacneil/dbmate/v2 v2.14.0
-	github.com/avast/retry-go/v4 v4.5.1
+	github.com/avast/retry-go/v4 v4.6.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.9.5
 	github.com/dlclark/regexp2 v1.11.0
