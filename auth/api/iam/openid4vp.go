@@ -145,7 +145,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 
 	// create a client state for the verifier
 	state := crypto.GenerateNonce()
-	modifier := func(values map[string]interface{}) {
+	modifier := func(values map[string]string) {
 		values[oauth.ResponseTypeParam] = responseTypeVPToken
 		values[clientIDSchemeParam] = didScheme
 		values[responseURIParam] = callbackURL.String()
@@ -155,7 +155,11 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		values[oauth.NonceParam] = nonce
 		values[oauth.StateParam] = state
 	}
-	authServerURL, err := r.auth.IAMClient().CreateAuthorizationRequest(ctx, verifier, *walletDID, modifier)
+	authServerURL, err := r.CreateAuthorizationRequest(ctx, verifier, *walletDID, modifier)
+	if err != nil {
+		// TODO: fix error return
+		return nil, err
+	}
 	// TODO WIP: add PEX IDs completed to the storage, use server state for this
 	openid4vpRequest := OAuthSession{
 		ClientID:    walletID,

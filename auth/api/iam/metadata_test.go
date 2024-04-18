@@ -43,6 +43,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		ClientIdSchemesSupported:                   []string{"did"},
+		RequestObjectSigningAlgValuesSupported:     oauth.AlgValuesSupported,
 	}
 	assert.Equal(t, expected, authorizationServerMetadata(*identity, *oauth2Base))
 }
