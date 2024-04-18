@@ -19,10 +19,13 @@
 package oauth
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -96,7 +99,9 @@ func (e OAuth2Error) Error() string {
 }
 
 // Oauth2ErrorWriter is a HTTP response writer for OAuth errors
-type Oauth2ErrorWriter struct{}
+type Oauth2ErrorWriter struct {
+	HtmlPageTemplate *template.Template
+}
 
 func (p Oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err error) error {
 	var oauthErr OAuth2Error
@@ -122,6 +127,14 @@ func (p Oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err 
 		if strings.Contains(contentType, "application/json") {
 			// Return JSON response
 			return echoContext.JSON(oauthErr.StatusCode(), oauthErr)
+		}
+		if p.HtmlPageTemplate != nil {
+			buf := new(bytes.Buffer)
+			err = p.HtmlPageTemplate.Execute(buf, oauthErr)
+			if err != nil {
+				log.Logger().WithError(err).Warnf("unable to render error page for error: %s", oauthErr.Error())
+			}
+			return echoContext.HTMLBlob(oauthErr.StatusCode(), buf.Bytes())
 		}
 		// Return plain text response
 		parts := []string{string(oauthErr.Code)}

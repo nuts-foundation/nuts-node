@@ -767,14 +767,14 @@ func TestWrapper_middleware(t *testing.T) {
 	t.Run("OAuth2 error handling", func(t *testing.T) {
 		var handler strictServerCallCapturer
 		t.Run("OAuth2 path", func(t *testing.T) {
-			ctx := server.NewContext(httptest.NewRequest("GET", "/iam/foo", nil), httptest.NewRecorder())
-			_, _ = Wrapper{auth: authService}.middleware(ctx, nil, "Test", handler.handle)
+			ctx := server.NewContext(httptest.NewRequest("GET", "/oauth2/foo", nil), httptest.NewRecorder())
+			_, _ = Wrapper{auth: authService}.strictMiddleware(ctx, nil, "Test", handler.handle)
 
 			assert.IsType(t, &oauth.Oauth2ErrorWriter{}, ctx.Get(core.ErrorWriterContextKey))
 		})
 		t.Run("other path", func(t *testing.T) {
 			ctx := server.NewContext(httptest.NewRequest("GET", "/internal/foo", nil), httptest.NewRecorder())
-			_, _ = Wrapper{auth: authService}.middleware(ctx, nil, "Test", handler.handle)
+			_, _ = Wrapper{auth: authService}.strictMiddleware(ctx, nil, "Test", handler.handle)
 
 			assert.Nil(t, ctx.Get(core.ErrorWriterContextKey))
 		})
