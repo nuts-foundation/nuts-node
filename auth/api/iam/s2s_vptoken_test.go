@@ -401,14 +401,26 @@ func TestWrapper_createAccessToken(t *testing.T) {
 			},
 		},
 	}
-	credentialMap := map[string]vc.VerifiableCredential{
-		"1": *credential,
-	}
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		vps := []VerifiablePresentation{test.ParsePresentation(t, presentation)}
-		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), vps, []PresentationSubmission{submission}, []PresentationDefinition{definition}, "everything", credentialSubjectID, credentialMap)
+		pexEnvelopeJSON, _ := json.Marshal(vps)
+		pexEnvelope, err := pe.ParseEnvelope(pexEnvelopeJSON)
+		pexConsumer := PEXConsumer{
+			WalletDID: credentialSubjectID,
+			RequiredPresentationDefinitions: map[pe.WalletOwnerType]pe.PresentationDefinition{
+				pe.WalletOwnerOrganization: definition,
+			},
+			Submissions: map[string]pe.PresentationSubmission{
+				"definitive": submission,
+			},
+			SubmittedEnvelopes: map[string]pe.Envelope{
+				"definitive": *pexEnvelope,
+			},
+		}
+		require.NoError(t, err)
+		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), "everything", pexConsumer)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)
@@ -420,8 +432,8 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		err = ctx.client.accessTokenServerStore().Get(accessToken.AccessToken, &storedToken)
 		require.NoError(t, err)
 		assert.Equal(t, accessToken.AccessToken, storedToken.Token)
-		assert.Equal(t, submission, storedToken.PresentationSubmissions[0])
-		assert.Equal(t, definition, storedToken.PresentationDefinitions[0])
+		assert.Equal(t, submission, storedToken.PresentationSubmissions["definitive"])
+		assert.Equal(t, definition, storedToken.PresentationDefinitions[pe.WalletOwnerOrganization])
 		assert.Equal(t, []interface{}{"NutsOrganizationCredential", "VerifiableCredential"}, storedToken.InputDescriptorConstraintIdMap["credential_type"])
 		expectedVPJSON, _ := presentation.MarshalJSON()
 		actualVPJSON, _ := storedToken.VPToken[0].MarshalJSON()

@@ -77,38 +77,6 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 	}
 }
 
-// validatePresentationSubmission checks if the presentation submission is valid for the given scope:
-//  1. Resolve presentation definition for the requested scope
-//  2. Check submission against presentation and definition
-//
-// Errors are returned as OAuth2 errors.
-func (r Wrapper) validatePresentationSubmission(ctx context.Context, authorizer did.DID, scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (map[string]vc.VerifiableCredential, *PresentationDefinition, error) {
-	mapping, err := r.presentationDefinitionForScope(ctx, authorizer, scope)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Find the Presentation Definition referenced by the Submission in the mapping
-	var definition *PresentationDefinition
-	for _, curr := range mapping {
-		if curr.Id == submission.DefinitionId {
-			definition = &curr
-		}
-	}
-	if definition == nil {
-		return nil, nil, oauthError(oauth.InvalidRequest, "Presentation Submission references Presentation Definition that isn't requested")
-	}
-	credentialMap, err := submission.Validate(*pexEnvelope, *definition)
-	if err != nil {
-		return nil, nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidRequest,
-			Description:   fmt.Sprintf("Presentation Submission does not conform to Presentation Definition (id=%s)", definition.Id),
-			InternalError: err,
-		}
-	}
-	return credentialMap, definition, err
-}
-
 func (r Wrapper) presentationDefinitionForScope(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error) {
 	mapping, err := r.policyBackend.PresentationDefinitions(ctx, authorizer, scope)
 	if err != nil {

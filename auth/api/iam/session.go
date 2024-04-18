@@ -24,6 +24,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"net/url"
@@ -43,27 +44,26 @@ type OAuthSession struct {
 	PKCEParams             PKCEParams
 	PresentationDefinition PresentationDefinition
 	VerifierDID            *did.DID
-	OpenID4VPVerifier      *OpenID4VPVerifier
+	OpenID4VPVerifier      *PEXConsumer
 }
 
-// OpenID4VPVerifier tracks the verifier's state of multiple OpenID4VP flows that all relate to a single OAuthSession (e.g. Authorization Code flow).
-// It's a sort of state machine with 2 states.
-type OpenID4VPVerifier struct {
-	WalletDID                       did.DID
-	RequiredPresentationDefinitions pe.WalletOwnerMapping
+// PEXConsumer consumes Presentation Submissions, according to https://identity.foundation/presentation-exchange/
+// This is a component of a OpenID4VP Verifier.
+// It can track multiple required Presentation Definitions.
+type PEXConsumer struct {
+	WalletDID                       did.DID               `json:"wallet_did"`
+	RequiredPresentationDefinitions pe.WalletOwnerMapping `json:"required_presentations,omitempty"`
 	// Submissions tracks which Submissions have been submitted through OpenID4VP
-	Submissions map[string]pe.PresentationSubmission
-	// Presentations tracks which VerifiablePresentations have been received through OpenID4VP
-	Presentations []vc.VerifiablePresentation
-	// Credentials maps the Presentation Definition Input Descriptor ID to the Verifiable Credential that was used to fulfill it.
-	// The fields in these credentials are used to create the access token later on.
-	Credentials map[string]vc.VerifiableCredential
+	Submissions map[string]pe.PresentationSubmission `json:"submissions,omitempty"`
+	// SubmittedEnvelopes tracks the Presentation Exchange Envelopes that were submitted.
+	// They correspond to the submissions.
+	SubmittedEnvelopes map[string]pe.Envelope `json:"submitted_envelopes,omitempty"`
 }
 
 // next returns the Presentation Definition that should be fulfilled next.
 // It also returns the wallet owner type that should fulfill the Presentation Definition.
 // If all Presentation Definitions have been fulfilled, it returns nil.
-func (v *OpenID4VPVerifier) next() (*pe.WalletOwnerType, *pe.PresentationDefinition) {
+func (v *PEXConsumer) next() (*pe.WalletOwnerType, *pe.PresentationDefinition) {
 	// Note: this is now fairly hardcoded, since there are only 2 PDs possible, one targeting the organization wallet and
 	//       1 targeting the user wallet. In the future, this could be more dynamic.
 	if def, required := v.RequiredPresentationDefinitions[pe.WalletOwnerOrganization]; required && !v.isFulfilled(def.Id) {
@@ -77,36 +77,42 @@ func (v *OpenID4VPVerifier) next() (*pe.WalletOwnerType, *pe.PresentationDefinit
 	return nil, nil
 }
 
-// fulfill tries to fulfill the given Presentation Definition with the given submission and presentations.
+// fulfill tries to fulfill the given Presentation Definition with the given submission and PEX envelope.
 // It returns an error if the Presentation Definition (identified by ID) isn't required, or already is fulfilled.
 // It does not check whether the submission actually matches the Presentation Definition, that's the caller's responsibility.
-func (v *OpenID4VPVerifier) fulfill(definitionID string, submission pe.PresentationSubmission, presentations []vc.VerifiablePresentation, credentials map[string]vc.VerifiableCredential) error {
+func (v *PEXConsumer) fulfill(submission pe.PresentationSubmission, envelope pe.Envelope) error {
+	definitionID := submission.DefinitionId
 	// Make sure this definition is actually required
-	required := false
+	var definition *PresentationDefinition
 	for _, curr := range v.RequiredPresentationDefinitions {
 		if curr.Id == definitionID {
-			required = true
+			definition = &curr
 			break
 		}
 	}
-	if !required {
+	if definition != nil {
 		return fmt.Errorf("presentation definition being fulfilled is not required: %s", definitionID)
 	}
 	// Make sure this definition isn't already fulfilled
 	if v.isFulfilled(definitionID) {
 		return errors.New("presentation definition is already fulfilled")
 	}
-	// Store
-	v.Submissions[definitionID] = submission
-	v.Presentations = append(v.Presentations, presentations...)
-	// Store the credentials
-	for id, cred := range credentials {
-		v.Credentials[id] = cred
+
+	_, err := submission.Validate(envelope, *definition)
+	if err != nil {
+		return oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   fmt.Sprintf("Presentation Submission does not conform to Presentation Definition (id=%s)", definition.Id),
+			InternalError: err,
+		}
 	}
+
+	v.Submissions[definitionID] = submission
+	v.SubmittedEnvelopes[definitionID] = envelope
 	return nil
 }
 
-func (v *OpenID4VPVerifier) isFulfilled(presentationDefinitionID string) bool {
+func (v *PEXConsumer) isFulfilled(presentationDefinitionID string) bool {
 	_, fulfilled := v.Submissions[presentationDefinitionID]
 	return fulfilled
 }

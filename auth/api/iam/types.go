@@ -63,6 +63,9 @@ type OAuthClientMetadata = oauth.OAuthClientMetadata
 // WalletOwnerType is an alias
 type WalletOwnerType = pe.WalletOwnerType
 
+// RequiredPresentationDefinitions is an alias
+type RequiredPresentationDefinitions = pe.WalletOwnerMapping
+
 const (
 	sessionExpiry = 5 * time.Minute
 )

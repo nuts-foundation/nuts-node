@@ -131,11 +131,11 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		OwnDID:      &verifier,
 		ClientState: params.get(oauth.StateParam),
 		RedirectURI: redirectURL.String(),
-		OpenID4VPVerifier: &OpenID4VPVerifier{
+		OpenID4VPVerifier: &PEXConsumer{
 			WalletDID:                       *walletDID,
 			RequiredPresentationDefinitions: presentationDefinitions,
 			Submissions:                     make(map[string]pe.PresentationSubmission, len(presentationDefinitions)),
-			Credentials:                     make(map[string]vc.VerifiableCredential),
+			SubmittedEnvelopes:              make(map[string]pe.Envelope, len(presentationDefinitions)),
 		},
 		PKCEParams: PKCEParams{ // store params, when generating authorization code we take the params from the nonceStore and encrypt them in the authorization code
 			Challenge:       params.get(oauth.CodeChallengeParam),
@@ -462,13 +462,6 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		}
 	}
 
-	// validate the presentation_submission against the presentation_definition (by scope)
-	// the resulting credential map is stored and later used to generate the access token
-	credentialMap, _, err := r.validatePresentationSubmission(ctx, *verifier, session.Scope, submission, pexEnvelope)
-	if err != nil {
-		return nil, withCallbackURI(err, callbackURI)
-	}
-
 	// check presence of the nonce and make sure the nonce is burned in the process.
 	if err := r.validatePresentationNonce(pexEnvelope.Presentations); err != nil {
 		return nil, withCallbackURI(err, callbackURI)
@@ -488,7 +481,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 	}
 	// we take the existing OAuthSession and add the credential map to it
 	// todo: use the InputDescriptor.Path to map the Id to Value@JSONPath since this will be later used to set the state for the access token
-	if err := session.OpenID4VPVerifier.fulfill(submission.DefinitionId, *submission, pexEnvelope.Presentations, credentialMap); err != nil {
+	if err := session.OpenID4VPVerifier.fulfill(*submission, *pexEnvelope); err != nil {
 		return nil, oauthError(oauth.ServerError, err.Error())
 	}
 	if err = r.oauthClientStateStore().Put(state, session); err != nil {
@@ -614,9 +607,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	if !validatePKCEParams(oauthSession.PKCEParams) {
 		return nil, oauthError(oauth.InvalidGrant, "invalid code_verifier")
 	}
-	presentations := oauthSession.OpenID4VPVerifier.Presentations
-	credentialMap := oauthSession.OpenID4VPVerifier.Credentials
-	subject, _ := did.ParseDID(oauthSession.ClientID)
+
 	var submissions []PresentationSubmission
 	for _, submission := range oauthSession.OpenID4VPVerifier.Submissions {
 		submissions = append(submissions, submission)
@@ -625,7 +616,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	for _, curr := range oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions {
 		presentationDefinitions = append(presentationDefinitions, curr)
 	}
-	response, err := r.createAccessToken(*oauthSession.OwnDID, time.Now(), presentations, submissions, presentationDefinitions, oauthSession.Scope, *subject, credentialMap)
+	response, err := r.createAccessToken(*oauthSession.OwnDID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier)
 	if err != nil {
 		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}

@@ -77,3 +77,45 @@ func TestParseEnvelope(t *testing.T) {
 		assert.Nil(t, envelope)
 	})
 }
+
+func TestEnvelope_JSONMarshalling(t *testing.T) {
+	t.Run("JWT (marshalled as string)", func(t *testing.T) {
+		presentation, _ := test.CreateJWTPresentation(t, did.MustParseDID("did:example:1"), nil, test.ValidNutsOrganizationCredential(t))
+		expected := presentation.Raw()
+
+		envelope, err := ParseEnvelope([]byte(expected))
+		require.NoError(t, err)
+		asJSON, err := json.Marshal(envelope)
+		require.NoError(t, err)
+		err = json.Unmarshal(asJSON, &envelope)
+		require.NoError(t, err)
+
+		require.Equal(t, expected, string(envelope.raw))
+	})
+	t.Run("JSON object", func(t *testing.T) {
+		expected := `{"id": "value"}`
+
+		envelope, err := ParseEnvelope([]byte(expected))
+		require.NoError(t, err)
+		asJSON, err := json.Marshal(envelope)
+		require.NoError(t, err)
+		err = json.Unmarshal(asJSON, &envelope)
+		require.NoError(t, err)
+
+		require.JSONEq(t, expected, string(envelope.raw))
+	})
+	t.Run("JSON array", func(t *testing.T) {
+		presentation, _ := test.CreateJWTPresentation(t, did.MustParseDID("did:example:1"), nil, test.ValidNutsOrganizationCredential(t))
+		presentations := []string{presentation.Raw(), presentation.Raw()}
+		expected, _ := json.Marshal(presentations)
+
+		envelope, err := ParseEnvelope(expected)
+		require.NoError(t, err)
+		asJSON, err := json.Marshal(envelope)
+		require.NoError(t, err)
+		err = json.Unmarshal(asJSON, &envelope)
+		require.NoError(t, err)
+
+		require.JSONEq(t, string(expected), string(envelope.raw))
+	})
+}

@@ -295,7 +295,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		RedirectURI: "https://example.com/iam/holder/cb",
 		Scope:       "test",
 		ClientState: "client-state",
-		OpenID4VPVerifier: &OpenID4VPVerifier{
+		OpenID4VPVerifier: &PEXConsumer{
 			WalletDID:                       holderDID,
 			RequiredPresentationDefinitions: walletOwnerMapping,
 			Submissions:                     map[string]pe.PresentationSubmission{},
@@ -357,7 +357,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 				RedirectURI: "https://example.com/iam/holder/cb",
 				Scope:       "test",
 				ClientState: "client-state",
-				OpenID4VPVerifier: &OpenID4VPVerifier{
+				OpenID4VPVerifier: &PEXConsumer{
 					WalletDID:                       holderDID,
 					RequiredPresentationDefinitions: walletOwnerMapping,
 					Submissions:                     map[string]pe.PresentationSubmission{},
@@ -566,7 +566,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		OwnDID:      &verifierDID,
 		RedirectURI: redirectURI,
 		Scope:       "scope",
-		OpenID4VPVerifier: &OpenID4VPVerifier{
+		OpenID4VPVerifier: &PEXConsumer{
 			WalletDID:                       did.MustParseDID(clientID),
 			RequiredPresentationDefinitions: walletOwnerMapping,
 			Submissions: map[string]pe.PresentationSubmission{
