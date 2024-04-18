@@ -106,11 +106,11 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	// the walletDID must be a did:web
 	walletDID, err := did.ParseDID(walletID)
 	if err != nil || walletDID.Method != "web" {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", err), redirectURL)
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), redirectURL)
 	}
 	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, *walletDID)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet", err), redirectURL)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet"), redirectURL)
 	}
 	// check metadata for supported client_id_schemes
 	if !slices.Contains(metadata.ClientIdSchemesSupported, didScheme) {
@@ -397,7 +397,7 @@ func (r Wrapper) handleAuthorizeResponseError(_ context.Context, request HandleA
 func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
 	verifier, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
 	if err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "unknown verifier id", err)
+		return nil, oauthError(oauth.InvalidRequest, "unknown verifier id")
 	}
 
 	if request.Body.State == nil {
@@ -409,7 +409,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 
 	pexEnvelope, err := pe.ParseEnvelope([]byte(*request.Body.VpToken))
 	if err != nil || len(pexEnvelope.Presentations) == 0 {
-		return nil, oauthError(oauth.InvalidRequest, "invalid vp_token", err)
+		return nil, oauthError(oauth.InvalidRequest, "invalid vp_token")
 	}
 
 	// note: instead of using the challenge to lookup the oauth session, we could also add a client state from the verifier.
@@ -418,11 +418,11 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 	// extract the nonce from the vp(s)
 	nonce, err := extractChallenge(pexEnvelope.Presentations[0])
 	if nonce == "" {
-		return nil, oauthError(oauth.InvalidRequest, "failed to extract nonce from vp_token", err)
+		return nil, oauthError(oauth.InvalidRequest, "failed to extract nonce from vp_token")
 	}
 	var stateFromNonce string
 	if err = r.oauthNonceStore().Get(nonce, &stateFromNonce); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid or expired nonce", err)
+		return nil, oauthError(oauth.InvalidRequest, "invalid or expired nonce")
 	}
 	// Retrieve session through state, since we need to update it given the state.
 	// Also asserts that nonce and state reference the same OAuthSession
@@ -432,7 +432,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		return nil, oauthError(oauth.InvalidRequest, "invalid nonce/state")
 	}
 	if err = r.oauthClientStateStore().Get(state, &session); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid or expired session", err)
+		return nil, oauthError(oauth.InvalidRequest, "invalid or expired session")
 	}
 
 	// any future error can be sent to the client using the redirectURI from the oauthSession
@@ -661,7 +661,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	}
 	// lookup client state
 	if err := r.oauthClientStateStore().Get(*request.Params.State, &oauthSession); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid or expired state", err)
+		return nil, oauthError(oauth.InvalidRequest, "invalid or expired state")
 	}
 	// extract callback URI at calling app from OAuthSession
 	// this is the URI where the user-agent will be redirected to
@@ -700,10 +700,9 @@ func (r Wrapper) oauthNonceStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthNonceKey...)
 }
 
-func oauthError(code oauth.ErrorCode, description string, errs ...error) oauth.OAuth2Error {
+func oauthError(code oauth.ErrorCode, description string) oauth.OAuth2Error {
 	return oauth.OAuth2Error{
-		Code:          code,
-		Description:   description,
-		InternalError: errors.Join(errs...),
+		Code:        code,
+		Description: description,
 	}
 }
