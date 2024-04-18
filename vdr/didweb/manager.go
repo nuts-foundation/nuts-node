@@ -126,7 +126,10 @@ func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*
 		newDID = m.rootDID
 		newDID.ID += ":" + m.tenantPath + ":" + uuid.NewString()
 	}
-	parsedNewDID, _ := did.ParseDID(newDID.String()) // make sure internal state is consistent (DecodedID)
+	parsedNewDID, err := did.ParseDID(newDID.String()) // make sure internal state is consistent (DecodedID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid new DID: %s: %w", newDID.String(), err)
+	}
 	return m.create(ctx, *parsedNewDID)
 }
 

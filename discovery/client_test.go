@@ -23,7 +23,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/discovery/api/v1/client"
+	"github.com/nuts-foundation/nuts-node/discovery/api/server/client"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"

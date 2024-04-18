@@ -27,29 +27,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"net/http"
 	"net/url"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
-var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 const requestQueryContextKey = "request.url.query"
 
 type Wrapper struct {
-	Server discovery.Server
 	Client discovery.Client
-}
-
-func (w *Wrapper) ResolveStatusCode(err error) int {
-	switch {
-	case errors.Is(err, discovery.ErrServerModeDisabled):
-		return http.StatusBadRequest
-	case errors.Is(err, discovery.ErrInvalidPresentation):
-		return http.StatusBadRequest
-	default:
-		return http.StatusInternalServerError
-	}
 }
 
 func (w *Wrapper) Routes(router core.EchoRouter) {
@@ -72,31 +58,6 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, discovery.ModuleName, operationID)
 		},
 	}))
-}
-
-func (w *Wrapper) GetPresentations(_ context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error) {
-	var tag *discovery.Tag
-	if request.Params.Tag != nil {
-		// *string to *Tag
-		tag = new(discovery.Tag)
-		*tag = discovery.Tag(*request.Params.Tag)
-	}
-	presentations, newTag, err := w.Server.Get(request.ServiceID, tag)
-	if err != nil {
-		return nil, err
-	}
-	return GetPresentations200JSONResponse{
-		Entries: presentations,
-		Tag:     string(*newTag),
-	}, nil
-}
-
-func (w *Wrapper) RegisterPresentation(_ context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error) {
-	err := w.Server.Register(request.ServiceID, *request.Body)
-	if err != nil {
-		return nil, err
-	}
-	return RegisterPresentation201Response{}, nil
 }
 
 func (w *Wrapper) SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error) {

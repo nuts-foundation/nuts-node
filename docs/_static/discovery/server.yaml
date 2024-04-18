@@ -1,0 +1,106 @@
+openapi: "3.0.0"
+info:
+  title: Nuts Discovery Server API spec
+  description: API specification for Discovery Servers as specified by the Nuts specification.
+  version: 1.0.0
+  license:
+    name: GPLv3
+paths:
+  /discovery/{serviceID}:
+    parameters:
+      - name: serviceID
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Retrieves the presentations of a Discovery Service.
+      description: |
+        An API provided by the discovery server to retrieve the presentations of a Discovery Service, starting at the given tag.
+        The client should provide the tag it was returned in the last response.
+        If no tag is given, it will return all presentations.
+
+        error returns:
+        * 404 - unknown service ID
+      operationId: getPresentations
+      tags:
+        - discovery
+      parameters:
+        - name: tag
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Presentations are returned, alongside the tag which should be provided at the next query.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PresentationsResponse"
+        default:
+          $ref: "../common/error_response.yaml"
+    post:
+      summary: Register a presentation on the Discovery Service.
+      description: |
+        An API provided by the discovery server that adds a presentation to the service.
+        The presentation must be signed by subject of the credentials it contains.
+        
+        To delete a presentation, the client should send an empty presentation that:
+        * has a JWT claim 'retracted_jti' indicating the ID of the previous presentation of the same subject
+        * has no credentials in it
+        * has the type 'RetractedVerifiablePresentation'
+        
+        error returns:
+        * 400 - incorrect input; e.g. unsupported presentation or credential type, invalid signature, unresolvable credential subject, etc.
+      operationId: registerPresentation
+      tags:
+        - discovery
+      requestBody:
+        description: The presentation to register to the Discovery Service.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifiablePresentation"
+      responses:
+        "201":
+          description: Presentation was registered on the Discovery Service.
+        "400":
+          $ref: "../common/error_response.yaml"
+        default:
+          $ref: "../common/error_response.yaml"
+components:
+  schemas:
+    VerifiablePresentation:
+      $ref: "../common/ssi_types.yaml#/components/schemas/VerifiablePresentation"
+    PresentationsResponse:
+      type: object
+      required:
+        - tag
+        - entries
+      properties:
+        tag:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/VerifiablePresentation"
+    SearchResult:
+      type: object
+      required:
+        - id
+        - subject_id
+        - vp
+        - fields
+      properties:
+        id:
+          type: string
+          description: The ID of the Verifiable Presentation.
+        subject_id:
+          type: string
+          description: The ID of the Verifiable Credential subject (holder), typically a DID.
+        vp:
+          $ref: "#/components/schemas/VerifiablePresentation"
+        fields:
+          type: object
+          description: Input descriptor IDs and their mapped values that from the Verifiable Credential.

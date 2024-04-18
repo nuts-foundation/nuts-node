@@ -25,7 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/discovery/api/v1/client"
+	"github.com/nuts-foundation/nuts-node/discovery/api/server/client"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"

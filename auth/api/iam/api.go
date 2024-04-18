@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	crypto2 "crypto"
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/api/iam/assets"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -43,6 +45,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -73,6 +76,9 @@ const oid4vciSessionValidity = 15 * time.Minute
 // - https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
 const userSessionCookieName = "__Host-SID"
 
+//go:embed assets
+var assetsFS embed.FS
+
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
 	auth          auth.AuthenticationServices
@@ -84,6 +90,11 @@ type Wrapper struct {
 }
 
 func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend) *Wrapper {
+	templates := template.New("oauth2 templates")
+	_, err := templates.ParseFS(assetsFS, "assets/*.html")
+	if err != nil {
+		panic(err)
+	}
 	return &Wrapper{
 		auth:          authInstance,
 		policyBackend: policyBackend,
@@ -97,7 +108,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, NewStrictHandler(r, []StrictMiddlewareFunc{
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
-				return r.middleware(ctx, request, operationID, f)
+				return r.strictMiddleware(ctx, request, operationID, f)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
@@ -105,21 +116,31 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		},
 	}))
 	// The following handlers are used for the user facing OAuth2 flows.
-	router.GET("/oauth2/:did/user", r.handleUserLanding, audit.Middleware(apiModuleName))
+	router.GET("/oauth2/:did/user", r.handleUserLanding, func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			middleware(c, "handleUserLanding")
+			return next(c)
+		}
+	}, audit.Middleware(apiModuleName))
 }
 
-func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
+func (r Wrapper) strictMiddleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
+	middleware(ctx, operationID)
+	return f(ctx, request)
+}
+
+func middleware(ctx echo.Context, operationID string) {
 	ctx.Set(core.OperationIDContextKey, operationID)
 	ctx.Set(core.ModuleNameContextKey, apiModuleName)
 
 	// Add http.Request to context, to allow reading URL query parameters
 	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
-	if strings.HasPrefix(ctx.Request().URL.Path, "/iam/") {
-		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{})
+	if strings.HasPrefix(ctx.Request().URL.Path, "/oauth2/") {
+		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{
+			HtmlPageTemplate: assets.ErrorTemplate,
+		})
 	}
-
-	return f(ctx, request)
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.

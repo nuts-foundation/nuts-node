@@ -240,6 +240,18 @@ func TestManager_Create(t *testing.T) {
 
 		require.ErrorIs(t, err, management.ErrDIDAlreadyExists)
 	})
+	t.Run("with invalid tenant", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+		m := NewManager(rootDID, tenantPath, keyStore, storageEngine.GetSQLDatabase())
+
+		document, key, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(Tenant("spaces in tenant")))
+
+		require.EqualError(t, err, "invalid new DID: did:web:example.com:iam:spaces in tenant: invalid DID")
+		require.Nil(t, document)
+		require.Nil(t, key)
+	})
 }
 
 func TestManager_IsOwner(t *testing.T) {

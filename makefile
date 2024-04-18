@@ -21,7 +21,7 @@ gen-mocks:
 	mockgen -destination=crypto/storage/spi/mock.go -package spi -source=crypto/storage/spi/interface.go
 	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
 	mockgen -destination=discovery/mock.go -package=discovery -source=discovery/interface.go
-	mockgen -destination=discovery/api/v1/client/mock.go -package=client -source=discovery/api/v1/client/interface.go
+	mockgen -destination=discovery/api/server/client/mock.go -package=client -source=discovery/api/server/client/interface.go
 	mockgen -destination=events/events_mock.go -package=events -source=events/interface.go Event
 	mockgen -destination=events/mock.go -package=events -source=events/conn.go Conn ConnectionPool
 	mockgen -destination=http/echo_mock.go -package=http -source=http/echo.go -imports echo=github.com/labstack/echo/v4
@@ -75,6 +75,7 @@ gen-api:
 	oapi-codegen --config codegen/configs/auth_iam.yaml docs/_static/auth/iam.yaml | gofmt > auth/api/iam/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 	oapi-codegen --config codegen/configs/discovery_v1.yaml docs/_static/discovery/v1.yaml | gofmt > discovery/api/v1/generated.go
+	oapi-codegen --config codegen/configs/discovery_server.yaml docs/_static/discovery/server.yaml | gofmt > discovery/api/server/generated.go
 	oapi-codegen --config codegen/configs/crypto_store_client.yaml https://raw.githubusercontent.com/nuts-foundation/secret-store-api/main/nuts-storage-api-v1.yaml | gofmt > crypto/storage/external/generated.go
 	oapi-codegen --config codegen/configs/policy_client_v1.yaml docs/_static/policy/v1.yaml | gofmt > policy/api/v1/client/generated.go
 
