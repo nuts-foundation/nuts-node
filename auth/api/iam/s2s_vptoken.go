@@ -78,7 +78,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	if err != nil {
 		return nil, err
 	}
-	session := PEXConsumer{
+	session := PEXState{
 		RequiredPresentationDefinitions: walletOwnerMapping,
 		Submissions:                     map[string]pe.PresentationSubmission{},
 		SubmittedEnvelopes:              map[string]pe.Envelope{},
@@ -117,7 +117,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 }
 
 func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time,
-	scope string, presesentations PEXConsumer) (*oauth.TokenResponse, error) {
+	scope string, presesentations PEXState) (*oauth.TokenResponse, error) {
 	credentialMap := make(map[string]vc.VerifiableCredential, 0)
 	for _, requiredDefinition := range presesentations.RequiredPresentationDefinitions {
 		submission := presesentations.Submissions[requiredDefinition.Id]

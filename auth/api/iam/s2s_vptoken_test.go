@@ -407,7 +407,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		vps := []VerifiablePresentation{test.ParsePresentation(t, presentation)}
 		pexEnvelopeJSON, _ := json.Marshal(vps)
 		pexEnvelope, err := pe.ParseEnvelope(pexEnvelopeJSON)
-		pexConsumer := PEXConsumer{
+		pexConsumer := PEXState{
 			WalletDID: credentialSubjectID,
 			RequiredPresentationDefinitions: map[pe.WalletOwnerType]pe.PresentationDefinition{
 				pe.WalletOwnerOrganization: definition,

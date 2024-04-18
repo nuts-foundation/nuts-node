@@ -54,7 +54,7 @@ func TestOpenID4VPVerifier_next(t *testing.T) {
 		Id: "organization",
 	}
 	t.Run("owner is next", func(t *testing.T) {
-		v := PEXConsumer{
+		v := PEXState{
 			RequiredPresentationDefinitions: map[pe.WalletOwnerType]pe.PresentationDefinition{
 				pe.WalletOwnerOrganization: orgPresentationDefinition,
 				pe.WalletOwnerUser:         userPresentationDefinition,
@@ -67,7 +67,7 @@ func TestOpenID4VPVerifier_next(t *testing.T) {
 
 	})
 	t.Run("user is next", func(t *testing.T) {
-		v := PEXConsumer{
+		v := PEXState{
 			RequiredPresentationDefinitions: map[pe.WalletOwnerType]pe.PresentationDefinition{
 				pe.WalletOwnerOrganization: orgPresentationDefinition,
 				pe.WalletOwnerUser:         userPresentationDefinition,
@@ -81,7 +81,7 @@ func TestOpenID4VPVerifier_next(t *testing.T) {
 		assert.Equal(t, userPresentationDefinition, *definition)
 	})
 	t.Run("no next", func(t *testing.T) {
-		v := PEXConsumer{
+		v := PEXState{
 			RequiredPresentationDefinitions: map[pe.WalletOwnerType]pe.PresentationDefinition{
 				pe.WalletOwnerOrganization: orgPresentationDefinition,
 				pe.WalletOwnerUser:         userPresentationDefinition,
@@ -105,7 +105,7 @@ func TestOpenID4VPVerifier_fulfill(t *testing.T) {
 		Id: "organization",
 	}
 	t.Run("ok", func(t *testing.T) {
-		v := PEXConsumer{
+		v := PEXState{
 			Submissions: map[string]pe.PresentationSubmission{},
 			RequiredPresentationDefinitions: map[pe.WalletOwnerType]pe.PresentationDefinition{
 				pe.WalletOwnerOrganization: orgPresentationDefinition,
@@ -115,7 +115,7 @@ func TestOpenID4VPVerifier_fulfill(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("not required", func(t *testing.T) {
-		v := PEXConsumer{
+		v := PEXState{
 			Submissions: map[string]pe.PresentationSubmission{},
 			Credentials: map[string]vc.VerifiableCredential{},
 			RequiredPresentationDefinitions: map[pe.WalletOwnerType]pe.PresentationDefinition{
@@ -126,7 +126,7 @@ func TestOpenID4VPVerifier_fulfill(t *testing.T) {
 		assert.Error(t, err)
 	})
 	t.Run("already fulfilled", func(t *testing.T) {
-		v := PEXConsumer{
+		v := PEXState{
 			RequiredPresentationDefinitions: map[pe.WalletOwnerType]pe.PresentationDefinition{
 				pe.WalletOwnerOrganization: orgPresentationDefinition,
 			},

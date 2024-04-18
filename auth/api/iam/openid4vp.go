@@ -131,7 +131,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		OwnDID:      &verifier,
 		ClientState: params.get(oauth.StateParam),
 		RedirectURI: redirectURL.String(),
-		OpenID4VPVerifier: &PEXConsumer{
+		OpenID4VPVerifier: &PEXState{
 			WalletDID:                       *walletDID,
 			RequiredPresentationDefinitions: presentationDefinitions,
 			Submissions:                     make(map[string]pe.PresentationSubmission, len(presentationDefinitions)),

@@ -44,13 +44,13 @@ type OAuthSession struct {
 	PKCEParams             PKCEParams
 	PresentationDefinition PresentationDefinition
 	VerifierDID            *did.DID
-	OpenID4VPVerifier      *PEXConsumer
+	OpenID4VPVerifier      *PEXState
 }
 
-// PEXConsumer consumes Presentation Submissions, according to https://identity.foundation/presentation-exchange/
+// PEXState consumes Presentation Submissions, according to https://identity.foundation/presentation-exchange/
 // This is a component of a OpenID4VP Verifier.
 // It can track multiple required Presentation Definitions.
-type PEXConsumer struct {
+type PEXState struct {
 	WalletDID                       did.DID               `json:"wallet_did"`
 	RequiredPresentationDefinitions pe.WalletOwnerMapping `json:"required_presentations,omitempty"`
 	// Submissions tracks which Submissions have been submitted through OpenID4VP
@@ -63,7 +63,7 @@ type PEXConsumer struct {
 // next returns the Presentation Definition that should be fulfilled next.
 // It also returns the wallet owner type that should fulfill the Presentation Definition.
 // If all Presentation Definitions have been fulfilled, it returns nil.
-func (v *PEXConsumer) next() (*pe.WalletOwnerType, *pe.PresentationDefinition) {
+func (v *PEXState) next() (*pe.WalletOwnerType, *pe.PresentationDefinition) {
 	// Note: this is now fairly hardcoded, since there are only 2 PDs possible, one targeting the organization wallet and
 	//       1 targeting the user wallet. In the future, this could be more dynamic.
 	if def, required := v.RequiredPresentationDefinitions[pe.WalletOwnerOrganization]; required && !v.isFulfilled(def.Id) {
@@ -80,7 +80,7 @@ func (v *PEXConsumer) next() (*pe.WalletOwnerType, *pe.PresentationDefinition) {
 // fulfill tries to fulfill the given Presentation Definition with the given submission and PEX envelope.
 // It returns an error if the Presentation Definition (identified by ID) isn't required, or already is fulfilled.
 // It does not check whether the submission actually matches the Presentation Definition, that's the caller's responsibility.
-func (v *PEXConsumer) fulfill(submission pe.PresentationSubmission, envelope pe.Envelope) error {
+func (v *PEXState) fulfill(submission pe.PresentationSubmission, envelope pe.Envelope) error {
 	definitionID := submission.DefinitionId
 	// Make sure this definition is actually required
 	var definition *PresentationDefinition
@@ -112,7 +112,7 @@ func (v *PEXConsumer) fulfill(submission pe.PresentationSubmission, envelope pe.
 	return nil
 }
 
-func (v *PEXConsumer) isFulfilled(presentationDefinitionID string) bool {
+func (v *PEXState) isFulfilled(presentationDefinitionID string) bool {
 	_, fulfilled := v.Submissions[presentationDefinitionID]
 	return fulfilled
 }
