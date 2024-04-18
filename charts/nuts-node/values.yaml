@@ -124,9 +124,6 @@ nuts:
         address: :8081
       external:
         address: :8080
-      default:
-        cors:
-          origin: "https://chart-example.local"
     verbosity: debug
     tls:
       truststorefile: /opt/nuts/ssl/ca.pem
