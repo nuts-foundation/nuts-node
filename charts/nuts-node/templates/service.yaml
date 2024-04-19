@@ -1,16 +1,32 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "chart.fullname" . }}
+  name: "{{ include "chart.fullname" . }}-internal"
   labels:
     {{- include "chart.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
+  type: {{ .Values.service.internal.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
+    - port: {{ .Values.service.internal.port }}
+      targetPort: http-internal
       protocol: TCP
-      name: http
+      name: http-internal
+  selector:
+    {{- include "chart.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ include "chart.fullname" . }}-external"
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.external.type }}
+  ports:
+    - port: {{ .Values.service.external.port }}
+      targetPort: http-external
+      protocol: TCP
+      name: http-external
     - port: {{ template "grpcPort" . }}
       targetPort: {{ template "grpcPort" . }}
       protocol: TCP
