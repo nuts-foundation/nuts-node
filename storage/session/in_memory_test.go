@@ -16,7 +16,7 @@
  *
  */
 
-package storage
+package session
 
 import (
 	"github.com/nuts-foundation/nuts-node/test"
@@ -189,7 +189,7 @@ func TestInMemorySessionDatabase_Close(t *testing.T) {
 		}()
 		store := NewInMemorySessionDatabase()
 		time.Sleep(50 * time.Millisecond) // make sure pruning is running
-		store.close()
+		store.Close()
 	})
 }
 
@@ -214,7 +214,7 @@ func Test_memoryStore_prune(t *testing.T) {
 	})
 	t.Run("prunes expired flows", func(t *testing.T) {
 		store := createDatabase(t)
-		defer store.close()
+		defer store.Close()
 
 		_ = store.GetStore(0).Put("key1", "value")
 		_ = store.GetStore(time.Minute).Put("key2", "value")

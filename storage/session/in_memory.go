@@ -16,7 +16,7 @@
  *
  */
 
-package storage
+package session
 
 import (
 	"encoding/json"
@@ -26,10 +26,10 @@ import (
 	"time"
 )
 
+var sessionStorePruneInterval = 10 * time.Minute
+
 var _ SessionDatabase = (*InMemorySessionDatabase)(nil)
 var _ SessionStore = (*InMemorySessionStore)(nil)
-
-var sessionStorePruneInterval = 10 * time.Minute
 
 type expiringEntry struct {
 	// Value stores the actual value as JSON
@@ -65,7 +65,7 @@ func (i *InMemorySessionDatabase) GetStore(ttl time.Duration, keys ...string) Se
 	}
 }
 
-func (i *InMemorySessionDatabase) close() {
+func (i *InMemorySessionDatabase) Close() {
 	// Signal pruner to stop and wait for it to finish
 	i.done <- struct{}{}
 }

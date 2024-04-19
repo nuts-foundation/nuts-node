@@ -24,6 +24,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage/session"
 	"io"
 	"net/url"
 	"path"
@@ -60,7 +61,7 @@ func New() Engine {
 	return &engine{
 		storesMux:          &sync.Mutex{},
 		stores:             map[string]stoabs.Store{},
-		sessionDatabase:    NewInMemorySessionDatabase(),
+		sessionDatabase:    session.NewInMemorySessionDatabase(),
 		sqlMigrationLogger: logrusInfoLogWriter{},
 	}
 }
@@ -118,7 +119,7 @@ func (e *engine) Shutdown() error {
 	}
 
 	// Close session database
-	e.sessionDatabase.close()
+	e.sessionDatabase.Close()
 	// Close SQL db
 	if e.sqlDB != nil {
 		underlyingDB, err := e.sqlDB.DB()
