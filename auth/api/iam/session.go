@@ -33,36 +33,42 @@ import (
 // The client state (and nonce/redirectToken as well) is used to refer to this session.
 // Both the client and the server use this session to store information about the request.
 type OAuthSession struct {
-	ClientID               string
-	Scope                  string
-	OwnDID                 *did.DID
-	ClientState            string
-	SessionID              string
-	RedirectURI            string
-	ResponseType           string
-	PKCEParams             PKCEParams
-	PresentationDefinition PresentationDefinition
-	VerifierDID            *did.DID
-	OpenID4VPVerifier      *OpenID4VPVerifier
+	ClientID          string       `json:"client_id,omitempty"`
+	Scope             string       `json:"scope,omitempty"`
+	OwnDID            *did.DID     `json:"own_did,omitempty"`
+	ClientState       string       `json:"client_state,omitempty"`
+	SessionID         string       `json:"session_id,omitempty"`
+	RedirectURI       string       `json:"redirect_uri,omitempty"`
+	ResponseType      string       `json:"response_type,omitempty"`
+	PKCEParams        PKCEParams   `json:"pkce_params"`
+	VerifierDID       *did.DID     `json:"verifier_did,omitempty"`
+	OpenID4VPVerifier *PEXConsumer `json:"openid4vp_verifier,omitempty"`
 }
 
-// OpenID4VPVerifier tracks the verifier's state of multiple OpenID4VP flows that all relate to a single OAuthSession (e.g. Authorization Code flow).
-type OpenID4VPVerifier struct {
-	WalletDID                       did.DID
-	RequiredPresentationDefinitions pe.WalletOwnerMapping
+// PEXConsumer consumes Presentation Submissions, according to https://identity.foundation/presentation-exchange/
+// This is a component of a OpenID4VP Verifier.
+// It can track multiple required Presentation Definitions.
+type PEXConsumer struct {
+	RequiredPresentationDefinitions pe.WalletOwnerMapping `json:"required_presentations"`
 	// Submissions tracks which Submissions have been submitted through OpenID4VP
-	Submissions map[string]pe.PresentationSubmission
-	// Presentations tracks which VerifiablePresentations have been received through OpenID4VP
-	Presentations []vc.VerifiablePresentation
-	// Credentials maps the Presentation Definition Input Descriptor ID to the Verifiable Credential that was used to fulfill it.
-	// The fields in these credentials are used to create the access token later on.
-	Credentials map[string]vc.VerifiableCredential
+	Submissions map[string]pe.PresentationSubmission `json:"submissions"`
+	// SubmittedEnvelopes tracks the Presentation Exchange Envelopes that were submitted.
+	// They correspond to the submissions.
+	SubmittedEnvelopes map[string]pe.Envelope `json:"submitted_envelopes"`
+}
+
+func newPEXConsumer(requiredPresentationDefinitions pe.WalletOwnerMapping) *PEXConsumer {
+	return &PEXConsumer{
+		RequiredPresentationDefinitions: requiredPresentationDefinitions,
+		Submissions:                     map[string]pe.PresentationSubmission{},
+		SubmittedEnvelopes:              map[string]pe.Envelope{},
+	}
 }
 
 // next returns the Presentation Definition that should be fulfilled next.
 // It also returns the wallet owner type that should fulfill the Presentation Definition.
 // If all Presentation Definitions have been fulfilled, it returns nil.
-func (v *OpenID4VPVerifier) next() (*pe.WalletOwnerType, *pe.PresentationDefinition) {
+func (v *PEXConsumer) next() (*pe.WalletOwnerType, *pe.PresentationDefinition) {
 	// Note: this is now fairly hardcoded, since there are only 2 PDs possible, one targeting the organization wallet and
 	//       1 targeting the user wallet. In the future, this could be more dynamic.
 	if def, required := v.RequiredPresentationDefinitions[pe.WalletOwnerOrganization]; required && !v.isFulfilled(def.Id) {
@@ -76,38 +82,57 @@ func (v *OpenID4VPVerifier) next() (*pe.WalletOwnerType, *pe.PresentationDefinit
 	return nil, nil
 }
 
-// fulfill tries to fulfill the given Presentation Definition with the given submission and presentations.
+// fulfill tries to fulfill the given Presentation Definition with the given submission and PEX envelope.
 // It returns an error if the Presentation Definition (identified by ID) isn't required, or already is fulfilled.
 // It does not check whether the submission actually matches the Presentation Definition, that's the caller's responsibility.
-func (v *OpenID4VPVerifier) fulfill(definitionID string, submission pe.PresentationSubmission, presentations []vc.VerifiablePresentation, credentials map[string]vc.VerifiableCredential) error {
+func (v *PEXConsumer) fulfill(submission pe.PresentationSubmission, envelope pe.Envelope) error {
+	definitionID := submission.DefinitionId
 	// Make sure this definition is actually required
-	required := false
+	var definition *PresentationDefinition
 	for _, curr := range v.RequiredPresentationDefinitions {
 		if curr.Id == definitionID {
-			required = true
+			definition = &curr
 			break
 		}
 	}
-	if !required {
+	if definition == nil {
 		return fmt.Errorf("presentation definition being fulfilled is not required: %s", definitionID)
 	}
 	// Make sure this definition isn't already fulfilled
 	if v.isFulfilled(definitionID) {
 		return errors.New("presentation definition is already fulfilled")
 	}
-	// Store
-	v.Submissions[definitionID] = submission
-	v.Presentations = append(v.Presentations, presentations...)
-	// Store the credentials
-	for id, cred := range credentials {
-		v.Credentials[id] = cred
+
+	_, err := submission.Validate(envelope, *definition)
+	if err != nil {
+		return fmt.Errorf("presentation submission does not conform to presentation definition (id=%s)", definition.Id)
 	}
+
+	v.Submissions[definitionID] = submission
+	v.SubmittedEnvelopes[definitionID] = envelope
 	return nil
 }
 
-func (v *OpenID4VPVerifier) isFulfilled(presentationDefinitionID string) bool {
+func (v *PEXConsumer) isFulfilled(presentationDefinitionID string) bool {
 	_, fulfilled := v.Submissions[presentationDefinitionID]
 	return fulfilled
+}
+
+// credentialMap returns a map of input descriptor ID to Verifiable Credential.
+func (v *PEXConsumer) credentialMap() (map[string]vc.VerifiableCredential, error) {
+	credentialMap := make(map[string]vc.VerifiableCredential)
+	for _, requiredDefinition := range v.RequiredPresentationDefinitions {
+		submission := v.Submissions[requiredDefinition.Id]
+		pexEnvelope := v.SubmittedEnvelopes[requiredDefinition.Id]
+		currCredentialMap, err := submission.Resolve(pexEnvelope)
+		if err != nil {
+			return nil, err
+		}
+		for inputDescriptorID, cred := range currCredentialMap {
+			credentialMap[inputDescriptorID] = cred
+		}
+	}
+	return credentialMap, nil
 }
 
 // UserSession is a session-bound Verifiable Credential wallet.

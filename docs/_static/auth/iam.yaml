@@ -925,15 +925,13 @@ components:
           type: string
           description: granted scopes
         presentation_definitions:
-          type: array
-          description: Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token
-          items:
-            $ref: '#/components/schemas/PresentationDefinition'
+          $ref: '#/components/schemas/RequiredPresentationDefinitions'
         presentation_submissions:
-          type: array
-          description: Mapping of 'vps' contents to the 'presentation_definitions'
-          items:
+          type: object
+          additionalProperties:
             $ref: '#/components/schemas/PresentationSubmission'
+          description: |
+            Mapping of Presentation Definition IDs that were fulfilled to Presentation Submissions.
         vps:
           type: array
           items:
@@ -947,6 +945,13 @@ components:
       enum:
         - organization
         - user
+    RequiredPresentationDefinitions:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/PresentationDefinition'
+      description: |
+        Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token
+        The map key is the wallet owner (user/organization)
   securitySchemes:
     jwtBearerAuth:
       type: http

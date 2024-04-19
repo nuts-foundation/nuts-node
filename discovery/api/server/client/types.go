@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Nuts community
+ * Copyright (C) 2024 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,15 +16,12 @@
  *
  */
 
-package v1
+package client
 
-import (
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/discovery"
-)
+import "github.com/nuts-foundation/go-did/vc"
 
-// VerifiablePresentation is a type alias for the VerifiablePresentation from the go-did library.
-type VerifiablePresentation = vc.VerifiablePresentation
-
-// ServiceDefinition is a type alias
-type ServiceDefinition = discovery.ServiceDefinition
+// PresentationsResponse is the response for the GetPresentations endpoint.
+type PresentationsResponse struct {
+	Entries []vc.VerifiablePresentation `json:"entries"`
+	Tag     string                      `json:"tag"`
+}

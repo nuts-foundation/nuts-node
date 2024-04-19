@@ -44,6 +44,7 @@ import (
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
 	didmanCmd "github.com/nuts-foundation/nuts-node/didman/cmd"
 	"github.com/nuts-foundation/nuts-node/discovery"
+	discoveryServerAPI "github.com/nuts-foundation/nuts-node/discovery/api/server"
 	discoveryAPI "github.com/nuts-foundation/nuts-node/discovery/api/v1"
 	discoveryCmd "github.com/nuts-foundation/nuts-node/discovery/cmd"
 	"github.com/nuts-foundation/nuts-node/events"
@@ -221,10 +222,11 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPIv1.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
-	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance, policyInstance, jsonld))
+	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance, policyInstance, cryptoInstance, jsonld))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
-	system.RegisterRoutes(&discoveryAPI.Wrapper{Server: discoveryInstance, Client: discoveryInstance})
+	system.RegisterRoutes(&discoveryAPI.Wrapper{Client: discoveryInstance})
+	system.RegisterRoutes(&discoveryServerAPI.Wrapper{Server: discoveryInstance})
 
 	// Register engines
 	// without dependencies

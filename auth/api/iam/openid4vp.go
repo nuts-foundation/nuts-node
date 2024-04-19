@@ -147,6 +147,31 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 			ChallengeMethod: params.get(oauth.CodeChallengeMethodParam),
 		},
 	}
+	// check metadata for supported client_id_schemes
+	if !slices.Contains(metadata.ClientIdSchemesSupported, didScheme) {
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "wallet metadata does not contain did in client_id_schemes_supported"), redirectURL)
+	}
+
+	// Determine which PEX Presentation Definitions we want to see fulfilled during authorization through OpenID4VP.
+	// Each Presentation Definition triggers 1 OpenID4VP flow.
+	// TODO: Support multiple scopes?
+	presentationDefinitions, err := r.presentationDefinitionForScope(ctx, verifier, params.get(oauth.ScopeParam))
+	if err != nil {
+		return nil, err
+	}
+
+	session := OAuthSession{
+		ClientID:          walletID,
+		Scope:             params.get(oauth.ScopeParam),
+		OwnDID:            &verifier,
+		ClientState:       params.get(oauth.StateParam),
+		RedirectURI:       redirectURL.String(),
+		OpenID4VPVerifier: newPEXConsumer(presentationDefinitions),
+		PKCEParams: PKCEParams{ // store params, when generating authorization code we take the params from the nonceStore and encrypt them in the authorization code
+			Challenge:       params.get(oauth.CodeChallengeParam),
+			ChallengeMethod: params.get(oauth.CodeChallengeMethodParam),
+		},
+	}
 	// create a client state for the verifier
 	state := crypto.GenerateNonce()
 	if err = r.oauthClientStateStore().Put(state, session); err != nil {
@@ -173,11 +198,6 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OAuthSession) (*url.URL, error) {
 	// Find next Presentation Definition to fulfill.
 	walletOwnerType, _ := session.OpenID4VPVerifier.next()
-
-	if walletOwnerType == nil {
-		// All OpenID4VP flows completed
-		return nil, nil
-	}
 
 	// own generic endpoint
 	ownURL, err := createOAuth2BaseURL(*session.OwnDID)
@@ -208,7 +228,7 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 	callbackURL := ownURL.JoinPath("response")
 	metadataURL := ownURL.JoinPath(oauth.ClientMetadataPath)
 
-	modifier := func(values map[string]interface{}) {
+	modifier := func(values map[string]string) {
 		values[oauth.ResponseTypeParam] = responseTypeVPToken
 		values[clientIDSchemeParam] = didScheme
 		values[responseURIParam] = callbackURL.String()
@@ -218,7 +238,16 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 		values[oauth.NonceParam] = nonce
 		values[oauth.StateParam] = state
 	}
-	authServerURL, err := r.auth.IAMClient().CreateAuthorizationRequest(ctx, *session.OwnDID, session.OpenID4VPVerifier.WalletDID, modifier)
+	walletDID, _ := did.ParseDID(session.ClientID)
+	authServerURL, err := r.CreateAuthorizationRequest(ctx, *session.OwnDID, *walletDID, modifier)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			Description:   "failed to authorize client",
+			InternalError: fmt.Errorf("failed to generate authorization request URL: %w", err),
+			RedirectURI:   session.redirectURI(),
+		}
+	}
 
 	// use nonce and state to store authorization request in session store
 	if err = r.oauthNonceStore().Put(nonce, state); err != nil {
@@ -476,7 +505,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 	}
 	var stateFromNonce string
 	if err = r.oauthNonceStore().Get(nonce, &stateFromNonce); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid or expired nonce", err)
+		return nil, oauthError(oauth.InvalidRequest, "invalid or expired nonce")
 	}
 	// Retrieve session through state, since we need to update it given the state.
 	// Also asserts that nonce and state reference the same OAuthSession
@@ -486,7 +515,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		return nil, oauthError(oauth.InvalidRequest, "invalid nonce/state")
 	}
 	if err = r.oauthClientStateStore().Get(state, &session); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid or expired session", err)
+		return nil, oauthError(oauth.InvalidRequest, "invalid or expired session")
 	}
 
 	// any future error can be sent to the client using the redirectURI from the oauthSession
@@ -516,13 +545,6 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		}
 	}
 
-	// validate the presentation_submission against the presentation_definition (by scope)
-	// the resulting credential map is stored and later used to generate the access token
-	credentialMap, _, err := r.validatePresentationSubmission(ctx, *verifier, session.Scope, submission, pexEnvelope)
-	if err != nil {
-		return nil, withCallbackURI(err, callbackURI)
-	}
-
 	// check presence of the nonce and make sure the nonce is burned in the process.
 	if err := r.validatePresentationNonce(pexEnvelope.Presentations); err != nil {
 		return nil, withCallbackURI(err, callbackURI)
@@ -542,13 +564,12 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 	}
 	// we take the existing OAuthSession and add the credential map to it
 	// todo: use the InputDescriptor.Path to map the Id to Value@JSONPath since this will be later used to set the state for the access token
-	if err := session.OpenID4VPVerifier.fulfill(submission.DefinitionId, *submission, pexEnvelope.Presentations, credentialMap); err != nil {
-		return nil, oauthError(oauth.ServerError, err.Error())
+	if err := session.OpenID4VPVerifier.fulfill(*submission, *pexEnvelope); err != nil {
+		return nil, oauthError(oauth.InvalidRequest, err.Error())
 	}
 	if err = r.oauthClientStateStore().Put(state, session); err != nil {
 		return nil, oauth.OAuth2Error{Code: oauth.ServerError, InternalError: err, Description: "failed to store server state"}
 	}
-
 	// See if there are more OpenID4VP flows to fulfill.
 	// If all are completed, issue the authorization code.
 	// If there are more flows, redirect to the next flow.
@@ -559,18 +580,6 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		if err != nil {
 			return nil, err
 		}
-		if *nextWalletOwnerType == pe.WalletOwnerUser {
-			// Nuts-specific response to signal the wallet that the user is required to interact.
-			// Request MUST be a signed Request Object
-			query := authServerURL.Query()
-			if !query.Has("request") {
-				// Would be weird, but to prevent hard-to-debug errors
-				return nil, oauthError(oauth.ServerError, "openid4vp:// flow requires a signed Request Object (JAR)")
-			}
-			authServerURL, _ = url.Parse("openid4vp://?" + query.Encode())
-		}
-		// The "else"-flow would not be possible in practice, since we only support 2 Presentation Definitions atm,
-		// and the second one is always the user wallet. So the if-clause will always be executed.
 		return HandleAuthorizeResponse200JSONResponse{RedirectURI: authServerURL.String()}, nil
 	}
 	// Completed all OpenID4VP flows, issue the authorization code
@@ -681,9 +690,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	if !validatePKCEParams(oauthSession.PKCEParams) {
 		return nil, oauthError(oauth.InvalidGrant, "invalid code_verifier")
 	}
-	presentations := oauthSession.OpenID4VPVerifier.Presentations
-	credentialMap := oauthSession.OpenID4VPVerifier.Credentials
-	subject, _ := did.ParseDID(oauthSession.ClientID)
+
 	var submissions []PresentationSubmission
 	for _, submission := range oauthSession.OpenID4VPVerifier.Submissions {
 		submissions = append(submissions, submission)
@@ -692,7 +699,11 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	for _, curr := range oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions {
 		presentationDefinitions = append(presentationDefinitions, curr)
 	}
-	response, err := r.createAccessToken(*oauthSession.OwnDID, time.Now(), presentations, submissions, presentationDefinitions, oauthSession.Scope, *subject, credentialMap)
+	walletDID, err := did.ParseDID(oauthSession.ClientID)
+	if err != nil {
+		return nil, err
+	}
+	response, err := r.createAccessToken(*oauthSession.OwnDID, *walletDID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier)
 	if err != nil {
 		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}

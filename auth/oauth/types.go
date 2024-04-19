@@ -76,8 +76,10 @@ const (
 	MaxAgeParam = "max_age"
 	// RedirectURIParam is the parameter name for the redirect_uri parameter
 	RedirectURIParam = "redirect_uri"
-	// RequestParam is the parameter name for the request parameter
+	// RequestParam is the parameter name for the request parameter.	Defined in RFC9101
 	RequestParam = "request"
+	// RequestURIParam is the parameter name for the request parameter. Defined in RFC9101
+	RequestURIParam = "request_uri"
 	// ResponseTypeParam is the parameter name for the response_type parameter
 	ResponseTypeParam = "response_type"
 	// ScopeParam is the parameter name for the scope parameter
@@ -165,18 +167,25 @@ type AuthorizationServerMetadata struct {
 	// If omitted, the default value is true. (hence pointer, or add custom unmarshalling)
 	PresentationDefinitionUriSupported *bool `json:"presentation_definition_uri_supported,omitempty"`
 
-	// RequireSignedRequestObject specifies if the authorization server requires the use of signed request objects.
-	RequireSignedRequestObject bool `json:"require_signed_request_object,omitempty"`
-
 	// VPFormatsSupported is an object containing a list of key value pairs, where the key is a string identifying a Credential format supported by the Wallet.
 	VPFormatsSupported map[string]map[string][]string `json:"vp_formats_supported,omitempty"`
 
 	// VPFormats is an object containing a list of key value pairs, where the key is a string identifying a Credential format supported by the Verifier.
+	// TODO: Remove. VPFormatsSupported is the correct param, but the OpenID4VP spec is ambiguous so support both for now.
 	VPFormats map[string]map[string][]string `json:"vp_formats,omitempty"`
 
 	// ClientIdSchemesSupported defines the `client_id_schemes` currently supported.
 	// If omitted, the default value is `pre-registered` (referring to the client), which is currently not supported.
 	ClientIdSchemesSupported []string `json:"client_id_schemes_supported,omitempty"`
+
+	/* ******** JWT-Secured Authorization Request RFC9101 & OpenID Connect Core v1.0: §6. Passing Request Parameters as JWTs ******** */
+
+	// RequireSignedRequestObject specifies if the authorization server requires the use of signed request objects.
+	RequireSignedRequestObject bool `json:"require_signed_request_object,omitempty"`
+
+	// RequestObjectSigningAlgValuesSupported is a JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for Request Objects, which are described in Section 6.1 of OpenID Connect Core 1.0 [OpenID.Core].
+	// These algorithms are used both when the Request Object is passed by value (using the request parameter) and when it is passed by reference (using the request_uri parameter).
+	RequestObjectSigningAlgValuesSupported []string `json:"request_object_signing_alg_values_supported,omitempty"`
 }
 
 // OAuthClientMetadata defines the OAuth Client metadata.

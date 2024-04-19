@@ -56,10 +56,10 @@ The following are not part of the threat model:
 - Protecting against arbitrary access to the Nuts node host machine.
    - If an attacker has root access, integrity of configuration is lost and the attacker can alter security settings (e.g. inject authorized API client keys).
    - Why don't we protect against it:
-     - In such circumstances, the attacker can use the system as stepping stone to attack other systems, e.g. the key storage or the client application.
-       This makes mitigation unfeasible: there's always another way the compromised system can be exploited.
-     - High cost: requires implementation in a language that provides full control over application memory (e.g. C, C++ or Rust).
-     - Unpractical: requires hardening of host OS to avoid memory dumps/debugging, which is not feasible for all some environments (cloud, Windows).
+      - In such circumstances, the attacker can use the system as stepping stone to attack other systems, e.g. the key storage or the client application.
+        This makes mitigation unfeasible: there's always another way the compromised system can be exploited.
+      - High cost: requires implementation in a language that provides full control over application memory (e.g. C, C++ or Rust).
+      - Unpractical: requires hardening of host OS to avoid memory dumps/debugging, which is not feasible for all some environments (cloud, Windows).
 - Protecting against inspection of the Nuts node process.
    - If an attacker can inspect the memory of the Nuts node process, confidentiality might be private keys lost.
    - Why don't we protect against it: same reasons as for an attacker with root access.

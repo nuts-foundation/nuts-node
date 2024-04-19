@@ -1,0 +1,14 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Authorization error</title>
+</head>
+<body>
+    <h1>Authorization error</h1>
+    <p>Couldn't fulfill the request. You can try again, or contact your service provider if the error persists.</p>
+    <p>You should provide them with the error details shown below.</p>
+    <pre style="margin: 5px; padding: 10px; background-color: #eff1f5">
+{{ if .Code }}Code: {{ .Code }}{{ end }}
+{{ if .Description }}Description: {{ .Description }}{{ end }}</pre>
+</body>
+</html>

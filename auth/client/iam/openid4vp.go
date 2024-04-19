@@ -23,8 +23,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"net/url"
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
@@ -34,32 +35,25 @@ import (
 	"github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/url"
-	"time"
 )
 
 var _ Client = (*OpenID4VPClient)(nil)
 
 type OpenID4VPClient struct {
-	httpClient  HTTPClient
-	jwtSigner   nutsCrypto.JWTSigner
-	keyResolver resolver.KeyResolver
-	strictMode  bool
-	wallet      holder.Wallet
+	httpClient HTTPClient
+	strictMode bool
+	wallet     holder.Wallet
 }
 
 // NewClient returns an implementation of Holder
-func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner nutsCrypto.JWTSigner, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
+func NewClient(wallet holder.Wallet, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
 	return &OpenID4VPClient{
 		httpClient: HTTPClient{
 			strictMode: strictMode,
 			httpClient: core.NewStrictHTTPClient(strictMode, httpClientTimeout, nil),
 		},
-		keyResolver: keyResolver,
-		jwtSigner:   jwtSigner,
-		strictMode:  strictMode,
-		wallet:      wallet,
+		strictMode: strictMode,
+		wallet:     wallet,
 	}
 }
 
@@ -155,66 +149,6 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier
 	return &token, nil
 }
 
-func (c *OpenID4VPClient) CreateAuthorizationRequest(ctx context.Context, client did.DID, server did.DID, modifier RequestModifier) (*url.URL, error) {
-	// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
-	// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
-	iamClient := c.httpClient
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, server)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
-	}
-	if len(metadata.AuthorizationEndpoint) == 0 {
-		return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", server)
-	}
-	endpoint, err := url.Parse(metadata.AuthorizationEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse authorization endpoint URL: %w", err)
-	}
-	// one default param for both signed and unsigned
-	params := map[string]interface{}{
-		oauth.ClientIDParam: client.String(),
-	}
-	// use JAR (JWT Authorization Request, RFC9101) if the verifier supports/requires it
-	if metadata.RequireSignedRequestObject {
-		// construct JWT
-		// first get a valid keyID from the vdr.KeyResolver
-		keyId, _, err := c.keyResolver.ResolveKey(client, nil, resolver.AssertionMethod)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve key for signing authorization request: %w", err)
-		}
-		// default claims for JAR
-		params[jwt.IssuerKey] = client.String()
-		params[jwt.AudienceKey] = server.String()
-		params[oauth.ClientIDParam] = client.String()
-		// added by default, can be overriden by the caller
-		params[oauth.NonceParam] = nutsCrypto.GenerateNonce()
-
-		// additional claims can be added by the caller
-		modifier(params)
-
-		token, err := c.jwtSigner.SignJWT(ctx, params, nil, keyId.String())
-		if err != nil {
-			return nil, fmt.Errorf("failed to sign authorization request: %w", err)
-		}
-		redirectURL := http.AddQueryParams(*endpoint, map[string]string{
-			oauth.ClientIDParam: client.String(),
-			oauth.RequestParam:  token,
-		})
-		return &redirectURL, nil
-	}
-	// else return an unsigned regular authorization request
-	// left here for completeness, node 2 node interaction always uses JAR since the AS metadata has it hardcoded
-
-	// additional claims can be added by the caller
-	modifier(params)
-	stringParams := make(map[string]string)
-	for k, v := range params {
-		stringParams[k] = fmt.Sprintf("%v", v)
-	}
-	redirectURL := http.AddQueryParams(*endpoint, stringParams)
-	return &redirectURL, nil
-}
-
 func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
@@ -240,7 +174,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		Expires:  time.Now().Add(time.Second * 5),
 		Nonce:    nutsCrypto.GenerateNonce(),
 	}
-	vp, submission, err := c.wallet.BuildSubmission(ctx, requester, *presentationDefinition, metadata.VPFormats, params)
+	vp, submission, err := c.wallet.BuildSubmission(ctx, requester, *presentationDefinition, metadata.VPFormatsSupported, params)
 	if err != nil {
 		return nil, err
 	}
@@ -305,37 +239,9 @@ func (c *OpenID4VPClient) AccessTokenOid4vci(ctx context.Context, clientId strin
 	return rsp, nil
 }
 
-func (c *OpenID4VPClient) proofJwt(ctx context.Context, holderDid did.DID, audienceDid did.DID, nonce *string) (string, error) {
-	kid, _, err := c.keyResolver.ResolveKey(holderDid, nil, resolver.NutsSigningKeyType)
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve key for did (%s): %w", holderDid.String(), err)
-	}
-	jti, err := uuid.NewUUID()
-	if err != nil {
-		return "", err
-	}
-	claims := map[string]interface{}{
-		"iss": holderDid.String(),
-		"aud": audienceDid.String(),
-		"jti": jti.String(),
-	}
-	if nonce != nil {
-		claims["nonce"] = nonce
-	}
-	proofJwt, err := c.jwtSigner.SignJWT(ctx, claims, nil, kid.String())
-	if err != nil {
-		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid.String(), err)
-	}
-	return proofJwt, nil
-}
-func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, cNonce *string, holderDid did.DID, audienceDid did.DID) (*CredentialResponse, error) {
-	// The cNonce becomes the nonce in the JWT proof of possession.
-	proofJwt, err := c.proofJwt(ctx, holderDid, audienceDid, cNonce)
-	if err != nil {
-		return nil, err
-	}
+func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error) {
 	iamClient := c.httpClient
-	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJwt)
+	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJWT)
 	if err != nil {
 		return nil, fmt.Errorf("remote server: failed to retrieve credentials: %w", err)
 	}

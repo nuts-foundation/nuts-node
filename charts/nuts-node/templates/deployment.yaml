@@ -77,8 +77,11 @@ spec:
             - name: nuts-data-pv
               mountPath: /opt/nuts/data
           ports:
-            - name: http
-              containerPort: {{ .Values.service.internalPort | default 1323 }}
+            - name: http-internal
+              containerPort: {{ .Values.service.internal.internalPort | default 8081 }}
+              protocol: TCP
+            - name: http-external
+              containerPort: {{ .Values.service.external.internalPort | default 8080 }}
               protocol: TCP
             - name: grpc
               containerPort: {{ template "grpcPort" . }}
@@ -86,15 +89,15 @@ spec:
           livenessProbe:
             httpGet:
               path: /status
-              port: http
+              port: http-internal
           readinessProbe:
             httpGet:
               path: /status
-              port: http
+              port: http-internal
           startupProbe:
             httpGet:
               path: /status
-              port: http
+              port: http-internal
             failureThreshold: 300
             periodSeconds: 10
           resources:

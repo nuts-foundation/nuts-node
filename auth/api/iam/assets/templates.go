@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Nuts community
+ * Copyright (C) 2024 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,15 +16,20 @@
  *
  */
 
-package v1
+package assets
 
 import (
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/discovery"
+	"embed"
+	"html/template"
 )
 
-// VerifiablePresentation is a type alias for the VerifiablePresentation from the go-did library.
-type VerifiablePresentation = vc.VerifiablePresentation
+//go:embed *.html
+var assets embed.FS
 
-// ServiceDefinition is a type alias
-type ServiceDefinition = discovery.ServiceDefinition
+// ErrorTemplate is the template used to render error pages.
+var ErrorTemplate *template.Template
+
+func init() {
+	templates := template.Must(template.ParseFS(assets, "*.html"))
+	ErrorTemplate = templates.Lookup("error.html")
+}

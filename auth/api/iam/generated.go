@@ -58,10 +58,11 @@ type TokenIntrospectionResponse struct {
 	Iss *string `json:"iss,omitempty"`
 
 	// PresentationDefinitions Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token
-	PresentationDefinitions *[]PresentationDefinition `json:"presentation_definitions,omitempty"`
+	// The map key is the wallet owner (user/organization)
+	PresentationDefinitions *RequiredPresentationDefinitions `json:"presentation_definitions,omitempty"`
 
-	// PresentationSubmissions Mapping of 'vps' contents to the 'presentation_definitions'
-	PresentationSubmissions *[]PresentationSubmission `json:"presentation_submissions,omitempty"`
+	// PresentationSubmissions Mapping of Presentation Definition IDs that were fulfilled to Presentation Submissions.
+	PresentationSubmissions *map[string]PresentationSubmission `json:"presentation_submissions,omitempty"`
 
 	// Scope granted scopes
 	Scope *string `json:"scope,omitempty"`

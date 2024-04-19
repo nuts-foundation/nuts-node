@@ -20,21 +20,30 @@ package iam
 
 import (
 	"context"
-	crypto2 "crypto"
+	"crypto"
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
+	"html/template"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/api/iam/assets"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	http2 "github.com/nuts-foundation/nuts-node/http"
+	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
+	httpNuts "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -44,10 +53,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 var _ core.Routable = &Wrapper{}
@@ -74,20 +79,33 @@ const oid4vciSessionValidity = 15 * time.Minute
 // - https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
 const userSessionCookieName = "__Host-SID"
 
+//go:embed assets
+var assetsFS embed.FS
+
+// requestModifier is a function that modifies the claims/params of an unsigned or signed (JWT) OAuth2 request
+type requestModifier func(claims map[string]string)
+
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
 	auth          auth.AuthenticationServices
 	policyBackend policy.PDPBackend
 	storageEngine storage.Engine
 	JSONLDManager jsonld.JSONLD
-	keyStore      crypto.KeyStore
+	keyStore      cryptoNuts.KeyStore
 	vcr           vcr.VCR
 	vdr           vdr.VDR
+	jwtSigner     cryptoNuts.JWTSigner
+	keyResolver   resolver.KeyResolver
 }
 
 func New(
 	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine,
-	policyBackend policy.PDPBackend, jsonldManager jsonld.JSONLD) *Wrapper {
+	policyBackend policy.PDPBackend, jwtSigner cryptoNuts.JWTSigner, jsonldManager jsonld.JSONLD) *Wrapper {
+	templates := template.New("oauth2 templates")
+	_, err := templates.ParseFS(assetsFS, "assets/*.html")
+	if err != nil {
+		panic(err)
+	}
 	return &Wrapper{
 		auth:          authInstance,
 		policyBackend: policyBackend,
@@ -95,6 +113,8 @@ func New(
 		vcr:           vcrInstance,
 		vdr:           vdrInstance,
 		JSONLDManager: jsonldManager,
+		jwtSigner:     jwtSigner,
+		keyResolver:   resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
 	}
 }
 
@@ -102,7 +122,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, NewStrictHandler(r, []StrictMiddlewareFunc{
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
-				return r.middleware(ctx, request, operationID, f)
+				return r.strictMiddleware(ctx, request, operationID, f)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
@@ -110,21 +130,31 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		},
 	}))
 	// The following handlers are used for the user facing OAuth2 flows.
-	router.GET("/oauth2/:did/user", r.handleUserLanding, audit.Middleware(apiModuleName))
+	router.GET("/oauth2/:did/user", r.handleUserLanding, func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			middleware(c, "handleUserLanding")
+			return next(c)
+		}
+	}, audit.Middleware(apiModuleName))
 }
 
-func (r Wrapper) middleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
+func (r Wrapper) strictMiddleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
+	middleware(ctx, operationID)
+	return f(ctx, request)
+}
+
+func middleware(ctx echo.Context, operationID string) {
 	ctx.Set(core.OperationIDContextKey, operationID)
 	ctx.Set(core.ModuleNameContextKey, apiModuleName)
 
 	// Add http.Request to context, to allow reading URL query parameters
 	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
-	if strings.HasPrefix(ctx.Request().URL.Path, "/iam/") {
-		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{})
+	if strings.HasPrefix(ctx.Request().URL.Path, "/oauth2/") {
+		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{
+			HtmlPageTemplate: assets.ErrorTemplate,
+		})
 	}
-
-	return f(ctx, request)
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -302,7 +332,13 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		if err != nil {
 			return nil, err
 		}
-	} // else, we'll allow for now, since other flows will break if we require JAR at this point.
+	} else if requestURI := params.get(oauth.RequestURIParam); requestURI != "" {
+		// TODO: implemented in next PR
+		return nil, oauth.OAuth2Error{Code: "request_uri_not_supported", Description: "not supported yet"}
+	} else {
+		// require_signed_request_object is true, so we reject anything that isn't
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "authorization request are required to use signed request objects (RFC9101)"}
+	}
 
 	// todo: store session in database? Isn't session specific for a particular flow?
 	session := createSession(requestObject, *ownDID)
@@ -356,31 +392,31 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clientId string) (oauthParameters, error) {
 	var signerKid string
 	// Parse and validate the JWT
-	token, err := crypto.ParseJWT(rawToken, func(kid string) (crypto2.PublicKey, error) {
+	token, err := cryptoNuts.ParseJWT(rawToken, func(kid string) (crypto.PublicKey, error) {
 		signerKid = kid
 		return resolver.DIDKeyResolver{Resolver: r.vdr}.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
 	}, jwt.WithValidate(true))
 	if err != nil {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "unable to validate request signature", InternalError: err}
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "request signature validation failed", InternalError: err}
 	}
 	claimsAsMap, err := token.AsMap(ctx)
 	if err != nil {
 		// very unlikely
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid request parameter", InternalError: err}
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid request parameter", InternalError: err}
 	}
 	params := parseJWTClaims(claimsAsMap)
 	// check client_id claim, it must be the same as the client_id in the request
 	if clientId != params.get(oauth.ClientIDParam) {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id claim in signed authorization request"}
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid client_id claim in signed authorization request"}
 	}
 	// check if the signer of the JWT is the client
 	signer, err := did.ParseDIDURL(signerKid)
 	if err != nil {
 		// very unlikely since the key has already been resolved
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid signer", InternalError: err}
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid signer", InternalError: err}
 	}
 	if signer.DID.String() != clientId {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_id does not match signer of authorization request"}
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "client_id does not match signer of authorization request"}
 	}
 	return params, nil
 }
@@ -574,10 +610,10 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}
 
 	// session ID for calling app (supports polling for token)
-	sessionID := crypto.GenerateNonce()
+	sessionID := cryptoNuts.GenerateNonce()
 
 	// generate a redirect token valid for 5 seconds
-	token := crypto.GenerateNonce()
+	token := cryptoNuts.GenerateNonce()
 	err = r.userRedirectStore().Put(token, RedirectSession{
 		AccessTokenRequest: request,
 		SessionID:          sessionID,
@@ -598,7 +634,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}
 	webURL = webURL.JoinPath("user")
 	// redirect to generic user page, context of token will render correct page
-	redirectURL := http2.AddQueryParams(*webURL, map[string]string{
+	redirectURL := httpNuts.AddQueryParams(*webURL, map[string]string{
 		"token": token,
 	})
 	return RequestUserAccessToken200JSONResponse{
@@ -671,7 +707,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
 	}
 	// Generate the state and PKCE
-	state := crypto.GenerateNonce()
+	state := cryptoNuts.GenerateNonce()
 	pkceParams := generatePKCEParams()
 	if err != nil {
 		log.Logger().WithError(err).Errorf("failed to create the PKCE parameters")
@@ -703,7 +739,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		return nil, err
 	}
 	// Build the redirect URL, the client browser should be redirected to.
-	redirectUrl := http2.AddQueryParams(*endpoint, map[string]string{
+	redirectUrl := httpNuts.AddQueryParams(*endpoint, map[string]string{
 		"response_type":         "code",
 		"state":                 state,
 		"client_id":             requestHolder.String(),
@@ -744,33 +780,38 @@ func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request 
 	tokenEndpoint := oid4vciSession.IssuerTokenEndpoint
 	credentialEndpoint := oid4vciSession.IssuerCredentialEndpoint
 	if err != nil {
-		log.Logger().WithError(err).Errorf("cannot fetch the right endpoints")
+		log.Logger().WithError(err).Error("cannot fetch the right endpoints")
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("cannot fetch the right endpoints: %s", err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 	response, err := r.auth.IAMClient().AccessTokenOid4vci(ctx, holderDid.String(), tokenEndpoint, oid4vciSession.RedirectUri, code, &pkceParams.Verifier)
 	if err != nil {
 		log.Logger().WithError(err).Errorf("error while fetching the access_token from endpoint: %s", tokenEndpoint)
-		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error : %s", tokenEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", tokenEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
-	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, credentialEndpoint, response.AccessToken, response.CNonce, *holderDid, *issuerDid)
+	proofJWT, err := r.proofJwt(ctx, *holderDid, *issuerDid, response.CNonce)
+	if err != nil {
+		log.Logger().WithError(err).Error("error while building proof")
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
+	}
+	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, credentialEndpoint, response.AccessToken, proofJWT)
 	if err != nil {
 		log.Logger().WithError(err).Errorf("error while fetching the credential from endpoint: %s", credentialEndpoint)
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error : %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 	credential, err := vc.ParseVerifiableCredential(credentials.Credential)
 	if err != nil {
 		log.Logger().WithError(err).Errorf("error while parsing the credential: %s", credentials.Credential)
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error : %s", credentials.Credential, err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentials.Credential, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 	err = r.vcr.Verifier().Verify(*credential, true, true, nil)
 	if err != nil {
 		log.Logger().WithError(err).Errorf("error while verifying the credential from issuer: %s", credential.Issuer.String())
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while verifying the credential from issuer: %s, error : %s", credential.Issuer.String(), err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while verifying the credential from issuer: %s, error: %s", credential.Issuer.String(), err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 	err = r.vcr.Wallet().Put(ctx, *credential)
 	if err != nil {
 		log.Logger().WithError(err).Errorf("error while storing credential with id: %s", credential.ID)
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while storing credential with id: %s, error : %s", credential.ID, err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while storing credential with id: %s, error: %s", credential.ID, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 
 	log.Logger().Debugf("stored the credential with id: %s, now redirecting to %s", credential.ID, oid4vciSession.RemoteRedirectUri)
@@ -798,6 +839,102 @@ func (r Wrapper) openidIssuerEndpoints(ctx context.Context, issuerDid did.DID) (
 	}
 	err = errors.New(fmt.Sprintf("cannot locate any authorization endpoint in %s", issuerDid.String()))
 	return "", "", "", err
+}
+
+// CreateAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
+// It can create both regular OAuth2 requests and OpenID4VP requests due to the RequestModifier.
+// It's able to create an unsigned request and a signed request (JAR) based on the OAuth Server Metadata.
+// By default, it adds the following parameters to a regular request:
+// - client_id
+// and to a signed request:
+// - client_id
+// - jwt.Issuer
+// - jwt.Audience
+// - nonce
+// any of these params can be overridden by the requestModifier.
+func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID, server did.DID, modifier requestModifier) (*url.URL, error) {
+	// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
+	// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
+	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, server)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+	}
+	if len(metadata.AuthorizationEndpoint) == 0 {
+		return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", server)
+	}
+	endpoint, err := url.Parse(metadata.AuthorizationEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse authorization endpoint URL: %w", err)
+	}
+	// one default param for both signed and unsigned
+	params := map[string]string{
+		oauth.ClientIDParam: client.String(),
+	}
+	// use JAR (JWT Authorization Request, RFC9101) if the verifier supports/requires it
+	if metadata.RequireSignedRequestObject {
+		// construct JWT
+		// first get a valid keyID from the vdr.KeyResolver
+		keyId, _, err := r.keyResolver.ResolveKey(client, nil, resolver.AssertionMethod)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve key for signing authorization request: %w", err)
+		}
+		// default claims for JAR
+		params[jwt.IssuerKey] = client.String()
+		params[jwt.AudienceKey] = server.String()
+		params[oauth.ClientIDParam] = client.String()
+		// added by default, can be overriden by the caller
+		params[oauth.NonceParam] = cryptoNuts.GenerateNonce()
+
+		// additional claims can be added by the caller
+		modifier(params)
+
+		paramsAny := make(map[string]any, len(params))
+		for k, v := range params {
+			paramsAny[k] = v
+		}
+
+		token, err := r.jwtSigner.SignJWT(ctx, paramsAny, nil, keyId.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign authorization request: %w", err)
+		}
+		redirectURL := httpNuts.AddQueryParams(*endpoint, map[string]string{
+			oauth.ClientIDParam: client.String(),
+			oauth.RequestParam:  token,
+		})
+		return &redirectURL, nil
+	}
+	// else return an unsigned regular authorization request
+	// left here for completeness, node 2 node interaction always uses JAR since the AS metadata has it hardcoded
+
+	// additional claims can be added by the caller
+	modifier(params)
+	redirectURL := httpNuts.AddQueryParams(*endpoint, params)
+	return &redirectURL, nil
+}
+
+func (r *Wrapper) proofJwt(ctx context.Context, holderDid did.DID, audienceDid did.DID, nonce *string) (string, error) {
+	// TODO: is this the right key type?
+	kid, _, err := r.keyResolver.ResolveKey(holderDid, nil, resolver.NutsSigningKeyType)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve key for did (%s): %w", holderDid.String(), err)
+	}
+	jti, err := uuid.NewUUID()
+	if err != nil {
+		return "", err
+	}
+	claims := map[string]interface{}{
+		"iss": holderDid.String(),
+		"aud": audienceDid.String(),
+		"jti": jti.String(),
+	}
+	if nonce != nil {
+		claims["nonce"] = nonce
+	}
+	proofJwt, err := r.jwtSigner.SignJWT(ctx, claims, nil, kid.String())
+	if err != nil {
+		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid.String(), err)
+	}
+	return proofJwt, nil
 }
 
 // requestedDID constructs a did:web DID as it was requested by the API caller. It can be a DID with or without user path, e.g.:

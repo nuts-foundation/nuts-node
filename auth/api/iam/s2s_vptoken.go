@@ -74,10 +74,15 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 			return nil, err
 		}
 	}
-	credentialMap, definition, err := r.validatePresentationSubmission(ctx, issuer, scope, submission, pexEnvelope)
+	walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, issuer, scope)
 	if err != nil {
 		return nil, err
 	}
+	pexConsumer := newPEXConsumer(walletOwnerMapping)
+	if err := pexConsumer.fulfill(*submission, *pexEnvelope); err != nil {
+		return nil, oauthError(oauth.InvalidRequest, err.Error())
+	}
+
 	for _, presentation := range pexEnvelope.Presentations {
 		if err := r.validateS2SPresentationNonce(presentation); err != nil {
 			return nil, err
@@ -97,21 +102,62 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	}
 
 	// All OK, allow access
-	response, err := r.createAccessToken(issuer, time.Now(),
-		pexEnvelope.Presentations, []PresentationSubmission{*submission}, []PresentationDefinition{*definition},
-		scope, credentialSubjectID, credentialMap)
+	response, err := r.createAccessToken(issuer, credentialSubjectID, time.Now(), scope, *pexConsumer)
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presentations []vc.VerifiablePresentation, submissions []pe.PresentationSubmission, definitions []PresentationDefinition, scope string, credentialSubjectDID did.DID, credentialMap map[string]vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+func (r Wrapper) createAccessToken(issuer did.DID, walletDID did.DID, issueTime time.Time, scope string, pexState PEXConsumer) (*oauth.TokenResponse, error) {
+	credentialMap, err := pexState.credentialMap()
+	if err != nil {
+		return nil, err
+	}
+	fieldsMap, err := resolveInputDescriptorValues(pexState.RequiredPresentationDefinitions, credentialMap)
+	if err != nil {
+		return nil, err
+	}
+
+	accessToken := AccessToken{
+		Token:                          crypto.GenerateNonce(),
+		Issuer:                         issuer.String(),
+		ClientId:                       walletDID.String(),
+		IssuedAt:                       issueTime,
+		Expiration:                     issueTime.Add(accessTokenValidity),
+		Scope:                          scope,
+		PresentationSubmissions:        pexState.Submissions,
+		PresentationDefinitions:        pexState.RequiredPresentationDefinitions,
+		InputDescriptorConstraintIdMap: fieldsMap,
+	}
+	for _, envelope := range pexState.SubmittedEnvelopes {
+		for _, presentation := range envelope.Presentations {
+			accessToken.VPToken = append(accessToken.VPToken, presentation)
+		}
+	}
+	err = r.accessTokenServerStore().Put(accessToken.Token, accessToken)
+	if err != nil {
+		return nil, fmt.Errorf("unable to store access token: %w", err)
+	}
+	expiresIn := int(accessTokenValidity.Seconds())
+	return &oauth.TokenResponse{
+		AccessToken: accessToken.Token,
+		ExpiresIn:   &expiresIn,
+		Scope:       &scope,
+		TokenType:   "bearer",
+	}, nil
+}
+
+func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {
 	fieldsMap := make(map[string]any)
-	for _, definition := range definitions {
+	for _, definition := range presentationDefinitions {
 		currFields, err := definition.ResolveConstraintsFields(credentialMap)
 		if err != nil {
-			return nil, fmt.Errorf("unable to resolve Presentation Definition Constraints Fields: %w", err)
+			return nil, oauth.OAuth2Error{
+				Code:          oauth.ServerError,
+				Description:   "unable to resolve Presentation Definition Constraints Fields",
+				InternalError: err,
+			}
 		}
 		for k, v := range currFields {
 			if _, exists := fieldsMap[k]; exists {
@@ -125,30 +171,7 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time, presenta
 			fieldsMap[k] = v
 		}
 	}
-
-	accessToken := AccessToken{
-		Token:                          crypto.GenerateNonce(),
-		Issuer:                         issuer.String(),
-		ClientId:                       credentialSubjectDID.String(),
-		IssuedAt:                       issueTime,
-		Expiration:                     issueTime.Add(accessTokenValidity),
-		Scope:                          scope,
-		VPToken:                        presentations,
-		PresentationDefinitions:        definitions,
-		PresentationSubmissions:        submissions,
-		InputDescriptorConstraintIdMap: fieldsMap,
-	}
-	err := r.accessTokenServerStore().Put(accessToken.Token, accessToken)
-	if err != nil {
-		return nil, fmt.Errorf("unable to store access token: %w", err)
-	}
-	expiresIn := int(accessTokenValidity.Seconds())
-	return &oauth.TokenResponse{
-		AccessToken: accessToken.Token,
-		ExpiresIn:   &expiresIn,
-		Scope:       &scope,
-		TokenType:   "bearer",
-	}, nil
+	return fieldsMap, nil
 }
 
 // validateS2SPresentationMaxValidity checks that the presentation is valid for a reasonable amount of time.
@@ -225,28 +248,28 @@ func extractNonce(presentation vc.VerifiablePresentation) (string, error) {
 }
 
 type AccessToken struct {
-	Token string
+	Token string `json:"token"`
 	// Issuer and Subject of a token are always the same.
-	Issuer string
+	Issuer string `json:"issuer"`
 	// TODO: should client_id be extracted to the PDPMap using the presentation definition?
 	// ClientId is the DID of the entity requesting the access token. The Client needs to proof its id through proof-of-possession of the key for the DID.
-	ClientId string
+	ClientId string `json:"client_id"`
 	// IssuedAt is the time the token is issued
-	IssuedAt time.Time
+	IssuedAt time.Time `json:"issued_at"`
 	// Expiration is the time the token expires
-	Expiration time.Time
+	Expiration time.Time `json:"expiration"`
 	// Scope the token grants access to. Not necessarily the same as the requested scope
-	Scope string
-	// InputDescriptorConstraintIdMap maps the ID field of a PresentationDefinitions input descriptor constraint to the value provided in the VPToken for the constraint.
+	Scope string `json:"scope"`
+	// InputDescriptorConstraintIdMap maps the ID field of a PresentationDefinition input descriptor constraint to the value provided in the VPToken for the constraint.
 	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
-	InputDescriptorConstraintIdMap map[string]any
+	InputDescriptorConstraintIdMap map[string]any `json:"inputdescriptor_constraint_id_map,omitempty"`
 
 	// additional fields to support unforeseen policy decision requirements
 
 	// VPToken contains the VPs provided in the 'assertion' field of the s2s AT request.
-	VPToken []VerifiablePresentation
+	VPToken []VerifiablePresentation `json:"vp_token,omitempty"`
 	// PresentationSubmissions as provided in by the wallet to fulfill the required Presentation Definition(s).
-	PresentationSubmissions []pe.PresentationSubmission
+	PresentationSubmissions map[string]pe.PresentationSubmission `json:"presentation_submissions,omitempty"`
 	// PresentationDefinitions that were required by the verifier to fulfill the request.
-	PresentationDefinitions []pe.PresentationDefinition
+	PresentationDefinitions pe.WalletOwnerMapping `json:"presentation_definitions,omitempty"`
 }

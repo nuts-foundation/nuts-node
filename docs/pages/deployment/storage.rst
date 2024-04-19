@@ -55,7 +55,7 @@ Make sure to include the directory in your backups and keep these in a safe plac
 If you want to use filesystem in strict mode, you have to set it explicitly, otherwise the node fails during startup.
 
 HashiCorp Vault
-==============
+===============
 
 This storage backend is the current recommended way of storing secrets. It uses the `Vault KV version 1 store <https://www.vaultproject.io/docs/secrets/kv/kv-v1>`_.
 The path prefix defaults to ``kv`` and can be configured using the ``crypto.vault.pathprefix`` option.
