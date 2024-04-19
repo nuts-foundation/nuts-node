@@ -248,28 +248,28 @@ func extractNonce(presentation vc.VerifiablePresentation) (string, error) {
 }
 
 type AccessToken struct {
-	Token string
+	Token string `json:"token"`
 	// Issuer and Subject of a token are always the same.
-	Issuer string
+	Issuer string `json:"issuer"`
 	// TODO: should client_id be extracted to the PDPMap using the presentation definition?
 	// ClientId is the DID of the entity requesting the access token. The Client needs to proof its id through proof-of-possession of the key for the DID.
-	ClientId string
+	ClientId string `json:"client_id"`
 	// IssuedAt is the time the token is issued
-	IssuedAt time.Time
+	IssuedAt time.Time `json:"issued_at"`
 	// Expiration is the time the token expires
-	Expiration time.Time
+	Expiration time.Time `json:"expiration"`
 	// Scope the token grants access to. Not necessarily the same as the requested scope
-	Scope string
+	Scope string `json:"scope"`
 	// InputDescriptorConstraintIdMap maps the ID field of a PresentationDefinition input descriptor constraint to the value provided in the VPToken for the constraint.
 	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
-	InputDescriptorConstraintIdMap map[string]any
+	InputDescriptorConstraintIdMap map[string]any `json:"inputdescriptor_constraint_id_map,omitempty"`
 
 	// additional fields to support unforeseen policy decision requirements
 
 	// VPToken contains the VPs provided in the 'assertion' field of the s2s AT request.
-	VPToken []VerifiablePresentation
+	VPToken []VerifiablePresentation `json:"vp_token,omitempty"`
 	// PresentationSubmissions as provided in by the wallet to fulfill the required Presentation Definition(s).
-	PresentationSubmissions map[string]pe.PresentationSubmission
+	PresentationSubmissions map[string]pe.PresentationSubmission `json:"presentation_submissions,omitempty"`
 	// PresentationDefinitions that were required by the verifier to fulfill the request.
-	PresentationDefinitions pe.WalletOwnerMapping
+	PresentationDefinitions pe.WalletOwnerMapping `json:"presentation_definitions,omitempty"`
 }
