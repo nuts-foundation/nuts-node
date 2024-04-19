@@ -199,10 +199,14 @@ func Test_engine_sqlDatabase(t *testing.T) {
 			})
 			assert.IsType(t, &InMemorySessionDatabase{}, e.GetSessionDatabase())
 		})
-		t.Run("in-memory", func(t *testing.T) {
+		t.Run("redis", func(t *testing.T) {
+			redis := miniredis.RunT(t)
 			e := New().(*engine)
 			e.config = Config{
-				Session: SessionConfig{},
+				Session: SessionConfig{
+					Type:  "redis",
+					Redis: RedisConfig{Address: redis.Addr()},
+				},
 			}
 			dataDir := io.TestDirectory(t)
 			require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
@@ -210,26 +214,22 @@ func Test_engine_sqlDatabase(t *testing.T) {
 			t.Cleanup(func() {
 				_ = e.Shutdown()
 			})
-			assert.IsType(t, &InMemorySessionDatabase{}, e.GetSessionDatabase())
+			assert.IsType(t, redisSessionDatabase{}, e.GetSessionDatabase())
 		})
-	})
-}
-
-func Test_engine_redisSessionDatabase(t *testing.T) {
-	t.Run("redis", func(t *testing.T) {
-		redis := miniredis.RunT(t)
-		e := New().(*engine)
-		e.config = Config{
-			Session: SessionConfig{
-				Redis: RedisConfig{Address: redis.Addr()},
-			},
-		}
-		dataDir := io.TestDirectory(t)
-		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
-		require.NoError(t, e.Start())
-		t.Cleanup(func() {
-			_ = e.Shutdown()
+		t.Run("SQL", func(t *testing.T) {
+			e := New().(*engine)
+			e.config = Config{
+				Session: SessionConfig{
+					Type: "sql",
+				},
+			}
+			dataDir := io.TestDirectory(t)
+			require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+			require.NoError(t, e.Start())
+			t.Cleanup(func() {
+				_ = e.Shutdown()
+			})
+			assert.IsType(t, sqlSessionDatabase{}, e.GetSessionDatabase())
 		})
-		assert.IsType(t, redisSessionDatabase{}, e.GetSessionDatabase())
 	})
 }

@@ -38,6 +38,14 @@ Refer to the documentation of the driver for the database you are using for the 
 - MS SQL Server: `github.com/microsoft/go-mssqldb <https://github.com/microsoft/go-mssqldb>`_ (e.g. ``sqlserver://user:password@localhost:1433?database=dbname``)
 - SQLite (e.g. ``sqlite:file:/some/path/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)``)
 
+User sessions
+*************
+
+By default, user session data is stored in-memory, which does not survive restarts. You can configure persistent user session storage through ``storage.session.type``:
+
+- ``redis``: stores user session data in Redis, which is configured through ``storage.session.redis``. Recommended for high-volume deployments.
+- ``sql``: stores user session in the configured SQL database, which is configured through ``storage.sql``. Alternative option when Redis isn't available, but is less performant than Redis.
+
 Private Keys
 ************
 

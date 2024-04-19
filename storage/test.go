@@ -41,6 +41,7 @@ func NewTestStorageRedisEngineInDir(t testing.TB, dir string) (Engine, *miniredi
 
 	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
 	redis := miniredis.RunT(t)
+	result.config.Session.Type = "redis"
 	result.config.Session.Redis = RedisConfig{Address: redis.Addr()}
 	err := result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 		config.Datadir = dir + "/data"

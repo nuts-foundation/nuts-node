@@ -75,6 +75,7 @@ The following options apply to the server commands below:
       --storage.session.redis.password string             Redis session database password. If set, it overrides the username in the connection URL.
       --storage.session.redis.tls.truststorefile string   PEM file containing the trusted CA certificate(s) for authenticating remote Redis session servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
       --storage.session.redis.username string             Redis session database username. If set, it overrides the username in the connection URL.
+      --storage.session.type string                       Type of session storage engine to use. Options are: redis, sql, memory. Note that memory storage does not survive restarts and does not support multiple nodes. If using Redis, storage.session.redis also needs to be configured. (default "memory")
       --storage.sql.connection string                     Connection string for the SQL database. If not set it, defaults to a SQLite database stored inside the configured data directory. Note: using SQLite is not recommended in production environments. If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').
       --strictmode                                        When set, insecure settings are forbidden. (default true)
       --tls.certfile string                               PEM file containing the certificate for the gRPC server (also used as client certificate). Required in strict mode.

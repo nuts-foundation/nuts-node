@@ -54,6 +54,7 @@ func New() Engine {
 		storesMux:          &sync.Mutex{},
 		stores:             map[string]stoabs.Store{},
 		sqlMigrationLogger: logrusInfoLogWriter{},
+		config:             DefaultConfig(),
 	}
 }
 
@@ -110,7 +111,9 @@ func (e *engine) Shutdown() error {
 	}
 
 	// Close session database
-	e.sessionDatabase.close()
+	if e.sessionDatabase != nil {
+		e.sessionDatabase.close()
+	}
 	// Close SQL db
 	if e.sqlDB != nil {
 		underlyingDB, err := e.sqlDB.DB()
@@ -144,8 +147,24 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("failed to initialize SQL database: %w", err)
 	}
 
-	redisConfig := e.config.Session.Redis
-	if redisConfig.isConfigured() {
+	return e.configureSessionDatabase()
+}
+
+func (e *engine) configureSessionDatabase() error {
+	// Sanity check since there's separate Redis config for session storage,
+	// to avoid administrators configuring Redis but forgetting to set the session storage type.
+	if e.config.Session.Type != RedisSessionStore && e.config.Session.Redis.isConfigured() {
+		return errors.New("configuration error: session storage type is not set to Redis, but Redis session storage is configured")
+	}
+	switch e.config.Session.Type {
+	case MemorySessionStore:
+		log.Logger().Info("Using in-memory session storage, which is lost when the node is restarted and does not support multiple nodes.")
+		e.sessionDatabase = NewInMemorySessionDatabase()
+	case RedisSessionStore:
+		redisConfig := e.config.Session.Redis
+		if !redisConfig.isConfigured() {
+			return errors.New("redis session database is not configured")
+		}
 		redisDB, err := createRedisDatabase(redisConfig)
 		if err != nil {
 			return fmt.Errorf("unable to configure Redis session database: %w", err)
@@ -155,10 +174,11 @@ func (e *engine) Configure(config core.ServerConfig) error {
 			return fmt.Errorf("unable to configure redis client: %w", err)
 		}
 		e.sessionDatabase = NewRedisSessionDatabase(client, redisConfig.Database)
-	} else {
-		e.sessionDatabase = NewInMemorySessionDatabase()
+	case SQLSessionStore:
+		e.sessionDatabase = NewSQLSessionDatabase(e.sqlDB)
+	default:
+		return errors.New("invalid session storage type")
 	}
-
 	return nil
 }
 

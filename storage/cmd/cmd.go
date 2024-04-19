@@ -19,6 +19,7 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/spf13/pflag"
 )
@@ -42,7 +43,9 @@ func FlagSet() *pflag.FlagSet {
 		"If not set it, defaults to a SQLite database stored inside the configured data directory. "+
 		"Note: using SQLite is not recommended in production environments. "+
 		"If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').")
-
+	flagSet.String("storage.session.type", defs.Session.Type, fmt.Sprintf("Type of session storage engine to use. Options are: %s, %s, %s. "+
+		"Note that memory storage does not survive restarts and does not support multiple nodes. "+
+		"If using Redis, storage.session.redis also needs to be configured.", storage.RedisSessionStore, storage.SQLSessionStore, storage.MemorySessionStore))
 	flagSet.String("storage.session.redis.address", defs.Redis.Address, "Redis session database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options. "+
 		"If not set it, defaults to an in-memory database.")
 	flagSet.String("storage.session.redis.username", defs.Redis.Username, "Redis session database username. If set, it overrides the username in the connection URL.")
