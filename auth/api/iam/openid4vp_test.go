@@ -19,11 +19,9 @@
 package iam
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"github.com/lestrrat-go/jwx/v2/jwt"
-	"net/http"
 	"strings"
 	"testing"
 
@@ -143,6 +141,17 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid verifier DID")
+	})
+	t.Run("failed to generate authorization request", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+			ClientIdSchemesSupported: []string{didScheme},
+		}, nil).Times(2)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.ServerError, "failed to authorize client")
 	})
 }
 
@@ -793,31 +802,6 @@ func assertOAuthError(t *testing.T, err error, expectedDescription string) oauth
 	assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
 	assert.Equal(t, expectedDescription, oauthErr.Description)
 	return oauthErr
-}
-
-type stubResponseWriter struct {
-	headers    http.Header
-	body       *bytes.Buffer
-	statusCode int
-}
-
-func (s *stubResponseWriter) Header() http.Header {
-	if s.headers == nil {
-		s.headers = make(http.Header)
-	}
-	return s.headers
-
-}
-
-func (s *stubResponseWriter) Write(i []byte) (int, error) {
-	if s.body == nil {
-		s.body = new(bytes.Buffer)
-	}
-	return s.body.Write(i)
-}
-
-func (s *stubResponseWriter) WriteHeader(statusCode int) {
-	s.statusCode = statusCode
 }
 
 func putState(ctx *testCtx, state string) {
