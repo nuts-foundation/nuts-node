@@ -35,13 +35,7 @@ func parseQueryParams(values url.Values) oauthParameters {
 	return underlying
 }
 
-func parseJWTClaims(claims map[string]interface{}) oauthParameters {
-	underlying := make(map[string]interface{})
-	for key, value := range claims {
-		underlying[key] = value
-	}
-	return underlying
-}
+func parseJWTClaims(claims map[string]interface{}) oauthParameters { return claims }
 
 // get returns the string value if present and if an actual string
 // for arrays it'll return the first value if len == 1

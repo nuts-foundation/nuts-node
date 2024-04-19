@@ -51,7 +51,6 @@ var serverCommands stringSlice = []string{"nuts config", "nuts server", "nuts cr
 
 func generateDocs() {
 	system := cmd.CreateSystem(func() {})
-	generateClientOptions()
 	generateServerOptions(system)
 	generateCLICommands(system)
 }
@@ -88,12 +87,6 @@ func writeHeader(writer io.Writer, header string, level int) {
 	c := []string{"#", "*", "^", "-"}[level]
 	_, _ = writer.Write([]byte(header + newline))
 	_, _ = writer.Write([]byte(strings.Repeat(c, len(header)) + newline + newline))
-}
-
-func generateClientOptions() {
-	flags := make(map[string]*pflag.FlagSet)
-	flags[""] = core.ClientConfigFlags()
-	generatePartitionedConfigOptionsDocs("Client Options", "docs/pages/client_options.rst", flags)
 }
 
 func generateServerOptions(system *core.System) {

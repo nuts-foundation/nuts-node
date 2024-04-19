@@ -104,8 +104,6 @@ const (
 var responseTypesSupported = []string{responseTypeCode, responseTypeVPToken, responseTypeVPIDToken}
 
 const (
-	// didScheme is the client_id_scheme value for DIDs
-	didScheme = "did"
 	// responseModeParam is the name of the OAuth2 response_mode parameter.
 	// Specified by https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html
 	responseModeParam = "response_mode"
@@ -134,7 +132,7 @@ var grantTypesSupported = []string{grantTypeAuthorizationCode, grantTypeVPToken,
 
 // clientIdSchemesSupported lists the supported client_id_scheme
 // https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-verifier-metadata-managemen
-var clientIdSchemesSupported = []string{"did"}
+var clientIdSchemesSupported = []string{didScheme}
 
 // clientMetadataParam is the name of the OpenID4VP client_metadata parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
@@ -147,6 +145,9 @@ const clientMetadataURIParam = "client_metadata_uri"
 // clientIDSchemeParam is the name of the OpenID4VP client_id_scheme parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
 const clientIDSchemeParam = "client_id_scheme"
+
+// didScheme is the client_id_scheme value for DIDs
+const didScheme = "did"
 
 // responseURIParam is the name of the OpenID4VP response_uri parameter.
 const responseURIParam = "response_uri"

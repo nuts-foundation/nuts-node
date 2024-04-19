@@ -193,7 +193,8 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 	callbackURL := ownURL.JoinPath("response")
 	metadataURL := ownURL.JoinPath(oauth.ClientMetadataPath)
 
-	modifier := func(values map[string]interface{}) {
+
+	modifier := func(values map[string]string) {
 		values[oauth.ResponseTypeParam] = responseTypeVPToken
 		values[clientIDSchemeParam] = didScheme
 		values[responseURIParam] = callbackURL.String()
@@ -204,7 +205,15 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 		values[oauth.StateParam] = state
 	}
 	walletDID, _ := did.ParseDID(session.ClientID)
-	authServerURL, err := r.auth.IAMClient().CreateAuthorizationRequest(ctx, *session.OwnDID, *walletDID, modifier)
+	authServerURL, err := r.CreateAuthorizationRequest(ctx, *session.OwnDID, *walletDID, modifier)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			Description:   "failed to authorize client",
+			InternalError: fmt.Errorf("failed to generate authorization request URL: %w", err),
+			RedirectURI:   session.redirectURI(),
+		}
+	}
 
 	// use nonce and state to store authorization request in session store
 	if err = r.oauthNonceStore().Put(nonce, state); err != nil {

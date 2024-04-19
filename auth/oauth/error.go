@@ -51,9 +51,13 @@ const (
 	// ServerError is returned when the Authorization Server encounters an unexpected condition that prevents it from fulfilling the request.
 	ServerError ErrorCode = "server_error"
 	// InvalidScope is returned when the requested scope is invalid, unknown or malformed.
-	InvalidScope = ErrorCode("invalid_scope")
+	InvalidScope ErrorCode = "invalid_scope"
 	// InvalidPresentationDefinitionURI is returned when the requested presentation definition URI is invalid or can't be reached.
-	InvalidPresentationDefinitionURI = ErrorCode("invalid_presentation_definition_uri")
+	InvalidPresentationDefinitionURI ErrorCode = "invalid_presentation_definition_uri"
+	// InvalidRequestObject is returned when the JAR Request Object signature validation or decryption fails. RFC9101
+	InvalidRequestObject ErrorCode = "invalid_request_object"
+	// InvalidRequestURI is returned whn the request_uri in the authorization request returns an error or contains invalid data. RFC9101
+	InvalidRequestURI ErrorCode = "invalid_request_uri"
 )
 
 // Make sure the error implements core.HTTPStatusCodeError, so the HTTP request logger can log the correct status code.

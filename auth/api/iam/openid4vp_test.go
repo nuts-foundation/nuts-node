@@ -134,6 +134,17 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.ServerError, "failed to get metadata from wallet")
 	})
+	t.Run("failed to generate authorization request", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+			ClientIdSchemesSupported: []string{didScheme},
+		}, nil).Times(2)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.ServerError, "failed to authorize client")
+	})
 }
 
 func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
@@ -243,7 +254,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("invalid presentation_definition_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		putState(ctx, session)
+		putState(ctx, "state", session)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.InvalidPresentationDefinitionURI, "failed to retrieve presentation definition on https://example.com/iam/verifier/presentation_definition?scope=test", responseURI, "state")
@@ -255,7 +266,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("failed to create verifiable presentation", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		putState(ctx, session)
+		putState(ctx, "state", session)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, assert.AnError)
@@ -268,7 +279,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("missing credentials in wallet", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		putState(ctx, session)
+		putState(ctx, "state", session)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
@@ -318,7 +329,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		}
 		t.Run("ok - all Presentation Definitions fulfilled - code issued", func(t *testing.T) {
 			ctx := newTestClient(t)
-			putState(ctx, session)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
@@ -357,13 +368,11 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			}
 
 			ctx := newTestClient(t)
-			putState(ctx, session)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
 			redirectURL, _ := url.Parse("https://redirect-url")
-			ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), verifierDID, holderDID, gomock.Any()).
-				Return(redirectURL, nil)
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 
@@ -373,7 +382,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("failed to verify vp", func(t *testing.T) {
 			ctx := newTestClient(t)
-			putState(ctx, session)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, assert.AnError)
@@ -393,7 +402,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("missing challenge in proof", func(t *testing.T) {
 			ctx := newTestClient(t)
-			putState(ctx, session)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			request := baseRequest()
 			proof := `{"proof":{}}`
@@ -438,7 +447,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			request := baseRequest()
 			submission := "}"
 			request.Body.PresentationSubmission = &submission
-			putState(ctx, session)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
@@ -450,7 +459,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			request := baseRequest()
 			request.Body.PresentationSubmission = nil
-			putState(ctx, session)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
@@ -460,7 +469,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("invalid signer", func(t *testing.T) {
 			ctx := newTestClient(t)
-			putState(ctx, session)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			request := baseRequest()
 			vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{}},"proof":{"challenge":"challenge","domain":"did:web:example.com:iam:verifier","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
@@ -473,7 +482,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("invalid audience/domain", func(t *testing.T) {
 			ctx := newTestClient(t)
-			putState(ctx, session)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			request := baseRequest()
 			vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{"id":"did:web:example.com:iam:holder"}},"proof":{"challenge":"challenge","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
@@ -486,7 +495,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("submission does not match definition", func(t *testing.T) {
 			ctx := newTestClient(t)
-			putState(ctx, session)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			request := baseRequest()
 			// Presentation Definition does not contain Input Descriptor with ID 2
@@ -518,7 +527,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			sessionWithClientState := session
 			sessionWithClientState.ClientState = "client state"
-			putState(ctx, sessionWithClientState)
+			putState(ctx, "state", sessionWithClientState)
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 
@@ -684,7 +693,7 @@ func Test_handleCallback(t *testing.T) {
 	})
 	t.Run("err - missing code", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putState(ctx, session)
+		putState(ctx, "state", session)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -697,7 +706,7 @@ func Test_handleCallback(t *testing.T) {
 	})
 	t.Run("err - failed to retrieve access token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putState(ctx, session)
+		putState(ctx, "state", session)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier).Return(nil, assert.AnError)
@@ -877,8 +886,8 @@ func (s *stubResponseWriter) WriteHeader(statusCode int) {
 	s.statusCode = statusCode
 }
 
-func putState(ctx *testCtx, session OAuthSession) {
-	_ = ctx.client.oauthClientStateStore().Put("state", session)
+func putState(ctx *testCtx, state string, session OAuthSession) {
+	_ = ctx.client.oauthClientStateStore().Put(state, session)
 }
 
 func getState(ctx *testCtx, state string) OAuthSession {
