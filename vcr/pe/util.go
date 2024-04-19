@@ -49,7 +49,7 @@ func (e *Envelope) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-func (e *Envelope) MarshalJSON() ([]byte, error) {
+func (e Envelope) MarshalJSON() ([]byte, error) {
 	// If raw is a JSON Array or JSON Object, return as is. Otherwise, marshal convert to string first, then marshal.
 	if e.raw[0] == '[' || e.raw[0] == '{' {
 		return e.raw, nil
@@ -58,7 +58,7 @@ func (e *Envelope) MarshalJSON() ([]byte, error) {
 }
 
 var _ json.Unmarshaler = &Envelope{}
-var _ json.Marshaler = &Envelope{}
+var _ json.Marshaler = Envelope{}
 
 // ParseEnvelope parses a Presentation Exchange envelope, which is a JSON type that encompasses zero or more Verifiable Presentations.
 // It returns the envelope as interface{} for use in PresentationSubmission.Validate() and PresentationSubmission.Resolve().
