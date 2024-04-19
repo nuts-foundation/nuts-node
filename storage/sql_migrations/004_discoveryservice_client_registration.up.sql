@@ -15,6 +15,3 @@ create table discovery_presentation_refresh
 );
 -- index for the next_registration column, used when checking which registrations need to be refreshed
 create index idx_discovery_presentation_refresh on discovery_presentation_refresh (next_refresh);
-
--- migrate:down
-drop table discovery_presentation_refresh;

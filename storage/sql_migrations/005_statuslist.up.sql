@@ -1,5 +1,3 @@
--- migrate:up
-
 -- status_list_credential: latest version of known credentials.
 create table status_list_credential
 (
@@ -51,8 +49,3 @@ create table status_list_entry
     -- Ties the status_list_credential to an issuer (did) via the status_list_issuer table
     constraint fk_status_list_credential foreign key (status_list_credential) references status_list (subject_id) on delete cascade
 );
-
--- migrate:down
-drop table status_list_credential;
-drop table status_list;
-drop table status_list_entry;

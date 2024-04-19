@@ -25,25 +25,28 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"path"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	migrationDatabase "github.com/golang-migrate/migrate/v4/database"
+	mysqlMigrate "github.com/golang-migrate/migrate/v4/database/mysql"
+	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
+	sqlLiteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
+	sqlserverMigrate "github.com/golang-migrate/migrate/v4/database/sqlserver"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
+	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
-
-	"github.com/amacneil/dbmate/v2/pkg/dbmate"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/mysql"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
 )
 
 const storeShutdownTimeout = 5 * time.Second
@@ -73,7 +76,7 @@ type engine struct {
 	sessionDatabase    SessionDatabase
 	sqlDB              *gorm.DB
 	config             Config
-	sqlMigrationLogger io.Writer
+	sqlMigrationLogger migrationLogger
 }
 
 func (e *engine) Config() interface{} {
@@ -179,54 +182,17 @@ func (e *engine) initSQLDatabase() error {
 		connectionString = sqliteConnectionString(e.datadir)
 	}
 
-	// Find right SQL adapter
-	type sqlAdapter struct {
-		connector func(sqlDB *sql.DB) gorm.Dialector
-	}
-	adapters := map[string]sqlAdapter{
-		"sqlite": {
-			connector: func(sqlDB *sql.DB) gorm.Dialector {
-				return &sqlite.Dialector{Conn: sqlDB}
-			},
-		},
-		"postgres": {
-			connector: func(sqlDB *sql.DB) gorm.Dialector {
-				return postgres.New(postgres.Config{Conn: sqlDB})
-			},
-		},
-		"mysql": {
-			connector: func(sqlDB *sql.DB) gorm.Dialector {
-				return mysql.New(mysql.Config{Conn: sqlDB})
-			},
-		},
-	}
-	var adapter *sqlAdapter
-	for prefix, curr := range adapters {
-		if strings.HasPrefix(connectionString, prefix+":") {
-			adapter = &curr
-			break
-		}
-	}
-	if adapter == nil {
-		return errors.New("unsupported SQL database")
-	}
+	// Find right SQL adapter for ORM and migrations
+	var migrationDriver migrationDatabase.Driver
 
-	// Open connection and migrate
-	var err error
-	connectionURL, err := url.Parse(connectionString)
-	if err != nil {
-		return err
-	}
-	dbMigrator := dbmate.New(connectionURL)
-	migratorDriver, err := dbMigrator.Driver()
-	if err != nil {
-		return err
-	}
-	sqlDB, err := migratorDriver.Open()
-	if err != nil {
-		return err
-	}
-	if strings.HasPrefix(connectionString, "sqlite:") {
+	dbType := strings.Split(connectionString, ":")[0]
+	switch dbType {
+	case "sqlite":
+		// sqlite3 uses the same driver as gorm
+		db, err := sql.Open("sqlite3", connectionString[7:])
+		if err != nil {
+			return err
+		}
 		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
 		// and any other attempt to acquire a write transaction will directly return an error.
 		// This is in contrast to most other SQL-databases, which let the 2nd thread wait for some time to acquire the lock.
@@ -234,28 +200,52 @@ func (e *engine) initSQLDatabase() error {
 		// So to keep behavior consistent across databases, we'll just limit the number connections to 1 if it's a SQLite store.
 		// With 1 connection, all actions will be performed sequentially. This impacts performance, but SQLite should not be used in production.
 		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
-		sqlDB.SetMaxOpenConns(1)
+		db.SetMaxOpenConns(1)
+		migrationDriver, _ = sqlLiteMigrate.WithInstance(db, &sqlLiteMigrate.Config{})
+		dialector := sqlite.Dialector{Conn: db}
+		e.sqlDB, err = gorm.Open(dialector, &gorm.Config{
+			TranslateError: true,
+			Logger: gormLogrusLogger{
+				underlying:    log.Logger(),
+				slowThreshold: sqlSlowQueryThreshold,
+			},
+		})
+		if err != nil {
+			return err
+		}
+	case "mysql":
+		db, _ := sql.Open("mysql", connectionString)
+		migrationDriver, _ = mysqlMigrate.WithInstance(db, &mysqlMigrate.Config{})
+		e.sqlDB, _ = gorm.Open(mysql.New(mysql.Config{
+			Conn: db,
+		}), &gorm.Config{})
+	case "postgres":
+		db, _ := sql.Open("postgresql", connectionString)
+		migrationDriver, _ = postgresMigrate.WithInstance(db, &postgresMigrate.Config{})
+		e.sqlDB, _ = gorm.Open(postgres.New(postgres.Config{
+			Conn: db,
+		}), &gorm.Config{})
+	case "sqlserver":
+		db, _ := sql.Open("sqlserver", connectionString)
+		migrationDriver, _ = sqlserverMigrate.WithInstance(db, &sqlserverMigrate.Config{})
+		e.sqlDB, _ = gorm.Open(sqlserver.New(sqlserver.Config{
+			Conn: db,
+		}), &gorm.Config{})
+	default:
+		return errors.New("unsupported SQL database")
 	}
-	log.Logger().Debug("Running database migrations...")
 
-	// we need the connectionString with adapter specific prefix here
-	dbMigrator.FS = sqlMigrationsFS
-	dbMigrator.MigrationsDir = []string{"sql_migrations"}
-	dbMigrator.AutoDumpSchema = false
-	dbMigrator.Log = e.sqlMigrationLogger
-	if err = dbMigrator.CreateAndMigrate(); err != nil {
-		return fmt.Errorf("failed to migrate database: %w", err)
-	}
-
-	e.sqlDB, err = gorm.Open(adapter.connector(sqlDB), &gorm.Config{
-		TranslateError: true,
-		Logger: gormLogrusLogger{
-			underlying:    log.Logger(),
-			slowThreshold: sqlSlowQueryThreshold,
-		},
-	})
+	// Open connection and migrate
+	var err error
+	embeddedSource, err := iofs.New(sqlMigrationsFS, "sql_migrations")
 	if err != nil {
 		return err
+	}
+	dbMigrator, err := migrate.NewWithInstance("embedded", embeddedSource, dbType, migrationDriver)
+	log.Logger().Debug("Running database migrations...")
+	dbMigrator.Log = e.sqlMigrationLogger
+	if err = dbMigrator.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to migrate database: %w", err)
 	}
 	return nil
 }
@@ -319,10 +309,22 @@ func (p *provider) getStore(moduleName string, name string, adapter database) (s
 	return store, err
 }
 
+type migrationLogger interface {
+	migrate.Logger
+	io.Writer
+}
 type logrusInfoLogWriter struct {
 }
 
 func (m logrusInfoLogWriter) Write(p []byte) (n int, err error) {
 	log.Logger().Info(string(p))
 	return len(p), nil
+}
+
+func (m logrusInfoLogWriter) Printf(format string, v ...interface{}) {
+	log.Logger().Info(fmt.Sprintf(format, v...))
+}
+
+func (m logrusInfoLogWriter) Verbose() bool {
+	return log.Logger().Level >= logrus.DebugLevel
 }

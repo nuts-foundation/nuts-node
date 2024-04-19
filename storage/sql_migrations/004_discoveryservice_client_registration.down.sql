@@ -1,0 +1,1 @@
+drop table discovery_presentation_refresh;

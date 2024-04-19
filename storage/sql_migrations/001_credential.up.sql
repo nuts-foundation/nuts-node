@@ -1,4 +1,3 @@
--- migrate:up
 create table credential
 (
     id         varchar(415) not null primary key,
@@ -22,7 +21,3 @@ create table credential_prop
     -- cascading delete: if the presentation gets deleted, the properties get deleted as well
     constraint fk_discovery_credential_id foreign key (credential_id) references credential (id) on delete cascade
 );
-
--- migrate:down
-drop table credential;
-drop table credential_prop;

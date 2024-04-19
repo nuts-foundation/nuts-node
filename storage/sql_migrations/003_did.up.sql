@@ -34,8 +34,3 @@ create table did_service
     primary key (id),
     foreign key (did) references did (did) on delete cascade
 );
-
--- migrate:down
-drop table did;
-drop table did_verificationmethod;
-drop table did_service;
