@@ -182,7 +182,7 @@ func (r Wrapper) loadUserSession(cookies CookieReader, tenantDID did.DID, preAut
 		return nil, errors.New("unknown or expired session")
 	} else if err != nil {
 		// other error occurred
-		return nil, err
+		return nil, fmt.Errorf("invalid user session: %w", err)
 	}
 	// Note that the session itself does not have an expiration field:
 	// it depends on the session store to clean up when it expires.
@@ -217,7 +217,12 @@ func (r Wrapper) createUserSession(ctx echo.Context, session UserSession) error 
 	} else {
 		path = "/"
 	}
-	ctx.SetCookie(&http.Cookie{
+	ctx.SetCookie(createUserSessionCookie(sessionID, path))
+	return nil
+}
+
+func createUserSessionCookie(sessionID string, path string) *http.Cookie {
+	return &http.Cookie{
 		Name:     userSessionCookieName,
 		Value:    sessionID,
 		Path:     path,
@@ -225,8 +230,7 @@ func (r Wrapper) createUserSession(ctx echo.Context, session UserSession) error 
 		Secure:   true,
 		HttpOnly: true,                    // do not let JavaScript
 		SameSite: http.SameSiteStrictMode, // do not allow the cookie to be sent with cross-site requests
-	})
-	return nil
+	}
 }
 
 func (r Wrapper) createUserWallet(ctx context.Context, issuerDID did.DID, userDetails UserDetails) (*UserWallet, error) {

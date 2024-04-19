@@ -472,6 +472,12 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			RedirectURI:  "https://example.com/iam/holder/cb",
 			ResponseType: "code",
 		})
+		_ = ctx.client.userSessionStore().Put("session-id", UserSession{
+			TenantDID: holderDID,
+			Wallet: UserWallet{
+				DID: holderDID,
+			},
+		})
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		ctx.vdr.EXPECT().Resolve(verifierDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
@@ -482,6 +488,9 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
 			oauth.ClientIDParam: verifierDID.String(),
 			oauth.RequestParam:  string(bytes),
+		}, func(request *http.Request) {
+			request.Header = make(http.Header)
+			request.AddCookie(createUserSessionCookie("session-id", "/"))
 		}), HandleAuthorizeRequestRequestObject{
 			Did: holderDID.String(),
 		})
@@ -695,7 +704,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
-		require.EqualError(t, err, "IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name 'iss'")
+		require.EqualError(t, err, "IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name: iss")
 		require.Nil(t, res)
 	})
 
@@ -1467,7 +1476,7 @@ func requireOAuthError(t *testing.T, err error, errorCode oauth.ErrorCode, error
 	assert.Equal(t, errorDescription, oauthErr.Description)
 }
 
-func requestContext(queryParams map[string]interface{}) context.Context {
+func requestContext(queryParams map[string]interface{}, httpRequestFn ...func(header *http.Request)) context.Context {
 	vals := url.Values{}
 	for key, value := range queryParams {
 		switch t := value.(type) {
@@ -1485,6 +1494,9 @@ func requestContext(queryParams map[string]interface{}) context.Context {
 		URL: &url.URL{
 			RawQuery: vals.Encode(),
 		},
+	}
+	for _, fn := range httpRequestFn {
+		fn(httpRequest)
 	}
 	return context.WithValue(audit.TestContext(), httpRequestContextKey, httpRequest)
 }

@@ -54,13 +54,13 @@ func TestMemoryKeyStore_New(t *testing.T) {
 }
 
 func TestMemoryKeyStore_Exists(t *testing.T) {
+	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key, _ := jwk.FromRaw(pk)
+	key.Set(jwk.KeyIDKey, "123")
 	t.Run("does not exist", func(t *testing.T) {
-		assert.False(t, MemoryKeyStore{}.Exists(context.Background(), ""))
+		assert.False(t, MemoryKeyStore{Key: key}.Exists(context.Background(), ""))
 	})
 	t.Run("exists", func(t *testing.T) {
-		pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		key, _ := jwk.FromRaw(pk)
-		key.Set(jwk.KeyIDKey, "123")
 		assert.True(t, MemoryKeyStore{
 			Key: key,
 		}.Exists(context.Background(), "123"))
@@ -68,18 +68,21 @@ func TestMemoryKeyStore_Exists(t *testing.T) {
 }
 
 func TestMemoryKeyStore_List(t *testing.T) {
-	assert.Equal(t, []string{}, MemoryKeyStore{}.List(context.Background()))
+	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key, _ := jwk.FromRaw(pk)
+	key.Set(jwk.KeyIDKey, "123")
+	assert.Equal(t, []string{"123"}, MemoryKeyStore{Key: key}.List(context.Background()))
 }
 
 func TestMemoryKeyStore_Resolve(t *testing.T) {
+	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key, _ := jwk.FromRaw(pk)
+	key.Set(jwk.KeyIDKey, "123")
 	t.Run("not found", func(t *testing.T) {
-		_, err := MemoryKeyStore{}.Resolve(context.Background(), "123")
+		_, err := MemoryKeyStore{key}.Resolve(context.Background(), "456")
 		assert.ErrorIs(t, err, ErrPrivateKeyNotFound)
 	})
 	t.Run("found", func(t *testing.T) {
-		pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		key, _ := jwk.FromRaw(pk)
-		key.Set(jwk.KeyIDKey, "123")
 		k, err := MemoryKeyStore{
 			Key: key,
 		}.Resolve(context.Background(), "123")
