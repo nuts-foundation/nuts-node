@@ -29,6 +29,7 @@ nuts node. API access and SSH access are two entirely different matters and we a
 configuration file format. The Nuts node does not integrate in any way with the SSH subsystem on the host OS.
 
 .. code-block:: yaml
+
     http:
       internal:
         auth:
@@ -84,7 +85,7 @@ The following events are audited concerning API authentication:
 - ``AccessGranted`` when a JWT successfully authenticates.
 
 Generating ``authorized_keys`` file
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ``authorized_keys`` files are made up of multiple lines, each line specifying one more key/user that is authorized. For more information on the authorized_keys format see the ``AUTHORIZED_KEYS FILE FORMAT`` section of the `man page <http://man.he.net/man5/authorized_keys>`_.
 

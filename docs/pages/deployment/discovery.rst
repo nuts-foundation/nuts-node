@@ -24,7 +24,7 @@ Clients
 Clients will periodically query the Discovery Service for new registrations.
 Applications can then search for entries in the Discovery Service (in this case ``coffeecorner``), e.g.:
 
-.. code-block::
+.. code-block:: text
 
     GET /internal/discovery/v1/discovery/coffeecorner/?credentialSubject.name=John%20Doe
 
@@ -39,7 +39,7 @@ To register a DID on a Discovery Service, the DID must be activated for the serv
 The Nuts node will then register a Verifiable Presentation of the DID on the service, and periodically refresh it.
 E.g., for service ``coffeecorner`` and DID ``did:web:example.com``:
 
-.. code-block::
+.. code-block:: text
 
     POST /internal/discovery/v1/coffeecorner/did:web:example.com
 
@@ -64,7 +64,7 @@ Clients will access the discovery service through ``/discovery`` on the external
 
 The endpoint for a Discovery Service MUST be in the following form (unless mapped otherwise in a reverse proxy):
 
-.. code-block::
+.. code-block:: text
 
     https://<host>/discovery/<service_id>
 

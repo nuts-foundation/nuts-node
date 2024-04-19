@@ -9,7 +9,7 @@ This chapter describes the various configuration aspects of credentials in the N
 Issuing and receiving over OpenID4VCI
 *************************************
 
-The Nuts node supports issuing and receiving credentials over OpenID Connect for `Verifiable Credential Issuance (OpenID4VCI)<https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html>`_.
+The Nuts node supports issuing and receiving credentials over OpenID Connect for `Verifiable Credential Issuance (OpenID4VCI) <https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html>`_.
 Discovery of issuer and wallets is done by looking up metadata on well-known endpoints.
 To allow discovery of an issuer or wallet, its DID document must contain a service of type `node-http-services-baseurl`,
 that specifies the HTTPS base URL of the `/n2n` interface of the node, excluding the latter.
