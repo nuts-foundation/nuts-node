@@ -43,11 +43,12 @@ type localPDP struct {
 
 func (b *localPDP) PresentationDefinitions(_ context.Context, _ did.DID, scope string) (pe.WalletOwnerMapping, error) {
 	result := pe.WalletOwnerMapping{}
-	for walletOwnerType, policy := range b.mapping[scope] {
-		result[walletOwnerType] = policy
-	}
-	if len(result) == 0 {
+	mapping, exists := b.mapping[scope]
+	if !exists {
 		return nil, ErrNotFound
+	}
+	for walletOwnerType, policy := range mapping {
+		result[walletOwnerType] = policy
 	}
 	return result, nil
 }

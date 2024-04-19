@@ -550,7 +550,7 @@ func TestWrapper_Callback(t *testing.T) {
 	t.Run("ok - error flow", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		putState(ctx, session)
+		putState(ctx, "state", session)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -566,7 +566,7 @@ func TestWrapper_Callback(t *testing.T) {
 	})
 	t.Run("ok - success flow", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putState(ctx, session)
+		putState(ctx, "state", session)
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)

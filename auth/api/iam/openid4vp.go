@@ -193,7 +193,6 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 	callbackURL := ownURL.JoinPath("response")
 	metadataURL := ownURL.JoinPath(oauth.ClientMetadataPath)
 
-
 	modifier := func(values map[string]string) {
 		values[oauth.ResponseTypeParam] = responseTypeVPToken
 		values[clientIDSchemeParam] = didScheme

@@ -136,6 +136,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	})
 	t.Run("failed to generate authorization request", func(t *testing.T) {
 		ctx := newTestClient(t)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
 		params := defaultParams()
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderDID).Return(&oauth.AuthorizationServerMetadata{
 			ClientIdSchemesSupported: []string{didScheme},
@@ -373,12 +374,18 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
 			redirectURL, _ := url.Parse("https://redirect-url")
+			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+				AuthorizationEndpoint:    redirectURL.String(),
+				ClientIdSchemesSupported: []string{"did"},
+			}, nil)
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 
 			require.NoError(t, err)
 			actualRedirectURL, _ := url.Parse(response.(HandleAuthorizeResponse200JSONResponse).RedirectURI)
-			assert.Equal(t, redirectURL.String(), actualRedirectURL.String())
+			assert.True(t, strings.HasPrefix(actualRedirectURL.String(), "https://redirect-url?"))
+			assert.Equal(t, verifierDID.String(), actualRedirectURL.Query().Get("client_id"))
+			// etc
 		})
 		t.Run("failed to verify vp", func(t *testing.T) {
 			ctx := newTestClient(t)
