@@ -13,7 +13,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/goodsign/monday v1.0.2
 	github.com/google/uuid v1.6.0
-	github.com/hashicorp/vault/api v1.12.2
+	github.com/hashicorp/vault/api v1.13.0
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/knadh/koanf v1.5.0
 	github.com/labstack/echo/v4 v4.12.0
@@ -82,7 +82,6 @@ require (
 	github.com/go-chi/chi/v5 v5.0.10 // indirect
 	github.com/go-co-op/gocron v1.28.3 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/go-redsync/redsync/v4 v4.8.1 // indirect
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
@@ -174,6 +173,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
