@@ -346,6 +346,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier&request=valid-token"
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil).Times(2)
 		ctx.keyResolver.EXPECT().ResolveKey(verifierDID, nil, resolver.AssertionMethod).Return(vmId.URI(), key.Public(), nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, key.KID()).DoAndReturn(func(ctx context.Context, params map[string]any, headers map[string]any, key any) (string, error) {
@@ -539,10 +540,17 @@ func TestWrapper_Callback(t *testing.T) {
 	state := "state"
 	token := "token"
 
+	session := OAuthSession{
+		SessionID:   "token",
+		OwnDID:      &holderDID,
+		RedirectURI: "https://example.com/iam/holder/cb",
+		VerifierDID: &verifierDID,
+	}
+
 	t.Run("ok - error flow", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		putState(ctx, state)
+		putState(ctx, "state", session)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -558,7 +566,7 @@ func TestWrapper_Callback(t *testing.T) {
 	})
 	t.Run("ok - success flow", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putState(ctx, state)
+		putState(ctx, "state", session)
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
@@ -699,6 +707,10 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			VerifiableCredential: []vc.VerifiableCredential{*credential},
 		}
 		tNow := time.Now()
+		presentationSubmissions := map[string]pe.PresentationSubmission{"test": {}}
+		presentationDefinitions := RequiredPresentationDefinitions{
+			pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"},
+		}
 		token := AccessToken{
 			Token:                          "token",
 			Issuer:                         "resource-owner",
@@ -708,23 +720,23 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			Scope:                          "test",
 			InputDescriptorConstraintIdMap: map[string]any{"key": "value"},
 			VPToken:                        []VerifiablePresentation{presentation},
-			PresentationSubmission:         &pe.PresentationSubmission{},
-			PresentationDefinition:         &pe.PresentationDefinition{},
+			PresentationSubmissions:        presentationSubmissions,
+			PresentationDefinitions:        presentationDefinitions,
 		}
 
 		require.NoError(t, ctx.client.accessTokenServerStore().Put(token.Token, token))
 		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
-			Active:                 true,
-			ClientId:               ptrTo("client"),
-			Exp:                    ptrTo(int(tNow.Add(time.Minute).Unix())),
-			Iat:                    ptrTo(int(tNow.Unix())),
-			Iss:                    ptrTo("resource-owner"),
-			Scope:                  ptrTo("test"),
-			Sub:                    ptrTo("resource-owner"),
-			Vps:                    &[]VerifiablePresentation{presentation},
-			PresentationSubmission: ptrTo(map[string]interface{}{"definition_id": "", "descriptor_map": nil, "id": ""}),
-			PresentationDefinition: ptrTo(map[string]interface{}{"id": "", "input_descriptors": nil}),
-			AdditionalProperties:   map[string]interface{}{"key": "value"},
+			Active:                  true,
+			ClientId:                ptrTo("client"),
+			Exp:                     ptrTo(int(tNow.Add(time.Minute).Unix())),
+			Iat:                     ptrTo(int(tNow.Unix())),
+			Iss:                     ptrTo("resource-owner"),
+			Scope:                   ptrTo("test"),
+			Sub:                     ptrTo("resource-owner"),
+			Vps:                     &[]VerifiablePresentation{presentation},
+			PresentationSubmissions: ptrTo(presentationSubmissions),
+			PresentationDefinitions: ptrTo(presentationDefinitions),
+			AdditionalProperties:    map[string]interface{}{"key": "value"},
 		})
 		require.NoError(t, err)
 

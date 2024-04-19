@@ -265,29 +265,16 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := IntrospectAccessToken200JSONResponse{
-		Active:   true,
-		Iat:      &iat,
-		Exp:      &exp,
-		Iss:      &token.Issuer,
-		Sub:      &token.Issuer,
-		ClientId: &token.ClientId,
-		Scope:    &token.Scope,
-		Vps:      &token.VPToken,
-	}
-
-	// set presentation definition if in token
-	var err error
-	response.PresentationDefinition, err = toAnyMap(token.PresentationDefinition)
-	if err != nil {
-		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to marshal presentation definition")
-		return IntrospectAccessToken200JSONResponse{}, err
-	}
-
-	// set presentation submission if in token
-	response.PresentationSubmission, err = toAnyMap(token.PresentationSubmission)
-	if err != nil {
-		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to marshal presentation submission")
-		return IntrospectAccessToken200JSONResponse{}, err
+		Active:                  true,
+		Iat:                     &iat,
+		Exp:                     &exp,
+		Iss:                     &token.Issuer,
+		Sub:                     &token.Issuer,
+		ClientId:                &token.ClientId,
+		Scope:                   &token.Scope,
+		Vps:                     &token.VPToken,
+		PresentationDefinitions: &token.PresentationDefinitions,
+		PresentationSubmissions: &token.PresentationSubmissions,
 	}
 
 	if token.InputDescriptorConstraintIdMap != nil {
@@ -647,7 +634,6 @@ func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
 	session.ClientID = params.get(oauth.ClientIDParam)
 	session.Scope = params.get(oauth.ScopeParam)
 	session.ClientState = params.get(oauth.StateParam)
-	session.ServerState = ServerState{}
 	session.RedirectURI = params.get(oauth.RedirectURIParam)
 	session.OwnDID = &ownDID
 	session.ResponseType = params.get(oauth.ResponseTypeParam)
