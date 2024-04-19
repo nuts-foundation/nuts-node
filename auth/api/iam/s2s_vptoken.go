@@ -78,16 +78,9 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	if err != nil {
 		return nil, err
 	}
-	session := PEXState{
-		RequiredPresentationDefinitions: walletOwnerMapping,
-		Submissions:                     map[string]pe.PresentationSubmission{},
-		SubmittedEnvelopes:              map[string]pe.Envelope{},
-	}
-	if err := session.fulfill(*submission, *pexEnvelope); err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: err.Error(),
-		}
+	pexConsumer := newPEXConsumer(walletOwnerMapping)
+	if err := pexConsumer.fulfill(*submission, *pexEnvelope); err != nil {
+		return nil, oauthError(oauth.InvalidRequest, err.Error())
 	}
 
 	for _, presentation := range pexEnvelope.Presentations {
@@ -109,33 +102,62 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	}
 
 	// All OK, allow access
-	response, err := r.createAccessToken(issuer, time.Now(), scope, session)
+	response, err := r.createAccessToken(issuer, credentialSubjectID, time.Now(), scope, *pexConsumer)
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time,
-	scope string, presesentations PEXState) (*oauth.TokenResponse, error) {
-	credentialMap := make(map[string]vc.VerifiableCredential, 0)
-	for _, requiredDefinition := range presesentations.RequiredPresentationDefinitions {
-		submission := presesentations.Submissions[requiredDefinition.Id]
-		pexEnvelope := presesentations.SubmittedEnvelopes[requiredDefinition.Id]
-		currCredentialMap, err := submission.Resolve(pexEnvelope)
-		if err != nil {
-			return nil, err
-		}
-		for inputDescriptorID, cred := range currCredentialMap {
-			credentialMap[inputDescriptorID] = cred
-		}
+func (r Wrapper) createAccessToken(issuer did.DID, walletDID did.DID, issueTime time.Time, scope string, pexState PEXConsumer) (*oauth.TokenResponse, error) {
+	credentialMap, err := pexState.credentialMap()
+	if err != nil {
+		return nil, err
+	}
+	fieldsMap, err := resolveInputDescriptorValues(pexState.RequiredPresentationDefinitions, credentialMap)
+	if err != nil {
+		return nil, err
 	}
 
+	accessToken := AccessToken{
+		Token:                          crypto.GenerateNonce(),
+		Issuer:                         issuer.String(),
+		ClientId:                       walletDID.String(),
+		IssuedAt:                       issueTime,
+		Expiration:                     issueTime.Add(accessTokenValidity),
+		Scope:                          scope,
+		PresentationSubmissions:        pexState.Submissions,
+		PresentationDefinitions:        pexState.RequiredPresentationDefinitions,
+		InputDescriptorConstraintIdMap: fieldsMap,
+	}
+	for _, envelope := range pexState.SubmittedEnvelopes {
+		for _, presentation := range envelope.Presentations {
+			accessToken.VPToken = append(accessToken.VPToken, presentation)
+		}
+	}
+	err = r.accessTokenServerStore().Put(accessToken.Token, accessToken)
+	if err != nil {
+		return nil, fmt.Errorf("unable to store access token: %w", err)
+	}
+	expiresIn := int(accessTokenValidity.Seconds())
+	return &oauth.TokenResponse{
+		AccessToken: accessToken.Token,
+		ExpiresIn:   &expiresIn,
+		Scope:       &scope,
+		TokenType:   "bearer",
+	}, nil
+}
+
+func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {
 	fieldsMap := make(map[string]any)
-	for _, definition := range presesentations.RequiredPresentationDefinitions {
+	for _, definition := range presentationDefinitions {
 		currFields, err := definition.ResolveConstraintsFields(credentialMap)
 		if err != nil {
-			return nil, fmt.Errorf("unable to resolve Presentation Definition Constraints Fields: %w", err)
+			return nil, oauth.OAuth2Error{
+				Code:          oauth.ServerError,
+				Description:   "unable to resolve Presentation Definition Constraints Fields",
+				InternalError: err,
+			}
 		}
 		for k, v := range currFields {
 			if _, exists := fieldsMap[k]; exists {
@@ -149,34 +171,7 @@ func (r Wrapper) createAccessToken(issuer did.DID, issueTime time.Time,
 			fieldsMap[k] = v
 		}
 	}
-
-	accessToken := AccessToken{
-		Token:                          crypto.GenerateNonce(),
-		Issuer:                         issuer.String(),
-		ClientId:                       presesentations.WalletDID.String(),
-		IssuedAt:                       issueTime,
-		Expiration:                     issueTime.Add(accessTokenValidity),
-		Scope:                          scope,
-		PresentationSubmissions:        presesentations.Submissions,
-		PresentationDefinitions:        presesentations.RequiredPresentationDefinitions,
-		InputDescriptorConstraintIdMap: fieldsMap,
-	}
-	for _, envelope := range presesentations.SubmittedEnvelopes {
-		for _, presentation := range envelope.Presentations {
-			accessToken.VPToken = append(accessToken.VPToken, presentation)
-		}
-	}
-	err := r.accessTokenServerStore().Put(accessToken.Token, accessToken)
-	if err != nil {
-		return nil, fmt.Errorf("unable to store access token: %w", err)
-	}
-	expiresIn := int(accessTokenValidity.Seconds())
-	return &oauth.TokenResponse{
-		AccessToken: accessToken.Token,
-		ExpiresIn:   &expiresIn,
-		Scope:       &scope,
-		TokenType:   "bearer",
-	}, nil
+	return fieldsMap, nil
 }
 
 // validateS2SPresentationMaxValidity checks that the presentation is valid for a reasonable amount of time.

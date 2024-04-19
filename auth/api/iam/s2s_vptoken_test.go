@@ -360,7 +360,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
-		assert.EqualError(t, err, "invalid_request - presentation submission doesn't match presentation definition - Presentation Submission does not conform to Presentation Definition (id=)")
+		assert.EqualError(t, err, "invalid_request - presentation submission does not conform to presentation definition (id=)")
 		assert.Nil(t, resp)
 	})
 }
@@ -378,9 +378,6 @@ func TestWrapper_createAccessToken(t *testing.T) {
 			},
 		},
 	})
-	submission := pe.PresentationSubmission{
-		Id: "submissive",
-	}
 	fieldId := "credential_type"
 	definition := pe.PresentationDefinition{
 		Id: "definitive",
@@ -401,14 +398,24 @@ func TestWrapper_createAccessToken(t *testing.T) {
 			},
 		},
 	}
+	submission := pe.PresentationSubmission{
+		Id:           "submissive",
+		DefinitionId: "definitive",
+		DescriptorMap: []pe.InputDescriptorMappingObject{
+			{
+				Id:     "1",
+				Path:   "$.verifiableCredential",
+				Format: "ldp_vc",
+			},
+		},
+	}
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		vps := []VerifiablePresentation{test.ParsePresentation(t, presentation)}
-		pexEnvelopeJSON, _ := json.Marshal(vps)
+		verifiablePresentation := test.ParsePresentation(t, presentation)
+		pexEnvelopeJSON, _ := json.Marshal(verifiablePresentation)
 		pexEnvelope, err := pe.ParseEnvelope(pexEnvelopeJSON)
-		pexConsumer := PEXState{
-			WalletDID: credentialSubjectID,
+		pexConsumer := PEXConsumer{
 			RequiredPresentationDefinitions: map[pe.WalletOwnerType]pe.PresentationDefinition{
 				pe.WalletOwnerOrganization: definition,
 			},
@@ -420,7 +427,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 			},
 		}
 		require.NoError(t, err)
-		accessToken, err := ctx.client.createAccessToken(issuerDID, time.Now(), "everything", pexConsumer)
+		accessToken, err := ctx.client.createAccessToken(issuerDID, credentialSubjectID, time.Now(), "everything", pexConsumer)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)

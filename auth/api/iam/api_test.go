@@ -720,6 +720,10 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			VerifiableCredential: []vc.VerifiableCredential{*credential},
 		}
 		tNow := time.Now()
+		presentationSubmissions := map[string]pe.PresentationSubmission{"test": {}}
+		presentationDefinitions := RequiredPresentationDefinitions{
+			pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"},
+		}
 		token := AccessToken{
 			Token:                          "token",
 			Issuer:                         "resource-owner",
@@ -729,8 +733,8 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			Scope:                          "test",
 			InputDescriptorConstraintIdMap: map[string]any{"key": "value"},
 			VPToken:                        []VerifiablePresentation{presentation},
-			PresentationSubmissions:        []PresentationSubmission{},
-			PresentationDefinitions:        []PresentationDefinition{},
+			PresentationSubmissions:        presentationSubmissions,
+			PresentationDefinitions:        presentationDefinitions,
 		}
 
 		require.NoError(t, ctx.client.accessTokenServerStore().Put(token.Token, token))
@@ -743,8 +747,8 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			Scope:                   ptrTo("test"),
 			Sub:                     ptrTo("resource-owner"),
 			Vps:                     &[]VerifiablePresentation{presentation},
-			PresentationSubmissions: ptrTo([]PresentationSubmission{}),
-			PresentationDefinitions: ptrTo([]PresentationDefinition{}),
+			PresentationSubmissions: ptrTo(presentationSubmissions),
+			PresentationDefinitions: ptrTo(presentationDefinitions),
 			AdditionalProperties:    map[string]interface{}{"key": "value"},
 		})
 		require.NoError(t, err)

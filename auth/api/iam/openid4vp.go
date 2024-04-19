@@ -126,17 +126,12 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	}
 
 	session := OAuthSession{
-		ClientID:    walletID,
-		Scope:       params.get(oauth.ScopeParam),
-		OwnDID:      &verifier,
-		ClientState: params.get(oauth.StateParam),
-		RedirectURI: redirectURL.String(),
-		OpenID4VPVerifier: &PEXState{
-			WalletDID:                       *walletDID,
-			RequiredPresentationDefinitions: presentationDefinitions,
-			Submissions:                     make(map[string]pe.PresentationSubmission, len(presentationDefinitions)),
-			SubmittedEnvelopes:              make(map[string]pe.Envelope, len(presentationDefinitions)),
-		},
+		ClientID:          walletID,
+		Scope:             params.get(oauth.ScopeParam),
+		OwnDID:            &verifier,
+		ClientState:       params.get(oauth.StateParam),
+		RedirectURI:       redirectURL.String(),
+		OpenID4VPVerifier: newPEXConsumer(presentationDefinitions),
 		PKCEParams: PKCEParams{ // store params, when generating authorization code we take the params from the nonceStore and encrypt them in the authorization code
 			Challenge:       params.get(oauth.CodeChallengeParam),
 			ChallengeMethod: params.get(oauth.CodeChallengeMethodParam),
@@ -168,11 +163,6 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OAuthSession) (*url.URL, error) {
 	// Find next Presentation Definition to fulfill.
 	walletOwnerType, _ := session.OpenID4VPVerifier.next()
-
-	if walletOwnerType == nil {
-		// All OpenID4VP flows completed
-		return nil, errors.New("all OpenID4VP flows already completed")
-	}
 
 	// own generic endpoint
 	ownURL, err := createOAuth2BaseURL(*session.OwnDID)
@@ -213,7 +203,8 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 		values[oauth.NonceParam] = nonce
 		values[oauth.StateParam] = state
 	}
-	authServerURL, err := r.auth.IAMClient().CreateAuthorizationRequest(ctx, *session.OwnDID, session.OpenID4VPVerifier.WalletDID, modifier)
+	walletDID, _ := did.ParseDID(session.ClientID)
+	authServerURL, err := r.auth.IAMClient().CreateAuthorizationRequest(ctx, *session.OwnDID, *walletDID, modifier)
 
 	// use nonce and state to store authorization request in session store
 	if err = r.oauthNonceStore().Put(nonce, state); err != nil {
@@ -482,7 +473,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 	// we take the existing OAuthSession and add the credential map to it
 	// todo: use the InputDescriptor.Path to map the Id to Value@JSONPath since this will be later used to set the state for the access token
 	if err := session.OpenID4VPVerifier.fulfill(*submission, *pexEnvelope); err != nil {
-		return nil, oauthError(oauth.ServerError, err.Error())
+		return nil, oauthError(oauth.InvalidRequest, err.Error())
 	}
 	if err = r.oauthClientStateStore().Put(state, session); err != nil {
 		return nil, oauth.OAuth2Error{Code: oauth.ServerError, InternalError: err, Description: "failed to store server state"}
@@ -616,7 +607,11 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	for _, curr := range oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions {
 		presentationDefinitions = append(presentationDefinitions, curr)
 	}
-	response, err := r.createAccessToken(*oauthSession.OwnDID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier)
+	walletDID, err := did.ParseDID(oauthSession.ClientID)
+	if err != nil {
+		return nil, err
+	}
+	response, err := r.createAccessToken(*oauthSession.OwnDID, *walletDID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier)
 	if err != nil {
 		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}
