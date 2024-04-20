@@ -24,7 +24,6 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage/session"
 	"io"
 	"net/url"
 	"path"
@@ -61,7 +60,6 @@ func New() Engine {
 	return &engine{
 		storesMux:          &sync.Mutex{},
 		stores:             map[string]stoabs.Store{},
-		sessionDatabase:    session.NewInMemorySessionDatabase(),
 		sqlMigrationLogger: logrusInfoLogWriter{},
 	}
 }
@@ -119,7 +117,7 @@ func (e *engine) Shutdown() error {
 	}
 
 	// Close session database
-	e.sessionDatabase.Close()
+	e.sessionDatabase.close()
 	// Close SQL db
 	if e.sqlDB != nil {
 		underlyingDB, err := e.sqlDB.DB()
@@ -152,6 +150,17 @@ func (e *engine) Configure(config core.ServerConfig) error {
 
 	if err := e.initSQLDatabase(); err != nil {
 		return fmt.Errorf("failed to initialize SQL database: %w", err)
+	}
+
+	switch e.config.Session.Type {
+	case "":
+		fallthrough
+	case InMemorySessionStoreType:
+		e.sessionDatabase = NewInMemorySessionDatabase()
+	case SQLSessionStoreType:
+		e.sessionDatabase = NewSQLSessionDatabase(e.sqlDB)
+	default:
+		return fmt.Errorf("unknown session store type: %s", e.config.Session.Type)
 	}
 
 	return nil

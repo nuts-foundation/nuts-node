@@ -16,7 +16,7 @@
  *
  */
 
-package session
+package storage
 
 import (
 	"encoding/json"
@@ -65,7 +65,7 @@ func (i *InMemorySessionDatabase) GetStore(ttl time.Duration, keys ...string) Se
 	}
 }
 
-func (i *InMemorySessionDatabase) Close() {
+func (i *InMemorySessionDatabase) close() {
 	// Signal pruner to stop and wait for it to finish
 	i.done <- struct{}{}
 }
