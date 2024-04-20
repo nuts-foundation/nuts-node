@@ -64,7 +64,7 @@ echo "Redirect user to local OAuth server..."
 echo "--------------------------------------"
 
 LOCATION=$(echo $LOCATION | sed -E 's/nodeB/localhost:20443/')
-RESPONSE=$(curl -D ./node-B/headers.txt $LOCATION -k)
+RESPONSE=$(curl --cookie-jar ./node-B/cookies.txt -D ./node-B/headers.txt $LOCATION -k)
 if grep -q 'Location' ./node-B/headers.txt; then
   LOCATION=$(grep 'Location' ./node-B/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
   echo "REDIRECTURL: $LOCATION"
@@ -94,7 +94,7 @@ echo "Build VP..."
 echo "---------------------------------------"
 
 LOCATION=$(echo $LOCATION | sed -E 's/nodeB/localhost:20443/')
-RESPONSE=$(curl -D ./node-B/headers.txt $LOCATION -k)
+RESPONSE=$(curl  --cookie ./node-B/cookies.txt -D ./node-B/headers.txt $LOCATION -k)
 if grep -q 'Location' ./node-B/headers.txt; then
   LOCATION=$(grep 'Location' ./node-B/headers.txt | sed -E 's/Location: (.*)/\1/' | tr -d '\r')
   echo "REDIRECTURL: $LOCATION"
