@@ -97,5 +97,23 @@ func TestMemoryKeyStore_SignJWS(t *testing.T) {
 }
 
 func TestMemoryKeyStore_SignJWT(t *testing.T) {
+	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privateKeyJWK, _ := jwk.FromRaw(pk)
+	privateKeyJWK.Set(jwk.KeyIDKey, "123")
+	alg, _ := ecAlg(pk)
+	privateKeyJWK.Set(jwk.AlgorithmKey, alg)
 
+	t.Run("ok", func(t *testing.T) {
+		signedJWT, err := MemoryKeyStore{
+			Key: privateKeyJWK,
+		}.SignJWT(context.Background(), nil, nil, &basicKey{kid: "123"})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, signedJWT)
+	})
+	t.Run("unknown key", func(t *testing.T) {
+		_, err := MemoryKeyStore{
+			Key: privateKeyJWK,
+		}.SignJWT(context.Background(), nil, nil, &basicKey{kid: "456"})
+		assert.ErrorIs(t, err, ErrPrivateKeyNotFound)
+	})
 }

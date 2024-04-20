@@ -17,6 +17,7 @@ exclude_patterns:
   - "**/*_mock.go"
   - "docs/**/*.go"
   - "**/*.pb.go"
+  - "e2e-tests/**/*.go"
 plugins:
   gofmt:
     enabled: true

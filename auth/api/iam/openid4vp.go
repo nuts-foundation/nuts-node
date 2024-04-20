@@ -310,7 +310,6 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 	targetWallet := r.vcr.Wallet()
 	walletDID := tenantDID
 	if walletOwnerType == pe.WalletOwnerUser {
-		log.Logger().Infof("User wallet requested")
 		// User wallet
 		var privateKey jwk.Key
 		privateKey, err = userSession.Wallet.Key()
