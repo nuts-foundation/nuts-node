@@ -223,7 +223,7 @@ func Test_memoryStore_prune(t *testing.T) {
 
 		assert.Equal(t, 1, count)
 
-		// Second round to assert there's nothing to startPruning now
+		// Second round to assert there's nothing to prune now
 		count = store.prune()
 
 		assert.Equal(t, 0, count)

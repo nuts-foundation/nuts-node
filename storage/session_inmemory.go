@@ -26,10 +26,10 @@ import (
 	"time"
 )
 
-var sessionStorePruneInterval = 10 * time.Minute
-
 var _ SessionDatabase = (*InMemorySessionDatabase)(nil)
 var _ SessionStore = (*InMemorySessionStore)(nil)
+
+var sessionStorePruneInterval = 10 * time.Minute
 
 type expiringEntry struct {
 	// Value stores the actual value as JSON
