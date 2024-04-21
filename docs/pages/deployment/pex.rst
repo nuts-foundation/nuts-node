@@ -84,12 +84,14 @@ The ``wallet_owner_type`` field is used to determine the audience type of the pr
 OAuth2 Token Introspection field mapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The fields that contain an ``id`` property (e.g., ``example_credential_type`` in the example above) are returned in the OAuth2 Token Introspection response.
-The value of the Verifiable Credential that the matched field constraint are included in the response as claims.
+The input descriptor constraint fields that contain an ``id`` property (``input_descriptor.contraints.field.id``) are returned in the OAuth2 Token Introspection response.
+The value of the Verifiable Credential that the matched field is included in the response as claims.
+E.g., in the example above, a claim named ``example_credential_type`` is added to the introspection response, containing the Verifiable Credential ``type`` property.
+
 Writer of policies should take into consideration:
 - fields that are intended to be used for logging or authorization decisions should have a distinct identifier.
-- claims ideally map a registered claim name.
-- overwriting properties already defined in the token introspection endpoint response is forbidden.
+- claims ideally map a registered claim name (e.g. `IANA JWT claims <>https://www.iana.org/assignments/jwt/jwt.xhtml#claims>`_)
+- overwriting properties already defined in the token introspection endpoint response is forbidden. These are: ``iss``, ``sub``, ``exp``, ``iat``, ``active``, ``client_id``, ``scope``.
 
 Policy backend API definition
 *****************************
