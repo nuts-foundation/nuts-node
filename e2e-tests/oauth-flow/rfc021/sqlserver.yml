@@ -1,0 +1,21 @@
+services:
+  nodeA-backend:
+    environment:
+      NUTS_STORAGE_SQL_CONNECTION: sqlserver://sa:MyStrong(!)Password@db:1433/node_a?sslmode=disable
+  nodeB-backend:
+    environment:
+      NUTS_STORAGE_SQL_CONNECTION: sqlserver://sa:MyStrong(!)Password@db:1433/node_b?sslmode=disable
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: always
+    ports:
+      - "1433:1433"
+    environment:
+      MSSQL_SA_PASSWORD: MyStrong(!)Password
+      ACCEPT_EULA: Y
+    healthcheck:
+      test:
+        ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-U", "sa", "-P", "MyStrong(!)Password", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

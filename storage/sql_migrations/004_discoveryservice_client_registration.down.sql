@@ -1,1 +1,2 @@
+drop index idx_discovery_presentation_refresh
 drop table discovery_presentation_refresh;
