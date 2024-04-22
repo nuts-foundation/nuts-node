@@ -61,12 +61,18 @@ JSON documents used for policies must have the following structure:
               "constraints": {
                 "fields": [
                   {
-                    "id": "example_credential_type",
                     "path": ["$.type"],
                     "filter": {
                       "type": "string",
-                      "const": "ExampleCredential"
+                      "const": "HumanCredential"
                     }
+                  },
+                  {
+                      "id": "fullName",
+                      "path": ["$.credentialSubject.fullName"],
+                      "filter": {
+                        "type": "string",
+                      }
                   }
                 ]
               }
@@ -86,7 +92,18 @@ OAuth2 Token Introspection field mapping
 
 The input descriptor constraint fields that contain an ``id`` property (``input_descriptor.contraints.field.id``) are returned in the OAuth2 Token Introspection response.
 The value of the Verifiable Credential that the matched field is included in the response as claims.
-E.g., in the example above, a claim named ``example_credential_type`` is added to the introspection response, containing the Verifiable Credential ``type`` property.
+E.g., in the example above, a claim named ``fullName`` is added to the introspection response, containing the Verifiable Credential ``type`` property.
+The following is an example OAuth2 Token Introspection response containing the ``fullName`` claim from the Presentation Definition
+(some fields are omitted for brevity):
+
+```json
+{
+  "iss": "did:web:example.com",
+  "active": true,
+  "scope": "example_scope",
+  "fullName": "John Doe"
+}
+```
 
 Writer of policies should take into consideration:
 - fields that are intended to be used for logging or authorization decisions should have a distinct identifier.
