@@ -1130,6 +1130,7 @@ func TestWrapper_ValidateDPoPProof(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
 		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
+		assert.Equal(t, "method mismatch, token: POST, given: GET", *resp.(ValidateDPoPProof200JSONResponse).Reason)
 	})
 	t.Run("missing ath header", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -1141,6 +1142,7 @@ func TestWrapper_ValidateDPoPProof(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
 		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
+		assert.Equal(t, "missing ath claim", *resp.(ValidateDPoPProof200JSONResponse).Reason)
 	})
 	t.Run("parsing failed", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -1152,6 +1154,7 @@ func TestWrapper_ValidateDPoPProof(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
 		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
+		assert.Equal(t, "failed to parse DPoP header: invalid DPoP token\ninvalid compact serialization format: invalid number of segments", *resp.(ValidateDPoPProof200JSONResponse).Reason)
 	})
 	t.Run("invalid accestoken", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -1163,6 +1166,7 @@ func TestWrapper_ValidateDPoPProof(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
 		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
+		assert.Equal(t, "ath/token claim mismatch", *resp.(ValidateDPoPProof200JSONResponse).Reason)
 	})
 	t.Run("already used once", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -1173,6 +1177,7 @@ func TestWrapper_ValidateDPoPProof(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
 		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
+		assert.Equal(t, "jti already used", *resp.(ValidateDPoPProof200JSONResponse).Reason)
 	})
 }
 

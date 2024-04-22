@@ -238,23 +238,23 @@ func (r Wrapper) CreateDPoPProof(ctx context.Context, request CreateDPoPProofReq
 func (r Wrapper) ValidateDPoPProof(_ context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error) {
 	dpopToken, err := dpop.Parse(request.Body.DpopProof)
 	if err != nil {
-		log.Logger().WithError(err).Debug("ValidateDPoPProof: failed to parse DPoP header")
-		return ValidateDPoPProof200JSONResponse{}, nil
+		reason := fmt.Sprintf("failed to parse DPoP header: %s", err.Error())
+		return ValidateDPoPProof200JSONResponse{Reason: &reason}, nil
 	}
 	if ok, err := dpopToken.Match(request.Body.Thumbprint, request.Body.Method, request.Body.Url); !ok {
-		log.Logger().Debugf("ValidateDPoPProof: %s", err.Error())
-		return ValidateDPoPProof200JSONResponse{}, nil
+		reason := err.Error()
+		return ValidateDPoPProof200JSONResponse{Reason: &reason}, nil
 	}
 	// check if ath claim matches hash of access_token
 	ath, ok := dpopToken.Token.Get(dpop.ATHKey)
 	if !ok {
-		log.Logger().Debug("ValidateDPoPProof: missing ath claim")
-		return ValidateDPoPProof200JSONResponse{}, nil
+		reason := "missing ath claim"
+		return ValidateDPoPProof200JSONResponse{Reason: &reason}, nil
 	}
 	hash := nutsHash.SHA256Sum([]byte(request.Body.Token))
 	if ath != base64.RawURLEncoding.EncodeToString(hash.Slice()) {
-		log.Logger().Debug("ValidateDPoPProof: ath/token claim mismatch")
-		return ValidateDPoPProof200JSONResponse{}, nil
+		reason := "ath/token claim mismatch"
+		return ValidateDPoPProof200JSONResponse{Reason: &reason}, nil
 	}
 	// check if the jti is already used, if not add it to the store for the duration of the access token lifetime
 	var target struct{}
@@ -263,15 +263,14 @@ func (r Wrapper) ValidateDPoPProof(_ context.Context, request ValidateDPoPProofR
 			log.Logger().WithError(err).Error("ValidateDPoPProof: failed to retrieve jti usage state")
 			return nil, err
 		}
-
 		if err := r.useNonceOnceStore().Put(dpopToken.Token.JwtID(), target); err != nil {
 			log.Logger().WithError(err).Error("ValidateDPoPProof: failed to store jti usage state")
 			return nil, err
 		}
 	} else {
 		// jti already used
-		log.Logger().Error("ValidateDPoPProof: jti already used")
-		return ValidateDPoPProof200JSONResponse{}, nil
+		reason := "jti already used"
+		return ValidateDPoPProof200JSONResponse{Reason: &reason}, nil
 	}
 
 	return ValidateDPoPProof200JSONResponse{Valid: true}, nil

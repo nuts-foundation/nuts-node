@@ -800,6 +800,9 @@ components:
       required:
         - valid
       properties:
+        reason:
+          type: string
+          description: The reason why the DPoP Proof header is invalid.
         valid:
           type: boolean
           description: True if the DPoP Proof header is valid for the access token and HTTP request, false if it is not.

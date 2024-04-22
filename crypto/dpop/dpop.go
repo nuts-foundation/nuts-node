@@ -217,7 +217,7 @@ func (t DPoP) Match(jkt string, method string, url string) (bool, error) {
 
 	// check method and url
 	if method != t.HTM() {
-		return false, fmt.Errorf("url mismatch, token: %s, given: %s", t.HTM(), method)
+		return false, fmt.Errorf("method mismatch, token: %s, given: %s", t.HTM(), method)
 	}
 	urlLeft := strip(t.HTU())
 	urlRight := strip(url)

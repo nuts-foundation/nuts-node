@@ -302,7 +302,7 @@ func TestDPoP_Match(t *testing.T) {
 
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.EqualError(t, err, "url mismatch, token: POST, given: GET")
+		assert.EqualError(t, err, "method mismatch, token: POST, given: GET")
 	})
 	t.Run("invalid url", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof(accessToken)

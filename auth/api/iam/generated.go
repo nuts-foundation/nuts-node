@@ -54,21 +54,24 @@ type DPoPValidateRequest struct {
 	// DpopProof The DPoP Proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
 	DpopProof string `json:"dpop_proof"`
 
-	// Method The HTTP method for which the DPoP header is requested.
+	// Method The HTTP method against which the DPoP proof is validated.
 	Method string `json:"method"`
 
 	// Thumbprint The thumbprint of the public key used to sign the DPoP proof. Base64url encoded.
 	Thumbprint string `json:"thumbprint"`
 
-	// Token The access token for which the DPoP proof is requested.
+	// Token The access token against which the DPoP proof is validated.
 	Token string `json:"token"`
 
-	// Url The URL for which the DPoP header is requested.
+	// Url The URL against which the DPoP proof is validated.
 	Url string `json:"url"`
 }
 
 // DPoPValidateResponse defines model for DPoPValidateResponse.
 type DPoPValidateResponse struct {
+	// Reason The reason why the DPoP Proof header is invalid.
+	Reason *string `json:"reason,omitempty"`
+
 	// Valid True if the DPoP Proof header is valid for the access token and HTTP request, false if it is not.
 	Valid bool `json:"valid"`
 }
