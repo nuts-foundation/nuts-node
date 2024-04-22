@@ -1103,7 +1103,7 @@ func TestWrapper_ValidateDPoPProof(t *testing.T) {
 	dpopToken, dpopProof, thumbprint := newSignedTestDPoP()
 	request := ValidateDPoPProofRequestObject{
 		Body: &ValidateDPoPProofJSONRequestBody{
-			Dpop:       dpopProof.String(),
+			DpopProof:  dpopProof.String(),
 			Method:     "POST",
 			Thumbprint: thumbprint,
 			Token:      accessToken,
@@ -1133,8 +1133,8 @@ func TestWrapper_ValidateDPoPProof(t *testing.T) {
 	})
 	t.Run("missing ath header", func(t *testing.T) {
 		ctx := newTestClient(t)
-		request.Body.Dpop = dpopToken.String()
-		defer (func() { request.Body.Dpop = dpopProof.String() })()
+		request.Body.DpopProof = dpopToken.String()
+		defer (func() { request.Body.DpopProof = dpopProof.String() })()
 
 		resp, err := ctx.client.ValidateDPoPProof(nil, request)
 
@@ -1144,8 +1144,8 @@ func TestWrapper_ValidateDPoPProof(t *testing.T) {
 	})
 	t.Run("parsing failed", func(t *testing.T) {
 		ctx := newTestClient(t)
-		request.Body.Dpop = "invalid"
-		defer (func() { request.Body.Dpop = dpopProof.String() })()
+		request.Body.DpopProof = "invalid"
+		defer (func() { request.Body.DpopProof = dpopProof.String() })()
 
 		resp, err := ctx.client.ValidateDPoPProof(nil, request)
 

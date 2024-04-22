@@ -20,11 +20,16 @@ package iam
 
 import (
 	"context"
-	crypto2 "crypto"
+	"crypto"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -34,10 +39,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
-	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
-	http2 "github.com/nuts-foundation/nuts-node/http"
+	nutsHash "github.com/nuts-foundation/nuts-node/crypto/hash"
+	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -46,10 +51,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 var _ core.Routable = &Wrapper{}
@@ -81,7 +82,7 @@ type Wrapper struct {
 	auth          auth.AuthenticationServices
 	policyBackend policy.PDPBackend
 	storageEngine storage.Engine
-	keyStore      crypto.KeyStore
+	keyStore      nutsCrypto.KeyStore
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 }
@@ -235,7 +236,7 @@ func (r Wrapper) CreateDPoPProof(ctx context.Context, request CreateDPoPProofReq
 }
 
 func (r Wrapper) ValidateDPoPProof(_ context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error) {
-	dpopToken, err := dpop.Parse(request.Body.Dpop)
+	dpopToken, err := dpop.Parse(request.Body.DpopProof)
 	if err != nil {
 		log.Logger().WithError(err).Debug("ValidateDPoPProof: failed to parse DPoP header")
 		return ValidateDPoPProof200JSONResponse{}, nil
@@ -250,7 +251,7 @@ func (r Wrapper) ValidateDPoPProof(_ context.Context, request ValidateDPoPProofR
 		log.Logger().Debug("ValidateDPoPProof: missing ath claim")
 		return ValidateDPoPProof200JSONResponse{}, nil
 	}
-	hash := hash2.SHA256Sum([]byte(request.Body.Token))
+	hash := nutsHash.SHA256Sum([]byte(request.Body.Token))
 	if ath != base64.RawURLEncoding.EncodeToString(hash.Slice()) {
 		log.Logger().Debug("ValidateDPoPProof: ath/token claim mismatch")
 		return ValidateDPoPProof200JSONResponse{}, nil
@@ -269,7 +270,7 @@ func (r Wrapper) ValidateDPoPProof(_ context.Context, request ValidateDPoPProofR
 		}
 	} else {
 		// jti already used
-		log.Logger().Debug("ValidateDPoPProof: jti already used")
+		log.Logger().Error("ValidateDPoPProof: jti already used")
 		return ValidateDPoPProof200JSONResponse{}, nil
 	}
 
@@ -309,7 +310,7 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	// SHA256 hashing won't fail.
 	var cnf *Cnf
 	if token.DPoP != nil {
-		hash, _ := token.DPoP.Headers.JWK().Thumbprint(crypto2.SHA256)
+		hash, _ := token.DPoP.Headers.JWK().Thumbprint(crypto.SHA256)
 		base64Hash := base64.RawURLEncoding.EncodeToString(hash)
 		cnf = &Cnf{Jkt: base64Hash}
 	}
@@ -439,7 +440,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 func (r Wrapper) validateJARRequest(ctx context.Context, rawToken string, clientId string) (oauthParameters, error) {
 	var signerKid string
 	// Parse and validate the JWT
-	token, err := crypto.ParseJWT(rawToken, func(kid string) (crypto2.PublicKey, error) {
+	token, err := nutsCrypto.ParseJWT(rawToken, func(kid string) (crypto.PublicKey, error) {
 		signerKid = kid
 		return resolver.DIDKeyResolver{Resolver: r.vdr}.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
 	}, jwt.WithValidate(true))
@@ -661,10 +662,10 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}
 
 	// session ID for calling app (supports polling for token)
-	sessionID := crypto.GenerateNonce()
+	sessionID := nutsCrypto.GenerateNonce()
 
 	// generate a redirect token valid for 5 seconds
-	token := crypto.GenerateNonce()
+	token := nutsCrypto.GenerateNonce()
 	err = r.userRedirectStore().Put(token, RedirectSession{
 		AccessTokenRequest: request,
 		SessionID:          sessionID,
@@ -685,7 +686,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}
 	webURL = webURL.JoinPath("user")
 	// redirect to generic user page, context of token will render correct page
-	redirectURL := http2.AddQueryParams(*webURL, map[string]string{
+	redirectURL := nutsHttp.AddQueryParams(*webURL, map[string]string{
 		"token": token,
 	})
 	return RequestUserAccessToken200JSONResponse{
@@ -759,7 +760,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
 	}
 	// Generate the state and PKCE
-	state := crypto.GenerateNonce()
+	state := nutsCrypto.GenerateNonce()
 	pkceParams := generatePKCEParams()
 	if err != nil {
 		log.Logger().WithError(err).Errorf("failed to create the PKCE parameters")
@@ -791,7 +792,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		return nil, err
 	}
 	// Build the redirect URL, the client browser should be redirected to.
-	redirectUrl := http2.AddQueryParams(*endpoint, map[string]string{
+	redirectUrl := nutsHttp.AddQueryParams(*endpoint, map[string]string{
 		"response_type":         "code",
 		"state":                 state,
 		"client_id":             requestHolder.String(),

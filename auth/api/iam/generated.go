@@ -21,46 +21,46 @@ const (
 
 // Defines values for ServiceAccessTokenRequestTokenType.
 const (
-	ServiceAccessTokenRequestTokenTypeBearer ServiceAccessTokenRequestTokenType = "bearer"
+	ServiceAccessTokenRequestTokenTypeBearer ServiceAccessTokenRequestTokenType = "Bearer"
 	ServiceAccessTokenRequestTokenTypeDPoP   ServiceAccessTokenRequestTokenType = "DPoP"
 )
 
 // Defines values for UserAccessTokenRequestTokenType.
 const (
-	UserAccessTokenRequestTokenTypeBearer UserAccessTokenRequestTokenType = "bearer"
+	UserAccessTokenRequestTokenTypeBearer UserAccessTokenRequestTokenType = "Bearer"
 	UserAccessTokenRequestTokenTypeDPoP   UserAccessTokenRequestTokenType = "DPoP"
 )
 
 // DPoPRequest defines model for DPoPRequest.
 type DPoPRequest struct {
-	// Method The HTTP method for which the DPoP header is requested.
+	// Method The HTTP method for which the DPoP proof is requested.
 	Method string `json:"method"`
 
-	// Token The access token for which the DPoP header is requested.
+	// Token The access token for which the DPoP proof is requested.
 	Token string `json:"token"`
 
-	// Url The URL for which the DPoP header is requested.
+	// Url The URL for which the DPoP proof is requested.
 	Url string `json:"url"`
 }
 
 // DPoPResponse defines model for DPoPResponse.
 type DPoPResponse struct {
-	// Dpop The DPoP header as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+	// Dpop The DPoP proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
 	Dpop string `json:"dpop"`
 }
 
 // DPoPValidateRequest defines model for DPoPValidateRequest.
 type DPoPValidateRequest struct {
-	// Dpop The DPoP Proof header as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
-	Dpop string `json:"dpop"`
+	// DpopProof The DPoP Proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+	DpopProof string `json:"dpop_proof"`
 
 	// Method The HTTP method for which the DPoP header is requested.
 	Method string `json:"method"`
 
-	// Thumbprint The thumbprint of the public key used to sign the DPoP proof header. Base64url encoded.
+	// Thumbprint The thumbprint of the public key used to sign the DPoP proof. Base64url encoded.
 	Thumbprint string `json:"thumbprint"`
 
-	// Token The access token for which the DPoP header is requested.
+	// Token The access token for which the DPoP proof is requested.
 	Token string `json:"token"`
 
 	// Url The URL for which the DPoP header is requested.
@@ -69,7 +69,7 @@ type DPoPValidateRequest struct {
 
 // DPoPValidateResponse defines model for DPoPValidateResponse.
 type DPoPValidateResponse struct {
-	// Valid True if the DPoP Proof header is valid for the access token and http request, false if it is not.
+	// Valid True if the DPoP Proof header is valid for the access token and HTTP request, false if it is not.
 	Valid bool `json:"valid"`
 }
 
@@ -111,7 +111,9 @@ type TokenIntrospectionResponse struct {
 
 	// ClientId The client (DID) the access token was issued to
 	ClientId *string `json:"client_id,omitempty"`
-	Cnf      *Cnf    `json:"cnf,omitempty"`
+
+	// Cnf The 'confirmation' claim is used in JWTs to proof the possession of a key.
+	Cnf *Cnf `json:"cnf,omitempty"`
 
 	// Exp Expiration date in seconds since UNIX epoch
 	Exp *int `json:"exp,omitempty"`
@@ -174,7 +176,7 @@ type UserDetails struct {
 	Role string `json:"role"`
 }
 
-// Cnf defines model for cnf.
+// Cnf The 'confirmation' claim is used in JWTs to proof the possession of a key.
 type Cnf struct {
 	// Jkt JWK thumbprint
 	Jkt string `json:"jkt"`
@@ -542,7 +544,7 @@ type ServerInterface interface {
 	// Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resources server, this is a convenience API.
 	// (POST /internal/auth/v2/dpop_validate)
 	ValidateDPoPProof(ctx echo.Context) error
-	// Create a DPoP proof header as specified by RFC9449 for a given access token
+	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
 	// (POST /internal/auth/v2/{did}/dpop)
 	CreateDPoPProof(ctx echo.Context, did string) error
 	// Start the Oid4VCI authorization flow.
@@ -1246,12 +1248,25 @@ func (response ValidateDPoPProof200JSONResponse) VisitValidateDPoPProofResponse(
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ValidateDPoPProof401Response struct {
+type ValidateDPoPProofdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
 }
 
-func (response ValidateDPoPProof401Response) VisitValidateDPoPProofResponse(w http.ResponseWriter) error {
-	w.WriteHeader(401)
-	return nil
+func (response ValidateDPoPProofdefaultApplicationProblemPlusJSONResponse) VisitValidateDPoPProofResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type CreateDPoPProofRequestObject struct {
@@ -1673,7 +1688,7 @@ type StrictServerInterface interface {
 	// Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resources server, this is a convenience API.
 	// (POST /internal/auth/v2/dpop_validate)
 	ValidateDPoPProof(ctx context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error)
-	// Create a DPoP proof header as specified by RFC9449 for a given access token
+	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
 	// (POST /internal/auth/v2/{did}/dpop)
 	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
 	// Start the Oid4VCI authorization flow.

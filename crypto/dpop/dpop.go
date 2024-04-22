@@ -20,7 +20,10 @@ package dpop
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -67,6 +70,7 @@ var ErrInvalidDPoP = errors.New("invalid DPoP token")
 func New(request http.Request) *DPoP {
 	result := DPoP{}
 	result.Token = jwt.New()
+	// errors won't occur
 	_ = result.Token.Set(HTMKey, request.Method)
 	_ = result.Token.Set(HTUKey, request.URL.String())
 	_ = result.Token.Set(jwt.JwtIDKey, generateID())
@@ -141,11 +145,14 @@ func Parse(s string) (*DPoP, error) {
 	if headers.JWK() == nil {
 		return nil, fmt.Errorf("%w: missing jwk header", ErrInvalidDPoP)
 	}
+	if jwkIsPrivateKey(headers.JWK()) {
+		return nil, fmt.Errorf("%w: invalid jwk header", ErrInvalidDPoP)
+	}
 	token, err := jwt.ParseString(s, jwt.WithKey(headers.Algorithm(), headers.JWK()))
 	if err != nil {
 		return nil, errors.Join(ErrInvalidDPoP, err)
 	}
-	if token.IssuedAt().Compare(time.Time{}) == 0 {
+	if token.IssuedAt().IsZero() {
 		return nil, fmt.Errorf("%w: missing iat claim", ErrInvalidDPoP)
 	}
 	if v, ok := token.Get(HTUKey); !ok || v == "" {
@@ -162,6 +169,23 @@ func Parse(s string) (*DPoP, error) {
 	}
 
 	return &DPoP{raw: s, Token: token, Headers: headers}, nil
+}
+
+func jwkIsPrivateKey(jwk jwk.Key) bool {
+	// we try to parse it as different private keys, if there's no error, it's a private key
+	var rsaPrivateKey rsa.PrivateKey
+	if err := jwk.Raw(&rsaPrivateKey); err == nil {
+		return true
+	}
+	var ecPrivateKey ecdsa.PrivateKey
+	if err := jwk.Raw(&ecPrivateKey); err == nil {
+		return true
+	}
+	var edPrivateKey ed25519.PrivateKey
+	if err := jwk.Raw(&edPrivateKey); err == nil {
+		return true
+	}
+	return false
 }
 
 // HTU returns the htu claim of the DPoP token
@@ -193,12 +217,12 @@ func (t DPoP) Match(jkt string, method string, url string) (bool, error) {
 
 	// check method and url
 	if method != t.HTM() {
-		return false, errors.New("method mismatch")
+		return false, fmt.Errorf("url mismatch, token: %s, given: %s", t.HTM(), method)
 	}
 	urlLeft := strip(t.HTU())
 	urlRight := strip(url)
 	if urlLeft != urlRight {
-		return false, fmt.Errorf("url mismatch: %s, %s", urlLeft, urlRight)
+		return false, fmt.Errorf("url mismatch, token: %s, given: %s", urlLeft, urlRight)
 	}
 
 	return true, nil
@@ -208,6 +232,8 @@ func strip(raw string) string {
 	url, _ := url.Parse(raw)
 	url.Scheme = "https"
 	url.Host = strings.Split(url.Host, ":")[0]
+	url.RawQuery = ""
+	url.Fragment = ""
 	return url.String()
 }
 

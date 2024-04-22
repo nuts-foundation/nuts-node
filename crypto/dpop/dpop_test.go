@@ -156,6 +156,19 @@ func TestParseDPoP(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t, err, "invalid DPoP token: missing jwk header")
 	})
+	t.Run("private key included", func(t *testing.T) {
+		altToken := jwt.New()
+		altHeaders := jws.NewHeaders()
+		altHeaders.Set(jws.TypeKey, DPopType)
+		altHeaders.Set(jws.JWKKey, jwkKey)
+
+		tokenBytes, _ := jwt.Sign(altToken, jwt.WithKey(jwa.SignatureAlgorithm(jwkKey.Algorithm().String()), jwkKey, jws.WithProtectedHeaders(altHeaders)))
+
+		_, err := Parse(string(tokenBytes))
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "invalid DPoP token: invalid jwk header")
+	})
 	t.Run("jwt parsing failed due to wrong signature", func(t *testing.T) {
 		dpopToken := New(*request)
 		dpopString, _ := dpopToken.Sign(jwkKey)
@@ -259,6 +272,16 @@ func TestDPoP_Match(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
+	t.Run("ok with query/fragment", func(t *testing.T) {
+		dpopToken := New(*request).GenerateProof(accessToken)
+		dpopString, _ := dpopToken.Sign(jwkKey)
+		parsedToken, _ := Parse(dpopString)
+
+		ok, err := parsedToken.Match(thumbprintString, "POST", "https://server.example.com/token?a=b#c")
+
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
 	t.Run("invalid thumbprint", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof(accessToken)
 		dpopString, _ := dpopToken.Sign(jwkKey)
@@ -279,7 +302,7 @@ func TestDPoP_Match(t *testing.T) {
 
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.EqualError(t, err, "method mismatch")
+		assert.EqualError(t, err, "url mismatch, token: POST, given: GET")
 	})
 	t.Run("invalid url", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof(accessToken)
@@ -290,11 +313,11 @@ func TestDPoP_Match(t *testing.T) {
 
 		require.Error(t, err)
 		assert.False(t, ok)
-		assert.EqualError(t, err, "url mismatch: https://server.example.com/token, https://server.example.com/token2")
+		assert.EqualError(t, err, "url mismatch, token: https://server.example.com/token, given: https://server.example.com/token2")
 	})
 }
 
-func TestDPop_marshalling(t *testing.T) {
+func TestDPoP_marshalling(t *testing.T) {
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	jwkKey, _ := jwk.FromRaw(keyPair)
 	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256)

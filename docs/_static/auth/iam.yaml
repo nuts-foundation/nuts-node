@@ -521,9 +521,9 @@ paths:
   /internal/auth/v2/{did}/dpop:
     post:
       operationId: createDPoPProof
-      summary: Create a DPoP proof header as specified by RFC9449 for a given access token
+      summary: Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
       tags:
-        - auth
+        - oauth2
       parameters:
         - name: did
           in: path
@@ -542,19 +542,19 @@ paths:
               $ref: "#/components/schemas/DPoPRequest"
       responses:
         '200':
-          description: A response containing the DPoP header as specified by RFC9449
+          description: A response containing the DPoP proof as specified by RFC9449
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/DPoPResponse"
         '401':
-          description: This is returned when an OAuth2 Client is unauthorized to talk to the dpop endpoint.
+          description: This is returned when an OAuth2 Client is unauthorized to talk to the DPoP endpoint.
   /internal/auth/v2/dpop_validate:
     post:
       operationId: validateDPoPProof
       summary: Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resources server, this is a convenience API.
       tags:
-        - auth
+        - oauth2
       requestBody:
         required: true
         content:
@@ -563,13 +563,13 @@ paths:
               $ref: "#/components/schemas/DPoPValidateRequest"
       responses:
         '200':
-          description: A response containing the validity of the DPoP proof header for the access token and http request
+          description: A response containing the validity of the DPoP proof header for the access token and HTTP request
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/DPoPValidateResponse"
-        '401':
-          description: This is returned when an OAuth2 Client is unauthorized to talk to the dpop endpoint.
+        default:
+          $ref: '../common/error_response.yaml'
   /statuslist/{did}/{page}:
     parameters:
       - name: did
@@ -686,7 +686,7 @@ paths:
         * server_error - internal processing of the Oid4VCI flow has a system error.
         * access_denied - an access problem occurred with the internal processing of the Oid4VCI flow.
       
-        If the system is somehow not able to return a redirect, the following http status codes will be 
+        If the system is somehow not able to return a redirect, the following HTTP status codes will be 
         returned:
         * 500 - an system error occurred during processing
       tags:
@@ -730,6 +730,7 @@ paths:
 components:
   schemas:
     cnf:
+      description: The 'confirmation' claim is used in JWTs to proof the possession of a key.
       required:
         - jkt
       properties:
@@ -747,15 +748,15 @@ components:
       properties:
         method:
           type: string
-          description: The HTTP method for which the DPoP header is requested.
+          description: The HTTP method for which the DPoP proof is requested.
           example: "POST"
         token:
           type: string
-          description: The access token for which the DPoP header is requested.
+          description: The access token for which the DPoP proof is requested.
           example: "eyJhbGciOi"
         url:
           type: string
-          description: The URL for which the DPoP header is requested.
+          description: The URL for which the DPoP proof is requested.
           example: "https://example.com/resource"
     DPoPResponse:
       type: object
@@ -764,35 +765,35 @@ components:
       properties:
         dpop:
           type: string
-          description: The DPoP header as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+          description: The DPoP proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
     DPoPValidateRequest:
       type: object
       required:
-        - dpop
+        - dpop_proof
         - method
         - thumbprint
         - token
         - url
       properties:
-        dpop:
+        dpop_proof:
           type: string
-          description: The DPoP Proof header as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+          description: The DPoP Proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
           example: "eyJhbGciOi..lgtla"
         method:
           type: string
-          description: The HTTP method for which the DPoP header is requested.
+          description: The HTTP method against which the DPoP proof is validated.
           example: "POST"
         thumbprint:
           type: string
-          description: The thumbprint of the public key used to sign the DPoP proof header. Base64url encoded.
+          description: The thumbprint of the public key used to sign the DPoP proof. Base64url encoded.
           example: "jlkhnp87453slfhansdhf"
         token:
           type: string
-          description: The access token for which the DPoP header is requested.
+          description: The access token against which the DPoP proof is validated.
           example: "eyJhbGciOi"
         url:
           type: string
-          description: The URL for which the DPoP header is requested.
+          description: The URL against which the DPoP proof is validated.
           example: "https://example.com/resource"
     DPoPValidateResponse:
       type: object
@@ -801,7 +802,7 @@ components:
       properties:
         valid:
           type: boolean
-          description: True if the DPoP Proof header is valid for the access token and http request, false if it is not.
+          description: True if the DPoP Proof header is valid for the access token and HTTP request, false if it is not.
     ServiceAccessTokenRequest:
       type: object
       description: Request for an access token for a service.
@@ -820,7 +821,7 @@ components:
           type: string
           description: "The type of access token that is prefered, default: DPoP"
           enum:
-            - bearer
+            - Bearer
             - DPoP
     UserAccessTokenRequest:
       type: object
@@ -842,7 +843,7 @@ components:
           type: string
           description: "The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP"
           enum:
-            - bearer
+            - Bearer
             - DPoP
         redirect_uri:
           type: string
@@ -921,7 +922,7 @@ components:
           type: string
           description: |
             The type of the token issued as described in [RFC6749].
-          example: "bearer"
+          example: "Bearer"
         scope:
           type: string
         status:
@@ -939,7 +940,7 @@ components:
       example:
         {
           "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
-          "token_type": "bearer",
+          "token_type": "Bearer",
           "expires_in": 3600,
         }
     OAuthAuthorizationServerMetadata:
@@ -1046,7 +1047,7 @@ components:
   securitySchemes:
     jwtBearerAuth:
       type: http
-      scheme: bearer
+      scheme: Bearer
 
 security:
   - {}

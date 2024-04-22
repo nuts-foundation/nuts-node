@@ -17,7 +17,7 @@ The Nuts node implements (parts of) the following RFCs:
 - `Presentation Exchange <https://identity.foundation/presentation-exchange/>`_ - Presentation Exchange
 
 
-There's are two different flows implemented in the Nuts node to get an access token: Authorization Code Flow using OpenID4VP and the VP Token Grant type.
+There are two different flows implemented in the Nuts node to get an access token: Authorization Code Flow using OpenID4VP and the VP Token Grant type.
 
 Authorization Code Flow
 ***********************
@@ -31,7 +31,7 @@ For the authorization code flow, the Nuts node implements the following:
 - OpenID4VP for providing the VP token to the authorization server.
 
 Both JAR and PKCE are mandatory. DPoP is optional, usage is determined by the client.
-The Nuts node will do this automatically as both client and authorization server.
+The Nuts node will do this automatically as client and authorization server.
 
 VP Token Grant Type
 *******************
@@ -53,5 +53,6 @@ DPoP
 When the client wants to use DPoP, it must enable it in the access token request from client to Nuts node.
 If enabled the client will also need to call the Nuts node to create a new DPop Proof header for each request to the resources server.
 
-A resources server must check the type of access token used to request data. If a DPoP token is used the resource server must verify the DPoP Proof using an API call on the Nuts node.
-Calls to the Nuts node are required because it handles key material for the DPoP Proof. The keys used for the DPoP headers are taken from the DID Document of a tenant.
+A resources server must check the type of access token used to request data. If a DPoP token is used, the resource server must verify the DPoP Proof using the hash of the public key from the introspection result.
+The Nuts node provides a convenience API to do this for you.
+Some of the calls to the Nuts node are required because it handles key material for the DPoP Proof. The keys used for the DPoP headers are taken from the DID Document of a tenant.
