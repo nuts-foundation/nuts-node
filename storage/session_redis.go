@@ -23,22 +23,19 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/storage/log"
 	"strings"
 	"time"
 )
 
 func NewRedisSessionDatabase(db stoabs.KVStore) SessionDatabase {
-	result := redisSessionDatabase{
+	return redisSessionDatabase{
 		db: db,
 	}
-	result.ctx, result.cancel = context.WithCancel(context.Background())
-	return result
 }
 
 type redisSessionDatabase struct {
-	db     stoabs.KVStore
-	ctx    context.Context
-	cancel context.CancelFunc
+	db stoabs.KVStore
 }
 
 func (s redisSessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
@@ -50,11 +47,10 @@ func (s redisSessionDatabase) GetStore(ttl time.Duration, keys ...string) Sessio
 }
 
 func (s redisSessionDatabase) close() {
-	err := s.db.Close(s.ctx)
+	err := s.db.Close(context.Background())
 	if err != nil {
-		return
+		log.Logger().WithError(err).Error("Failed to close store")
 	}
-	s.cancel()
 }
 
 type redisSessionStore struct {
