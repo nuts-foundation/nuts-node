@@ -662,15 +662,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	if !validatePKCEParams(oauthSession.PKCEParams) {
 		return nil, oauthError(oauth.InvalidGrant, "invalid code_verifier")
 	}
-
-	var submissions []PresentationSubmission
-	for _, submission := range oauthSession.OpenID4VPVerifier.Submissions {
-		submissions = append(submissions, submission)
-	}
-	presentationDefinitions := make([]PresentationDefinition, 0)
-	for _, curr := range oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions {
-		presentationDefinitions = append(presentationDefinitions, curr)
-	}
+	// All done, issue access token
 	walletDID, err := did.ParseDID(oauthSession.ClientID)
 	if err != nil {
 		return nil, err
