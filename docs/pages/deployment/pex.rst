@@ -92,7 +92,7 @@ OAuth2 Token Introspection field mapping
 
 The input descriptor constraint fields that contain an ``id`` property (``input_descriptor.contraints.field.id``) are returned in the OAuth2 Token Introspection response.
 The value of the Verifiable Credential that the matched field is included in the response as claims.
-E.g., in the example above, a claim named ``fullName`` is added to the introspection response, containing the Verifiable Credential ``type`` property.
+E.g., in the example above, a claim named ``fullName`` is added to the introspection response, containing the value of the ``credentialSubject.fullName`` property in the Verifiable Credential.
 The following is an example OAuth2 Token Introspection response containing the ``fullName`` claim from the Presentation Definition
 (some fields are omitted for brevity):
 
