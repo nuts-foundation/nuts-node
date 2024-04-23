@@ -53,7 +53,7 @@ func Test_GenerateTestData(t *testing.T) {
 	}
 	cryptoStorage := crypto.NewMemoryStorage()
 	cryptoInstance := crypto.NewTestCryptoInstance(cryptoStorage)
-	err = cryptoStorage.SavePrivateKey(context.Background(), keyID, key)
+	err = cryptoStorage.SavePrivateKey(context.Background(), keyID, key.PrivateKey)
 	require.NoError(t, err)
 
 	jws2020 := signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: cryptoInstance}
@@ -75,7 +75,7 @@ func Test_GenerateTestData(t *testing.T) {
 		}
 		ldProof := proof.NewLDProof(pOptions)
 
-		signedVC, err = ldProof.Sign(audit.TestContext(), document, jws2020, key)
+		signedVC, err = ldProof.Sign(audit.TestContext(), document, jws2020, keyID)
 		require.NoError(t, err)
 		data, err = json.MarshalIndent(signedVC, "", "  ")
 		require.NoError(t, err)
@@ -105,7 +105,7 @@ func Test_GenerateTestData(t *testing.T) {
 		}
 		ldProof := proof.NewLDProof(pOptions)
 
-		result, err := ldProof.Sign(audit.TestContext(), document, jws2020, key)
+		result, err := ldProof.Sign(audit.TestContext(), document, jws2020, keyID)
 		require.NoError(t, err)
 		data, err = json.MarshalIndent(result, "", "  ")
 		require.NoError(t, err)
