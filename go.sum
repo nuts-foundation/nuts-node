@@ -483,6 +483,8 @@ github.com/nuts-foundation/go-stoabs v1.9.1-0.20240422143613-51a964700d41 h1:ebL
 github.com/nuts-foundation/go-stoabs v1.9.1-0.20240422143613-51a964700d41/go.mod h1:EXYmq209Np+tkUKv2ryLSSMU7kuLkbMAlBp6JzeWapA=
 github.com/nuts-foundation/go-stoabs v1.9.1-0.20240423143035-b31b2e60fa1d h1:4r1Qnkhb8pbLPN6vNJM84rXiu/yITF9754qLGQsCgEM=
 github.com/nuts-foundation/go-stoabs v1.9.1-0.20240423143035-b31b2e60fa1d/go.mod h1:EXYmq209Np+tkUKv2ryLSSMU7kuLkbMAlBp6JzeWapA=
+github.com/nuts-foundation/go-stoabs v1.9.1-0.20240423163219-4ceec5cef809 h1:JUHmzS3nA6kwdD6UVh5nSkAO/w3cp/HbP6emp+wy6W8=
+github.com/nuts-foundation/go-stoabs v1.9.1-0.20240423163219-4ceec5cef809/go.mod h1:EXYmq209Np+tkUKv2ryLSSMU7kuLkbMAlBp6JzeWapA=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
 github.com/oapi-codegen/runtime v1.1.1 h1:EXLHh0DXIJnWhdRPN2w4MXAzFyE4CskzhNLUmtpMYro=

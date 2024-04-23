@@ -99,7 +99,7 @@ func (s redisSessionStore) Put(key string, value interface{}) error {
 		return err
 	}
 	return s.db.WriteShelf(context.Background(), s.storeName, func(writer stoabs.Writer) error {
-		tl, ok := writer.(stoabs.WriterTTl)
+		tl, ok := writer.(stoabs.WriterTTL)
 		if !ok {
 			return writer.Put(stoabs.BytesKey(key), data)
 		}
