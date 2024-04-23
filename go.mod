@@ -27,7 +27,7 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.13.0
 	github.com/nuts-foundation/go-leia/v4 v4.0.1
-	github.com/nuts-foundation/go-stoabs v1.9.0
+	github.com/nuts-foundation/go-stoabs v1.9.1-0.20240422143613-51a964700d41
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
@@ -83,7 +83,7 @@ require (
 	github.com/go-co-op/gocron v1.28.3 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
-	github.com/go-redsync/redsync/v4 v4.8.1 // indirect
+	github.com/go-redsync/redsync/v4 v4.13.0 // indirect
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect

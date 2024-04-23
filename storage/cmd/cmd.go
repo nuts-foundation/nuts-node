@@ -43,7 +43,7 @@ func FlagSet() *pflag.FlagSet {
 		"If not set it, defaults to a SQLite database stored inside the configured data directory. "+
 		"Note: using SQLite is not recommended in production environments. "+
 		"If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').")
-	flagSet.String("storage.session.type", string(defs.Session.Type), fmt.Sprintf("Type of session storage engine to use. Options are: %s, %s", storage.InMemorySessionStoreType, storage.SQLSessionStoreType))
+	flagSet.String("storage.session.type", string(defs.Session.Type), fmt.Sprintf("Type of session storage engine to use. Options are: %s, %s", storage.InMemorySessionStoreType, storage.RedisSessionStoreType))
 
 	return flagSet
 }

@@ -21,6 +21,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	stdIO "io"
@@ -33,13 +34,18 @@ import (
 	"gorm.io/gorm"
 )
 
-func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
+func NewTestStorageEngineInDir(t testing.TB, dir string, sessionType SessionStoreType) Engine {
 	result := New().(*engine)
 	// Prevent dbmate and gorm from logging database creation and applied schema migrations.
 	// These are logged on INFO, which is good for production but annoying in unit tests.
 	result.sqlMigrationLogger = stdIO.Discard
 
 	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
+	result.config.Session.Type = sessionType
+	if sessionType == RedisSessionStoreType {
+		redis := miniredis.RunT(t)
+		result.config.Redis = RedisConfig{Address: redis.Addr()}
+	}
 	err := result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 		config.Datadir = dir + "/data"
 	}))
@@ -58,7 +64,16 @@ func NewTestStorageEngine(t testing.TB) Engine {
 		DefaultBBoltOptions = oldOpts
 	})
 	DefaultBBoltOptions = append(DefaultBBoltOptions, stoabs.WithNoSync())
-	return NewTestStorageEngineInDir(t, io.TestDirectory(t))
+	return NewTestStorageEngineInDir(t, io.TestDirectory(t), InMemorySessionStoreType)
+}
+
+func NewTestStorageEngineRedis(t testing.TB) Engine {
+	oldOpts := DefaultBBoltOptions[:]
+	t.Cleanup(func() {
+		DefaultBBoltOptions = oldOpts
+	})
+	DefaultBBoltOptions = append(DefaultBBoltOptions, stoabs.WithNoSync())
+	return NewTestStorageEngineInDir(t, io.TestDirectory(t), RedisSessionStoreType)
 }
 
 // CreateTestBBoltStore creates an in-memory bbolt store

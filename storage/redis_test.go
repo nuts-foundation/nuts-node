@@ -188,7 +188,9 @@ func Test_redisDatabase_createStore(t *testing.T) {
 
 			// Setup client-side TLS config
 			redisTLSModifier = func(conf *tls.Config) {
-				conf.InsecureSkipVerify = true
+				if conf != nil {
+					conf.InsecureSkipVerify = true
+				}
 			}
 
 			db, err := createRedisDatabase(RedisConfig{

@@ -52,6 +52,6 @@ type SessionStoreType string
 const (
 	// InMemorySessionStoreType specifies that the session store should be in-memory.
 	InMemorySessionStoreType SessionStoreType = "in-memory"
-	// SQLSessionStoreType specifies that the session store should be in the configured SQL database.
-	SQLSessionStoreType SessionStoreType = "sql"
+	// RedisSessionStoreType specifies that the session store should be in the configured SQL database.
+	RedisSessionStoreType SessionStoreType = "redis"
 )

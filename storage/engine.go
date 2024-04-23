@@ -71,6 +71,7 @@ type engine struct {
 	databases          []database
 	sessionDatabase    SessionDatabase
 	sqlDB              *gorm.DB
+	redisDB            *redisDatabase
 	config             Config
 	sqlMigrationLogger io.Writer
 }
@@ -131,13 +132,13 @@ func (e *engine) Shutdown() error {
 
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
-
 	if e.config.Redis.isConfigured() {
 		redisDB, err := createRedisDatabase(e.config.Redis)
 		if err != nil {
 			return fmt.Errorf("unable to configure Redis database: %w", err)
 		}
 		e.databases = append(e.databases, redisDB)
+		e.redisDB = redisDB
 		log.Logger().Info("Redis database support enabled.")
 		log.Logger().Warn("Redis database support is still experimental: do not use for production environments!")
 		redis.SetLogger(redisLogWriter{logger: log.Logger()})
@@ -157,8 +158,17 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		fallthrough
 	case InMemorySessionStoreType:
 		e.sessionDatabase = NewInMemorySessionDatabase()
-	case SQLSessionStoreType:
-		e.sessionDatabase = NewSQLSessionDatabase(e.sqlDB)
+	case RedisSessionStoreType:
+		if e.redisDB == nil {
+			return fmt.Errorf("redis session store type selected, but redis database is not configured")
+		} else {
+			store, err := e.redisDB.createStore("storage", "session")
+			if err != nil {
+				return fmt.Errorf("unable to configure redis store: %w", err)
+			}
+			e.sessionDatabase = NewRedisSessionDatabase(store)
+		}
+
 	default:
 		return fmt.Errorf("unknown session store type: %s", e.config.Session.Type)
 	}
