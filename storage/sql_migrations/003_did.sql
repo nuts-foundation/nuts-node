@@ -1,4 +1,4 @@
--- migrate:up
+-- +goose Up
 -- this table is used to store locally managed DIDs
 create table did
 (
@@ -34,3 +34,8 @@ create table did_service
     primary key (id),
     foreign key (did) references did (did) on delete cascade
 );
+
+-- +goose Down
+drop table did;
+drop table did_verificationmethod;
+drop table did_service;

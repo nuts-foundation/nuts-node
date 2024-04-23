@@ -1,8 +1,12 @@
 services:
   nodeA-backend:
+    depends_on:
+      - db
     environment:
       NUTS_STORAGE_SQL_CONNECTION: postgres://postgres:postgres@db:5432/node_a?sslmode=disable
   nodeB-backend:
+    depends_on:
+      - db
     environment:
       NUTS_STORAGE_SQL_CONNECTION: postgres://postgres:postgres@db:5432/node_b?sslmode=disable
   db:

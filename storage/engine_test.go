@@ -30,6 +30,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 )
 
 func Test_New(t *testing.T) {
@@ -163,12 +164,18 @@ func Test_engine_sqlDatabase(t *testing.T) {
 
 		underlyingDB, err := e.GetSQLDatabase().DB()
 		require.NoError(t, err)
-		row := underlyingDB.QueryRow("SELECT * FROM schema_migrations")
-		require.NoError(t, row.Err())
-		var version int
-		var dirty bool
-		assert.NoError(t, row.Scan(&version, &dirty))
-		assert.Equal(t, len(sqlFiles)/2, version) // up and down migration files
+		rows, err := underlyingDB.Query("SELECT * FROM goose_db_version")
+		require.NoError(t, err)
+		var pKey, versionId, is_applied int
+		var tStamp time.Time
+		var totalMigrations int
+		rows.Next()
+		for err = rows.Scan(&pKey, &versionId, &is_applied, &tStamp); rows.Next() && err == nil; {
+			assert.Equal(t, 1, is_applied)
+			totalMigrations++
+		}
+		require.NoError(t, err)
+		assert.Equal(t, len(sqlFiles), totalMigrations) // up and down migration files
 	})
 	t.Run("unsupported protocol doesn't log secrets", func(t *testing.T) {
 		dataDir := io.TestDirectory(t)

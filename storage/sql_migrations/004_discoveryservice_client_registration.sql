@@ -1,4 +1,4 @@
--- migrate:up
+-- +goose Up
 -- discovery_did_registration contains the DIDs that should be registered on the specified Discovery Service(s).
 create table discovery_presentation_refresh
 (
@@ -15,3 +15,6 @@ create table discovery_presentation_refresh
 );
 -- index for the next_registration column, used when checking which registrations need to be refreshed
 create index idx_discovery_presentation_refresh on discovery_presentation_refresh (next_refresh);
+
+-- +goose Down
+drop table discovery_presentation_refresh;

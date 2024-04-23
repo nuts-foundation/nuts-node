@@ -1,3 +1,4 @@
+-- +goose Up
 -- discovery contains the known discovery services and the associated tags.
 create table discovery_service
 (
@@ -40,3 +41,8 @@ create table discovery_credential
     constraint fk_discovery_credential_presentation foreign key (presentation_id) references discovery_presentation (id) on delete cascade,
     constraint fk_discovery_credential foreign key (credential_id) references credential (id)
 );
+
+-- +goose Down
+drop table discovery_service;
+drop table discovery_presentation;
+drop table discovery_credential;

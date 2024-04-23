@@ -1,3 +1,4 @@
+-- +goose Up
 create table wallet_credential
 (
     credential_id varchar(415) not null,
@@ -6,3 +7,7 @@ create table wallet_credential
 );
 
 create index idx_wallet_holder_did on wallet_credential (holder_did);
+
+-- +goose Down
+drop index idx_wallet_holder_did;
+drop table wallet_credential;

@@ -20,8 +20,6 @@ package storage
 
 import (
 	"context"
-	"database/sql"
-	"embed"
 	"errors"
 	"fmt"
 	"io"
@@ -30,21 +28,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	migrationDatabase "github.com/golang-migrate/migrate/v4/database"
-	mysqlMigrate "github.com/golang-migrate/migrate/v4/database/mysql"
-	postgresMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
-	sqlLiteMigrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
-	sqlserverMigrate "github.com/golang-migrate/migrate/v4/database/sqlserver"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/glebarez/sqlite"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/nuts-foundation/nuts-node/storage/sql_migrations"
+	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 )
@@ -54,9 +47,6 @@ const storeShutdownTimeout = 5 * time.Second
 // sqlSlowQueryThreshold specifies the threshold for logging slow SQL queries.
 // If SQL queries take longer than this threshold, they will be logged as warnings.
 const sqlSlowQueryThreshold = 200 * time.Millisecond
-
-//go:embed sql_migrations/*.sql
-var sqlMigrationsFS embed.FS
 
 // New creates a new instance of the storage engine.
 func New() Engine {
@@ -183,16 +173,17 @@ func (e *engine) initSQLDatabase() error {
 	}
 
 	// Find right SQL adapter for ORM and migrations
-	var migrationDriver migrationDatabase.Driver
-
 	dbType := strings.Split(connectionString, ":")[0]
+	if dbType == "sqlite" {
+		connectionString = strings.Join(strings.Split(connectionString, ":")[1:], ":")
+	}
+	db, err := goose.OpenDBWithDriver(dbType, connectionString)
+	if err != nil {
+		return err
+	}
+	var dialect goose.Dialect
 	switch dbType {
 	case "sqlite":
-		// sqlite3 uses the same driver as gorm
-		db, err := sql.Open("sqlite3", connectionString[7:])
-		if err != nil {
-			return err
-		}
 		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
 		// and any other attempt to acquire a write transaction will directly return an error.
 		// This is in contrast to most other SQL-databases, which let the 2nd thread wait for some time to acquire the lock.
@@ -201,7 +192,6 @@ func (e *engine) initSQLDatabase() error {
 		// With 1 connection, all actions will be performed sequentially. This impacts performance, but SQLite should not be used in production.
 		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
 		db.SetMaxOpenConns(1)
-		migrationDriver, _ = sqlLiteMigrate.WithInstance(db, &sqlLiteMigrate.Config{})
 		dialector := sqlite.Dialector{Conn: db}
 		e.sqlDB, err = gorm.Open(dialector, &gorm.Config{
 			TranslateError: true,
@@ -213,45 +203,54 @@ func (e *engine) initSQLDatabase() error {
 		if err != nil {
 			return err
 		}
+		dialect = goose.DialectSQLite3
 	case "mysql":
-		db, _ := sql.Open("mysql", connectionString)
-		migrationDriver, _ = mysqlMigrate.WithInstance(db, &mysqlMigrate.Config{})
 		e.sqlDB, _ = gorm.Open(mysql.New(mysql.Config{
 			Conn: db,
 		}), &gorm.Config{})
+		dialect = goose.DialectMySQL
 	case "postgres":
-		db, _ := sql.Open("postgresql", connectionString)
-		migrationDriver, _ = postgresMigrate.WithInstance(db, &postgresMigrate.Config{})
 		e.sqlDB, _ = gorm.Open(postgres.New(postgres.Config{
 			Conn: db,
 		}), &gorm.Config{})
+		dialect = goose.DialectPostgres
 	case "sqlserver":
-		db, _ := sql.Open("sqlserver", connectionString)
-		migrationDriver, _ = sqlserverMigrate.WithInstance(db, &sqlserverMigrate.Config{})
 		e.sqlDB, _ = gorm.Open(sqlserver.New(sqlserver.Config{
 			Conn: db,
 		}), &gorm.Config{})
+		dialect = goose.DialectMSSQL
 	default:
 		return errors.New("unsupported SQL database")
 	}
-
-	// Open connection and migrate
-	var err error
-	embeddedSource, err := iofs.New(sqlMigrationsFS, "sql_migrations")
+	goose.SetVerbose(true)
 	if err != nil {
 		return err
 	}
-	dbMigrator, err := migrate.NewWithInstance("embedded", embeddedSource, dbType, migrationDriver)
+	provider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS)
+	if err != nil {
+		return err
+	}
+
 	log.Logger().Debug("Running database migrations...")
-	dbMigrator.Log = e.sqlMigrationLogger
-	if err = dbMigrator.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	result, err := provider.Up(context.Background())
+	if err != nil {
+		for _, r := range result {
+			log.Logger().Info(r.String())
+		}
 		return fmt.Errorf("failed to migrate database: %w", err)
 	}
+	log.Logger().Infof("Completed %d migrations", len(result))
+	for _, r := range result {
+		log.Logger().Info(r.String())
+	}
+
 	return nil
 }
 
 func sqliteConnectionString(datadir string) string {
-	return "sqlite:file:" + path.Join(datadir, "sqlite.db?_journal_mode=WAL&_foreign_keys=on")
+	// _pragma=foreign_keys(1)&_time_format=sqlite
+	// return "sqlite:file:" + path.Join(datadir, "sqlite.db?_journal_mode=WAL&_foreign_keys=on")
+	return "sqlite:file:" + path.Join(datadir, "sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)")
 }
 
 type provider struct {
@@ -310,7 +309,6 @@ func (p *provider) getStore(moduleName string, name string, adapter database) (s
 }
 
 type migrationLogger interface {
-	migrate.Logger
 	io.Writer
 }
 type logrusInfoLogWriter struct {
