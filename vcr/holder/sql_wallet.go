@@ -80,7 +80,7 @@ func (h sqlWallet) BuildSubmission(ctx context.Context, walletDID did.DID, prese
 	}
 	return presenter{
 		documentLoader: h.jsonldManager.DocumentLoader(),
-		keyStore:       h.keyStore,
+		signer:         h.keyStore,
 		keyResolver:    h.keyResolver,
 	}.buildSubmission(ctx, walletDID, credentials, presentationDefinition, acceptedFormats, params)
 }
@@ -96,7 +96,7 @@ func (h sqlWallet) BuildPresentation(ctx context.Context, credentials []vc.Verif
 	}
 	return presenter{
 		documentLoader: h.jsonldManager.DocumentLoader(),
-		keyStore:       h.keyStore,
+		signer:         h.keyStore,
 		keyResolver:    h.keyResolver,
 	}.buildPresentation(ctx, signerDID, credentials, options)
 }

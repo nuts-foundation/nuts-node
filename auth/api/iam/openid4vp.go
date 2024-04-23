@@ -317,7 +317,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 		targetWallet = holder.NewMemoryWallet(
 			r.JSONLDManager.DocumentLoader(),
 			resolver.DIDKeyResolver{Resolver: didjwk.NewResolver()},
-			crypto.MemoryKeyStore{Key: privateKey},
+			crypto.MemoryJWTSigner{Key: privateKey},
 			map[did.DID][]vc.VerifiableCredential{userSession.Wallet.DID: userSession.Wallet.Credentials},
 		)
 	}

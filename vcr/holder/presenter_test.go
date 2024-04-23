@@ -59,7 +59,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-			w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 			result, err := w.buildPresentation(ctx, &testDID, []vc.VerifiableCredential{testCredential}, PresentationOptions{})
 
@@ -73,7 +73,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-			w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 			result, err := w.buildPresentation(ctx, &testDID, []vc.VerifiableCredential{testCredential}, PresentationOptions{Format: JSONLDPresentationFormat})
 
@@ -106,7 +106,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-			w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 			result, err := w.buildPresentation(ctx, &testDID, []vc.VerifiableCredential{testCredential}, options)
 
@@ -129,7 +129,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
 
-			w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 			resultingPresentation, err := w.buildPresentation(ctx, &testDID, []vc.VerifiableCredential{testCredential, testCredential}, PresentationOptions{Format: JSONLDPresentationFormat})
 
@@ -145,7 +145,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-			w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 			result, err := w.buildPresentation(ctx, &testDID, []vc.VerifiableCredential{testCredential}, options)
 
@@ -166,7 +166,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
 
-			w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 			result, err := w.buildPresentation(ctx, &testDID, []vc.VerifiableCredential{testCredential, testCredential}, options)
 
@@ -197,7 +197,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-			w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 			result, err := w.buildPresentation(ctx, &testDID, []vc.VerifiableCredential{testCredential}, options)
 
@@ -224,7 +224,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 
 			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
 
-			w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 			resultingPresentation, err := w.buildPresentation(ctx, nil, []vc.VerifiableCredential{testCredential, testCredential}, options)
 
@@ -239,7 +239,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 
-			w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 			resultingPresentation, err := w.buildPresentation(ctx, nil, []vc.VerifiableCredential{testCredential, secondCredential}, options)
 
@@ -254,7 +254,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 
-			w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 			resultingPresentation, err := w.buildPresentation(ctx, nil, []vc.VerifiableCredential{testCredential, secondCredential}, options)
 
@@ -287,7 +287,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(key.KID()), key.Public(), nil)
 
-		w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 		vp, submission, err := w.buildSubmission(ctx, walletDID, credentials, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
@@ -312,7 +312,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(key.KID()), key.Public(), nil)
-		w := presenter{documentLoader: jsonldManager.DocumentLoader(), keyStore: keyStore, keyResolver: keyResolver}
+		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 		vp, submission, err := w.buildSubmission(ctx, walletDID, credentials, pe.PresentationDefinition{}, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
