@@ -158,7 +158,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier
 		if err != nil {
 			return nil, err
 		}
-		dpopHeader, err = c.DPoP(ctx, clientID, *request)
+		dpopHeader, err = c.dpop(ctx, clientID, *request)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create DPoP header: %w", err)
 		}
@@ -276,7 +276,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requestH
 		if err != nil {
 			return nil, err
 		}
-		dpopHeader, err = c.DPoP(ctx, requestHolder, *request)
+		dpopHeader, err = c.dpop(ctx, requestHolder, *request)
 		if err != nil {
 			return nil, fmt.Errorf("failed tocreate DPoP header: %w", err)
 		}
@@ -372,7 +372,7 @@ func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialE
 	return rsp, nil
 }
 
-func (c *OpenID4VPClient) DPoP(ctx context.Context, requester did.DID, request http.Request) (string, error) {
+func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request http.Request) (string, error) {
 	// find the key to sign the DPoP token with
 	keyID, _, err := c.keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
 	if err != nil {
@@ -380,15 +380,4 @@ func (c *OpenID4VPClient) DPoP(ctx context.Context, requester did.DID, request h
 	}
 	// create the DPoP token
 	return c.jwtSigner.NewDPoP(ctx, request, keyID.String(), nil)
-}
-
-func (c *OpenID4VPClient) DPoPProof(ctx context.Context, requester did.DID, request http.Request, accessToken string) (string, error) {
-	// find the key to sign the DPoP token with
-	keyID, _, err := c.keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
-	if err != nil {
-		return "", err
-	}
-
-	// create the DPoP token
-	return c.jwtSigner.NewDPoP(ctx, request, keyID.String(), &accessToken)
 }

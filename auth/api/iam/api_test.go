@@ -1031,11 +1031,16 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 		Body: &requestBody,
 		Did:  webDID.String(),
 	}
-
+	didDocument := did.Document{ID: holderDID}
+	vmId := did.MustParseDIDURL(webDID.String() + "#key1")
+	key := crypto.NewTestKey(vmId.String())
+	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, webDID, key.Public())
+	didDocument.AddAssertionMethod(vm)
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().DPoPProof(gomock.Any(), webDID, *request, accesstoken).Return("dpop", nil)
+		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
+		ctx.keyStore.EXPECT().NewDPoP(gomock.Any(), *request, vmId.String(), gomock.Any()).Return("dpop", nil)
 
 		res, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
 
@@ -1090,7 +1095,8 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	t.Run("proof error", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().DPoPProof(gomock.Any(), webDID, *request, accesstoken).Return("dpop", assert.AnError)
+		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
+		ctx.keyStore.EXPECT().NewDPoP(gomock.Any(), *request, vmId.String(), gomock.Any()).Return("dpop", assert.AnError)
 
 		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
 
@@ -1580,6 +1586,7 @@ type testCtx struct {
 	vcIssuer      *issuer.MockIssuer
 	vcVerifier    *verifier.MockVerifier
 	wallet        *holder.MockWallet
+	keyStore      *crypto.MockKeyStore
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -1598,6 +1605,7 @@ func newTestClient(t testing.TB) *testCtx {
 	mockVDR := vdr.NewMockVDR(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
 	mockWallet := holder.NewMockWallet(ctrl)
+	mockKeyStore := crypto.NewMockKeyStore(ctrl)
 
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
@@ -1619,12 +1627,14 @@ func newTestClient(t testing.TB) *testCtx {
 		iamClient:     iamClient,
 		vcr:           mockVCR,
 		wallet:        mockWallet,
+		keyStore:      mockKeyStore,
 		client: &Wrapper{
 			auth:          authnServices,
 			vdr:           mockVDR,
 			vcr:           mockVCR,
 			storageEngine: storageEngine,
 			policyBackend: policyInstance,
+			keyStore:      mockKeyStore,
 		},
 	}
 }

@@ -11,7 +11,6 @@ package iam
 
 import (
 	context "context"
-	http "net/http"
 	url "net/url"
 	reflect "reflect"
 
@@ -118,36 +117,6 @@ func (m *MockClient) CreateAuthorizationRequest(ctx context.Context, client, ser
 func (mr *MockClientMockRecorder) CreateAuthorizationRequest(ctx, client, server, modifier any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAuthorizationRequest", reflect.TypeOf((*MockClient)(nil).CreateAuthorizationRequest), ctx, client, server, modifier)
-}
-
-// DPoP mocks base method.
-func (m *MockClient) DPoP(ctx context.Context, requester did.DID, request http.Request) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DPoP", ctx, requester, request)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DPoP indicates an expected call of DPoP.
-func (mr *MockClientMockRecorder) DPoP(ctx, requester, request any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DPoP", reflect.TypeOf((*MockClient)(nil).DPoP), ctx, requester, request)
-}
-
-// DPoPProof mocks base method.
-func (m *MockClient) DPoPProof(ctx context.Context, requester did.DID, request http.Request, accessToken string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DPoPProof", ctx, requester, request, accessToken)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DPoPProof indicates an expected call of DPoPProof.
-func (mr *MockClientMockRecorder) DPoPProof(ctx, requester, request, accessToken any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DPoPProof", reflect.TypeOf((*MockClient)(nil).DPoPProof), ctx, requester, request, accessToken)
 }
 
 // OpenIdConfiguration mocks base method.

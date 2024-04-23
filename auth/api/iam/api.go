@@ -231,7 +231,7 @@ func (r Wrapper) CreateDPoPProof(ctx context.Context, request CreateDPoPProofReq
 	if err != nil {
 		return nil, core.InvalidInputError(err.Error())
 	}
-	dpop, err := r.auth.IAMClient().DPoPProof(ctx, *ownDID, *httpRequest, request.Body.Token)
+	dpop, err := r.DPoPProof(ctx, *ownDID, *httpRequest, request.Body.Token)
 	return CreateDPoPProof200JSONResponse{Dpop: dpop}, err
 }
 

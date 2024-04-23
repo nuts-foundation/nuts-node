@@ -24,7 +24,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	http2 "net/http"
 	"net/url"
 )
 
@@ -48,10 +47,6 @@ type Client interface {
 	// - nonce
 	// any of these params can be overridden by the RequestModifier.
 	CreateAuthorizationRequest(ctx context.Context, client did.DID, server did.DID, modifier RequestModifier) (*url.URL, error)
-	// DPoP creates a DPoP header for the given requestURI and requester.
-	DPoP(ctx context.Context, requester did.DID, request http2.Request) (string, error)
-	// DPoPProof creates a DPoP proof for the given requestURI and requester.
-	DPoPProof(ctx context.Context, requester did.DID, request http2.Request, accessToken string) (string, error)
 	// PostError posts an error to the verifier. If it fails, an error is returned.
 	PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (string, error)
 	// PostAuthorizationResponse posts the authorization response to the verifier. If it fails, an error is returned.

@@ -19,10 +19,26 @@
 package iam
 
 import (
+	"context"
+	"net/http"
+
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
-	"net/http"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
+
+func (r *Wrapper) DPoPProof(ctx context.Context, requester did.DID, request http.Request, accessToken string) (string, error) {
+	// find the key to sign the DPoP token with
+	keyResolver := resolver.DIDKeyResolver{r.vdr.Resolver()}
+	keyID, _, err := keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
+	if err != nil {
+		return "", err
+	}
+
+	// create the DPoP token
+	return r.keyStore.NewDPoP(ctx, request, keyID.String(), &accessToken)
+}
 
 func dpopFromRequest(httpRequest http.Request) (*dpop.DPoP, error) {
 	dpopHeader := httpRequest.Header.Get("DPoP")
