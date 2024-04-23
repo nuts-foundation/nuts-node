@@ -20,6 +20,7 @@ package signature
 
 import (
 	"context"
+	crypt "crypto"
 	"encoding/hex"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
@@ -120,10 +121,14 @@ func Test_detachedJWSHeaders(t *testing.T) {
 func TestJsonWebSignature2020_Sign(t *testing.T) {
 	t.Run("it returns the signing result", func(t *testing.T) {
 		doc := []byte("foo")
-		sig := JSONWebSignature2020{Signer: crypto.NewMemoryCryptoInstance()}
+		cryptoInstance := crypto.NewMemoryCryptoInstance()
+		const keyID = "did:nuts:123#abc"
+		cryptoInstance.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
+			return keyID, nil
+		})
+		sig := JSONWebSignature2020{Signer: cryptoInstance}
 
-		key := crypto.NewTestKey("did:nuts:123#abc")
-		result, err := sig.Sign(audit.TestContext(), doc, key)
+		result, err := sig.Sign(audit.TestContext(), doc, keyID)
 
 		require.NoError(t, err)
 		msg, err := jws.Parse(result)
@@ -134,7 +139,7 @@ func TestJsonWebSignature2020_Sign(t *testing.T) {
 			"alg":  jwa.ES256,
 			"b64":  false,
 			"crit": []string{"b64"},
-			"kid":  "did:nuts:123#abc",
+			"kid":  keyID,
 		}
 		actualHeaders, _ := msg.Signatures()[0].ProtectedHeaders().AsMap(context.Background())
 		assert.Equal(t, expectedHeaders, actualHeaders)

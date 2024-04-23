@@ -118,25 +118,21 @@ func (p presenter) buildPresentation(ctx context.Context, signerDID *did.DID, cr
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve assertion key for signing VP (did=%s): %w", *signerDID, err)
 	}
-	key, err := p.keyStore.Resolve(ctx, kid.String())
-	if err != nil {
-		return nil, fmt.Errorf("unable to resolve assertion key from key store for signing VP (did=%s): %w", *signerDID, err)
-	}
 
 	switch options.Format {
 	case JWTPresentationFormat:
-		return p.buildJWTPresentation(ctx, *signerDID, credentials, options, key)
+		return p.buildJWTPresentation(ctx, *signerDID, credentials, options, kid.String())
 	case "":
 		fallthrough
 	case JSONLDPresentationFormat:
-		return p.buildJSONLDPresentation(ctx, *signerDID, credentials, options, key)
+		return p.buildJSONLDPresentation(ctx, *signerDID, credentials, options, kid.String())
 	default:
 		return nil, fmt.Errorf("unsupported presentation proof format: %s", options.Format)
 	}
 }
 
 // buildJWTPresentation builds a JWT presentation according to https://www.w3.org/TR/vc-data-model/#json-web-token
-func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, key crypto.Key) (*vc.VerifiablePresentation, error) {
+func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, keyID string) (*vc.VerifiablePresentation, error) {
 	headers := map[string]interface{}{
 		jws.TypeKey: "JWT",
 	}
@@ -168,14 +164,14 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 	for claimName, value := range options.ProofOptions.AdditionalProperties {
 		claims[claimName] = value
 	}
-	token, err := p.keyStore.SignJWT(ctx, claims, headers, key)
+	token, err := p.keyStore.SignJWT(ctx, claims, headers, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign JWT presentation: %w", err)
 	}
 	return vc.ParseVerifiablePresentation(token)
 }
 
-func (p presenter) buildJSONLDPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, key crypto.Key) (*vc.VerifiablePresentation, error) {
+func (p presenter) buildJSONLDPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, keyID string) (*vc.VerifiablePresentation, error) {
 	ldContext := []ssi.URI{VerifiableCredentialLDContextV1, signature.JSONWebSignature2020Context}
 	ldContext = append(ldContext, options.AdditionalContexts...)
 	types := []ssi.URI{VerifiablePresentationLDType}
@@ -204,7 +200,7 @@ func (p presenter) buildJSONLDPresentation(ctx context.Context, subjectDID did.D
 
 	ldProof := proof.NewLDProof(options.ProofOptions)
 	signingResult, err := ldProof.
-		Sign(ctx, document, signature.JSONWebSignature2020{ContextLoader: p.documentLoader, Signer: p.keyStore}, key)
+		Sign(ctx, document, signature.JSONWebSignature2020{ContextLoader: p.documentLoader, Signer: p.keyStore}, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign VP with LD proof: %w", err)
 	}

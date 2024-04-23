@@ -296,19 +296,23 @@ func Test_issuer_Issue(t *testing.T) {
 	}
 	ctx := audit.TestContext()
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
+	cryptoInstance := crypto.NewMemoryCryptoInstance()
+	issuerKey, _ := cryptoInstance.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
+		return issuerKeyID, nil
+	})
 
 	t.Run("ok - unpublished", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(issuerKey, nil)
 		mockStore := NewMockStore(ctrl)
 		mockStore.EXPECT().StoreCredential(gomock.Any())
 		sut := issuer{
 			keyResolver: keyResolverMock, store: mockStore,
 			jsonldManager: jsonldManager, trustConfig: trustConfig,
-			keyStore: crypto.NewMemoryCryptoInstance(),
+			keyStore: cryptoInstance,
 		}
 
 		result, err := sut.Issue(ctx, template, CredentialOptions{
@@ -349,7 +353,7 @@ func Test_issuer_Issue(t *testing.T) {
 			openidHandler := NewMockOpenIDHandler(ctrl)
 			openidHandler.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier).Return(errors.New("failed"))
 			keyResolver := NewMockkeyResolver(ctrl)
-			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
+			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(issuerKey, nil)
 			store := NewMockStore(ctrl)
 			store.EXPECT().StoreCredential(gomock.Any())
 			sut := issuer{
@@ -357,7 +361,7 @@ func Test_issuer_Issue(t *testing.T) {
 				store:         store,
 				jsonldManager: jsonldManager,
 				trustConfig:   trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
-				keyStore:      crypto.NewMemoryCryptoInstance(),
+				keyStore:      cryptoInstance,
 				openidHandlerFn: func(_ context.Context, id did.DID) (OpenIDHandler, error) {
 					if id.Equals(issuerDID) {
 						return openidHandler, nil
@@ -381,7 +385,7 @@ func Test_issuer_Issue(t *testing.T) {
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
 			keyResolver := NewMockkeyResolver(ctrl)
-			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
+			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(issuerKey, nil)
 			store := NewMockStore(ctrl)
 			store.EXPECT().StoreCredential(gomock.Any())
 			sut := issuer{
@@ -389,7 +393,7 @@ func Test_issuer_Issue(t *testing.T) {
 				store:            store,
 				jsonldManager:    jsonldManager,
 				trustConfig:      trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
-				keyStore:         crypto.NewMemoryCryptoInstance(),
+				keyStore:         cryptoInstance,
 				networkPublisher: publisher,
 			}
 
@@ -408,7 +412,7 @@ func Test_issuer_Issue(t *testing.T) {
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
 			keyResolver := NewMockkeyResolver(ctrl)
-			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
+			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(issuerKey, nil)
 			store := NewMockStore(ctrl)
 			store.EXPECT().StoreCredential(gomock.Any())
 			sut := issuer{
@@ -416,7 +420,7 @@ func Test_issuer_Issue(t *testing.T) {
 				store:            store,
 				jsonldManager:    jsonldManager,
 				trustConfig:      trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
-				keyStore:         crypto.NewMemoryCryptoInstance(),
+				keyStore:         cryptoInstance,
 				walletResolver:   walletResolver,
 				networkPublisher: publisher,
 			}
@@ -438,7 +442,7 @@ func Test_issuer_Issue(t *testing.T) {
 			vcrStore := vcr.NewMockWriter(ctrl)
 			vcrStore.EXPECT().StoreCredential(gomock.Any(), gomock.Any())
 			keyResolver := NewMockkeyResolver(ctrl)
-			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
+			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(issuerKey, nil)
 			store := NewMockStore(ctrl)
 			store.EXPECT().StoreCredential(gomock.Any())
 			sut := issuer{
@@ -446,7 +450,7 @@ func Test_issuer_Issue(t *testing.T) {
 				store:          store,
 				jsonldManager:  jsonldManager,
 				trustConfig:    trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
-				keyStore:       crypto.NewMemoryCryptoInstance(),
+				keyStore:       cryptoInstance,
 				walletResolver: walletResolver,
 				openidHandlerFn: func(ctx context.Context, id did.DID) (OpenIDHandler, error) {
 					if id.Equals(issuerDID) {
@@ -470,7 +474,7 @@ func Test_issuer_Issue(t *testing.T) {
 	t.Run("error - from used services", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil).AnyTimes()
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(issuerKey, nil).AnyTimes()
 		t.Run("could not store credential", func(t *testing.T) {
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			mockStore := NewMockStore(ctrl)
@@ -478,7 +482,7 @@ func Test_issuer_Issue(t *testing.T) {
 			sut := issuer{
 				keyResolver: keyResolverMock, store: mockStore,
 				jsonldManager: jsonldManager, trustConfig: trustConfig,
-				keyStore: crypto.NewMemoryCryptoInstance(),
+				keyStore: cryptoInstance,
 			}
 
 			result, err := sut.Issue(ctx, template, CredentialOptions{
@@ -497,7 +501,7 @@ func Test_issuer_Issue(t *testing.T) {
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(nil)
 			sut := issuer{keyResolver: keyResolverMock, store: mockStore, networkPublisher: mockPublisher,
 				jsonldManager: jsonldManager, trustConfig: trustConfig,
-				keyStore: crypto.NewMemoryCryptoInstance(),
+				keyStore: cryptoInstance,
 			}
 
 			result, err := sut.Issue(ctx, template, CredentialOptions{
@@ -527,7 +531,7 @@ func Test_issuer_Issue(t *testing.T) {
 
 		t.Run("validator fails (undefined fields)", func(t *testing.T) {
 			mockStore := NewMockStore(ctrl)
-			sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
+			sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, keyStore: cryptoInstance}
 
 			invalidCred := template
 			invalidCred.CredentialSubject = []interface{}{
@@ -558,12 +562,16 @@ func Test_issuer_buildRevocation(t *testing.T) {
 		kid := "did:nuts:123#abc"
 
 		issuerDID, _ := did.ParseDID("did:nuts:123")
+		cryptoInstance := crypto.NewMemoryCryptoInstance()
+		key, _ := cryptoInstance.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
+			return kid, nil
+		})
 		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(crypto.NewTestKey(kid), nil)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(key, nil)
 
 		credentialID := ssi.MustParseURI("did:nuts:123#" + uuid.NewString())
 
-		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
+		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: cryptoInstance}
 		credentialToRevoke := vc.VerifiableCredential{
 			Issuer: issuerDID.URI(),
 			ID:     &credentialID,
@@ -634,7 +642,10 @@ func Test_issuer_revokeNetwork(t *testing.T) {
 	issuerDID := did.MustParseDID(issuerID)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	kid := ssi.MustParseURI(issuerID + "#123")
-	key := crypto.NewTestKey(kid.String())
+	cryptoInstance := crypto.NewMemoryCryptoInstance()
+	key, _ := cryptoInstance.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
+		return kid.String(), nil
+	})
 	ctx := audit.TestContext()
 
 	t.Run("for a known credential", func(t *testing.T) {
@@ -663,11 +674,11 @@ func Test_issuer_revokeNetwork(t *testing.T) {
 				keyResolver:      keyResolverWithKey(ctrl),
 				jsonldManager:    jsonldManager,
 				networkPublisher: publisher,
-				keyStore:         crypto.NewMemoryCryptoInstance(),
+				keyStore:         cryptoInstance,
 			}
 
 			revocation, err := sut.Revoke(ctx, credentialURI)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotNil(t, revocation)
 			assert.Equal(t, issuerURI, revocation.Issuer)
 			assert.Equal(t, credentialURI, revocation.Subject)
@@ -738,7 +749,7 @@ func Test_issuer_revokeNetwork(t *testing.T) {
 				keyResolver:      keyResolverWithKey(ctrl),
 				jsonldManager:    jsonldManager,
 				networkPublisher: publisher,
-				keyStore:         crypto.NewMemoryCryptoInstance(),
+				keyStore:         cryptoInstance,
 			}
 
 			revocation, err := sut.Revoke(ctx, credentialURI)
@@ -762,7 +773,7 @@ func Test_issuer_revokeNetwork(t *testing.T) {
 				keyResolver:      keyResolverWithKey(ctrl),
 				jsonldManager:    jsonldManager,
 				networkPublisher: publisher,
-				keyStore:         crypto.NewMemoryCryptoInstance(),
+				keyStore:         cryptoInstance,
 			}
 
 			_, err := sut.Revoke(ctx, credentialURI)

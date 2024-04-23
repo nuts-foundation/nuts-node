@@ -93,5 +93,5 @@ The full API definition can be downloaded `here <../../_static/policy/v1.yaml>`_
 .. note::
 
 	Using a policy backend relies on an architecture where the system checking the access token is responsible for enforcing access.
-    It does not have to use the ``/authorized`` endpoint and can use a mechanism of its choice to check the permissions.
+	It does not have to use the ``/authorized`` endpoint and can use a mechanism of its choice to check the permissions.
 	The ``/authorized`` endpoint does give an idea on the information that is needed to check the permissions.
