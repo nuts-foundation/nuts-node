@@ -1,3 +1,5 @@
+//go:build e2e_tests
+
 /*
  * Copyright (C) 2024 Nuts community
  *
@@ -16,15 +18,13 @@
  *
  */
 
-//go:build e2e_tests
-
 package openid4vp_employeecredential
 
 import (
 	"context"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/auth/api/iam"
+	"github.com/nuts-foundation/nuts-node/e2e-tests/browser/client/iam"
 )
 
 type OpenID4VP struct {

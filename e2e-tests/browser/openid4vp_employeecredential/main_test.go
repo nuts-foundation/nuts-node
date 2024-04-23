@@ -23,9 +23,9 @@ package openid4vp_employeecredential
 import (
 	"github.com/chromedp/chromedp"
 	"github.com/nuts-foundation/go-did/did"
-	iamAPI "github.com/nuts-foundation/nuts-node/auth/api/iam"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/e2e-tests/browser"
+	iamAPI "github.com/nuts-foundation/nuts-node/e2e-tests/browser/client/iam"
 	"github.com/nuts-foundation/nuts-node/e2e-tests/browser/rfc019_selfsigned/apps"
 	didAPI "github.com/nuts-foundation/nuts-node/vdr/api/v2"
 	"github.com/stretchr/testify/require"

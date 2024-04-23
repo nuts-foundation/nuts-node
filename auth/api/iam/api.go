@@ -326,9 +326,8 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 	// if the request param is present, JAR (RFC9101, JWT Authorization Request) is used
 	// we parse the request and validate
-	requestObject := params
 	if rawToken := params.get(oauth.RequestParam); rawToken != "" {
-		requestObject, err = r.validateJARRequest(ctx, rawToken, clientId)
+		params, err = r.validateJARRequest(ctx, rawToken, clientId)
 		if err != nil {
 			return nil, err
 		}
@@ -341,7 +340,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	}
 
 	// todo: store session in database? Isn't session specific for a particular flow?
-	session := createSession(requestObject, *ownDID)
+	session := createSession(params, *ownDID)
 
 	switch session.ResponseType {
 	case responseTypeCode:
@@ -359,7 +358,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		clientId := session.ClientID
 		if strings.HasPrefix(clientId, "did:web:") {
 			// client is a cloud wallet with user
-			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, requestObject)
+			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, params)
 		} else {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
@@ -369,14 +368,14 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	case responseTypeVPToken:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
-		// non-spec: wallet_owner_type is an unsigned parameter that hints whether the request targets an organization or user wallet.
-		// Requests to user wallets can be rendered as QR-code.
-		walletOwnerType := pe.WalletOwnerType(params.get("wallet_owner_type"))
-		if walletOwnerType != pe.WalletOwnerOrganization && walletOwnerType != pe.WalletOwnerUser {
-			// default to organization
-			walletOwnerType = pe.WalletOwnerOrganization
+		// non-spec: if the scheme is openid4vp (URL starts with openid4vp:), the OpenID4VP request should be handled by a user wallet, rather than an organization wallet.
+		//           Requests to user wallets can then be rendered as QR-code (or use a cloud wallet).
+		//           Note that it can't be called from the outside, but only by internal dispatch (since Echo doesn't handle openid4vp:, obviously).
+		walletOwnerType := pe.WalletOwnerOrganization
+		if strings.HasPrefix(httpRequest.URL.String(), "openid4vp:") {
+			walletOwnerType = pe.WalletOwnerUser
 		}
-		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, requestObject, walletOwnerType)
+		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, params, walletOwnerType)
 	default:
 		// TODO: This should be a redirect?
 		redirectURI, _ := url.Parse(session.RedirectURI)

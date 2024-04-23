@@ -1,8 +1,8 @@
 url: https://nodeA
-datadir: /opt/nuts/data
 strictmode: false
 verbosity: debug
 http:
+  log: metadata-and-body
   internal:
     address: :8081
 auth:

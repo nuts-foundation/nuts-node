@@ -218,6 +218,13 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 			RedirectURI:   session.redirectURI(),
 		}
 	}
+	if *walletOwnerType == pe.WalletOwnerUser {
+		// User wallet, make an openid4vp:// request URL
+		var newRequestURL url.URL
+		newRequestURL.Scheme = "openid4vp"
+		newRequestURL.RawQuery = authServerURL.RawQuery
+		authServerURL = &newRequestURL
+	}
 
 	// use nonce and state to store authorization request in session store
 	if err = r.oauthNonceStore().Put(nonce, state); err != nil {
@@ -343,26 +350,23 @@ func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, walletDID did.DID,
 	// Redirect URI starting with openid4vp: is a signal from the OpenID4VP verifier
 	// that it requires another Verifiable Presentation, but this time from a user wallet.
 	if strings.HasPrefix(redirectURI, "openid4vp:") {
-		// Create a new redirect URL to the local OpenID4VP wallet's authorization endpoint that includes request parameters,
-		// but add a query parameter to signal that the verifier requests the presentation from a user wallet.
-		metadata, err := r.oauthAuthorizationServerMetadata(ctx, walletDID.String())
+		parsedRedirectURI, err := url.Parse(redirectURI)
 		if err != nil {
-			// not possible
+			return nil, fmt.Errorf("verifier returned an invalid redirect URI: %w", err)
+		}
+		// Dispatch a new HTTP request to the local OpenID4VP wallet's authorization endpoint that includes request parameters,
+		// but with openid4vp: as scheme.
+		originalRequest := ctx.Value(httpRequestContextKey).(*http.Request)
+		dispatchHttpRequest := *originalRequest
+		dispatchHttpRequest.URL = parsedRedirectURI
+		ctx = context.WithValue(ctx, httpRequestContextKey, &dispatchHttpRequest)
+		response, err := r.HandleAuthorizeRequest(ctx, HandleAuthorizeRequestRequestObject{
+			Did: walletDID.String(),
+		})
+		if err != nil {
 			return nil, err
 		}
-		requestParameters, err := url.Parse(redirectURI)
-		if err != nil {
-			return nil, err
-		}
-		newRedirectURI, err := url.Parse(metadata.AuthorizationEndpoint)
-		if err != nil {
-			// not possible
-			return nil, err
-		}
-		params := requestParameters.Query()
-		params.Set("wallet_owner_type", string(pe.WalletOwnerUser))
-		newRedirectURI.RawQuery = params.Encode()
-		redirectURI = newRedirectURI.String()
+		redirectURI = response.(HandleAuthorizeRequest302Response).Headers.Location
 	}
 	return HandleAuthorizeRequest302Response{
 		HandleAuthorizeRequest302ResponseHeaders{
