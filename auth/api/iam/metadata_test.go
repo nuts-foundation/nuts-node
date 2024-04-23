@@ -21,6 +21,7 @@ package iam
 import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"net/url"
@@ -33,7 +34,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 	expected := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      oauth2Base.String() + "/authorize",
 		ClientIdSchemesSupported:                   []string{"did"},
-		DPoPSigningAlgValuesSupported:              []string{"ES256", "ES384", "ES512", "PS256", "PS384", "PS512"},
+		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
 		Issuer:                                     identity.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,

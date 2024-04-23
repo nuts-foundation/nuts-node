@@ -34,32 +34,10 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/mr-tron/base58"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 )
-
-// ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
-var ErrUnsupportedSigningKey = errors.New("signing key algorithm not supported")
-
-var supportedAlgorithms = []jwa.SignatureAlgorithm{jwa.PS256, jwa.PS384, jwa.PS512, jwa.ES256, jwa.EdDSA, jwa.ES384, jwa.ES512}
-
-const defaultRsaEncryptionAlgorithm = jwa.RSA_OAEP_256
-const defaultEcEncryptionAlgorithm = jwa.ECDH_ES_A256KW
-const defaultContentEncryptionAlgorithm = jwa.A256GCM
-
-func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
-	for _, curr := range supportedAlgorithms {
-		if curr == alg {
-			return true
-		}
-	}
-	return false
-}
-
-func AddSupportedAlgorithm(alg jwa.SignatureAlgorithm) bool {
-	supportedAlgorithms = append(supportedAlgorithms, alg)
-	return true
-}
 
 // SignJWT creates a JWT from the given claims and signs it with the given key.
 func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
@@ -201,7 +179,7 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 		return nil, err
 	}
 
-	if !isAlgorithmSupported(alg) {
+	if !jwx.IsAlgorithmSupported(alg) {
 		return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
 	}
 
@@ -228,7 +206,7 @@ func ParseJWS(token []byte, f PublicKeyFunc) (payload []byte, err error) {
 		signature := signatures[i]
 		// Get and check the algorithm
 		alg := signature.ProtectedHeaders().Algorithm()
-		if !isAlgorithmSupported(alg) {
+		if !jwx.IsAlgorithmSupported(alg) {
 			return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
 		}
 		// Get the verifier for the algorithm
@@ -323,7 +301,7 @@ func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicK
 	}
 
 	// Figure out the KeyEncryptionAlgorithm, give prevalence to the headers
-	enc := defaultContentEncryptionAlgorithm
+	enc := jwx.DefaultContentEncryptionAlgorithm
 	if len(headers.ContentEncryption().String()) > 0 {
 		enc = headers.ContentEncryption()
 	}
@@ -386,7 +364,7 @@ func ecAlgUsingPublicKey(key ecdsa.PublicKey) (alg jwa.SignatureAlgorithm, err e
 	case 521:
 		alg = jwa.ES512
 	default:
-		err = ErrUnsupportedSigningKey
+		err = jwx.ErrUnsupportedSigningKey
 	}
 	return
 }
@@ -444,11 +422,11 @@ func encryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, erro
 
 	switch ptr.(type) {
 	case *crypto.PublicKey:
-		return defaultEcEncryptionAlgorithm, nil
+		return jwx.DefaultEcEncryptionAlgorithm, nil
 	case *rsa.PublicKey:
-		return defaultRsaEncryptionAlgorithm, nil
+		return jwx.DefaultRsaEncryptionAlgorithm, nil
 	case *ecdsa.PublicKey:
-		return defaultEcEncryptionAlgorithm, nil
+		return jwx.DefaultEcEncryptionAlgorithm, nil
 	default:
 		return "", fmt.Errorf("could not determine signature algorithm for key type '%T'", key)
 	}

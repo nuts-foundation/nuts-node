@@ -23,7 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	http2 "net/http"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -35,7 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/http"
+	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -84,7 +84,7 @@ func (c *OpenID4VPClient) PostError(ctx context.Context, auth2Error oauth.OAuth2
 	}
 	validURL := *responseURL
 	if verifierClientState != "" {
-		validURL = http.AddQueryParams(*responseURL, map[string]string{
+		validURL = nutsHttp.AddQueryParams(*responseURL, map[string]string{
 			oauth.StateParam: verifierClientState,
 		})
 	}
@@ -154,7 +154,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier
 	var dpopHeader string
 	if useDPoP {
 		// create DPoP header
-		request, err := http2.NewRequestWithContext(ctx, http2.MethodPost, metadata.TokenEndpoint, nil)
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, metadata.TokenEndpoint, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -212,7 +212,7 @@ func (c *OpenID4VPClient) CreateAuthorizationRequest(ctx context.Context, client
 		if err != nil {
 			return nil, fmt.Errorf("failed to sign authorization request: %w", err)
 		}
-		redirectURL := http.AddQueryParams(*endpoint, map[string]string{
+		redirectURL := nutsHttp.AddQueryParams(*endpoint, map[string]string{
 			oauth.ClientIDParam: client.String(),
 			oauth.RequestParam:  token,
 		})
@@ -227,7 +227,7 @@ func (c *OpenID4VPClient) CreateAuthorizationRequest(ctx context.Context, client
 	for k, v := range params {
 		stringParams[k] = fmt.Sprintf("%v", v)
 	}
-	redirectURL := http.AddQueryParams(*endpoint, stringParams)
+	redirectURL := nutsHttp.AddQueryParams(*endpoint, stringParams)
 	return &redirectURL, nil
 }
 
@@ -243,7 +243,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requestH
 	if err != nil {
 		return nil, err
 	}
-	presentationDefinitionURL := http.AddQueryParams(*parsedURL, map[string]string{
+	presentationDefinitionURL := nutsHttp.AddQueryParams(*parsedURL, map[string]string{
 		"scope": scopes,
 	})
 	presentationDefinition, err := c.PresentationDefinition(ctx, presentationDefinitionURL.String())
@@ -272,7 +272,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requestH
 	// create DPoP header
 	var dpopHeader string
 	if useDPoP {
-		request, err := http2.NewRequestWithContext(ctx, http2.MethodPost, metadata.TokenEndpoint, nil)
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, metadata.TokenEndpoint, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -372,7 +372,7 @@ func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialE
 	return rsp, nil
 }
 
-func (c *OpenID4VPClient) DPoP(ctx context.Context, requester did.DID, request http2.Request) (string, error) {
+func (c *OpenID4VPClient) DPoP(ctx context.Context, requester did.DID, request http.Request) (string, error) {
 	// find the key to sign the DPoP token with
 	keyID, _, err := c.keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
 	if err != nil {
@@ -382,7 +382,7 @@ func (c *OpenID4VPClient) DPoP(ctx context.Context, requester did.DID, request h
 	return c.jwtSigner.NewDPoP(ctx, request, keyID.String(), nil)
 }
 
-func (c *OpenID4VPClient) DPoPProof(ctx context.Context, requester did.DID, request http2.Request, accessToken string) (string, error) {
+func (c *OpenID4VPClient) DPoPProof(ctx context.Context, requester did.DID, request http.Request, accessToken string) (string, error) {
 	// find the key to sign the DPoP token with
 	keyID, _, err := c.keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
 	if err != nil {

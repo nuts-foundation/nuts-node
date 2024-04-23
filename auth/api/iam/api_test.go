@@ -1023,9 +1023,9 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	accesstoken := "token"
 	request, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.com", nil)
 	requestBody := CreateDPoPProofJSONRequestBody{
-		Method: "GET",
-		Token:  accesstoken,
-		Url:    "https://example.com",
+		Htm:   "GET",
+		Token: accesstoken,
+		Htu:   "https://example.com",
 	}
 	requestObject := CreateDPoPProofRequestObject{
 		Body: &requestBody,
@@ -1044,8 +1044,8 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	})
 	t.Run("missing method", func(t *testing.T) {
 		ctx := newTestClient(t)
-		requestBody.Method = ""
-		defer (func() { requestBody.Method = "GET" })()
+		requestBody.Htm = ""
+		defer (func() { requestBody.Htm = "GET" })()
 
 		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
 
@@ -1054,8 +1054,8 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	t.Run("invalid method", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		requestBody.Method = "\\"
-		defer (func() { requestBody.Method = "GET" })()
+		requestBody.Htm = "\\"
+		defer (func() { requestBody.Htm = "GET" })()
 
 		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
 
@@ -1072,8 +1072,8 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	})
 	t.Run("missing url", func(t *testing.T) {
 		ctx := newTestClient(t)
-		requestBody.Url = ""
-		defer (func() { requestBody.Url = "https://example.com" })()
+		requestBody.Htu = ""
+		defer (func() { requestBody.Htu = "https://example.com" })()
 
 		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
 

@@ -33,14 +33,14 @@ const (
 
 // DPoPRequest defines model for DPoPRequest.
 type DPoPRequest struct {
-	// Method The HTTP method for which the DPoP proof is requested.
-	Method string `json:"method"`
+	// Htm The HTTP method for which the DPoP proof is requested.
+	Htm string `json:"htm"`
+
+	// Htu The URL for which the DPoP proof is requested. Query params and fragments are ignored during validation.
+	Htu string `json:"htu"`
 
 	// Token The access token for which the DPoP proof is requested.
 	Token string `json:"token"`
-
-	// Url The URL for which the DPoP proof is requested.
-	Url string `json:"url"`
 }
 
 // DPoPResponse defines model for DPoPResponse.
@@ -57,7 +57,7 @@ type DPoPValidateRequest struct {
 	// Method The HTTP method against which the DPoP proof is validated.
 	Method string `json:"method"`
 
-	// Thumbprint The thumbprint of the public key used to sign the DPoP proof. Base64url encoded.
+	// Thumbprint The thumbprint of the public key used to sign the DPoP proof. Base64url encoded, no padding.
 	Thumbprint string `json:"thumbprint"`
 
 	// Token The access token against which the DPoP proof is validated.
@@ -544,7 +544,7 @@ type ServerInterface interface {
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx echo.Context, sessionID string) error
-	// Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resources server, this is a convenience API.
+	// Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resource server, this is a convenience API.
 	// (POST /internal/auth/v2/dpop_validate)
 	ValidateDPoPProof(ctx echo.Context) error
 	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
@@ -1688,7 +1688,7 @@ type StrictServerInterface interface {
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
-	// Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resources server, this is a convenience API.
+	// Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resource server, this is a convenience API.
 	// (POST /internal/auth/v2/dpop_validate)
 	ValidateDPoPProof(ctx context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error)
 	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.

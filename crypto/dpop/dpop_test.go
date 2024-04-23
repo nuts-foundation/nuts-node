@@ -69,7 +69,6 @@ func TestDPoP_Sign(t *testing.T) {
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	jwkKey, _ := jwk.FromRaw(keyPair)
 	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256)
-	_ = jwkKey.Set(jwk.KeyIDKey, "kid")
 	publicKey, _ := jwkKey.PublicKey()
 	request, _ := http.NewRequest("POST", "https://server.example.com/token", nil)
 
@@ -102,7 +101,6 @@ func TestParseDPoP(t *testing.T) {
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	jwkKey, _ := jwk.FromRaw(keyPair)
 	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256)
-	_ = jwkKey.Set(jwk.KeyIDKey, "kid")
 	pkey, _ := jwkKey.PublicKey()
 	request, _ := http.NewRequest("GET", "https://server.example.com/token", nil)
 

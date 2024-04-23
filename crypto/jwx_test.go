@@ -29,6 +29,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"testing"
 	"time"
 
@@ -257,7 +258,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(context.Background(), key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(defaultEcEncryptionAlgorithm, privateKey))
+		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwx.DefaultEcEncryptionAlgorithm, privateKey))
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -297,7 +298,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(context.Background(), key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(defaultEcEncryptionAlgorithm, privateKey))
+		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwx.DefaultEcEncryptionAlgorithm, privateKey))
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -483,9 +484,9 @@ func TestCrypto_convertHeaders(t *testing.T) {
 }
 
 func Test_isAlgorithmSupported(t *testing.T) {
-	assert.True(t, isAlgorithmSupported(jwa.PS256))
-	assert.False(t, isAlgorithmSupported(jwa.RS256))
-	assert.False(t, isAlgorithmSupported(""))
+	assert.True(t, jwx.IsAlgorithmSupported(jwa.PS256))
+	assert.False(t, jwx.IsAlgorithmSupported(jwa.RS256))
+	assert.False(t, jwx.IsAlgorithmSupported(""))
 }
 
 func TestSignatureAlgorithm(t *testing.T) {
@@ -505,7 +506,7 @@ func TestSignatureAlgorithm(t *testing.T) {
 		ecKey224, _ := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
 		_, err := SignatureAlgorithm(ecKey224)
 
-		assert.Equal(t, ErrUnsupportedSigningKey, err)
+		assert.Equal(t, jwx.ErrUnsupportedSigningKey, err)
 	})
 
 	tests := []struct {

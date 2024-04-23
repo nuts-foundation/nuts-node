@@ -55,7 +55,7 @@ paths:
       summary: Used by to request access- or refresh tokens.
       description: | 
         Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint.
-        Requires the use of PKCE as specified by https://datatracker.ietf.org/doc/html/rfc7636 and DPoP as specified by https://datatracker.ietf.org/doc/html/rfc9449.
+        Requires the use of PKCE as specified by https://datatracker.ietf.org/doc/html/rfc7636 and optionally DPoP as specified by https://datatracker.ietf.org/doc/html/rfc9449.
       operationId: handleTokenRequest
       tags:
         - oauth2
@@ -552,7 +552,7 @@ paths:
   /internal/auth/v2/dpop_validate:
     post:
       operationId: validateDPoPProof
-      summary: Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resources server, this is a convenience API.
+      summary: Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resource server, this is a convenience API.
       tags:
         - oauth2
       requestBody:
@@ -742,11 +742,11 @@ components:
     DPoPRequest:
       type: object
       required:
-        - method
+        - htm
         - token
-        - url
+        - htu
       properties:
-        method:
+        htm:
           type: string
           description: The HTTP method for which the DPoP proof is requested.
           example: "POST"
@@ -754,9 +754,9 @@ components:
           type: string
           description: The access token for which the DPoP proof is requested.
           example: "eyJhbGciOi"
-        url:
+        htu:
           type: string
-          description: The URL for which the DPoP proof is requested.
+          description: The URL for which the DPoP proof is requested. Query params and fragments are ignored during validation.
           example: "https://example.com/resource"
     DPoPResponse:
       type: object
@@ -785,7 +785,7 @@ components:
           example: "POST"
         thumbprint:
           type: string
-          description: The thumbprint of the public key used to sign the DPoP proof. Base64url encoded.
+          description: The thumbprint of the public key used to sign the DPoP proof. Base64url encoded, no padding.
           example: "jlkhnp87453slfhansdhf"
         token:
           type: string
@@ -793,7 +793,7 @@ components:
           example: "eyJhbGciOi"
         url:
           type: string
-          description: The URL against which the DPoP proof is validated.
+          description: The URL against which the DPoP proof is validated. Query params and fragments are ignored during validation.
           example: "https://example.com/resource"
     DPoPValidateResponse:
       type: object

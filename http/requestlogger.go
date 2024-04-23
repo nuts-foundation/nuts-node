@@ -43,13 +43,16 @@ func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) e
 				status = core.GetHTTPStatusCode(values.Error, c)
 			}
 
-			logger.WithFields(logrus.Fields{
+			fields := logrus.Fields{
 				"remote_ip": values.RemoteIP,
 				"method":    values.Method,
 				"uri":       values.URI,
-				"headers":   values.Headers,
 				"status":    status,
-			}).Info("HTTP request")
+			}
+			if logger.Level >= logrus.DebugLevel {
+				fields["headers"] = values.Headers
+			}
+			logger.WithFields(fields).Info("HTTP request")
 
 			return nil
 		},

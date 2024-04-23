@@ -21,7 +21,7 @@ package iam
 import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"net/url"
 	"strings"
 )
@@ -30,7 +30,7 @@ func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.
 	return oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      oauth2BaseURL.JoinPath("authorize").String(),
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
-		DPoPSigningAlgValuesSupported:              dpop.SigningAlgValuesSupported,
+		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        grantTypesSupported,
 		Issuer:                                     identity.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,

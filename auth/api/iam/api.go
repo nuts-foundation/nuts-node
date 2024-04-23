@@ -210,10 +210,10 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 
 func (r Wrapper) CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error) {
 	// check method and url
-	if request.Body.Method == "" {
+	if request.Body.Htm == "" {
 		return nil, core.InvalidInputError("missing method")
 	}
-	if request.Body.Url == "" {
+	if request.Body.Htu == "" {
 		return nil, core.InvalidInputError("missing url")
 	}
 	// check access token status
@@ -227,7 +227,7 @@ func (r Wrapper) CreateDPoPProof(ctx context.Context, request CreateDPoPProofReq
 		return nil, err
 	}
 	// create new DPoP header
-	httpRequest, err := http.NewRequest(request.Body.Method, request.Body.Url, nil)
+	httpRequest, err := http.NewRequest(request.Body.Htm, request.Body.Htu, nil)
 	if err != nil {
 		return nil, core.InvalidInputError(err.Error())
 	}

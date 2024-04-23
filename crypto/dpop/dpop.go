@@ -38,6 +38,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
 
 const (
@@ -53,8 +54,6 @@ const (
 // jti's are stored to prevent replay attacks and should be unique.
 // Allowing too long jti's could lead to a memory exhaustion attack.
 const maxJtiLength = 256
-
-var SigningAlgValuesSupported = []string{"ES256", "ES384", "ES512", "PS256", "PS384", "PS512"}
 
 // DPoP represents a DPoP token used for internal processing
 type DPoP struct {
@@ -93,7 +92,7 @@ func generateID() string {
 	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
-// Sign signs the DPoP token with the given key
+// Sign the DPoP token with the given key
 // It also adds the jwk and alg header
 func (t *DPoP) Sign(key jwk.Key) (string, error) {
 	if t.raw != "" {
@@ -136,7 +135,7 @@ func Parse(s string) (*DPoP, error) {
 		return nil, fmt.Errorf("%w: invalid number of signatures", ErrInvalidDPoP)
 	}
 	headers := message.Signatures()[0].ProtectedHeaders()
-	if !slices.Contains(SigningAlgValuesSupported, headers.Algorithm().String()) {
+	if !slices.Contains(jwx.SupportedAlgorithms, headers.Algorithm()) {
 		return nil, fmt.Errorf("%w: invalid alg: %s", ErrInvalidDPoP, headers.Algorithm())
 	}
 	if headers.Type() != "dpop+jwt" {

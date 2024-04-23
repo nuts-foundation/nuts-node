@@ -27,7 +27,7 @@ For the authorization code flow, the Nuts node implements the following:
 - JAR (JWT Secured Authorization Request) for both the initial authorization request as well as the OpenID4VP authorization request.
 - PKCE (Proof Key for Code Exchange) for the authorization code flow. The call of the initial authorization request is linked to the token request.
 - DPoP (Demonstrating Proof of Possession) for the token request. Each resources request will require a new DPoP Proof header.
-  The resources server is also required to check this header in an additional step after the token introspection.
+  The resource server is also required to check this header in an additional step after the token introspection.
 - OpenID4VP for providing the VP token to the authorization server.
 
 Both JAR and PKCE are mandatory. DPoP is optional, usage is determined by the client.
@@ -56,3 +56,6 @@ If enabled the client will also need to call the Nuts node to create a new DPop 
 A resources server must check the type of access token used to request data. If a DPoP token is used, the resource server must verify the DPoP Proof using the hash of the public key from the introspection result.
 The Nuts node provides a convenience API to do this for you.
 Some of the calls to the Nuts node are required because it handles key material for the DPoP Proof. The keys used for the DPoP headers are taken from the DID Document of a tenant.
+More information can be found on the `API documentation <nuts-node-api>`_ page. The relevant API's are:
+- ``POST /internal/auth/v2/{did}/dpop``
+- ``POST /internal/auth/v2/dpop_validate``
