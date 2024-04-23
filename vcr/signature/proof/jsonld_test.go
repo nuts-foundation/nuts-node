@@ -19,6 +19,7 @@
 package proof
 
 import (
+	crypt "crypto"
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -167,9 +168,12 @@ func TestLDProof_Sign(t *testing.T) {
 	}
 
 	kid := "did:nuts:123#abc"
-	testKey := crypto.NewTestKey(kid)
 	contextLoader := jsonld.NewTestJSONLDManager(t).DocumentLoader()
 
+	cryptoInstance := crypto.NewMemoryCryptoInstance()
+	key, _ := cryptoInstance.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
+		return kid, nil
+	})
 	t.Run("sign and verify a document", func(t *testing.T) {
 		now := time.Now()
 		expires := now.Add(20 * time.Hour)
@@ -186,7 +190,7 @@ func TestLDProof_Sign(t *testing.T) {
 
 		ldProof := NewLDProof(pOptions)
 
-		result, err := ldProof.Sign(audit.TestContext(), document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey)
+		result, err := ldProof.Sign(audit.TestContext(), document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: cryptoInstance}, kid)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		signedDocument := result.(SignedDocument)
@@ -198,7 +202,7 @@ func TestLDProof_Sign(t *testing.T) {
 		assert.Equal(t, domain, *proofToVerify.Domain)
 		assert.Equal(t, challenge, *proofToVerify.Challenge)
 
-		err = proofToVerify.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey.Public())
+		err = proofToVerify.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: cryptoInstance}, key.Public())
 		assert.NoError(t, err)
 	})
 
@@ -212,7 +216,7 @@ func TestLDProof_Sign(t *testing.T) {
 		// handle first call for the document
 		mockSuite.EXPECT().CanonicalizeDocument(document).Return(nil, errors.New("foo"))
 		mockSuite.EXPECT().GetType().Return(ssi.JsonWebSignature2020)
-		result, err := ldProof.Sign(nil, document, mockSuite, testKey)
+		result, err := ldProof.Sign(nil, document, mockSuite, kid)
 		assert.EqualError(t, err, "foo")
 		assert.Nil(t, result)
 	})
@@ -228,7 +232,7 @@ func TestLDProof_Sign(t *testing.T) {
 		mockSuite.EXPECT().CanonicalizeDocument(document).Return(nil, nil)
 		mockSuite.EXPECT().CanonicalizeDocument(gomock.Any()).Return(nil, errors.New("foo"))
 		mockSuite.EXPECT().GetType().Return(ssi.JsonWebSignature2020)
-		result, err := ldProof.Sign(nil, document, mockSuite, testKey)
+		result, err := ldProof.Sign(nil, document, mockSuite, kid)
 		assert.EqualError(t, err, "unable to canonicalize proof: foo")
 		assert.Nil(t, result)
 	})
@@ -239,7 +243,7 @@ func TestLDProof_Sign(t *testing.T) {
 		testKey := crypto.NewMockKey(ctrl)
 		testKey.EXPECT().KID().AnyTimes().Return(kid)
 
-		result, err := ldProof.Sign(nil, document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey)
+		result, err := ldProof.Sign(audit.TestContext(), document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey.KID())
 
 		assert.EqualError(t, err, "error while signing: private key not found")
 		assert.Nil(t, result)

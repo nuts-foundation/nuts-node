@@ -14,7 +14,6 @@ import (
 	reflect "reflect"
 
 	ssi "github.com/nuts-foundation/go-did"
-	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -85,16 +84,16 @@ func (mr *MockSuiteMockRecorder) GetType() *gomock.Call {
 }
 
 // Sign mocks base method.
-func (m *MockSuite) Sign(ctx context.Context, doc []byte, key crypto.Key) ([]byte, error) {
+func (m *MockSuite) Sign(ctx context.Context, doc []byte, keyID string) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Sign", ctx, doc, key)
+	ret := m.ctrl.Call(m, "Sign", ctx, doc, keyID)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Sign indicates an expected call of Sign.
-func (mr *MockSuiteMockRecorder) Sign(ctx, doc, key any) *gomock.Call {
+func (mr *MockSuiteMockRecorder) Sign(ctx, doc, keyID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockSuite)(nil).Sign), ctx, doc, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockSuite)(nil).Sign), ctx, doc, keyID)
 }
