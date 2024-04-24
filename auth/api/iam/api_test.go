@@ -1045,7 +1045,7 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
-		ctx.keyStore.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).DoAndReturn(func(_ context.Context, token dpop.DPoP, _ string) (string, error) {
+		ctx.jwtSigner.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).DoAndReturn(func(_ context.Context, token dpop.DPoP, _ string) (string, error) {
 			assert.Equal(t, dpopToken.String(), token.String())
 			return "dpop", nil
 		})
@@ -1104,7 +1104,7 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
-		ctx.keyStore.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).Return("dpop", assert.AnError)
+		ctx.jwtSigner.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).Return("dpop", assert.AnError)
 
 		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
 
@@ -1733,7 +1733,6 @@ type testCtx struct {
 	vcIssuer      *issuer.MockIssuer
 	vcVerifier    *verifier.MockVerifier
 	wallet        *holder.MockWallet
-	keyStore      *cryptoNuts.MockKeyStore
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -1751,7 +1750,6 @@ func newTestClient(t testing.TB) *testCtx {
 	mockVDR := vdr.NewMockVDR(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
 	mockWallet := holder.NewMockWallet(ctrl)
-	mockKeyStore := cryptoNuts.NewMockKeyStore(ctrl)
 	jwtSigner := cryptoNuts.NewMockJWTSigner(ctrl)
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
 
@@ -1775,7 +1773,6 @@ func newTestClient(t testing.TB) *testCtx {
 		iamClient:     iamClient,
 		vcr:           mockVCR,
 		wallet:        mockWallet,
-		keyStore:      mockKeyStore,
 		keyResolver:   keyResolver,
 		jwtSigner:     jwtSigner,
 		client: &Wrapper{
@@ -1784,7 +1781,6 @@ func newTestClient(t testing.TB) *testCtx {
 			vcr:           mockVCR,
 			storageEngine: storageEngine,
 			policyBackend: policyInstance,
-			keyStore:      mockKeyStore,
 			keyResolver:   keyResolver,
 			jwtSigner:     jwtSigner,
 		},

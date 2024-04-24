@@ -92,7 +92,6 @@ type Wrapper struct {
 	auth          auth.AuthenticationServices
 	policyBackend policy.PDPBackend
 	storageEngine storage.Engine
-	keyStore      nutsCrypto.KeyStore
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 	jwtSigner     nutsCrypto.JWTSigner
