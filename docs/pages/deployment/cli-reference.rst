@@ -72,7 +72,12 @@ The following options apply to the server commands below:
       --storage.redis.sentinel.username string         Username for authenticating to Redis Sentinels.
       --storage.redis.tls.truststorefile string        PEM file containing the trusted CA certificate(s) for authenticating remote Redis servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
       --storage.redis.username string                  Redis database username. If set, it overrides the username in the connection URL.
-      --storage.session.type string                    Type of session storage engine to use. Options are: in-memory, redis (default "in-memory")
+      --storage.session.redis.address string           Redis session database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.
+      --storage.session.redis.password string          Redis session database password. If set, it overrides the username in the connection URL.
+      --storage.session.redis.sentinel.master string   Name of the Redis Sentinel master. Setting this property enables Redis Sentinel.
+      --storage.session.redis.sentinel.nodes strings   Addresses of the Redis Sentinels to connect to initially. Setting this property enables Redis Sentinel.
+      --storage.session.redis.sentinel.password string Password for authenticating to Redis Sentinels.
+      --storage.session.redis.sentinel.username string Username for authenticating to Redis Sentinels.
       --storage.sql.connection string                  Connection string for the SQL database. If not set it, defaults to a SQLite database stored inside the configured data directory. Note: using SQLite is not recommended in production environments. If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').
       --strictmode                                     When set, insecure settings are forbidden. (default true)
       --tls.certfile string                            PEM file containing the certificate for the gRPC server (also used as client certificate). Required in strict mode.
