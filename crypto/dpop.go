@@ -20,14 +20,10 @@ package crypto
 
 import (
 	"context"
-	"net/http"
-
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 )
 
-func (client *Crypto) NewDPoP(ctx context.Context, request http.Request, kid string, accessToken *string) (string, error) {
-	dpopToken := dpop.New(request)
-
+func (client *Crypto) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
 	privateKey, kid, err := client.getPrivateKey(ctx, kid)
 	if err != nil {
 		return "", err
@@ -38,9 +34,5 @@ func (client *Crypto) NewDPoP(ctx context.Context, request http.Request, kid str
 		return "", err
 	}
 
-	if accessToken != nil {
-		dpopToken.GenerateProof(*accessToken)
-	}
-
-	return dpopToken.Sign(keyAsJWK)
+	return token.Sign(keyAsJWK)
 }

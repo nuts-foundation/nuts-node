@@ -66,7 +66,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 	t.Run("ok - with DPoP", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.keyResolver.EXPECT().ResolveKey(clientID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
-		ctx.jwtSigner.EXPECT().NewDPoP(context.Background(), gomock.Any(), kid.String(), nil).Return("dpop", nil)
+		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid.String()).Return("dpop", nil)
 
 		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier, true)
 
@@ -87,7 +87,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 	t.Run("error - failed to create DPoP header", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.keyResolver.EXPECT().ResolveKey(clientID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
-		ctx.jwtSigner.EXPECT().NewDPoP(context.Background(), gomock.Any(), kid.String(), nil).Return("", assert.AnError)
+		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid.String()).Return("", assert.AnError)
 
 		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier, true)
 
@@ -247,7 +247,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	t.Run("ok with DPoPHeader", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
-		ctx.jwtSigner.EXPECT().NewDPoP(context.Background(), gomock.Any(), kid.String(), nil).Return("dpop", nil)
+		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid.String()).Return("dpop", nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), walletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierDID, scopes, true)

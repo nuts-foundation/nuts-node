@@ -20,13 +20,13 @@ package crypto
 
 import (
 	"encoding/base64"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"net/http"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,10 +40,11 @@ func TestDPOP(t *testing.T) {
 	request, _ := http.NewRequest("POST", "https://server.example.com/token", nil)
 
 	t.Run("creates valid DPoP token", func(t *testing.T) {
-		tokenString, err := client.NewDPoP(audit.TestContext(), *request, privateKey.KID(), nil)
+		token := dpop.New(*request)
+		tokenString, err := client.SignDPoP(audit.TestContext(), *token, privateKey.KID())
 		require.NoError(t, err)
 
-		token, err := dpop.Parse(tokenString)
+		token, err = dpop.Parse(tokenString)
 		require.NoError(t, err)
 
 		assert.Equal(t, keyAsJWK, token.Headers.JWK())
@@ -55,7 +56,9 @@ func TestDPOP(t *testing.T) {
 		accesstoken := "token"
 		hashBytes := hash.SHA256Sum([]byte(accesstoken))
 		hashString := base64.RawURLEncoding.EncodeToString(hashBytes.Slice())
-		proofString, err := client.NewDPoP(audit.TestContext(), *request, privateKey.KID(), &accesstoken)
+		token := dpop.New(*request)
+		token.GenerateProof(accesstoken)
+		proofString, err := client.SignDPoP(audit.TestContext(), *token, privateKey.KID())
 		require.NoError(t, err)
 
 		proof, err := dpop.Parse(proofString)

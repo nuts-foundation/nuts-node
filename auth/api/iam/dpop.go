@@ -36,8 +36,9 @@ func (r *Wrapper) DPoPProof(ctx context.Context, requester did.DID, request http
 		return "", err
 	}
 
-	// create the DPoP token
-	return r.keyStore.NewDPoP(ctx, request, keyID.String(), &accessToken)
+	token := dpop.New(request)
+	token.GenerateProof(accessToken)
+	return r.keyStore.SignDPoP(ctx, *token, keyID.String())
 }
 
 func dpopFromRequest(httpRequest http.Request) (*dpop.DPoP, error) {

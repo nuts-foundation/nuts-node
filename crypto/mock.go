@@ -12,9 +12,9 @@ package crypto
 import (
 	context "context"
 	crypto "crypto"
-	http "net/http"
 	reflect "reflect"
 
+	dpop "github.com/nuts-foundation/nuts-node/crypto/dpop"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -248,21 +248,6 @@ func (mr *MockKeyStoreMockRecorder) New(ctx, namingFunc any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockKeyStore)(nil).New), ctx, namingFunc)
 }
 
-// NewDPoP mocks base method.
-func (m *MockKeyStore) NewDPoP(ctx context.Context, request http.Request, kid string, tokenHash *string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewDPoP", ctx, request, kid, tokenHash)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewDPoP indicates an expected call of NewDPoP.
-func (mr *MockKeyStoreMockRecorder) NewDPoP(ctx, request, kid, tokenHash any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewDPoP", reflect.TypeOf((*MockKeyStore)(nil).NewDPoP), ctx, request, kid, tokenHash)
-}
-
 // Resolve mocks base method.
 func (m *MockKeyStore) Resolve(ctx context.Context, kid string) (Key, error) {
 	m.ctrl.T.Helper()
@@ -276,6 +261,21 @@ func (m *MockKeyStore) Resolve(ctx context.Context, kid string) (Key, error) {
 func (mr *MockKeyStoreMockRecorder) Resolve(ctx, kid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockKeyStore)(nil).Resolve), ctx, kid)
+}
+
+// SignDPoP mocks base method.
+func (m *MockKeyStore) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SignDPoP", ctx, token, kid)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SignDPoP indicates an expected call of SignDPoP.
+func (mr *MockKeyStoreMockRecorder) SignDPoP(ctx, token, kid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignDPoP", reflect.TypeOf((*MockKeyStore)(nil).SignDPoP), ctx, token, kid)
 }
 
 // SignJWS mocks base method.
@@ -400,19 +400,19 @@ func (mr *MockJWTSignerMockRecorder) EncryptJWE(ctx, payload, headers, publicKey
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EncryptJWE", reflect.TypeOf((*MockJWTSigner)(nil).EncryptJWE), ctx, payload, headers, publicKey)
 }
 
-// NewDPoP mocks base method.
-func (m *MockJWTSigner) NewDPoP(ctx context.Context, request http.Request, kid string, tokenHash *string) (string, error) {
+// SignDPoP mocks base method.
+func (m *MockJWTSigner) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewDPoP", ctx, request, kid, tokenHash)
+	ret := m.ctrl.Call(m, "SignDPoP", ctx, token, kid)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// NewDPoP indicates an expected call of NewDPoP.
-func (mr *MockJWTSignerMockRecorder) NewDPoP(ctx, request, kid, tokenHash any) *gomock.Call {
+// SignDPoP indicates an expected call of SignDPoP.
+func (mr *MockJWTSignerMockRecorder) SignDPoP(ctx, token, kid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewDPoP", reflect.TypeOf((*MockJWTSigner)(nil).NewDPoP), ctx, request, kid, tokenHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignDPoP", reflect.TypeOf((*MockJWTSigner)(nil).SignDPoP), ctx, token, kid)
 }
 
 // SignJWS mocks base method.

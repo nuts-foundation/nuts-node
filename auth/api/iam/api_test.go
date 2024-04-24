@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1038,11 +1039,16 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	key := cryptoNuts.NewTestKey(vmId.String())
 	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, webDID, key.Public())
 	didDocument.AddAssertionMethod(vm)
+	dpopToken := dpop.New(*request)
+	dpopToken.GenerateProof(accesstoken)
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
-		ctx.keyStore.EXPECT().NewDPoP(gomock.Any(), *request, vmId.String(), gomock.Any()).Return("dpop", nil)
+		ctx.keyStore.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).DoAndReturn(func(_ context.Context, token dpop.DPoP, _ string) (string, error) {
+			assert.Equal(t, dpopToken.String(), token.String())
+			return "dpop", nil
+		})
 
 		res, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
 
@@ -1098,7 +1104,7 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
-		ctx.keyStore.EXPECT().NewDPoP(gomock.Any(), *request, vmId.String(), gomock.Any()).Return("dpop", assert.AnError)
+		ctx.keyStore.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).Return("dpop", assert.AnError)
 
 		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
 

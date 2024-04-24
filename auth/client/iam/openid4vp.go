@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"net/http"
 	"net/url"
 	"time"
@@ -288,6 +289,7 @@ func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request h
 	if err != nil {
 		return "", err
 	}
-	// create the DPoP token
-	return c.jwtSigner.NewDPoP(ctx, request, keyID.String(), nil)
+
+	token := dpop.New(request)
+	return c.jwtSigner.SignDPoP(ctx, *token, keyID.String())
 }
