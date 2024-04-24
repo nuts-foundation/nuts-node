@@ -41,6 +41,7 @@ func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.
 		TokenEndpoint:                              oauth2BaseURL.JoinPath("token").String(),
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
+		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 }
 
@@ -60,6 +61,7 @@ func clientMetadata(identity url.URL) OAuthClientMetadata {
 		SoftwareVersion: softwareVersion, // version tag or "unknown"
 		//CredentialOfferEndpoint: "",
 		VPFormats:      oauth.DefaultOpenIDSupportedFormats(),
-		ClientIdScheme: "did",
+		ClientIdScheme: didScheme,
+		//RequestObjectSigningAlg: // all mutually supported alg's are valid if this is not defined
 	}
 }

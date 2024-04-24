@@ -45,6 +45,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		TokenEndpoint:                              oauth2Base.String() + "/token",
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
+		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 	assert.Equal(t, expected, authorizationServerMetadata(*identity, *oauth2Base))
 }

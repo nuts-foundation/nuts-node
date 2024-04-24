@@ -21,10 +21,11 @@ there are `nuts` config properties. This contains 3 sections:
 NUTS allows binding to specific interfaces on the host machines. In the case of Kubernetes, this is already taken care 
 of. However, we do need to expose the `http` and `gRPC` ports. This is extracted from the following properties:
 
-| Property                                                        | Value (default) |
-|-----------------------------------------------------------------|-----------------|
-| `http.default.address` (must align with `service.internalPort`) | :1323 |
-| `network.grpcaddr`                                              | :5555    | 
+| Property                                                                  | Value (default) |
+|---------------------------------------------------------------------------|-----------------|
+| `http.external.address` (must align with `service.external.internalPort`) | :8080           |
+| `http.internal.address` (must align with `service.internal.internalPort`) | :8081           |
+| `network.grpcaddr`                                                        | :5555           | 
 
 For the `nuts-node` port, the `service.internalPort` can simply be used. For gRPC, the Helm chart filters out all digits 
 after the last `:` character. If not set, defaults will be used.

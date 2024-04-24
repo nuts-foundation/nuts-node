@@ -276,7 +276,7 @@ func (i issuer) buildJSONLDCredential(ctx context.Context, unsignedCredential vc
 	proofOptions := proof.ProofOptions{Created: unsignedCredential.IssuanceDate}
 
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
-	signingResult, err := proof.NewLDProof(proofOptions).Sign(ctx, credentialAsMap, webSig, key)
+	signingResult, err := proof.NewLDProof(proofOptions).Sign(ctx, credentialAsMap, webSig, key.KID())
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +397,7 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 
 	ldProof := proof.NewLDProof(proof.ProofOptions{Created: TimeFunc()})
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
-	signingResult, err := ldProof.Sign(ctx, revocationAsMap, webSig, assertionKey)
+	signingResult, err := ldProof.Sign(ctx, revocationAsMap, webSig, assertionKey.KID())
 	if err != nil {
 		return nil, err
 	}

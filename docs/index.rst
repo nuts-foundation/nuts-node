@@ -25,14 +25,12 @@ Nuts documentation
     pages/deployment/recommended-deployment.rst
     pages/deployment/docker.rst
     pages/deployment/storage.rst
-    pages/deployment/custom-credentials.rst
+    pages/deployment/verifiable-credentials.rst
     pages/deployment/logging.rst
     pages/deployment/monitoring.rst
-    pages/deployment/administering-your-node.rst
     pages/deployment/cli-reference.rst
     pages/deployment/discovery.rst
     pages/deployment/pex.rst
-    pages/deployment/backup-restore.rst
     pages/deployment/key-rotation.rst
     pages/deployment/audit-logging.rst
     pages/deployment/oauth.rst

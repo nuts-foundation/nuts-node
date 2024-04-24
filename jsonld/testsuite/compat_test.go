@@ -107,7 +107,9 @@ func TestGenerateSignedFixtures(t *testing.T) {
 	}, ld.NewDefaultDocumentLoader(nil))
 
 	privateKey := readSigningKey(t)
-	keyStore := crypto.NewMemoryCryptoInstance()
+	cryptoStorage := crypto.NewMemoryStorage()
+	_ = cryptoStorage.SavePrivateKey(audit.TestContext(), privateKey.KID(), privateKey.PrivateKey)
+	keyStore := crypto.NewTestCryptoInstance(cryptoStorage)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.file, func(t *testing.T) {
@@ -121,7 +123,7 @@ func TestGenerateSignedFixtures(t *testing.T) {
 
 			signed, err := proof.NewLDProof(proof.ProofOptions{
 				Created: time.Now(),
-			}).Sign(audit.TestContext(), tbs, signature.JSONWebSignature2020{ContextLoader: loader, Signer: keyStore}, privateKey)
+			}).Sign(audit.TestContext(), tbs, signature.JSONWebSignature2020{ContextLoader: loader, Signer: keyStore}, privateKey.KID())
 			require.NoError(t, err)
 
 			var targetFile = "./fixtures/" + testCase.file
@@ -147,7 +149,7 @@ func TestGenerateSignedFixtures(t *testing.T) {
 	}
 }
 
-func readSigningKey(t *testing.T) crypto.Key {
+func readSigningKey(t *testing.T) crypto.TestKey {
 	pkPEMBytes, err := os.ReadFile("private_key.pem")
 	require.NoError(t, err)
 	pkDerBytes, _ := pem.Decode(pkPEMBytes)

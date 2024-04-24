@@ -55,7 +55,6 @@ const (
 
 var oauthClientStateKey = []string{"oauth", "client_state"}
 var oauthCodeKey = []string{"oauth", "code"}
-var oauthServerStateKey = []string{"oauth", "server_state"}
 var userRedirectSessionKey = []string{"user", "redirect"}
 var userSessionKey = []string{"user", "session"}
 
@@ -143,7 +142,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		return fmt.Errorf("failed to create callback URL: %w", err)
 	}
 	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
-	modifier := func(values map[string]interface{}) {
+	modifier := func(values map[string]string) {
 		values[oauth.CodeChallengeParam] = oauthSession.PKCEParams.Challenge
 		values[oauth.CodeChallengeMethodParam] = oauthSession.PKCEParams.ChallengeMethod
 		values[oauth.RedirectURIParam] = callbackURL.String()
@@ -152,7 +151,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
 	// TODO: First create user session, or AuthorizationRequest first? (which one is more expensive? both sign stuff)
-	redirectURL, err := r.auth.IAMClient().CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, *verifier, modifier)
+	redirectURL, err := r.CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, *verifier, modifier)
 	if err != nil {
 		return err
 	}

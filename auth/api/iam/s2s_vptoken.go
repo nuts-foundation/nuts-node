@@ -74,10 +74,15 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 			return nil, err
 		}
 	}
-	credentialMap, definition, err := r.validatePresentationSubmission(ctx, issuer, scope, submission, pexEnvelope)
+	walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, issuer, scope)
 	if err != nil {
 		return nil, err
 	}
+	pexConsumer := newPEXConsumer(walletOwnerMapping)
+	if err := pexConsumer.fulfill(*submission, *pexEnvelope); err != nil {
+		return nil, oauthError(oauth.InvalidRequest, err.Error())
+	}
+
 	for _, presentation := range pexEnvelope.Presentations {
 		if err := r.validateS2SPresentationNonce(presentation); err != nil {
 			return nil, err
@@ -104,11 +109,37 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	}
 
 	// All OK, allow access
-	response, err := r.createAccessToken(issuer, time.Now(), pexEnvelope.Presentations, submission, *definition, scope, credentialSubjectID, credentialMap, dpopProof)
+	response, err := r.createAccessToken(issuer, credentialSubjectID, time.Now(), scope, *pexConsumer, dpopProof)
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
+}
+
+func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {
+	fieldsMap := make(map[string]any)
+	for _, definition := range presentationDefinitions {
+		currFields, err := definition.ResolveConstraintsFields(credentialMap)
+		if err != nil {
+			return nil, oauth.OAuth2Error{
+				Code:          oauth.ServerError,
+				Description:   "unable to resolve Presentation Definition Constraints Fields",
+				InternalError: err,
+			}
+		}
+		for k, v := range currFields {
+			if _, exists := fieldsMap[k]; exists {
+				// Should be prevented by Presentation Definition author,
+				// but still check this for security reasons.
+				return nil, oauth.OAuth2Error{
+					Code:        oauth.ServerError,
+					Description: "duplicate mapped field in Presentation Definitions",
+				}
+			}
+			fieldsMap[k] = v
+		}
+	}
+	return fieldsMap, nil
 }
 
 // validateS2SPresentationMaxValidity checks that the presentation is valid for a reasonable amount of time.
@@ -140,7 +171,6 @@ func (r Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresenta
 			Description:   "presentation has invalid/missing nonce",
 		}
 	}
-
 	nonceStore := r.storageEngine.GetSessionDatabase().GetStore(s2sMaxPresentationValidity+s2sMaxClockSkew, "s2s", "nonce")
 	nonceError := nonceStore.Get(nonce, new(bool))
 	if nonceError != nil && errors.Is(nonceError, storage.ErrNotFound) {

@@ -85,10 +85,9 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 	// default http.Transport has MaxConnsPerHost=100,
 	// but we need to adjust it to something lower, so we can assert connection reuse
 	const maxConnsPerHost = 2
-	// 2 hosts; 1 to 127.0.0.1 (IPv4) and 1 to [::1] (IPv6),
 	// for 2 http.Transport instance (one for issuer, one for wallet),
-	// so we expect max maxConnsPerHost*2*2 connections in total.
-	const maxExpectedConnCount = maxConnsPerHost * 2 * 2
+	// so we expect max maxConnsPerHost*2 connections in total.
+	const maxExpectedConnCount = maxConnsPerHost * 2
 	http.DefaultTransport.(*http.Transport).MaxConnsPerHost = maxConnsPerHost
 
 	ctx := audit.TestContext()
@@ -150,11 +149,9 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 		errs = append(errs, err.Error())
 	}
 	assert.Empty(t, errs, "error issuing credential")
-	connsTotal := 0
-	for _, v := range newConns {
-		connsTotal += v
+	for host, v := range newConns {
+		assert.LessOrEqualf(t, v, maxExpectedConnCount, "number of created HTTP connections should be at most %d for host %s", maxConnsPerHost, host)
 	}
-	assert.LessOrEqualf(t, connsTotal, maxExpectedConnCount, "number of created HTTP connections should be at most %d", maxExpectedConnCount)
 }
 
 // TestOpenID4VCIDisabled tests the issuer won't try to issue over OpenID4VCI when it's disabled.

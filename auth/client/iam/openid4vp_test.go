@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
@@ -30,7 +29,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -229,104 +227,6 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 	})
 }
 
-func TestIAMClient_AuthorizationRequest(t *testing.T) {
-	walletDID := did.MustParseDID("did:web:test.test:iam:123")
-	modifier := func(values map[string]interface{}) {
-		values["custom"] = "value"
-	}
-
-	t.Run("JAR", func(t *testing.T) {
-		keyId := walletDID.URI()
-		keyId.Fragment = "1"
-		privKey := crypto.NewTestKey(keyId.String())
-
-		t.Run("ok", func(t *testing.T) {
-			ctx := createClientServerTestContext(t)
-			ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
-			ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
-				assert.Equal(t, keyId.String(), key)
-				assert.Equal(t, walletDID.String(), claims[jwt.IssuerKey])
-				assert.Equal(t, ctx.verifierDID.String(), claims[jwt.AudienceKey])
-				assert.Equal(t, walletDID.String(), claims[oauth.ClientIDParam])
-				assert.Equal(t, "value", claims["custom"])
-				assert.NotEmpty(t, claims[oauth.NonceParam])
-				return "signed JWT", nil
-			})
-			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
-
-			assert.NoError(t, err)
-			require.NotNil(t, redirectURL)
-			assert.Equal(t, "signed JWT", redirectURL.Query().Get(oauth.RequestParam))
-			assert.Equal(t, walletDID.String(), redirectURL.Query().Get(oauth.ClientIDParam))
-		})
-		t.Run("error - failed to sign JWT", func(t *testing.T) {
-			ctx := createClientServerTestContext(t)
-			ctx.authzServerMetadata.RequireSignedRequestObject = true
-			ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
-			ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).Return("", assert.AnError)
-
-			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
-
-			assert.Error(t, err)
-			assert.Empty(t, redirectURL)
-		})
-		t.Run("error - failed to resolve key", func(t *testing.T) {
-			ctx := createClientServerTestContext(t)
-			ctx.authzServerMetadata.RequireSignedRequestObject = true
-			ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, nil, resolver.ErrKeyNotFound)
-
-			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
-
-			assert.Error(t, err)
-			assert.Empty(t, redirectURL)
-		})
-	})
-	t.Run("non-JAR", func(t *testing.T) {
-		t.Run("ok", func(t *testing.T) {
-			ctx := createClientServerTestContext(t)
-			ctx.authzServerMetadata.RequireSignedRequestObject = false
-
-			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
-
-			assert.NoError(t, err)
-			require.NotNil(t, redirectURL)
-			assert.Equal(t, walletDID.String(), redirectURL.Query().Get("client_id"))
-			assert.Equal(t, "value", redirectURL.Query().Get("custom"))
-		})
-		t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
-			ctx := createClientServerTestContext(t)
-			ctx.metadata = nil
-
-			_, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
-
-			assert.Error(t, err)
-			assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
-		})
-		t.Run("error - faulty authorization server metadata", func(t *testing.T) {
-			ctx := createClientServerTestContext(t)
-			ctx.metadata = func(writer http.ResponseWriter) {
-				writer.Header().Add("Content-Type", "application/json")
-				writer.WriteHeader(http.StatusOK)
-				_, _ = writer.Write([]byte("{"))
-			}
-
-			_, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
-
-			assert.Error(t, err)
-			assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: unable to unmarshal response: unexpected end of JSON input, {")
-		})
-		t.Run("error - missing authorization endpoint", func(t *testing.T) {
-			ctx := createClientServerTestContext(t)
-			ctx.authzServerMetadata.AuthorizationEndpoint = ""
-
-			_, err := ctx.client.CreateAuthorizationRequest(context.Background(), walletDID, ctx.verifierDID, modifier)
-
-			assert.Error(t, err)
-			assert.ErrorContains(t, err, "no authorization endpoint found in metadata for")
-		})
-	})
-}
-
 func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:test:123")
 	kid := walletDID.URI()
@@ -434,13 +334,13 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 		audit: audit.TestContext(),
 		ctrl:  ctrl,
 		client: &OpenID4VPClient{
-			jwtSigner:   jwtSigner,
-			keyResolver: keyResolver,
-			wallet:      wallet,
+			wallet: wallet,
 			httpClient: HTTPClient{
 				strictMode: false,
 				httpClient: core.NewStrictHTTPClient(false, 10*time.Second, tlsConfig),
 			},
+			jwtSigner:   jwtSigner,
+			keyResolver: keyResolver,
 		},
 		jwtSigner:   jwtSigner,
 		keyResolver: keyResolver,
@@ -476,8 +376,8 @@ type clientServerTestContext struct {
 }
 
 func createClientServerTestContext(t *testing.T) *clientServerTestContext {
-	metadata := &oauth.AuthorizationServerMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
 	credentialIssuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{}
+	metadata := &oauth.AuthorizationServerMetadata{VPFormatsSupported: oauth.DefaultOpenIDSupportedFormats()}
 	ctx := &clientServerTestContext{
 		clientTestContext: createClientTestContext(t, nil),
 		metadata: func(writer http.ResponseWriter) {
@@ -672,27 +572,16 @@ func TestIAMClient_AccessTokenOid4vci(t *testing.T) {
 	})
 }
 func TestIAMClient_VerifiableCredentials(t *testing.T) {
-	walletDID := did.MustParseDID("did:web:test.test:iam:123")
+	//walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	accessToken := "code"
-	cNonce := crypto.GenerateNonce()
+	//cNonce := crypto.GenerateNonce()
+
+	proowJWT := "top secret"
 
 	t.Run("ok", func(t *testing.T) {
-		keyId := walletDID.URI()
-		keyId.Fragment = "1"
-		privKey := crypto.NewTestKey(keyId.String())
-
 		ctx := createClientServerTestContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
-		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
-			assert.Equal(t, keyId.String(), key)
-			assert.Equal(t, walletDID.String(), claims[jwt.IssuerKey])
-			assert.Equal(t, ctx.issuerDID.String(), claims[jwt.AudienceKey])
-			assert.NotEmpty(t, claims[jwt.JwtIDKey])
-			return "signed JWT", nil
-		})
-
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -700,43 +589,17 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 		assert.Equal(t, "format", response.Format)
 	})
 	t.Run("error - failed to get access token", func(t *testing.T) {
-		keyId := walletDID.URI()
-		keyId.Fragment = "1"
-		privKey := crypto.NewTestKey(keyId.String())
-
 		ctx := createClientServerTestContext(t)
-
-		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
-		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
-			assert.Equal(t, keyId.String(), key)
-			assert.Equal(t, walletDID.String(), claims[jwt.IssuerKey])
-			assert.Equal(t, ctx.issuerDID.String(), claims[jwt.AudienceKey])
-			assert.NotEmpty(t, claims[jwt.JwtIDKey])
-			return "signed JWT", nil
-		})
 
 		ctx.credentials = nil
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT)
 
 		assert.EqualError(t, err, "remote server: failed to retrieve credentials: server returned HTTP 404 (expected: 200)")
 		assert.Nil(t, response)
 	})
 	t.Run("error - invalid access token", func(t *testing.T) {
-		keyId := walletDID.URI()
-		keyId.Fragment = "1"
-		privKey := crypto.NewTestKey(keyId.String())
-
 		ctx := createClientServerTestContext(t)
-
-		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
-		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
-			assert.Equal(t, keyId.String(), key)
-			assert.Equal(t, walletDID.String(), claims[jwt.IssuerKey])
-			assert.Equal(t, ctx.issuerDID.String(), claims[jwt.AudienceKey])
-			assert.NotEmpty(t, claims[jwt.JwtIDKey])
-			return "signed JWT", nil
-		})
 
 		ctx.credentials = func(writer http.ResponseWriter) {
 			writer.Header().Add("Content-Type", "application/json")
@@ -745,41 +608,9 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 			return
 		}
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT)
 
 		assert.Error(t, err)
-		assert.Nil(t, response)
-	})
-	t.Run("error - key not found", func(t *testing.T) {
-		keyId := walletDID.URI()
-		keyId.Fragment = "1"
-
-		ctx := createClientServerTestContext(t)
-
-		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.URI{}, nil, resolver.ErrKeyNotFound)
-
-		ctx.credentials = nil
-
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
-
-		assert.EqualError(t, err, "failed to resolve key for did (did:web:test.test:iam:123): "+resolver.ErrKeyNotFound.Error())
-		assert.Nil(t, response)
-	})
-	t.Run("error - signature failure", func(t *testing.T) {
-		keyId := walletDID.URI()
-		keyId.Fragment = "1"
-		privKey := crypto.NewTestKey(keyId.String())
-
-		ctx := createClientServerTestContext(t)
-
-		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
-		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
-			return "", errors.New("signature failed")
-		})
-
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, &cNonce, walletDID, ctx.issuerDID)
-
-		assert.EqualError(t, err, "failed to sign the JWT with kid (did:web:test.test:iam:123#1): signature failed")
 		assert.Nil(t, response)
 	})
 }

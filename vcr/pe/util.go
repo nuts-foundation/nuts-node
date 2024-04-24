@@ -30,7 +30,35 @@ type Envelope struct {
 	// Presentations contains the Verifiable Presentations that were parsed from the envelope.
 	Presentations []vc.VerifiablePresentation
 	asInterface   interface{}
+	raw           []byte
 }
+
+func (e *Envelope) UnmarshalJSON(bytes []byte) error {
+	var raw interface{}
+	if err := json.Unmarshal(bytes, &raw); err != nil {
+		return err
+	}
+	if asString, isJSONString := raw.(string); isJSONString {
+		bytes = []byte(asString)
+	}
+	envelope, err := ParseEnvelope(bytes)
+	if err != nil {
+		return err
+	}
+	*e = *envelope
+	return nil
+}
+
+func (e Envelope) MarshalJSON() ([]byte, error) {
+	// If raw is a JSON Array or JSON Object, return as is. Otherwise, marshal convert to string first, then marshal.
+	if e.raw[0] == '[' || e.raw[0] == '{' {
+		return e.raw, nil
+	}
+	return json.Marshal(string(e.raw))
+}
+
+var _ json.Unmarshaler = &Envelope{}
+var _ json.Marshaler = Envelope{}
 
 // ParseEnvelope parses a Presentation Exchange envelope, which is a JSON type that encompasses zero or more Verifiable Presentations.
 // It returns the envelope as interface{} for use in PresentationSubmission.Validate() and PresentationSubmission.Resolve().
@@ -50,6 +78,7 @@ func ParseEnvelope(envelopeBytes []byte) (*Envelope, error) {
 		return &Envelope{
 			asInterface:   asInterface,
 			Presentations: presentations,
+			raw:           envelopeBytes,
 		}, nil
 	}
 	// Single Verifiable Presentation
@@ -60,6 +89,7 @@ func ParseEnvelope(envelopeBytes []byte) (*Envelope, error) {
 	return &Envelope{
 		asInterface:   asInterface,
 		Presentations: []vc.VerifiablePresentation{*presentation},
+		raw:           envelopeBytes,
 	}, nil
 }
 

@@ -24,7 +24,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"net/url"
 )
 
 // Client defines OpenID4VP client methods using the IAM OpenAPI Spec.
@@ -35,18 +34,6 @@ type Client interface {
 	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
 	// ClientMetadata returns the metadata of the remote verifier.
 	ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error)
-	// CreateAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
-	// It can create both regular OAuth2 requests and OpenID4VP requests due to the RequestModifier.
-	// It's able to create an unsigned request and a signed request (JAR) based on the OAuth Server Metadata.
-	// By default, it adds the following parameters to a regular request:
-	// - client_id
-	// and to a signed request:
-	// - client_id
-	// - jwt.Issuer
-	// - jwt.Audience
-	// - nonce
-	// any of these params can be overridden by the RequestModifier.
-	CreateAuthorizationRequest(ctx context.Context, client did.DID, server did.DID, modifier RequestModifier) (*url.URL, error)
 	// PostError posts an error to the verifier. If it fails, an error is returned.
 	PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (string, error)
 	// PostAuthorizationResponse posts the authorization response to the verifier. If it fails, an error is returned.
@@ -62,8 +49,5 @@ type Client interface {
 
 	AccessTokenOid4vci(ctx context.Context, clientId string, tokenEndpoint string, redirectUri string, code string, pkceCodeVerifier *string) (*oauth.Oid4vciTokenResponse, error)
 
-	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, cNonce *string, holderDid did.DID, audienceDid did.DID) (*CredentialResponse, error)
+	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
 }
-
-// RequestModifier is a function that modifies the claims/params of a unsigned or signed request (JWT)
-type RequestModifier func(claims map[string]interface{})

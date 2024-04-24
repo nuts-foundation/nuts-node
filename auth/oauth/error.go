@@ -19,10 +19,13 @@
 package oauth
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -50,9 +53,13 @@ const (
 	// InvalidDPopProof is returned when the DPoP proof is invalid or missing.
 	InvalidDPopProof ErrorCode = "invalid_dpop_proof"
 	// InvalidScope is returned when the requested scope is invalid, unknown or malformed.
-	InvalidScope = ErrorCode("invalid_scope")
+	InvalidScope ErrorCode = "invalid_scope"
 	// InvalidPresentationDefinitionURI is returned when the requested presentation definition URI is invalid or can't be reached.
-	InvalidPresentationDefinitionURI = ErrorCode("invalid_presentation_definition_uri")
+	InvalidPresentationDefinitionURI ErrorCode = "invalid_presentation_definition_uri"
+	// InvalidRequestObject is returned when the JAR Request Object signature validation or decryption fails. RFC9101
+	InvalidRequestObject ErrorCode = "invalid_request_object"
+	// InvalidRequestURI is returned whn the request_uri in the authorization request returns an error or contains invalid data. RFC9101
+	InvalidRequestURI ErrorCode = "invalid_request_uri"
 )
 
 // Make sure the error implements core.HTTPStatusCodeError, so the HTTP request logger can log the correct status code.
@@ -98,7 +105,9 @@ func (e OAuth2Error) Error() string {
 }
 
 // Oauth2ErrorWriter is a HTTP response writer for OAuth errors
-type Oauth2ErrorWriter struct{}
+type Oauth2ErrorWriter struct {
+	HtmlPageTemplate *template.Template
+}
 
 func (p Oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err error) error {
 	var oauthErr OAuth2Error
@@ -124,6 +133,14 @@ func (p Oauth2ErrorWriter) Write(echoContext echo.Context, _ int, _ string, err 
 		if strings.Contains(contentType, "application/json") {
 			// Return JSON response
 			return echoContext.JSON(oauthErr.StatusCode(), oauthErr)
+		}
+		if p.HtmlPageTemplate != nil {
+			buf := new(bytes.Buffer)
+			err = p.HtmlPageTemplate.Execute(buf, oauthErr)
+			if err != nil {
+				log.Logger().WithError(err).Warnf("unable to render error page for error: %s", oauthErr.Error())
+			}
+			return echoContext.HTMLBlob(oauthErr.StatusCode(), buf.Bytes())
 		}
 		// Return plain text response
 		parts := []string{string(oauthErr.Code)}

@@ -127,11 +127,12 @@ type TokenIntrospectionResponse struct {
 	// Iss Contains the DID of the authorizer. Should be equal to 'sub'
 	Iss *string `json:"iss,omitempty"`
 
-	// PresentationDefinition presentation definition, as described in presentation exchange specification, fulfilled to obtain the access token
-	PresentationDefinition *map[string]interface{} `json:"presentation_definition,omitempty"`
+	// PresentationDefinitions Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token
+	// The map key is the wallet owner (user/organization)
+	PresentationDefinitions *RequiredPresentationDefinitions `json:"presentation_definitions,omitempty"`
 
-	// PresentationSubmission mapping of 'vps' contents to the 'presentation_definition'
-	PresentationSubmission *map[string]interface{} `json:"presentation_submission,omitempty"`
+	// PresentationSubmissions Mapping of Presentation Definition IDs that were fulfilled to Presentation Submissions.
+	PresentationSubmissions *map[string]PresentationSubmission `json:"presentation_submissions,omitempty"`
 
 	// Scope granted scopes
 	Scope *string `json:"scope,omitempty"`
@@ -371,20 +372,20 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 		delete(object, "iss")
 	}
 
-	if raw, found := object["presentation_definition"]; found {
-		err = json.Unmarshal(raw, &a.PresentationDefinition)
+	if raw, found := object["presentation_definitions"]; found {
+		err = json.Unmarshal(raw, &a.PresentationDefinitions)
 		if err != nil {
-			return fmt.Errorf("error reading 'presentation_definition': %w", err)
+			return fmt.Errorf("error reading 'presentation_definitions': %w", err)
 		}
-		delete(object, "presentation_definition")
+		delete(object, "presentation_definitions")
 	}
 
-	if raw, found := object["presentation_submission"]; found {
-		err = json.Unmarshal(raw, &a.PresentationSubmission)
+	if raw, found := object["presentation_submissions"]; found {
+		err = json.Unmarshal(raw, &a.PresentationSubmissions)
 		if err != nil {
-			return fmt.Errorf("error reading 'presentation_submission': %w", err)
+			return fmt.Errorf("error reading 'presentation_submissions': %w", err)
 		}
-		delete(object, "presentation_submission")
+		delete(object, "presentation_submissions")
 	}
 
 	if raw, found := object["scope"]; found {
@@ -477,17 +478,17 @@ func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	if a.PresentationDefinition != nil {
-		object["presentation_definition"], err = json.Marshal(a.PresentationDefinition)
+	if a.PresentationDefinitions != nil {
+		object["presentation_definitions"], err = json.Marshal(a.PresentationDefinitions)
 		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'presentation_definition': %w", err)
+			return nil, fmt.Errorf("error marshaling 'presentation_definitions': %w", err)
 		}
 	}
 
-	if a.PresentationSubmission != nil {
-		object["presentation_submission"], err = json.Marshal(a.PresentationSubmission)
+	if a.PresentationSubmissions != nil {
+		object["presentation_submissions"], err = json.Marshal(a.PresentationSubmissions)
 		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'presentation_submission': %w", err)
+			return nil, fmt.Errorf("error marshaling 'presentation_submissions': %w", err)
 		}
 	}
 

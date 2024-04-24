@@ -17,7 +17,7 @@ If you want to run without Docker Compose you can use the following command from
 .. code-block:: shell
 
   docker run --name nuts -p 8080:8080 -p 8081:8081 \
-    -e NUTS_STRICTMODE=false -e NUTS_HTTP_INTERNAL_ADDRESS=":8081" -e URL="http://nuts" \
+    -e NUTS_STRICTMODE=false -e NUTS_HTTP_INTERNAL_ADDRESS=":8081" -e NUTS_URL="http://nuts" \
     nutsfoundation/nuts-node:latest
 
 

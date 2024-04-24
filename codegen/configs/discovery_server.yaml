@@ -1,0 +1,11 @@
+package: server
+generate:
+  echo-server: true
+  client: true
+  models: true
+  strict-server: true
+output-options:
+  skip-prune: true
+  exclude-schemas:
+    - VerifiablePresentation
+    - PresentationsResponse

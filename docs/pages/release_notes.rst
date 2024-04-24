@@ -9,14 +9,16 @@ Peanut (v6.0.0)
 **Release date:** TBD
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v6.0.0
 
-Breaking
-********
+================
+Breaking changes
+================
 
-- Container user has changed from root to ``18081``. (see :ref:`docker`)
+- Container user has changed from root to ``18081``. (see :ref:`running-docker`)
   When migrating from v5, change the owner of the data directory on the host to that of the container's user. (``chown -R 18081:18081 /path/to/host/data-dir``)
 
+============
 New Features
-************
+============
 
 The following new features have been added:
 
@@ -29,8 +31,9 @@ The following new features have been added:
 - Added support for Nuts RFC021, which negotiates an OAuth2 access token for a system through a Presentation Exchange using Verifiable Credentials.
 - Added support for `StatusList2021 <https://www.w3.org/TR/2023/WD-vc-status-list-20230427/>`_ as revocation means for Verifiable Credentials.
 
+=======
 Changes
-*******
+=======
 
 - Removed support for deprecated network TLS properties. Configuring these properties will now cause the node not to start.
 - Removed usage of deprecated ``purposeOfUseClaim`` in ``NutsAuthorizationCredential``.
@@ -133,6 +136,7 @@ Hazelnut update (v5.4.0)
 Release date: 2023-07-20
 
 New features:
+
 - Introduced support for issuing and receiving credentials over OpenID4VCI (OpenID Connect for Verifiable Credential Issuance).
   If the node's ``/n2n`` endpoint runs on port 443, the node will automatically configure its DIDs for OpenID4VCI support.
   If running on another port, additional action is required. See :ref:`openid4vci` for more information.
@@ -140,6 +144,7 @@ New features:
 - Added last connection error and the date/time of the next connection attempt to the network's address book.
 
 Bug fixes/improvements:
+
 - Diagnostics now shows correct number of owned conflicted DID document (``vdr.conflicted_did_documents.owned_count``).
 - Added background job that periodically checks the node's network state and fixes incorrect XOR hashes.
   This can happen in certain high-load cases on Redis.
@@ -283,9 +288,9 @@ Breaking changes
 
 There are no breaking changes, but if you're running in non-strict mode (but didn't actively disable it), you'll have to disable strict mode by setting ``strictmode`` to ``false``.
 
-***********************
+************************
 Coconut update (v5.0.10)
-***********************
+************************
 
 Release date: 2023-03-01
 
@@ -542,7 +547,6 @@ Chestnut update (v4.1.0)
 Release date: 2022-08-04
 
 This minor release adds TLS offloading for gRPC connections.
-The :ref:`tls-configuration` page contains instructions on how to setup various TLS deployment schemes.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.0.0...v4.1.0
 

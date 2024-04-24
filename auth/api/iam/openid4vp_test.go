@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -132,16 +133,17 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.ServerError, "failed to get metadata from wallet")
 	})
-	t.Run("failed to generate verifier web url", func(t *testing.T) {
+	t.Run("failed to generate authorization request", func(t *testing.T) {
 		ctx := newTestClient(t)
-		verifierDID := did.MustParseDID("did:notweb:example.com:verifier")
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
 		params := defaultParams()
-		params[jwt.AudienceKey] = []string{verifierDID.String()}
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+			ClientIdSchemesSupported: []string{didScheme},
+		}, nil).Times(2)
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid verifier DID")
+		requireOAuthError(t, err, oauth.ServerError, "failed to authorize client")
 	})
 }
 
@@ -164,6 +166,12 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 			oauth.ScopeParam:        "test",
 			oauth.StateParam:        "state",
 		}
+	}
+	session := OAuthSession{
+		SessionID:   "token",
+		OwnDID:      &holderDID,
+		RedirectURI: "https://example.com/iam/holder/cb",
+		VerifierDID: &verifierDID,
 	}
 
 	t.Run("invalid client_id", func(t *testing.T) {
@@ -246,7 +254,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("invalid presentation_definition_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		putState(ctx, "state")
+		putState(ctx, "state", session)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.InvalidPresentationDefinitionURI, "failed to retrieve presentation definition on https://example.com/iam/verifier/presentation_definition?scope=test", responseURI, "state")
@@ -258,7 +266,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("failed to create verifiable presentation", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		putState(ctx, "state")
+		putState(ctx, "state", session)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, assert.AnError)
@@ -271,7 +279,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("missing credentials in wallet", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		putState(ctx, "state")
+		putState(ctx, "state", session)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
@@ -284,46 +292,105 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 }
 
 func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
+	walletOwnerMapping := pe.WalletOwnerMapping{
+		pe.WalletOwnerOrganization: pe.PresentationDefinition{
+			Id: "1",
+			InputDescriptors: []*pe.InputDescriptor{
+				{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
+			},
+		},
+	}
+	session := OAuthSession{
+		SessionID:         "token",
+		OwnDID:            &verifierDID,
+		ClientID:          holderDID.String(),
+		RedirectURI:       "https://example.com/iam/holder/cb",
+		Scope:             "test",
+		ClientState:       "client-state",
+		OpenID4VPVerifier: newPEXConsumer(walletOwnerMapping),
+	}
 	t.Run("submission", func(t *testing.T) {
 		challenge := "challenge"
 		// simple vp
 		vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{"id":"did:web:example.com:iam:holder"}},"proof":{"challenge":"challenge","domain":"did:web:example.com:iam:verifier","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
-		// simple definition
-		walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
-			{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
-		}},
-		}
 		// simple submission
 		submissionAsStr := `{"id":"1", "definition_id":"1", "descriptor_map":[{"id":"1","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 		// simple request
+		state := "state"
 		baseRequest := func() HandleAuthorizeResponseRequestObject {
 			return HandleAuthorizeResponseRequestObject{
 				Body: &HandleAuthorizeResponseFormdataRequestBody{
 					VpToken:                &vpToken,
 					PresentationSubmission: &submissionAsStr,
+					State:                  &state,
 				},
 				Did: verifierDID.String(),
 			}
 		}
-		t.Run("ok", func(t *testing.T) {
+		t.Run("ok - all Presentation Definitions fulfilled - code issued", func(t *testing.T) {
 			ctx := newTestClient(t)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(walletOwnerMapping, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 
 			require.NoError(t, err)
-			redirectURI := response.(HandleAuthorizeResponse200JSONResponse).RedirectURI
-			assert.Contains(t, redirectURI, "https://example.com/iam/holder/cb?code=")
-			assert.Contains(t, redirectURI, "state=state")
+			redirectURI, _ := url.Parse(response.(HandleAuthorizeResponse200JSONResponse).RedirectURI)
+			assert.True(t, strings.HasPrefix(redirectURI.String(), "https://example.com/iam/holder/cb?code"))
+			assert.True(t, redirectURI.Query().Has("code"))
+			assert.Equal(t, "client-state", redirectURI.Query().Get("state"))
+		})
+		t.Run("ok - another Presentation Definition needs to be fulfilled", func(t *testing.T) {
+			walletOwnerMapping := pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization: pe.PresentationDefinition{
+					Id: "1",
+					InputDescriptors: []*pe.InputDescriptor{
+						{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
+					},
+				},
+				pe.WalletOwnerUser: pe.PresentationDefinition{
+					Id: "2",
+					InputDescriptors: []*pe.InputDescriptor{
+						{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
+					},
+				},
+			}
+			session := OAuthSession{
+				SessionID:         "token",
+				OwnDID:            &verifierDID,
+				ClientID:          holderDID.String(),
+				RedirectURI:       "https://example.com/iam/holder/cb",
+				Scope:             "test",
+				ClientState:       "client-state",
+				OpenID4VPVerifier: newPEXConsumer(walletOwnerMapping),
+			}
+
+			ctx := newTestClient(t)
+			putState(ctx, "state", session)
+			putNonce(ctx, challenge)
+			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
+			redirectURL, _ := url.Parse("https://redirect-url")
+			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+				AuthorizationEndpoint:    redirectURL.String(),
+				ClientIdSchemesSupported: []string{"did"},
+			}, nil)
+
+			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
+
+			require.NoError(t, err)
+			actualRedirectURL, _ := url.Parse(response.(HandleAuthorizeResponse200JSONResponse).RedirectURI)
+			assert.True(t, strings.HasPrefix(actualRedirectURL.String(), "https://redirect-url?"))
+			assert.Equal(t, verifierDID.String(), actualRedirectURL.Query().Get("client_id"))
+			// etc
 		})
 		t.Run("failed to verify vp", func(t *testing.T) {
 			ctx := newTestClient(t)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(walletOwnerMapping, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, assert.AnError)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
@@ -341,6 +408,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("missing challenge in proof", func(t *testing.T) {
 			ctx := newTestClient(t)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			request := baseRequest()
 			proof := `{"proof":{}}`
@@ -385,6 +453,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			request := baseRequest()
 			submission := "}"
 			request.Body.PresentationSubmission = &submission
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
@@ -396,6 +465,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			request := baseRequest()
 			request.Body.PresentationSubmission = nil
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
@@ -405,6 +475,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("invalid signer", func(t *testing.T) {
 			ctx := newTestClient(t)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			request := baseRequest()
 			vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{}},"proof":{"challenge":"challenge","domain":"did:web:example.com:iam:verifier","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
@@ -417,6 +488,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("invalid audience/domain", func(t *testing.T) {
 			ctx := newTestClient(t)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			request := baseRequest()
 			vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{"id":"did:web:example.com:iam:holder"}},"proof":{"challenge":"challenge","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
@@ -429,16 +501,18 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("submission does not match definition", func(t *testing.T) {
 			ctx := newTestClient(t)
+			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			request := baseRequest()
-			submission := `{"id":"1", "definition_id":"2", "descriptor_map":[{"id":"2","format":"ldp_vc","path":"$.verifiableCredential"}]}`
+			// Presentation Definition does not contain Input Descriptor with ID 2
+			submission := `{"id":"1", "definition_id":"1", "descriptor_map":[{"id":"2","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 			request.Body.PresentationSubmission = &submission
+			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), "test").Return(walletOwnerMapping, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
-			_ = assertOAuthError(t, err, "presentation submission does not conform to Presentation Definition")
+			_ = assertOAuthError(t, err, "presentation submission does not conform to presentation definition (id=1)")
 		})
 	})
 	t.Run("error", func(t *testing.T) {
@@ -457,7 +531,9 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		}
 		t.Run("with client state", func(t *testing.T) {
 			ctx := newTestClient(t)
-			putState(ctx, "state")
+			sessionWithClientState := session
+			sessionWithClientState.ClientState = "client state"
+			putState(ctx, "state", sessionWithClientState)
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 
@@ -481,8 +557,6 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 	code := "code"
 	clientID := "did:web:example.com:iam:holder"
 	vpStr := `{"type":"VerifiablePresentation", "id":"vp", "verifiableCredential":{"type":"VerifiableCredential", "id":"vc", "credentialSubject":{"id":"did:web:example.com:iam:holder"}}}`
-	vp, err := vc.ParseVerifiablePresentation(vpStr)
-	require.NoError(t, err)
 	walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{
 		{Id: "1", Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}},
 	}},
@@ -490,18 +564,24 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 	submissionAsStr := `{"id":"1", "definition_id":"1", "descriptor_map":[{"id":"1","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 	var submission pe.PresentationSubmission
 	_ = json.Unmarshal([]byte(submissionAsStr), &submission)
+	pexEnvelope, _ := pe.ParseEnvelope([]byte(vpStr))
 	validSession := OAuthSession{
 		ClientID:    clientID,
 		OwnDID:      &verifierDID,
 		RedirectURI: redirectURI,
 		Scope:       "scope",
-		ServerState: ServerState{
-			Presentations:          []vc.VerifiablePresentation{*vp},
-			PresentationSubmission: &submission,
+		OpenID4VPVerifier: &PEXConsumer{
+			RequiredPresentationDefinitions: walletOwnerMapping,
+			Submissions: map[string]pe.PresentationSubmission{
+				string(pe.WalletOwnerOrganization): submission,
+			},
+			SubmittedEnvelopes: map[string]pe.Envelope{
+				"1": *pexEnvelope,
+			},
 		},
 		PKCEParams: generatePKCEParams(),
 	}
-	requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
+
 	// valid dpop token
 	dpop := "eyJhbGciOiJFUzI1NiIsImp3ayI6eyJhbGciOiJFUzI1NiIsImNydiI6IlAtMjU2Iiwia3R5IjoiRUMiLCJ4IjoiUHNnZ0pLTlpoQjBpSDUxNmZOdi1ucVpyRkZwZVJJOE9saDRsQVZpSHRkMCIsInkiOiJoblo4eGJpNVQxQTBBMjlYRDY2anl4cVYyZlE5TWE1SWJxeXpXRkx1X1VVIn0sInR5cCI6ImRwb3Arand0In0.eyJodG0iOiJQT1NUIiwiaHR1IjoiaHR0cHM6Ly9zZXJ2ZXIuZXhhbXBsZS5jb20vdG9rZW4iLCJpYXQiOjE3MTI2NTU2MDksImp0aSI6Ikk1a3JELXg4YWVia0hyV1o3Qy15MUEifQ.IN-y9dvoPC0b05w9bsHXLJsCiHQBxKHFtfghSmUDlt5dMG9at_0W6perVxHCo7N_LfwJ1FrgUG5V2nRw9HMW0g"
 	httpRequest := &http.Request{
@@ -510,9 +590,9 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		},
 	}
 	contextWithValue := context.WithValue(context.Background(), httpRequestContextKey, httpRequest)
+
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "scope").Return(walletOwnerMapping, nil)
 		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
 		putCodeSession(ctx, code, validSession)
 
@@ -550,19 +630,6 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		_ = assertOAuthError(t, err, "client_id does not match: did:web:example.com:iam:holder vs other")
-	})
-	t.Run("presentation definition backend server error", func(t *testing.T) {
-		ctx := newTestClient(t)
-		putCodeSession(ctx, code, validSession)
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "scope").Return(nil, assert.AnError)
-
-		_, err := ctx.client.handleAccessTokenRequest(contextWithValue, requestBody)
-
-		require.Error(t, err)
-		oauthErr, ok := err.(oauth.OAuth2Error)
-		require.True(t, ok)
-		assert.Equal(t, oauth.ServerError, oauthErr.Code)
-		assert.Equal(t, "failed to fetch presentation definition: assert.AnError general error for testing", oauthErr.Description)
 	})
 	t.Run("missing code", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -606,6 +673,14 @@ func Test_handleCallback(t *testing.T) {
 	code := "code"
 	state := "state"
 
+	session := OAuthSession{
+		SessionID:   "token",
+		OwnDID:      &holderDID,
+		RedirectURI: "https://example.com/iam/holder/cb",
+		VerifierDID: &verifierDID,
+		PKCEParams:  generatePKCEParams(),
+	}
+
 	t.Run("err - missing state", func(t *testing.T) {
 		ctx := newTestClient(t)
 
@@ -633,7 +708,7 @@ func Test_handleCallback(t *testing.T) {
 	})
 	t.Run("err - missing code", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putState(ctx, state)
+		putState(ctx, "state", session)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -646,10 +721,10 @@ func Test_handleCallback(t *testing.T) {
 	})
 	t.Run("err - failed to retrieve access token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putState(ctx, state)
+		putState(ctx, "state", session)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier, true).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier, false).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -810,15 +885,8 @@ func assertOAuthErrorWithCode(t *testing.T, err error, expectedCode oauth.ErrorC
 	return oauthErr
 }
 
-func putState(ctx *testCtx, state string) {
-	_ = ctx.client.oauthClientStateStore().Put(state, OAuthSession{
-		OwnDID:      &holderDID,
-		PKCEParams:  generatePKCEParams(),
-		RedirectURI: "https://example.com/iam/holder/cb",
-		SessionID:   "token",
-		UseDPoP:     true,
-		VerifierDID: &verifierDID,
-	})
+func putState(ctx *testCtx, state string, session OAuthSession) {
+	_ = ctx.client.oauthClientStateStore().Put(state, session)
 }
 
 func getState(ctx *testCtx, state string) OAuthSession {
@@ -828,7 +896,7 @@ func getState(ctx *testCtx, state string) OAuthSession {
 }
 
 func putNonce(ctx *testCtx, nonce string) {
-	_ = ctx.client.oauthNonceStore().Put(nonce, OAuthSession{Scope: "test", ClientState: "state", OwnDID: &verifierDID, RedirectURI: "https://example.com/iam/holder/cb"})
+	_ = ctx.client.oauthNonceStore().Put(nonce, "state")
 }
 
 func putCodeSession(ctx *testCtx, code string, oauthSession OAuthSession) {
