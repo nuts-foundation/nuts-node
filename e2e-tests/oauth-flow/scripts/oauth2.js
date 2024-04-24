@@ -24,7 +24,7 @@ function dpop(r, cnf) {
 
     // create JSON payload
     const payload = {
-        dpop: r.headersIn['DPoP'],
+        dpop_proof: r.headersIn['DPoP'],
         method: r.method,
         thumbprint: cnf.jkt,
         token: r.headersIn['Authorization'].substring(5),
