@@ -22,84 +22,91 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/redis/go-redis/v9"
 	"strings"
 	"time"
 )
 
-func NewRedisSessionDatabase(db stoabs.KVStore) SessionDatabase {
+func NewRedisSessionDatabase(client RedisClient) SessionDatabase {
 	return redisSessionDatabase{
-		db: db,
+		client: client.Client,
+		prefix: client.Prefix,
 	}
 }
 
 type redisSessionDatabase struct {
-	db stoabs.KVStore
+	client *redis.Client
+	prefix string
 }
 
 func (s redisSessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
+	var prefixParts []string
+	if len(s.prefix) > 0 {
+		prefixParts = append(prefixParts, s.prefix)
+	}
+	for i := range keys {
+		prefixParts = append(prefixParts, keys[i])
+	}
 	return redisSessionStore{
-		db:        s.db,
+		client:    s.client,
 		ttl:       ttl,
-		storeName: strings.Join(keys, "."),
+		storeName: strings.Join(prefixParts, "."),
 	}
 }
 
 func (s redisSessionDatabase) close() {
-	err := s.db.Close(context.Background())
+	err := s.client.Close()
 	if err != nil {
-		log.Logger().WithError(err).Error("Failed to close store")
+		log.Logger().WithError(err).Error("Failed to close redis client")
 	}
 }
 
 type redisSessionStore struct {
-	db        stoabs.KVStore
+	client    *redis.Client
 	ttl       time.Duration
 	storeName string
 }
 
 func (s redisSessionStore) Delete(key string) error {
-	return s.db.WriteShelf(context.Background(), s.storeName, func(writer stoabs.Writer) error {
-		return writer.Delete(stoabs.BytesKey(key))
-	})
-}
-
-func (s redisSessionStore) Exists(key string) bool {
-	err := s.db.ReadShelf(context.Background(), s.storeName, func(reader stoabs.Reader) error {
-		_, err := reader.Get(stoabs.BytesKey(key))
-		return err
-	})
-	if errors.Is(err, stoabs.ErrKeyNotFound) {
-		return false
-	}
-	return true
-}
-
-func (s redisSessionStore) Get(key string, target interface{}) error {
-	return s.db.ReadShelf(context.Background(), s.storeName, func(reader stoabs.Reader) error {
-		data, err := reader.Get(stoabs.BytesKey(key))
-		if err != nil {
-			if errors.Is(err, stoabs.ErrKeyNotFound) {
-				return ErrNotFound
-			}
-			return err
-		}
-		return json.Unmarshal(data, target)
-	})
-}
-
-func (s redisSessionStore) Put(key string, value interface{}) error {
-	data, err := json.Marshal(value)
+	err := s.client.Del(context.Background(), s.toRedisKey(key)).Err()
 	if err != nil {
 		return err
 	}
-	return s.db.WriteShelf(context.Background(), s.storeName, func(writer stoabs.Writer) error {
-		tl, ok := writer.(stoabs.WriterTTL)
-		if !ok {
-			return writer.Put(stoabs.BytesKey(key), data)
-		}
-		return tl.PutTTL(stoabs.BytesKey(key), data, s.ttl)
-	})
+	return nil
+}
 
+func (s redisSessionStore) Exists(key string) bool {
+	result, err := s.client.Exists(context.Background(), s.toRedisKey(key)).Result()
+	if err != nil {
+		return false
+	}
+	return result > 0
+}
+
+func (s redisSessionStore) Get(key string, target interface{}) error {
+	result, err := s.client.Get(context.Background(), s.toRedisKey(key)).Result()
+	if err != nil {
+		if errors.Is(redis.Nil, err) {
+			return ErrNotFound
+		}
+		return err
+	}
+	return json.Unmarshal([]byte(result), target)
+}
+
+func (s redisSessionStore) Put(key string, value interface{}) error {
+	marshal, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return s.client.Set(context.Background(), s.toRedisKey(key), marshal, s.ttl).Err()
+
+}
+
+func (s redisSessionStore) toRedisKey(key string) string {
+	if len(s.storeName) > 0 {
+		return strings.Join([]string{s.storeName, key}, ".")
+	}
+	return key
 }

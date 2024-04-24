@@ -19,7 +19,9 @@
 package storage
 
 import (
+	"encoding/json"
 	"errors"
+	"github.com/go-redis/redismock/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -76,7 +78,7 @@ func TestRedisSessionStore_Get(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNotFound)
 	})
 	t.Run("expired entry", func(t *testing.T) {
-		t.Skip("Disabled because miniredis does not understand SET key value EX seconds")
+		t.Skip("Disabled because miniredis does not understand SET key value EX seconds or SETEX key value EX seconds")
 		store := sessions.GetStore(time.Minute*-1, "storename")
 		assert.NoError(t, store.Put(testKey, testValue))
 		err := store.Get(testKey, &actual)
@@ -124,7 +126,7 @@ func TestRedisSessionStore_Exists(t *testing.T) {
 	})
 
 	t.Run("expired entry", func(t *testing.T) {
-		t.Skip("Disabled because miniredis does not understand SET key value EX seconds")
+		t.Skip("Disabled because miniredis does not understand SET key value EX seconds or SETEX key value EX seconds")
 		store := sessions.GetStore(time.Minute*-1, "storename")
 		assert.NoError(t, store.Put(testKey, testValue))
 		assert.False(t, store.Exists(testKey))
@@ -164,7 +166,7 @@ func TestRedisSessionStore_Put(t *testing.T) {
 }
 
 func TestRedisSessionStore_Pruning(t *testing.T) {
-	t.Skip("Disabled because miniredis does not understand SET key value EX seconds")
+	t.Skip("Disabled because miniredis does not understand SET key value EX seconds or SETEX key value EX seconds")
 	store := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
@@ -181,4 +183,213 @@ func TestRedisSessionStore_Pruning(t *testing.T) {
 	err := otherStore.Get(testKey, &testOther)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, ErrNotFound))
+}
+
+func TestRedisWithPrefixAll(t *testing.T) {
+	db, mock := redismock.NewClientMock()
+	client := RedisClient{
+		Client: db,
+		Prefix: "one",
+	}
+	sessionDatabase := NewRedisSessionDatabase(client)
+	store := sessionDatabase.GetStore(time.Second, "two", "three")
+	expectedPrefix := "one.two.three.last"
+	t.Run("test prefix all", func(t *testing.T) {
+		// PUT
+		marshal, _ := json.Marshal(testValue)
+		mock.ExpectSet(expectedPrefix, marshal, time.Second).SetVal("")
+		err := store.Put("last", testValue)
+		assert.NoError(t, err)
+
+		// GET
+		mock.ExpectGet(expectedPrefix).SetVal(string(marshal))
+		var actual = testType{}
+		err = store.Get("last", &actual)
+		assert.NoError(t, err)
+		assert.Equal(t, testValue, actual)
+
+		// EXISTS False
+		mock.ExpectExists(expectedPrefix).SetVal(0)
+		exists := store.Exists("last")
+		assert.False(t, exists)
+
+		// EXISTS True
+		mock.ExpectExists(expectedPrefix).SetVal(1)
+		exists = store.Exists("last")
+		assert.True(t, exists)
+
+		// DELETE
+		mock.ExpectDel(expectedPrefix).SetVal(0)
+		err = store.Delete("last")
+		assert.NoError(t, err)
+	})
+	t.Run("broken JSON", func(t *testing.T) {
+		mock.ExpectGet(expectedPrefix).SetVal("{")
+		var actual = testType{}
+		err := store.Get("last", &actual)
+		assert.Error(t, err)
+	})
+	t.Run("not found", func(t *testing.T) {
+		mock.ExpectGet(expectedPrefix).RedisNil()
+		var actual = testType{}
+		err := store.Get("last", &actual)
+		assert.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound))
+	})
+
+}
+func TestRedisWithPrefixDb(t *testing.T) {
+	db, mock := redismock.NewClientMock()
+	client := RedisClient{
+		Client: db,
+		Prefix: "one",
+	}
+	sessionDatabase := NewRedisSessionDatabase(client)
+	store := sessionDatabase.GetStore(time.Second)
+	expectedPrefix := "one.three"
+	t.Run("test prefix db", func(t *testing.T) {
+		// PUT
+		marshal, _ := json.Marshal(testValue)
+		mock.ExpectSet(expectedPrefix, marshal, time.Second).SetVal("")
+		err := store.Put("three", testValue)
+		assert.NoError(t, err)
+
+		// GET
+		mock.ExpectGet(expectedPrefix).SetVal(string(marshal))
+		var actual = testType{}
+		err = store.Get("three", &actual)
+		assert.NoError(t, err)
+		assert.Equal(t, testValue, actual)
+
+		// EXISTS False
+		mock.ExpectExists(expectedPrefix).SetVal(0)
+		exists := store.Exists("three")
+		assert.False(t, exists)
+
+		// EXISTS True
+		mock.ExpectExists(expectedPrefix).SetVal(1)
+		exists = store.Exists("three")
+		assert.True(t, exists)
+
+		// DELETE
+		mock.ExpectDel(expectedPrefix).SetVal(0)
+		err = store.Delete("three")
+		assert.NoError(t, err)
+	})
+	t.Run("broken JSON", func(t *testing.T) {
+		mock.ExpectGet(expectedPrefix).SetVal("{")
+		var actual = testType{}
+		err := store.Get("three", &actual)
+		assert.Error(t, err)
+	})
+	t.Run("not found", func(t *testing.T) {
+		mock.ExpectGet(expectedPrefix).RedisNil()
+		var actual = testType{}
+		err := store.Get("three", &actual)
+		assert.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound))
+	})
+}
+func TestRedisWithPrefixesClient(t *testing.T) {
+	db, mock := redismock.NewClientMock()
+	client := RedisClient{
+		Client: db,
+	}
+	sessionDatabase := NewRedisSessionDatabase(client)
+	store := sessionDatabase.GetStore(time.Second, "first", "second")
+	expectedPrefix := "first.second.three"
+	t.Run("test prefix db", func(t *testing.T) {
+		// PUT
+		marshal, _ := json.Marshal(testValue)
+		mock.ExpectSet(expectedPrefix, marshal, time.Second).SetVal("")
+		err := store.Put("three", testValue)
+		assert.NoError(t, err)
+
+		// GET
+		mock.ExpectGet(expectedPrefix).SetVal(string(marshal))
+		var actual = testType{}
+		err = store.Get("three", &actual)
+		assert.NoError(t, err)
+		assert.Equal(t, testValue, actual)
+
+		// EXISTS False
+		mock.ExpectExists(expectedPrefix).SetVal(0)
+		exists := store.Exists("three")
+		assert.False(t, exists)
+
+		// EXISTS True
+		mock.ExpectExists(expectedPrefix).SetVal(1)
+		exists = store.Exists("three")
+		assert.True(t, exists)
+
+		// DELETE
+		mock.ExpectDel(expectedPrefix).SetVal(0)
+		err = store.Delete("three")
+		assert.NoError(t, err)
+	})
+	t.Run("broken JSON", func(t *testing.T) {
+		mock.ExpectGet(expectedPrefix).SetVal("{")
+		var actual = testType{}
+		err := store.Get("three", &actual)
+		assert.Error(t, err)
+	})
+	t.Run("not found", func(t *testing.T) {
+		mock.ExpectGet(expectedPrefix).RedisNil()
+		var actual = testType{}
+		err := store.Get("three", &actual)
+		assert.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound))
+	})
+}
+
+func TestRedisWithPrefixNone(t *testing.T) {
+	db, mock := redismock.NewClientMock()
+	client := RedisClient{
+		Client: db,
+	}
+	sessionDatabase := NewRedisSessionDatabase(client)
+	store := sessionDatabase.GetStore(time.Second)
+	expectedPrefix := "three"
+	t.Run("test prefix none", func(t *testing.T) {
+		// PUT
+		marshal, _ := json.Marshal(testValue)
+		mock.ExpectSet(expectedPrefix, marshal, time.Second).SetVal("")
+		err := store.Put("three", testValue)
+		assert.NoError(t, err)
+
+		// GET
+		mock.ExpectGet(expectedPrefix).SetVal(string(marshal))
+		var actual = testType{}
+		err = store.Get("three", &actual)
+		assert.NoError(t, err)
+		assert.Equal(t, testValue, actual)
+
+		// EXISTS False
+		mock.ExpectExists(expectedPrefix).SetVal(0)
+		exists := store.Exists("three")
+		assert.False(t, exists)
+
+		// EXISTS True
+		mock.ExpectExists(expectedPrefix).SetVal(1)
+		exists = store.Exists("three")
+		assert.True(t, exists)
+
+		// DELETE
+		mock.ExpectDel(expectedPrefix).SetVal(0)
+		err = store.Delete("three")
+		assert.NoError(t, err)
+	})
+	t.Run("broken JSON", func(t *testing.T) {
+		mock.ExpectGet(expectedPrefix).SetVal("{")
+		var actual = testType{}
+		err := store.Get("three", &actual)
+		assert.Error(t, err)
+	})
+	t.Run("not found", func(t *testing.T) {
+		mock.ExpectGet(expectedPrefix).RedisNil()
+		var actual = testType{}
+		err := store.Get("three", &actual)
+		assert.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound))
+	})
 }

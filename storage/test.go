@@ -34,18 +34,34 @@ import (
 	"gorm.io/gorm"
 )
 
-func NewTestStorageEngineInDir(t testing.TB, dir string, sessionType SessionStoreType) Engine {
+func NewTestStorageRedisEngineInDir(t testing.TB, dir string) Engine {
 	result := New().(*engine)
 	// Prevent dbmate and gorm from logging database creation and applied schema migrations.
 	// These are logged on INFO, which is good for production but annoying in unit tests.
 	result.sqlMigrationLogger = stdIO.Discard
 
 	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
-	result.config.Session.Type = sessionType
-	if sessionType == RedisSessionStoreType {
-		redis := miniredis.RunT(t)
-		result.config.Redis = RedisConfig{Address: redis.Addr()}
+	redis := miniredis.RunT(t)
+	result.config.Session.Redis = RedisConfig{Address: redis.Addr()}
+	err := result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Datadir = dir + "/data"
+	}))
+	if err != nil {
+		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		_ = result.Shutdown()
+	})
+	return result
+}
+
+func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
+	result := New().(*engine)
+	// Prevent dbmate and gorm from logging database creation and applied schema migrations.
+	// These are logged on INFO, which is good for production but annoying in unit tests.
+	result.sqlMigrationLogger = stdIO.Discard
+
+	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
 	err := result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 		config.Datadir = dir + "/data"
 	}))
@@ -64,7 +80,7 @@ func NewTestStorageEngine(t testing.TB) Engine {
 		DefaultBBoltOptions = oldOpts
 	})
 	DefaultBBoltOptions = append(DefaultBBoltOptions, stoabs.WithNoSync())
-	return NewTestStorageEngineInDir(t, io.TestDirectory(t), InMemorySessionStoreType)
+	return NewTestStorageEngineInDir(t, io.TestDirectory(t))
 }
 
 func NewTestStorageEngineRedis(t testing.TB) Engine {
@@ -73,7 +89,7 @@ func NewTestStorageEngineRedis(t testing.TB) Engine {
 		DefaultBBoltOptions = oldOpts
 	})
 	DefaultBBoltOptions = append(DefaultBBoltOptions, stoabs.WithNoSync())
-	return NewTestStorageEngineInDir(t, io.TestDirectory(t), RedisSessionStoreType)
+	return NewTestStorageRedisEngineInDir(t, io.TestDirectory(t))
 }
 
 // CreateTestBBoltStore creates an in-memory bbolt store

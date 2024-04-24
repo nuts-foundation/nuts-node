@@ -153,24 +153,18 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("failed to initialize SQL database: %w", err)
 	}
 
-	switch e.config.Session.Type {
-	case "":
-		fallthrough
-	case InMemorySessionStoreType:
-		e.sessionDatabase = NewInMemorySessionDatabase()
-	case RedisSessionStoreType:
-		if e.redisDB == nil {
-			return fmt.Errorf("redis session store type selected, but redis database is not configured")
-		} else {
-			store, err := e.redisDB.createStore("storage", "session")
-			if err != nil {
-				return fmt.Errorf("unable to configure redis store: %w", err)
-			}
-			e.sessionDatabase = NewRedisSessionDatabase(store)
+	if e.config.Session.Redis.isConfigured() {
+		redisDB, err := createRedisDatabase(e.config.Session.Redis)
+		if err != nil {
+			return fmt.Errorf("unable to configure Redis session database: %w", err)
 		}
-
-	default:
-		return fmt.Errorf("unknown session store type: %s", e.config.Session.Type)
+		client := redisDB.createClient()
+		if err != nil {
+			return fmt.Errorf("unable to configure redis client: %w", err)
+		}
+		e.sessionDatabase = NewRedisSessionDatabase(client)
+	} else {
+		e.sessionDatabase = NewInMemorySessionDatabase()
 	}
 
 	return nil

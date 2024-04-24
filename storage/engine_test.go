@@ -194,9 +194,7 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		t.Run("in-memory", func(t *testing.T) {
 			e := New().(*engine)
 			e.config = Config{
-				Session: SessionConfig{
-					Type: InMemorySessionStoreType,
-				},
+				Session: SessionConfig{},
 			}
 			dataDir := io.TestDirectory(t)
 			require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
@@ -210,28 +208,12 @@ func Test_engine_sqlDatabase(t *testing.T) {
 }
 
 func Test_engine_redisSessionDatabase(t *testing.T) {
-	t.Run("redis set at type, but no redis db configured", func(t *testing.T) {
-		e := New().(*engine)
-		e.config = Config{
-			Session: SessionConfig{
-				Type: RedisSessionStoreType,
-			},
-		}
-		dataDir := io.TestDirectory(t)
-		require.Error(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
-	})
 	t.Run("redis", func(t *testing.T) {
 		redis := miniredis.RunT(t)
 		e := New().(*engine)
 		e.config = Config{
 			Session: SessionConfig{
-				Type: RedisSessionStoreType,
-			},
-			Redis: RedisConfig{
-				Address:  redis.Addr(),
-				Database: "db",
-				TLS:      RedisTLSConfig{},
-				Sentinel: RedisSentinelConfig{},
+				Redis: RedisConfig{Address: redis.Addr()},
 			},
 		}
 		dataDir := io.TestDirectory(t)
@@ -242,5 +224,4 @@ func Test_engine_redisSessionDatabase(t *testing.T) {
 		})
 		assert.IsType(t, redisSessionDatabase{}, e.GetSessionDatabase())
 	})
-
 }

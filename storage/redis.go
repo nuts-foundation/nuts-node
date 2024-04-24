@@ -53,6 +53,11 @@ type RedisConfig struct {
 	Sentinel RedisSentinelConfig `koanf:"sentinel"`
 }
 
+type RedisClient struct {
+	Client *redis.Client
+	Prefix string
+}
+
 // isConfigured returns true if config the indicates Redis support should be enabled.
 func (r RedisConfig) isConfigured() bool {
 	return len(r.Address) > 0
@@ -199,6 +204,22 @@ func (b redisDatabase) createStore(moduleName string, storeName string) (stoabs.
 		return redis7.Wrap(prefix, redis.NewFailoverClient(b.sentinelOptions), opts)
 	}
 	return redis7.CreateRedisStore(prefix, b.options, opts)
+}
+
+func (b redisDatabase) createClient() RedisClient {
+	var client *redis.Client
+	if b.sentinelOptions != nil {
+		client = redis.NewFailoverClient(b.sentinelOptions)
+	}
+	client = redis.NewClient(b.options)
+	prefix := ""
+	if len(b.databaseName) > 0 {
+		prefix = b.databaseName
+	}
+	return RedisClient{
+		Client: client,
+		Prefix: prefix,
+	}
 }
 
 func (b redisDatabase) getClass() Class {

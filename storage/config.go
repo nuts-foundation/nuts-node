@@ -29,7 +29,7 @@ type Config struct {
 // DefaultConfig returns the default configuration for the module.
 func DefaultConfig() Config {
 	return Config{
-		Session: SessionConfig{Type: InMemorySessionStoreType},
+		Session: SessionConfig{Redis: RedisConfig{}},
 	}
 }
 
@@ -43,15 +43,5 @@ type SQLConfig struct {
 // SessionConfig specifies config for the session storage engine.
 type SessionConfig struct {
 	// Type is the type of session storage engine to use.
-	Type SessionStoreType `koanf:"type"`
+	Redis RedisConfig `koanf:"redis"`
 }
-
-// SessionStoreType specifies the type of session store to use.
-type SessionStoreType string
-
-const (
-	// InMemorySessionStoreType specifies that the session store should be in-memory.
-	InMemorySessionStoreType SessionStoreType = "in-memory"
-	// RedisSessionStoreType specifies that the session store should be in the configured Redis database.
-	RedisSessionStoreType SessionStoreType = "redis"
-)

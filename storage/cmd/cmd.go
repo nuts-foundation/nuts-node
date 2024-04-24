@@ -19,7 +19,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/spf13/pflag"
 )
@@ -43,7 +42,13 @@ func FlagSet() *pflag.FlagSet {
 		"If not set it, defaults to a SQLite database stored inside the configured data directory. "+
 		"Note: using SQLite is not recommended in production environments. "+
 		"If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').")
-	flagSet.String("storage.session.type", string(defs.Session.Type), fmt.Sprintf("Type of session storage engine to use. Options are: %s, %s", storage.InMemorySessionStoreType, storage.RedisSessionStoreType))
+
+	flagSet.String("storage.session.redis.address", defs.Redis.Address, "Redis session database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options. "+
+		"If not set it, defaults to an in-memory database.")
+	flagSet.String("storage.session.redis.username", defs.Redis.Username, "Redis session database username. If set, it overrides the username in the connection URL.")
+	flagSet.String("storage.session.redis.password", defs.Redis.Password, "Redis session database password. If set, it overrides the username in the connection URL.")
+	flagSet.String("storage.session.redis.database", defs.Redis.Database, "Redis session database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.")
+	flagSet.String("storage.session.redis.tls.truststorefile", defs.Redis.TLS.TrustStoreFile, "PEM file containing the trusted CA certificate(s) for authenticating remote Redis session servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).")
 
 	return flagSet
 }
