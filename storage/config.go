@@ -20,14 +20,17 @@ package storage
 
 // Config specifies config for the storage engine.
 type Config struct {
-	BBolt BBoltConfig `koanf:"bbolt"`
-	Redis RedisConfig `koanf:"redis"`
-	SQL   SQLConfig   `koanf:"sql"`
+	BBolt   BBoltConfig   `koanf:"bbolt"`
+	Redis   RedisConfig   `koanf:"redis"`
+	SQL     SQLConfig     `koanf:"sql"`
+	Session SessionConfig `koanf:"session"`
 }
 
 // DefaultConfig returns the default configuration for the module.
 func DefaultConfig() Config {
-	return Config{}
+	return Config{
+		Session: SessionConfig{Redis: RedisConfig{}},
+	}
 }
 
 // SQLConfig specifies config for the SQL storage engine.
@@ -35,4 +38,10 @@ type SQLConfig struct {
 	// ConnectionString is the connection string for the SQL database.
 	// This string may contain secrets (user:password), so should never be logged.
 	ConnectionString string `koanf:"connection"`
+}
+
+// SessionConfig specifies config for the session storage engine.
+type SessionConfig struct {
+	// Type is the type of session storage engine to use.
+	Redis RedisConfig `koanf:"redis"`
 }
