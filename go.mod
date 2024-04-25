@@ -27,7 +27,7 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.13.0
 	github.com/nuts-foundation/go-leia/v4 v4.0.1
-	github.com/nuts-foundation/go-stoabs v1.9.1-0.20240423163219-4ceec5cef809
+	github.com/nuts-foundation/go-stoabs v1.9.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
