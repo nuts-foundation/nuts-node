@@ -71,7 +71,6 @@ type engine struct {
 	databases          []database
 	sessionDatabase    SessionDatabase
 	sqlDB              *gorm.DB
-	redisDB            *redisDatabase
 	config             Config
 	sqlMigrationLogger io.Writer
 }
@@ -138,7 +137,6 @@ func (e *engine) Configure(config core.ServerConfig) error {
 			return fmt.Errorf("unable to configure Redis database: %w", err)
 		}
 		e.databases = append(e.databases, redisDB)
-		e.redisDB = redisDB
 		log.Logger().Info("Redis database support enabled.")
 		log.Logger().Warn("Redis database support is still experimental: do not use for production environments!")
 		redis.SetLogger(redisLogWriter{logger: log.Logger()})
