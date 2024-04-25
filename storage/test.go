@@ -34,7 +34,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func NewTestStorageRedisEngineInDir(t testing.TB, dir string) Engine {
+func NewTestStorageRedisEngineInDir(t testing.TB, dir string) (Engine, *miniredis.Miniredis) {
 	result := New().(*engine)
 	// Prevent dbmate and gorm from logging database creation and applied schema migrations.
 	// These are logged on INFO, which is good for production but annoying in unit tests.
@@ -52,7 +52,7 @@ func NewTestStorageRedisEngineInDir(t testing.TB, dir string) Engine {
 	t.Cleanup(func() {
 		_ = result.Shutdown()
 	})
-	return result
+	return result, redis
 }
 
 func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
@@ -83,7 +83,7 @@ func NewTestStorageEngine(t testing.TB) Engine {
 	return NewTestStorageEngineInDir(t, io.TestDirectory(t))
 }
 
-func NewTestStorageEngineRedis(t testing.TB) Engine {
+func NewTestStorageEngineRedis(t testing.TB) (Engine, *miniredis.Miniredis) {
 	oldOpts := DefaultBBoltOptions[:]
 	t.Cleanup(func() {
 		DefaultBBoltOptions = oldOpts

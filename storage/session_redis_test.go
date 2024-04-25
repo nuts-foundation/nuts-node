@@ -41,7 +41,7 @@ var testValue = testType{
 }
 
 func TestRedisSessionStore(t *testing.T) {
-	store := NewTestStorageEngineRedis(t)
+	store, _ := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
 	defer sessions.close()
@@ -62,13 +62,10 @@ func TestRedisSessionStore(t *testing.T) {
 }
 
 func TestRedisSessionStore_Get(t *testing.T) {
-	store := NewTestStorageEngineRedis(t)
-	require.NoError(t, store.Start())
-	sessions := store.GetSessionDatabase()
+	storageEngine, miniRedis := NewTestStorageEngineRedis(t)
+	require.NoError(t, storageEngine.Start())
+	sessions := storageEngine.GetSessionDatabase()
 	defer sessions.close()
-	otherStore := sessions.GetStore(time.Second, "unit_other")
-
-	assert.NoError(t, otherStore.Put(testKey, testValue))
 
 	var actual testType
 	t.Run("non-existing key", func(t *testing.T) {
@@ -78,9 +75,10 @@ func TestRedisSessionStore_Get(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNotFound)
 	})
 	t.Run("expired entry", func(t *testing.T) {
-		t.Skip("Disabled because miniredis does not understand SET key value EX seconds or SETEX key value EX seconds")
-		store := sessions.GetStore(time.Minute*-1, "storename")
+		store := sessions.GetStore(time.Minute, "otherstore")
 		assert.NoError(t, store.Put(testKey, testValue))
+		miniRedis.FastForward(2 * time.Minute) // cause the entry to expire
+
 		err := store.Get(testKey, &actual)
 
 		assert.ErrorIs(t, err, ErrNotFound)
@@ -88,7 +86,7 @@ func TestRedisSessionStore_Get(t *testing.T) {
 }
 
 func TestRedisSessionStore_Delete(t *testing.T) {
-	store := NewTestStorageEngineRedis(t)
+	store, _ := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
 	defer sessions.close()
@@ -110,7 +108,7 @@ func TestRedisSessionStore_Delete(t *testing.T) {
 }
 
 func TestRedisSessionStore_Exists(t *testing.T) {
-	store := NewTestStorageEngineRedis(t)
+	store, miniRedis := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
 	defer sessions.close()
@@ -126,15 +124,16 @@ func TestRedisSessionStore_Exists(t *testing.T) {
 	})
 
 	t.Run("expired entry", func(t *testing.T) {
-		t.Skip("Disabled because miniredis does not understand SET key value EX seconds or SETEX key value EX seconds")
-		store := sessions.GetStore(time.Minute*-1, "storename")
+		store := sessions.GetStore(time.Minute, "otherstore")
 		assert.NoError(t, store.Put(testKey, testValue))
+		miniRedis.FastForward(2 * time.Minute) // cause the entry to expire
+
 		assert.False(t, store.Exists(testKey))
 	})
 }
 
 func TestRedisSessionStore_Put(t *testing.T) {
-	store := NewTestStorageEngineRedis(t)
+	store, _ := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
 	defer sessions.close()
@@ -166,8 +165,7 @@ func TestRedisSessionStore_Put(t *testing.T) {
 }
 
 func TestRedisSessionStore_Pruning(t *testing.T) {
-	t.Skip("Disabled because miniredis does not understand SET key value EX seconds or SETEX key value EX seconds")
-	store := NewTestStorageEngineRedis(t)
+	store, miniRedis := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
 	defer sessions.close()
@@ -178,7 +176,8 @@ func TestRedisSessionStore_Pruning(t *testing.T) {
 	assert.NoError(t, otherStore.Put(testKey, testValue))
 
 	// wait some time to make sure the pruner ran
-	time.Sleep(2 * time.Second)
+	miniRedis.FastForward(2 * time.Minute) // cause the entry to expire
+
 	testOther := testType{}
 	err := otherStore.Get(testKey, &testOther)
 	assert.Error(t, err)
@@ -187,11 +186,7 @@ func TestRedisSessionStore_Pruning(t *testing.T) {
 
 func TestRedisWithPrefixAll(t *testing.T) {
 	db, mock := redismock.NewClientMock()
-	client := RedisClient{
-		Client: db,
-		Prefix: "one",
-	}
-	sessionDatabase := NewRedisSessionDatabase(client)
+	sessionDatabase := NewRedisSessionDatabase(db, "one")
 	store := sessionDatabase.GetStore(time.Second, "two", "three")
 	expectedPrefix := "one.two.three.last"
 	t.Run("test prefix all", func(t *testing.T) {
@@ -240,11 +235,7 @@ func TestRedisWithPrefixAll(t *testing.T) {
 }
 func TestRedisWithPrefixDb(t *testing.T) {
 	db, mock := redismock.NewClientMock()
-	client := RedisClient{
-		Client: db,
-		Prefix: "one",
-	}
-	sessionDatabase := NewRedisSessionDatabase(client)
+	sessionDatabase := NewRedisSessionDatabase(db, "one")
 	store := sessionDatabase.GetStore(time.Second)
 	expectedPrefix := "one.three"
 	t.Run("test prefix db", func(t *testing.T) {
@@ -292,10 +283,7 @@ func TestRedisWithPrefixDb(t *testing.T) {
 }
 func TestRedisWithPrefixesClient(t *testing.T) {
 	db, mock := redismock.NewClientMock()
-	client := RedisClient{
-		Client: db,
-	}
-	sessionDatabase := NewRedisSessionDatabase(client)
+	sessionDatabase := NewRedisSessionDatabase(db, "")
 	store := sessionDatabase.GetStore(time.Second, "first", "second")
 	expectedPrefix := "first.second.three"
 	t.Run("test prefix db", func(t *testing.T) {
@@ -344,10 +332,7 @@ func TestRedisWithPrefixesClient(t *testing.T) {
 
 func TestRedisWithPrefixNone(t *testing.T) {
 	db, mock := redismock.NewClientMock()
-	client := RedisClient{
-		Client: db,
-	}
-	sessionDatabase := NewRedisSessionDatabase(client)
+	sessionDatabase := NewRedisSessionDatabase(db, "")
 	store := sessionDatabase.GetStore(time.Second)
 	expectedPrefix := "three"
 	t.Run("test prefix none", func(t *testing.T) {

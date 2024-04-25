@@ -153,8 +153,9 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("failed to initialize SQL database: %w", err)
 	}
 
-	if e.config.Session.Redis.isConfigured() {
-		redisDB, err := createRedisDatabase(e.config.Session.Redis)
+	redisConfig := e.config.Session.Redis
+	if redisConfig.isConfigured() {
+		redisDB, err := createRedisDatabase(redisConfig)
 		if err != nil {
 			return fmt.Errorf("unable to configure Redis session database: %w", err)
 		}
@@ -162,7 +163,7 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		if err != nil {
 			return fmt.Errorf("unable to configure redis client: %w", err)
 		}
-		e.sessionDatabase = NewRedisSessionDatabase(client)
+		e.sessionDatabase = NewRedisSessionDatabase(client, redisConfig.Database)
 	} else {
 		e.sessionDatabase = NewInMemorySessionDatabase()
 	}

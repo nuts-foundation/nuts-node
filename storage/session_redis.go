@@ -28,10 +28,10 @@ import (
 	"time"
 )
 
-func NewRedisSessionDatabase(client RedisClient) SessionDatabase {
+func NewRedisSessionDatabase(client *redis.Client, prefix string) SessionDatabase {
 	return redisSessionDatabase{
-		client: client.Client,
-		prefix: client.Prefix,
+		client: client,
+		prefix: prefix,
 	}
 }
 
@@ -45,9 +45,7 @@ func (s redisSessionDatabase) GetStore(ttl time.Duration, keys ...string) Sessio
 	if len(s.prefix) > 0 {
 		prefixParts = append(prefixParts, s.prefix)
 	}
-	for i := range keys {
-		prefixParts = append(prefixParts, keys[i])
-	}
+	prefixParts = append(prefixParts, keys...)
 	return redisSessionStore{
 		client:    s.client,
 		ttl:       ttl,
@@ -69,16 +67,13 @@ type redisSessionStore struct {
 }
 
 func (s redisSessionStore) Delete(key string) error {
-	err := s.client.Del(context.Background(), s.toRedisKey(key)).Err()
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.client.Del(context.Background(), s.toRedisKey(key)).Err()
 }
 
 func (s redisSessionStore) Exists(key string) bool {
 	result, err := s.client.Exists(context.Background(), s.toRedisKey(key)).Result()
 	if err != nil {
+		log.Logger().WithError(err).Error("Failed to check key existence in Redis session store")
 		return false
 	}
 	return result > 0
