@@ -3,7 +3,7 @@
 create table discovery_service
 (
     -- id is the unique identifier for the service. It comes from the service definition.
-    id         varchar(200) not null primary key,
+    id         varchar(36) not null primary key,
     -- tag is the latest tag pointing to the last presentation registered on the service.
     last_tag   varchar(40)  null,
     -- tag_prefix is used to prefix the tag of the presentations of the service.

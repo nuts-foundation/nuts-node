@@ -10,7 +10,8 @@ services:
     environment:
       NUTS_STORAGE_SQL_CONNECTION: sqlserver://sa:MyStrong(!)Password@db:1433/node_b?sslmode=disable
   db:
-    image: mcr.microsoft.com/azure-sql-edge:latest
+    # image: mcr.microsoft.com/azure-sql-edge:latest <-- "The sqlcmd utility is not included in the ARM64 version of the SQL Edge container" - https://github.com/microsoft/mssql-docker/issues/734
+    image: mcr.microsoft.com/mssql/server:2022-latest
     restart: always
     ports:
       - "1433:1433"
