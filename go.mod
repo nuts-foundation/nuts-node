@@ -162,7 +162,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240415180920-8c6c420018be // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
 	gorm.io/driver/sqlite v1.5.5
-	gorm.io/gorm v1.25.9
+	gorm.io/gorm v1.25.10
 	rsc.io/qr v0.2.0 // indirect
 )
 
