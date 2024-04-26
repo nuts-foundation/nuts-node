@@ -401,7 +401,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 
 			require.NoError(t, err)
 			actualRedirectURL, _ := url.Parse(response.(HandleAuthorizeResponse200JSONResponse).RedirectURI)
-			assert.True(t, strings.HasPrefix(actualRedirectURL.String(), "https://redirect-url?"))
+			assert.True(t, strings.HasPrefix(actualRedirectURL.String(), "openid4vp:"))
 			assert.Equal(t, verifierDID.String(), actualRedirectURL.Query().Get("client_id"))
 			// etc
 		})
