@@ -83,7 +83,7 @@ require (
 	github.com/go-co-op/gocron v1.28.3 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
-	github.com/go-redsync/redsync/v4 v4.8.1 // indirect
+	github.com/go-redsync/redsync/v4 v4.13.0 // indirect
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
@@ -162,11 +162,12 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240415180920-8c6c420018be // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
 	gorm.io/driver/sqlite v1.5.5
-	gorm.io/gorm v1.25.9
+	gorm.io/gorm v1.25.10
 	rsc.io/qr v0.2.0 // indirect
 )
 
 require (
+	github.com/go-redis/redismock/v9 v9.2.0
 	gorm.io/driver/mysql v1.5.6
 	gorm.io/driver/postgres v1.5.7
 )
