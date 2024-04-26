@@ -10,8 +10,6 @@ docker compose rm -f -v
 # Start new stack
 docker compose up --wait
 
-export SHOW_BROWSER=true
-export KEEP_BROWSER_OPEN=true
-go test -v --tags=e2e_tests .
+go test -v --tags=e2e_tests -count=1 .
 
 docker compose stop

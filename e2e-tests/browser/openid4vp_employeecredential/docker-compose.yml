@@ -1,7 +1,6 @@
 services:
   nodeA-backend:
-#    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
-    image: nutsfoundation/nuts-node:local
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
     ports:
@@ -26,3 +25,8 @@ services:
     image: chromedp/headless-shell:latest
     ports:
       - 9222:9222
+    # Copied the entrypoint from the image's Dockerfile (https://github.com/chromedp/docker-headless-shell/blob/master/Dockerfile)
+    # and added "--ignore-certificate-errors" to ignore self-signed certs in the e2e tests.
+    # Otherwise, it fails with:
+    #   page load error net::ERR_CERT_AUTHORITY_INVALID
+    entrypoint: ["/headless-shell/headless-shell", "--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--remote-debugging-address=0.0.0.0", "--remote-debugging-port=9222", "--ignore-certificate-errors"]
