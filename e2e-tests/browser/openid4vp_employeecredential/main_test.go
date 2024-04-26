@@ -37,8 +37,9 @@ import (
 var nodeClientConfig = core.ClientConfig{Address: "http://localhost:8081"}
 
 func init() {
-	//os.Setenv("SHOW_BROWSER", "true")
-	//os.Setenv("KEEP_BROWSER_OPEN", "true")
+	// uncomment this to get feedback during development
+	// os.Setenv("SHOW_BROWSER", "true")
+	// os.Setenv("KEEP_BROWSER_OPEN", "true")
 }
 
 func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
