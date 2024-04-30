@@ -108,6 +108,28 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
 }
 
+func (hb HTTPClient) RequestObject(ctx context.Context, requestURI string) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURI, nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Add("Accept", "application/oauth-authz-req+jwt")
+
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
+		return "", httpErr
+	}
+
+	data, err := io.ReadAll(response.Body)
+	if err != nil {
+		return "", fmt.Errorf("unable to read response: %w", err)
+	}
+	return string(data), err
+}
+
 func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data url.Values) (oauth.TokenResponse, error) {
 	var token oauth.TokenResponse
 	tokenURL, err := url.Parse(tokenEndpoint)

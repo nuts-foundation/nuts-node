@@ -50,4 +50,6 @@ type Client interface {
 	AccessTokenOid4vci(ctx context.Context, clientId string, tokenEndpoint string, redirectUri string, code string, pkceCodeVerifier *string) (*oauth.Oid4vciTokenResponse, error)
 
 	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
+	// RequestObject is returned from the authorization request's 'request_uri' defined in RFC9101.
+	RequestObject(ctx context.Context, requestURI string) (string, error)
 }

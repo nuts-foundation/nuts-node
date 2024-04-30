@@ -126,6 +126,20 @@ func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, webdi
 	return metadata, nil
 }
 
+func (c *OpenID4VPClient) RequestObject(ctx context.Context, requestURI string) (string, error) {
+	iamClient := c.httpClient
+	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
+	if err != nil {
+		return "", fmt.Errorf("invalid request_uri: %w", err)
+	}
+	// the wallet/client acts as authorization server
+	requestObject, err := iamClient.RequestObject(ctx, parsedURL.String())
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve JAR Request Object: %w", err)
+	}
+	return requestObject, nil
+}
+
 func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)

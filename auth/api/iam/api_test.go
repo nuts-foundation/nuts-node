@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -343,7 +344,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		bytes, err := createSignedRequestObject(t, key, requestParams)
 		require.NoError(t, err)
 
-		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier&request=valid-token"
+		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier&request_uri=https://example.com/oauth2/request.jwt/"
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
@@ -370,8 +371,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 
 		require.NoError(t, err)
 		require.IsType(t, HandleAuthorizeRequest302Response{}, res)
-		location := res.(HandleAuthorizeRequest302Response).Headers.Location
-		assert.Equal(t, expectedURL, location)
+		testAuthzReqRedirectURI(t, expectedURL, res.(HandleAuthorizeRequest302Response).Headers.Location)
 	})
 	t.Run("error - invalid request parameter", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -1004,12 +1004,17 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 				assert.NotEmpty(t, claims[oauth.NonceParam])
 				return "signed JWT", nil
 			})
+			expectedURL := "https://server.test/authorize?client_id=did%3Aweb%3Aclient.test%3Aiam%3A123&request_uri=https://client.test/oauth2/request.jwt/"
+
 			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
 
 			assert.NoError(t, err)
 			require.NotNil(t, redirectURL)
-			assert.Equal(t, "signed JWT", redirectURL.Query().Get(oauth.RequestParam))
-			assert.Equal(t, clientDID.String(), redirectURL.Query().Get(oauth.ClientIDParam))
+			testAuthzReqRedirectURI(t, expectedURL, redirectURL.String())
+			parts := strings.Split(redirectURL.Query().Get(oauth.RequestURIParam), "/")
+			token := new([]byte)
+			require.NoError(t, ctx.client.authzRequestObjectStore().Get(parts[len(parts)-1], token))
+			assert.Equal(t, []byte("signed JWT"), *token)
 		})
 		t.Run("error - failed to sign JWT", func(t *testing.T) {
 			ctx := newTestClient(t)
@@ -1398,6 +1403,26 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "failed to sign the JWT with kid (kid): signature failed")
 	})
+}
+
+// testAuthzReqRedirectURI compares to expectedRedirectURI and actualRedirectURI
+// 'request_uri' is checked for presence,
+// and if expectedRedirectURI contains a 'request_uri' it will do a partial match on URL decoded actual value
+func testAuthzReqRedirectURI(t testing.TB, expectedRedirectURI, actualRedirectURI string) {
+	stripRequestURI := func(uri string) (string, string) {
+		u, err := url.Parse(uri)
+		require.NoError(t, err)
+		q := u.Query()
+		requestURI := q.Get(oauth.RequestURIParam)
+		q.Set(oauth.RequestURIParam, "<IGNORED>")
+		u.RawQuery = q.Encode()
+		return u.String(), requestURI
+	}
+	expected, expectedReqURIPartial := stripRequestURI(expectedRedirectURI)
+	actual, actualReqURI := stripRequestURI(actualRedirectURI)
+	assert.Equal(t, expected, actual)
+	assert.NotEmpty(t, actualReqURI)
+	assert.Contains(t, actualReqURI, expectedReqURIPartial) // both are URL decoded
 }
 
 func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.VerifiableCredential {
