@@ -289,23 +289,6 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	return response, nil
 }
 
-// toAnyMap marshals and unmarshals input into *map[string]any. Useful to generate OAPI response objects.
-func toAnyMap(input any) (*map[string]any, error) {
-	if input == nil {
-		return nil, nil
-	}
-	bs, err := json.Marshal(input)
-	if err != nil {
-		return nil, err
-	}
-	result := make(map[string]any)
-	err = json.Unmarshal(bs, &result)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
 	ownDID, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
@@ -371,6 +354,21 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 			RedirectURI: redirectURI,
 		}
 	}
+}
+
+// GetRequestJWT returns the Request Object referenced as 'request_uri' in an authorization request.
+// RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
+func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequestObject) (GetRequestJWTResponseObject, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+// PostRequestJWT returns the Request Object referenced as 'request_uri' in an authorization request.
+// Extension of OpenID 4 Verifiable Presentations (OpenID4VP) on
+// RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
+func (r Wrapper) PostRequestJWT(ctx context.Context, request PostRequestJWTRequestObject) (PostRequestJWTResponseObject, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 // validateJARRequest validates a JAR (JWT Authorization Request) and returns the JWT claims.
