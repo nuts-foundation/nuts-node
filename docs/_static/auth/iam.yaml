@@ -183,7 +183,7 @@ paths:
               type: object
               properties:
                 wallet_metadata:
-                  $ref: '#/components/schemas/TokenResponse'
+                  $ref: '#/components/schemas/OAuthAuthorizationServerMetadata'
                 wallet_nonce:
                   description: |
                     A String value used to mitigate replay attacks of the Authorization Request. 

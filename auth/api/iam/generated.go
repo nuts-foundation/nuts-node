@@ -141,8 +141,9 @@ type RequestUserAccessTokenJSONBody struct {
 
 // PostRequestJWTFormdataBody defines parameters for PostRequestJWT.
 type PostRequestJWTFormdataBody struct {
-	// WalletMetadata Token Responses are made as defined in (RFC6749)[https://datatracker.ietf.org/doc/html/rfc6749#section-5.1]
-	WalletMetadata *TokenResponse `form:"wallet_metadata,omitempty" json:"wallet_metadata,omitempty"`
+	// WalletMetadata OAuth2 Authorization Server Metadata
+	// Contain properties from several specifications and may grow over time
+	WalletMetadata *OAuthAuthorizationServerMetadata `form:"wallet_metadata,omitempty" json:"wallet_metadata,omitempty"`
 
 	// WalletNonce A String value used to mitigate replay attacks of the Authorization Request.
 	// When received, the Verifier MUST use it as the wallet_nonce value in the signed authorization request object.

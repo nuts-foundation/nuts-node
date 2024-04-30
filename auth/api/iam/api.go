@@ -881,6 +881,7 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 			return nil, fmt.Errorf("failed to resolve key for signing authorization request: %w", err)
 		}
 		requestObjectParams := createRequestObject(client, server, modifier)
+		// TODO: signature type produced here must be in metadata.RequestObjectSigningAlgValuesSupported
 		token, err := r.jwtSigner.SignJWT(ctx, requestObjectParams, nil, keyId.String())
 		if err != nil {
 			return nil, fmt.Errorf("failed to sign authorization request: %w", err)
