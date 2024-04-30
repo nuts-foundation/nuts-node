@@ -157,7 +157,7 @@ paths:
       summary: Get Request Object referenced in an authorization request to the Authorization Server.
       description: |
         Get the Request Object containing the OAuth 2.0 authorization request parameters, including extension parameters.
-        The Request Object is a JWT with signature (JWS) and may be encrypted (JWE).
+        The Request Object is a JWT with signature (JWS).
         See [RFC9101] The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR) for details.
       operationId: getRequestJWT
       tags:

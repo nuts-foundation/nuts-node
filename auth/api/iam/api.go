@@ -58,6 +58,8 @@ import (
 var _ core.Routable = &Wrapper{}
 var _ StrictServerInterface = &Wrapper{}
 
+var oauthRequestObjectKey = []string{"oauth", "requestobject"}
+
 const apiPath = "iam"
 const apiModuleName = auth.ModuleName + "/" + apiPath
 const httpRequestContextKey = "http-request"
@@ -297,15 +299,15 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
-	qParams := httpRequest.URL.Query()
+	queryParams := httpRequest.URL.Query()
 
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	params, err := r.parseJARRequest(ctx, qParams)
+	requestObject, err := r.parseJARRequest(ctx, queryParams)
 	if err != nil {
 		return nil, err
 	}
 
-	session := createSession(params, *ownDID)
+	session := createSession(requestObject, *ownDID)
 
 	switch session.ResponseType {
 	case responseTypeCode:
@@ -323,7 +325,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		clientId := session.ClientID
 		if strings.HasPrefix(clientId, "did:web:") {
 			// client is a cloud wallet with user
-			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, params)
+			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, requestObject)
 		} else {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
@@ -333,7 +335,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	case responseTypeVPToken:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
-		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, params)
+		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, requestObject)
 	default:
 		// TODO: This should be a redirect?
 		redirectURI, _ := url.Parse(session.RedirectURI)
@@ -886,15 +888,15 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 		if err != nil {
 			return nil, fmt.Errorf("failed to sign authorization request: %w", err)
 		}
-		uriID := cryptoNuts.GenerateNonce()
-		if err := r.authzRequestObjectStore().Put(uriID, []byte(token)); err != nil {
+		requestID := cryptoNuts.GenerateNonce()
+		if err := r.authzRequestObjectStore().Put(requestID, []byte(token)); err != nil {
 			return nil, err
 		}
 		didURL, err := didweb.DIDToURL(client)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
 		}
-		requestURI, err := didURL.Parse("/oauth2/request.jwt/" + uriID)
+		requestURI, err := didURL.Parse("/oauth2/request.jwt/" + requestID)
 		if err != nil {
 			return nil, err
 		}
@@ -990,8 +992,6 @@ func (r Wrapper) accessTokenClientStore() storage.SessionStore {
 func (r Wrapper) accessTokenServerStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "serveraccesstoken")
 }
-
-var oauthRequestObjectKey = []string{"oauth", "requestobject"}
 
 // accessTokenServerStore is used by the Auth server to store issued access tokens
 func (r Wrapper) authzRequestObjectStore() storage.SessionStore {
