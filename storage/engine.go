@@ -22,7 +22,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"path"
 	"strings"
 	"sync"
@@ -65,7 +64,7 @@ type engine struct {
 	sessionDatabase    SessionDatabase
 	sqlDB              *gorm.DB
 	config             Config
-	sqlMigrationLogger migrationLogger
+	sqlMigrationLogger goose.Logger
 }
 
 func (e *engine) Config() interface{} {
@@ -235,7 +234,8 @@ func (e *engine) initSQLDatabase() error {
 	default:
 		return errors.New("unsupported SQL database")
 	}
-	goose.SetVerbose(true)
+	goose.SetVerbose(log.Logger().Level >= logrus.DebugLevel)
+	goose.SetLogger(e.sqlMigrationLogger)
 	if err != nil {
 		return err
 	}
@@ -321,21 +321,13 @@ func (p *provider) getStore(moduleName string, name string, adapter database) (s
 	return store, err
 }
 
-type migrationLogger interface {
-	io.Writer
-}
 type logrusInfoLogWriter struct {
-}
-
-func (m logrusInfoLogWriter) Write(p []byte) (n int, err error) {
-	log.Logger().Info(string(p))
-	return len(p), nil
 }
 
 func (m logrusInfoLogWriter) Printf(format string, v ...interface{}) {
 	log.Logger().Info(fmt.Sprintf(format, v...))
 }
 
-func (m logrusInfoLogWriter) Verbose() bool {
-	return log.Logger().Level >= logrus.DebugLevel
+func (m logrusInfoLogWriter) Fatalf(format string, v ...interface{}) {
+	log.Logger().Errorf(format, v...)
 }
