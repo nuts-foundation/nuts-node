@@ -79,7 +79,7 @@ func (c CredentialStore) Store(db *gorm.DB, credential vc.VerifiableCredential) 
 		SubjectID: subjectDID.String(),
 		Raw:       credential.Raw(),
 	}
-	// WithParam type
+	// Set type
 	for _, currType := range credential.Type {
 		if currType.String() != "VerifiableCredential" {
 			val := currType.String()

@@ -442,7 +442,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		})
 		node2 := startNode(t, "node2", testDirectory)
 
-		// WithParam node DID to an unauthenticatable DID, such that authentication must fail
+		// Set node DID to an unauthenticatable DID, such that authentication must fail
 		malloryDID, _ := did.ParseDID("did:nuts:mallory")
 		node1.network.nodeDID = *malloryDID
 
@@ -470,7 +470,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 
-		// WithParam node DID to an unauthenticatable DID, such that authentication must fail
+		// Set node DID to an unauthenticatable DID, such that authentication must fail
 		malloryDID, _ := did.ParseDID("did:nuts:mallory")
 		node2.network.nodeDID = *malloryDID
 

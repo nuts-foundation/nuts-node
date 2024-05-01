@@ -274,7 +274,7 @@ func (s *sqlStore) updateTag(tx *gorm.DB, serviceID string, newTimestamp Tag) (*
 		result = &ts
 		service.LastTag = ts.Tag(service.TagPrefix)
 	} else {
-		// WithParam tag: just store it
+		// Set tag: just store it
 		service.LastTag = newTimestamp
 	}
 	if err := tx.Save(service).Error; err != nil {

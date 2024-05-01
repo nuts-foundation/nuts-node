@@ -41,7 +41,7 @@ func Test_GenerateTestData(t *testing.T) {
 	createdTime := time.Date(2023, 4, 20, 9, 53, 3, 0, time.UTC)
 	expirationTime := createdTime.Add(4 * 24 * time.Hour)
 
-	// WithParam up crypto
+	// Set up crypto
 	const keyID = "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw"
 	privateKeyData, err := os.ReadFile("private.pem")
 	require.NoError(t, err)

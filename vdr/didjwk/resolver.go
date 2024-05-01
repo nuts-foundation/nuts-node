@@ -92,7 +92,7 @@ func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	// Create an empty DID document
 	var document did.Document
 
-	// WithParam the document ID
+	// Set the document ID
 	document.ID = id
 
 	// Add the verification method

@@ -180,7 +180,7 @@ func accessGranted(authKey authorizedKey, context echo.Context, token jwt.Token,
 	auditLog := auditLogger(context, token.Subject(), audit.AccessGrantedEvent)
 	auditLog.Infof("Access granted to user '%v' with JWT %s issued to %s by %s", authKey.comment, token.JwtID(), token.Subject(), token.Issuer())
 
-	// WithParam the username from authorized_keys as the username in the context
+	// Set the username from authorized_keys as the username in the context
 	context.Set(core.UserContextKey, token.Issuer())
 
 	// Call the next handler/middleware, probably serving some content/processing the API request
@@ -402,7 +402,7 @@ func unauthorizedError(context echo.Context, reason error) *echo.HTTPError {
 	// set the error writer to the unauthorized error writer so the error response follow the default control logic
 	context.Set(core.ErrorWriterContextKey, &unauthorizedErrorWriter{})
 
-	// WithParam an empty username for this context
+	// Set an empty username for this context
 	context.Set(core.UserContextKey, "")
 
 	// Log an entry in the audit log about this failure

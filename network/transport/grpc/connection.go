@@ -134,7 +134,7 @@ func (mc *conn) disconnect() {
 	}
 	mc.outboxes = make(map[string]chan interface{})
 
-	// WithParam peer ID, since when it reconnects it might have changed (due to a reboot). Also reset node DID because it has to be re-authenticated.
+	// Set peer ID, since when it reconnects it might have changed (due to a reboot). Also reset node DID because it has to be re-authenticated.
 	peer := mc.Peer()
 	peer.ID = ""
 	peer.NodeDID = did.DID{}

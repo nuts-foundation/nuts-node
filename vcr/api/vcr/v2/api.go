@@ -111,7 +111,7 @@ func (w Wrapper) IssueVC(ctx context.Context, request IssueVCRequestObject) (Iss
 
 	{ // set missing defaults;
 		// TODO add deprecation warning for this?
-		// WithParam default context, if not set
+		// Set default context, if not set
 		if len(requestedVC.Context) == 0 {
 			requestedVC.Context = []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI}
 		}
@@ -145,7 +145,7 @@ func parseCredentialOptions(request IssueVCRequestObject) (*issuer.CredentialOpt
 
 	options := issuer.CredentialOptions{}
 
-	// WithParam format
+	// Set format
 	if request.Body.Format != nil {
 		options.Format = string(*request.Body.Format)
 	}
@@ -176,7 +176,7 @@ func parseCredentialOptions(request IssueVCRequestObject) (*issuer.CredentialOpt
 			if *request.Body.Visibility != Public && *request.Body.Visibility != Private {
 				return nil, core.InvalidInputError("invalid value for visibility")
 			}
-			// WithParam the actual value
+			// Set the actual value
 			options.Public = *request.Body.Visibility == Public
 		}
 
