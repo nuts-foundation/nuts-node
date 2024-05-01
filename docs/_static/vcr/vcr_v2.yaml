@@ -136,6 +136,53 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/IssueVCRequest'
+            examples:
+              "did:web":
+                value:
+                  {
+                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+                    "type": ["VerifiableCredential", "NutsOrganizationCredential"],
+                    "issuer": "did:web:example.com",
+                    "expirationDate": "2022-01-02T12:00:00Z",
+                    "credentialSubject": {
+                      "organization": {
+                        "name": "Zorggroep de Nootjes",
+                        "city": "Amandelmere"
+                      }
+                    },
+                    "withStatusList2021Revocation": true
+                  }
+              "did:nuts (public)":
+                value:
+                  {
+                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+                    "type": ["VerifiableCredential", "NutsOrganizationCredential"],
+                    "issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
+                    "credentialSubject": {
+                      "organization": {
+                        "name": "Zorggroep de Nootjes",
+                        "city": "Amandelmere"
+                      }
+                    },
+                    "publishToNetwork": true,
+                    "visibility": "public"
+                  }
+              "did:nuts (private)":
+                value:
+                  {
+                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+                    "type": ["VerifiableCredential", "NutsAuthorizationCredential"],
+                    "issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
+                    "credentialSubject": {
+                        "id": "did:nuts:123",
+                        "purposeOfUse": "eOverdracht-receiver",
+                        "resources": {
+                            "path":"/Task/123"
+                        }
+                    },
+                    "publishToNetwork": true,
+                    "visibility": "private"
+                  }
       responses:
         "200":
           description: "New VC has been created successfully. Returns the Verifiable Credential."
