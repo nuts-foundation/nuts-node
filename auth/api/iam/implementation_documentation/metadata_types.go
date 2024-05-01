@@ -43,14 +43,14 @@ type RFC8414Fields struct {
 
 	// TODO: Can we use this for none-did:nuts wallets to get the public key?
 	JwksURI url.URL `json:"jwks_uri"`
-	//OPTIONAL.  URL of the authorization server's JWK WithParam [JWK]
+	//OPTIONAL.  URL of the authorization server's JWK Set [JWK]
 	//document.  The referenced document contains the signing key(s) the
 	//client uses to validate signatures from the authorization server.
-	//This URL MUST use the "https" scheme.  The JWK WithParam MAY also
+	//This URL MUST use the "https" scheme.  The JWK Set MAY also
 	//contain the server's encryption key or keys, which are used by
 	//clients to encrypt requests to the server.  When both signing and
 	//encryption keys are made available, a "use" (public key use)
-	//parameter value is REQUIRED for all keys in the referenced JWK WithParam
+	//parameter value is REQUIRED for all keys in the referenced JWK Set
 	//to indicate each key's intended usage.
 
 	// TODO: drop?
@@ -427,9 +427,9 @@ type RFC7591Fields struct {
 	//this field MAY be internationalized, as described in Section 2.2.
 
 	JwksURI string `json:"jwks_uri"`
-	//URL string referencing the client's JSON Web Key (JWK) WithParam
+	//URL string referencing the client's JSON Web Key (JWK) Set
 	//[RFC7517] document, which contains the client's public keys.  The
-	//value of this field MUST point to a valid JWK WithParam document.  These
+	//value of this field MUST point to a valid JWK Set document.  These
 	//keys can be used by higher-level protocols that use signing or
 	//encryption.  For instance, these keys might be used by some
 	//applications for validating signed requests made to the token
@@ -440,9 +440,9 @@ type RFC7591Fields struct {
 	//response.
 
 	Jwks any `json:"jwks"`
-	//Client's JSON Web Key WithParam [RFC7517] document value, which contains
+	//Client's JSON Web Key Set [RFC7517] document value, which contains
 	//the client's public keys.  The value of this field MUST be a JSON
-	//object containing a valid JWK WithParam.  These keys can be used by
+	//object containing a valid JWK Set.  These keys can be used by
 	//higher-level protocols that use signing or encryption.  This
 	//parameter is intended to be used by clients that cannot use the
 	//"jwks_uri" parameter, such as native clients that cannot host
@@ -546,7 +546,7 @@ type EBSIHolderWalletMeta struct {
 	//	These share the same client_id as the main functionality (verification or issuance), but expose own configuration through client_metadata in Authorisation Request.
 	//	The configuration contains all fields from Holder Wallet Metadata, and the following extension.
 	JwksURI string `json:"jwks_uri"`
-	//REQUIRED	URL of the authorization server's JWK WithParam document. Must start with client_id.
+	//REQUIRED	URL of the authorization server's JWK Set document. Must start with client_id.
 }
 
 // TODO - EBSI states: Authorisation Server will expose /.well-known/openid-configuration while. This is only mentioned in SIOPv2, others use /.well-known/authorization-server-metadata

@@ -220,8 +220,7 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 	if err != nil {
 		return nil, err
 	}
-	status := token.GetString("status")
-	if status != nil && *status == oauth.AccessTokenRequestStatusPending {
+	if token.GetString("status") != nil && *token.GetString("status") == oauth.AccessTokenRequestStatusPending {
 		// return pending status
 		return RetrieveAccessToken200JSONResponse(token), nil
 	}

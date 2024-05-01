@@ -601,13 +601,13 @@ func (mr *MockContextMockRecorder) Scheme() *gomock.Call {
 // Set mocks base method
 func (m *MockContext) Set(arg0 string, arg1 interface{}) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "WithParam", arg0, arg1)
+	m.ctrl.Call(m, "Set", arg0, arg1)
 }
 
 // Set indicates an expected call of Set
 func (mr *MockContextMockRecorder) Set(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithParam", reflect.TypeOf((*MockContext)(nil).Set), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockContext)(nil).Set), arg0, arg1)
 }
 
 // SetCookie mocks base method

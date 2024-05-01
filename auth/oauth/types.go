@@ -28,7 +28,7 @@ import (
 // this file contains constants, variables and helper functions for OAuth related code
 
 // TokenResponse is the OAuth access token response.
-// Through WithParam() and GetString() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
+// Through Set() and GetString() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`
@@ -75,7 +75,7 @@ func (t TokenResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(result)
 }
 
-// WithParam adds an additional parameter to the token response.
+// Set adds an additional parameter to the token response.
 // It's a builder-style function.
 func (t *TokenResponse) WithParam(key string, value interface{}) *TokenResponse {
 	if t.additionalParams == nil {
@@ -284,12 +284,12 @@ type OAuthClientMetadata struct {
 	// TODO: remove? Can plug DID docs contact info.
 	Contacts []string `json:"contacts,omitempty"`
 
-	// JwksURI URL string referencing the client's JSON Web Key (JWK) WithParam [RFC7517] document, which contains the client's public keys.
+	// JwksURI URL string referencing the client's JSON Web Key (JWK) Set [RFC7517] document, which contains the client's public keys.
 	// From https://www.rfc-editor.org/rfc/rfc7591.html
 	// TODO: remove? Can list the DID's keys. Could be useful if authorization without DIDs/VCs is needed.
 	// TODO: In EBSI it is a required field for the Service Wallet Metadata https://api-conformance.ebsi.eu/docs/ct/providers-and-wallets-metadata#service-wallet-metadata
 	JwksURI string `json:"jwks_uri,omitempty"`
-	// Jwks includes the JWK WithParam of a client. Mutually exclusive with JwksURI.
+	// Jwks includes the JWK Set of a client. Mutually exclusive with JwksURI.
 	// From https://www.rfc-editor.org/rfc/rfc7591.html
 	Jwks any `json:"jwks,omitempty"`
 

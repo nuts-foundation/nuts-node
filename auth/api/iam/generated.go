@@ -28,7 +28,7 @@ type RedirectResponseWithID struct {
 	SessionId string `json:"session_id"`
 }
 
-// RequestObjectResponse A JSON Web Token (JWT) whose JWT Claims WithParam holds the JSON-encoded OAuth 2.0 authorization request parameters.
+// RequestObjectResponse A JSON Web Token (JWT) whose JWT Claims Set holds the JSON-encoded OAuth 2.0 authorization request parameters.
 type RequestObjectResponse = string
 
 // TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
