@@ -1569,6 +1569,7 @@ type testCtx struct {
 	vcIssuer      *issuer.MockIssuer
 	vcVerifier    *verifier.MockVerifier
 	wallet        *holder.MockWallet
+	jar           *MockJAR
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -1588,6 +1589,7 @@ func newTestClient(t testing.TB) *testCtx {
 	mockWallet := holder.NewMockWallet(ctrl)
 	jwtSigner := cryptoNuts.NewMockJWTSigner(ctrl)
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
+	mockJAR := NewMockJAR(ctrl)
 
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
@@ -1619,6 +1621,7 @@ func newTestClient(t testing.TB) *testCtx {
 			policyBackend: policyInstance,
 			keyResolver:   keyResolver,
 			jwtSigner:     jwtSigner,
+			jar:           mockJAR,
 		},
 	}
 }

@@ -10,6 +10,7 @@ install-tools:
 
 gen-mocks:
 	mockgen -destination=auth/mock.go -package=auth -source=auth/interface.go
+	mockgen -destination=auth/api/iam/jar_mock.go -package=iam -source=auth/api/iam/jar.go
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
 	mockgen -destination=auth/client/iam/mock.go -package=iam -source=auth/client/iam/interface.go
 	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go

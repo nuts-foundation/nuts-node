@@ -141,6 +141,8 @@ const (
 	RequestParam = "request"
 	// RequestURIParam is the parameter name for the request parameter. Defined in RFC9101
 	RequestURIParam = "request_uri"
+	// RequestURIMethodParam states what http method (get/post) should be used for RequestURIParam. Defined in OpenID4VP
+	RequestURIMethodParam = "request_uri_method"
 	// ResponseTypeParam is the parameter name for the response_type parameter
 	ResponseTypeParam = "response_type"
 	// ScopeParam is the parameter name for the scope parameter

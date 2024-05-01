@@ -21,7 +21,6 @@ package iam
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -34,7 +33,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -94,6 +92,7 @@ type Wrapper struct {
 	vdr           vdr.VDR
 	jwtSigner     cryptoNuts.JWTSigner
 	keyResolver   resolver.KeyResolver
+	jar           JAR
 }
 
 func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend, jwtSigner cryptoNuts.JWTSigner) *Wrapper {
@@ -110,6 +109,11 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 		vdr:           vdrInstance,
 		jwtSigner:     jwtSigner,
 		keyResolver:   resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
+		jar: &jar{
+			auth:        authInstance,
+			jwtSigner:   jwtSigner,
+			keyResolver: resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
+		},
 	}
 }
 
@@ -302,12 +306,13 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	queryParams := httpRequest.URL.Query()
 
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	requestObject, err := r.parseJARRequest(ctx, queryParams)
+	ro, err := r.jar.Parse(ctx, *ownDID, queryParams)
 	if err != nil {
 		return nil, err
 	}
+	authzParams := ro.Claims
 
-	session := createSession(requestObject, *ownDID)
+	session := createSession(authzParams, *ownDID)
 
 	switch session.ResponseType {
 	case responseTypeCode:
@@ -325,7 +330,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		clientId := session.ClientID
 		if strings.HasPrefix(clientId, "did:web:") {
 			// client is a cloud wallet with user
-			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, requestObject)
+			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, authzParams)
 		} else {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
@@ -335,7 +340,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	case responseTypeVPToken:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
-		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, requestObject)
+		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, authzParams)
 	default:
 		// TODO: This should be a redirect?
 		redirectURI, _ := url.Parse(session.RedirectURI)
@@ -349,14 +354,21 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 // GetRequestJWT returns the Request Object referenced as 'request_uri' in an authorization request.
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
 func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequestObject) (GetRequestJWTResponseObject, error) {
-	var signedRequestObject string
-	err := r.authzRequestObjectStore().Get(request.Id, &signedRequestObject)
+	ro := new(requestObject)
+	err := r.authzRequestObjectStore().Get(request.Id, ro)
 	if err != nil {
 		return nil, err
 	}
+	if !ro.signed() {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "used request_uri_method 'get' on a 'post' request_uri",
+			InternalError: errors.New("wrong 'request_uri_method' authorization server or wallet probably does not support 'request_uri_method'"),
+		}
+	}
 	return GetRequestJWT200ApplicationoauthAuthzReqJwtResponse{
-		Body:          bytes.NewReader([]byte(signedRequestObject)),
-		ContentLength: int64(len(signedRequestObject)),
+		Body:          bytes.NewReader([]byte(ro.Token)),
+		ContentLength: int64(len(ro.Token)),
 	}, nil
 }
 
@@ -365,63 +377,6 @@ func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequest
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
 func (r Wrapper) PostRequestJWT(ctx context.Context, request PostRequestJWTRequestObject) (PostRequestJWTResponseObject, error) {
 	return nil, errors.New("not implemented")
-}
-
-func (r Wrapper) parseJARRequest(ctx context.Context, q url.Values) (oauthParameters, error) {
-	var rawRequestObject string
-	var err error
-	if q.Has(oauth.RequestParam) {
-		if q.Has(oauth.RequestURIParam) {
-			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "claims 'request' and 'request_uri' are mutually exclusive"}
-		}
-		rawRequestObject = q.Get(oauth.RequestParam)
-	} else if q.Has(oauth.RequestURIParam) {
-		requestURI := q.Get(oauth.RequestURIParam)
-		rawRequestObject, err = r.auth.IAMClient().RequestObject(ctx, requestURI)
-		if err != nil {
-			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURI, Description: "failed to get Request Object", InternalError: err}
-		}
-	} else {
-		// require_signed_request_object is true, so we reject anything that isn't
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "authorization request are required to use signed request objects (RFC9101)"}
-	}
-
-	// already OAuth errors
-	return r.validateJARRequest(ctx, rawRequestObject, q.Get(oauth.ClientIDParam))
-}
-
-// validateJARRequest validates a JAR (JWT Authorization Request) and returns the JWT claims.
-// the client_id must match the signer of the JWT.
-func (r *Wrapper) validateJARRequest(ctx context.Context, rawToken string, clientId string) (oauthParameters, error) {
-	var signerKid string
-	// Parse and validate the JWT
-	token, err := cryptoNuts.ParseJWT(rawToken, func(kid string) (crypto.PublicKey, error) {
-		signerKid = kid
-		return resolver.DIDKeyResolver{Resolver: r.vdr}.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
-	}, jwt.WithValidate(true))
-	if err != nil {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "request signature validation failed", InternalError: err}
-	}
-	claimsAsMap, err := token.AsMap(ctx)
-	if err != nil {
-		// very unlikely
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid request parameter", InternalError: err}
-	}
-	params := parseJWTClaims(claimsAsMap)
-	// check client_id claim, it must be the same as the client_id in the request
-	if clientId != params.get(oauth.ClientIDParam) {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid client_id claim in signed authorization request"}
-	}
-	// check if the signer of the JWT is the client
-	signer, err := did.ParseDIDURL(signerKid)
-	if err != nil {
-		// very unlikely since the key has already been resolved
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid signer", InternalError: err}
-	}
-	if signer.DID.String() != clientId {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "client_id does not match signer of authorization request"}
-	}
-	return params, nil
 }
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
@@ -870,73 +825,39 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse authorization endpoint URL: %w", err)
 	}
-	// one default param for both signed and unsigned
-	params := map[string]string{
-		oauth.ClientIDParam: client.String(),
+
+	// request_uri
+	requestID := cryptoNuts.GenerateNonce()
+	requestObj := r.jar.Create(client, &server, modifier)
+	if err = r.jar.Sign(ctx, requestObj); err != nil {
+		return nil, fmt.Errorf("sign authorization Request Object: %w", err)
 	}
-	// use JAR (JWT Authorization Request, RFC9101) if the verifier supports/requires it
+	if err = r.authzRequestObjectStore().Put(requestID, requestObj); err != nil {
+		return nil, err
+	}
+	baseURL, err := createOAuth2BaseURL(client)
+	if err != nil {
+		return nil, err
+	}
+	requestURI := baseURL.JoinPath("request.jwt", requestID)
+
+	// JAR request
+	params := map[string]string{
+		oauth.ClientIDParam:   client.String(),
+		oauth.RequestURIParam: requestURI.String(),
+	}
 	if metadata.RequireSignedRequestObject {
-		// construct JWT
-		// first get a valid keyID from the vdr.KeyResolver
-		keyId, _, err := r.keyResolver.ResolveKey(client, nil, resolver.AssertionMethod)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve key for signing authorization request: %w", err)
-		}
-		requestObjectParams := createRequestObject(client, server, modifier)
-		// TODO: signature type produced here must be in metadata.RequestObjectSigningAlgValuesSupported
-		token, err := r.jwtSigner.SignJWT(ctx, requestObjectParams, nil, keyId.String())
-		if err != nil {
-			return nil, fmt.Errorf("failed to sign authorization request: %w", err)
-		}
-		requestID := cryptoNuts.GenerateNonce()
-		if err := r.authzRequestObjectStore().Put(requestID, token); err != nil {
-			return nil, err
-		}
-		didURL, err := didweb.DIDToURL(client)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
-		}
-		requestURI, err := didURL.Parse("/oauth2/request.jwt/" + requestID)
-		if err != nil {
-			return nil, err
-		}
-		redirectURL := httpNuts.AddQueryParams(*endpoint, map[string]string{
-			oauth.ClientIDParam:   client.String(),
-			oauth.RequestURIParam: requestURI.String(),
-		})
+		redirectURL := httpNuts.AddQueryParams(*endpoint, params)
 		return &redirectURL, nil
 	}
-	// else return an unsigned regular authorization request
+	// else; unclear if AS has support for RFC9101, so also add all modifiers to the query itself
 	// left here for completeness, node 2 node interaction always uses JAR since the AS metadata has it hardcoded
-
-	// additional claims can be added by the caller
+	// TODO: in the user flow we have no AS metadata, meaning that we add all params to the query.
+	// 		 This is most likely going to fail on mobile devices due to request url length.
 	modifier(params)
 	redirectURL := httpNuts.AddQueryParams(*endpoint, params)
 	return &redirectURL, nil
 }
-
-func createRequestObject(client did.DID, server did.DID, modifier requestObjectModifier) oauthParameters {
-	// default claims for JAR
-	params := map[string]string{
-		jwt.IssuerKey:       client.String(),
-		oauth.ClientIDParam: client.String(),
-		jwt.AudienceKey:     server.String(),
-		// added by default, can be overriden by the caller
-		oauth.NonceParam: cryptoNuts.GenerateNonce(),
-	}
-
-	// additional claims can be added by the caller
-	modifier(params)
-
-	oauthParams := make(oauthParameters, len(params))
-	for k, v := range params {
-		oauthParams[k] = v
-	}
-	return oauthParams
-}
-
-// requestObjectModifier is a function that modifies the claims/params of an unsigned or signed (JWT) OAuth2 request
-type requestObjectModifier func(claims map[string]string)
 
 func (r *Wrapper) proofJwt(ctx context.Context, holderDid did.DID, audienceDid did.DID, nonce *string) (string, error) {
 	// TODO: is this the right key type?
