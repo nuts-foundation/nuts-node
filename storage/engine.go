@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -194,6 +195,15 @@ func (e *engine) initSQLDatabase() error {
 		return err
 	}
 	var dialect goose.Dialect
+	gormConfig := &gorm.Config{
+		TranslateError: true,
+		Logger: gormLogrusLogger{
+			underlying:    log.Logger(),
+			slowThreshold: sqlSlowQueryThreshold,
+		},
+	}
+	_ = os.Setenv("TEXT_TYPE", "TEXT")
+	defer os.Unsetenv("TEXT_TYPE")
 	switch dbType {
 	case "sqlite":
 		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
@@ -205,13 +215,7 @@ func (e *engine) initSQLDatabase() error {
 		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
 		db.SetMaxOpenConns(1)
 		dialector := sqlite.Dialector{Conn: db}
-		e.sqlDB, err = gorm.Open(dialector, &gorm.Config{
-			TranslateError: true,
-			Logger: gormLogrusLogger{
-				underlying:    log.Logger(),
-				slowThreshold: sqlSlowQueryThreshold,
-			},
-		})
+		e.sqlDB, err = gorm.Open(dialector, gormConfig)
 		if err != nil {
 			return err
 		}
@@ -219,17 +223,18 @@ func (e *engine) initSQLDatabase() error {
 	case "mysql":
 		e.sqlDB, _ = gorm.Open(mysql.New(mysql.Config{
 			Conn: db,
-		}), &gorm.Config{})
+		}), gormConfig)
 		dialect = goose.DialectMySQL
 	case "postgres":
 		e.sqlDB, _ = gorm.Open(postgres.New(postgres.Config{
 			Conn: db,
-		}), &gorm.Config{})
+		}), gormConfig)
 		dialect = goose.DialectPostgres
 	case "sqlserver":
+		_ = os.Setenv("TEXT_TYPE", "VARCHAR(MAX)")
 		e.sqlDB, _ = gorm.Open(sqlserver.New(sqlserver.Config{
 			Conn: db,
-		}), &gorm.Config{})
+		}), gormConfig)
 		dialect = goose.DialectMSSQL
 	default:
 		return errors.New("unsupported SQL database")
@@ -239,13 +244,13 @@ func (e *engine) initSQLDatabase() error {
 	if err != nil {
 		return err
 	}
-	provider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS)
+	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS)
 	if err != nil {
 		return err
 	}
 
 	log.Logger().Debug("Running database migrations...")
-	result, err := provider.Up(context.Background())
+	result, err := gooseProvider.Up(context.Background())
 	if err != nil {
 		for _, r := range result {
 			log.Logger().Info(r.String())

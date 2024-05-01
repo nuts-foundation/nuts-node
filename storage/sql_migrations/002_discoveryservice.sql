@@ -1,3 +1,4 @@
+-- +goose ENVSUB ON
 -- +goose Up
 -- discovery contains the known discovery services and the associated tags.
 create table discovery_service
@@ -21,7 +22,7 @@ create table discovery_presentation
     lamport_timestamp       integer      null,
     credential_subject_id   varchar(370) not null,
     presentation_id         varchar(415) not null,
-    presentation_raw        text         not null,
+    presentation_raw        $TEXT_TYPE         not null,
     presentation_expiration integer      not null,
     unique (service_id, credential_subject_id),
     constraint fk_discovery_presentation_service_id foreign key (service_id) references discovery_service (id) on delete cascade
