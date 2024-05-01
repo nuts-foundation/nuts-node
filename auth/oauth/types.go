@@ -28,7 +28,7 @@ import (
 // this file contains constants, variables and helper functions for OAuth related code
 
 // TokenResponse is the OAuth access token response.
-// Through Set() and GetString() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
+// Through WithParam() and GetString() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`
