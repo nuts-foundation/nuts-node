@@ -1047,9 +1047,9 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 			require.NotNil(t, redirectURL)
 			testAuthzReqRedirectURI(t, expectedURL, redirectURL.String())
 			parts := strings.Split(redirectURL.Query().Get(oauth.RequestURIParam), "/")
-			token := new([]byte)
+			token := new(string)
 			require.NoError(t, ctx.client.authzRequestObjectStore().Get(parts[len(parts)-1], token))
-			assert.Equal(t, []byte("signed JWT"), *token)
+			assert.Equal(t, "signed JWT", *token)
 		})
 		t.Run("error - failed to sign JWT", func(t *testing.T) {
 			ctx := newTestClient(t)
