@@ -349,14 +349,14 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 // GetRequestJWT returns the Request Object referenced as 'request_uri' in an authorization request.
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
 func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequestObject) (GetRequestJWTResponseObject, error) {
-	signedRequestObject := new([]byte)
-	err := r.authzRequestObjectStore().Get(request.Id, signedRequestObject)
+	var signedRequestObject string
+	err := r.authzRequestObjectStore().Get(request.Id, &signedRequestObject)
 	if err != nil {
 		return nil, err
 	}
 	return GetRequestJWT200ApplicationoauthAuthzReqJwtResponse{
-		Body:          bytes.NewReader(*signedRequestObject),
-		ContentLength: int64(len(*signedRequestObject)),
+		Body:          bytes.NewReader([]byte(signedRequestObject)),
+		ContentLength: int64(len(signedRequestObject)),
 	}, nil
 }
 
@@ -855,7 +855,6 @@ func (r Wrapper) openidIssuerEndpoints(ctx context.Context, issuerDid did.DID) (
 // - jwt.Audience
 // - nonce
 // any of these params can be overridden by the requestObjectModifier.
-// if requestID can be provided to generate an expected request_uri (/oauth2/request.jwt/{requestID}), a random value is used if not provided.
 func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID, server did.DID, modifier requestObjectModifier) (*url.URL, error) {
 	// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
 	// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
@@ -889,7 +888,7 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 			return nil, fmt.Errorf("failed to sign authorization request: %w", err)
 		}
 		requestID := cryptoNuts.GenerateNonce()
-		if err := r.authzRequestObjectStore().Put(requestID, []byte(token)); err != nil {
+		if err := r.authzRequestObjectStore().Put(requestID, token); err != nil {
 			return nil, err
 		}
 		didURL, err := didweb.DIDToURL(client)

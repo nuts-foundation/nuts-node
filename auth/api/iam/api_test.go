@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -973,6 +974,40 @@ func TestWrapper_StatusList(t *testing.T) {
 		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Nil(t, res)
 	})
+}
+
+func TestWrapper_GetRequestJWT(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		requestID := "thisID"
+		expectedToken := "validToken"
+		ctx := newTestClient(t)
+		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, expectedToken))
+
+		response, err := ctx.client.GetRequestJWT(nil, GetRequestJWTRequestObject{requestID})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetRequestJWT200ApplicationoauthAuthzReqJwtResponse{
+			Body:          bytes.NewReader([]byte(expectedToken)),
+			ContentLength: 10,
+		}, response)
+	})
+	t.Run("error - not found", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		response, err := ctx.client.GetRequestJWT(nil, GetRequestJWTRequestObject{"unknownID"})
+
+		assert.Nil(t, response)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
+	})
+}
+
+func TestWrapper_PostRequestJWT(t *testing.T) {
+	ctx := newTestClient(t)
+
+	response, err := ctx.client.PostRequestJWT(nil, PostRequestJWTRequestObject{Id: "unknownID"})
+
+	assert.Nil(t, response)
+	assert.EqualError(t, err, "not implemented")
 }
 
 func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
