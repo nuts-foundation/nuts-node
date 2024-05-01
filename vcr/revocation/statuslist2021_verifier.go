@@ -199,7 +199,7 @@ func (cs *StatusList2021) download(statusListCredential string) (*vc.VerifiableC
 				Debug("Failed to close response body")
 		}
 	}()
-	body, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(io.LimitReader(res.Body, 1024*1024*10)) // 10mb
 	if res.StatusCode > 299 || err != nil {
 		return nil, errors.Join(fmt.Errorf("fetching StatusList2021Credential from '%s' failed", statusListCredential), err)
 	}

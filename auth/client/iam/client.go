@@ -70,7 +70,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 	var metadata oauth.AuthorizationServerMetadata
 	var data []byte
 
-	if data, err = io.ReadAll(response.Body); err != nil {
+	if data, err = core.LimitedReadAll(response.Body); err != nil {
 		return nil, fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(data, &metadata); err != nil {
@@ -143,7 +143,7 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 	}
 
 	var responseData []byte
-	if responseData, err = io.ReadAll(response.Body); err != nil {
+	if responseData, err = core.LimitedReadAll(response.Body); err != nil {
 		return token, fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(responseData, &token); err != nil {
@@ -180,7 +180,6 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 }
 
 func (hb HTTPClient) OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error) {
-
 	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err
@@ -202,7 +201,7 @@ func (hb HTTPClient) OpenIdConfiguration(ctx context.Context, serverURL string) 
 	var metadata oauth.OpenIDConfigurationMetadata
 	var data []byte
 
-	if data, err = io.ReadAll(response.Body); err != nil {
+	if data, err = core.LimitedReadAll(response.Body); err != nil {
 		return nil, fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(data, &metadata); err != nil {
@@ -239,7 +238,7 @@ func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, webDID 
 	var metadata oauth.OpenIDCredentialIssuerMetadata
 	var data []byte
 
-	if data, err = io.ReadAll(response.Body); err != nil {
+	if data, err = core.LimitedReadAll(response.Body); err != nil {
 		return nil, fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(data, &metadata); err != nil {
@@ -278,7 +277,7 @@ func (hb HTTPClient) AccessTokenOid4vci(ctx context.Context, presentationDefinit
 	}
 
 	var responseData []byte
-	if responseData, err = io.ReadAll(response.Body); err != nil {
+	if responseData, err = core.LimitedReadAll(response.Body); err != nil {
 		return nil, fmt.Errorf("unable to read response: %w", err)
 	}
 
@@ -384,7 +383,7 @@ func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, targe
 
 	var data []byte
 
-	if data, err = io.ReadAll(response.Body); err != nil {
+	if data, err = core.LimitedReadAll(response.Body); err != nil {
 		return fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(data, &target); err != nil {
