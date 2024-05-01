@@ -232,7 +232,7 @@ func (s *authzServer) validateAccessTokenRequest(ctx context.Context, bearerToke
 
 	// extract the JwtBearerToken, validates according to RFC003 §5.2.1.1
 	// also check if used algorithms are according to spec (ES*** and PS***)
-	// and checks basic validity. Set jwtBearerTokenClaims in validationContext
+	// and checks basic validity. WithParam jwtBearerTokenClaims in validationContext
 	if err := s.parseAndValidateJwtBearerToken(validationCtx); err != nil {
 		return validationCtx, fmt.Errorf("jwt bearer token validation failed: %w", err)
 	}

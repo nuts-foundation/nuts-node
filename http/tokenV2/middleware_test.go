@@ -73,7 +73,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	jwkKey, err := jwk.FromRaw(priv)
 	require.NoError(t, err)
 
-	// Set the key ID for the jwk to be the public key fingerprint
+	// WithParam the key ID for the jwk to be the public key fingerprint
 	err = jwkKey.Set(jwk.KeyIDKey, ssh.FingerprintSHA256(sshPub))
 	require.NoError(t, err)
 
@@ -101,7 +101,7 @@ func generateECDSATestKey(t *testing.T, curve elliptic.Curve, signingAlgorithm j
 	jwkKey, err := jwk.FromRaw(priv)
 	require.NoError(t, err)
 
-	// Set the key ID for the jwk to be the public key fingerprint
+	// WithParam the key ID for the jwk to be the public key fingerprint
 	err = jwkKey.Set(jwk.KeyIDKey, ssh.FingerprintSHA256(sshPub))
 	require.NoError(t, err)
 
@@ -129,7 +129,7 @@ func generateRSATestKey(t *testing.T, bits int, signingAlgorithm jwa.SignatureAl
 	jwkKey, err := jwk.FromRaw(priv)
 	require.NoError(t, err)
 
-	// Set the key ID for the jwk to be the public key fingerprint
+	// WithParam the key ID for the jwk to be the public key fingerprint
 	err = jwkKey.Set(jwk.KeyIDKey, ssh.FingerprintSHA256(sshPub))
 	require.NoError(t, err)
 
@@ -206,7 +206,7 @@ func TestAuditLogAccessDenied(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -251,7 +251,7 @@ func TestAuditLogAccessGranted(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -302,7 +302,7 @@ func TestValidJWTEd25519(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -348,7 +348,7 @@ func TestValidJWTEd25519JWKFingerprint(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -391,7 +391,7 @@ func TestValidJWTSingleAudience(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -434,7 +434,7 @@ func TestInvalidSingleAudience(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -473,7 +473,7 @@ func TestValidIssProxiedSub(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -516,7 +516,7 @@ func TestInvalidIss(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -556,7 +556,7 @@ func TestEmptySub(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -594,7 +594,7 @@ func TestValidJWTCaseInsensitiveBearer(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("bEaReR %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -631,7 +631,7 @@ func TestValidJWTECDSAES256(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -668,7 +668,7 @@ func TestValidJWTECDSAES384(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -705,7 +705,7 @@ func TestValidJWTECDSAES512(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -743,7 +743,7 @@ func TestWrongAudienceJWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -766,7 +766,7 @@ func TestWrongKeyID(t *testing.T) {
 	token := validJWT(t)
 	token.Set(jwt.AudienceKey, []string{invalidHostname})
 
-	// Set the key id to something invalid that the middleware will not be able to locate in its in-memory database
+	// WithParam the key id to something invalid that the middleware will not be able to locate in its in-memory database
 	require.NoError(t, key.Set(jwk.KeyIDKey, "invalid-key-id"))
 
 	// Sign and serialize the JWT
@@ -785,7 +785,7 @@ func TestWrongKeyID(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -829,7 +829,7 @@ func TestCorrectKeyIDWithIncorrectSignature(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -870,7 +870,7 @@ func TestExpiredJWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -913,7 +913,7 @@ func TestFutureIATJWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -956,7 +956,7 @@ func TestFutureNBFJWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -997,7 +997,7 @@ func TestUnauthorizedKey(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1035,7 +1035,7 @@ func TestNoAuthorizedKeys(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1107,7 +1107,7 @@ func TestMalformedAuthorizationHeader(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer BAD %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1145,7 +1145,7 @@ func TestNonBearerToken(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Basic %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1184,7 +1184,7 @@ func TestInsecureRS256JWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1223,7 +1223,7 @@ func TestInsecureRS384JWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1261,7 +1261,7 @@ func TestInsecure1024BitRS512JWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1306,7 +1306,7 @@ func TestSecureRS512JWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1350,7 +1350,7 @@ func TestPS256JWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1390,7 +1390,7 @@ func TestPS384JWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1428,7 +1428,7 @@ func TestSecurePS512JWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1459,7 +1459,7 @@ func TestHS256JWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.M4GTX4kpyuK-nthSEEgwCjmP8xVGJsW7kQh5CMY5CmM"
 	header := fmt.Sprintf("Bearer %v", token)
 	request.Header.Set("Authorization", header)
@@ -1487,7 +1487,7 @@ func TestHS384JWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	token := "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KlhAYnODU2I87_7bafWOb1UAOOxoPAyTt3Qxm0NRMiB7vIj3mRTfHNzdTU8sTaYp"
 	header := fmt.Sprintf("Bearer %v", token)
 	request.Header.Set("Authorization", header)
@@ -1515,7 +1515,7 @@ func TestHS512JWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	token := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.D6rYXV3Phv0vymZodiEcztZfXnhvaV14h7hrWG_MJht2NxuxKZ2_-wjg3S_oimWfz0LaF_Uazma1GPA2A_LHDg"
 	header := fmt.Sprintf("Bearer %v", token)
 	request.Header.Set("Authorization", header)
@@ -1547,7 +1547,7 @@ func TestNoneAlgUnsignedJWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1587,7 +1587,7 @@ func TestMissingAud(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1627,7 +1627,7 @@ func TestMissingIss(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1667,7 +1667,7 @@ func TestMissingSub(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1707,7 +1707,7 @@ func TestMissingJTI(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1747,7 +1747,7 @@ func TestNonUUIDJTI(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1787,7 +1787,7 @@ func TestMissingIAT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1827,7 +1827,7 @@ func TestMissingEXP(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1867,7 +1867,7 @@ func TestMissingNBF(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1913,7 +1913,7 @@ func TestExpiresLongAfterNotBeforeJWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -1959,7 +1959,7 @@ func TestExpiresLongAfterIssuedAtJWT(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -2005,7 +2005,7 @@ func TestNotBeforePriorToIssuedAt(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	header := fmt.Sprintf("Bearer %v", string(serialized))
 	request.Header.Set("Authorization", header)
 
@@ -2032,7 +2032,7 @@ func TestRepeatedACharAuthorizationHeader(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	token := ""
 	for len(token) < 99999 {
 		token += "A"
@@ -2063,7 +2063,7 @@ func TestNOPSledAuthorizationHeader(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	token := []byte("")
 	for len(token) < 99999 {
 		// 0x90 is an encoded NOP instruction on x86/amd64 and thus serves as a common NOP sled
@@ -2095,7 +2095,7 @@ func TestLongB64TripletAuthorizationHeader(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	encodedES512Header := "eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9"
 	raw := make(map[string]string)
 	raw["A"] = ""
@@ -2131,7 +2131,7 @@ func TestB64JSONNOPSledAuthorizationHeader(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	encodedES512Header := "eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9"
 	raw := make(map[string][]byte)
 	raw["NOP"] = []byte("")
@@ -2167,7 +2167,7 @@ func TestB64NOPSledAuthorizationHeader(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
 	require.NoError(t, err)
 
-	// Set the authorization header in the test request
+	// WithParam the authorization header in the test request
 	encodedES512Header := "eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9"
 	raw := []byte{}
 	for len(raw) < 8096 {

@@ -231,28 +231,6 @@ func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, we
 	return rsp, nil
 }
 
-func (c *OpenID4VPClient) AccessTokenOid4vci(ctx context.Context, clientId string, tokenEndpoint string, redirectUri string, code string, pkceCodeVerifier *string) (*oauth.Oid4vciTokenResponse, error) {
-	iamClient := c.httpClient
-	data := url.Values{}
-	data.Set("client_id", clientId)
-	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
-	data.Set(oauth.CodeParam, code)
-	data.Set("redirect_uri", redirectUri)
-	if pkceCodeVerifier != nil {
-		data.Set("code_verifier", *pkceCodeVerifier)
-	}
-	presentationDefinitionURL, err := url.Parse(tokenEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	rsp, err := iamClient.AccessTokenOid4vci(ctx, *presentationDefinitionURL, data)
-	if err != nil {
-		return nil, fmt.Errorf("remote server: failed to retrieve an access_token: %w", err)
-	}
-	return rsp, nil
-}
-
 func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error) {
 	iamClient := c.httpClient
 	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJWT)

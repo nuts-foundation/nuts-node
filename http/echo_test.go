@@ -68,7 +68,7 @@ func Test_MultiEcho(t *testing.T) {
 
 	const defaultAddress = ":1323"
 
-	// Set up expected echo servers
+	// WithParam up expected echo servers
 	defaultServer := NewMockEchoServer(ctrl)
 	defaultServer.EXPECT().Add("PATCH", "/other/default-endpoint", gomock.Any())
 	defaultServer.EXPECT().Start(defaultAddress)

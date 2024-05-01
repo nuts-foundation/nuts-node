@@ -19,6 +19,7 @@
 package oauth
 
 import (
+	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -62,5 +63,39 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown, true)
 		assert.ErrorContains(t, err, "invalid character \" \" in host name")
 		assert.Nil(t, u)
+	})
+}
+
+func TestTokenResponse_Marshalling(t *testing.T) {
+	expected := TokenResponse{
+		AccessToken: "1234567",
+		ExpiresIn:   new(int),
+		TokenType:   "bearer",
+		Scope:       new(string),
+	}
+	*expected.ExpiresIn = 5
+	*expected.Scope = "abc"
+	expected.WithParam("c_nonce", "hello")
+
+	t.Run("marshal", func(t *testing.T) {
+		data, err := json.Marshal(expected)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"access_token":"1234567","expires_in":5,"token_type":"bearer","scope":"abc","c_nonce":"hello"}`, string(data))
+	})
+	t.Run("unmarshal", func(t *testing.T) {
+		data, _ := json.Marshal(expected)
+		var actual TokenResponse
+		err := json.Unmarshal(data, &actual)
+		require.NoError(t, err)
+		assert.Equal(t, expected, actual)
+
+		assert.Equal(t, *actual.GetString("c_nonce"), "hello")
+	})
+}
+
+func TestTokenResponse_GetString(t *testing.T) {
+	t.Run("nil map", func(t *testing.T) {
+		var tr TokenResponse
+		assert.Nil(t, tr.GetString("c_nonce"))
 	})
 }

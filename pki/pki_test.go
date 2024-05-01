@@ -109,7 +109,7 @@ func TestPKI_CheckHealth(t *testing.T) {
 	require.NotNil(t, e.denylist)
 
 	t.Run("ok", func(t *testing.T) {
-		// Set time to zero to match non-updated crls/denylist. This works because crls for issuers not valid at nowFunc() are not checked
+		// WithParam time to zero to match non-updated crls/denylist. This works because crls for issuers not valid at nowFunc() are not checked
 		nowFunc = func() time.Time {
 			return time.Time{}.Add(time.Hour)
 		}

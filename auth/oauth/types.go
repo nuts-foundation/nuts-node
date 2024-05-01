@@ -20,20 +20,83 @@
 package oauth
 
 import (
+	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
 	"net/url"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
 
-// TokenResponse is the OAuth access token response
+// TokenResponse is the OAuth access token response.
+// Through WithParam() and GetString() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`
 	TokenType   string  `json:"token_type"`
-	CNonce      *string `json:"c_nonce,omitempty"`
 	Scope       *string `json:"scope,omitempty"`
-	Status      *string `json:"status,omitempty"`
+
+	additionalParams map[string]interface{}
+}
+
+var _ json.Unmarshaler = (*TokenResponse)(nil)
+var _ json.Marshaler = (*TokenResponse)(nil)
+
+func (t *TokenResponse) UnmarshalJSON(data []byte) error {
+	type Alias TokenResponse
+	var result Alias
+	// base parameters
+	if err := json.Unmarshal(data, &result); err != nil {
+		return err
+	}
+	// extension parameters
+	additionalParams := map[string]interface{}{}
+	_ = json.Unmarshal(data, &additionalParams) // can't fail, already unmarshalled
+	delete(additionalParams, "access_token")
+	delete(additionalParams, "expires_in")
+	delete(additionalParams, "token_type")
+	delete(additionalParams, "scope")
+	*t = TokenResponse(result)
+	if len(additionalParams) > 0 {
+		t.additionalParams = additionalParams
+	}
+	return nil
+}
+
+func (t TokenResponse) MarshalJSON() ([]byte, error) {
+	result := make(map[string]interface{})
+	for key, value := range t.additionalParams {
+		result[key] = value
+	}
+	result["access_token"] = t.AccessToken
+	result["expires_in"] = t.ExpiresIn
+	result["token_type"] = t.TokenType
+	result["scope"] = t.Scope
+
+	return json.Marshal(result)
+}
+
+// WithParam adds an additional parameter to the token response.
+// It's a builder-style function.
+func (t *TokenResponse) WithParam(key string, value interface{}) *TokenResponse {
+	if t.additionalParams == nil {
+		t.additionalParams = make(map[string]interface{})
+	}
+	t.additionalParams[key] = value
+	return t
+}
+
+// GetString returns the value of the additional parameter with the given key as a string.
+// If the key does not exist or the value is not a string, nil is returned.
+func (t TokenResponse) GetString(key string) *string {
+	if t.additionalParams == nil {
+		return nil
+	}
+	if val, ok := t.additionalParams[key]; ok {
+		if str, ok := val.(string); ok {
+			return &str
+		}
+	}
+	return nil
 }
 
 const (
@@ -221,12 +284,12 @@ type OAuthClientMetadata struct {
 	// TODO: remove? Can plug DID docs contact info.
 	Contacts []string `json:"contacts,omitempty"`
 
-	// JwksURI URL string referencing the client's JSON Web Key (JWK) Set [RFC7517] document, which contains the client's public keys.
+	// JwksURI URL string referencing the client's JSON Web Key (JWK) WithParam [RFC7517] document, which contains the client's public keys.
 	// From https://www.rfc-editor.org/rfc/rfc7591.html
 	// TODO: remove? Can list the DID's keys. Could be useful if authorization without DIDs/VCs is needed.
 	// TODO: In EBSI it is a required field for the Service Wallet Metadata https://api-conformance.ebsi.eu/docs/ct/providers-and-wallets-metadata#service-wallet-metadata
 	JwksURI string `json:"jwks_uri,omitempty"`
-	// Jwks includes the JWK Set of a client. Mutually exclusive with JwksURI.
+	// Jwks includes the JWK WithParam of a client. Mutually exclusive with JwksURI.
 	// From https://www.rfc-editor.org/rfc/rfc7591.html
 	Jwks any `json:"jwks,omitempty"`
 
@@ -281,21 +344,3 @@ type OpenIDCredentialIssuerMetadata struct {
 // It includes the issuer, authorization endpoint, token endpoint, JWKS URI,
 // and supported grant types for authentication and authorization.
 type OpenIDConfigurationMetadata = AuthorizationServerMetadata
-
-// Oid4vciTokenResponse is the response type for OAuth OID4VCI token endpoint
-type Oid4vciTokenResponse struct {
-	// The access token value
-	AccessToken string `json:"access_token"`
-	// The duration in seconds that the token is valid for, or nil if not specified
-	ExpiresIn *int `json:"expires_in,omitempty"`
-	// The type of the access token
-	TokenType string `json:"token_type"`
-	// The CNonce value, or nil if not specified
-	CNonce *string `json:"c_nonce,omitempty"`
-	// The duration in seconds that the CNonce is valid for, or nil if not specified
-	CNonceExpiresIn *int `json:"c_nonce_expires_in,omitempty"`
-	// The token scope, or nil if not specified
-	Scope *string `json:"scope,omitempty"`
-	// The authorization details, or nil if not specified
-	AuthorizationDetails *any `json:"authorization_details,omitempty"`
-}

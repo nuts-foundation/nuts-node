@@ -484,7 +484,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	jwkKey, err := jwk.FromRaw(priv)
 	require.NoError(t, err)
 
-	// Set the key ID for the jwk to be the public key fingerprint
+	// WithParam the key ID for the jwk to be the public key fingerprint
 	err = jwkKey.Set(jwk.KeyIDKey, ssh.FingerprintSHA256(sshPub))
 	require.NoError(t, err)
 

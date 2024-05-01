@@ -74,7 +74,7 @@ func newRootCommand() *cobra.Command {
 }
 
 func Test_fs2VaultCommand(t *testing.T) {
-	// Set up webserver that stubs Vault
+	// WithParam up webserver that stubs Vault
 	importRequests := make(map[string]string, 0)
 	s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		data, err := io.ReadAll(request.Body)
@@ -124,7 +124,7 @@ func Test_fs2VaultCommand(t *testing.T) {
 func Test_fs2ExternalStore(t *testing.T) {
 	// tests imports 1 new key, skips a known one, and the server returns an error for the third one
 	t.Run("ok", func(t *testing.T) {
-		// Set up webserver that stubs Vault
+		// WithParam up webserver that stubs Vault
 		importRequests := make(map[string]string, 0)
 
 		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -186,7 +186,7 @@ func setupFSStoreData(t *testing.T, testDirectory string) {
 	t.Helper()
 	ctx := context.Background()
 
-	// Set up crypto filesystem with some keys
+	// WithParam up crypto filesystem with some keys
 	pk1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pk2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pk3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

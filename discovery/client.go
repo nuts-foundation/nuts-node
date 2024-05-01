@@ -78,7 +78,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	}
 	log.Logger().Debugf("Successfully registered Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
 
-	// Set presentation to be refreshed before it expires
+	// WithParam presentation to be refreshed before it expires
 	// TODO: When to refresh? For now, we refresh when the registration is about to expire (75% of max age)
 	refreshVPAfter := time.Now().Add(time.Duration(float64(service.PresentationMaxValidity)*0.75) * time.Second)
 	if err := r.store.updatePresentationRefreshTime(serviceID, subjectDID, &refreshVPAfter); err != nil {

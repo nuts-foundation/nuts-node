@@ -539,31 +539,7 @@ func TestIAMClient_OpenIdCredentialIssuerMetadata(t *testing.T) {
 	})
 
 }
-func TestIAMClient_AccessTokenOid4vci(t *testing.T) {
-	code := "code"
-	redirectUri := "https://test.test/callback"
-	pkceCodeVerifier := "verifier"
 
-	t.Run("ok", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-
-		response, err := ctx.client.AccessTokenOid4vci(context.Background(), ctx.verifierDID.String(), ctx.openIDConfigurationMetadata.TokenEndpoint, redirectUri, code, &pkceCodeVerifier)
-
-		require.NoError(t, err)
-		require.NotNil(t, response)
-		assert.Equal(t, "token", response.AccessToken)
-		assert.Equal(t, "bearer", response.TokenType)
-	})
-	t.Run("error - failed to get access token", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-		ctx.token = nil
-
-		response, err := ctx.client.AccessTokenOid4vci(context.Background(), ctx.verifierDID.String(), ctx.openIDConfigurationMetadata.TokenEndpoint, redirectUri, code, &pkceCodeVerifier)
-
-		assert.EqualError(t, err, "remote server: failed to retrieve an access_token: server returned HTTP 404 (expected: 200)")
-		assert.Nil(t, response)
-	})
-}
 func TestIAMClient_VerifiableCredentials(t *testing.T) {
 	//walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	accessToken := "code"

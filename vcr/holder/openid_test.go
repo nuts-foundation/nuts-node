@@ -79,11 +79,10 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		issuerAPIClient.EXPECT().Metadata().Return(metadata)
 		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
 			"pre-authorized_code": "code",
-		}).Return(&oauth.TokenResponse{
+		}).Return((&oauth.TokenResponse{
 			AccessToken: "access-token",
-			CNonce:      &nonce,
 			TokenType:   "bearer",
-		}, nil)
+		}).WithParam("c_nonce", nonce), nil)
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
 			Return(&vc.VerifiableCredential{
 				Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"), ssi.MustParseURI("http://example.org/credentials/V1")},
@@ -95,7 +94,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
 			"aud":   issuerDID.String(),
 			"iat":   int64(1735689600),
-			"nonce": &nonce,
+			"nonce": nonce,
 		}, gomock.Any(), "key-id").Return("signed-jwt", nil)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("key-id"), nil, nil)
@@ -230,7 +229,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
 		issuerAPIClient.EXPECT().Metadata().Return(metadata)
-		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oauth.TokenResponse{AccessToken: "access-token", CNonce: &nonce}, nil)
+		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return((&oauth.TokenResponse{AccessToken: "access-token"}).WithParam("c_nonce", nonce), nil)
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), gomock.Any()).Return(&vc.VerifiableCredential{
 			Context: offer.CredentialDefinition.Context,
 			Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential")},

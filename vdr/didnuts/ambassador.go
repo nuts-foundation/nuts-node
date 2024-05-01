@@ -375,7 +375,7 @@ func missingTransactions(current []hash.SHA256Hash, incoming []hash.SHA256Hash) 
 	return current[:j]
 }
 
-// uniqueTransactions does: Set(current + incoming).
+// uniqueTransactions does: WithParam(current + incoming).
 func uniqueTransactions(current []hash.SHA256Hash, incoming hash.SHA256Hash) []hash.SHA256Hash {
 	set := map[hash.SHA256Hash]bool{}
 	for _, h := range current {

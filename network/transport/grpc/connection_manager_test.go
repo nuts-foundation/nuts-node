@@ -253,7 +253,7 @@ func Test_grpcConnectionManager_dialerLoop(t *testing.T) {
 
 func Test_grpcConnectionManager_dial(t *testing.T) {
 	t.Run("ok - user agent", func(t *testing.T) {
-		// Set up gRPC stream interceptor to capture headers sent by client
+		// WithParam up gRPC stream interceptor to capture headers sent by client
 		actualUserAgent := atomic.Value{}
 		defaultInterceptors = append(defaultInterceptors, func(_ interface{}, stream grpc.ServerStream, _ *grpc.StreamServerInfo, h grpc.StreamHandler) error {
 			m, _ := metadata.FromIncomingContext(stream.Context())
