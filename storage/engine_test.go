@@ -20,6 +20,7 @@ package storage
 
 import (
 	"errors"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -80,6 +81,7 @@ func Test_engine_Shutdown(t *testing.T) {
 
 		sut := New().(*engine)
 		sut.stores["1"] = store
+		assert.NoError(t, sut.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
 		err := sut.Shutdown()
 
@@ -185,5 +187,49 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		err := e.Configure(core.ServerConfig{Datadir: dataDir})
 		require.Error(t, err)
 		assert.NotContains(t, err.Error(), "user:password")
+	})
+	t.Run("session storage", func(t *testing.T) {
+		t.Run("in-memory is default", func(t *testing.T) {
+			e := New()
+			dataDir := io.TestDirectory(t)
+			require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+			require.NoError(t, e.Start())
+			t.Cleanup(func() {
+				_ = e.Shutdown()
+			})
+			assert.IsType(t, &InMemorySessionDatabase{}, e.GetSessionDatabase())
+		})
+		t.Run("in-memory", func(t *testing.T) {
+			e := New().(*engine)
+			e.config = Config{
+				Session: SessionConfig{},
+			}
+			dataDir := io.TestDirectory(t)
+			require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+			require.NoError(t, e.Start())
+			t.Cleanup(func() {
+				_ = e.Shutdown()
+			})
+			assert.IsType(t, &InMemorySessionDatabase{}, e.GetSessionDatabase())
+		})
+	})
+}
+
+func Test_engine_redisSessionDatabase(t *testing.T) {
+	t.Run("redis", func(t *testing.T) {
+		redis := miniredis.RunT(t)
+		e := New().(*engine)
+		e.config = Config{
+			Session: SessionConfig{
+				Redis: RedisConfig{Address: redis.Addr()},
+			},
+		}
+		dataDir := io.TestDirectory(t)
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		require.NoError(t, e.Start())
+		t.Cleanup(func() {
+			_ = e.Shutdown()
+		})
+		assert.IsType(t, redisSessionDatabase{}, e.GetSessionDatabase())
 	})
 }

@@ -34,6 +34,21 @@ import (
 // If the response body is longer than this, it will be truncated.
 const HttpResponseBodyLogClipAt = 200
 
+// DefaultMaxHttpResponseSize is a default maximum size of an HTTP response body that will be read.
+// Very large or unbounded HTTP responses can cause denial-of-service, so it's good to limit how much data is read.
+// This of course heavily depends on the use case, but 1MB is a reasonable default.
+const DefaultMaxHttpResponseSize = 1024 * 1024
+
+// LimitedReadAll reads the given reader until the DefaultMaxHttpResponseSize is reached.
+// It returns an error if more data is available than DefaultMaxHttpResponseSize.
+func LimitedReadAll(reader io.Reader) ([]byte, error) {
+	result, err := io.ReadAll(io.LimitReader(reader, DefaultMaxHttpResponseSize+1))
+	if len(result) > DefaultMaxHttpResponseSize {
+		return nil, fmt.Errorf("data to read exceeds max. safety limit of %d bytes", DefaultMaxHttpResponseSize)
+	}
+	return result, err
+}
+
 // HttpError describes an error returned when invoking a remote server.
 type HttpError struct {
 	error
@@ -51,7 +66,7 @@ func TestResponseCode(expectedStatusCode int, response *http.Response) error {
 // It logs using the given logger, unless nil is passed.
 func TestResponseCodeWithLog(expectedStatusCode int, response *http.Response, log *logrus.Entry) error {
 	if response.StatusCode != expectedStatusCode {
-		responseData, _ := io.ReadAll(response.Body)
+		responseData, _ := LimitedReadAll(response.Body)
 		if log != nil {
 			// Cut off the response body to 100 characters max to prevent logging of large responses
 			responseBodyString := string(responseData)

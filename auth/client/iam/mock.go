@@ -178,6 +178,21 @@ func (mr *MockClientMockRecorder) PresentationDefinition(ctx, endpoint any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockClient)(nil).PresentationDefinition), ctx, endpoint)
 }
 
+// RequestObject mocks base method.
+func (m *MockClient) RequestObject(ctx context.Context, requestURI string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestObject", ctx, requestURI)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestObject indicates an expected call of RequestObject.
+func (mr *MockClientMockRecorder) RequestObject(ctx, requestURI any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestObject", reflect.TypeOf((*MockClient)(nil).RequestObject), ctx, requestURI)
+}
+
 // RequestRFC021AccessToken mocks base method.
 func (m *MockClient) RequestRFC021AccessToken(ctx context.Context, requestHolder, verifier did.DID, scopes string) (*oauth.TokenResponse, error) {
 	m.ctrl.T.Helper()

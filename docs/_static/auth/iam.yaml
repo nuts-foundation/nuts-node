@@ -50,7 +50,7 @@ paths:
                 $ref: '#/components/schemas/DIDDocument'
         "404":
           description: DID does not exist.
-  "/oauth2/{did}/token":
+  /oauth2/{did}/token:
     post:
       summary: Used by to request access- or refresh tokens.
       description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint
@@ -103,7 +103,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  "/oauth2/{did}/authorize":
+  /oauth2/{did}/authorize:
     get:
       summary: Used by resource owners to initiate the authorization code flow.
       description: Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
@@ -145,7 +145,60 @@ paths:
               schema:
                 type: string
                 format: uri
-  "/oauth2/{did}/callback":
+  /oauth2/request.jwt/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identifier of the Request Object
+        schema:
+          type: string
+    get:
+      summary: Get Request Object referenced in an authorization request to the Authorization Server.
+      description: |
+        Get the Request Object containing the OAuth 2.0 authorization request parameters, including extension parameters.
+        The Request Object is a JWT with signature (JWS).
+        See [RFC9101] The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR) for details.
+      operationId: getRequestJWT
+      tags:
+        - oauth2
+      responses:
+        200:
+          description: Authorization Request Object is found
+          content:
+            application/oauth-authz-req+jwt:
+              schema:
+                "$ref": "#/components/schemas/RequestObjectResponse"
+        default:
+          $ref: '../common/error_response.yaml'
+    post:
+      summary: Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
+      operationId: postRequestJWT
+      tags:
+        - oauth2
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                wallet_metadata:
+                  $ref: '#/components/schemas/OAuthAuthorizationServerMetadata'
+                wallet_nonce:
+                  description: |
+                    A String value used to mitigate replay attacks of the Authorization Request. 
+                    When received, the Verifier MUST use it as the wallet_nonce value in the signed authorization request object.
+                  type: string
+      responses:
+        200:
+          description: Authorization Request Object is found
+          content:
+            application/oauth-authz-req+jwt:
+              schema:
+                "$ref": "#/components/schemas/RequestObjectResponse"
+        default:
+          $ref: '../common/error_response.yaml'
+  /oauth2/{did}/callback:
     get:
       summary: The OAuth2 callback endpoint of the client.
       description: |
@@ -195,7 +248,7 @@ paths:
                 format: uri
         "default":
           $ref: '../common/error_response.yaml'
-  "/oauth2/{did}/presentation_definition":
+  /oauth2/{did}/presentation_definition:
     get:
       summary: Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
       description: |
@@ -237,7 +290,7 @@ paths:
                 "$ref": "#/components/schemas/PresentationDefinition"
         "default":
           $ref: '../common/error_response.yaml'
-  "/oauth2/{did}/response":
+  /oauth2/{did}/response:
     post:
       summary: Used by wallets to post the authorization response or error to.
       description: | 
@@ -781,6 +834,9 @@ components:
           type: string
           description: The session ID that can be used to retrieve the access token by the calling application.
           example: "eyJhbGciOiJSUzI1NiIsI"
+    RequestObjectResponse:
+      description: "A JSON Web Token (JWT) whose JWT Claims Set holds the JSON-encoded OAuth 2.0 authorization request parameters."
+      type: string
     UserDetails:
       type: object
       description: |
@@ -924,14 +980,14 @@ components:
         scope:
           type: string
           description: granted scopes
-        presentation_definition:
+        presentation_definitions:
+          $ref: '#/components/schemas/RequiredPresentationDefinitions'
+        presentation_submissions:
           type: object
-          description: presentation definition, as described in presentation exchange specification, fulfilled to obtain the access token
-          items:
-            $ref: '#/components/schemas/PresentationDefinition'
-        presentation_submission:
-          type: object
-          description: mapping of 'vps' contents to the 'presentation_definition'
+          additionalProperties:
+            $ref: '#/components/schemas/PresentationSubmission'
+          description: |
+            Mapping of Presentation Definition IDs that were fulfilled to Presentation Submissions.
         vps:
           type: array
           items:
@@ -945,6 +1001,13 @@ components:
       enum:
         - organization
         - user
+    RequiredPresentationDefinitions:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/PresentationDefinition'
+      description: |
+        Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token
+        The map key is the wallet owner (user/organization)
   securitySchemes:
     jwtBearerAuth:
       type: http

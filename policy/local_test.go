@@ -55,7 +55,7 @@ func TestStore_LoadFromFile(t *testing.T) {
 	})
 }
 
-func TestStore_ByScope(t *testing.T) {
+func TestStore_PresentationDefinitions(t *testing.T) {
 	t.Run("err - not found", func(t *testing.T) {
 		store := localPDP{}
 

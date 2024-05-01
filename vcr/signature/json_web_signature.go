@@ -37,10 +37,10 @@ type JSONWebSignature2020 struct {
 }
 
 // Sign signs the document as a JWS.
-func (s JSONWebSignature2020) Sign(ctx context.Context, doc []byte, key crypto.Key) ([]byte, error) {
+func (s JSONWebSignature2020) Sign(ctx context.Context, doc []byte, keyID string) ([]byte, error) {
 	headers := detachedJWSHeaders()
-	headers[jws.KeyIDKey] = key.KID()
-	sig, err := s.Signer.SignJWS(ctx, doc, headers, key, true)
+	headers[jws.KeyIDKey] = keyID
+	sig, err := s.Signer.SignJWS(ctx, doc, headers, keyID, true)
 	return []byte(sig), err
 }
 

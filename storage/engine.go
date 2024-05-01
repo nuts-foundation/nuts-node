@@ -53,7 +53,6 @@ func New() Engine {
 	return &engine{
 		storesMux:          &sync.Mutex{},
 		stores:             map[string]stoabs.Store{},
-		sessionDatabase:    NewInMemorySessionDatabase(),
 		sqlMigrationLogger: logrusInfoLogWriter{},
 	}
 }
@@ -125,7 +124,6 @@ func (e *engine) Shutdown() error {
 
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
-
 	if e.config.Redis.isConfigured() {
 		redisDB, err := createRedisDatabase(e.config.Redis)
 		if err != nil {
@@ -144,6 +142,21 @@ func (e *engine) Configure(config core.ServerConfig) error {
 
 	if err := e.initSQLDatabase(); err != nil {
 		return fmt.Errorf("failed to initialize SQL database: %w", err)
+	}
+
+	redisConfig := e.config.Session.Redis
+	if redisConfig.isConfigured() {
+		redisDB, err := createRedisDatabase(redisConfig)
+		if err != nil {
+			return fmt.Errorf("unable to configure Redis session database: %w", err)
+		}
+		client := redisDB.createClient()
+		if err != nil {
+			return fmt.Errorf("unable to configure redis client: %w", err)
+		}
+		e.sessionDatabase = NewRedisSessionDatabase(client, redisConfig.Database)
+	} else {
+		e.sessionDatabase = NewInMemorySessionDatabase()
 	}
 
 	return nil

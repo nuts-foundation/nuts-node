@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto"
 	"encoding/json"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 )
 
@@ -71,7 +70,7 @@ func (d SignedDocument) UnmarshalProofValue(target interface{}) error {
 // Proof is the interface that defines a set of methods which a proof should implement.
 type Proof interface {
 	// Sign defines the basic signing operation on the proof.
-	Sign(ctx context.Context, document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error)
+	Sign(ctx context.Context, document Document, suite signature.Suite, keyID string) (interface{}, error)
 }
 
 // ProofVerifier defines the generic verifier interface

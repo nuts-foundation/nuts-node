@@ -8,8 +8,12 @@ metadata:
     "helm.sh/hook": test
 spec:
   containers:
-    - name: wget
+    - name: wget-internal
       image: busybox
       command: ['wget']
-      args: ['{{ include "chart.fullname" . }}:{{ .Values.service.port }}']
+      args: ['{{ include "chart.fullname" . }}:{{ .Values.service.internal.port }}']
+    - name: wget-external
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "chart.fullname" . }}:{{ .Values.service.external.port }}']
   restartPolicy: Never

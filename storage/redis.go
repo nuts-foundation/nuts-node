@@ -201,6 +201,13 @@ func (b redisDatabase) createStore(moduleName string, storeName string) (stoabs.
 	return redis7.CreateRedisStore(prefix, b.options, opts)
 }
 
+func (b redisDatabase) createClient() *redis.Client {
+	if b.sentinelOptions != nil {
+		return redis.NewFailoverClient(b.sentinelOptions)
+	}
+	return redis.NewClient(b.options)
+}
+
 func (b redisDatabase) getClass() Class {
 	return PersistentStorageClass
 }
