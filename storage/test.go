@@ -24,6 +24,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	stdIO "io"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
