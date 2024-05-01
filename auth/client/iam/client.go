@@ -53,31 +53,11 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDI
 	if err != nil {
 		return nil, err
 	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return nil, err
-	}
-
-	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		return nil, err
-	}
-
 	var metadata oauth.AuthorizationServerMetadata
-	var data []byte
-
-	if data, err = core.LimitedReadAll(response.Body); err != nil {
-		return nil, fmt.Errorf("unable to read response: %w", err)
+	if err = hb.doGet(ctx, metadataURL.String(), &metadata); err != nil {
+		return nil, err
 	}
-	if err = json.Unmarshal(data, &metadata); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(data))
-	}
-
-	return &metadata, nil
+	return &metadata, err
 }
 
 // ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.
@@ -123,7 +103,7 @@ func (hb HTTPClient) RequestObject(ctx context.Context, requestURI string) (stri
 		return "", httpErr
 	}
 
-	data, err := io.ReadAll(response.Body)
+	data, err := core.LimitedReadAll(response.Body)
 	if err != nil {
 		return "", fmt.Errorf("unable to read response: %w", err)
 	}
@@ -206,31 +186,12 @@ func (hb HTTPClient) OpenIdConfiguration(ctx context.Context, serverURL string) 
 	if err != nil {
 		return nil, err
 	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call endpoint: %w", err)
-	}
-
-	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		return nil, err
-	}
-
 	var metadata oauth.OpenIDConfigurationMetadata
-	var data []byte
-
-	if data, err = core.LimitedReadAll(response.Body); err != nil {
-		return nil, fmt.Errorf("unable to read response: %w", err)
+	err = hb.doGet(ctx, metadataURL.String(), &metadata)
+	if err != nil {
+		return nil, err
 	}
-	if err = json.Unmarshal(data, &metadata); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(data))
-	}
-
-	return &metadata, nil
+	return &metadata, err
 }
 
 func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, webDID did.DID) (*oauth.OpenIDCredentialIssuerMetadata, error) {
@@ -238,36 +199,16 @@ func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, webDID 
 	if err != nil {
 		return nil, err
 	}
-
 	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL.String(), oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call endpoint: %w", err)
-	}
-
-	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		return nil, err
-	}
-
 	var metadata oauth.OpenIDCredentialIssuerMetadata
-	var data []byte
-
-	if data, err = core.LimitedReadAll(response.Body); err != nil {
-		return nil, fmt.Errorf("unable to read response: %w", err)
+	err = hb.doGet(ctx, metadataURL.String(), &metadata)
+	if err != nil {
+		return nil, err
 	}
-	if err = json.Unmarshal(data, &metadata); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(data))
-	}
-
-	return &metadata, nil
+	return &metadata, err
 }
 
 func (hb HTTPClient) AccessTokenOid4vci(ctx context.Context, presentationDefinitionURL url.URL, data url.Values) (*oauth.Oid4vciTokenResponse, error) {
@@ -388,6 +329,14 @@ func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values
 		return "", err
 	}
 	return redirect.RedirectURI, nil
+}
+
+func (hb HTTPClient) doGet(ctx context.Context, requestURL string, target interface{}) error {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	if err != nil {
+		return err
+	}
+	return hb.doRequest(ctx, request, target)
 }
 
 func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, target interface{}) error {
