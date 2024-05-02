@@ -139,17 +139,6 @@ type RequestUserAccessTokenJSONBody struct {
 	Verifier string `json:"verifier"`
 }
 
-// PostRequestJWTFormdataBody defines parameters for PostRequestJWT.
-type PostRequestJWTFormdataBody struct {
-	// WalletMetadata OAuth2 Authorization Server Metadata
-	// Contain properties from several specifications and may grow over time
-	WalletMetadata *OAuthAuthorizationServerMetadata `form:"wallet_metadata,omitempty" json:"wallet_metadata,omitempty"`
-
-	// WalletNonce A String value used to mitigate replay attacks of the Authorization Request.
-	// When received, the Verifier MUST use it as the wallet_nonce value in the signed authorization request object.
-	WalletNonce *string `form:"wallet_nonce,omitempty" json:"wallet_nonce,omitempty"`
-}
-
 // HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
 type HandleAuthorizeRequestParams struct {
 	Params *map[string]string `form:"params,omitempty" json:"params,omitempty"`
@@ -174,6 +163,17 @@ type CallbackParams struct {
 type PresentationDefinitionParams struct {
 	Scope           string           `form:"scope" json:"scope"`
 	WalletOwnerType *WalletOwnerType `form:"wallet_owner_type,omitempty" json:"wallet_owner_type,omitempty"`
+}
+
+// PostRequestJWTFormdataBody defines parameters for PostRequestJWT.
+type PostRequestJWTFormdataBody struct {
+	// WalletMetadata OAuth2 Authorization Server Metadata
+	// Contain properties from several specifications and may grow over time
+	WalletMetadata *OAuthAuthorizationServerMetadata `form:"wallet_metadata,omitempty" json:"wallet_metadata,omitempty"`
+
+	// WalletNonce A String value used to mitigate replay attacks of the Authorization Request.
+	// When received, the Verifier MUST use it as the wallet_nonce value in the signed authorization request object.
+	WalletNonce *string `form:"wallet_nonce,omitempty" json:"wallet_nonce,omitempty"`
 }
 
 // HandleAuthorizeResponseFormdataBody defines parameters for HandleAuthorizeResponse.
@@ -472,12 +472,6 @@ type ServerInterface interface {
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{did}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, did string) error
-	// Get Request Object referenced in an authorization request to the Authorization Server.
-	// (GET /oauth2/request.jwt/{id})
-	GetRequestJWT(ctx echo.Context, id string) error
-	// Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
-	// (POST /oauth2/request.jwt/{id})
-	PostRequestJWT(ctx echo.Context, id string) error
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /oauth2/{did}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, did string, params HandleAuthorizeRequestParams) error
@@ -490,6 +484,12 @@ type ServerInterface interface {
 	// Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
 	// (GET /oauth2/{did}/presentation_definition)
 	PresentationDefinition(ctx echo.Context, did string, params PresentationDefinitionParams) error
+	// Get Request Object referenced in an authorization request to the Authorization Server.
+	// (GET /oauth2/{did}/request.jwt/{id})
+	GetRequestJWT(ctx echo.Context, did string, id string) error
+	// Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
+	// (POST /oauth2/{did}/request.jwt/{id})
+	PostRequestJWT(ctx echo.Context, did string, id string) error
 	// Used by wallets to post the authorization response or error to.
 	// (POST /oauth2/{did}/response)
 	HandleAuthorizeResponse(ctx echo.Context, did string) error
@@ -679,42 +679,6 @@ func (w *ServerInterfaceWrapper) RequestUserAccessToken(ctx echo.Context) error 
 	return err
 }
 
-// GetRequestJWT converts echo context to params.
-func (w *ServerInterfaceWrapper) GetRequestJWT(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "id" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
-	}
-
-	ctx.Set(JwtBearerAuthScopes, []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetRequestJWT(ctx, id)
-	return err
-}
-
-// PostRequestJWT converts echo context to params.
-func (w *ServerInterfaceWrapper) PostRequestJWT(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "id" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
-	}
-
-	ctx.Set(JwtBearerAuthScopes, []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PostRequestJWT(ctx, id)
-	return err
-}
-
 // HandleAuthorizeRequest converts echo context to params.
 func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error {
 	var err error
@@ -830,6 +794,52 @@ func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error 
 	return err
 }
 
+// GetRequestJWT converts echo context to params.
+func (w *ServerInterfaceWrapper) GetRequestJWT(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	did = ctx.Param("did")
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetRequestJWT(ctx, did, id)
+	return err
+}
+
+// PostRequestJWT converts echo context to params.
+func (w *ServerInterfaceWrapper) PostRequestJWT(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	did = ctx.Param("did")
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostRequestJWT(ctx, did, id)
+	return err
+}
+
 // HandleAuthorizeResponse converts echo context to params.
 func (w *ServerInterfaceWrapper) HandleAuthorizeResponse(ctx echo.Context) error {
 	var err error
@@ -921,12 +931,12 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/internal/auth/v2/:did/request-credential", wrapper.RequestOid4vciCredentialIssuance)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-service-access-token", wrapper.RequestServiceAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-user-access-token", wrapper.RequestUserAccessToken)
-	router.GET(baseURL+"/oauth2/request.jwt/:id", wrapper.GetRequestJWT)
-	router.POST(baseURL+"/oauth2/request.jwt/:id", wrapper.PostRequestJWT)
 	router.GET(baseURL+"/oauth2/:did/authorize", wrapper.HandleAuthorizeRequest)
 	router.GET(baseURL+"/oauth2/:did/callback", wrapper.Callback)
 	router.GET(baseURL+"/oauth2/:did/oauth-client", wrapper.OAuthClientMetadata)
 	router.GET(baseURL+"/oauth2/:did/presentation_definition", wrapper.PresentationDefinition)
+	router.GET(baseURL+"/oauth2/:did/request.jwt/:id", wrapper.GetRequestJWT)
+	router.POST(baseURL+"/oauth2/:did/request.jwt/:id", wrapper.PostRequestJWT)
 	router.POST(baseURL+"/oauth2/:did/response", wrapper.HandleAuthorizeResponse)
 	router.POST(baseURL+"/oauth2/:did/token", wrapper.HandleTokenRequest)
 	router.GET(baseURL+"/statuslist/:did/:page", wrapper.StatusList)
@@ -1280,103 +1290,6 @@ func (response RequestUserAccessTokendefaultApplicationProblemPlusJSONResponse) 
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type GetRequestJWTRequestObject struct {
-	Id string `json:"id"`
-}
-
-type GetRequestJWTResponseObject interface {
-	VisitGetRequestJWTResponse(w http.ResponseWriter) error
-}
-
-type GetRequestJWT200ApplicationoauthAuthzReqJwtResponse struct {
-	Body          io.Reader
-	ContentLength int64
-}
-
-func (response GetRequestJWT200ApplicationoauthAuthzReqJwtResponse) VisitGetRequestJWTResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/oauth-authz-req+jwt")
-	if response.ContentLength != 0 {
-		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
-	}
-	w.WriteHeader(200)
-
-	if closer, ok := response.Body.(io.ReadCloser); ok {
-		defer closer.Close()
-	}
-	_, err := io.Copy(w, response.Body)
-	return err
-}
-
-type GetRequestJWTdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-	StatusCode int
-}
-
-func (response GetRequestJWTdefaultApplicationProblemPlusJSONResponse) VisitGetRequestJWTResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(response.StatusCode)
-
-	return json.NewEncoder(w).Encode(response.Body)
-}
-
-type PostRequestJWTRequestObject struct {
-	Id   string `json:"id"`
-	Body *PostRequestJWTFormdataRequestBody
-}
-
-type PostRequestJWTResponseObject interface {
-	VisitPostRequestJWTResponse(w http.ResponseWriter) error
-}
-
-type PostRequestJWT200ApplicationoauthAuthzReqJwtResponse struct {
-	Body          io.Reader
-	ContentLength int64
-}
-
-func (response PostRequestJWT200ApplicationoauthAuthzReqJwtResponse) VisitPostRequestJWTResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/oauth-authz-req+jwt")
-	if response.ContentLength != 0 {
-		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
-	}
-	w.WriteHeader(200)
-
-	if closer, ok := response.Body.(io.ReadCloser); ok {
-		defer closer.Close()
-	}
-	_, err := io.Copy(w, response.Body)
-	return err
-}
-
-type PostRequestJWTdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-	StatusCode int
-}
-
-func (response PostRequestJWTdefaultApplicationProblemPlusJSONResponse) VisitPostRequestJWTResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(response.StatusCode)
-
-	return json.NewEncoder(w).Encode(response.Body)
-}
-
 type HandleAuthorizeRequestRequestObject struct {
 	Did    string `json:"did"`
 	Params HandleAuthorizeRequestParams
@@ -1540,6 +1453,105 @@ func (response PresentationDefinitiondefaultApplicationProblemPlusJSONResponse) 
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type GetRequestJWTRequestObject struct {
+	Did string `json:"did"`
+	Id  string `json:"id"`
+}
+
+type GetRequestJWTResponseObject interface {
+	VisitGetRequestJWTResponse(w http.ResponseWriter) error
+}
+
+type GetRequestJWT200ApplicationoauthAuthzReqJwtResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response GetRequestJWT200ApplicationoauthAuthzReqJwtResponse) VisitGetRequestJWTResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/oauth-authz-req+jwt")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetRequestJWTdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetRequestJWTdefaultApplicationProblemPlusJSONResponse) VisitGetRequestJWTResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type PostRequestJWTRequestObject struct {
+	Did  string `json:"did"`
+	Id   string `json:"id"`
+	Body *PostRequestJWTFormdataRequestBody
+}
+
+type PostRequestJWTResponseObject interface {
+	VisitPostRequestJWTResponse(w http.ResponseWriter) error
+}
+
+type PostRequestJWT200ApplicationoauthAuthzReqJwtResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response PostRequestJWT200ApplicationoauthAuthzReqJwtResponse) VisitPostRequestJWTResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/oauth-authz-req+jwt")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type PostRequestJWTdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response PostRequestJWTdefaultApplicationProblemPlusJSONResponse) VisitPostRequestJWTResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 type HandleAuthorizeResponseRequestObject struct {
 	Did  string `json:"did"`
 	Body *HandleAuthorizeResponseFormdataRequestBody
@@ -1659,12 +1671,6 @@ type StrictServerInterface interface {
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{did}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
-	// Get Request Object referenced in an authorization request to the Authorization Server.
-	// (GET /oauth2/request.jwt/{id})
-	GetRequestJWT(ctx context.Context, request GetRequestJWTRequestObject) (GetRequestJWTResponseObject, error)
-	// Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
-	// (POST /oauth2/request.jwt/{id})
-	PostRequestJWT(ctx context.Context, request PostRequestJWTRequestObject) (PostRequestJWTResponseObject, error)
 	// Used by resource owners to initiate the authorization code flow.
 	// (GET /oauth2/{did}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
@@ -1677,6 +1683,12 @@ type StrictServerInterface interface {
 	// Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
 	// (GET /oauth2/{did}/presentation_definition)
 	PresentationDefinition(ctx context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error)
+	// Get Request Object referenced in an authorization request to the Authorization Server.
+	// (GET /oauth2/{did}/request.jwt/{id})
+	GetRequestJWT(ctx context.Context, request GetRequestJWTRequestObject) (GetRequestJWTResponseObject, error)
+	// Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
+	// (POST /oauth2/{did}/request.jwt/{id})
+	PostRequestJWT(ctx context.Context, request PostRequestJWTRequestObject) (PostRequestJWTResponseObject, error)
 	// Used by wallets to post the authorization response or error to.
 	// (POST /oauth2/{did}/response)
 	HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error)
@@ -1972,66 +1984,6 @@ func (sh *strictHandler) RequestUserAccessToken(ctx echo.Context, did string) er
 	return nil
 }
 
-// GetRequestJWT operation middleware
-func (sh *strictHandler) GetRequestJWT(ctx echo.Context, id string) error {
-	var request GetRequestJWTRequestObject
-
-	request.Id = id
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetRequestJWT(ctx.Request().Context(), request.(GetRequestJWTRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetRequestJWT")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(GetRequestJWTResponseObject); ok {
-		return validResponse.VisitGetRequestJWTResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
-// PostRequestJWT operation middleware
-func (sh *strictHandler) PostRequestJWT(ctx echo.Context, id string) error {
-	var request PostRequestJWTRequestObject
-
-	request.Id = id
-
-	if form, err := ctx.FormParams(); err == nil {
-		var body PostRequestJWTFormdataRequestBody
-		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
-			return err
-		}
-		request.Body = &body
-	} else {
-		return err
-	}
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PostRequestJWT(ctx.Request().Context(), request.(PostRequestJWTRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PostRequestJWT")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(PostRequestJWTResponseObject); ok {
-		return validResponse.VisitPostRequestJWTResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
 // HandleAuthorizeRequest operation middleware
 func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, did string, params HandleAuthorizeRequestParams) error {
 	var request HandleAuthorizeRequestRequestObject
@@ -2129,6 +2081,68 @@ func (sh *strictHandler) PresentationDefinition(ctx echo.Context, did string, pa
 		return err
 	} else if validResponse, ok := response.(PresentationDefinitionResponseObject); ok {
 		return validResponse.VisitPresentationDefinitionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetRequestJWT operation middleware
+func (sh *strictHandler) GetRequestJWT(ctx echo.Context, did string, id string) error {
+	var request GetRequestJWTRequestObject
+
+	request.Did = did
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRequestJWT(ctx.Request().Context(), request.(GetRequestJWTRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRequestJWT")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetRequestJWTResponseObject); ok {
+		return validResponse.VisitGetRequestJWTResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PostRequestJWT operation middleware
+func (sh *strictHandler) PostRequestJWT(ctx echo.Context, did string, id string) error {
+	var request PostRequestJWTRequestObject
+
+	request.Did = did
+	request.Id = id
+
+	if form, err := ctx.FormParams(); err == nil {
+		var body PostRequestJWTFormdataRequestBody
+		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
+			return err
+		}
+		request.Body = &body
+	} else {
+		return err
+	}
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostRequestJWT(ctx.Request().Context(), request.(PostRequestJWTRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostRequestJWT")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PostRequestJWTResponseObject); ok {
+		return validResponse.VisitPostRequestJWTResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

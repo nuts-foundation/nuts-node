@@ -145,8 +145,17 @@ paths:
               schema:
                 type: string
                 format: uri
-  /oauth2/request.jwt/{id}:
+  /oauth2/{did}/request.jwt/{id}:
     parameters:
+      - name: did
+        in: path
+        required: true
+        description: DID acting as the client for the authorization request
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: did:web:example.com
       - name: id
         in: path
         required: true

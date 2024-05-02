@@ -359,6 +359,9 @@ func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequest
 	if err != nil {
 		return nil, err
 	}
+	if ro.client().String() != request.Did {
+		return nil, errors.New("invalid request")
+	}
 	if !ro.signed() {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
