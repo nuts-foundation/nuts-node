@@ -202,6 +202,8 @@ func (e *engine) initSQLDatabase() error {
 			slowThreshold: sqlSlowQueryThreshold,
 		},
 	}
+	// SQL migration files use env variables for substitutions.
+	// TEXT SQL data type is really DB-specific, so we set a default here and override it for a specific database type (MS SQL).
 	_ = os.Setenv("TEXT_TYPE", "TEXT")
 	defer os.Unsetenv("TEXT_TYPE")
 	switch dbType {

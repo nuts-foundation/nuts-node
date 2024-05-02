@@ -9,13 +9,13 @@ create table status_list_credential
     -- StatusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
     status_purpose  varchar(25)     not null,
     -- expanded StatusList2021 bitstring
-    expanded        $TEXT_TYPE            not null,
+    expanded        $TEXT_TYPE      not null,
     -- created is the seconds since Unix Epoch when this credentialRecord was generated
     created_at      integer         not null,
     -- expires is the seconds since Unix Epoch when the credential expires, only present if set.
     expires         integer         null,
     -- raw credential, either base64 (jwt) or json.
-    raw             $TEXT_TYPE            not null
+    raw             $TEXT_TYPE      not null
 );
 
 -- status_list: keeps track of all status list credentials issued by an issuer, and the highest status list index issued for each credential.

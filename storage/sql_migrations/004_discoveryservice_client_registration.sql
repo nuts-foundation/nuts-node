@@ -4,7 +4,7 @@ create table discovery_presentation_refresh
 (
     -- service_id is the ID of the Discover Service that the DID should be registered on.
     -- It comes from the service definition.
-    service_id   varchar(36) not null,
+    service_id   varchar(200) not null,
     -- did is the DID that should be registered on the Discovery Service.
     did          varchar(370) not null,
     -- next_refresh is the timestamp (seconds since Unix epoch) when the registration on the
