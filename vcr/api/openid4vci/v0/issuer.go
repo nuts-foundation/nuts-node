@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"net/http"
@@ -135,5 +136,5 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		AccessToken: accessToken,
 		ExpiresIn:   &expiresIn,
 		TokenType:   "bearer",
-	}).WithParam("c_nonce", cNonce)), nil
+	}).With(oauth.CNonceParam, cNonce)), nil
 }

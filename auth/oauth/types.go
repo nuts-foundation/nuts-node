@@ -28,7 +28,7 @@ import (
 // this file contains constants, variables and helper functions for OAuth related code
 
 // TokenResponse is the OAuth access token response.
-// Through WithParam() and GetString() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
+// Through With() and Get() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`
@@ -75,9 +75,10 @@ func (t TokenResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(result)
 }
 
-// Set adds an additional parameter to the token response.
+// With adds a parameter to the token response.
 // It's a builder-style function.
-func (t *TokenResponse) WithParam(key string, value interface{}) *TokenResponse {
+// It should not be used to set any of the base parameters (access_token, expires_in, token_type, scope).
+func (t *TokenResponse) With(key string, value interface{}) *TokenResponse {
 	if t.additionalParams == nil {
 		t.additionalParams = make(map[string]interface{})
 	}
@@ -85,18 +86,19 @@ func (t *TokenResponse) WithParam(key string, value interface{}) *TokenResponse 
 	return t
 }
 
-// GetString returns the value of the additional parameter with the given key as a string.
-// If the key does not exist or the value is not a string, nil is returned.
-func (t TokenResponse) GetString(key string) *string {
+// Get returns the value of the additional parameter with the given key as a string.
+// If the key does not exist or the value is not a string, it returns an empty string.
+// It should not be used to get any of the base parameters (access_token, expires_in, token_type, scope).
+func (t TokenResponse) Get(key string) string {
 	if t.additionalParams == nil {
-		return nil
+		return ""
 	}
 	if val, ok := t.additionalParams[key]; ok {
 		if str, ok := val.(string); ok {
-			return &str
+			return str
 		}
 	}
-	return nil
+	return ""
 }
 
 const (
@@ -111,11 +113,9 @@ const (
 	AuthzServerWellKnown = "/.well-known/oauth-authorization-server"
 	// ClientMetadataPath is the path to the client metadata relative to the complete did:web URL
 	ClientMetadataPath = "/oauth-client"
-	// OpenidCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in
+	// OpenIdCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in
 	// OpenID4VCI specification
-	OpenIdCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
-	// openidCredWalletWellKnown is the well-known path element we created for openid4vci to retrieve the oauth client metadata
-	openidCredWalletWellKnown    = "/.well-known/openid-credential-wallet"
+	OpenIdCredIssuerWellKnown    = "/.well-known/openid-credential-issuer"
 	OpenIdConfigurationWellKnown = "/.well-known/openid-configuration"
 	// AssertionParam is the parameter name for the assertion parameter
 	AssertionParam = "assertion"
@@ -135,8 +135,6 @@ const (
 	GrantTypeParam = "grant_type"
 	// NonceParam is the parameter name for the nonce parameter
 	NonceParam = "nonce"
-	// MaxAgeParam is the parameter name for the max_age parameter
-	MaxAgeParam = "max_age"
 	// RedirectURIParam is the parameter name for the redirect_uri parameter
 	RedirectURIParam = "redirect_uri"
 	// RequestParam is the parameter name for the request parameter.	Defined in RFC9101
@@ -155,6 +153,8 @@ const (
 	VpTokenParam = "vp_token"
 	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type
 	VpTokenGrantType = "vp_token-bearer"
+	// CNonceParam is the parameter name for the c_nonce parameter. Defined in OpenID4VCI.
+	CNonceParam = "c_nonce"
 )
 
 const (

@@ -67,15 +67,7 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 }
 
 func TestTokenResponse_Marshalling(t *testing.T) {
-	expected := TokenResponse{
-		AccessToken: "1234567",
-		ExpiresIn:   new(int),
-		TokenType:   "bearer",
-		Scope:       new(string),
-	}
-	*expected.ExpiresIn = 5
-	*expected.Scope = "abc"
-	expected.WithParam("c_nonce", "hello")
+	expected := *NewTokenResponse("1234567", "bearer", 5, "abc").With("c_nonce", "hello")
 
 	t.Run("marshal", func(t *testing.T) {
 		data, err := json.Marshal(expected)
@@ -89,13 +81,13 @@ func TestTokenResponse_Marshalling(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expected, actual)
 
-		assert.Equal(t, *actual.GetString("c_nonce"), "hello")
+		assert.Equal(t, actual.Get("c_nonce"), "hello")
 	})
 }
 
-func TestTokenResponse_GetString(t *testing.T) {
+func TestTokenResponse_Param(t *testing.T) {
 	t.Run("nil map", func(t *testing.T) {
 		var tr TokenResponse
-		assert.Nil(t, tr.GetString("c_nonce"))
+		assert.Empty(t, tr.Get("c_nonce"))
 	})
 }

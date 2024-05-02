@@ -116,7 +116,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "access-token", response.(RequestAccessToken200JSONResponse).AccessToken)
-		assert.Equal(t, "c_nonce", *oauth2.TokenResponse(response.(RequestAccessToken200JSONResponse)).GetString("c_nonce"))
+		assert.Equal(t, "c_nonce", oauth2.TokenResponse(response.(RequestAccessToken200JSONResponse)).Get("c_nonce"))
 	})
 	t.Run("unknown tenant", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

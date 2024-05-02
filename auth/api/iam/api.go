@@ -220,7 +220,7 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 	if err != nil {
 		return nil, err
 	}
-	if token.GetString("status") != nil && *token.GetString("status") == oauth.AccessTokenRequestStatusPending {
+	if token.Get("status") == oauth.AccessTokenRequestStatusPending {
 		// return pending status
 		return RetrieveAccessToken200JSONResponse(token), nil
 	}
@@ -625,7 +625,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	if err != nil {
 		return nil, err
 	}
-	tokenResponse := (&oauth.TokenResponse{}).WithParam("status", oauth.AccessTokenRequestStatusPending)
+	tokenResponse := (&TokenResponse{}).With("status", oauth.AccessTokenRequestStatusPending)
 	if err = r.accessTokenClientStore().Put(sessionID, tokenResponse); err != nil {
 		return nil, err
 	}
@@ -791,7 +791,8 @@ func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request 
 		log.Logger().WithError(err).Errorf("error while fetching the access_token from endpoint: %s", tokenEndpoint)
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", tokenEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
-	proofJWT, err := r.proofJwt(ctx, *holderDid, *issuerDid, response.GetString("c_nonce"))
+	cNonce := response.Get(oauth.CNonceParam)
+	proofJWT, err := r.proofJwt(ctx, *holderDid, *issuerDid, &cNonce)
 	if err != nil {
 		log.Logger().WithError(err).Error("error while building proof")
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
