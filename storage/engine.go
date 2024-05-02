@@ -268,8 +268,6 @@ func (e *engine) initSQLDatabase() error {
 }
 
 func sqliteConnectionString(datadir string) string {
-	// _pragma=foreign_keys(1)&_time_format=sqlite
-	// return "sqlite:file:" + path.Join(datadir, "sqlite.db?_journal_mode=WAL&_foreign_keys=on")
 	return "sqlite:file:" + path.Join(datadir, "sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)")
 }
 
