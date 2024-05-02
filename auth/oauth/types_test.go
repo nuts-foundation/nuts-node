@@ -85,7 +85,7 @@ func TestTokenResponse_Marshalling(t *testing.T) {
 	})
 }
 
-func TestTokenResponse_Param(t *testing.T) {
+func TestTokenResponse_Get(t *testing.T) {
 	t.Run("nil map", func(t *testing.T) {
 		var tr TokenResponse
 		assert.Empty(t, tr.Get("c_nonce"))

@@ -407,7 +407,7 @@ func (mr *MockContextMockRecorder) NoContent(arg0 interface{}) *gomock.Call {
 // Param mocks base method
 func (m *MockContext) Param(arg0 string) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", arg0)
+	ret := m.ctrl.Call(m, "Param", arg0)
 	ret0, _ := ret[0].(string)
 	return ret0
 }
@@ -415,7 +415,7 @@ func (m *MockContext) Param(arg0 string) string {
 // Param indicates an expected call of Param
 func (mr *MockContextMockRecorder) Param(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockContext)(nil).Param), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Param", reflect.TypeOf((*MockContext)(nil).Param), arg0)
 }
 
 // ParamNames mocks base method
