@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"net/http"
@@ -131,10 +132,9 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		return nil, err
 	}
 	expiresIn := int(issuer.TokenTTL.Seconds())
-	return RequestAccessToken200JSONResponse(TokenResponse{
+	return RequestAccessToken200JSONResponse(*(&TokenResponse{
 		AccessToken: accessToken,
-		CNonce:      &cNonce,
 		ExpiresIn:   &expiresIn,
 		TokenType:   "bearer",
-	}), nil
+	}).With(oauth.CNonceParam, cNonce)), nil
 }

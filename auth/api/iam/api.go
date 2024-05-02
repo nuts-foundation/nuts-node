@@ -220,7 +220,7 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 	if err != nil {
 		return nil, err
 	}
-	if token.Status != nil && *token.Status == oauth.AccessTokenRequestStatusPending {
+	if token.Get("status") == oauth.AccessTokenRequestStatusPending {
 		// return pending status
 		return RetrieveAccessToken200JSONResponse(token), nil
 	}
@@ -625,10 +625,10 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	if err != nil {
 		return nil, err
 	}
-	status := oauth.AccessTokenRequestStatusPending
-	err = r.accessTokenClientStore().Put(sessionID, TokenResponse{
-		Status: &status,
-	})
+	tokenResponse := (&TokenResponse{}).With("status", oauth.AccessTokenRequestStatusPending)
+	if err = r.accessTokenClientStore().Put(sessionID, tokenResponse); err != nil {
+		return nil, err
+	}
 
 	// generate a link to the redirect endpoint
 	webURL, err := createOAuth2BaseURL(*requestHolder)
@@ -786,12 +786,13 @@ func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request 
 		log.Logger().WithError(err).Error("cannot fetch the right endpoints")
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("cannot fetch the right endpoints: %s", err.Error())), oid4vciSession.remoteRedirectUri())
 	}
-	response, err := r.auth.IAMClient().AccessTokenOid4vci(ctx, holderDid.String(), tokenEndpoint, oid4vciSession.RedirectUri, code, &pkceParams.Verifier)
+	response, err := r.auth.IAMClient().AccessToken(ctx, code, *issuerDid, oid4vciSession.RedirectUri, *holderDid, pkceParams.Verifier)
 	if err != nil {
 		log.Logger().WithError(err).Errorf("error while fetching the access_token from endpoint: %s", tokenEndpoint)
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", tokenEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
-	proofJWT, err := r.proofJwt(ctx, *holderDid, *issuerDid, response.CNonce)
+	cNonce := response.Get(oauth.CNonceParam)
+	proofJWT, err := r.proofJwt(ctx, *holderDid, *issuerDid, &cNonce)
 	if err != nil {
 		log.Logger().WithError(err).Error("error while building proof")
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
