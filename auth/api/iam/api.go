@@ -306,11 +306,10 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	queryParams := httpRequest.URL.Query()
 
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	ro, err := r.jar.Parse(ctx, *ownDID, queryParams)
+	authzParams, err := r.jar.Parse(ctx, *ownDID, queryParams)
 	if err != nil {
 		return nil, err
 	}
-	authzParams := ro.Claims
 
 	session := createSession(authzParams, *ownDID)
 
@@ -354,24 +353,32 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 // GetRequestJWT returns the Request Object referenced as 'request_uri' in an authorization request.
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
 func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequestObject) (GetRequestJWTResponseObject, error) {
-	ro := new(requestObject)
+	ro := new(jarRequest)
 	err := r.authzRequestObjectStore().Get(request.Id, ro)
 	if err != nil {
 		return nil, err
 	}
-	if ro.client().String() != request.Did {
+	// compare raw strings, don't waste a db call to see if we own the request.Did.
+	if ro.Client.String() != request.Did {
 		return nil, errors.New("invalid request")
 	}
-	if !ro.signed() {
+	if ro.RequestURIMethod != "get" {
+		// TODO: wallet does not support `request_uri_method=post`. Signing the current jarRequest would leave it without 'aud'.
+		//		 is this acceptable or should it fail?
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
 			Description:   "used request_uri_method 'get' on a 'post' request_uri",
 			InternalError: errors.New("wrong 'request_uri_method' authorization server or wallet probably does not support 'request_uri_method'"),
 		}
 	}
+	token, err := r.jar.Sign(ctx, ro.Claims)
+	if err != nil {
+		// TODO: oauth.OAuth2Error?
+		return nil, err
+	}
 	return GetRequestJWT200ApplicationoauthAuthzReqJwtResponse{
-		Body:          bytes.NewReader([]byte(ro.Token)),
-		ContentLength: int64(len(ro.Token)),
+		Body:          bytes.NewReader([]byte(token)),
+		ContentLength: int64(len(token)),
 	}, nil
 }
 
@@ -830,23 +837,21 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 	}
 
 	// request_uri
-	requestID := cryptoNuts.GenerateNonce()
+	requestURIID := cryptoNuts.GenerateNonce()
 	requestObj := r.jar.Create(client, &server, modifier)
-	if err = r.jar.Sign(ctx, requestObj); err != nil {
-		return nil, fmt.Errorf("sign authorization Request Object: %w", err)
-	}
-	if err = r.authzRequestObjectStore().Put(requestID, requestObj); err != nil {
+	if err = r.authzRequestObjectStore().Put(requestURIID, requestObj); err != nil {
 		return nil, err
 	}
 	baseURL, err := createOAuth2BaseURL(client)
 	if err != nil {
 		return nil, err
 	}
-	requestURI := baseURL.JoinPath("request.jwt", requestID)
+	requestURI := baseURL.JoinPath("request.jwt", requestURIID)
 
 	// JAR request
 	params := map[string]string{
 		oauth.ClientIDParam:   client.String(),
+		oauth.RequestURIMethodParam: requestObj.RequestURIMethod,
 		oauth.RequestURIParam: requestURI.String(),
 	}
 	if metadata.RequireSignedRequestObject {

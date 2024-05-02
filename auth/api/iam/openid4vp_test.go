@@ -378,6 +378,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 				AuthorizationEndpoint:    redirectURL.String(),
 				ClientIdSchemesSupported: []string{"did"},
 			}, nil)
+			ctx.jar.EXPECT().Create(verifierDID, &holderDID, gomock.Any())
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 

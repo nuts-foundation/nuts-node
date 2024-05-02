@@ -42,10 +42,10 @@ func (m *MockJAR) EXPECT() *MockJARMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockJAR) Create(client did.DID, server *did.DID, modifier requestObjectModifier) *requestObject {
+func (m *MockJAR) Create(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", client, server, modifier)
-	ret0, _ := ret[0].(*requestObject)
+	ret0, _ := ret[0].(jarRequest)
 	return ret0
 }
 
@@ -56,10 +56,10 @@ func (mr *MockJARMockRecorder) Create(client, server, modifier any) *gomock.Call
 }
 
 // Parse mocks base method.
-func (m *MockJAR) Parse(ctx context.Context, ownDID did.DID, q url.Values) (*requestObject, error) {
+func (m *MockJAR) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthParameters, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Parse", ctx, ownDID, q)
-	ret0, _ := ret[0].(*requestObject)
+	ret0, _ := ret[0].(oauthParameters)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -71,15 +71,16 @@ func (mr *MockJARMockRecorder) Parse(ctx, ownDID, q any) *gomock.Call {
 }
 
 // Sign mocks base method.
-func (m *MockJAR) Sign(ctx context.Context, ro *requestObject) error {
+func (m *MockJAR) Sign(ctx context.Context, claims oauthParameters) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Sign", ctx, ro)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "Sign", ctx, claims)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Sign indicates an expected call of Sign.
-func (mr *MockJARMockRecorder) Sign(ctx, ro any) *gomock.Call {
+func (mr *MockJARMockRecorder) Sign(ctx, claims any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockJAR)(nil).Sign), ctx, ro)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockJAR)(nil).Sign), ctx, claims)
 }
