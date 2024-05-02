@@ -850,9 +850,9 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 
 	// JAR request
 	params := map[string]string{
-		oauth.ClientIDParam:   client.String(),
+		oauth.ClientIDParam:         client.String(),
 		oauth.RequestURIMethodParam: requestObj.RequestURIMethod,
-		oauth.RequestURIParam: requestURI.String(),
+		oauth.RequestURIParam:       requestURI.String(),
 	}
 	if metadata.RequireSignedRequestObject {
 		redirectURL := httpNuts.AddQueryParams(*endpoint, params)
