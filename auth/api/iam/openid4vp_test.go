@@ -21,11 +21,12 @@ package iam
 import (
 	"context"
 	"encoding/json"
-	"github.com/lestrrat-go/jwx/v2/jwt"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/lestrrat-go/jwx/v2/jwt"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -228,6 +229,17 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 
 		require.NoError(t, err)
 	})
+	t.Run("invalid client_metadata", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, clientMetadataURIParam)
+		params[clientMetadataParam] = "{invalid"
+		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_metadata", responseURI, "state")
+
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+
+		require.NoError(t, err)
+	})
 	t.Run("fetching client metadata failed", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
@@ -257,14 +269,41 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 
 		assert.EqualError(t, err, "invalid_request - missing response_uri parameter")
 	})
-	t.Run("missing state and missing response_uri", func(t *testing.T) {
+	t.Run("missing state", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		delete(params, responseURIParam)
+		delete(params, oauth.StateParam)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
-		require.Error(t, err)
+		assert.EqualError(t, err, "invalid_request - missing state parameter")
+	})
+	t.Run("presentation_definition and presentation_definition_uri are mutually exclusive", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
+		params := defaultParams()
+		params[presentationDefParam] = "not empty"
+		putState(ctx, "state", session)
+		expectPostError(t, ctx, oauth.InvalidRequest, "presentation_definition and presentation_definition_uri are mutually exclusive", responseURI, "state")
+
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+
+		require.NoError(t, err)
+	})
+	t.Run("invalid presentation_definition", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, clientMetadataURIParam)
+		delete(params, presentationDefUriParam)
+		metadata, _ := json.Marshal(clientMetadata)
+		params[clientMetadataParam] = string(metadata)
+		params[presentationDefParam] = "{invalid"
+		putState(ctx, "state", session)
+		expectPostError(t, ctx, oauth.InvalidRequest, "invalid presentation_definition", responseURI, "state")
+
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+
+		require.NoError(t, err)
 	})
 	t.Run("invalid presentation_definition_uri", func(t *testing.T) {
 		ctx := newTestClient(t)

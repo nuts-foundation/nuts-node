@@ -20,6 +20,7 @@ package iam
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -293,15 +294,35 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 	}
 
 	// get verifier metadata
-	metadata, err := r.auth.IAMClient().ClientMetadata(ctx, params.get(clientMetadataURIParam))
-	if err != nil {
-		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: "failed to get client metadata (verifier)"}, responseURI, state)
+	var metadata *oauth.OAuthClientMetadata
+	if metadataString := params.get(clientMetadataParam); metadataString != "" {
+		err = json.Unmarshal([]byte(metadataString), &metadata)
+		if err != nil {
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_metadata", InternalError: err}, responseURI, state)
+		}
+	} else {
+		metadata, err = r.auth.IAMClient().ClientMetadata(ctx, params.get(clientMetadataURIParam))
+		if err != nil {
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: "failed to get client metadata (verifier)", InternalError: err}, responseURI, state)
+		}
 	}
-	// get presentation_definition from presentation_definition_uri
-	presentationDefinitionURI := params.get(presentationDefUriParam)
-	presentationDefinition, err := r.auth.IAMClient().PresentationDefinition(ctx, presentationDefinitionURI)
-	if err != nil {
-		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidPresentationDefinitionURI, Description: fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI)}, responseURI, state)
+
+	// get presentation_definition
+	var presentationDefinition *pe.PresentationDefinition
+	if pdString := params.get(presentationDefParam); pdString != "" {
+		if params.get(presentationDefUriParam) != "" {
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "presentation_definition and presentation_definition_uri are mutually exclusive", InternalError: err}, responseURI, state)
+		}
+		err = json.Unmarshal([]byte(pdString), &presentationDefinition)
+		if err != nil {
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid presentation_definition", InternalError: err}, responseURI, state)
+		}
+	} else {
+		presentationDefinitionURI := params.get(presentationDefUriParam)
+		presentationDefinition, err = r.auth.IAMClient().PresentationDefinition(ctx, presentationDefinitionURI)
+		if err != nil {
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidPresentationDefinitionURI, Description: fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI), InternalError: err}, responseURI, state)
+		}
 	}
 
 	// at this point in the flow it would be possible to ask the user to confirm the credentials to use
