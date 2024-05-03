@@ -1542,7 +1542,7 @@ func requestContext(queryParams map[string]interface{}) context.Context {
 			RawQuery: vals.Encode(),
 		},
 	}
-	return context.WithValue(audit.TestContext(), httpRequestContextKey, httpRequest)
+	return context.WithValue(audit.TestContext(), httpRequestContextKey{}, httpRequest)
 }
 
 // statusCodeFrom returns the statuscode for the given error

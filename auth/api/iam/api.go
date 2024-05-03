@@ -63,7 +63,7 @@ var oauthRequestObjectKey = []string{"oauth", "requestobject"}
 const apiPath = "iam"
 const apiModuleName = auth.ModuleName + "/" + apiPath
 
-var httpRequestContextKey = struct{}{}
+type httpRequestContextKey struct{}
 
 // accessTokenValidity defines how long access tokens are valid.
 // TODO: Might want to make this configurable at some point
@@ -143,7 +143,7 @@ func middleware(ctx echo.Context, operationID string) {
 	ctx.Set(core.ModuleNameContextKey, apiModuleName)
 
 	// Add http.Request to context, to allow reading URL query parameters
-	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
+	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey{}, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
 	if strings.HasPrefix(ctx.Request().URL.Path, "/oauth2/") {
 		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{
@@ -298,7 +298,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
-	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
+	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
 	queryParams := httpRequest.URL.Query()
 
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
