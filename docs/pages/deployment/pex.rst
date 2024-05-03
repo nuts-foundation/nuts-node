@@ -11,6 +11,7 @@ Configuration
 *************
 
 The Nuts config supports two ways to define the mapping between OAuth2 scopes and presentation definitions:
+
 - using a file-based configuration
 - using a policy backend
 
@@ -96,18 +97,18 @@ E.g., in the example above, a claim named ``fullName`` is added to the introspec
 The following is an example OAuth2 Token Introspection response containing the ``fullName`` claim from the Presentation Definition
 (some fields are omitted for brevity):
 
-```json
-{
-  "iss": "did:web:example.com",
-  "active": true,
-  "scope": "example_scope",
-  "fullName": "John Doe"
-}
-```
+.. code-block:: json
+
+  {
+    "iss": "did:web:example.com",
+    "active": true,
+    "scope": "example_scope",
+    "fullName": "John Doe"
+  }
 
 Writer of policies should take into consideration:
 - fields that are intended to be used for logging or authorization decisions should have a distinct identifier.
-- claims ideally map a registered claim name (e.g. `IANA JWT claims <>https://www.iana.org/assignments/jwt/jwt.xhtml#claims>`_)
+- claims ideally map a registered claim name (e.g. `IANA JWT claims <https://www.iana.org/assignments/jwt/jwt.xhtml#claims>`_)
 - overwriting properties already defined in the token introspection endpoint response is forbidden. These are: ``iss``, ``sub``, ``exp``, ``iat``, ``active``, ``client_id``, ``scope``.
 
 Policy backend API definition
