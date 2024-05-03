@@ -432,27 +432,13 @@ func SignatureAlgorithm(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 }
 
 func encryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, error) {
-	var ptr interface{}
-	switch v := key.(type) {
-	case crypto.PublicKey:
-		ptr = &v
-	case rsa.PublicKey:
-		ptr = &v
-	case ecdsa.PublicKey:
-		ptr = &v
-	default:
-		ptr = v
-	}
-
-	switch ptr.(type) {
-	case *crypto.PublicKey:
-		return defaultEcEncryptionAlgorithm, nil
+	switch key.(type) {
 	case *rsa.PublicKey:
 		return defaultRsaEncryptionAlgorithm, nil
 	case *ecdsa.PublicKey:
 		return defaultEcEncryptionAlgorithm, nil
 	default:
-		return "", fmt.Errorf("could not determine signature algorithm for key type '%T'", key)
+		return "", fmt.Errorf("could not determine encryption algorithm for key type '%T'", key)
 	}
 }
 

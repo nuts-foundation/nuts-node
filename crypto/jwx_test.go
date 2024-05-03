@@ -248,7 +248,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 	public := key.Public()
 
 	headers := map[string]interface{}{"typ": "JWT", "kid": key.KID()}
-	t.Run("creates valid JWE", func(t *testing.T) {
+	t.Run("creates valid JWE (EC)", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
 
@@ -258,6 +258,23 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		require.NoError(t, err)
 
 		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(defaultEcEncryptionAlgorithm, privateKey))
+		require.NoError(t, err)
+
+		var body = make(map[string]interface{})
+		err = json.Unmarshal(token, &body)
+
+		require.NoError(t, err)
+
+		assert.Equal(t, "nuts", body["iss"])
+	})
+	t.Run("creates valid JWE (RSA)", func(t *testing.T) {
+		keyPair, _ := rsa.GenerateKey(rand.Reader, 1024)
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, keyPair.Public())
+
+		require.NoError(t, err)
+
+		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(defaultRsaEncryptionAlgorithm, keyPair))
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
