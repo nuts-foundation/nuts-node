@@ -101,10 +101,10 @@ func parseJSONArrayEnvelope(arr []interface{}) (interface{}, []vc.VerifiablePres
 	for _, entry := range arr {
 		// Each entry can be a VP as JWT (string) or JSON (object)
 		var entryBytes []byte
-		switch entry.(type) {
+		switch typedEntry := entry.(type) {
 		case string:
 			// JWT
-			entryBytes = []byte(entry.(string))
+			entryBytes = []byte(typedEntry)
 		default:
 			var err error
 			entryBytes, err = json.Marshal(entry)

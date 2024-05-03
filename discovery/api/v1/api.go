@@ -32,7 +32,7 @@ import (
 
 var _ StrictServerInterface = (*Wrapper)(nil)
 
-const requestQueryContextKey = "request.url.query"
+var requestQueryContextKey = struct{}{}
 
 type Wrapper struct {
 	Client discovery.Client

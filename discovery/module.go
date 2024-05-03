@@ -194,7 +194,7 @@ func (m *Module) verifyRegistration(definition ServiceDefinition, presentation v
 		return errors.Join(ErrInvalidPresentation, errPresentationWithoutExpiration)
 	}
 	// VPs should not be valid for too long, as that would prevent the server from pruning them.
-	if int(expiration.Sub(time.Now()).Seconds()) > definition.PresentationMaxValidity {
+	if time.Until(expiration) > time.Duration(definition.PresentationMaxValidity)*time.Second {
 		return errors.Join(ErrInvalidPresentation, fmt.Errorf("presentation is valid for too long (max %s)", time.Duration(definition.PresentationMaxValidity)*time.Second))
 	}
 	// Check if the presentation already exists

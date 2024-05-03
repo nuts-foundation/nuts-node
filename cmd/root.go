@@ -136,7 +136,9 @@ func startServer(ctx context.Context, system *core.System) error {
 			if err != nil {
 				return err
 			}
-			pprof.StartCPUProfile(f)
+			if err := pprof.StartCPUProfile(f); err != nil {
+				return err
+			}
 			defer pprof.StopCPUProfile()
 		} else {
 			logrus.Warn("Ignoring CPU profile option, strictmode is enabled")

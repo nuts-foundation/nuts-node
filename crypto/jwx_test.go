@@ -319,7 +319,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		_, err := client.EncryptJWE(audit.TestContext(), []byte{1, 2, 3}, headers, public)
 
 		require.NoError(t, err)
-		auditLogs.AssertContains(t, ModuleName, "EncryptJWE", audit.TestActor, fmt.Sprintf("Encrypting a JWE"))
+		auditLogs.AssertContains(t, ModuleName, "EncryptJWE", audit.TestActor, "Encrypting a JWE")
 	})
 }
 

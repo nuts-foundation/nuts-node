@@ -71,7 +71,7 @@ func (d transactionSigner) Sign(ctx context.Context, input UnsignedTransaction, 
 		if err != nil {
 			return nil, fmt.Errorf(errSigningTransactionFmt, err)
 		}
-		key.Set(jwk.KeyIDKey, d.key.KID())
+		_ = key.Set(jwk.KeyIDKey, d.key.KID())
 	}
 
 	prevsAsString := make([]string, len(input.Previous()))

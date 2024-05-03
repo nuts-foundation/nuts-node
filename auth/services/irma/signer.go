@@ -77,7 +77,6 @@ func (s SessionPtr) MarshalJSON() ([]byte, error) {
 const NutsIrmaSignedContract = "NutsIrmaSignedContract"
 
 func (v Signer) Start(ctx context.Context) {
-	return
 }
 
 // StartSigningSession accepts a rawContractText and creates an IRMA signing session.

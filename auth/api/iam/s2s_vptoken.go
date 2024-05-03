@@ -131,9 +131,7 @@ func (r Wrapper) createAccessToken(issuer did.DID, walletDID did.DID, issueTime 
 		InputDescriptorConstraintIdMap: fieldsMap,
 	}
 	for _, envelope := range pexState.SubmittedEnvelopes {
-		for _, presentation := range envelope.Presentations {
-			accessToken.VPToken = append(accessToken.VPToken, presentation)
-		}
+		accessToken.VPToken = append(accessToken.VPToken, envelope.Presentations...)
 	}
 	err = r.accessTokenServerStore().Put(accessToken.Token, accessToken)
 	if err != nil {
