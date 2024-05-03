@@ -114,8 +114,8 @@ func (j jar) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthPara
 	var rawRequestObject string
 	var err error
 	if rawRequestObject = q.Get(oauth.RequestParam); rawRequestObject != "" {
-		if q.Has(oauth.RequestURIParam) {
-			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "Claims 'request' and 'request_uri' are mutually exclusive"}
+		if q.Get(oauth.RequestURIParam) != "" {
+			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "claims 'request' and 'request_uri' are mutually exclusive"}
 		}
 	} else if requestURI := q.Get(oauth.RequestURIParam); requestURI != "" {
 		if q.Get(oauth.RequestURIMethodParam) == "post" { // case-sensitive match
