@@ -129,6 +129,10 @@ var grantTypesSupported = []string{grantTypeAuthorizationCode, grantTypeVPToken,
 // https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-verifier-metadata-managemen
 var clientIdSchemesSupported = []string{didScheme}
 
+// clientMetadataParam is the name of the OpenID4VP client_metadata parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
+const clientMetadataParam = "client_metadata"
+
 // clientMetadataParam is the name of the OpenID4VP client_metadata_uri parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-authorization-request
 const clientMetadataURIParam = "client_metadata_uri"
@@ -142,6 +146,10 @@ const didScheme = "did"
 
 // responseURIParam is the name of the OpenID4VP response_uri parameter.
 const responseURIParam = "response_uri"
+
+// presentationDefParam is the name of the OpenID4VP presentation_definition parameter.
+// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-presentation_definition-par
+const presentationDefParam = "presentation_definition"
 
 // presentationDefUriParam is the name of the OpenID4VP presentation_definition_uri parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-presentation_definition_uri
