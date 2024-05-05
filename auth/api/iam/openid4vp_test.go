@@ -229,6 +229,17 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 
 		require.NoError(t, err)
 	})
+	t.Run("client_metadata and client_metadata_uri are mutually exclusive", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		params[clientMetadataParam] = "not empty"
+		putState(ctx, "state", session)
+		expectPostError(t, ctx, oauth.InvalidRequest, "client_metadata and client_metadata_uri are mutually exclusive", responseURI, "state")
+
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+
+		require.NoError(t, err)
+	})
 	t.Run("invalid client_metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()

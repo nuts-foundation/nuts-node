@@ -296,6 +296,9 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 	// get verifier metadata
 	var metadata *oauth.OAuthClientMetadata
 	if metadataString := params.get(clientMetadataParam); metadataString != "" {
+		if params.get(clientMetadataURIParam) != "" {
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_metadata and client_metadata_uri are mutually exclusive", InternalError: err}, responseURI, state)
+		}
 		err = json.Unmarshal([]byte(metadataString), &metadata)
 		if err != nil {
 			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_metadata", InternalError: err}, responseURI, state)
