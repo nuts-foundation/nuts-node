@@ -852,7 +852,7 @@ components:
           type: string
           description: The scope that will be the service for which this access token can be used.
           example: eOverdracht-sender
-        tokenType:
+        token_type:
           type: string
           description: "The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP"
           enum:

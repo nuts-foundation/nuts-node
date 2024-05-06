@@ -63,7 +63,7 @@ type DPoPValidateRequest struct {
 	// Token The access token against which the DPoP proof is validated.
 	Token string `json:"token"`
 
-	// Url The URL against which the DPoP proof is validated.
+	// Url The URL against which the DPoP proof is validated. Query params and fragments are ignored during validation.
 	Url string `json:"url"`
 }
 
@@ -159,7 +159,7 @@ type UserAccessTokenRequest struct {
 	Scope string `json:"scope"`
 
 	// TokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP
-	TokenType *UserAccessTokenRequestTokenType `json:"tokenType,omitempty"`
+	TokenType *UserAccessTokenRequestTokenType `json:"token_type,omitempty"`
 
 	// Verifier The DID of the verifier, the relying party for which this access token is requested.
 	Verifier string `json:"verifier"`
@@ -545,7 +545,7 @@ type ServerInterface interface {
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx echo.Context, sessionID string) error
-	// Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resource server, this is a convenience API.
+	// Handle some of the validation of a DPoP proof as specified by RFC9449.
 	// (POST /internal/auth/v2/dpop_validate)
 	ValidateDPoPProof(ctx echo.Context) error
 	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
@@ -1689,7 +1689,7 @@ type StrictServerInterface interface {
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
-	// Validate a DPoP Proof header as specified by RFC9449 for a given access token. This should be done by the resource server, this is a convenience API.
+	// Handle some of the validation of a DPoP proof as specified by RFC9449.
 	// (POST /internal/auth/v2/dpop_validate)
 	ValidateDPoPProof(ctx context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error)
 	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
