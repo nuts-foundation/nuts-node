@@ -31,6 +31,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 )
 
 func Test_New(t *testing.T) {
@@ -119,7 +120,7 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		require.NoError(t, os.Remove(dataDir))
 		e := New()
 		err := e.Configure(core.ServerConfig{Datadir: dataDir})
-		assert.ErrorContains(t, err, "failed to initialize SQL database: failed to migrate database: unable to open database file")
+		assert.ErrorContains(t, err, "unable to open database file")
 	})
 	t.Run("sqlite is restricted to 1 connection", func(t *testing.T) {
 		e := New()
@@ -165,11 +166,18 @@ func Test_engine_sqlDatabase(t *testing.T) {
 
 		underlyingDB, err := e.GetSQLDatabase().DB()
 		require.NoError(t, err)
-		row := underlyingDB.QueryRow("SELECT count(*) FROM schema_migrations")
-		require.NoError(t, row.Err())
-		var count int
-		assert.NoError(t, row.Scan(&count))
-		assert.Equal(t, len(sqlFiles), count)
+		rows, err := underlyingDB.Query("SELECT * FROM goose_db_version")
+		require.NoError(t, err)
+		var pKey, versionId, is_applied int
+		var tStamp time.Time
+		var totalMigrations int
+		rows.Next()
+		for err = rows.Scan(&pKey, &versionId, &is_applied, &tStamp); rows.Next() && err == nil; {
+			assert.Equal(t, 1, is_applied)
+			totalMigrations++
+		}
+		require.NoError(t, err)
+		assert.Equal(t, len(sqlFiles), totalMigrations) // up and down migration files
 	})
 	t.Run("unsupported protocol doesn't log secrets", func(t *testing.T) {
 		dataDir := io.TestDirectory(t)

@@ -24,7 +24,6 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	stdIO "io"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -38,7 +37,7 @@ func NewTestStorageRedisEngineInDir(t testing.TB, dir string) (Engine, *miniredi
 	result := New().(*engine)
 	// Prevent dbmate and gorm from logging database creation and applied schema migrations.
 	// These are logged on INFO, which is good for production but annoying in unit tests.
-	result.sqlMigrationLogger = stdIO.Discard
+	result.sqlMigrationLogger = nilGooseLogger{}
 
 	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
 	redis := miniredis.RunT(t)
@@ -59,7 +58,7 @@ func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
 	result := New().(*engine)
 	// Prevent dbmate and gorm from logging database creation and applied schema migrations.
 	// These are logged on INFO, which is good for production but annoying in unit tests.
-	result.sqlMigrationLogger = stdIO.Discard
+	result.sqlMigrationLogger = nilGooseLogger{}
 
 	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
 	err := result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
@@ -131,3 +130,9 @@ func AddDIDtoSQLDB(t testing.TB, db *gorm.DB, dids ...did.DID) {
 		require.NoError(t, db.Exec("INSERT INTO did ( did ) VALUES ( ? )", id.String()).Error)
 	}
 }
+
+type nilGooseLogger struct{}
+
+func (m nilGooseLogger) Printf(format string, v ...interface{}) {}
+
+func (m nilGooseLogger) Fatalf(format string, v ...interface{}) {}
