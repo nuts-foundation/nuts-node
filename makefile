@@ -7,6 +7,7 @@ install-tools:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.33.0
 	go install go.uber.org/mock/mockgen@v0.4.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.57.2
 
 gen-mocks:
 	mockgen -destination=auth/mock.go -package=auth -source=auth/interface.go
@@ -101,6 +102,9 @@ all-docs: cli-docs gen-diagrams
 
 fix-copyright:
 	go run ./docs copyright
+
+lint:
+	golangci-lint run -v
 
 test:
 	go test ./...

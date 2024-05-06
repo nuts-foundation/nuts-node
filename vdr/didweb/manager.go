@@ -240,11 +240,6 @@ func (m Manager) DeleteService(_ context.Context, subjectDID did.DID, serviceID 
 }
 
 func buildDocument(subject did.DID, verificationMethods []did.VerificationMethod, services []did.Service) did.Document {
-	var vms []*did.VerificationMethod
-	for _, verificationMethod := range verificationMethods {
-		vms = append(vms, &verificationMethod)
-	}
-
 	document := did.Document{
 		Context: []interface{}{
 			ssi.MustParseURI(jsonld.Jws2020Context),

@@ -248,7 +248,7 @@ func certKeyJWKThumbprint(cert *x509.Certificate) string {
 
 	if key, _ := jwk.PublicKeyOf(cert.PublicKey); key != nil {
 		// Compute the fingerprint of the key
-		jwk.AssignKeyID(key)
+		_ = jwk.AssignKeyID(key)
 
 		// Retrieve the fingerprint, which annoyingly is an "any" return type
 		fingerprint, _ := key.Get(jwk.KeyIDKey)

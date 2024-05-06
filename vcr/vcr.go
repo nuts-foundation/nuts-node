@@ -240,10 +240,6 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	return c.trustConfig.Load()
 }
 
-func (c *vcr) credentialsDBPath() string {
-	return path.Join(c.datadir, "vcr", "credentials.db")
-}
-
 func (c *vcr) createCredentialsStore() error {
 	credentialsStorePath := path.Join(c.datadir, "vcr", "credentials.db")
 	credentialsBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-credentials", storage.PersistentStorageClass)

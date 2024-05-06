@@ -608,15 +608,6 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 	})
 }
 
-func Test_sortHashes(t *testing.T) {
-	h0 := hash.SHA256Hash{}
-	h1 := hash.SHA256Hash{1}
-	h2 := hash.SHA256Hash{2}
-	input := []hash.SHA256Hash{h2, h0, h1}
-	sortHashes(input)
-	assert.Equal(t, []hash.SHA256Hash{h0, h1, h2}, input)
-}
-
 func Test_handleUpdateDIDDocument(t *testing.T) {
 	t.Run("error - unable to resolve controllers", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -729,69 +720,6 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 			}
 		})
 	}
-}
-
-func Test_missingTransactions(t *testing.T) {
-	h1 := hash.SHA256Sum([]byte("hash1"))
-	h2 := hash.SHA256Sum([]byte("hash2"))
-	h3 := hash.SHA256Sum([]byte("hash3"))
-
-	t.Run("non-conflicted updated as expected", func(t *testing.T) {
-		current := []hash.SHA256Hash{h1}
-		incoming := []hash.SHA256Hash{h1, h2}
-
-		diff := missingTransactions(current, incoming)
-
-		assert.Empty(t, diff)
-	})
-
-	t.Run("non-conflicted updated without ref", func(t *testing.T) {
-		current := []hash.SHA256Hash{h1}
-		incoming := []hash.SHA256Hash{h2}
-
-		diff := missingTransactions(current, incoming)
-
-		assert.Len(t, diff, 1)
-		assert.Equal(t, current, diff)
-	})
-
-	t.Run("conflicted resolved", func(t *testing.T) {
-		current := []hash.SHA256Hash{h1, h2}
-		incoming := []hash.SHA256Hash{h1, h2, h3}
-
-		diff := missingTransactions(current, incoming)
-
-		assert.Empty(t, diff)
-	})
-}
-
-func Test_uniqueTransactions(t *testing.T) {
-	h1 := hash.SHA256Sum([]byte("hash1"))
-	h2 := hash.SHA256Sum([]byte("hash2"))
-
-	t.Run("ok - empty list", func(t *testing.T) {
-		current := []hash.SHA256Hash{}
-
-		unique := uniqueTransactions(current, h1)
-
-		assert.Len(t, unique, 1)
-	})
-
-	t.Run("ok - no overlap", func(t *testing.T) {
-		current := []hash.SHA256Hash{h2}
-
-		unique := uniqueTransactions(current, h1)
-
-		assert.Len(t, unique, 2)
-	})
-
-	t.Run("ok - duplicates", func(t *testing.T) {
-		current := []hash.SHA256Hash{h1, h2}
-
-		unique := uniqueTransactions(current, h1)
-
-		assert.Len(t, unique, 2)
-	})
 }
 
 func newDidDocWithOptions(selfControl bool, controllers ...did.DID) (did.Document, jwk.Key, error) {

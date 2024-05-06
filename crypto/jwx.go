@@ -138,11 +138,13 @@ func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
 
 	switch k := signer.(type) {
 	case *rsa.PrivateKey:
-		key.Set(jwk.AlgorithmKey, jwa.PS256)
+		_ = key.Set(jwk.AlgorithmKey, jwa.PS256)
 	case *ecdsa.PrivateKey:
 		var alg jwa.SignatureAlgorithm
 		alg, err = ecAlg(k)
-		key.Set(jwk.AlgorithmKey, alg)
+		if err == nil {
+			_ = key.Set(jwk.AlgorithmKey, alg)
+		}
 	default:
 		err = errors.New("unsupported signing private key")
 	}
@@ -430,27 +432,13 @@ func SignatureAlgorithm(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 }
 
 func encryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, error) {
-	var ptr interface{}
-	switch v := key.(type) {
-	case crypto.PublicKey:
-		ptr = &v
-	case rsa.PublicKey:
-		ptr = &v
-	case ecdsa.PublicKey:
-		ptr = &v
-	default:
-		ptr = v
-	}
-
-	switch ptr.(type) {
-	case *crypto.PublicKey:
-		return defaultEcEncryptionAlgorithm, nil
+	switch key.(type) {
 	case *rsa.PublicKey:
 		return defaultRsaEncryptionAlgorithm, nil
 	case *ecdsa.PublicKey:
 		return defaultEcEncryptionAlgorithm, nil
 	default:
-		return "", fmt.Errorf("could not determine signature algorithm for key type '%T'", key)
+		return "", fmt.Errorf("could not determine encryption algorithm for key type '%T'", key)
 	}
 }
 

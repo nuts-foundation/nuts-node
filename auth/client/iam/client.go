@@ -154,7 +154,7 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 		if len(responseBodyString) > core.HttpResponseBodyLogClipAt {
 			responseBodyString = responseBodyString[:core.HttpResponseBodyLogClipAt] + "...(clipped)"
 		}
-		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, string(responseData))
+		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, responseBodyString)
 	}
 	return token, nil
 }
@@ -231,7 +231,6 @@ type CredentialResponse struct {
 }
 
 func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJwt string) (*CredentialResponse, error) {
-
 	credentialEndpointURL, err := url.Parse(credentialEndpoint)
 	if err != nil {
 		return nil, err
@@ -243,7 +242,7 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 			Jwt:       proofJwt,
 		},
 	}
-	jsonBody, err := json.Marshal(credentialRequest)
+	jsonBody, _ := json.Marshal(credentialRequest)
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, credentialEndpointURL.String(), bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, err

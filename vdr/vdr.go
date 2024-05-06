@@ -150,8 +150,7 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	r.didResolver.Register(didkey.MethodName, didkey.NewResolver())
 
 	// Initiate the routines for auto-updating the data.
-	r.networkAmbassador.Configure()
-	return nil
+	return r.networkAmbassador.Configure()
 }
 
 func (r *Module) Start() error {

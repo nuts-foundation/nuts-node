@@ -60,7 +60,8 @@ var oauthRequestObjectKey = []string{"oauth", "requestobject"}
 
 const apiPath = "iam"
 const apiModuleName = auth.ModuleName + "/" + apiPath
-const httpRequestContextKey = "http-request"
+
+type httpRequestContextKey struct{}
 
 // accessTokenValidity defines how long access tokens are valid.
 // TODO: Might want to make this configurable at some point
@@ -87,7 +88,6 @@ type Wrapper struct {
 	auth          auth.AuthenticationServices
 	policyBackend policy.PDPBackend
 	storageEngine storage.Engine
-	keyStore      cryptoNuts.KeyStore
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 	jwtSigner     cryptoNuts.JWTSigner
@@ -147,7 +147,7 @@ func middleware(ctx echo.Context, operationID string) {
 	ctx.Set(core.ModuleNameContextKey, apiModuleName)
 
 	// Add http.Request to context, to allow reading URL query parameters
-	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey, ctx.Request())
+	requestCtx := context.WithValue(ctx.Request().Context(), httpRequestContextKey{}, ctx.Request())
 	ctx.SetRequest(ctx.Request().WithContext(requestCtx))
 	if strings.HasPrefix(ctx.Request().URL.Path, "/oauth2/") {
 		ctx.Set(core.ErrorWriterContextKey, &oauth.Oauth2ErrorWriter{
@@ -284,7 +284,7 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	if token.InputDescriptorConstraintIdMap != nil {
 		for _, reserved := range []string{"iss", "sub", "exp", "iat", "active", "client_id", "scope"} {
 			if _, exists := token.InputDescriptorConstraintIdMap[reserved]; exists {
-				return nil, errors.New(fmt.Sprintf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name '%s'", reserved))
+				return nil, fmt.Errorf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name '%s'", reserved)
 			}
 		}
 		response.AdditionalProperties = token.InputDescriptorConstraintIdMap
@@ -302,7 +302,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
-	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
+	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
 	queryParams := httpRequest.URL.Query()
 
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
@@ -748,38 +748,31 @@ func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request 
 	tokenEndpoint := oid4vciSession.IssuerTokenEndpoint
 	credentialEndpoint := oid4vciSession.IssuerCredentialEndpoint
 	if err != nil {
-		log.Logger().WithError(err).Error("cannot fetch the right endpoints")
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("cannot fetch the right endpoints: %s", err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 	response, err := r.auth.IAMClient().AccessToken(ctx, code, *issuerDid, oid4vciSession.RedirectUri, *holderDid, pkceParams.Verifier)
 	if err != nil {
-		log.Logger().WithError(err).Errorf("error while fetching the access_token from endpoint: %s", tokenEndpoint)
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", tokenEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 	cNonce := response.Get(oauth.CNonceParam)
 	proofJWT, err := r.proofJwt(ctx, *holderDid, *issuerDid, &cNonce)
 	if err != nil {
-		log.Logger().WithError(err).Error("error while building proof")
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error building proof to fetch the credential from endpoint %s, error: %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, credentialEndpoint, response.AccessToken, proofJWT)
 	if err != nil {
-		log.Logger().WithError(err).Errorf("error while fetching the credential from endpoint: %s", credentialEndpoint)
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 	credential, err := vc.ParseVerifiableCredential(credentials.Credential)
 	if err != nil {
-		log.Logger().WithError(err).Errorf("error while parsing the credential: %s", credentials.Credential)
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentials.Credential, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 	err = r.vcr.Verifier().Verify(*credential, true, true, nil)
 	if err != nil {
-		log.Logger().WithError(err).Errorf("error while verifying the credential from issuer: %s", credential.Issuer.String())
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while verifying the credential from issuer: %s, error: %s", credential.Issuer.String(), err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 	err = r.vcr.Wallet().Put(ctx, *credential)
 	if err != nil {
-		log.Logger().WithError(err).Errorf("error while storing credential with id: %s", credential.ID)
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while storing credential with id: %s, error: %s", credential.ID, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
 
@@ -795,19 +788,18 @@ func (r Wrapper) openidIssuerEndpoints(ctx context.Context, issuerDid did.DID) (
 	if err != nil {
 		return "", "", "", err
 	}
-	for i := range metadata.AuthorizationServers {
-		serverURL := metadata.AuthorizationServers[i]
-		openIdConfiguration, err := r.auth.IAMClient().OpenIdConfiguration(ctx, serverURL)
-		if err != nil {
-			return "", "", "", err
-		}
-		authorizationEndpoint := openIdConfiguration.AuthorizationEndpoint
-		tokenEndpoint := openIdConfiguration.TokenEndpoint
-		credentialEndpoint := metadata.CredentialEndpoint
-		return authorizationEndpoint, tokenEndpoint, credentialEndpoint, nil
+	if len(metadata.AuthorizationServers) == 0 {
+		return "", "", "", fmt.Errorf("cannot locate any authorization endpoint in %s", issuerDid.String())
 	}
-	err = errors.New(fmt.Sprintf("cannot locate any authorization endpoint in %s", issuerDid.String()))
-	return "", "", "", err
+	serverURL := metadata.AuthorizationServers[0]
+	openIdConfiguration, err := r.auth.IAMClient().OpenIdConfiguration(ctx, serverURL)
+	if err != nil {
+		return "", "", "", err
+	}
+	authorizationEndpoint := openIdConfiguration.AuthorizationEndpoint
+	tokenEndpoint := openIdConfiguration.TokenEndpoint
+	credentialEndpoint := metadata.CredentialEndpoint
+	return authorizationEndpoint, tokenEndpoint, credentialEndpoint, nil
 }
 
 // CreateAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.

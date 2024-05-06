@@ -1,0 +1,8 @@
+run:
+  tests: false
+issues:
+  exclude-files:
+    - ".*/generated.go"
+    - ".*/.*_test.go"
+    - ".*/test.go"
+    - "docs/.*"
