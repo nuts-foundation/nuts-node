@@ -22,12 +22,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -89,6 +89,13 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 		}
 	}
 
+	// Parse optional DPoP header
+	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
+	dpopProof, err := dpopFromRequest(*httpRequest)
+	if err != nil {
+		return nil, err
+	}
+
 	// Check signatures of VP and VCs. Trust should be established by the Presentation Definition.
 	for _, presentation := range pexEnvelope.Presentations {
 		_, err = r.vcr.Verifier().VerifyVP(presentation, true, true, nil)
@@ -102,48 +109,11 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	}
 
 	// All OK, allow access
-	response, err := r.createAccessToken(issuer, credentialSubjectID, time.Now(), scope, *pexConsumer)
+	response, err := r.createAccessToken(issuer, credentialSubjectID, time.Now(), scope, *pexConsumer, dpopProof)
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
-}
-
-func (r Wrapper) createAccessToken(issuer did.DID, walletDID did.DID, issueTime time.Time, scope string, pexState PEXConsumer) (*oauth.TokenResponse, error) {
-	credentialMap, err := pexState.credentialMap()
-	if err != nil {
-		return nil, err
-	}
-	fieldsMap, err := resolveInputDescriptorValues(pexState.RequiredPresentationDefinitions, credentialMap)
-	if err != nil {
-		return nil, err
-	}
-
-	accessToken := AccessToken{
-		Token:                          crypto.GenerateNonce(),
-		Issuer:                         issuer.String(),
-		ClientId:                       walletDID.String(),
-		IssuedAt:                       issueTime,
-		Expiration:                     issueTime.Add(accessTokenValidity),
-		Scope:                          scope,
-		PresentationSubmissions:        pexState.Submissions,
-		PresentationDefinitions:        pexState.RequiredPresentationDefinitions,
-		InputDescriptorConstraintIdMap: fieldsMap,
-	}
-	for _, envelope := range pexState.SubmittedEnvelopes {
-		accessToken.VPToken = append(accessToken.VPToken, envelope.Presentations...)
-	}
-	err = r.accessTokenServerStore().Put(accessToken.Token, accessToken)
-	if err != nil {
-		return nil, fmt.Errorf("unable to store access token: %w", err)
-	}
-	expiresIn := int(accessTokenValidity.Seconds())
-	return &oauth.TokenResponse{
-		AccessToken: accessToken.Token,
-		ExpiresIn:   &expiresIn,
-		Scope:       &scope,
-		TokenType:   "bearer",
-	}, nil
 }
 
 func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {
@@ -201,7 +171,6 @@ func (r Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresenta
 			Description:   "presentation has invalid/missing nonce",
 		}
 	}
-
 	nonceStore := r.storageEngine.GetSessionDatabase().GetStore(s2sMaxPresentationValidity+s2sMaxClockSkew, "s2s", "nonce")
 	nonceError := nonceStore.Get(nonce, new(bool))
 	if nonceError != nil && errors.Is(nonceError, storage.ErrNotFound) {
@@ -243,31 +212,4 @@ func extractNonce(presentation vc.VerifiablePresentation) (string, error) {
 		}
 	}
 	return nonce, nil
-}
-
-type AccessToken struct {
-	Token string `json:"token"`
-	// Issuer and Subject of a token are always the same.
-	Issuer string `json:"issuer"`
-	// TODO: should client_id be extracted to the PDPMap using the presentation definition?
-	// ClientId is the DID of the entity requesting the access token. The Client needs to proof its id through proof-of-possession of the key for the DID.
-	ClientId string `json:"client_id"`
-	// IssuedAt is the time the token is issued
-	IssuedAt time.Time `json:"issued_at"`
-	// Expiration is the time the token expires
-	Expiration time.Time `json:"expiration"`
-	// Scope the token grants access to. Not necessarily the same as the requested scope
-	Scope string `json:"scope"`
-	// InputDescriptorConstraintIdMap maps the ID field of a PresentationDefinition input descriptor constraint to the value provided in the VPToken for the constraint.
-	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
-	InputDescriptorConstraintIdMap map[string]any `json:"inputdescriptor_constraint_id_map,omitempty"`
-
-	// additional fields to support unforeseen policy decision requirements
-
-	// VPToken contains the VPs provided in the 'assertion' field of the s2s AT request.
-	VPToken []VerifiablePresentation `json:"vp_token,omitempty"`
-	// PresentationSubmissions as provided in by the wallet to fulfill the required Presentation Definition(s).
-	PresentationSubmissions map[string]pe.PresentationSubmission `json:"presentation_submissions,omitempty"`
-	// PresentationDefinitions that were required by the verifier to fulfill the request.
-	PresentationDefinitions pe.WalletOwnerMapping `json:"presentation_definitions,omitempty"`
 }

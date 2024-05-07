@@ -107,7 +107,8 @@ func (auth *Auth) RelyingParty() oauth.RelyingParty {
 }
 
 func (auth *Auth) IAMClient() iam.Client {
-	return iam.NewClient(auth.vcr.Wallet(), auth.strictMode, auth.httpClientTimeout)
+	keyResolver := resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}
+	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.keyStore, auth.strictMode, auth.httpClientTimeout)
 }
 
 // Configure the Auth struct by creating a validator and create an Irma server

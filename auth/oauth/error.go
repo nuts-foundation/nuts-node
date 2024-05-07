@@ -50,6 +50,8 @@ const (
 	UnsupportedResponseType ErrorCode = "unsupported_response_type"
 	// ServerError is returned when the Authorization Server encounters an unexpected condition that prevents it from fulfilling the request.
 	ServerError ErrorCode = "server_error"
+	// InvalidDPopProof is returned when the DPoP proof is invalid or missing.
+	InvalidDPopProof ErrorCode = "invalid_dpop_proof"
 	// InvalidScope is returned when the requested scope is invalid, unknown or malformed.
 	InvalidScope ErrorCode = "invalid_scope"
 	// InvalidPresentationDefinitionURI is returned when the requested presentation definition URI is invalid or can't be reached.

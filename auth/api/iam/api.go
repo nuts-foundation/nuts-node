@@ -21,7 +21,9 @@ package iam
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,8 +43,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
-	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
-	httpNuts "github.com/nuts-foundation/nuts-node/http"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -92,14 +94,14 @@ type Wrapper struct {
 	JSONLDManager jsonld.JSONLD
 	vcr           vcr.VCR
 	vdr           vdr.VDR
-	jwtSigner     cryptoNuts.JWTSigner
+	jwtSigner     nutsCrypto.JWTSigner
 	keyResolver   resolver.KeyResolver
 	jar           JAR
 }
 
 func New(
 	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine,
-	policyBackend policy.PDPBackend, jwtSigner cryptoNuts.JWTSigner, jsonldManager jsonld.JSONLD) *Wrapper {
+	policyBackend policy.PDPBackend, jwtSigner nutsCrypto.JWTSigner, jsonldManager jsonld.JSONLD) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assetsFS, "assets/*.html")
 	if err != nil {
@@ -162,7 +164,7 @@ func middleware(ctx echo.Context, operationID string) {
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
-func (w Wrapper) ResolveStatusCode(err error) int {
+func (r Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		vcrTypes.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
@@ -270,11 +272,23 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 		return IntrospectAccessToken200JSONResponse{}, nil
 	}
 
+	// Optional:
+	// Use DPoP from token to generate JWK thumbprint for public key
+	// deserialization of the DPoP struct from the accessTokenServerStore triggers validation of the DPoP header
+	// SHA256 hashing won't fail.
+	var cnf *Cnf
+	if token.DPoP != nil {
+		hash, _ := token.DPoP.Headers.JWK().Thumbprint(crypto.SHA256)
+		base64Hash := base64.RawURLEncoding.EncodeToString(hash)
+		cnf = &Cnf{Jkt: base64Hash}
+	}
+
 	// Create and return introspection response
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := IntrospectAccessToken200JSONResponse{
 		Active:                  true,
+		Cnf:                     cnf,
 		Iat:                     &iat,
 		Exp:                     &exp,
 		Iss:                     &token.Issuer,
@@ -556,7 +570,11 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		return nil, core.InvalidInputError("invalid verifier: %w", err)
 	}
 
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope)
+	useDPoP := true
+	if request.Body.TokenType != nil && strings.ToLower(string(*request.Body.TokenType)) == strings.ToLower(AccessTokenTypeBearer) {
+		useDPoP = false
+	}
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope, useDPoP)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -590,10 +608,10 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}
 
 	// session ID for calling app (supports polling for token)
-	sessionID := cryptoNuts.GenerateNonce()
+	sessionID := nutsCrypto.GenerateNonce()
 
 	// generate a redirect token valid for 5 seconds
-	token := cryptoNuts.GenerateNonce()
+	token := nutsCrypto.GenerateNonce()
 	err = r.userRedirectStore().Put(token, RedirectSession{
 		AccessTokenRequest: request,
 		SessionID:          sessionID,
@@ -614,7 +632,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}
 	webURL = webURL.JoinPath("user")
 	// redirect to generic user page, context of token will render correct page
-	redirectURL := httpNuts.AddQueryParams(*webURL, map[string]string{
+	redirectURL := nutsHttp.AddQueryParams(*webURL, map[string]string{
 		"token": token,
 	})
 	return RequestUserAccessToken200JSONResponse{
@@ -687,7 +705,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
 	}
 	// Generate the state and PKCE
-	state := cryptoNuts.GenerateNonce()
+	state := nutsCrypto.GenerateNonce()
 	pkceParams := generatePKCEParams()
 	if err != nil {
 		log.Logger().WithError(err).Errorf("failed to create the PKCE parameters")
@@ -719,7 +737,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		return nil, err
 	}
 	// Build the redirect URL, the client browser should be redirected to.
-	redirectUrl := httpNuts.AddQueryParams(*endpoint, map[string]string{
+	redirectUrl := nutsHttp.AddQueryParams(*endpoint, map[string]string{
 		"response_type":         "code",
 		"state":                 state,
 		"client_id":             requestHolder.String(),
@@ -762,7 +780,7 @@ func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request 
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("cannot fetch the right endpoints: %s", err.Error())), oid4vciSession.remoteRedirectUri())
 	}
-	response, err := r.auth.IAMClient().AccessToken(ctx, code, *issuerDid, oid4vciSession.RedirectUri, *holderDid, pkceParams.Verifier)
+	response, err := r.auth.IAMClient().AccessToken(ctx, code, *issuerDid, oid4vciSession.RedirectUri, *holderDid, pkceParams.Verifier, false)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", tokenEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
 	}
@@ -841,7 +859,7 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 	}
 
 	// request_uri
-	requestURIID := cryptoNuts.GenerateNonce()
+	requestURIID := nutsCrypto.GenerateNonce()
 	requestObj := r.jar.Create(client, &server, modifier)
 	if err = r.authzRequestObjectStore().Put(requestURIID, requestObj); err != nil {
 		return nil, err
@@ -859,7 +877,7 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 		oauth.RequestURIParam:       requestURI.String(),
 	}
 	if metadata.RequireSignedRequestObject {
-		redirectURL := httpNuts.AddQueryParams(*endpoint, params)
+		redirectURL := nutsHttp.AddQueryParams(*endpoint, params)
 		return &redirectURL, nil
 	}
 	// else; unclear if AS has support for RFC9101, so also add all modifiers to the query itself
@@ -867,7 +885,7 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 	// TODO: in the user flow we have no AS metadata, meaning that we add all params to the query.
 	// 		 This is most likely going to fail on mobile devices due to request url length.
 	modifier(params)
-	redirectURL := httpNuts.AddQueryParams(*endpoint, params)
+	redirectURL := nutsHttp.AddQueryParams(*endpoint, params)
 	return &redirectURL, nil
 }
 
@@ -924,6 +942,12 @@ func (r Wrapper) accessTokenClientStore() storage.SessionStore {
 // accessTokenServerStore is used by the Auth server to store issued access tokens
 func (r Wrapper) accessTokenServerStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "serveraccesstoken")
+}
+
+// useNonceOnceStore is used to store nonces that are used once, e.g. DPoP jti
+// it uses the access token validity as the expiration time
+func (r Wrapper) useNonceOnceStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "nonceonce")
 }
 
 // accessTokenServerStore is used by the Auth server to store issued access tokens

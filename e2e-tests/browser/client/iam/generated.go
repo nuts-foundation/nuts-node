@@ -20,6 +20,63 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// Defines values for ServiceAccessTokenRequestTokenType.
+const (
+	ServiceAccessTokenRequestTokenTypeBearer ServiceAccessTokenRequestTokenType = "Bearer"
+	ServiceAccessTokenRequestTokenTypeDPoP   ServiceAccessTokenRequestTokenType = "DPoP"
+)
+
+// Defines values for UserAccessTokenRequestTokenType.
+const (
+	UserAccessTokenRequestTokenTypeBearer UserAccessTokenRequestTokenType = "Bearer"
+	UserAccessTokenRequestTokenTypeDPoP   UserAccessTokenRequestTokenType = "DPoP"
+)
+
+// DPoPRequest defines model for DPoPRequest.
+type DPoPRequest struct {
+	// Htm The HTTP method for which the DPoP proof is requested.
+	Htm string `json:"htm"`
+
+	// Htu The URL for which the DPoP proof is requested. Query params and fragments are ignored during validation.
+	Htu string `json:"htu"`
+
+	// Token The access token for which the DPoP proof is requested.
+	Token string `json:"token"`
+}
+
+// DPoPResponse defines model for DPoPResponse.
+type DPoPResponse struct {
+	// Dpop The DPoP proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+	Dpop string `json:"dpop"`
+}
+
+// DPoPValidateRequest defines model for DPoPValidateRequest.
+type DPoPValidateRequest struct {
+	// DpopProof The DPoP Proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+	DpopProof string `json:"dpop_proof"`
+
+	// Method The HTTP method against which the DPoP proof is validated.
+	Method string `json:"method"`
+
+	// Thumbprint The thumbprint of the public key used to sign the DPoP proof. Base64url encoded, no padding.
+	Thumbprint string `json:"thumbprint"`
+
+	// Token The access token against which the DPoP proof is validated.
+	Token string `json:"token"`
+
+	// Url The URL against which the DPoP proof is validated. Query params and fragments are ignored during validation.
+	Url string `json:"url"`
+}
+
+// DPoPValidateResponse defines model for DPoPValidateResponse.
+type DPoPValidateResponse struct {
+	// Reason The reason why the DPoP Proof header is invalid.
+	Reason *string `json:"reason,omitempty"`
+
+	// Valid True if the DPoP Proof header is valid for the access token and HTTP request, false if it is not.
+	Valid bool `json:"valid"`
+}
+
 // RedirectResponseWithID defines model for RedirectResponseWithID.
 type RedirectResponseWithID struct {
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
@@ -28,6 +85,22 @@ type RedirectResponseWithID struct {
 	// SessionId The session ID that can be used to retrieve the access token by the calling application.
 	SessionId string `json:"session_id"`
 }
+
+// RequestObjectResponse A JSON Web Token (JWT) whose JWT Claims Set holds the JSON-encoded OAuth 2.0 authorization request parameters.
+type RequestObjectResponse = string
+
+// ServiceAccessTokenRequest Request for an access token for a service.
+type ServiceAccessTokenRequest struct {
+	// Scope The scope that will be the service for which this access token can be used.
+	Scope string `json:"scope"`
+
+	// TokenType The type of access token that is prefered, default: DPoP
+	TokenType *ServiceAccessTokenRequestTokenType `json:"tokenType,omitempty"`
+	Verifier  string                              `json:"verifier"`
+}
+
+// ServiceAccessTokenRequestTokenType The type of access token that is prefered, default: DPoP
+type ServiceAccessTokenRequestTokenType string
 
 // TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
 // Alongside the defined properties, it can return values (additionalProperties) from the Verifiable Credentials that resulted from the Presentation Exchange.
@@ -45,6 +118,9 @@ type TokenIntrospectionResponse struct {
 
 	// ClientId The client (DID) the access token was issued to
 	ClientId *string `json:"client_id,omitempty"`
+
+	// Cnf The 'confirmation' claim is used in JWTs to proof the possession of a key.
+	Cnf *Cnf `json:"cnf,omitempty"`
 
 	// Exp Expiration date in seconds since UNIX epoch
 	Exp *int `json:"exp,omitempty"`
@@ -73,6 +149,29 @@ type TokenIntrospectionResponse struct {
 	AdditionalProperties map[string]interface{}    `json:"-"`
 }
 
+// UserAccessTokenRequest Request for an access token for a user.
+type UserAccessTokenRequest struct {
+	// PreauthorizedUser Claims about the authorized user.
+	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
+
+	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
+	// This is the URL of the calling application.
+	// The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
+	RedirectUri string `json:"redirect_uri"`
+
+	// Scope The scope that will be the service for which this access token can be used.
+	Scope string `json:"scope"`
+
+	// TokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP
+	TokenType *UserAccessTokenRequestTokenType `json:"token_type,omitempty"`
+
+	// Verifier The DID of the verifier, the relying party for which this access token is requested.
+	Verifier string `json:"verifier"`
+}
+
+// UserAccessTokenRequestTokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP
+type UserAccessTokenRequestTokenType string
+
 // UserDetails Claims about the authorized user.
 type UserDetails struct {
 	// Id Machine-readable identifier, uniquely identifying the user in the issuing system.
@@ -83,6 +182,12 @@ type UserDetails struct {
 
 	// Role Role of the user.
 	Role string `json:"role"`
+}
+
+// Cnf The 'confirmation' claim is used in JWTs to proof the possession of a key.
+type Cnf struct {
+	// Jkt JWK thumbprint
+	Jkt string `json:"jkt"`
 }
 
 // CallbackOid4vciCredentialIssuanceParams defines parameters for CallbackOid4vciCredentialIssuance.
@@ -113,30 +218,6 @@ type RequestOid4vciCredentialIssuanceJSONBody struct {
 	RedirectUri string `json:"redirect_uri"`
 }
 
-// RequestServiceAccessTokenJSONBody defines parameters for RequestServiceAccessToken.
-type RequestServiceAccessTokenJSONBody struct {
-	// Scope The scope that will be the service for which this access token can be used.
-	Scope    string `json:"scope"`
-	Verifier string `json:"verifier"`
-}
-
-// RequestUserAccessTokenJSONBody defines parameters for RequestUserAccessToken.
-type RequestUserAccessTokenJSONBody struct {
-	// PreauthorizedUser Claims about the authorized user.
-	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
-
-	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
-	// This is the URL of the calling application.
-	// The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
-	RedirectUri string `json:"redirect_uri"`
-
-	// Scope The scope that will be the service for which this access token can be used.
-	Scope string `json:"scope"`
-
-	// Verifier The DID of the verifier, the relying party for which this access token is requested.
-	Verifier string `json:"verifier"`
-}
-
 // HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
 type HandleAuthorizeRequestParams struct {
 	Params *map[string]string `form:"params,omitempty" json:"params,omitempty"`
@@ -161,6 +242,17 @@ type CallbackParams struct {
 type PresentationDefinitionParams struct {
 	Scope           string           `form:"scope" json:"scope"`
 	WalletOwnerType *WalletOwnerType `form:"wallet_owner_type,omitempty" json:"wallet_owner_type,omitempty"`
+}
+
+// PostRequestJWTFormdataBody defines parameters for PostRequestJWT.
+type PostRequestJWTFormdataBody struct {
+	// WalletMetadata OAuth2 Authorization Server Metadata
+	// Contain properties from several specifications and may grow over time
+	WalletMetadata *OAuthAuthorizationServerMetadata `form:"wallet_metadata,omitempty" json:"wallet_metadata,omitempty"`
+
+	// WalletNonce A String value used to mitigate replay attacks of the Authorization Request.
+	// When received, the Verifier MUST use it as the wallet_nonce value in the signed authorization request object.
+	WalletNonce *string `form:"wallet_nonce,omitempty" json:"wallet_nonce,omitempty"`
 }
 
 // HandleAuthorizeResponseFormdataBody defines parameters for HandleAuthorizeResponse.
@@ -193,14 +285,23 @@ type HandleTokenRequestFormdataBody struct {
 // IntrospectAccessTokenFormdataRequestBody defines body for IntrospectAccessToken for application/x-www-form-urlencoded ContentType.
 type IntrospectAccessTokenFormdataRequestBody = TokenIntrospectionRequest
 
+// ValidateDPoPProofJSONRequestBody defines body for ValidateDPoPProof for application/json ContentType.
+type ValidateDPoPProofJSONRequestBody = DPoPValidateRequest
+
+// CreateDPoPProofJSONRequestBody defines body for CreateDPoPProof for application/json ContentType.
+type CreateDPoPProofJSONRequestBody = DPoPRequest
+
 // RequestOid4vciCredentialIssuanceJSONRequestBody defines body for RequestOid4vciCredentialIssuance for application/json ContentType.
 type RequestOid4vciCredentialIssuanceJSONRequestBody RequestOid4vciCredentialIssuanceJSONBody
 
 // RequestServiceAccessTokenJSONRequestBody defines body for RequestServiceAccessToken for application/json ContentType.
-type RequestServiceAccessTokenJSONRequestBody RequestServiceAccessTokenJSONBody
+type RequestServiceAccessTokenJSONRequestBody = ServiceAccessTokenRequest
 
 // RequestUserAccessTokenJSONRequestBody defines body for RequestUserAccessToken for application/json ContentType.
-type RequestUserAccessTokenJSONRequestBody RequestUserAccessTokenJSONBody
+type RequestUserAccessTokenJSONRequestBody = UserAccessTokenRequest
+
+// PostRequestJWTFormdataRequestBody defines body for PostRequestJWT for application/x-www-form-urlencoded ContentType.
+type PostRequestJWTFormdataRequestBody PostRequestJWTFormdataBody
 
 // HandleAuthorizeResponseFormdataRequestBody defines body for HandleAuthorizeResponse for application/x-www-form-urlencoded ContentType.
 type HandleAuthorizeResponseFormdataRequestBody HandleAuthorizeResponseFormdataBody
@@ -255,6 +356,14 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 			return fmt.Errorf("error reading 'client_id': %w", err)
 		}
 		delete(object, "client_id")
+	}
+
+	if raw, found := object["cnf"]; found {
+		err = json.Unmarshal(raw, &a.Cnf)
+		if err != nil {
+			return fmt.Errorf("error reading 'cnf': %w", err)
+		}
+		delete(object, "cnf")
 	}
 
 	if raw, found := object["exp"]; found {
@@ -356,6 +465,13 @@ func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		object["client_id"], err = json.Marshal(a.ClientId)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling 'client_id': %w", err)
+		}
+	}
+
+	if a.Cnf != nil {
+		object["cnf"], err = json.Marshal(a.Cnf)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'cnf': %w", err)
 		}
 	}
 
@@ -520,6 +636,16 @@ type ClientInterface interface {
 	// RetrieveAccessToken request
 	RetrieveAccessToken(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ValidateDPoPProofWithBody request with any body
+	ValidateDPoPProofWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ValidateDPoPProof(ctx context.Context, body ValidateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDPoPProofWithBody request with any body
+	CreateDPoPProofWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateDPoPProof(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RequestOid4vciCredentialIssuanceWithBody request with any body
 	RequestOid4vciCredentialIssuanceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -546,6 +672,14 @@ type ClientInterface interface {
 
 	// PresentationDefinition request
 	PresentationDefinition(ctx context.Context, did string, params *PresentationDefinitionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetRequestJWT request
+	GetRequestJWT(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostRequestJWTWithBody request with any body
+	PostRequestJWTWithBody(ctx context.Context, did string, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostRequestJWTWithFormdataBody(ctx context.Context, did string, id string, body PostRequestJWTFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// HandleAuthorizeResponseWithBody request with any body
 	HandleAuthorizeResponseWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -647,6 +781,54 @@ func (c *Client) IntrospectAccessTokenWithFormdataBody(ctx context.Context, body
 
 func (c *Client) RetrieveAccessToken(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRetrieveAccessTokenRequest(c.Server, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ValidateDPoPProofWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewValidateDPoPProofRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ValidateDPoPProof(ctx context.Context, body ValidateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewValidateDPoPProofRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateDPoPProofWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDPoPProofRequestWithBody(c.Server, did, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateDPoPProof(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDPoPProofRequest(c.Server, did, body)
 	if err != nil {
 		return nil, err
 	}
@@ -767,6 +949,42 @@ func (c *Client) OAuthClientMetadata(ctx context.Context, did string, reqEditors
 
 func (c *Client) PresentationDefinition(ctx context.Context, did string, params *PresentationDefinitionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPresentationDefinitionRequest(c.Server, did, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetRequestJWT(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRequestJWTRequest(c.Server, did, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostRequestJWTWithBody(ctx context.Context, did string, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostRequestJWTRequestWithBody(c.Server, did, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostRequestJWTWithFormdataBody(ctx context.Context, did string, id string, body PostRequestJWTFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostRequestJWTRequestWithFormdataBody(c.Server, did, id, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1118,6 +1336,90 @@ func NewRetrieveAccessTokenRequest(server string, sessionID string) (*http.Reque
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewValidateDPoPProofRequest calls the generic ValidateDPoPProof builder with application/json body
+func NewValidateDPoPProofRequest(server string, body ValidateDPoPProofJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewValidateDPoPProofRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewValidateDPoPProofRequestWithBody generates requests for ValidateDPoPProof with any type of body
+func NewValidateDPoPProofRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v2/dpop_validate")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCreateDPoPProofRequest calls the generic CreateDPoPProof builder with application/json body
+func NewCreateDPoPProofRequest(server string, did string, body CreateDPoPProofJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateDPoPProofRequestWithBody(server, did, "application/json", bodyReader)
+}
+
+// NewCreateDPoPProofRequestWithBody generates requests for CreateDPoPProof with any type of body
+func NewCreateDPoPProofRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0 = did
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v2/%s/dpop", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -1504,6 +1806,95 @@ func NewPresentationDefinitionRequest(server string, did string, params *Present
 	return req, nil
 }
 
+// NewGetRequestJWTRequest generates requests for GetRequestJWT
+func NewGetRequestJWTRequest(server string, did string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0 = did
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/oauth2/%s/request.jwt/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostRequestJWTRequestWithFormdataBody calls the generic PostRequestJWT builder with application/x-www-form-urlencoded body
+func NewPostRequestJWTRequestWithFormdataBody(server string, did string, id string, body PostRequestJWTFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewPostRequestJWTRequestWithBody(server, did, id, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewPostRequestJWTRequestWithBody generates requests for PostRequestJWT with any type of body
+func NewPostRequestJWTRequestWithBody(server string, did string, id string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0 = did
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/oauth2/%s/request.jwt/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewHandleAuthorizeResponseRequestWithFormdataBody calls the generic HandleAuthorizeResponse builder with application/x-www-form-urlencoded body
 func NewHandleAuthorizeResponseRequestWithFormdataBody(server string, did string, body HandleAuthorizeResponseFormdataRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -1696,6 +2087,16 @@ type ClientWithResponsesInterface interface {
 	// RetrieveAccessTokenWithResponse request
 	RetrieveAccessTokenWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*RetrieveAccessTokenResponse, error)
 
+	// ValidateDPoPProofWithBodyWithResponse request with any body
+	ValidateDPoPProofWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ValidateDPoPProofResponse, error)
+
+	ValidateDPoPProofWithResponse(ctx context.Context, body ValidateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*ValidateDPoPProofResponse, error)
+
+	// CreateDPoPProofWithBodyWithResponse request with any body
+	CreateDPoPProofWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
+
+	CreateDPoPProofWithResponse(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
+
 	// RequestOid4vciCredentialIssuanceWithBodyWithResponse request with any body
 	RequestOid4vciCredentialIssuanceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOid4vciCredentialIssuanceResponse, error)
 
@@ -1722,6 +2123,14 @@ type ClientWithResponsesInterface interface {
 
 	// PresentationDefinitionWithResponse request
 	PresentationDefinitionWithResponse(ctx context.Context, did string, params *PresentationDefinitionParams, reqEditors ...RequestEditorFn) (*PresentationDefinitionResponse, error)
+
+	// GetRequestJWTWithResponse request
+	GetRequestJWTWithResponse(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*GetRequestJWTResponse, error)
+
+	// PostRequestJWTWithBodyWithResponse request with any body
+	PostRequestJWTWithBodyWithResponse(ctx context.Context, did string, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostRequestJWTResponse, error)
+
+	PostRequestJWTWithFormdataBodyWithResponse(ctx context.Context, did string, id string, body PostRequestJWTFormdataRequestBody, reqEditors ...RequestEditorFn) (*PostRequestJWTResponse, error)
 
 	// HandleAuthorizeResponseWithBodyWithResponse request with any body
 	HandleAuthorizeResponseWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*HandleAuthorizeResponseResponse, error)
@@ -1924,6 +2333,60 @@ func (r RetrieveAccessTokenResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r RetrieveAccessTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ValidateDPoPProofResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *DPoPValidateResponse
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ValidateDPoPProofResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ValidateDPoPProofResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateDPoPProofResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DPoPResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateDPoPProofResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateDPoPProofResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2142,6 +2605,68 @@ func (r PresentationDefinitionResponse) StatusCode() int {
 	return 0
 }
 
+type GetRequestJWTResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetRequestJWTResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetRequestJWTResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostRequestJWTResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r PostRequestJWTResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostRequestJWTResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type HandleAuthorizeResponseResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -2290,6 +2815,40 @@ func (c *ClientWithResponses) RetrieveAccessTokenWithResponse(ctx context.Contex
 	return ParseRetrieveAccessTokenResponse(rsp)
 }
 
+// ValidateDPoPProofWithBodyWithResponse request with arbitrary body returning *ValidateDPoPProofResponse
+func (c *ClientWithResponses) ValidateDPoPProofWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ValidateDPoPProofResponse, error) {
+	rsp, err := c.ValidateDPoPProofWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseValidateDPoPProofResponse(rsp)
+}
+
+func (c *ClientWithResponses) ValidateDPoPProofWithResponse(ctx context.Context, body ValidateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*ValidateDPoPProofResponse, error) {
+	rsp, err := c.ValidateDPoPProof(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseValidateDPoPProofResponse(rsp)
+}
+
+// CreateDPoPProofWithBodyWithResponse request with arbitrary body returning *CreateDPoPProofResponse
+func (c *ClientWithResponses) CreateDPoPProofWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error) {
+	rsp, err := c.CreateDPoPProofWithBody(ctx, did, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDPoPProofResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateDPoPProofWithResponse(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error) {
+	rsp, err := c.CreateDPoPProof(ctx, did, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDPoPProofResponse(rsp)
+}
+
 // RequestOid4vciCredentialIssuanceWithBodyWithResponse request with arbitrary body returning *RequestOid4vciCredentialIssuanceResponse
 func (c *ClientWithResponses) RequestOid4vciCredentialIssuanceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOid4vciCredentialIssuanceResponse, error) {
 	rsp, err := c.RequestOid4vciCredentialIssuanceWithBody(ctx, did, contentType, body, reqEditors...)
@@ -2375,6 +2934,32 @@ func (c *ClientWithResponses) PresentationDefinitionWithResponse(ctx context.Con
 		return nil, err
 	}
 	return ParsePresentationDefinitionResponse(rsp)
+}
+
+// GetRequestJWTWithResponse request returning *GetRequestJWTResponse
+func (c *ClientWithResponses) GetRequestJWTWithResponse(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*GetRequestJWTResponse, error) {
+	rsp, err := c.GetRequestJWT(ctx, did, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRequestJWTResponse(rsp)
+}
+
+// PostRequestJWTWithBodyWithResponse request with arbitrary body returning *PostRequestJWTResponse
+func (c *ClientWithResponses) PostRequestJWTWithBodyWithResponse(ctx context.Context, did string, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostRequestJWTResponse, error) {
+	rsp, err := c.PostRequestJWTWithBody(ctx, did, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostRequestJWTResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostRequestJWTWithFormdataBodyWithResponse(ctx context.Context, did string, id string, body PostRequestJWTFormdataRequestBody, reqEditors ...RequestEditorFn) (*PostRequestJWTResponse, error) {
+	rsp, err := c.PostRequestJWTWithFormdataBody(ctx, did, id, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostRequestJWTResponse(rsp)
 }
 
 // HandleAuthorizeResponseWithBodyWithResponse request with arbitrary body returning *HandleAuthorizeResponseResponse
@@ -2659,6 +3244,74 @@ func ParseRetrieveAccessTokenResponse(rsp *http.Response) (*RetrieveAccessTokenR
 	return response, nil
 }
 
+// ParseValidateDPoPProofResponse parses an HTTP response from a ValidateDPoPProofWithResponse call
+func ParseValidateDPoPProofResponse(rsp *http.Response) (*ValidateDPoPProofResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ValidateDPoPProofResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DPoPValidateResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateDPoPProofResponse parses an HTTP response from a CreateDPoPProofWithResponse call
+func ParseCreateDPoPProofResponse(rsp *http.Response) (*CreateDPoPProofResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateDPoPProofResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DPoPResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRequestOid4vciCredentialIssuanceResponse parses an HTTP response from a RequestOid4vciCredentialIssuanceWithResponse call
 func ParseRequestOid4vciCredentialIssuanceResponse(rsp *http.Response) (*RequestOid4vciCredentialIssuanceResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -2899,6 +3552,76 @@ func ParsePresentationDefinitionResponse(rsp *http.Response) (*PresentationDefin
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetRequestJWTResponse parses an HTTP response from a GetRequestJWTWithResponse call
+func ParseGetRequestJWTResponse(rsp *http.Response) (*GetRequestJWTResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetRequestJWTResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostRequestJWTResponse parses an HTTP response from a PostRequestJWTWithResponse call
+func ParsePostRequestJWTResponse(rsp *http.Response) (*PostRequestJWTResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostRequestJWTResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
 			// Detail A human-readable explanation specific to this occurrence of the problem.

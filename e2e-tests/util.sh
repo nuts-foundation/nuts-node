@@ -60,7 +60,7 @@ function waitForDiagnostic {
 function exitWithDockerLogs {
   EXIT_CODE=$1
   docker compose logs
-  docker compose stop
+  docker compose down
   exit $EXIT_CODE
 }
 

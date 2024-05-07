@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 )
 
 // ErrPrivateKeyNotFound is returned when the private key doesn't exist
@@ -84,6 +85,9 @@ type JWTSigner interface {
 	// context is used to pass audit information.
 	// Returns ErrPrivateKeyNotFound when the private key is not present.
 	SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error)
+	// SignDPoP signs a DPoP token for the given kid.
+	// It adds the requested key as jwk header to the DPoP token.
+	SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error)
 }
 
 // JsonWebEncryptor is the interface used to encrypt and decrypt JWE messages.

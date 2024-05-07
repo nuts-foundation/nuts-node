@@ -53,7 +53,9 @@ paths:
   /oauth2/{did}/token:
     post:
       summary: Used by to request access- or refresh tokens.
-      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint
+      description: | 
+        Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint.
+        Requires the use of PKCE as specified by https://datatracker.ietf.org/doc/html/rfc7636 and optionally DPoP as specified by https://datatracker.ietf.org/doc/html/rfc9449.
       operationId: handleTokenRequest
       tags:
         - oauth2
@@ -442,54 +444,6 @@ paths:
                 "$ref": "#/components/schemas/OAuthClientMetadata"
         default:
           $ref: '../common/error_response.yaml'
-#  /internal/auth/v2/{did}/request-presentation:
-#    post:
-#      operationId: requestPresentation
-#      summary: Requests a credential presentation using OAuth2 from a remote wallet through a user-agent.
-#      description: |
-#        Requests a credential presentation using OAuth2 from a remote wallet.
-#        It will redirect the user-agent to the wallet, so the user can give consent.
-#
-#        error returns:
-#        * 400 - one of the parameters has the wrong format
-#        * 503 - the authorizer could not be reached or returned an error
-#      tags:
-#        - auth
-#      parameters:
-#        - name: did
-#          in: path
-#          required: true
-#          schema:
-#            type: string
-#            example: did:nuts:123
-#      requestBody:
-#        required: true
-#        content:
-#          application/json:
-#            schema:
-#              required:
-#                - wallet
-#                - scope
-#              properties:
-#                wallet:
-#                  type: string
-#                # TODO: how should this be specified?
-#                scope:
-#                  type: string
-#                  description: maps to the verifiable credentials to request
-#      responses:
-#        '200':
-#          description: Request initiated, the response will contain a redirect URL to which the user-agent
-#          content:
-#            application/json:
-#              schema:
-#                required:
-#                  - redirect_uri
-#                properties:
-#                  redirect_uri:
-#                    type: string
-#        default:
-#          $ref: '../common/error_response.yaml'
   /internal/auth/v2/{did}/request-service-access-token:
     post:
       operationId: requestServiceAccessToken
@@ -519,17 +473,7 @@ paths:
         content:
           application/json:
             schema:
-              required:
-                - verifier
-                - scope
-              properties:
-                verifier:
-                  type: string
-                  example: did:web:example.com
-                scope:
-                  type: string
-                  description: The scope that will be the service for which this access token can be used.
-                  example: eOverdracht-sender
+              $ref: '#/components/schemas/ServiceAccessTokenRequest'
       responses:
         '200':
           description: Successful request. Responds with an access token as described in rfc6749 section 5.1.
@@ -569,27 +513,7 @@ paths:
         content:
           application/json:
             schema:
-              required:
-                - redirect_uri
-                - scope
-                - verifier
-              properties:
-                verifier:
-                  type: string
-                  description: The DID of the verifier, the relying party for which this access token is requested.
-                  example: did:web:example.com
-                scope:
-                  type: string
-                  description: The scope that will be the service for which this access token can be used.
-                  example: eOverdracht-sender
-                redirect_uri:
-                  type: string
-                  description: |
-                    The URL to which the user-agent will be redirected after the authorization request.
-                    This is the URL of the calling application. 
-                    The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
-                preauthorized_user:
-                  $ref: '#/components/schemas/UserDetails'
+              $ref: '#/components/schemas/UserAccessTokenRequest'
       responses:
         '200':
           description: | 
@@ -656,6 +580,68 @@ paths:
           description: |
             This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
             Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
+  /internal/auth/v2/{did}/dpop:
+    post:
+      operationId: createDPoPProof
+      summary: Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
+      tags:
+        - oauth2
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: The DID of the requester, a wallet owner at this node.
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DPoPRequest"
+      responses:
+        '200':
+          description: A response containing the DPoP proof as specified by RFC9449
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPoPResponse"
+        '401':
+          description: This is returned when an OAuth2 Client is unauthorized to talk to the DPoP endpoint.
+  /internal/auth/v2/dpop_validate:
+    post:
+      operationId: validateDPoPProof
+      summary: Handle some of the validation of a DPoP proof as specified by RFC9449.
+      description: |
+        Handle some of the validation of a DPoP proof as specified by RFC9449.
+        Full validation as specified by RFC9449 is the responsibility of the resource server.
+        This is a convenience API where the the following is validated:
+        * The DPoP proof is a valid JWT
+        * The http method in the DPoP proof is the same as the http method in the request
+        * The URL in the DPoP proof is the same as the URL in the request (fragment and query parameters are ignored)
+        * The thumbprint given (returned from token introspection) is the same as the thumbprint of the public key used to sign the DPoP proof
+        * The ath field in the DPoP proof matches the hash of the access token
+        * The jti field in the DPoP proof is unique
+      tags:
+        - oauth2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DPoPValidateRequest"
+      responses:
+        '200':
+          description: A response containing the validity of the DPoP proof header for the access token and HTTP request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPoPValidateResponse"
+        default:
+          $ref: '../common/error_response.yaml'
   /statuslist/{did}/{page}:
     parameters:
       - name: did
@@ -772,7 +758,7 @@ paths:
         * server_error - internal processing of the Oid4VCI flow has a system error.
         * access_denied - an access problem occurred with the internal processing of the Oid4VCI flow.
       
-        If the system is somehow not able to return a redirect, the following http status codes will be 
+        If the system is somehow not able to return a redirect, the following HTTP status codes will be 
         returned:
         * 500 - an system error occurred during processing
       tags:
@@ -815,8 +801,133 @@ paths:
           $ref: '../common/error_response.yaml'
 components:
   schemas:
+    cnf:
+      description: The 'confirmation' claim is used in JWTs to proof the possession of a key.
+      required:
+        - jkt
+      properties:
+        jkt:
+          type: string
+          description: JWK thumbprint
     DIDDocument:
       $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
+    DPoPRequest:
+      type: object
+      required:
+        - htm
+        - token
+        - htu
+      properties:
+        htm:
+          type: string
+          description: The HTTP method for which the DPoP proof is requested.
+          example: "POST"
+        token:
+          type: string
+          description: The access token for which the DPoP proof is requested.
+          example: "eyJhbGciOi"
+        htu:
+          type: string
+          description: The URL for which the DPoP proof is requested. Query params and fragments are ignored during validation.
+          example: "https://example.com/resource"
+    DPoPResponse:
+      type: object
+      required:
+        - dpop
+      properties:
+        dpop:
+          type: string
+          description: The DPoP proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+    DPoPValidateRequest:
+      type: object
+      required:
+        - dpop_proof
+        - method
+        - thumbprint
+        - token
+        - url
+      properties:
+        dpop_proof:
+          type: string
+          description: The DPoP Proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+          example: "eyJhbGciOi..lgtla"
+        method:
+          type: string
+          description: The HTTP method against which the DPoP proof is validated.
+          example: "POST"
+        thumbprint:
+          type: string
+          description: The thumbprint of the public key used to sign the DPoP proof. Base64url encoded, no padding.
+          example: "jlkhnp87453slfhansdhf"
+        token:
+          type: string
+          description: The access token against which the DPoP proof is validated.
+          example: "eyJhbGciOi"
+        url:
+          type: string
+          description: The URL against which the DPoP proof is validated. Query params and fragments are ignored during validation.
+          example: "https://example.com/resource"
+    DPoPValidateResponse:
+      type: object
+      required:
+        - valid
+      properties:
+        reason:
+          type: string
+          description: The reason why the DPoP Proof header is invalid.
+        valid:
+          type: boolean
+          description: True if the DPoP Proof header is valid for the access token and HTTP request, false if it is not.
+    ServiceAccessTokenRequest:
+      type: object
+      description: Request for an access token for a service.
+      required:
+        - verifier
+        - scope
+      properties:
+        verifier:
+          type: string
+          example: did:web:example.com
+        scope:
+          type: string
+          description: The scope that will be the service for which this access token can be used.
+          example: eOverdracht-sender
+        tokenType:
+          type: string
+          description: "The type of access token that is prefered, default: DPoP"
+          enum:
+            - Bearer
+            - DPoP
+    UserAccessTokenRequest:
+      type: object
+      description: Request for an access token for a user.
+      required:
+        - redirect_uri
+        - scope
+        - verifier
+      properties:
+        verifier:
+          type: string
+          description: The DID of the verifier, the relying party for which this access token is requested.
+          example: did:web:example.com
+        scope:
+          type: string
+          description: The scope that will be the service for which this access token can be used.
+          example: eOverdracht-sender
+        token_type:
+          type: string
+          description: "The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP"
+          enum:
+            - Bearer
+            - DPoP
+        redirect_uri:
+          type: string
+          description: |
+            The URL to which the user-agent will be redirected after the authorization request.
+            This is the URL of the calling application. 
+            The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
+        preauthorized_user:
+          $ref: '#/components/schemas/UserDetails'
     VerifiablePresentation:
       $ref: '../common/ssi_types.yaml#/components/schemas/VerifiablePresentation'
     RedirectResponse:
@@ -889,7 +1000,7 @@ components:
           type: string
           description: |
             The type of the token issued as described in [RFC6749].
-          example: "bearer"
+          example: "Bearer"
         scope:
           type: string
         status:
@@ -907,7 +1018,7 @@ components:
       example:
         {
           "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
-          "token_type": "bearer",
+          "token_type": "Bearer",
           "expires_in": 3600,
         }
     OAuthAuthorizationServerMetadata:
@@ -953,8 +1064,7 @@ components:
       properties:
         token:
           type: string
-          example:
-            eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhaWQiOiJ1cm46b2lkOjIuMTYuODQwLjEuMTEzODgzLjIuNC42LjE6MDAwMDAwMDAiLCJleHAiOjE1ODE0MTI2NjcsImlhdCI6MTU4MTQxMTc2NywiaXNzIjoidXJuOm9pZDoyLjE2Ljg0MC4xLjExMzg4My4yLjQuNi4xOjAwMDAwMDAxIiwic2lkIjoidXJuOm9pZDoyLjE2Ljg0MC4xLjExMzg4My4yLjQuNi4zOjk5OTk5OTk5MCIsInN1YiI6IiJ9.OhniTJcPS45nhJVqXfxsngG5eYS_0BvqFg-96zaWFO90I_5_N9Eg_k7NmIF5eNZ9Xutl1aqSxlSp80EX07Gmk8uzZO9PEReo0YZxnNQV-Zeq1njCMmfdwusmiczFlwcBi5Bl1xYGmLrxP7NcAoljmDgMgmLH0xaKfP4VVim6snPkPHqBdSzAgSrrc-cgVDLl-9V2obPB1HiVsFMYfbHEIb4MPsnPRnSGavYHTxt34mHbRsS8BvoBy3v6VNYaewLr6yz-_Zstrnr4I_wxtYbSiPJUeVQHcD-a9Ck53BdjspnhVHZ4IFVvuNrpflVaB1A7P3A2xZ7G_a8gF_SHMynYSA
+          example: spnhVHZ4IFVvuNrpflVaB1A7P3A2xZ7G_a8gF_SHMynYSA
     TokenIntrospectionResponse:
       description: Token introspection response as described in RFC7662 section 2.2
       required:
@@ -964,6 +1074,8 @@ components:
         active:
           type: boolean
           description: True if the token is active, false if the token is expired, malformed etc. Required per RFC7662
+        cnf:
+          $ref: '#/components/schemas/cnf'
         iss:
           type: string
           description: Contains the DID of the authorizer. Should be equal to 'sub'
@@ -1020,7 +1132,7 @@ components:
   securitySchemes:
     jwtBearerAuth:
       type: http
-      scheme: bearer
+      scheme: Bearer
 
 security:
   - {}

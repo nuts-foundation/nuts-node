@@ -33,6 +33,7 @@ Nuts documentation
     pages/deployment/pex.rst
     pages/deployment/key-rotation.rst
     pages/deployment/audit-logging.rst
+    pages/deployment/oauth.rst
 
 .. toctree::
     :maxdepth: 1

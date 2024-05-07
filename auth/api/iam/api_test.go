@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -50,6 +49,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -486,11 +486,13 @@ func TestWrapper_Callback(t *testing.T) {
 	})
 	t.Run("ok - success flow", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putState(ctx, "state", session)
+		withDPoP := session
+		withDPoP.UseDPoP = true
+		putState(ctx, "state", withDPoP)
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID, codeVerifier).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -509,6 +511,32 @@ func TestWrapper_Callback(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, oauth.AccessTokenRequestStatusActive, tokenResponse.Get("status"))
 		assert.Equal(t, "access", tokenResponse.AccessToken)
+	})
+	t.Run("ok - no DPoP", func(t *testing.T) {
+		ctx := newTestClient(t)
+		_ = ctx.client.oauthClientStateStore().Put(state, OAuthSession{
+			OwnDID:      &holderDID,
+			PKCEParams:  generatePKCEParams(),
+			RedirectURI: "https://example.com/iam/holder/cb",
+			SessionID:   "token",
+			UseDPoP:     false,
+			VerifierDID: &verifierDID,
+		})
+		putToken(ctx, token)
+		codeVerifier := getState(ctx, state).PKCEParams.Verifier
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+
+		res, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Did: webDID.String(),
+			Params: CallbackParams{
+				Code:  &code,
+				State: &state,
+			},
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, res)
 	})
 	t.Run("unknown did", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -549,6 +577,7 @@ func TestWrapper_RetrieveAccessToken(t *testing.T) {
 func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	// mvp to store access token
 	ctx := newTestClient(t)
+	dpopToken, _, thumbprint := newSignedTestDPoP()
 
 	// validate all fields are there after introspection
 	t.Run("error - no token provided", func(t *testing.T) {
@@ -578,7 +607,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
 	})
 	t.Run("ok", func(t *testing.T) {
-		token := AccessToken{Expiration: time.Now().Add(time.Second)}
+		token := AccessToken{Expiration: time.Now().Add(time.Second), DPoP: dpopToken}
 		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
 
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
@@ -632,6 +661,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"},
 		}
 		token := AccessToken{
+			DPoP:                           dpopToken,
 			Token:                          "token",
 			Issuer:                         "resource-owner",
 			ClientId:                       "client",
@@ -648,6 +678,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
 			Active:                  true,
 			ClientId:                ptrTo("client"),
+			Cnf:                     &Cnf{Jkt: thumbprint},
 			Exp:                     ptrTo(int(tNow.Add(time.Minute).Unix())),
 			Iat:                     ptrTo(int(tNow.Unix())),
 			Iss:                     ptrTo("resource-owner"),
@@ -742,10 +773,21 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
 	body := &RequestServiceAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second"}
 
-	t.Run("ok - service flow", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(&oauth.TokenResponse{}, nil)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second", true).Return(&oauth.TokenResponse{}, nil)
+
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+
+		require.NoError(t, err)
+	})
+	t.Run("ok - no DPoP", func(t *testing.T) {
+		ctx := newTestClient(t)
+		tokenTypeBearer := ServiceAccessTokenRequestTokenType("bearer")
+		body := &RequestServiceAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", TokenType: &tokenTypeBearer}
+		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second", false).Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
@@ -780,7 +822,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	t.Run("error - verifier error", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second").Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierDID, "first second", true).Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
@@ -792,13 +834,14 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierDID := did.MustParseDID("did:web:test.test:iam:456")
+	tokenType := UserAccessTokenRequestTokenType("dpop")
 	userDetails := UserDetails{
 		Id:   "test",
 		Name: "Titus Tester",
 		Role: "Test Manager",
 	}
 	redirectURI := "https://test.test/oauth2/" + walletDID.String() + "/cb"
-	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", PreauthorizedUser: &userDetails, RedirectUri: redirectURI}
+	body := &RequestUserAccessTokenJSONRequestBody{Verifier: verifierDID.String(), Scope: "first second", PreauthorizedUser: &userDetails, RedirectUri: redirectURI, TokenType: &tokenType}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -818,6 +861,9 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		err = ctx.client.userRedirectStore().Get(redirectURI.Query().Get("token"), &target)
 		require.NoError(t, err)
 		assert.Equal(t, walletDID, target.OwnDID)
+		require.NotNil(t, target.AccessTokenRequest)
+		require.NotNil(t, target.AccessTokenRequest.Body.TokenType)
+		assert.Equal(t, tokenType, *target.AccessTokenRequest.Body.TokenType)
 
 		// assert flow
 		var tokenResponse TokenResponse
@@ -1196,7 +1242,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
 		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(&credentialResponse, nil)
@@ -1248,7 +1294,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("fail_access_token", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(nil, errors.New("FAIL"))
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(nil, errors.New("FAIL"))
 
 		callback, err := ctx.client.CallbackOid4vciCredentialIssuance(nil, CallbackOid4vciCredentialIssuanceRequestObject{
 			Params: CallbackOid4vciCredentialIssuanceParams{
@@ -1264,7 +1310,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("fail_credential_response", func(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
-		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
 		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(nil, errors.New("FAIL"))
@@ -1283,7 +1329,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("fail_verify", func(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
-		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
 		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(&credentialResponse, nil)
@@ -1302,7 +1348,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("error - key not found", func(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
-		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.URI{}, nil, resolver.ErrKeyNotFound)
 
 		callback, err := ctx.client.CallbackOid4vciCredentialIssuance(nil, CallbackOid4vciCredentialIssuanceRequestObject{
@@ -1319,7 +1365,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("error - signature failure", func(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
-		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("signature failed"))
 

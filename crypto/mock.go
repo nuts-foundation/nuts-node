@@ -14,6 +14,7 @@ import (
 	crypto "crypto"
 	reflect "reflect"
 
+	dpop "github.com/nuts-foundation/nuts-node/crypto/dpop"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -262,6 +263,21 @@ func (mr *MockKeyStoreMockRecorder) Resolve(ctx, kid any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockKeyStore)(nil).Resolve), ctx, kid)
 }
 
+// SignDPoP mocks base method.
+func (m *MockKeyStore) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SignDPoP", ctx, token, kid)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SignDPoP indicates an expected call of SignDPoP.
+func (mr *MockKeyStoreMockRecorder) SignDPoP(ctx, token, kid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignDPoP", reflect.TypeOf((*MockKeyStore)(nil).SignDPoP), ctx, token, kid)
+}
+
 // SignJWS mocks base method.
 func (m *MockKeyStore) SignJWS(ctx context.Context, payload []byte, headers map[string]any, key any, detached bool) (string, error) {
 	m.ctrl.T.Helper()
@@ -351,6 +367,21 @@ func NewMockJWTSigner(ctrl *gomock.Controller) *MockJWTSigner {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockJWTSigner) EXPECT() *MockJWTSignerMockRecorder {
 	return m.recorder
+}
+
+// SignDPoP mocks base method.
+func (m *MockJWTSigner) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SignDPoP", ctx, token, kid)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SignDPoP indicates an expected call of SignDPoP.
+func (mr *MockJWTSignerMockRecorder) SignDPoP(ctx, token, kid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignDPoP", reflect.TypeOf((*MockJWTSigner)(nil).SignDPoP), ctx, token, kid)
 }
 
 // SignJWS mocks base method.

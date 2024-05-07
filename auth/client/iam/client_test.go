@@ -99,14 +99,14 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 	tokenResponse := oauth.TokenResponse{
 		AccessToken: "token",
 	}
-
+	dpopHeader := "dpop"
 	data := url.Values{}
 
 	t.Run("ok", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: tokenResponse}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.AccessToken(ctx, tlsServer.URL, data)
+		response, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -117,7 +117,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: tokenResponse}
 		_, client := testServerAndClient(t, &handler)
 
-		_, err := client.AccessToken(ctx, ":", data)
+		_, err := client.AccessToken(ctx, ":", data, dpopHeader)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
@@ -126,7 +126,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidRequest}}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		_, err := client.AccessToken(ctx, tlsServer.URL, data)
+		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.Error(t, err)
 		// check if the error is an OAuth error
@@ -138,7 +138,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadGateway, ResponseData: "offline"}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		_, err := client.AccessToken(ctx, tlsServer.URL, data)
+		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.Error(t, err)
 		// check if the error is a http error
@@ -150,7 +150,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		_, err := client.AccessToken(ctx, tlsServer.URL, data)
+		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value, }")

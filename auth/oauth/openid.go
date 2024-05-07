@@ -18,10 +18,9 @@
 
 package oauth
 
-// AlgValuesSupported contains a list of supported cipher suites for jwt_vc_json & jwt_vp_json presentation formats
-// Recommended list of options https://www.iana.org/assignments/jose/jose.xhtml#web-signature-encryption-algorithms
-// TODO: validate list, should reflect current recommendations from https://www.ncsc.nl
-var AlgValuesSupported = []string{"PS256", "PS384", "PS512", "ES256", "ES384", "ES512"}
+import (
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
+)
 
 // proofTypeValuesSupported contains a list of supported cipher suites for ldp_vc & ldp_vp presentation formats
 // Recommended list of options https://w3c-ccg.github.io/ld-cryptosuite-registry/
@@ -35,8 +34,8 @@ var proofTypeValuesSupported = []string{"JsonWebSignature2020"}
 // See https://github.com/nuts-foundation/nuts-node/issues/2447
 func DefaultOpenIDSupportedFormats() map[string]map[string][]string {
 	return map[string]map[string][]string{
-		"jwt_vp_json": {"alg_values_supported": AlgValuesSupported},
-		"jwt_vc_json": {"alg_values_supported": AlgValuesSupported},
+		"jwt_vp_json": {"alg_values_supported": jwx.SupportedAlgorithmsAsStrings()},
+		"jwt_vc_json": {"alg_values_supported": jwx.SupportedAlgorithmsAsStrings()},
 		"ldp_vc":      {"proof_type_values_supported": proofTypeValuesSupported},
 		"ldp_vp":      {"proof_type_values_supported": proofTypeValuesSupported},
 	}

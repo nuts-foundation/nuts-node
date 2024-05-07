@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 )
 
 var _ JWTSigner = &MemoryJWTSigner{}
@@ -45,5 +46,9 @@ func (m MemoryJWTSigner) SignJWT(_ context.Context, claims map[string]interface{
 }
 
 func (m MemoryJWTSigner) SignJWS(_ context.Context, _ []byte, _ map[string]interface{}, _ interface{}, _ bool) (string, error) {
+	return "", errNotSupportedForInMemoryKeyStore
+}
+
+func (m MemoryJWTSigner) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
 	return "", errNotSupportedForInMemoryKeyStore
 }

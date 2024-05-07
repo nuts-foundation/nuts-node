@@ -110,7 +110,7 @@ func (hb HTTPClient) RequestObject(ctx context.Context, requestURI string) (stri
 	return string(data), err
 }
 
-func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data url.Values) (oauth.TokenResponse, error) {
+func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data url.Values, dpopHeader string) (oauth.TokenResponse, error) {
 	var token oauth.TokenResponse
 	tokenURL, err := url.Parse(tokenEndpoint)
 	if err != nil {
@@ -121,6 +121,9 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL.String(), strings.NewReader(data.Encode()))
 	request.Header.Add("Accept", "application/json")
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	if dpopHeader != "" {
+		request.Header.Add("DPoP", dpopHeader)
+	}
 	if err != nil {
 		return token, err
 	}

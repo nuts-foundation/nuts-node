@@ -154,3 +154,8 @@ const presentationDefParam = "presentation_definition"
 // presentationDefUriParam is the name of the OpenID4VP presentation_definition_uri parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-presentation_definition_uri
 const presentationDefUriParam = "presentation_definition_uri"
+
+const (
+	AccessTokenTypeBearer = "Bearer"
+	AccessTokenTypeDPoP   = "DPoP"
+)

@@ -34,15 +34,16 @@ import (
 // Both the client and the server use this session to store information about the request.
 type OAuthSession struct {
 	ClientID          string       `json:"client_id,omitempty"`
-	Scope             string       `json:"scope,omitempty"`
-	OwnDID            *did.DID     `json:"own_did,omitempty"`
 	ClientState       string       `json:"client_state,omitempty"`
-	SessionID         string       `json:"session_id,omitempty"`
+	OpenID4VPVerifier *PEXConsumer `json:"openid4vp_verifier,omitempty"`
+	OwnDID            *did.DID     `json:"own_did,omitempty"`
+	PKCEParams        PKCEParams   `json:"pkce_params"`
 	RedirectURI       string       `json:"redirect_uri,omitempty"`
 	ResponseType      string       `json:"response_type,omitempty"`
-	PKCEParams        PKCEParams   `json:"pkce_params"`
+	Scope             string       `json:"scope,omitempty"`
+	SessionID         string       `json:"session_id,omitempty"`
+	UseDPoP           bool         `json:"use_dpop,omitempty"`
 	VerifierDID       *did.DID     `json:"verifier_did,omitempty"`
-	OpenID4VPVerifier *PEXConsumer `json:"openid4vp_verifier,omitempty"`
 }
 
 // PEXConsumer consumes Presentation Submissions, according to https://identity.foundation/presentation-exchange/

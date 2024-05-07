@@ -22,16 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -42,6 +40,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 var oauthNonceKey = []string{"oauth", "nonce"}
@@ -665,12 +665,28 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	if !validatePKCEParams(oauthSession.PKCEParams) {
 		return nil, oauthError(oauth.InvalidGrant, "invalid code_verifier")
 	}
+
+	// Parse optional DPoP header
+	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
+	dpopProof, err := dpopFromRequest(*httpRequest)
+	if err != nil {
+		return nil, err
+	}
+	var submissions []PresentationSubmission
+	for _, submission := range oauthSession.OpenID4VPVerifier.Submissions {
+		submissions = append(submissions, submission)
+	}
+	presentationDefinitions := make([]PresentationDefinition, 0)
+	for _, curr := range oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions {
+		presentationDefinitions = append(presentationDefinitions, curr)
+	}
+
 	// All done, issue access token
 	walletDID, err := did.ParseDID(oauthSession.ClientID)
 	if err != nil {
 		return nil, err
 	}
-	response, err := r.createAccessToken(*oauthSession.OwnDID, *walletDID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier)
+	response, err := r.createAccessToken(*oauthSession.OwnDID, *walletDID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier, dpopProof)
 	if err != nil {
 		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}
@@ -735,7 +751,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	checkURL = checkURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}

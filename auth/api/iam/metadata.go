@@ -24,14 +24,16 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
 
 func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.AuthorizationServerMetadata {
 	return oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:    oauth2BaseURL.JoinPath("authorize").String(),
-		ClientIdSchemesSupported: clientIdSchemesSupported,
-		GrantTypesSupported:      grantTypesSupported,
-		Issuer:                   identity.String(),
+		AuthorizationEndpoint:                      oauth2BaseURL.JoinPath("authorize").String(),
+		ClientIdSchemesSupported:                   clientIdSchemesSupported,
+		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
+		GrantTypesSupported:                        grantTypesSupported,
+		Issuer:                                     identity.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionEndpoint:             oauth2BaseURL.JoinPath("presentation_definition").String(),
 		RequireSignedRequestObject:                 true,
@@ -40,7 +42,7 @@ func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.
 		TokenEndpoint:                              oauth2BaseURL.JoinPath("token").String(),
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
-		RequestObjectSigningAlgValuesSupported:     oauth.AlgValuesSupported,
+		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 }
 

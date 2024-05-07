@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -113,6 +114,11 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		//rare, log just in case
 		log.Logger().WithError(err).Warn("delete token failed")
 	}
+	// use DPoP or not
+	useDPoP := true
+	if redirectSession.AccessTokenRequest.Body.TokenType != nil && strings.ToLower(string(*redirectSession.AccessTokenRequest.Body.TokenType)) == strings.ToLower(AccessTokenTypeBearer) {
+		useDPoP = false
+	}
 	// create oauthSession with userID from request
 	// generate new sessionID and clientState with crypto.GenerateNonce()
 	oauthSession := OAuthSession{
@@ -121,6 +127,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		PKCEParams:  generatePKCEParams(),
 		RedirectURI: accessTokenRequest.Body.RedirectUri,
 		SessionID:   redirectSession.SessionID,
+		UseDPoP:     useDPoP,
 		VerifierDID: verifier,
 	}
 	// store user session in session store under sessionID and clientState
