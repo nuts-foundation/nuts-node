@@ -23,7 +23,6 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"math"
 	"strconv"
 	"strings"
 )
@@ -48,10 +47,6 @@ func (t Tag) Timestamp(tagPrefix string) *Timestamp {
 	result, err := strconv.ParseUint(trimmed, 10, 64)
 	if err != nil {
 		// Not a number
-		return nil
-	}
-	if result < 0 || result > math.MaxUint64 {
-		// Invalid uint64
 		return nil
 	}
 	lamport := Timestamp(result)

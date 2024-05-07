@@ -145,9 +145,9 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 		}
 	}
 
-	if accessTokenResponse.CNonce == nil {
+	if accessTokenResponse.Get(oauth.CNonceParam) == "" {
 		return openid4vci.Error{
-			Err:        errors.New("c_nonce is missing"),
+			Err:        fmt.Errorf("%s is missing", oauth.CNonceParam),
 			Code:       openid4vci.InvalidToken,
 			StatusCode: http.StatusInternalServerError,
 		}
@@ -193,6 +193,9 @@ func getPreAuthorizedCodeFromOffer(offer openid4vci.CredentialOffer) string {
 
 func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, offer *openid4vci.CredentialDefinition, tokenResponse *oauth.TokenResponse) (*vc.VerifiableCredential, error) {
 	keyID, _, err := h.resolver.ResolveKey(h.did, nil, resolver.NutsSigningKeyType)
+	if err != nil {
+		return nil, err
+	}
 	headers := map[string]interface{}{
 		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
 		"kid": keyID.String(),                    // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
@@ -200,7 +203,7 @@ func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient ope
 	claims := map[string]interface{}{
 		"aud":   issuerClient.Metadata().CredentialIssuer,
 		"iat":   nowFunc().Unix(),
-		"nonce": tokenResponse.CNonce,
+		"nonce": tokenResponse.Get(oauth.CNonceParam),
 	}
 
 	proof, err := h.signer.SignJWT(ctx, claims, headers, keyID.String())

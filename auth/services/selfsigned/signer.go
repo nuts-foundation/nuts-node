@@ -146,7 +146,6 @@ func (v *signer) createVP(ctx context.Context, s types.Session, issuanceDate tim
 
 func (v *signer) Start(ctx context.Context) {
 	v.store.Start(ctx)
-	return
 }
 
 func (v *signer) StartSigningSession(userContract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {

@@ -186,7 +186,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	}
 	const userSessionID = "session_id"
 	httpRequest.AddCookie(createUserSessionCookie(userSessionID, "/"))
-	httpRequestCtx := context.WithValue(context.Background(), httpRequestContextKey, httpRequest)
+	httpRequestCtx := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
 	t.Run("invalid client_id", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
@@ -396,6 +396,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 				AuthorizationEndpoint:    redirectURL.String(),
 				ClientIdSchemesSupported: []string{"did"},
 			}, nil)
+			ctx.jar.EXPECT().Create(verifierDID, &holderDID, gomock.Any())
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 

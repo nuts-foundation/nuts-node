@@ -20,20 +20,85 @@
 package oauth
 
 import (
+	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
 	"net/url"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
 
-// TokenResponse is the OAuth access token response
+// TokenResponse is the OAuth access token response.
+// Through With() and Get() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`
 	TokenType   string  `json:"token_type"`
-	CNonce      *string `json:"c_nonce,omitempty"`
 	Scope       *string `json:"scope,omitempty"`
-	Status      *string `json:"status,omitempty"`
+
+	additionalParams map[string]interface{}
+}
+
+var _ json.Unmarshaler = (*TokenResponse)(nil)
+var _ json.Marshaler = (*TokenResponse)(nil)
+
+func (t *TokenResponse) UnmarshalJSON(data []byte) error {
+	type Alias TokenResponse
+	var result Alias
+	// base parameters
+	if err := json.Unmarshal(data, &result); err != nil {
+		return err
+	}
+	// extension parameters
+	additionalParams := map[string]interface{}{}
+	_ = json.Unmarshal(data, &additionalParams) // can't fail, already unmarshalled
+	delete(additionalParams, "access_token")
+	delete(additionalParams, "expires_in")
+	delete(additionalParams, "token_type")
+	delete(additionalParams, "scope")
+	*t = TokenResponse(result)
+	if len(additionalParams) > 0 {
+		t.additionalParams = additionalParams
+	}
+	return nil
+}
+
+func (t TokenResponse) MarshalJSON() ([]byte, error) {
+	result := make(map[string]interface{})
+	for key, value := range t.additionalParams {
+		result[key] = value
+	}
+	result["access_token"] = t.AccessToken
+	result["expires_in"] = t.ExpiresIn
+	result["token_type"] = t.TokenType
+	result["scope"] = t.Scope
+
+	return json.Marshal(result)
+}
+
+// With adds a parameter to the token response.
+// It's a builder-style function.
+// It should not be used to set any of the base parameters (access_token, expires_in, token_type, scope).
+func (t *TokenResponse) With(key string, value interface{}) *TokenResponse {
+	if t.additionalParams == nil {
+		t.additionalParams = make(map[string]interface{})
+	}
+	t.additionalParams[key] = value
+	return t
+}
+
+// Get returns the value of the additional parameter with the given key as a string.
+// If the key does not exist or the value is not a string, it returns an empty string.
+// It should not be used to get any of the base parameters (access_token, expires_in, token_type, scope).
+func (t TokenResponse) Get(key string) string {
+	if t.additionalParams == nil {
+		return ""
+	}
+	if val, ok := t.additionalParams[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
 }
 
 const (
@@ -48,11 +113,9 @@ const (
 	AuthzServerWellKnown = "/.well-known/oauth-authorization-server"
 	// ClientMetadataPath is the path to the client metadata relative to the complete did:web URL
 	ClientMetadataPath = "/oauth-client"
-	// OpenidCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in
+	// OpenIdCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in
 	// OpenID4VCI specification
-	OpenIdCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
-	// openidCredWalletWellKnown is the well-known path element we created for openid4vci to retrieve the oauth client metadata
-	openidCredWalletWellKnown    = "/.well-known/openid-credential-wallet"
+	OpenIdCredIssuerWellKnown    = "/.well-known/openid-credential-issuer"
 	OpenIdConfigurationWellKnown = "/.well-known/openid-configuration"
 	// AssertionParam is the parameter name for the assertion parameter
 	AssertionParam = "assertion"
@@ -72,14 +135,14 @@ const (
 	GrantTypeParam = "grant_type"
 	// NonceParam is the parameter name for the nonce parameter
 	NonceParam = "nonce"
-	// MaxAgeParam is the parameter name for the max_age parameter
-	MaxAgeParam = "max_age"
 	// RedirectURIParam is the parameter name for the redirect_uri parameter
 	RedirectURIParam = "redirect_uri"
 	// RequestParam is the parameter name for the request parameter.	Defined in RFC9101
 	RequestParam = "request"
 	// RequestURIParam is the parameter name for the request parameter. Defined in RFC9101
 	RequestURIParam = "request_uri"
+	// RequestURIMethodParam states what http method (get/post) should be used for RequestURIParam. Defined in OpenID4VP
+	RequestURIMethodParam = "request_uri_method"
 	// ResponseTypeParam is the parameter name for the response_type parameter
 	ResponseTypeParam = "response_type"
 	// ScopeParam is the parameter name for the scope parameter
@@ -92,6 +155,8 @@ const (
 	VpTokenParam = "vp_token"
 	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type
 	VpTokenGrantType = "vp_token-bearer"
+	// CNonceParam is the parameter name for the c_nonce parameter. Defined in OpenID4VCI.
+	CNonceParam = "c_nonce"
 )
 
 const (
@@ -281,21 +346,3 @@ type OpenIDCredentialIssuerMetadata struct {
 // It includes the issuer, authorization endpoint, token endpoint, JWKS URI,
 // and supported grant types for authentication and authorization.
 type OpenIDConfigurationMetadata = AuthorizationServerMetadata
-
-// Oid4vciTokenResponse is the response type for OAuth OID4VCI token endpoint
-type Oid4vciTokenResponse struct {
-	// The access token value
-	AccessToken string `json:"access_token"`
-	// The duration in seconds that the token is valid for, or nil if not specified
-	ExpiresIn *int `json:"expires_in,omitempty"`
-	// The type of the access token
-	TokenType string `json:"token_type"`
-	// The CNonce value, or nil if not specified
-	CNonce *string `json:"c_nonce,omitempty"`
-	// The duration in seconds that the CNonce is valid for, or nil if not specified
-	CNonceExpiresIn *int `json:"c_nonce_expires_in,omitempty"`
-	// The token scope, or nil if not specified
-	Scope *string `json:"scope,omitempty"`
-	// The authorization details, or nil if not specified
-	AuthorizationDetails *any `json:"authorization_details,omitempty"`
-}

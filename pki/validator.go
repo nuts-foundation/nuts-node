@@ -405,8 +405,8 @@ func (v *validator) updateCRL(endpoint string, current *revocationList) error {
 	}
 
 	// parse revocations
-	revoked := make(map[string]bool, len(crl.RevokedCertificates))
-	for _, rev := range crl.RevokedCertificates {
+	revoked := make(map[string]bool, len(crl.RevokedCertificateEntries))
+	for _, rev := range crl.RevokedCertificateEntries {
 		revoked[rev.SerialNumber.String()] = true
 	}
 	// set the new CRL

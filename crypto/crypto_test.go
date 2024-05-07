@@ -45,7 +45,8 @@ func TestCrypto_Exists(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	client.New(audit.TestContext(), StringNamingFunc(kid))
+	_, err := client.New(audit.TestContext(), StringNamingFunc(kid))
+	require.NoError(t, err)
 
 	t.Run("returns true for existing key", func(t *testing.T) {
 		assert.True(t, client.Exists(ctx, kid))

@@ -115,7 +115,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	}
 	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, *walletDID)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet"), redirectURL)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet", err), redirectURL)
 	}
 	// check metadata for supported client_id_schemes
 	if !slices.Contains(metadata.ClientIdSchemesSupported, didScheme) {
@@ -287,7 +287,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 
 	// TODO: Create session if it does not exist (use client state to get original Authorization Code request)?
 	//       Although it would be quite weird (maybe it expired).
-	userSession, err := r.loadUserSession(ctx.Value(httpRequestContextKey).(*http.Request), tenantDID, nil)
+	userSession, err := r.loadUserSession(ctx.Value(httpRequestContextKey{}).(*http.Request), tenantDID, nil)
 	if userSession == nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, InternalError: err, Description: "no user session found"}
 	}
@@ -356,10 +356,10 @@ func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, walletDID did.DID,
 		}
 		// Dispatch a new HTTP request to the local OpenID4VP wallet's authorization endpoint that includes request parameters,
 		// but with openid4vp: as scheme.
-		originalRequest := ctx.Value(httpRequestContextKey).(*http.Request)
+		originalRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
 		dispatchHttpRequest := *originalRequest
 		dispatchHttpRequest.URL = parsedRedirectURI
-		ctx = context.WithValue(ctx, httpRequestContextKey, &dispatchHttpRequest)
+		ctx = context.WithValue(ctx, httpRequestContextKey{}, &dispatchHttpRequest)
 		response, err := r.HandleAuthorizeRequest(ctx, HandleAuthorizeRequestRequestObject{
 			Did: walletDID.String(),
 		})
@@ -464,7 +464,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 
 	pexEnvelope, err := pe.ParseEnvelope([]byte(*request.Body.VpToken))
 	if err != nil || len(pexEnvelope.Presentations) == 0 {
-		return nil, oauthError(oauth.InvalidRequest, "invalid vp_token")
+		return nil, oauthError(oauth.InvalidRequest, "invalid vp_token", err)
 	}
 
 	// note: instead of using the challenge to lookup the oauth session, we could also add a client state from the verifier.
@@ -472,12 +472,12 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 
 	// extract the nonce from the vp(s)
 	nonce, err := extractChallenge(pexEnvelope.Presentations[0])
-	if nonce == "" {
-		return nil, oauthError(oauth.InvalidRequest, "failed to extract nonce from vp_token")
+	if nonce == "" || err != nil {
+		return nil, oauthError(oauth.InvalidRequest, "failed to extract nonce from vp_token", err)
 	}
 	var stateFromNonce string
 	if err = r.oauthNonceStore().Get(nonce, &stateFromNonce); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid or expired nonce")
+		return nil, oauthError(oauth.InvalidRequest, "invalid or expired nonce", err)
 	}
 	// Retrieve session through state, since we need to update it given the state.
 	// Also asserts that nonce and state reference the same OAuthSession
@@ -487,7 +487,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		return nil, oauthError(oauth.InvalidRequest, "invalid nonce/state")
 	}
 	if err = r.oauthClientStateStore().Get(state, &session); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid or expired session")
+		return nil, oauthError(oauth.InvalidRequest, "invalid or expired session", err)
 	}
 
 	// any future error can be sent to the client using the redirectURI from the oauthSession
@@ -609,6 +609,9 @@ func (r Wrapper) validatePresentationNonce(presentations []vc.VerifiablePresenta
 	var returnErr error
 	for _, presentation := range presentations {
 		nextNonce, err := extractChallenge(presentation)
+		if err != nil {
+			return err
+		}
 		if nextNonce == "" {
 			// fallback on nonce instead of challenge, todo: should be uniform, check vc data model specs for JWT/JSON-LD
 			nextNonce, err = extractNonce(presentation)
@@ -651,7 +654,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	var oauthSession OAuthSession
 	err := r.oauthCodeStore().Get(*request.Code, &oauthSession)
 	if err != nil {
-		return nil, oauthError(oauth.InvalidGrant, "invalid authorization code")
+		return nil, oauthError(oauth.InvalidGrant, "invalid authorization code", err)
 	}
 	// check if the client_id matches the one from the authorization request
 	if oauthSession.ClientID != *request.ClientId {
@@ -712,7 +715,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	}
 	// lookup client state
 	if err := r.oauthClientStateStore().Get(*request.Params.State, &oauthSession); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid or expired state")
+		return nil, oauthError(oauth.InvalidRequest, "invalid or expired state", err)
 	}
 	// extract callback URI at calling app from OAuthSession
 	// this is the URI where the user-agent will be redirected to
@@ -737,8 +740,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}
 	// update TokenResponse using session.SessionID
-	statusActive := oauth.AccessTokenRequestStatusActive
-	tokenResponse.Status = &statusActive
+	tokenResponse = tokenResponse.With("status", oauth.AccessTokenRequestStatusActive)
 	if err = r.accessTokenClientStore().Put(oauthSession.SessionID, tokenResponse); err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to store access token: %s", err.Error())), appCallbackURI)
 	}
@@ -751,9 +753,10 @@ func (r Wrapper) oauthNonceStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthNonceKey...)
 }
 
-func oauthError(code oauth.ErrorCode, description string) oauth.OAuth2Error {
+func oauthError(code oauth.ErrorCode, description string, internalError ...error) oauth.OAuth2Error {
 	return oauth.OAuth2Error{
-		Code:        code,
-		Description: description,
+		Code:          code,
+		Description:   description,
+		InternalError: errors.Join(internalError...),
 	}
 }

@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -27,6 +28,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -303,31 +305,10 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 }
 
 func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
-	clientMetadata := oauth.OAuthClientMetadata{
-		VPFormats: oauth.DefaultOpenIDSupportedFormats(),
-	}
-	serverMetadata := oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:      "https://example.com/authorize",
-		ClientIdSchemesSupported:   []string{didScheme},
-		VPFormats:                  oauth.DefaultOpenIDSupportedFormats(),
-		RequireSignedRequestObject: true,
-	}
-	pdEndpoint := "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test"
-	// setup did document and keys
-	vmId := did.DIDURL{
-		DID:             holderDID,
-		Fragment:        "key",
-		DecodedFragment: "key",
-	}
-	key := cryptoNuts.NewTestKey(vmId.String())
-	didDocument := did.Document{ID: holderDID}
-	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, did.DID{}, key.Public())
-	didDocument.AddAssertionMethod(vm)
-
-	t.Run("ok - signed request - code response type", func(t *testing.T) {
+	t.Run("ok - response_type=code", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		// create signed request
+		// HandleAuthorizeRequest
 		requestParams := oauthParameters{
 			jwt.AudienceKey:                []string{verifierDID.String()},
 			jwt.IssuerKey:                  holderDID.String(),
@@ -340,16 +321,22 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.CodeChallengeParam:       "code_challenge",
 			oauth.CodeChallengeMethodParam: "S256",
 		}
-		bytes, err := createSignedRequestObject(t, key, requestParams)
-		require.NoError(t, err)
-
-		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier&request=valid-token"
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
+		ctx.jar.EXPECT().Parse(gomock.Any(), verifierDID, url.Values{"key": []string{"test_value"}}).Return(requestParams, nil)
+
+		// handleAuthorizeRequestFromHolder
+		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier&request_uri=https://example.com/oauth2/" + verifierDID.String() + "/request.jwt/&request_uri_method=get"
+		serverMetadata := oauth.AuthorizationServerMetadata{
+			AuthorizationEndpoint:      "https://example.com/authorize",
+			ClientIdSchemesSupported:   []string{didScheme},
+			VPFormats:                  oauth.DefaultOpenIDSupportedFormats(),
+			RequireSignedRequestObject: true,
+		}
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil).Times(2)
-		ctx.keyResolver.EXPECT().ResolveKey(verifierDID, nil, resolver.AssertionMethod).Return(vmId.URI(), key.Public(), nil)
-		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, key.KID()).DoAndReturn(func(ctx context.Context, params map[string]any, headers map[string]any, key any) (string, error) {
+		ctx.jar.EXPECT().Create(verifierDID, &holderDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
+			req := createJarRequest(client, server, modifier)
+			params := req.Claims
 			// check the parameters
 			assert.NotEmpty(t, params[oauth.NonceParam])
 			assert.Equal(t, didScheme, params[clientIDSchemeParam])
@@ -358,84 +345,18 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/oauth-client", params[clientMetadataURIParam])
 			assert.Equal(t, responseModeDirectPost, params[responseModeParam])
 			assert.NotEmpty(t, params[oauth.StateParam])
-			return "valid-token", nil
+			return req
 		})
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
-			oauth.ClientIDParam: holderDID.String(),
-			oauth.RequestParam:  string(bytes),
-		}), HandleAuthorizeRequestRequestObject{
-			Did: verifierDID.String(),
-		})
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{"key": "test_value"}),
+			HandleAuthorizeRequestRequestObject{Did: verifierDID.String()})
 
 		require.NoError(t, err)
 		require.IsType(t, HandleAuthorizeRequest302Response{}, res)
-		location := res.(HandleAuthorizeRequest302Response).Headers.Location
-		assert.Equal(t, expectedURL, location)
+		testAuthzReqRedirectURI(t, expectedURL, res.(HandleAuthorizeRequest302Response).Headers.Location)
 	})
-	t.Run("error - invalid request parameter", func(t *testing.T) {
+	t.Run("ok - response_type=vp_token ", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
-			oauth.ClientIDParam: "invalid",
-			oauth.RequestParam:  "invalid",
-		}), HandleAuthorizeRequestRequestObject{
-			Did: verifierDID.String(),
-		})
-
-		requireOAuthError(t, err, oauth.InvalidRequestObject, "request signature validation failed")
-		assert.Nil(t, res)
-	})
-	t.Run("error - client_id does not match", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
-		// create signed request
-		request := jwt.New()
-		_ = request.Set(jwt.IssuerKey, holderDID.String())
-		_ = request.Set(oauth.ClientIDParam, holderDID.String())
-		headers := jws.NewHeaders()
-		headers.Set(jws.KeyIDKey, key.KID())
-		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
-		require.NoError(t, err)
-
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
-			oauth.ClientIDParam: "invalid",
-			oauth.RequestParam:  string(bytes),
-		}), HandleAuthorizeRequestRequestObject{
-			Did: verifierDID.String(),
-		})
-
-		requireOAuthError(t, err, oauth.InvalidRequestObject, "invalid client_id claim in signed authorization request")
-		assert.Nil(t, res)
-	})
-	t.Run("error - client_id does not match signer", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
-		// create signed request
-		request := jwt.New()
-		_ = request.Set(jwt.IssuerKey, verifierDID.String())
-		_ = request.Set(oauth.ClientIDParam, verifierDID.String())
-		headers := jws.NewHeaders()
-		headers.Set(jws.KeyIDKey, key.KID())
-		bytes, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(headers)))
-		require.NoError(t, err)
-
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
-			oauth.ClientIDParam: verifierDID.String(),
-			oauth.RequestParam:  string(bytes),
-		}), HandleAuthorizeRequestRequestObject{
-			Did: verifierDID.String(),
-		})
-
-		requireOAuthError(t, err, oauth.InvalidRequestObject, "client_id does not match signer of authorization request")
-		assert.Nil(t, res)
-	})
-	t.Run("ok - vp_token response type - from verifier", func(t *testing.T) {
-		ctx := newTestClient(t)
-
 		vmId := did.DIDURL{
 			DID:             verifierDID,
 			Fragment:        "key",
@@ -447,7 +368,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, did.DID{}, key.Public())
 		didDocument.AddAssertionMethod(vm)
 
-		// create signed request
+		// HandleAuthorizeRequest
 		requestParams := oauthParameters{
 			oauth.ClientIDParam:     verifierDID.String(),
 			clientIDSchemeParam:     didScheme,
@@ -460,9 +381,10 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ScopeParam:        "test",
 			oauth.StateParam:        "state",
 		}
-		bytes, err := createSignedRequestObject(t, key, requestParams)
-		require.NoError(t, err)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.jar.EXPECT().Parse(gomock.Any(), holderDID, gomock.Any()).Return(requestParams, nil)
 
+		// handleAuthorizeRequestFromVerifier
 		_ = ctx.client.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...).Put("state", OAuthSession{
 			// this is the state from the holder that was stored at the creation of the first authorization request to the verifier
 			ClientID:     holderDID.String(),
@@ -478,17 +400,14 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 				DID: holderDID,
 			},
 		})
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
-		ctx.vdr.EXPECT().Resolve(verifierDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
+		clientMetadata := oauth.OAuthClientMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
+		pdEndpoint := "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test"
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
-			oauth.ClientIDParam: verifierDID.String(),
-			oauth.RequestParam:  string(bytes),
-		}, func(request *http.Request) {
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{}, func(request *http.Request) {
 			request.Header = make(http.Header)
 			request.AddCookie(createUserSessionCookie("session-id", "/"))
 		}), HandleAuthorizeRequestRequestObject{
@@ -500,25 +419,17 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		location := res.(HandleAuthorizeRequest302Response).Headers.Location
 		assert.Equal(t, location, "https://example.com/iam/holder/redirect")
 	})
-	t.Run("unsupported response type", func(t *testing.T) {
+	t.Run("unsupported response_type", func(t *testing.T) {
 		ctx := newTestClient(t)
-		// create signed request
 		requestParams := oauthParameters{
 			oauth.ClientIDParam:     holderDID.String(),
 			oauth.ResponseTypeParam: "unsupported",
 		}
-		bytes, err := createSignedRequestObject(t, key, requestParams)
-		require.NoError(t, err)
-
+		ctx.jar.EXPECT().Parse(gomock.Any(), verifierDID, gomock.Any()).Return(requestParams, nil)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-		ctx.vdr.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, &resolver.DocumentMetadata{}, nil)
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{
-			oauth.ClientIDParam: holderDID.String(),
-			oauth.RequestParam:  string(bytes),
-		}), HandleAuthorizeRequestRequestObject{
-			Did: verifierDID.String(),
-		})
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{}),
+			HandleAuthorizeRequestRequestObject{Did: verifierDID.String()})
 
 		requireOAuthError(t, err, oauth.UnsupportedResponseType, "")
 		assert.Nil(t, res)
@@ -596,7 +507,7 @@ func TestWrapper_Callback(t *testing.T) {
 		var tokenResponse TokenResponse
 		err = ctx.client.accessTokenClientStore().Get(token, &tokenResponse)
 		require.NoError(t, err)
-		assert.Equal(t, oauth.AccessTokenRequestStatusActive, *tokenResponse.Status)
+		assert.Equal(t, oauth.AccessTokenRequestStatusActive, tokenResponse.Get("status"))
 		assert.Equal(t, "access", tokenResponse.AccessToken)
 	})
 	t.Run("unknown did", func(t *testing.T) {
@@ -912,7 +823,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		var tokenResponse TokenResponse
 		require.NotNil(t, redirectResponse.SessionId)
 		err = ctx.client.accessTokenClientStore().Get(redirectResponse.SessionId, &tokenResponse)
-		assert.Equal(t, oauth.AccessTokenRequestStatusPending, *tokenResponse.Status)
+		assert.Equal(t, oauth.AccessTokenRequestStatusPending, tokenResponse.Get("status"))
 	})
 	t.Run("preauthorized_user", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -984,6 +895,44 @@ func TestWrapper_StatusList(t *testing.T) {
 	})
 }
 
+func TestWrapper_GetRequestJWT(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		cont := context.Background()
+		requestID := "thisID"
+		expectedToken := "validToken"
+		ro := jar{}.Create(webDID, &holderDID, func(claims map[string]string) {})
+
+		ctx := newTestClient(t)
+		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return(expectedToken, nil)
+		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
+
+		response, err := ctx.client.GetRequestJWT(cont, GetRequestJWTRequestObject{Did: webDID.String(), Id: requestID})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetRequestJWT200ApplicationoauthAuthzReqJwtResponse{
+			Body:          bytes.NewReader([]byte(expectedToken)),
+			ContentLength: 10,
+		}, response)
+	})
+	t.Run("error - not found", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		response, err := ctx.client.GetRequestJWT(nil, GetRequestJWTRequestObject{Id: "unknownID"})
+
+		assert.Nil(t, response)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
+	})
+}
+
+func TestWrapper_PostRequestJWT(t *testing.T) {
+	ctx := newTestClient(t)
+
+	response, err := ctx.client.PostRequestJWT(nil, PostRequestJWTRequestObject{Id: "unknownID"})
+
+	assert.Nil(t, response)
+	assert.EqualError(t, err, "not implemented")
+}
+
 func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 	clientDID := did.MustParseDID("did:web:client.test:iam:123")
 	serverDID := did.MustParseDID("did:web:server.test:iam:123")
@@ -994,92 +943,74 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 		AuthorizationEndpoint:      "https://server.test/authorize",
 		RequireSignedRequestObject: true,
 	}
-
-	t.Run("JAR", func(t *testing.T) {
-		keyId := clientDID.URI()
-		keyId.Fragment = "1"
-		privKey := cryptoNuts.NewTestKey(keyId.String())
-
-		t.Run("ok", func(t *testing.T) {
-			ctx := newTestClient(t)
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&serverMetadata, nil)
-			ctx.keyResolver.EXPECT().ResolveKey(clientDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
-			ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, key string) (string, error) {
-				assert.Equal(t, keyId.String(), key)
-				assert.Equal(t, clientDID.String(), claims[jwt.IssuerKey])
-				assert.Equal(t, serverDID.String(), claims[jwt.AudienceKey])
-				assert.Equal(t, clientDID.String(), claims[oauth.ClientIDParam])
-				assert.Equal(t, "value", claims["custom"])
-				assert.NotEmpty(t, claims[oauth.NonceParam])
-				return "signed JWT", nil
-			})
-			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
-
-			assert.NoError(t, err)
-			require.NotNil(t, redirectURL)
-			assert.Equal(t, "signed JWT", redirectURL.Query().Get(oauth.RequestParam))
-			assert.Equal(t, clientDID.String(), redirectURL.Query().Get(oauth.ClientIDParam))
+	t.Run("ok - RequireSignedRequestObject=true", func(t *testing.T) {
+		expectedRedirect := "https://server.test/authorize?client_id=did%3Aweb%3Aclient.test%3Aiam%3A123&request_uri=https://client.test/oauth2/&request_uri_method=custom"
+		var expectedJarReq jarRequest
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&serverMetadata, nil)
+		ctx.jar.EXPECT().Create(clientDID, &serverDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
+			expectedJarReq = createJarRequest(client, server, modifier)
+			expectedJarReq.RequestURIMethod = "custom"
+			assert.Equal(t, "value", expectedJarReq.Claims.get("custom"))
+			return expectedJarReq
 		})
-		t.Run("error - failed to sign JWT", func(t *testing.T) {
-			ctx := newTestClient(t)
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&serverMetadata, nil)
-			ctx.keyResolver.EXPECT().ResolveKey(clientDID, nil, resolver.NutsSigningKeyType).Return(keyId, privKey.Public(), nil)
-			ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).Return("", assert.AnError)
 
-			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
+		redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
 
-			assert.Error(t, err)
-			assert.Empty(t, redirectURL)
-		})
-		t.Run("error - failed to resolve key", func(t *testing.T) {
-			ctx := newTestClient(t)
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&serverMetadata, nil)
-			ctx.keyResolver.EXPECT().ResolveKey(clientDID, nil, resolver.NutsSigningKeyType).Return(keyId, nil, resolver.ErrKeyNotFound)
+		// return
+		assert.NoError(t, err)
+		testAuthzReqRedirectURI(t, expectedRedirect, redirectURL.String())
 
-			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
-
-			assert.Error(t, err)
-			assert.Empty(t, redirectURL)
-		})
+		// storage
+		requestURIparts := strings.Split(redirectURL.Query().Get(oauth.RequestURIParam), "/")
+		requestURIID := requestURIparts[len(requestURIparts)-1]
+		var jarReq jarRequest
+		require.NoError(t, ctx.client.authzRequestObjectStore().Get(requestURIID, &jarReq))
+		assert.Equal(t, expectedJarReq, jarReq)
 	})
-	t.Run("non-JAR", func(t *testing.T) {
-		t.Run("ok", func(t *testing.T) {
-			ctx := newTestClient(t)
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{AuthorizationEndpoint: serverMetadata.AuthorizationEndpoint}, nil)
-
-			redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
-
-			assert.NoError(t, err)
-			require.NotNil(t, redirectURL)
-			assert.Equal(t, clientDID.String(), redirectURL.Query().Get("client_id"))
-			assert.Equal(t, "value", redirectURL.Query().Get("custom"))
+	t.Run("ok - RequireSignedRequestObject=false", func(t *testing.T) {
+		var expectedJarReq jarRequest
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{AuthorizationEndpoint: serverMetadata.AuthorizationEndpoint}, nil)
+		ctx.jar.EXPECT().Create(clientDID, &serverDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
+			expectedJarReq = createJarRequest(client, server, modifier)
+			assert.Equal(t, "value", expectedJarReq.Claims.get("custom"))
+			return expectedJarReq
 		})
-		t.Run("error - missing authorization endpoint", func(t *testing.T) {
-			ctx := newTestClient(t)
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
 
-			_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
+		redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
 
-			assert.Error(t, err)
-			assert.ErrorContains(t, err, "no authorization endpoint found in metadata for")
-		})
-		t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
-			ctx := newTestClient(t)
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(nil, assert.AnError)
+		assert.NoError(t, err)
+		assert.Equal(t, "value", redirectURL.Query().Get("custom"))
+		assert.Equal(t, clientDID.String(), redirectURL.Query().Get(oauth.ClientIDParam))
+		assert.Equal(t, "get", redirectURL.Query().Get(oauth.RequestURIMethodParam))
+		assert.NotEmpty(t, redirectURL.Query().Get(oauth.RequestURIParam))
+	})
+	t.Run("error - missing authorization endpoint", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
 
-			_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
+		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
 
-			assert.Error(t, err)
-		})
-		t.Run("error - failed to get metadata", func(t *testing.T) {
-			ctx := newTestClient(t)
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "no authorization endpoint found in metadata for")
+	})
+	t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(nil, assert.AnError)
 
-			_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
+		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
 
-			assert.Error(t, err)
-			assert.ErrorContains(t, err, "no authorization endpoint found in metadata for")
-		})
+		assert.Error(t, err)
+	})
+	t.Run("error - failed to get metadata", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{AuthorizationEndpoint: ":"}, nil)
+
+		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
+
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "failed to parse authorization endpoint URL")
 	})
 }
 
@@ -1257,11 +1188,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 		IssuerTokenEndpoint:      tokenEndpoint,
 		IssuerCredentialEndpoint: credEndpoint,
 	}
-	tokenResponse := oauth.Oid4vciTokenResponse{
-		AccessToken: accessToken,
-		TokenType:   "Bearer",
-		CNonce:      &cNonce,
-	}
+	tokenResponse := oauth.NewTokenResponse(accessToken, "Bearer", 0, "").With("c_nonce", cNonce)
 	credentialResponse := iam.CredentialResponse{
 		Format:     "jwt_vc",
 		Credential: verifiableCredential.Raw(),
@@ -1269,7 +1196,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session)
-		ctx.iamClient.EXPECT().AccessTokenOid4vci(nil, holderDID.String(), tokenEndpoint, redirectURI, code, &pkceParams.Verifier).Return(&tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
 		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(&credentialResponse, nil)
@@ -1321,7 +1248,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("fail_access_token", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session)
-		ctx.iamClient.EXPECT().AccessTokenOid4vci(nil, holderDID.String(), tokenEndpoint, redirectURI, code, &pkceParams.Verifier).Return(nil, errors.New("FAIL"))
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(nil, errors.New("FAIL"))
 
 		callback, err := ctx.client.CallbackOid4vciCredentialIssuance(nil, CallbackOid4vciCredentialIssuanceRequestObject{
 			Params: CallbackOid4vciCredentialIssuanceParams{
@@ -1337,7 +1264,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("fail_credential_response", func(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
-		ctx.iamClient.EXPECT().AccessTokenOid4vci(nil, holderDID.String(), tokenEndpoint, redirectURI, code, &pkceParams.Verifier).Return(&tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
 		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(nil, errors.New("FAIL"))
@@ -1356,7 +1283,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("fail_verify", func(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
-		ctx.iamClient.EXPECT().AccessTokenOid4vci(nil, holderDID.String(), tokenEndpoint, redirectURI, code, &pkceParams.Verifier).Return(&tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
 		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(&credentialResponse, nil)
@@ -1375,7 +1302,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("error - key not found", func(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
-		ctx.iamClient.EXPECT().AccessTokenOid4vci(nil, holderDID.String(), tokenEndpoint, redirectURI, code, &pkceParams.Verifier).Return(&tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.URI{}, nil, resolver.ErrKeyNotFound)
 
 		callback, err := ctx.client.CallbackOid4vciCredentialIssuance(nil, CallbackOid4vciCredentialIssuanceRequestObject{
@@ -1392,7 +1319,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("error - signature failure", func(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
-		ctx.iamClient.EXPECT().AccessTokenOid4vci(nil, holderDID.String(), tokenEndpoint, redirectURI, code, &pkceParams.Verifier).Return(&tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("signature failed"))
 
@@ -1407,6 +1334,26 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "failed to sign the JWT with kid (kid): signature failed")
 	})
+}
+
+// testAuthzReqRedirectURI compares to expectedRedirectURI and actualRedirectURI
+// 'request_uri' is checked for presence,
+// and if expectedRedirectURI contains a 'request_uri' it will do a partial match on URL decoded actual value
+func testAuthzReqRedirectURI(t testing.TB, expectedRedirectURI, actualRedirectURI string) {
+	stripRequestURI := func(uri string) (string, string) {
+		u, err := url.Parse(uri)
+		require.NoError(t, err)
+		q := u.Query()
+		requestURI := q.Get(oauth.RequestURIParam)
+		q.Set(oauth.RequestURIParam, "<IGNORED>")
+		u.RawQuery = q.Encode()
+		return u.String(), requestURI
+	}
+	expected, expectedReqURIPartial := stripRequestURI(expectedRedirectURI)
+	actual, actualReqURI := stripRequestURI(actualRedirectURI)
+	assert.Equal(t, expected, actual)
+	assert.NotEmpty(t, actualReqURI)
+	assert.Contains(t, actualReqURI, expectedReqURIPartial) // both are URL decoded
 }
 
 func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.VerifiableCredential {
@@ -1441,16 +1388,6 @@ func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.Verifiable
 	}
 	verifiableCredential, _ := vc.CreateJWTVerifiableCredential(nil, template, captureFn)
 	return verifiableCredential
-}
-
-func createSignedRequestObject(t testing.TB, testKey *cryptoNuts.TestKey, params oauthParameters) ([]byte, error) {
-	request := jwt.New()
-	for k, v := range params {
-		require.NoError(t, request.Set(k, v))
-	}
-	headers := jws.NewHeaders()
-	require.NoError(t, headers.Set(jws.KeyIDKey, testKey.KID()))
-	return jwt.Sign(request, jwt.WithKey(jwa.ES256, testKey.Private(), jws.WithProtectedHeaders(headers)))
 }
 
 type strictServerCallCapturer bool
@@ -1498,7 +1435,7 @@ func requestContext(queryParams map[string]interface{}, httpRequestFn ...func(he
 	for _, fn := range httpRequestFn {
 		fn(httpRequest)
 	}
-	return context.WithValue(audit.TestContext(), httpRequestContextKey, httpRequest)
+	return context.WithValue(audit.TestContext(), httpRequestContextKey{}, httpRequest)
 }
 
 // statusCodeFrom returns the statuscode for the given error
@@ -1525,6 +1462,7 @@ type testCtx struct {
 	vcIssuer      *issuer.MockIssuer
 	vcVerifier    *verifier.MockVerifier
 	wallet        *holder.MockWallet
+	jar           *MockJAR
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -1544,6 +1482,7 @@ func newTestClient(t testing.TB) *testCtx {
 	mockWallet := holder.NewMockWallet(ctrl)
 	jwtSigner := cryptoNuts.NewMockJWTSigner(ctrl)
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
+	mockJAR := NewMockJAR(ctrl)
 
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
@@ -1567,6 +1506,7 @@ func newTestClient(t testing.TB) *testCtx {
 		wallet:        mockWallet,
 		keyResolver:   keyResolver,
 		jwtSigner:     jwtSigner,
+		jar:           mockJAR,
 		client: &Wrapper{
 			auth:          authnServices,
 			vdr:           mockVDR,
@@ -1575,6 +1515,7 @@ func newTestClient(t testing.TB) *testCtx {
 			policyBackend: policyInstance,
 			keyResolver:   keyResolver,
 			jwtSigner:     jwtSigner,
+			jar:           mockJAR,
 		},
 	}
 }

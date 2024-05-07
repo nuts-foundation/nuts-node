@@ -460,7 +460,7 @@ func matchFilter(filter Filter, value interface{}) (bool, error) {
 		return false, nil
 	}
 
-	switch value.(type) {
+	switch typedValue := value.(type) {
 	case string:
 		if filter.Type != "string" {
 			return false, nil
@@ -478,8 +478,7 @@ func matchFilter(filter Filter, value interface{}) (bool, error) {
 			return false, nil
 		}
 	case []interface{}:
-		values := value.([]interface{})
-		for _, v := range values {
+		for _, v := range typedValue {
 			match, err := matchFilter(filter, v)
 			if err != nil {
 				return false, err
