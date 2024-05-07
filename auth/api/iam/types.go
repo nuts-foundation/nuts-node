@@ -25,7 +25,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
-	"time"
 )
 
 // DIDDocument is an alias
@@ -65,10 +64,6 @@ type WalletOwnerType = pe.WalletOwnerType
 
 // RequiredPresentationDefinitions is an alias
 type RequiredPresentationDefinitions = pe.WalletOwnerMapping
-
-const (
-	sessionExpiry = 5 * time.Minute
-)
 
 // CookieReader is an interface for reading cookies from an HTTP request.
 // It is implemented by echo.Context and http.Request.
@@ -159,14 +154,6 @@ const presentationDefParam = "presentation_definition"
 // presentationDefUriParam is the name of the OpenID4VP presentation_definition_uri parameter.
 // Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-presentation_definition_uri
 const presentationDefUriParam = "presentation_definition_uri"
-
-// presentationSubmissionParam is the name of the OpenID4VP presentation_submission parameter.
-// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-response-parameters
-const presentationSubmissionParam = "presentation_submission"
-
-// vpTokenParam is the name of the OpenID4VP vp_token parameter.
-// Specified by https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#name-response-type-vp_token
-const vpTokenParam = "vp_token"
 
 const (
 	AccessTokenTypeBearer = "Bearer"

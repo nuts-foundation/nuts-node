@@ -23,8 +23,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"io"
 	"mime"
 	"net/http"
 	"time"
@@ -107,7 +107,7 @@ func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	}
 
 	// Read document
-	data, err := io.ReadAll(httpResponse.Body)
+	data, err := core.LimitedReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, nil, fmt.Errorf("did:web HTTP response read error: %w", err)
 	}

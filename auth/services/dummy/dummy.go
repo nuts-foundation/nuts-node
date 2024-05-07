@@ -182,8 +182,7 @@ func (d signingSessionResult) VerifiablePresentation() (*vc.VerifiablePresentati
 	}, nil
 }
 
-func (d Dummy) Start(ctx context.Context) {
-	return
+func (d Dummy) Start(_ context.Context) {
 }
 
 // VerifyVP check a Dummy VerifiablePresentation. It Returns a verificationResult if all was fine, an error otherwise.
@@ -264,7 +263,7 @@ func (d Dummy) StartSigningSession(contract contract.Contract, params map[string
 		return nil, errNotEnabled
 	}
 	sessionBytes := make([]byte, 16)
-	rand.Reader.Read(sessionBytes)
+	_, _ = rand.Reader.Read(sessionBytes)
 
 	sessionID := hex.EncodeToString(sessionBytes)
 	d.Status[sessionID] = SessionCreated

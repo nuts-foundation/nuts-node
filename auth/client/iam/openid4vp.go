@@ -133,6 +133,20 @@ func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, webdi
 	return metadata, nil
 }
 
+func (c *OpenID4VPClient) RequestObject(ctx context.Context, requestURI string) (string, error) {
+	iamClient := c.httpClient
+	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
+	if err != nil {
+		return "", fmt.Errorf("invalid request_uri: %w", err)
+	}
+	// the wallet/client acts as authorization server
+	requestObject, err := iamClient.RequestObject(ctx, parsedURL.String())
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve JAR Request Object: %w", err)
+	}
+	return requestObject, nil
+}
+
 func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
@@ -248,28 +262,6 @@ func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, we
 	rsp, err := iamClient.OpenIdCredentialIssuerMetadata(ctx, webDID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve Openid credential issuer metadata: %w", err)
-	}
-	return rsp, nil
-}
-
-func (c *OpenID4VPClient) AccessTokenOid4vci(ctx context.Context, clientId string, tokenEndpoint string, redirectUri string, code string, pkceCodeVerifier *string) (*oauth.Oid4vciTokenResponse, error) {
-	iamClient := c.httpClient
-	data := url.Values{}
-	data.Set("client_id", clientId)
-	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
-	data.Set(oauth.CodeParam, code)
-	data.Set("redirect_uri", redirectUri)
-	if pkceCodeVerifier != nil {
-		data.Set("code_verifier", *pkceCodeVerifier)
-	}
-	presentationDefinitionURL, err := url.Parse(tokenEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	rsp, err := iamClient.AccessTokenOid4vci(ctx, *presentationDefinitionURL, data)
-	if err != nil {
-		return nil, fmt.Errorf("remote server: failed to retrieve an access_token: %w", err)
 	}
 	return rsp, nil
 }

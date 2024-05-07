@@ -19,11 +19,12 @@
 package iam
 
 import (
+	"net/url"
+	"strings"
+
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
-	"net/url"
-	"strings"
 )
 
 func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.AuthorizationServerMetadata {
@@ -46,22 +47,15 @@ func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.
 }
 
 // clientMetadata should only be used for dids managed by the node. It assumes the provided identity URL is correct.
-func clientMetadata(identity url.URL) OAuthClientMetadata {
+func clientMetadata(identity url.URL) oauth.OAuthClientMetadata {
 	softwareID, softwareVersion, _ := strings.Cut(core.UserAgent(), "/")
-	return OAuthClientMetadata{
-		//RedirectURIs:            nil,
+	return oauth.OAuthClientMetadata{
 		TokenEndpointAuthMethod: "none", // defaults is "client_secret_basic" if not provided
 		GrantTypes:              grantTypesSupported,
 		ResponseTypes:           responseTypesSupported,
-		//Scope:                   "",
-		//Contacts:                nil,
-		//JwksURI:                 "",
-		//Jwks:                    nil,
-		SoftwareID:      softwareID,      // nuts-node-refimpl
-		SoftwareVersion: softwareVersion, // version tag or "unknown"
-		//CredentialOfferEndpoint: "",
-		VPFormats:      oauth.DefaultOpenIDSupportedFormats(),
-		ClientIdScheme: didScheme,
-		//RequestObjectSigningAlg: // all mutually supported alg's are valid if this is not defined
+		SoftwareID:              softwareID,      // nuts-node-refimpl
+		SoftwareVersion:         softwareVersion, // version tag or "unknown"
+		VPFormats:               oauth.DefaultOpenIDSupportedFormats(),
+		ClientIdScheme:          didScheme,
 	}
 }

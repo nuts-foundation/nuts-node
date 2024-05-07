@@ -20,6 +20,7 @@ package storage
 
 import (
 	"errors"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -30,6 +31,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 )
 
 func Test_New(t *testing.T) {
@@ -79,6 +81,7 @@ func Test_engine_Shutdown(t *testing.T) {
 
 		sut := New().(*engine)
 		sut.stores["1"] = store
+		assert.NoError(t, sut.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
 		err := sut.Shutdown()
 
@@ -117,7 +120,7 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		require.NoError(t, os.Remove(dataDir))
 		e := New()
 		err := e.Configure(core.ServerConfig{Datadir: dataDir})
-		assert.ErrorContains(t, err, "failed to initialize SQL database: failed to migrate database: unable to open database file")
+		assert.ErrorContains(t, err, "unable to open database file")
 	})
 	t.Run("sqlite is restricted to 1 connection", func(t *testing.T) {
 		e := New()
@@ -163,11 +166,18 @@ func Test_engine_sqlDatabase(t *testing.T) {
 
 		underlyingDB, err := e.GetSQLDatabase().DB()
 		require.NoError(t, err)
-		row := underlyingDB.QueryRow("SELECT count(*) FROM schema_migrations")
-		require.NoError(t, row.Err())
-		var count int
-		assert.NoError(t, row.Scan(&count))
-		assert.Equal(t, len(sqlFiles), count)
+		rows, err := underlyingDB.Query("SELECT * FROM goose_db_version")
+		require.NoError(t, err)
+		var pKey, versionId, is_applied int
+		var tStamp time.Time
+		var totalMigrations int
+		rows.Next()
+		for err = rows.Scan(&pKey, &versionId, &is_applied, &tStamp); rows.Next() && err == nil; {
+			assert.Equal(t, 1, is_applied)
+			totalMigrations++
+		}
+		require.NoError(t, err)
+		assert.Equal(t, len(sqlFiles), totalMigrations) // up and down migration files
 	})
 	t.Run("unsupported protocol doesn't log secrets", func(t *testing.T) {
 		dataDir := io.TestDirectory(t)
@@ -177,5 +187,49 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		err := e.Configure(core.ServerConfig{Datadir: dataDir})
 		require.Error(t, err)
 		assert.NotContains(t, err.Error(), "user:password")
+	})
+	t.Run("session storage", func(t *testing.T) {
+		t.Run("in-memory is default", func(t *testing.T) {
+			e := New()
+			dataDir := io.TestDirectory(t)
+			require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+			require.NoError(t, e.Start())
+			t.Cleanup(func() {
+				_ = e.Shutdown()
+			})
+			assert.IsType(t, &InMemorySessionDatabase{}, e.GetSessionDatabase())
+		})
+		t.Run("in-memory", func(t *testing.T) {
+			e := New().(*engine)
+			e.config = Config{
+				Session: SessionConfig{},
+			}
+			dataDir := io.TestDirectory(t)
+			require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+			require.NoError(t, e.Start())
+			t.Cleanup(func() {
+				_ = e.Shutdown()
+			})
+			assert.IsType(t, &InMemorySessionDatabase{}, e.GetSessionDatabase())
+		})
+	})
+}
+
+func Test_engine_redisSessionDatabase(t *testing.T) {
+	t.Run("redis", func(t *testing.T) {
+		redis := miniredis.RunT(t)
+		e := New().(*engine)
+		e.config = Config{
+			Session: SessionConfig{
+				Redis: RedisConfig{Address: redis.Addr()},
+			},
+		}
+		dataDir := io.TestDirectory(t)
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		require.NoError(t, e.Start())
+		t.Cleanup(func() {
+			_ = e.Shutdown()
+		})
+		assert.IsType(t, redisSessionDatabase{}, e.GetSessionDatabase())
 	})
 }

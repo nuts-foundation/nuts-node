@@ -25,7 +25,7 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	io2 "io"
+	"io"
 	stdHttp "net/http"
 	"net/http/httptest"
 	"net/url"
@@ -162,7 +162,7 @@ type readCloser []byte
 
 func (r readCloser) Read(p []byte) (n int, err error) {
 	copy(p, r)
-	return len(r), io2.EOF
+	return len(r), io.EOF
 }
 
 func (r readCloser) Close() error {
@@ -173,4 +173,21 @@ func newErrorTokenBuilder() AuthorizationTokenGenerator {
 	return func() (string, error) {
 		return "", errors.New("error")
 	}
+}
+
+func TestLimitedReadAll(t *testing.T) {
+	t.Run("less than limit", func(t *testing.T) {
+		data := strings.Repeat("a", 10)
+		result, err := LimitedReadAll(strings.NewReader(data))
+
+		assert.NoError(t, err)
+		assert.Equal(t, []byte(data), result)
+	})
+	t.Run("more than limit", func(t *testing.T) {
+		data := strings.Repeat("a", DefaultMaxHttpResponseSize+1)
+		result, err := LimitedReadAll(strings.NewReader(data))
+
+		assert.EqualError(t, err, "data to read exceeds max. safety limit of 1048576 bytes")
+		assert.Nil(t, result)
+	})
 }

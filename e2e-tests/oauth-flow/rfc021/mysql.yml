@@ -1,8 +1,12 @@
 services:
   nodeA-backend:
+    depends_on:
+      - db
     environment:
       NUTS_STORAGE_SQL_CONNECTION: mysql://root:root@db:3306/node_a?charset=utf8mb4&parseTime=True&loc=Local
   nodeB-backend:
+    depends_on:
+      - db
     environment:
       NUTS_STORAGE_SQL_CONNECTION: mysql://root:root@db:3306/node_b?charset=utf8mb4&parseTime=True&loc=Local
   db:

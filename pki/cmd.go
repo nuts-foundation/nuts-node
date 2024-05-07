@@ -36,7 +36,11 @@ func FlagSet() *pflag.FlagSet {
 
 	// Changing these config values is not recommended, and they are expected to almost always be the same value, so
 	// do not show them in the config dump
-	flagSet.MarkHidden("pki.denylist.trustedsigner")
-	flagSet.MarkHidden("pki.denylist.url")
+	if err := flagSet.MarkHidden("pki.denylist.trustedsigner"); err != nil {
+		panic(err)
+	}
+	if err := flagSet.MarkHidden("pki.denylist.url"); err != nil {
+		panic(err)
+	}
 	return flagSet
 }

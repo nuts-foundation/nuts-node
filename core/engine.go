@@ -179,7 +179,7 @@ func (system *System) VisitEnginesE(visitor func(engine Engine) error) error {
 // FindEngineByName looks up given target engine by name, or nil if not found.
 func (system *System) FindEngineByName(target string) Engine {
 	for _, curr := range system.engines {
-		if strings.ToLower(engineName(curr)) == strings.ToLower(target) {
+		if strings.EqualFold(engineName(curr), strings.ToLower(target)) {
 			return curr
 		}
 	}

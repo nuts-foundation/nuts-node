@@ -22,7 +22,6 @@ import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -35,7 +34,6 @@ import (
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -91,11 +89,14 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 	t.Run("new session", func(t *testing.T) {
 		ctx := newTestClient(t)
-		expectedURL, _ := url.Parse("https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3A123&request=token")
+		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3A123&request_uri=https://example.com/oauth2/" + webDID.String() + "/request.jwt/&request_uri_method=get"
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
-		echoCtx.EXPECT().Redirect(http.StatusFound, expectedURL.String())
+		echoCtx.EXPECT().Redirect(http.StatusFound, gomock.Any()).DoAndReturn(func(_ int, arg1 string) error {
+			testAuthzReqRedirectURI(t, expectedURL, arg1)
+			return nil
+		})
 		var capturedCookie *http.Cookie
 		echoCtx.EXPECT().Cookie(gomock.Any()).Return(nil, http.ErrNoCookie)
 		echoCtx.EXPECT().SetCookie(gomock.Any()).DoAndReturn(func(cookie *http.Cookie) {
@@ -109,13 +110,16 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			return &t, nil
 		})
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil)
-		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.AssertionMethod).Return(vmId.URI(), key.Public(), nil)
-		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, key.KID()).DoAndReturn(func(ctx context.Context, params map[string]any, headers map[string]any, key any) (string, error) {
+		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
+			req := createJarRequest(client, server, modifier)
+			params := req.Claims
+
 			// check the parameters
 			assert.Equal(t, "first second", params["scope"])
 			assert.NotEmpty(t, params["state"])
-			return "token", nil
+			return req
 		})
+
 		store := ctx.client.userRedirectStore()
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
@@ -161,15 +165,17 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 	})
 	t.Run("existing session", func(t *testing.T) {
 		ctx := newTestClient(t)
-		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3A123&request=token"
+		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3A123&request_uri=https://example.com/oauth2/" + webDID.String() + "/request.jwt/&request_uri_method="
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
-		echoCtx.EXPECT().Redirect(http.StatusFound, expectedURL)
+		echoCtx.EXPECT().Redirect(http.StatusFound, gomock.Any()).DoAndReturn(func(_ int, arg1 string) error {
+			testAuthzReqRedirectURI(t, expectedURL, arg1)
+			return nil
+		})
 		echoCtx.EXPECT().Cookie(gomock.Any()).Return(&sessionCookie, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil)
-		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.AssertionMethod).Return(vmId.URI(), key.Public(), nil)
-		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, key.KID()).Return("token", nil)
+		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any())
 		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
 		session := UserSession{
 			TenantDID:         walletDID,
@@ -333,4 +339,12 @@ func TestWrapper_loadUserSession(t *testing.T) {
 		assert.EqualError(t, err, "session belongs to another pre-authorized user")
 		assert.Nil(t, actual)
 	})
+}
+
+func Test_generateUserSessionJWK(t *testing.T) {
+	key, userDID, err := generateUserSessionJWK()
+	require.NoError(t, err)
+	require.NotNil(t, key)
+	require.NotNil(t, userDID)
+	assert.True(t, strings.HasPrefix(userDID.String(), "did:jwk:"))
 }

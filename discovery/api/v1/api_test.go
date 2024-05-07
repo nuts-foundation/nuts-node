@@ -108,7 +108,7 @@ func TestWrapper_DeactivateServiceForDID(t *testing.T) {
 }
 
 func TestWrapper_SearchPresentations(t *testing.T) {
-	ctx := context.WithValue(audit.TestContext(), requestQueryContextKey, url.Values{
+	ctx := context.WithValue(audit.TestContext(), requestQueryContextKey{}, url.Values{
 		"foo": []string{"bar"},
 	})
 	expectedQuery := map[string]string{

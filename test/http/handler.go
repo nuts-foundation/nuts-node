@@ -57,5 +57,5 @@ func (h *Handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 		writer.Header().Add(k, v[0])
 	}
 	writer.WriteHeader(h.StatusCode)
-	writer.Write(bytes)
+	_, _ = writer.Write(bytes)
 }

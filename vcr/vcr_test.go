@@ -116,7 +116,7 @@ func TestVCR_Start(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		instance := NewTestVCRInstance(t)
 
-		_, err := os.Stat(instance.credentialsDBPath())
+		_, err := os.Stat(credentialsDBPath(instance.datadir))
 		assert.NoError(t, err)
 	})
 
@@ -150,7 +150,7 @@ func TestVCR_Start(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		dbPath := instance.credentialsDBPath()
+		dbPath := credentialsDBPath(instance.datadir)
 		db, err := bbolt.Open(dbPath, os.ModePerm, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -453,4 +453,8 @@ func TestWhitespaceOrExactTokenizer(t *testing.T) {
 	input := "a b c"
 
 	assert.Equal(t, []string{"a", "b", "c", "a b c"}, whitespaceOrExactTokenizer(input))
+}
+
+func credentialsDBPath(datadir string) string {
+	return path.Join(datadir, "vcr", "credentials.db")
 }

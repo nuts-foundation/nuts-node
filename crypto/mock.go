@@ -369,37 +369,6 @@ func (m *MockJWTSigner) EXPECT() *MockJWTSignerMockRecorder {
 	return m.recorder
 }
 
-// DecryptJWE mocks base method.
-func (m *MockJWTSigner) DecryptJWE(ctx context.Context, message string) ([]byte, map[string]any, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DecryptJWE", ctx, message)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(map[string]any)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// DecryptJWE indicates an expected call of DecryptJWE.
-func (mr *MockJWTSignerMockRecorder) DecryptJWE(ctx, message any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecryptJWE", reflect.TypeOf((*MockJWTSigner)(nil).DecryptJWE), ctx, message)
-}
-
-// EncryptJWE mocks base method.
-func (m *MockJWTSigner) EncryptJWE(ctx context.Context, payload []byte, headers map[string]any, publicKey any) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EncryptJWE", ctx, payload, headers, publicKey)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EncryptJWE indicates an expected call of EncryptJWE.
-func (mr *MockJWTSignerMockRecorder) EncryptJWE(ctx, payload, headers, publicKey any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EncryptJWE", reflect.TypeOf((*MockJWTSigner)(nil).EncryptJWE), ctx, payload, headers, publicKey)
-}
-
 // SignDPoP mocks base method.
 func (m *MockJWTSigner) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
 	m.ctrl.T.Helper()
@@ -443,6 +412,60 @@ func (m *MockJWTSigner) SignJWT(ctx context.Context, claims, headers map[string]
 func (mr *MockJWTSignerMockRecorder) SignJWT(ctx, claims, headers, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockJWTSigner)(nil).SignJWT), ctx, claims, headers, key)
+}
+
+// MockJsonWebEncryptor is a mock of JsonWebEncryptor interface.
+type MockJsonWebEncryptor struct {
+	ctrl     *gomock.Controller
+	recorder *MockJsonWebEncryptorMockRecorder
+}
+
+// MockJsonWebEncryptorMockRecorder is the mock recorder for MockJsonWebEncryptor.
+type MockJsonWebEncryptorMockRecorder struct {
+	mock *MockJsonWebEncryptor
+}
+
+// NewMockJsonWebEncryptor creates a new mock instance.
+func NewMockJsonWebEncryptor(ctrl *gomock.Controller) *MockJsonWebEncryptor {
+	mock := &MockJsonWebEncryptor{ctrl: ctrl}
+	mock.recorder = &MockJsonWebEncryptorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockJsonWebEncryptor) EXPECT() *MockJsonWebEncryptorMockRecorder {
+	return m.recorder
+}
+
+// DecryptJWE mocks base method.
+func (m *MockJsonWebEncryptor) DecryptJWE(ctx context.Context, message string) ([]byte, map[string]any, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DecryptJWE", ctx, message)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(map[string]any)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// DecryptJWE indicates an expected call of DecryptJWE.
+func (mr *MockJsonWebEncryptorMockRecorder) DecryptJWE(ctx, message any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecryptJWE", reflect.TypeOf((*MockJsonWebEncryptor)(nil).DecryptJWE), ctx, message)
+}
+
+// EncryptJWE mocks base method.
+func (m *MockJsonWebEncryptor) EncryptJWE(ctx context.Context, payload []byte, headers map[string]any, publicKey any) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EncryptJWE", ctx, payload, headers, publicKey)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EncryptJWE indicates an expected call of EncryptJWE.
+func (mr *MockJsonWebEncryptorMockRecorder) EncryptJWE(ctx, payload, headers, publicKey any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EncryptJWE", reflect.TypeOf((*MockJsonWebEncryptor)(nil).EncryptJWE), ctx, payload, headers, publicKey)
 }
 
 // MockKey is a mock of Key interface.

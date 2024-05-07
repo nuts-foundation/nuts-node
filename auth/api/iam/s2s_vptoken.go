@@ -90,7 +90,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	}
 
 	// Parse optional DPoP header
-	httpRequest := ctx.Value(httpRequestContextKey).(*http.Request)
+	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
 	dpopProof, err := dpopFromRequest(*httpRequest)
 	if err != nil {
 		return nil, err

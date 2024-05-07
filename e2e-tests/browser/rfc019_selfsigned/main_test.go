@@ -18,14 +18,13 @@
  *
  */
 
-package selfsigned
+package rfc019_selfsigned
 
 import (
 	"github.com/nuts-foundation/go-did/did"
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
-	"github.com/nuts-foundation/nuts-node/e2e-tests/auth/selfsigned/apps"
-	"github.com/nuts-foundation/nuts-node/e2e-tests/auth/selfsigned/browser"
-	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
+	"github.com/nuts-foundation/nuts-node/e2e-tests/browser"
+	"github.com/nuts-foundation/nuts-node/e2e-tests/browser/rfc019_selfsigned/apps"
 	didAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,14 +51,14 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 	require.NoError(t, err)
 	err = registerCompoundService(verifyingOrganization.ID, purposeOfUse)
 	require.NoError(t, err)
-	err = issueOrganizationCredential(verifyingOrganization, "Verifying Organization", "Testland")
+	err = browser.IssueOrganizationCredential(verifyingOrganization, "Verifying Organization", "Testland")
 	require.NoError(t, err)
 
 	issuingOrganization, err := createDID()
 	require.NoError(t, err)
 	err = registerCompoundService(issuingOrganization.ID, purposeOfUse)
 	require.NoError(t, err)
-	err = issueOrganizationCredential(issuingOrganization, "Issuing Organization", "Testland")
+	err = browser.IssueOrganizationCredential(issuingOrganization, "Issuing Organization", "Testland")
 	require.NoError(t, err)
 
 	selfSigned := apps.SelfSigned{
@@ -112,28 +111,6 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 		t.Logf("Keeping browser open for %s", timeout)
 		time.Sleep(timeout)
 	}
-}
-
-func issueOrganizationCredential(organization *did.Document, name, city string) error {
-	vcrClient := vcrAPI.HTTPClient{ClientConfig: apps.NodeClientConfig}
-	visibility := vcrAPI.Public
-	request := vcrAPI.IssueVCRequest{
-		Issuer: organization.ID.String(),
-		CredentialSubject: map[string]interface{}{
-			"id": organization.ID.String(),
-			"organization": map[string]interface{}{
-				"name": name,
-				"city": city,
-			},
-		},
-		Visibility: &visibility,
-	}
-	err := request.Type.FromIssueVCRequestType1([]string{"VerifiableCredential", "NutsOrganizationCredential"})
-	if err != nil {
-		return err
-	}
-	_, err = vcrClient.IssueVC(request)
-	return err
 }
 
 func registerCompoundService(id did.DID, compoundServiceType string) error {

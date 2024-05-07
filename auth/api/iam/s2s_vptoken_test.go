@@ -115,7 +115,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			"Dpop": []string{dpopHeader.String()},
 		},
 	}
-	contextWithValue := context.WithValue(context.Background(), httpRequestContextKey, httpRequest)
+	contextWithValue := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
 	t.Run("JSON-LD VP", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
@@ -375,7 +375,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		httpRequest := &http.Request{Header: http.Header{"Dpop": []string{"invalid"}}}
 		httpRequest.Header.Set("DPoP", "invalid")
-		contextWithValue := context.WithValue(context.Background(), httpRequestContextKey, httpRequest)
+		contextWithValue := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerDID, requestedScope, submissionJSON, presentation.Raw())

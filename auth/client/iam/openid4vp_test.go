@@ -320,6 +320,28 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 }
 
+func TestIAMClient_RequestObject(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		requestURI := ctx.tlsServer.URL + "/request.jwt"
+
+		response, err := ctx.client.RequestObject(context.Background(), requestURI)
+
+		require.NoError(t, err)
+		assert.Equal(t, "Request Object", response)
+	})
+	t.Run("error - failed to get access token", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.requestObjectJWT = nil
+		requestURI := ctx.tlsServer.URL + "/request.jwt"
+
+		response, err := ctx.client.RequestObject(context.Background(), requestURI)
+
+		assert.EqualError(t, err, "failed to retrieve JAR Request Object: server returned HTTP 404 (expected: 200)")
+		assert.Empty(t, response)
+	})
+}
+
 func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestContext {
 	ctrl := gomock.NewController(t)
 	jwtSigner := crypto.NewMockJWTSigner(ctrl)
@@ -373,6 +395,7 @@ type clientServerTestContext struct {
 	response                       func(writer http.ResponseWriter)
 	token                          func(writer http.ResponseWriter)
 	credentials                    func(writer http.ResponseWriter)
+	requestObjectJWT               func(writer http.ResponseWriter)
 }
 
 func createClientServerTestContext(t *testing.T) *clientServerTestContext {
@@ -431,6 +454,12 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 			_, _ = writer.Write([]byte(`{"format": "format", "credential": "credential"}`))
 			return
 		},
+		requestObjectJWT: func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/oauth-authz-req+jwt")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte(`Request Object`))
+			return
+		},
 	}
 
 	ctx.handler = func(writer http.ResponseWriter, request *http.Request) {
@@ -477,6 +506,11 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 		case "/credentials":
 			if ctx.credentials != nil {
 				ctx.credentials(writer)
+				return
+			}
+		case "/request.jwt":
+			if ctx.requestObjectJWT != nil {
+				ctx.requestObjectJWT(writer)
 				return
 			}
 		}
@@ -546,31 +580,7 @@ func TestIAMClient_OpenIdCredentialIssuerMetadata(t *testing.T) {
 	})
 
 }
-func TestIAMClient_AccessTokenOid4vci(t *testing.T) {
-	code := "code"
-	redirectUri := "https://test.test/callback"
-	pkceCodeVerifier := "verifier"
 
-	t.Run("ok", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-
-		response, err := ctx.client.AccessTokenOid4vci(context.Background(), ctx.verifierDID.String(), ctx.openIDConfigurationMetadata.TokenEndpoint, redirectUri, code, &pkceCodeVerifier)
-
-		require.NoError(t, err)
-		require.NotNil(t, response)
-		assert.Equal(t, "token", response.AccessToken)
-		assert.Equal(t, "bearer", response.TokenType)
-	})
-	t.Run("error - failed to get access token", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-		ctx.token = nil
-
-		response, err := ctx.client.AccessTokenOid4vci(context.Background(), ctx.verifierDID.String(), ctx.openIDConfigurationMetadata.TokenEndpoint, redirectUri, code, &pkceCodeVerifier)
-
-		assert.EqualError(t, err, "remote server: failed to retrieve an access_token: server returned HTTP 404 (expected: 200)")
-		assert.Nil(t, response)
-	})
-}
 func TestIAMClient_VerifiableCredentials(t *testing.T) {
 	//walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	accessToken := "code"
