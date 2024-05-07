@@ -19,18 +19,20 @@
 package iam
 
 import (
+	"net/url"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
-	"net/url"
-	"testing"
 )
 
 func Test_authorizationServerMetadata(t *testing.T) {
 	identity := test.MustParseURL("https://example.com/iam/123")
 	oauth2Base := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:123")
+	presentationDefinitionURISupported := true
 	expected := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      oauth2Base.String() + "/authorize",
 		ClientIdSchemesSupported:                   []string{"did"},
@@ -38,6 +40,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		GrantTypesSupported:                        []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
 		Issuer:                                     identity.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
+		PresentationDefinitionUriSupported:         &presentationDefinitionURISupported,
 		PresentationDefinitionEndpoint:             oauth2Base.String() + "/presentation_definition",
 		RequireSignedRequestObject:                 true,
 		ResponseTypesSupported:                     []string{"code", "vp_token", "vp_token id_token"},
