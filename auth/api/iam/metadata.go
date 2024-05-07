@@ -28,6 +28,7 @@ import (
 )
 
 func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.AuthorizationServerMetadata {
+	presentationDefinitionURISupported := true
 	return oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      oauth2BaseURL.JoinPath("authorize").String(),
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
@@ -35,6 +36,7 @@ func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.
 		GrantTypesSupported:                        grantTypesSupported,
 		Issuer:                                     identity.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
+		PresentationDefinitionUriSupported:         &presentationDefinitionURISupported,
 		PresentationDefinitionEndpoint:             oauth2BaseURL.JoinPath("presentation_definition").String(),
 		RequireSignedRequestObject:                 true,
 		ResponseModesSupported:                     responseModesSupported,
