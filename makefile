@@ -75,6 +75,7 @@ gen-api:
 	oapi-codegen --config codegen/configs/auth_client_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth/v1/client/generated.go
 	oapi-codegen --config codegen/configs/auth_employeeid.yaml auth/services/selfsigned/web/spec.yaml | gofmt > auth/services/selfsigned/web/generated.go
 	oapi-codegen --config codegen/configs/auth_iam.yaml docs/_static/auth/iam.yaml | gofmt > auth/api/iam/generated.go
+	oapi-codegen -generate client,types --config codegen/configs/auth_iam.yaml docs/_static/auth/iam.yaml | gofmt > e2e-tests/browser/client/iam/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 	oapi-codegen --config codegen/configs/discovery_v1.yaml docs/_static/discovery/v1.yaml | gofmt > discovery/api/v1/generated.go
 	oapi-codegen --config codegen/configs/discovery_server.yaml docs/_static/discovery/server.yaml | gofmt > discovery/api/server/generated.go

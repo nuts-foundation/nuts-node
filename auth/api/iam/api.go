@@ -43,6 +43,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	httpNuts "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -88,6 +89,7 @@ type Wrapper struct {
 	auth          auth.AuthenticationServices
 	policyBackend policy.PDPBackend
 	storageEngine storage.Engine
+	JSONLDManager jsonld.JSONLD
 	vcr           vcr.VCR
 	vdr           vdr.VDR
 	jwtSigner     cryptoNuts.JWTSigner
@@ -95,7 +97,9 @@ type Wrapper struct {
 	jar           JAR
 }
 
-func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine, policyBackend policy.PDPBackend, jwtSigner cryptoNuts.JWTSigner) *Wrapper {
+func New(
+	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine,
+	policyBackend policy.PDPBackend, jwtSigner cryptoNuts.JWTSigner, jsonldManager jsonld.JSONLD) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assetsFS, "assets/*.html")
 	if err != nil {
@@ -107,6 +111,7 @@ func New(authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInsta
 		storageEngine: storageEngine,
 		vcr:           vcrInstance,
 		vdr:           vdrInstance,
+		JSONLDManager: jsonldManager,
 		jwtSigner:     jwtSigner,
 		keyResolver:   resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
 		jar: &jar{
@@ -283,8 +288,8 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 
 	if token.InputDescriptorConstraintIdMap != nil {
 		for _, reserved := range []string{"iss", "sub", "exp", "iat", "active", "client_id", "scope"} {
-			if _, exists := token.InputDescriptorConstraintIdMap[reserved]; exists {
-				return nil, fmt.Errorf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name '%s'", reserved)
+			if _, isReserved := token.InputDescriptorConstraintIdMap[reserved]; isReserved {
+				return nil, fmt.Errorf("IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name: %s", reserved)
 			}
 		}
 		response.AdditionalProperties = token.InputDescriptorConstraintIdMap
@@ -339,7 +344,14 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	case responseTypeVPToken:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
-		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, authzParams)
+		// non-spec: if the scheme is openid4vp (URL starts with openid4vp:), the OpenID4VP request should be handled by a user wallet, rather than an organization wallet.
+		//           Requests to user wallets can then be rendered as QR-code (or use a cloud wallet).
+		//           Note that it can't be called from the outside, but only by internal dispatch (since Echo doesn't handle openid4vp:, obviously).
+		walletOwnerType := pe.WalletOwnerOrganization
+		if strings.HasPrefix(httpRequest.URL.String(), "openid4vp:") {
+			walletOwnerType = pe.WalletOwnerUser
+		}
+		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, authzParams, walletOwnerType)
 	default:
 		// TODO: This should be a redirect?
 		redirectURI, _ := url.Parse(session.RedirectURI)
@@ -558,7 +570,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, err
 	}
 
-	// TODO: When we support authentication at an external IdP,
+	// Note: When we support authentication at an external IdP,
 	//       the properties below become conditionally required.
 	if request.Body.PreauthorizedUser == nil {
 		return nil, core.InvalidInputError("missing preauthorized_user")

@@ -168,20 +168,33 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 			oauth.StateParam:        "state",
 		}
 	}
-	session := OAuthSession{
+	authzCodeSession := OAuthSession{
 		SessionID:   "token",
 		OwnDID:      &holderDID,
 		RedirectURI: "https://example.com/iam/holder/cb",
 		VerifierDID: &verifierDID,
 	}
+	userSession := UserSession{
+		TenantDID: holderDID,
+		Wallet: UserWallet{
+			DID: did.MustParseDID("did:jwk:123"),
+		},
+	}
 
+	httpRequest := &http.Request{
+		Header: http.Header{},
+	}
+	const userSessionID = "session_id"
+	httpRequest.AddCookie(createUserSessionCookie(userSessionID, "/"))
+	httpRequestCtx := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
 	t.Run("invalid client_id", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
 		params[oauth.ClientIDParam] = "did:nuts:1"
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", responseURI, "state")
+		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -191,7 +204,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params[clientIDSchemeParam] = "other"
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_id_scheme parameter", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -200,8 +213,9 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, "failed to get client metadata (verifier)", responseURI, "state")
+		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -211,7 +225,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		delete(params, oauth.NonceParam)
 		expectPostError(t, ctx, oauth.InvalidRequest, "missing nonce parameter", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -220,8 +234,9 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, "failed to get client metadata (verifier)", responseURI, "state")
+		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -230,7 +245,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		delete(params, responseModeParam)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		assert.EqualError(t, err, "invalid_request - invalid response_mode parameter")
 	})
@@ -239,7 +254,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		delete(params, responseURIParam)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		assert.EqualError(t, err, "invalid_request - missing response_uri parameter")
 	})
@@ -248,45 +263,48 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		delete(params, responseURIParam)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		require.Error(t, err)
 	})
 	t.Run("invalid presentation_definition_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		putState(ctx, "state", session)
+		putState(ctx, "state", authzCodeSession)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.InvalidPresentationDefinitionURI, "failed to retrieve presentation definition on https://example.com/iam/verifier/presentation_definition?scope=test", responseURI, "state")
+		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
 	t.Run("failed to create verifiable presentation", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		putState(ctx, "state", session)
+		putState(ctx, "state", authzCodeSession)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, assert.AnError.Error(), responseURI, "state")
+		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
 	t.Run("missing credentials in wallet", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		putState(ctx, "state", session)
+		putState(ctx, "state", authzCodeSession)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
-		expectPostError(t, ctx, oauth.InvalidRequest, "no credentials available", responseURI, "state")
+		expectPostError(t, ctx, oauth.InvalidRequest, "no credentials available (PD ID: , wallet: did:web:example.com:iam:holder)", responseURI, "state")
+		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(context.Background(), holderDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -384,7 +402,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 
 			require.NoError(t, err)
 			actualRedirectURL, _ := url.Parse(response.(HandleAuthorizeResponse200JSONResponse).RedirectURI)
-			assert.True(t, strings.HasPrefix(actualRedirectURL.String(), "https://redirect-url?"))
+			assert.True(t, strings.HasPrefix(actualRedirectURL.String(), "openid4vp:"))
 			assert.Equal(t, verifierDID.String(), actualRedirectURL.Query().Get("client_id"))
 			// etc
 		})
@@ -773,7 +791,9 @@ func Test_validatePresentationNonce(t *testing.T) {
 // expectPostError is a convenience method to add an expectation to the iamClient mock.
 // it checks if the right error is posted to the verifier.
 func expectPostError(t *testing.T, ctx *testCtx, errorCode oauth.ErrorCode, description string, expectedResponseURI string, verifierClientState string) {
+	t.Helper()
 	ctx.iamClient.EXPECT().PostError(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, err oauth.OAuth2Error, responseURI string, state string) (string, error) {
+		t.Helper()
 		assert.Equal(t, errorCode, err.Code)
 		assert.Equal(t, description, err.Description)
 		assert.Equal(t, expectedResponseURI, responseURI)
@@ -789,7 +809,7 @@ func TestWrapper_sendAndHandleDirectPost(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), gomock.Any(), gomock.Any(), "response", "").Return("", assert.AnError)
 
-		_, err := ctx.client.sendAndHandleDirectPost(context.Background(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response", "")
+		_, err := ctx.client.sendAndHandleDirectPost(context.Background(), walletDID, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response", "")
 
 		assert.Equal(t, assert.AnError, err)
 	})

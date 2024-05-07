@@ -31,13 +31,13 @@ import (
 	"github.com/piprate/json-gold/ld"
 )
 
-func NewMemoryWallet(documentLoader ld.DocumentLoader, keyResolver resolver.KeyResolver, keyStore crypto.KeyStore,
+func NewMemoryWallet(documentLoader ld.DocumentLoader, keyResolver resolver.KeyResolver, signer crypto.JWTSigner,
 	credentials map[did.DID][]vc.VerifiableCredential) Wallet {
 	return &memoryWallet{
 		credentials:    credentials,
 		documentLoader: documentLoader,
 		keyResolver:    keyResolver,
-		keyStore:       keyStore,
+		signer:         signer,
 	}
 }
 
@@ -45,7 +45,7 @@ type memoryWallet struct {
 	credentials    map[did.DID][]vc.VerifiableCredential
 	documentLoader ld.DocumentLoader
 	keyResolver    resolver.KeyResolver
-	keyStore       crypto.KeyStore
+	signer         crypto.JWTSigner
 }
 
 var _ Wallet = (*memoryWallet)(nil)
@@ -53,7 +53,7 @@ var _ Wallet = (*memoryWallet)(nil)
 func (m memoryWallet) BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
 	return presenter{
 		documentLoader: m.documentLoader,
-		keyStore:       m.keyStore,
+		signer:         m.signer,
 		keyResolver:    m.keyResolver,
 	}.buildPresentation(ctx, signerDID, credentials, options)
 }
@@ -61,7 +61,7 @@ func (m memoryWallet) BuildPresentation(ctx context.Context, credentials []vc.Ve
 func (m memoryWallet) BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	return presenter{
 		documentLoader: m.documentLoader,
-		keyStore:       m.keyStore,
+		signer:         m.signer,
 		keyResolver:    m.keyResolver,
 	}.buildSubmission(ctx, walletDID, m.credentials[walletDID], presentationDefinition, acceptedFormats, params)
 }

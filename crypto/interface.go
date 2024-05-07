@@ -51,6 +51,7 @@ type KeyResolver interface {
 // KeyStore defines the functions for working with private keys.
 type KeyStore interface {
 	Decrypter
+	JsonWebEncryptor
 	KeyCreator
 	KeyResolver
 	JWTSigner
@@ -83,7 +84,10 @@ type JWTSigner interface {
 	// context is used to pass audit information.
 	// Returns ErrPrivateKeyNotFound when the private key is not present.
 	SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error)
+}
 
+// JsonWebEncryptor is the interface used to encrypt and decrypt JWE messages.
+type JsonWebEncryptor interface {
 	// EncryptJWE encrypts a payload as bytes into a JWE message with the given key and kid.
 	// The publicKey must be a public key
 	// The kid must be the KeyID and will be placed in the header, if not set.

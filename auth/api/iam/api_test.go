@@ -322,10 +322,10 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.CodeChallengeMethodParam: "S256",
 		}
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-		ctx.jar.EXPECT().Parse(gomock.Any(), verifierDID, url.Values{"key":[]string{"test_value"}}).Return(requestParams, nil)
+		ctx.jar.EXPECT().Parse(gomock.Any(), verifierDID, url.Values{"key": []string{"test_value"}}).Return(requestParams, nil)
 
 		// handleAuthorizeRequestFromHolder
-		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier&request_uri=https://example.com/oauth2/"+verifierDID.String()+"/request.jwt/&request_uri_method=get"
+		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier&request_uri=https://example.com/oauth2/" + verifierDID.String() + "/request.jwt/&request_uri_method=get"
 		serverMetadata := oauth.AuthorizationServerMetadata{
 			AuthorizationEndpoint:      "https://example.com/authorize",
 			ClientIdSchemesSupported:   []string{didScheme},
@@ -357,6 +357,16 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	})
 	t.Run("ok - response_type=vp_token ", func(t *testing.T) {
 		ctx := newTestClient(t)
+		vmId := did.DIDURL{
+			DID:             verifierDID,
+			Fragment:        "key",
+			DecodedFragment: "key",
+		}
+		kid := vmId.String()
+		key := cryptoNuts.NewTestKey(kid)
+		didDocument := did.Document{ID: verifierDID}
+		vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, did.DID{}, key.Public())
+		didDocument.AddAssertionMethod(vm)
 
 		// HandleAuthorizeRequest
 		requestParams := oauthParameters{
@@ -384,6 +394,12 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			RedirectURI:  "https://example.com/iam/holder/cb",
 			ResponseType: "code",
 		})
+		_ = ctx.client.userSessionStore().Put("session-id", UserSession{
+			TenantDID: holderDID,
+			Wallet: UserWallet{
+				DID: holderDID,
+			},
+		})
 		clientMetadata := oauth.OAuthClientMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		pdEndpoint := "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test"
@@ -391,8 +407,12 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{}),
-			HandleAuthorizeRequestRequestObject{Did: holderDID.String()})
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{}, func(request *http.Request) {
+			request.Header = make(http.Header)
+			request.AddCookie(createUserSessionCookie("session-id", "/"))
+		}), HandleAuthorizeRequestRequestObject{
+			Did: holderDID.String(),
+		})
 
 		require.NoError(t, err)
 		assert.IsType(t, HandleAuthorizeRequest302Response{}, res)
@@ -595,7 +615,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
-		require.EqualError(t, err, "IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name 'iss'")
+		require.EqualError(t, err, "IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name: iss")
 		require.Nil(t, res)
 	})
 
@@ -1393,7 +1413,7 @@ func requireOAuthError(t *testing.T, err error, errorCode oauth.ErrorCode, error
 	assert.Equal(t, errorDescription, oauthErr.Description)
 }
 
-func requestContext(queryParams map[string]interface{}) context.Context {
+func requestContext(queryParams map[string]interface{}, httpRequestFn ...func(header *http.Request)) context.Context {
 	vals := url.Values{}
 	for key, value := range queryParams {
 		switch t := value.(type) {
@@ -1411,6 +1431,9 @@ func requestContext(queryParams map[string]interface{}) context.Context {
 		URL: &url.URL{
 			RawQuery: vals.Encode(),
 		},
+	}
+	for _, fn := range httpRequestFn {
+		fn(httpRequest)
 	}
 	return context.WithValue(audit.TestContext(), httpRequestContextKey{}, httpRequest)
 }

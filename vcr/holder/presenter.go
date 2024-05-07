@@ -43,7 +43,7 @@ import (
 
 type presenter struct {
 	documentLoader ld.DocumentLoader
-	keyStore       crypto.KeyStore
+	signer         crypto.JWTSigner
 	keyResolver    resolver.KeyResolver
 }
 
@@ -164,7 +164,7 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 	for claimName, value := range options.ProofOptions.AdditionalProperties {
 		claims[claimName] = value
 	}
-	token, err := p.keyStore.SignJWT(ctx, claims, headers, keyID)
+	token, err := p.signer.SignJWT(ctx, claims, headers, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign JWT presentation: %w", err)
 	}
@@ -200,7 +200,7 @@ func (p presenter) buildJSONLDPresentation(ctx context.Context, subjectDID did.D
 
 	ldProof := proof.NewLDProof(options.ProofOptions)
 	signingResult, err := ldProof.
-		Sign(ctx, document, signature.JSONWebSignature2020{ContextLoader: p.documentLoader, Signer: p.keyStore}, keyID)
+		Sign(ctx, document, signature.JSONWebSignature2020{ContextLoader: p.documentLoader, Signer: p.signer}, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign VP with LD proof: %w", err)
 	}

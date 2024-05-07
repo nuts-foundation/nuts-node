@@ -22,9 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -213,6 +218,13 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 			RedirectURI:   session.redirectURI(),
 		}
 	}
+	if *walletOwnerType == pe.WalletOwnerUser {
+		// User wallet, make an openid4vp:// request URL
+		var newRequestURL url.URL
+		newRequestURL.Scheme = "openid4vp"
+		newRequestURL.RawQuery = authServerURL.RawQuery
+		authServerURL = &newRequestURL
+	}
 
 	// use nonce and state to store authorization request in session store
 	if err = r.oauthNonceStore().Put(nonce, state); err != nil {
@@ -240,7 +252,7 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 // there are way more error conditions that listed at: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-error-response
 // missing or invalid parameters are all mapped to invalid_request
 // any operation that fails is mapped to server_error, this includes unreachable or broken backends.
-func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletDID did.DID, params oauthParameters) (HandleAuthorizeRequestResponseObject, error) {
+func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantDID did.DID, params oauthParameters, walletOwnerType WalletOwnerType) (HandleAuthorizeRequestResponseObject, error) {
 	responseMode := params.get(responseModeParam)
 	if responseMode != responseModeDirectPost {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid response_mode parameter"}
@@ -272,6 +284,14 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 	if nonce == "" {
 		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing nonce parameter"}, responseURI, state)
 	}
+
+	// TODO: Create session if it does not exist (use client state to get original Authorization Code request)?
+	//       Although it would be quite weird (maybe it expired).
+	userSession, err := r.loadUserSession(ctx.Value(httpRequestContextKey{}).(*http.Request), tenantDID, nil)
+	if userSession == nil {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, InternalError: err, Description: "no user session found"}
+	}
+
 	// get verifier metadata
 	metadata, err := r.auth.IAMClient().ClientMetadata(ctx, params.get(clientMetadataURIParam))
 	if err != nil {
@@ -293,24 +313,60 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, walletD
 		Expires:  time.Now().Add(15 * time.Minute),
 		Nonce:    nonce,
 	}
-	vp, submission, err := r.vcr.Wallet().BuildSubmission(ctx, walletDID, *presentationDefinition, metadata.VPFormats, buildParams)
+
+	targetWallet := r.vcr.Wallet()
+	walletDID := tenantDID
+	if walletOwnerType == pe.WalletOwnerUser {
+		// User wallet
+		var privateKey jwk.Key
+		privateKey, err = userSession.Wallet.Key()
+		walletDID = userSession.Wallet.DID
+		targetWallet = holder.NewMemoryWallet(
+			r.JSONLDManager.DocumentLoader(),
+			resolver.DIDKeyResolver{Resolver: didjwk.NewResolver()},
+			crypto.MemoryJWTSigner{Key: privateKey},
+			map[did.DID][]vc.VerifiableCredential{userSession.Wallet.DID: userSession.Wallet.Credentials},
+		)
+	}
+	vp, submission, err := targetWallet.BuildSubmission(ctx, walletDID, *presentationDefinition, metadata.VPFormats, buildParams)
 	if err != nil {
 		if errors.Is(err, holder.ErrNoCredentials) {
-			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "no credentials available"}, responseURI, state)
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: fmt.Sprintf("no credentials available (PD ID: %s, wallet: %s)", presentationDefinition.Id, walletDID)}, responseURI, state)
 		}
 		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: err.Error()}, responseURI, state)
 	}
 
 	// any error here is a server error, might need a fixup to prevent exposing to a user
-	return r.sendAndHandleDirectPost(ctx, *vp, *submission, responseURI, state)
+	return r.sendAndHandleDirectPost(ctx, tenantDID, *vp, *submission, responseURI, state)
 }
 
 // sendAndHandleDirectPost sends OpenID4VP direct_post to the verifier. The verifier responds with a redirect to the client (including error fields if needed).
 // If the direct post fails, the user-agent will be redirected back to the client with an error. (Original redirect_uri).
-func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (HandleAuthorizeRequestResponseObject, error) {
+func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, walletDID did.DID, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (HandleAuthorizeRequestResponseObject, error) {
 	redirectURI, err := r.auth.IAMClient().PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI, state)
 	if err != nil {
 		return nil, err
+	}
+	// Redirect URI starting with openid4vp: is a signal from the OpenID4VP verifier
+	// that it requires another Verifiable Presentation, but this time from a user wallet.
+	if strings.HasPrefix(redirectURI, "openid4vp:") {
+		parsedRedirectURI, err := url.Parse(redirectURI)
+		if err != nil {
+			return nil, fmt.Errorf("verifier returned an invalid redirect URI: %w", err)
+		}
+		// Dispatch a new HTTP request to the local OpenID4VP wallet's authorization endpoint that includes request parameters,
+		// but with openid4vp: as scheme.
+		originalRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
+		dispatchHttpRequest := *originalRequest
+		dispatchHttpRequest.URL = parsedRedirectURI
+		ctx = context.WithValue(ctx, httpRequestContextKey{}, &dispatchHttpRequest)
+		response, err := r.HandleAuthorizeRequest(ctx, HandleAuthorizeRequestRequestObject{
+			Did: walletDID.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		redirectURI = response.(HandleAuthorizeRequest302Response).Headers.Location
 	}
 	return HandleAuthorizeRequest302Response{
 		HandleAuthorizeRequest302ResponseHeaders{
@@ -609,7 +665,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	if !validatePKCEParams(oauthSession.PKCEParams) {
 		return nil, oauthError(oauth.InvalidGrant, "invalid code_verifier")
 	}
-
+	// All done, issue access token
 	walletDID, err := did.ParseDID(oauthSession.ClientID)
 	if err != nil {
 		return nil, err
