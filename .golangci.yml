@@ -6,3 +6,4 @@ issues:
     - ".*/.*_test.go"
     - ".*/test.go"
     - "docs/.*"
+    - "codegen/.*"

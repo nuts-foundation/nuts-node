@@ -16,6 +16,7 @@ exclude_patterns:
   - "**/mock.go"
   - "**/*_mock.go"
   - "docs/**/*.go"
+  - "codegen/**/*.go"
   - "**/*.pb.go"
   - "e2e-tests/**/*.go"
 plugins:
