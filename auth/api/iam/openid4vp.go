@@ -294,38 +294,15 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 	}
 
 	// get verifier metadata
-	var metadata *oauth.OAuthClientMetadata
-	if metadataString := params.get(clientMetadataParam); metadataString != "" {
-		if params.get(clientMetadataURIParam) != "" {
-			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_metadata and client_metadata_uri are mutually exclusive", InternalError: err}, responseURI, state)
-		}
-		err = json.Unmarshal([]byte(metadataString), &metadata)
-		if err != nil {
-			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_metadata", InternalError: err}, responseURI, state)
-		}
-	} else {
-		metadata, err = r.auth.IAMClient().ClientMetadata(ctx, params.get(clientMetadataURIParam))
-		if err != nil {
-			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: "failed to get client metadata (verifier)", InternalError: err}, responseURI, state)
-		}
+	metadata, oauth2Err := r.getClientMetadataFromRequest(ctx, params)
+	if oauth2Err != nil {
+		return r.sendAndHandleDirectPostError(ctx, *oauth2Err, responseURI, state)
 	}
 
 	// get presentation_definition
-	var presentationDefinition *pe.PresentationDefinition
-	if pdString := params.get(presentationDefParam); pdString != "" {
-		if params.get(presentationDefUriParam) != "" {
-			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "presentation_definition and presentation_definition_uri are mutually exclusive", InternalError: err}, responseURI, state)
-		}
-		err = json.Unmarshal([]byte(pdString), &presentationDefinition)
-		if err != nil {
-			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid presentation_definition", InternalError: err}, responseURI, state)
-		}
-	} else {
-		presentationDefinitionURI := params.get(presentationDefUriParam)
-		presentationDefinition, err = r.auth.IAMClient().PresentationDefinition(ctx, presentationDefinitionURI)
-		if err != nil {
-			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidPresentationDefinitionURI, Description: fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI), InternalError: err}, responseURI, state)
-		}
+	presentationDefinition, oauth2Err := r.getPresentationDefinitionFromRequest(ctx, params)
+	if oauth2Err != nil {
+		return r.sendAndHandleDirectPostError(ctx, *oauth2Err, responseURI, state)
 	}
 
 	// at this point in the flow it would be possible to ask the user to confirm the credentials to use
@@ -362,6 +339,47 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 
 	// any error here is a server error, might need a fixup to prevent exposing to a user
 	return r.sendAndHandleDirectPost(ctx, tenantDID, *vp, *submission, responseURI, state)
+}
+
+func (r Wrapper) getClientMetadataFromRequest(ctx context.Context, params oauthParameters) (*oauth.OAuthClientMetadata, *oauth.OAuth2Error) {
+	var metadata *oauth.OAuthClientMetadata
+	var err error
+	if metadataString := params.get(clientMetadataParam); metadataString != "" {
+		if params.get(clientMetadataURIParam) != "" {
+			return nil, &oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_metadata and client_metadata_uri are mutually exclusive", InternalError: err}
+		}
+		err = json.Unmarshal([]byte(metadataString), &metadata)
+		if err != nil {
+			return nil, &oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_metadata", InternalError: err}
+		}
+	} else {
+		metadata, err = r.auth.IAMClient().ClientMetadata(ctx, params.get(clientMetadataURIParam))
+		if err != nil {
+			return nil, &oauth.OAuth2Error{Code: oauth.ServerError, Description: "failed to get client metadata (verifier)", InternalError: err}
+		}
+	}
+	return metadata, nil
+}
+
+func (r Wrapper) getPresentationDefinitionFromRequest(ctx context.Context, params oauthParameters) (*pe.PresentationDefinition, *oauth.OAuth2Error) {
+	var presentationDefinition *pe.PresentationDefinition
+	var err error
+	if pdString := params.get(presentationDefParam); pdString != "" {
+		if params.get(presentationDefUriParam) != "" {
+			return nil, &oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "presentation_definition and presentation_definition_uri are mutually exclusive"}
+		}
+		err = json.Unmarshal([]byte(pdString), &presentationDefinition)
+		if err != nil {
+			return nil, &oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid presentation_definition", InternalError: err}
+		}
+	} else {
+		presentationDefinitionURI := params.get(presentationDefUriParam)
+		presentationDefinition, err = r.auth.IAMClient().PresentationDefinition(ctx, presentationDefinitionURI)
+		if err != nil {
+			return nil, &oauth.OAuth2Error{Code: oauth.InvalidPresentationDefinitionURI, Description: fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI), InternalError: err}
+		}
+	}
+	return presentationDefinition, nil
 }
 
 // sendAndHandleDirectPost sends OpenID4VP direct_post to the verifier. The verifier responds with a redirect to the client (including error fields if needed).
