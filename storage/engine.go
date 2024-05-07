@@ -252,17 +252,14 @@ func (e *engine) initSQLDatabase() error {
 	}
 
 	log.Logger().Debug("Running database migrations...")
-	result, err := gooseProvider.Up(context.Background())
+	results, err := gooseProvider.Up(context.Background())
+	for _, result := range results {
+		log.Logger().Debug(result.String())
+	}
 	if err != nil {
-		for _, r := range result {
-			log.Logger().Info(r.String())
-		}
 		return fmt.Errorf("failed to migrate database: %w", err)
 	}
-	log.Logger().Infof("Completed %d migrations", len(result))
-	for _, r := range result {
-		log.Logger().Info(r.String())
-	}
+	log.Logger().Infof("Completed %d migrations", len(results))
 
 	return nil
 }
