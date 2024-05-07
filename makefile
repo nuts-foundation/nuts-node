@@ -4,7 +4,7 @@ run-generators: gen-mocks gen-api gen-protobuf
 
 install-tools:
 	go install github.com/deepmap/oapi-codegen/v2/cmd/oapi-codegen@v2.1.0
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.33.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.1
 	go install go.uber.org/mock/mockgen@v0.4.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.57.2
