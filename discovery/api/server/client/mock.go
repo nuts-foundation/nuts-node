@@ -41,19 +41,19 @@ func (m *MockHTTPClient) EXPECT() *MockHTTPClientMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockHTTPClient) Get(ctx context.Context, serviceEndpointURL, tag string) ([]vc.VerifiablePresentation, string, error) {
+func (m *MockHTTPClient) Get(ctx context.Context, serviceEndpointURL string, timestamp int) (map[string]vc.VerifiablePresentation, int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", ctx, serviceEndpointURL, tag)
-	ret0, _ := ret[0].([]vc.VerifiablePresentation)
-	ret1, _ := ret[1].(string)
+	ret := m.ctrl.Call(m, "Get", ctx, serviceEndpointURL, timestamp)
+	ret0, _ := ret[0].(map[string]vc.VerifiablePresentation)
+	ret1, _ := ret[1].(int)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockHTTPClientMockRecorder) Get(ctx, serviceEndpointURL, tag any) *gomock.Call {
+func (mr *MockHTTPClientMockRecorder) Get(ctx, serviceEndpointURL, timestamp any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockHTTPClient)(nil).Get), ctx, serviceEndpointURL, tag)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockHTTPClient)(nil).Get), ctx, serviceEndpointURL, timestamp)
 }
 
 // Register mocks base method.

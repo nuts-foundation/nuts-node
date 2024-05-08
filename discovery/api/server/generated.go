@@ -35,7 +35,7 @@ type SearchResult struct {
 
 // GetPresentationsParams defines parameters for GetPresentations.
 type GetPresentationsParams struct {
-	Tag *string `form:"tag,omitempty" json:"tag,omitempty"`
+	Timestamp *int `form:"timestamp,omitempty" json:"timestamp,omitempty"`
 }
 
 // RegisterPresentationJSONRequestBody defines body for RegisterPresentation for application/json ContentType.
@@ -188,9 +188,9 @@ func NewGetPresentationsRequest(server string, serviceID string, params *GetPres
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if params.Tag != nil {
+		if params.Timestamp != nil {
 
-			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "tag", runtime.ParamLocationQuery, *params.Tag); err != nil {
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "timestamp", runtime.ParamLocationQuery, *params.Timestamp); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -534,11 +534,11 @@ func (w *ServerInterfaceWrapper) GetPresentations(ctx echo.Context) error {
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetPresentationsParams
-	// ------------- Optional query parameter "tag" -------------
+	// ------------- Optional query parameter "timestamp" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "tag", ctx.QueryParams(), &params.Tag)
+	err = runtime.BindQueryParameter("form", true, false, "timestamp", ctx.QueryParams(), &params.Timestamp)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter tag: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter timestamp: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments

@@ -65,29 +65,27 @@ func (h DefaultHTTPClient) Register(ctx context.Context, serviceEndpointURL stri
 	return nil
 }
 
-func (h DefaultHTTPClient) Get(ctx context.Context, serviceEndpointURL string, tag string) ([]vc.VerifiablePresentation, string, error) {
+func (h DefaultHTTPClient) Get(ctx context.Context, serviceEndpointURL string, timestamp int) (map[string]vc.VerifiablePresentation, int, error) {
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, serviceEndpointURL, nil)
-	if tag != "" {
-		httpRequest.URL.RawQuery = url.Values{"tag": []string{tag}}.Encode()
-	}
+	httpRequest.URL.RawQuery = url.Values{"timestamp": []string{fmt.Sprintf("%d", timestamp)}}.Encode()
 	if err != nil {
-		return nil, "", err
+		return nil, 0, err
 	}
 	httpResponse, err := h.client.Do(httpRequest)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to invoke remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
+		return nil, 0, fmt.Errorf("failed to invoke remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	defer httpResponse.Body.Close()
 	if err := core.TestResponseCode(200, httpResponse); err != nil {
-		return nil, "", fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
+		return nil, 0, fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	responseData, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to read response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
+		return nil, 0, fmt.Errorf("failed to read response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	var result PresentationsResponse
 	if err := json.Unmarshal(responseData, &result); err != nil {
-		return nil, "", fmt.Errorf("failed to unmarshal response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
+		return nil, 0, fmt.Errorf("failed to unmarshal response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
-	return result.Entries, result.Tag, nil
+	return result.Entries, result.Timestamp, nil
 }

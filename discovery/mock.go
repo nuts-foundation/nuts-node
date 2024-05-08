@@ -42,11 +42,11 @@ func (m *MockServer) EXPECT() *MockServerMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockServer) Get(serviceID string, startAt *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
+func (m *MockServer) Get(serviceID string, startAt int) (map[string]vc.VerifiablePresentation, *int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", serviceID, startAt)
-	ret0, _ := ret[0].([]vc.VerifiablePresentation)
-	ret1, _ := ret[1].(*Tag)
+	ret0, _ := ret[0].(map[string]vc.VerifiablePresentation)
+	ret1, _ := ret[1].(*int)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }

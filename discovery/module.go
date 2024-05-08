@@ -118,11 +118,11 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 	if len(m.config.Server.IDs) > 0 {
 		// Get the definitions that are enabled for this server
 		serverDefinitions := make(map[string]ServiceDefinition)
-		for _, definitionID := range m.config.Server.IDs {
-			if definition, exists := m.allDefinitions[definitionID]; !exists {
-				return fmt.Errorf("service definition '%s' not found", definitionID)
+		for _, serviceID := range m.config.Server.IDs {
+			if service, exists := m.allDefinitions[serviceID]; !exists {
+				return fmt.Errorf("service definition '%s' not found", serviceID)
 			} else {
-				serverDefinitions[definitionID] = definition
+				serverDefinitions[serviceID] = service
 			}
 		}
 		m.serverDefinitions = serverDefinitions
@@ -133,7 +133,7 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 
 func (m *Module) Start() error {
 	var err error
-	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.allDefinitions, m.serverDefinitions)
+	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.allDefinitions)
 	if err != nil {
 		return err
 	}
@@ -167,14 +167,16 @@ func (m *Module) Config() interface{} {
 // See interface.go for more information.
 func (m *Module) Register(serviceID string, presentation vc.VerifiablePresentation) error {
 	// First, simple sanity checks
-	definition, isServer := m.serverDefinitions[serviceID]
+	_, isServer := m.serverDefinitions[serviceID]
 	if !isServer {
 		return ErrServerModeDisabled
 	}
+	definition := m.allDefinitions[serviceID]
 	if err := m.verifyRegistration(definition, presentation); err != nil {
 		return err
 	}
-	return m.store.add(definition.ID, presentation, "")
+
+	return m.store.addAsServer(serviceID, presentation)
 }
 
 func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
@@ -272,11 +274,12 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 
 // Get is a Discovery Server function that retrieves the presentations for the given service, starting at the given tag.
 // See interface.go for more information.
-func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
-	if _, exists := m.serverDefinitions[serviceID]; !exists {
+func (m *Module) Get(serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, *int, error) {
+	_, exists := m.serverDefinitions[serviceID]
+	if !exists {
 		return nil, nil, ErrServerModeDisabled
 	}
-	return m.store.get(serviceID, tag)
+	return m.store.get(serviceID, startAfter)
 }
 
 // ActivateServiceForDID is a Discovery Client function that activates a service for a DID.

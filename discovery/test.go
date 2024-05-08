@@ -47,6 +47,7 @@ var vpBob vc.VerifiablePresentation
 var unsupportedDID did.DID
 
 var testServiceID = "usecase_v1"
+var testSalt = "salty"
 
 func testDefinitions() map[string]ServiceDefinition {
 	issuerPattern := "did:example:*"

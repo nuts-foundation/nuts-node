@@ -64,19 +64,18 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 }
 
 func (w *Wrapper) GetPresentations(_ context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error) {
-	var tag *discovery.Tag
-	if request.Params.Tag != nil {
+	var timestamp int
+	if request.Params.Timestamp != nil {
 		// *string to *Tag
-		tag = new(discovery.Tag)
-		*tag = discovery.Tag(*request.Params.Tag)
+		timestamp = *request.Params.Timestamp
 	}
-	presentations, newTag, err := w.Server.Get(request.ServiceID, tag)
+	presentations, newTimestamp, err := w.Server.Get(request.ServiceID, timestamp)
 	if err != nil {
 		return nil, err
 	}
 	return GetPresentations200JSONResponse{
-		Entries: presentations,
-		Tag:     string(*newTag),
+		Entries:   presentations,
+		Timestamp: int(*newTimestamp),
 	}, nil
 }
 

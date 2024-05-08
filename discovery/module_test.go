@@ -64,10 +64,9 @@ func Test_Module_Register(t *testing.T) {
 		err := m.Register(testServiceID, vpAlice)
 		require.EqualError(t, err, "presentation is invalid for registration\npresentation verification failed: failed")
 
-		_, tag, err := m.Get(testServiceID, nil)
+		_, tag, err := m.Get(testServiceID, 0)
 		require.NoError(t, err)
-		expectedTag := tagForTimestamp(t, m.store, testServiceID, 0)
-		assert.Equal(t, expectedTag, *tag)
+		assert.Equal(t, 0, *tag)
 	})
 	t.Run("already exists", func(t *testing.T) {
 		m, presentationVerifier, _ := setupModule(t, storageEngine)
@@ -83,7 +82,6 @@ func Test_Module_Register(t *testing.T) {
 			def := module.allDefinitions[testServiceID]
 			def.PresentationMaxValidity = 1
 			module.allDefinitions[testServiceID] = def
-			module.serverDefinitions[testServiceID] = def
 		})
 		err := m.Register(testServiceID, vpAlice)
 		assert.EqualError(t, err, "presentation is invalid for registration\npresentation is valid for too long (max 1s)")
@@ -120,9 +118,9 @@ func Test_Module_Register(t *testing.T) {
 			err := m.Register(testServiceID, vpAlice)
 			require.NoError(t, err)
 
-			_, tag, err := m.Get(testServiceID, nil)
+			_, tag, err := m.Get(testServiceID, 0)
 			require.NoError(t, err)
-			assert.Equal(t, "1", string(*tag)[tagPrefixLength:])
+			assert.Equal(t, 1, *tag)
 		})
 		t.Run("valid longer than its credentials", func(t *testing.T) {
 			m, _, _ := setupModule(t, storageEngine)
@@ -147,8 +145,8 @@ func Test_Module_Register(t *testing.T) {
 			err := m.Register(testServiceID, otherVP)
 			require.ErrorContains(t, err, "presentation does not fulfill Presentation ServiceDefinition")
 
-			_, tag, _ := m.Get(testServiceID, nil)
-			assert.Equal(t, "0", string(*tag)[tagPrefixLength:])
+			_, tag, _ := m.Get(testServiceID, 0)
+			assert.Equal(t, 0, *tag)
 		})
 	})
 	t.Run("retraction", func(t *testing.T) {
@@ -217,22 +215,22 @@ func Test_Module_Get(t *testing.T) {
 	require.NoError(t, storageEngine.Start())
 	t.Run("ok", func(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, ""))
-		presentations, tag, err := m.Get(testServiceID, nil)
+		require.NoError(t, m.store.addAsServer(testServiceID, vpAlice))
+		presentations, tag, err := m.Get(testServiceID, 0)
 		assert.NoError(t, err)
-		assert.Equal(t, []vc.VerifiablePresentation{vpAlice}, presentations)
-		assert.Equal(t, "1", string(*tag)[tagPrefixLength:])
+		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice}, presentations)
+		assert.Equal(t, 1, *tag)
 	})
 	t.Run("ok - retrieve delta", func(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, ""))
-		presentations, _, err := m.Get(testServiceID, nil)
+		require.NoError(t, m.store.addAsServer(testServiceID, vpAlice))
+		presentations, _, err := m.Get(testServiceID, 0)
 		require.NoError(t, err)
 		require.Len(t, presentations, 1)
 	})
 	t.Run("not a server for this service ID", func(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
-		_, _, err := m.Get("other", nil)
+		_, _, err := m.Get("other", 0)
 		assert.ErrorIs(t, err, ErrServerModeDisabled)
 	})
 }
@@ -248,7 +246,7 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 	m.config = DefaultConfig()
 	require.NoError(t, m.Configure(core.TestServerConfig()))
 	httpClient := client.NewMockHTTPClient(ctrl)
-	httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil).AnyTimes()
+	httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil).AnyTimes()
 	m.httpClient = httpClient
 	m.allDefinitions = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{
@@ -318,7 +316,7 @@ func TestModule_Search(t *testing.T) {
 	require.NoError(t, storageEngine.Start())
 	t.Run("ok", func(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, ""))
+		require.NoError(t, m.store.addAsServer(testServiceID, vpAlice))
 		results, err := m.Search(testServiceID, map[string]string{
 			"credentialSubject.id": aliceDID.String(),
 		})
@@ -349,7 +347,7 @@ func TestModule_update(t *testing.T) {
 			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
 			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
 			// Get() should be called at least twice (times the number of Service Definitions), once for the initial run on startup, then again after the refresh interval
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil).MinTimes(2 * len(module.allDefinitions))
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil).MinTimes(2 * len(module.allDefinitions))
 			module.httpClient = httpClient
 		})
 		time.Sleep(10 * time.Millisecond)
@@ -361,7 +359,7 @@ func TestModule_update(t *testing.T) {
 			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
 			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
 			// update causes call to HttpClient.Get(), once for each Service Definition
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil).Times(len(module.allDefinitions))
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil).Times(len(module.allDefinitions))
 			module.httpClient = httpClient
 		})
 	})
@@ -375,7 +373,7 @@ func TestModule_ActivateServiceForDID(t *testing.T) {
 			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
 			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
 			httpClient.EXPECT().Register(gomock.Any(), gomock.Any(), vpAlice).Return(nil)
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil)
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil)
 			module.httpClient = httpClient
 			// disable auto-refresh job to have deterministic assertions
 			module.config.Client.RefreshInterval = 0
@@ -454,7 +452,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceDID, &next)
-		_ = m.store.add(testServiceID, vpAlice, "")
+		_ = m.store.addAsServer(testServiceID, vpAlice)
 
 		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
 

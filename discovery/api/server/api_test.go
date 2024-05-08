@@ -35,41 +35,40 @@ const serviceID = "wonderland"
 var subjectDID = did.MustParseDID("did:web:example.com")
 
 func TestWrapper_GetPresentations(t *testing.T) {
+	beginning := 0
+	latestTag := 1
+	presentations := map[string]vc.VerifiablePresentation{}
 	t.Run("no tag", func(t *testing.T) {
-		latestTag := discovery.Tag("latest")
 		test := newMockContext(t)
-		presentations := []vc.VerifiablePresentation{}
-		test.server.EXPECT().Get(serviceID, nil).Return(presentations, &latestTag, nil)
+		test.server.EXPECT().Get(serviceID, beginning).Return(presentations, &latestTag, nil)
 
 		response, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{ServiceID: serviceID})
 
 		require.NoError(t, err)
 		require.IsType(t, GetPresentations200JSONResponse{}, response)
-		assert.Equal(t, latestTag, discovery.Tag(response.(GetPresentations200JSONResponse).Tag))
+		assert.Equal(t, latestTag, response.(GetPresentations200JSONResponse).Timestamp)
 		assert.Equal(t, presentations, response.(GetPresentations200JSONResponse).Entries)
 	})
 	t.Run("with tag", func(t *testing.T) {
-		givenTag := discovery.Tag("given")
-		latestTag := discovery.Tag("latest")
+		givenTag := 1
 		test := newMockContext(t)
-		presentations := []vc.VerifiablePresentation{}
-		test.server.EXPECT().Get(serviceID, &givenTag).Return(presentations, &latestTag, nil)
+		test.server.EXPECT().Get(serviceID, 1).Return(presentations, &latestTag, nil)
 
 		response, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{
 			ServiceID: serviceID,
 			Params: GetPresentationsParams{
-				Tag: (*string)(&givenTag),
+				Timestamp: &givenTag,
 			},
 		})
 
 		require.NoError(t, err)
 		require.IsType(t, GetPresentations200JSONResponse{}, response)
-		assert.Equal(t, latestTag, discovery.Tag(response.(GetPresentations200JSONResponse).Tag))
+		assert.Equal(t, latestTag, response.(GetPresentations200JSONResponse).Timestamp)
 		assert.Equal(t, presentations, response.(GetPresentations200JSONResponse).Entries)
 	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
-		test.server.EXPECT().Get(serviceID, nil).Return(nil, nil, errors.New("foo"))
+		test.server.EXPECT().Get(serviceID, 0).Return(nil, nil, errors.New("foo"))
 
 		_, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{ServiceID: serviceID})
 
