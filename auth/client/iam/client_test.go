@@ -20,6 +20,11 @@ package iam
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -31,10 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"testing"
 )
 
 func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {

@@ -23,11 +23,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -325,7 +326,7 @@ func TestIAMClient_RequestObject(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		requestURI := ctx.tlsServer.URL + "/request.jwt"
 
-		response, err := ctx.client.RequestObject(context.Background(), requestURI)
+		response, err := ctx.client.RequestObject(context.Background(), requestURI, "get", nil)
 
 		require.NoError(t, err)
 		assert.Equal(t, "Request Object", response)
@@ -335,7 +336,7 @@ func TestIAMClient_RequestObject(t *testing.T) {
 		ctx.requestObjectJWT = nil
 		requestURI := ctx.tlsServer.URL + "/request.jwt"
 
-		response, err := ctx.client.RequestObject(context.Background(), requestURI)
+		response, err := ctx.client.RequestObject(context.Background(), requestURI, "get", nil)
 
 		assert.EqualError(t, err, "failed to retrieve JAR Request Object: server returned HTTP 404 (expected: 200)")
 		assert.Empty(t, response)

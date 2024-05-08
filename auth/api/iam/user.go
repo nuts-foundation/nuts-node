@@ -24,6 +24,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -31,9 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"net/http"
-	"strings"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
@@ -151,7 +152,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
 	// TODO: First create user session, or AuthorizationRequest first? (which one is more expensive? both sign stuff)
-	redirectURL, err := r.CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, *verifier, modifier)
+	redirectURL, err := r.CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, verifier, modifier)
 	if err != nil {
 		return err
 	}

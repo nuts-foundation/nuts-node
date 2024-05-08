@@ -27,14 +27,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -327,6 +328,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
 	authzParams, err := r.jar.Parse(ctx, *ownDID, queryParams)
 	if err != nil {
+		// already an oauth.OAuth2Error
 		return nil, err
 	}
 
@@ -382,15 +384,22 @@ func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequest
 	ro := new(jarRequest)
 	err := r.authzRequestObjectStore().Get(request.Id, ro)
 	if err != nil {
-		return nil, err
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "request object not found",
+		}
 	}
 	// compare raw strings, don't waste a db call to see if we own the request.Did.
 	if ro.Client.String() != request.Did {
-		return nil, errors.New("invalid request")
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "request object not found",
+			InternalError: errors.New("DID does not match client_id for requestID. Possible authorization RequestObject phishing"),
+		}
 	}
 	if ro.RequestURIMethod != "get" {
 		// TODO: wallet does not support `request_uri_method=post`. Signing the current jarRequest would leave it without 'aud'.
-		//		 is this acceptable or should it fail?
+		//		 is this acceptable, should it fail, or does it default to using staticAuthorizationServerMetadata.
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
 			Description:   "used request_uri_method 'get' on a 'post' request_uri",
@@ -399,8 +408,11 @@ func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequest
 	}
 	token, err := r.jar.Sign(ctx, ro.Claims)
 	if err != nil {
-		// TODO: oauth.OAuth2Error?
-		return nil, err
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			Description:   "failed to sign authorization RequestObject",
+			InternalError: err,
+		}
 	}
 	return GetRequestJWT200ApplicationoauthAuthzReqJwtResponse{
 		Body:          bytes.NewReader([]byte(token)),
@@ -412,7 +424,53 @@ func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequest
 // Extension of OpenID 4 Verifiable Presentations (OpenID4VP) on
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
 func (r Wrapper) PostRequestJWT(ctx context.Context, request PostRequestJWTRequestObject) (PostRequestJWTResponseObject, error) {
-	return nil, errors.New("not implemented")
+	ro := new(jarRequest)
+	err := r.authzRequestObjectStore().Get(request.Id, ro)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "request object not found",
+		}
+	}
+	if ro.RequestURIMethod != "post" {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "used request_uri_method 'post' on a 'get' request_uri",
+		}
+	}
+	// compare raw strings, don't waste a db call to see if we own the request.Did.
+	if ro.Client.String() != request.Did {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "request object not found",
+			InternalError: errors.New("DID does not match client_id for requestID. Possible authorization RequestObject phishing"),
+		}
+	}
+
+	walletMetadata := staticAuthorizationServerMetadata()
+	if request.Body != nil {
+		if request.Body.WalletMetadata != nil {
+			walletMetadata = *request.Body.WalletMetadata
+		}
+		if request.Body.WalletNonce != nil {
+			ro.Claims[oauth.WalletNonceParam] = *request.Body.WalletNonce
+		}
+	}
+	ro.Claims[jwt.AudienceKey] = walletMetadata.Issuer
+
+	// TODO: supported signature types should be checked
+	token, err := r.jar.Sign(ctx, ro.Claims)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			Description:   "failed to sign authorization RequestObject",
+			InternalError: err,
+		}
+	}
+	return PostRequestJWT200ApplicationoauthAuthzReqJwtResponse{
+		Body:          bytes.NewReader([]byte(token)),
+		ContentLength: int64(len(token)),
+	}, nil
 }
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
@@ -438,17 +496,7 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsStri
 	if err != nil {
 		return nil, err
 	}
-	identity, err := didweb.DIDToURL(*ownDID)
-	if err != nil {
-		return nil, err
-	}
-	oauth2BaseURL, err := createOAuth2BaseURL(*ownDID)
-	if err != nil {
-		// can't fail, already did DIDToURL above
-		return nil, err
-	}
-	md := authorizationServerMetadata(*identity, *oauth2BaseURL)
-	return &md, nil
+	return authorizationServerMetadata(*ownDID)
 }
 
 func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
@@ -843,15 +891,27 @@ func (r Wrapper) openidIssuerEndpoints(ctx context.Context, issuerDid did.DID) (
 // - jwt.Audience
 // - nonce
 // any of these params can be overridden by the requestObjectModifier.
-func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID, server did.DID, modifier requestObjectModifier) (*url.URL, error) {
-	// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
-	// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
-	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, server)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID, server *did.DID, modifier requestObjectModifier) (*url.URL, error) {
+	// if the server is unknown/nil we are talking to a wallet.
+	// by default requireSignedRequestObject=true to make sure the produced Authorization Request URL does not exceed request URL limit on mobile devices
+	metadata := new(oauth.AuthorizationServerMetadata)
+	if server != nil {
+		// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
+		// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
+		var err error
+		metadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, *server)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+		}
+	} else {
+		// use static configuration until while we try to determine the wallet that will answer the authorization request. (user wallet / QR code flow)
+		*metadata = staticAuthorizationServerMetadata()
+		// TODO: metadata.RequireSignedRequestObject == false.
+		// 		This means we send both a request_uri and add all params to the authorization request as query params.
+		//		The resulting url is too long and will be rejected by mobile devices.
 	}
 	if len(metadata.AuthorizationEndpoint) == 0 {
-		return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", server)
+		return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", *server)
 	}
 	endpoint, err := url.Parse(metadata.AuthorizationEndpoint)
 	if err != nil {
@@ -860,8 +920,8 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 
 	// request_uri
 	requestURIID := nutsCrypto.GenerateNonce()
-	requestObj := r.jar.Create(client, &server, modifier)
-	if err = r.authzRequestObjectStore().Put(requestURIID, requestObj); err != nil {
+	requestObj := r.jar.Create(client, server, modifier)
+	if err := r.authzRequestObjectStore().Put(requestURIID, requestObj); err != nil {
 		return nil, err
 	}
 	baseURL, err := createOAuth2BaseURL(client)
@@ -883,7 +943,7 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 	// else; unclear if AS has support for RFC9101, so also add all modifiers to the query itself
 	// left here for completeness, node 2 node interaction always uses JAR since the AS metadata has it hardcoded
 	// TODO: in the user flow we have no AS metadata, meaning that we add all params to the query.
-	// 		 This is most likely going to fail on mobile devices due to request url length.
+	//         This is most likely going to fail on mobile devices due to request url length.
 	modifier(params)
 	redirectURL := nutsHttp.AddQueryParams(*endpoint, params)
 	return &redirectURL, nil

@@ -114,7 +114,7 @@ func TestJar_Parse(t *testing.T) {
 	token := string(bytes)
 	ctx := newJarTestCtx(t)
 	t.Run("ok - 'request_uri'", func(t *testing.T) {
-		ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri").Return(token, nil)
+		ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri", "get", nil).Return(token, nil)
 		ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
 
 		res, err := ctx.jar.Parse(context.Background(), verifierDID,
@@ -139,7 +139,7 @@ func TestJar_Parse(t *testing.T) {
 		require.NotNil(t, res)
 	})
 	t.Run("error - server error", func(t *testing.T) {
-		ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri").Return("", errors.New("server error"))
+		ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri", "get", nil).Return("", errors.New("server error"))
 		res, err := ctx.jar.Parse(context.Background(), verifierDID,
 			map[string][]string{
 				oauth.RequestURIParam: {"request_uri"},

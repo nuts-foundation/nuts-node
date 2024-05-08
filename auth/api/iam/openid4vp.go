@@ -209,8 +209,14 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 		values[oauth.NonceParam] = nonce
 		values[oauth.StateParam] = state
 	}
-	walletDID, _ := did.ParseDID(session.ClientID)
-	authServerURL, err := r.CreateAuthorizationRequest(ctx, *session.OwnDID, *walletDID, modifier)
+	var authServerURL *url.URL
+	if *walletOwnerType == pe.WalletOwnerUser {
+		// User wallet, make an openid4vp: request URL
+		authServerURL, err = r.CreateAuthorizationRequest(ctx, *session.OwnDID, nil, modifier)
+	} else {
+		walletDID, _ := did.ParseDID(session.ClientID)
+		authServerURL, err = r.CreateAuthorizationRequest(ctx, *session.OwnDID, walletDID, modifier)
+	}
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
@@ -218,13 +224,6 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 			InternalError: fmt.Errorf("failed to generate authorization request URL: %w", err),
 			RedirectURI:   session.redirectURI(),
 		}
-	}
-	if *walletOwnerType == pe.WalletOwnerUser {
-		// User wallet, make an openid4vp:// request URL
-		var newRequestURL url.URL
-		newRequestURL.Scheme = "openid4vp"
-		newRequestURL.RawQuery = authServerURL.RawQuery
-		authServerURL = &newRequestURL
 	}
 
 	// use nonce and state to store authorization request in session store

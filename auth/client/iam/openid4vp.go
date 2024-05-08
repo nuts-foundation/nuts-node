@@ -23,10 +23,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -133,14 +134,32 @@ func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, webdi
 	return metadata, nil
 }
 
-func (c *OpenID4VPClient) RequestObject(ctx context.Context, requestURI string) (string, error) {
+func (c *OpenID4VPClient) RequestObject(ctx context.Context, requestURI, requestURIMethod string, walletMetadata *oauth.AuthorizationServerMetadata) (string, error) {
 	iamClient := c.httpClient
 	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
 	if err != nil {
 		return "", fmt.Errorf("invalid request_uri: %w", err)
 	}
-	// the wallet/client acts as authorization server
-	requestObject, err := iamClient.RequestObject(ctx, parsedURL.String())
+
+	var requestObject string
+	switch requestURIMethod {
+	case "", "get":
+		// the wallet/client acts as authorization server
+		requestObject, err = iamClient.RequestObject(ctx, parsedURL.String())
+	case "post":
+		// TODO: consider adding a 'wallet_nonce'
+		form := url.Values{}
+		if walletMetadata != nil {
+			metadataBytes, err := json.Marshal(*walletMetadata)
+			if err != nil {
+				return "", fmt.Errorf("failed to serialize wallet_metadata: %w", err)
+			}
+			form.Set(oauth.WalletMetadataParam, string(metadataBytes))
+		}
+		requestObject, err = iamClient.RequestObjectPost(ctx, parsedURL.String(), form)
+	default:
+		err = fmt.Errorf("invalid request_uri_method: %s", requestURIMethod)
+	}
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve JAR Request Object: %w", err)
 	}

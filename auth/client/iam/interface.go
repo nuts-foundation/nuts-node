@@ -20,6 +20,7 @@ package iam
 
 import (
 	"context"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -51,5 +52,5 @@ type Client interface {
 
 	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
 	// RequestObject is returned from the authorization request's 'request_uri' defined in RFC9101.
-	RequestObject(ctx context.Context, requestURI string) (string, error)
+	RequestObject(ctx context.Context, requestURI, requestURIMethod string, walletMetadata *oauth.AuthorizationServerMetadata) (string, error)
 }
