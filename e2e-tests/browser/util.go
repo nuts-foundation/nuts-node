@@ -1,3 +1,5 @@
+//go:build e2e_tests
+
 /*
  * Copyright (C) 2024 Nuts community
  *
@@ -16,18 +18,16 @@
  *
  */
 
-//go:build e2e_tests
-
 package browser
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/e2e-tests/browser/rfc019_selfsigned/apps"
+	"github.com/nuts-foundation/nuts-node/core"
 	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 )
 
-func IssueOrganizationCredential(organization *did.Document, name, city string) error {
-	vcrClient := vcrAPI.HTTPClient{ClientConfig: apps.NodeClientConfig}
+func IssueOrganizationCredential(organization *did.Document, name, city string, clientConfig core.ClientConfig) error {
+	vcrClient := vcrAPI.HTTPClient{ClientConfig: clientConfig}
 	request := vcrAPI.IssueVCRequest{
 		Issuer: organization.ID.String(),
 		CredentialSubject: map[string]interface{}{

@@ -23,6 +23,7 @@ package openid4vp_employeecredential
 import (
 	"context"
 	"fmt"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/e2e-tests/browser/client/iam"
 )
