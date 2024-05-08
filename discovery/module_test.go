@@ -100,10 +100,11 @@ func Test_Module_Register(t *testing.T) {
 			assert.ErrorIs(t, err, ErrPresentationAlreadyExists)
 		})
 		t.Run("valid for too long", func(t *testing.T) {
-			m, _ := setupModule(t, storageEngine)
-			def := m.allDefinitions[testServiceID]
-			def.PresentationMaxValidity = 1
-			m.allDefinitions[testServiceID] = def
+			m, _ := setupModule(t, storageEngine, func(module *Module) {
+				def := module.allDefinitions[testServiceID]
+				def.PresentationMaxValidity = 1
+				module.allDefinitions[testServiceID] = def
+			})
 
 			err := m.Register(ctx, testServiceID, vpAlice)
 
