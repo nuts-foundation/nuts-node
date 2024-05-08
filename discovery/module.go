@@ -42,10 +42,6 @@ import (
 
 const ModuleName = "Discovery"
 
-// ErrServerModeDisabled is returned when a client invokes a Discovery Server (Register or Get) operation on the node,
-// for a Discovery Service which it doesn't serve.
-var ErrServerModeDisabled = errors.New("node is not a discovery server for this service")
-
 // ErrInvalidPresentation is returned when a client tries to register a Verifiable Presentation that is invalid.
 var ErrInvalidPresentation = errors.New("presentation is invalid for registration")
 
@@ -165,11 +161,18 @@ func (m *Module) Config() interface{} {
 
 // Register is a Discovery Server function that registers a presentation on the given Discovery Service.
 // See interface.go for more information.
-func (m *Module) Register(serviceID string, presentation vc.VerifiablePresentation) error {
+func (m *Module) Register(context context.Context, serviceID string, presentation vc.VerifiablePresentation) error {
 	// First, simple sanity checks
 	_, isServer := m.serverDefinitions[serviceID]
 	if !isServer {
-		return ErrServerModeDisabled
+		// forward to configured server
+		service, exists := m.allDefinitions[serviceID]
+		if !exists {
+			return ErrServiceNotFound
+		}
+		// forward to configured server
+		log.Logger().Infof("Forwarding Register request to configured server (service=%s)", serviceID)
+		return m.httpClient.Register(context, service.Endpoint, presentation)
 	}
 	definition := m.allDefinitions[serviceID]
 	if err := m.verifyRegistration(definition, presentation); err != nil {
@@ -274,10 +277,16 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 
 // Get is a Discovery Server function that retrieves the presentations for the given service, starting from the given timestamp.
 // See interface.go for more information.
-func (m *Module) Get(serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, *int, error) {
+func (m *Module) Get(context context.Context, serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, int, error) {
 	_, exists := m.serverDefinitions[serviceID]
 	if !exists {
-		return nil, nil, ErrServerModeDisabled
+		// forward to configured server
+		service, exists := m.allDefinitions[serviceID]
+		if !exists {
+			return nil, 0, ErrServiceNotFound
+		}
+		log.Logger().Infof("Forwarding Get request to configured server (service=%s)", serviceID)
+		return m.httpClient.Get(context, service.Endpoint, startAfter)
 	}
 	return m.store.get(serviceID, startAfter)
 }

@@ -41,8 +41,6 @@ type Wrapper struct {
 
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	switch {
-	case errors.Is(err, discovery.ErrServerModeDisabled):
-		return http.StatusBadRequest
 	case errors.Is(err, discovery.ErrInvalidPresentation):
 		return http.StatusBadRequest
 	default:
@@ -63,23 +61,23 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 	}))
 }
 
-func (w *Wrapper) GetPresentations(_ context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error) {
+func (w *Wrapper) GetPresentations(ctx context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error) {
 	var timestamp int
 	if request.Params.Timestamp != nil {
 		timestamp = *request.Params.Timestamp
 	}
-	presentations, newTimestamp, err := w.Server.Get(request.ServiceID, timestamp)
+	presentations, newTimestamp, err := w.Server.Get(ctx, request.ServiceID, timestamp)
 	if err != nil {
 		return nil, err
 	}
 	return GetPresentations200JSONResponse{
 		Entries:   presentations,
-		Timestamp: int(*newTimestamp),
+		Timestamp: newTimestamp,
 	}, nil
 }
 
-func (w *Wrapper) RegisterPresentation(_ context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error) {
-	err := w.Server.Register(request.ServiceID, *request.Body)
+func (w *Wrapper) RegisterPresentation(ctx context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error) {
+	err := w.Server.Register(ctx, request.ServiceID, *request.Body)
 	if err != nil {
 		return nil, err
 	}

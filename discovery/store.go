@@ -174,26 +174,26 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 
 // get returns all presentations, registered on the given service, starting after the given timestamp.
 // It also returns the latest timestamp of the returned presentations.
-func (s *sqlStore) get(serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, *int, error) {
+func (s *sqlStore) get(serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, int, error) {
 	var service serviceRecord
 	if err := s.db.Find(&service, "id = ?", serviceID).Error; err != nil {
-		return nil, nil, fmt.Errorf("query service '%s': %w", serviceID, err)
+		return nil, 0, fmt.Errorf("query service '%s': %w", serviceID, err)
 	}
 
 	var rows []presentationRecord
 	err := s.db.Order("lamport_timestamp ASC").Find(&rows, "service_id = ? AND lamport_timestamp > ?", serviceID, startAfter).Error
 	if err != nil {
-		return nil, nil, fmt.Errorf("query service '%s': %w", serviceID, err)
+		return nil, 0, fmt.Errorf("query service '%s': %w", serviceID, err)
 	}
 	presentations := make(map[string]vc.VerifiablePresentation, len(rows))
 	for _, row := range rows {
 		presentation, err := vc.ParseVerifiablePresentation(row.PresentationRaw)
 		if err != nil {
-			return nil, nil, fmt.Errorf("parse presentation '%s' of service '%s': %w", row.PresentationID, serviceID, err)
+			return nil, 0, fmt.Errorf("parse presentation '%s' of service '%s': %w", row.PresentationID, serviceID, err)
 		}
 		presentations[fmt.Sprintf("%d", row.LamportTimestamp)] = *presentation
 	}
-	return presentations, &service.LastTimestamp, nil
+	return presentations, service.LastTimestamp, nil
 }
 
 // search searches for presentations, registered on the given service, matching the given query.

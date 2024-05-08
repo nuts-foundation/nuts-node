@@ -113,7 +113,7 @@ func Test_sqlStore_get(t *testing.T) {
 		presentations, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Empty(t, presentations)
-		assert.Equal(t, 0, *timestamp)
+		assert.Equal(t, 0, timestamp)
 	})
 	t.Run("1 entry, 0 timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
@@ -121,7 +121,7 @@ func Test_sqlStore_get(t *testing.T) {
 		presentations, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice}, presentations)
-		assert.Equal(t, 1, *timestamp)
+		assert.Equal(t, 1, timestamp)
 	})
 	t.Run("2 entries, 0 timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
@@ -130,7 +130,7 @@ func Test_sqlStore_get(t *testing.T) {
 		presentations, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice, "2": vpBob}, presentations)
-		assert.Equal(t, 2, *timestamp)
+		assert.Equal(t, 2, timestamp)
 	})
 	t.Run("2 entries, start after first", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
@@ -139,7 +139,7 @@ func Test_sqlStore_get(t *testing.T) {
 		presentations, timestamp, err := m.get(testServiceID, 1)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"2": vpBob}, presentations)
-		assert.Equal(t, 2, *timestamp)
+		assert.Equal(t, 2, timestamp)
 	})
 	t.Run("2 entries, start at end", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
@@ -148,7 +148,7 @@ func Test_sqlStore_get(t *testing.T) {
 		presentations, timestamp, err := m.get(testServiceID, 2)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{}, presentations)
-		assert.Equal(t, 2, *timestamp)
+		assert.Equal(t, 2, timestamp)
 	})
 	t.Run("concurrency", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())

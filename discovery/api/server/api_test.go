@@ -39,7 +39,7 @@ func TestWrapper_GetPresentations(t *testing.T) {
 	presentations := map[string]vc.VerifiablePresentation{}
 	t.Run("no timestamp", func(t *testing.T) {
 		test := newMockContext(t)
-		test.server.EXPECT().Get(serviceID, 0).Return(presentations, &lastTimestamp, nil)
+		test.server.EXPECT().Get(gomock.Any(), serviceID, 0).Return(presentations, lastTimestamp, nil)
 
 		response, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{ServiceID: serviceID})
 
@@ -51,7 +51,7 @@ func TestWrapper_GetPresentations(t *testing.T) {
 	t.Run("with timestamp", func(t *testing.T) {
 		givenTimestamp := 1
 		test := newMockContext(t)
-		test.server.EXPECT().Get(serviceID, 1).Return(presentations, &lastTimestamp, nil)
+		test.server.EXPECT().Get(gomock.Any(), serviceID, 1).Return(presentations, lastTimestamp, nil)
 
 		response, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{
 			ServiceID: serviceID,
@@ -67,7 +67,7 @@ func TestWrapper_GetPresentations(t *testing.T) {
 	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
-		test.server.EXPECT().Get(serviceID, 0).Return(nil, nil, errors.New("foo"))
+		test.server.EXPECT().Get(gomock.Any(), serviceID, 0).Return(nil, 0, errors.New("foo"))
 
 		_, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{ServiceID: serviceID})
 
@@ -79,7 +79,7 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
 		presentation := vc.VerifiablePresentation{}
-		test.server.EXPECT().Register(serviceID, presentation).Return(nil)
+		test.server.EXPECT().Register(gomock.Any(), serviceID, presentation).Return(nil)
 
 		response, err := test.wrapper.RegisterPresentation(nil, RegisterPresentationRequestObject{
 			ServiceID: serviceID,
@@ -92,7 +92,7 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
 		presentation := vc.VerifiablePresentation{}
-		test.server.EXPECT().Register(serviceID, presentation).Return(discovery.ErrInvalidPresentation)
+		test.server.EXPECT().Register(gomock.Any(), serviceID, presentation).Return(discovery.ErrInvalidPresentation)
 
 		_, err := test.wrapper.RegisterPresentation(nil, RegisterPresentationRequestObject{
 			ServiceID: serviceID,
@@ -105,7 +105,6 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 
 func TestWrapper_ResolveStatusCode(t *testing.T) {
 	expected := map[error]int{
-		discovery.ErrServerModeDisabled:  http.StatusBadRequest,
 		discovery.ErrInvalidPresentation: http.StatusBadRequest,
 		errors.New("foo"):                http.StatusInternalServerError,
 	}
