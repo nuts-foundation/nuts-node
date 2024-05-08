@@ -275,8 +275,8 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 	m.config = DefaultConfig()
 	require.NoError(t, m.Configure(core.TestServerConfig()))
 	httpClient := client.NewMockHTTPClient(ctrl)
-	httpClient.EXPECT().Get(gomock.Any(), testEndpointOther, gomock.Any()).Return(nil, 0, nil).AnyTimes()
-	httpClient.EXPECT().Get(gomock.Any(), testEndpointUSecase, gomock.Any()).Return(nil, 0, nil).AnyTimes()
+	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, 0, nil).AnyTimes()
+	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/usecase", gomock.Any()).Return(nil, 0, nil).AnyTimes()
 	m.httpClient = httpClient
 	m.allDefinitions = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{

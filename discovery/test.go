@@ -47,8 +47,6 @@ var vpBob vc.VerifiablePresentation
 var unsupportedDID did.DID
 
 var testServiceID = "usecase_v1"
-var testEndpointOther = "http://example.com/other"
-var testEndpointUSecase = "http://example.com/usecase"
 
 func testDefinitions() map[string]ServiceDefinition {
 	issuerPattern := "did:example:*"

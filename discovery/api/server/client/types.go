@@ -22,6 +22,8 @@ import "github.com/nuts-foundation/go-did/vc"
 
 // PresentationsResponse is the response for the GetPresentations endpoint.
 type PresentationsResponse struct {
-	Entries   map[string]vc.VerifiablePresentation `json:"entries"`
-	Timestamp int                                  `json:"timestamp"`
+	// Entries contains mappings from timestamp (as string) to a VerifiablePresentation.
+	Entries map[string]vc.VerifiablePresentation `json:"entries"`
+	// Timestamp is the timestamp of the latest entry. It's not a unix timestamp but a Lamport Clock.
+	Timestamp int `json:"timestamp"`
 }
