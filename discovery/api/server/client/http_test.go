@@ -66,7 +66,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}
 		handler.ResponseData = map[string]interface{}{
 			"entries":   map[string]interface{}{"1": vp},
-			"timestamp": 2,
+			"timestamp": 1,
 		}
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)

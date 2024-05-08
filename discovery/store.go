@@ -227,7 +227,7 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 // incrementTimestamp increments the last_timestamp of the given service.
 func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string) (*int, error) {
 	var service serviceRecord
-	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the lamport Timestamp.
+	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the last Timestamp.
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where(serviceRecord{ID: serviceID}).
 		Find(&service).
@@ -246,7 +246,7 @@ func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string) (*int, erro
 // setTimestamp sets the last_timestamp of the given service.
 func (s *sqlStore) setTimestamp(tx *gorm.DB, serviceID string, timestamp int) error {
 	var service serviceRecord
-	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the lamport Timestamp.
+	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the last Timestamp.
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where(serviceRecord{ID: serviceID}).
 		Find(&service).
