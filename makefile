@@ -74,13 +74,16 @@ gen-api:
 	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth/v1/generated.go
 	oapi-codegen --config codegen/configs/auth_client_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth/v1/client/generated.go
 	oapi-codegen --config codegen/configs/auth_employeeid.yaml auth/services/selfsigned/web/spec.yaml | gofmt > auth/services/selfsigned/web/generated.go
-	oapi-codegen --config codegen/configs/auth_iam.yaml docs/_static/auth/iam.yaml | gofmt > auth/api/iam/generated.go
-	oapi-codegen -generate client,types --config codegen/configs/auth_iam.yaml docs/_static/auth/iam.yaml | gofmt > e2e-tests/browser/client/iam/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 	oapi-codegen --config codegen/configs/discovery_v1.yaml docs/_static/discovery/v1.yaml | gofmt > discovery/api/v1/generated.go
 	oapi-codegen --config codegen/configs/discovery_server.yaml docs/_static/discovery/server.yaml | gofmt > discovery/api/server/generated.go
 	oapi-codegen --config codegen/configs/crypto_store_client.yaml https://raw.githubusercontent.com/nuts-foundation/secret-store-api/main/nuts-storage-api-v1.yaml | gofmt > crypto/storage/external/generated.go
 	oapi-codegen --config codegen/configs/policy_client_v1.yaml docs/_static/policy/v1.yaml | gofmt > policy/api/v1/client/generated.go
+
+	# IAM is a special case, needs merging of the "integrator's" OAS with the OAuth2/OpenID4VCI/OpenID4VP spec
+	go run ./codegen/oas-merge/main.go docs/_static/auth/v2.yaml docs/_static/auth/iam.partial.yaml 2> docs/_static/auth/v2-iam-combined.tmp.yaml
+	oapi-codegen --config codegen/configs/auth_v2.yaml docs/_static/auth/v2-iam-combined.tmp.yaml | gofmt > auth/api/iam/generated.go
+	oapi-codegen -generate client,types --config codegen/configs/auth_v2.yaml docs/_static/auth/v2.yaml | gofmt > e2e-tests/browser/client/iam/generated.go
 
 gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/v2/protocol.proto

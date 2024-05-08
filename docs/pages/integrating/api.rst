@@ -15,7 +15,7 @@ Common Schemas and Responses: `SSI types <../../_static/common/ssi_types.yaml>`_
             const ui = SwaggerUIBundle({
                 "dom_id": "#swagger-ui",
                 urls: [
-                    {url: "../../_static/auth/iam.yaml", name: "Auth (v2)"},
+                    {url: "../../_static/auth/v2.yaml", name: "Auth (v2)"},
                     {url: "../../_static/crypto/v1.yaml", name: "Crypto"},
                     {url: "../../_static/discovery/v1.yaml", name: "Discovery Service"},
                     {url: "../../_static/monitoring/v1.yaml", name: "Monitoring"},
