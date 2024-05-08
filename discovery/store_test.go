@@ -74,6 +74,17 @@ func Test_sqlStore_add(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("passing timestamp updates last_timestamp", func(t *testing.T) {
+		m := setupStore(t, storageEngine.GetSQLDatabase())
+		err := m.add(testServiceID, createPresentation(aliceDID), 1)
+		require.NoError(t, err)
+
+		timestamp, err := m.getTimestamp(testServiceID)
+
+		require.NoError(t, err)
+		assert.Equal(t, 1, timestamp)
+	})
+
 	t.Run("replaces previous presentation of same subject", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 
