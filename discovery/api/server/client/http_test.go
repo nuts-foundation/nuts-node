@@ -62,38 +62,37 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
 	}
 
-	serverTag := 2
-	t.Run("no tag from client", func(t *testing.T) {
+	t.Run("no timestamp from client", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}
 		handler.ResponseData = map[string]interface{}{
 			"entries":   map[string]interface{}{"1": vp},
-			"timestamp": serverTag,
+			"timestamp": 2,
 		}
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
-		presentations, tag, err := client.Get(context.Background(), server.URL, 0)
+		presentations, timestamp, err := client.Get(context.Background(), server.URL, 0)
 
 		assert.NoError(t, err)
 		assert.Len(t, presentations, 1)
 		assert.Equal(t, "0", handler.RequestQuery.Get("timestamp"))
-		assert.Equal(t, serverTag, tag)
+		assert.Equal(t, 1, timestamp)
 	})
-	t.Run("tag provided by client", func(t *testing.T) {
+	t.Run("timestamp provided by client", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}
 		handler.ResponseData = map[string]interface{}{
 			"entries":   map[string]interface{}{"1": vp},
-			"timestamp": serverTag,
+			"timestamp": 1,
 		}
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
-		presentations, tag, err := client.Get(context.Background(), server.URL, 1)
+		presentations, timestamp, err := client.Get(context.Background(), server.URL, 1)
 
 		assert.NoError(t, err)
 		assert.Len(t, presentations, 1)
 		assert.Equal(t, "1", handler.RequestQuery.Get("timestamp"))
-		assert.Equal(t, serverTag, tag)
+		assert.Equal(t, 1, timestamp)
 	})
 	t.Run("server returns invalid status code", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusInternalServerError}

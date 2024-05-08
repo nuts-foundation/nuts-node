@@ -108,9 +108,9 @@ func newSQLStore(db *gorm.DB, clientDefinitions map[string]ServiceDefinition) (*
 	return &sqlStore{db: db}, nil
 }
 
-// addAsServer adds a presentation to the list of presentations.
-// A new Tag is generated for the entry.
-func (s *sqlStore) addAsServer(serviceID string, presentation vc.VerifiablePresentation) error {
+// add adds a presentation to the list of presentations.
+// If the given timestamp is 0, the server will assign a timestamp.
+func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, timestamp int) error {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
 		return err
@@ -119,32 +119,13 @@ func (s *sqlStore) addAsServer(serviceID string, presentation vc.VerifiablePrese
 		return err
 	}
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		newTag, err := s.updateTagForServer(tx, serviceID)
-		if err != nil {
-			return err
+		if timestamp == 0 {
+			var newTs *int
+			newTs, err = s.incrementTimestamp(tx, serviceID)
+			timestamp = *newTs
+		} else {
+			err = s.setTimestamp(tx, serviceID, timestamp)
 		}
-		// Delete any previous presentations of the subject
-		if err := tx.Delete(&presentationRecord{}, "service_id = ? AND credential_subject_id = ?", serviceID, credentialSubjectID.String()).
-			Error; err != nil {
-			return err
-		}
-
-		return storePresentation(tx, serviceID, *newTag, presentation)
-	})
-}
-
-// addAsClient adds a presentation to the list of presentations.
-// the timestamp is given by the server
-func (s *sqlStore) addAsClient(serviceID string, presentation vc.VerifiablePresentation, timestamp int) error {
-	credentialSubjectID, err := credential.PresentationSigner(presentation)
-	if err != nil {
-		return err
-	}
-	if err := s.prune(); err != nil {
-		return err
-	}
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		err := s.updateTagForClient(tx, serviceID, timestamp)
 		if err != nil {
 			return err
 		}
@@ -191,9 +172,8 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 	return tx.Create(&newPresentation).Error
 }
 
-// get returns all presentations, registered on the given service, starting after the given tag.
-// It also returns the latest tag of the returned presentations.
-// This tag can then be used next time to only retrieve presentations that were added after that tag.
+// get returns all presentations, registered on the given service, starting after the given timestamp.
+// It also returns the latest timestamp of the returned presentations.
 func (s *sqlStore) get(serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, *int, error) {
 	var service serviceRecord
 	if err := s.db.Find(&service, "id = ?", serviceID).Error; err != nil {
@@ -244,9 +224,8 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 	return results, nil
 }
 
-// updateTagForServer updates the tag of the given service.
-// The latest tag for the service is incremented.
-func (s *sqlStore) updateTagForServer(tx *gorm.DB, serviceID string) (*int, error) {
+// incrementTimestamp increments the last_timestamp of the given service.
+func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string) (*int, error) {
 	var service serviceRecord
 	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the lamport Timestamp.
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -264,8 +243,8 @@ func (s *sqlStore) updateTagForServer(tx *gorm.DB, serviceID string) (*int, erro
 	return &service.LastTimestamp, nil
 }
 
-// updateTagForClient updates the tag of the given service.
-func (s *sqlStore) updateTagForClient(tx *gorm.DB, serviceID string, timestamp int) error {
+// setTimestamp sets the last_timestamp of the given service.
+func (s *sqlStore) setTimestamp(tx *gorm.DB, serviceID string, timestamp int) error {
 	var service serviceRecord
 	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the lamport Timestamp.
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).

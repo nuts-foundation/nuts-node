@@ -176,7 +176,7 @@ func (m *Module) Register(serviceID string, presentation vc.VerifiablePresentati
 		return err
 	}
 
-	return m.store.addAsServer(serviceID, presentation)
+	return m.store.add(serviceID, presentation, 0)
 }
 
 func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
@@ -272,7 +272,7 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	return nil
 }
 
-// Get is a Discovery Server function that retrieves the presentations for the given service, starting at the given tag.
+// Get is a Discovery Server function that retrieves the presentations for the given service, starting from the given timestamp.
 // See interface.go for more information.
 func (m *Module) Get(serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, *int, error) {
 	_, exists := m.serverDefinitions[serviceID]

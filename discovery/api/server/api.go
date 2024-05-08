@@ -66,7 +66,6 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 func (w *Wrapper) GetPresentations(_ context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error) {
 	var timestamp int
 	if request.Params.Timestamp != nil {
-		// *string to *Tag
 		timestamp = *request.Params.Timestamp
 	}
 	presentations, newTimestamp, err := w.Server.Get(request.ServiceID, timestamp)

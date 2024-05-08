@@ -43,21 +43,21 @@ func Test_sqlStore_exists(t *testing.T) {
 	})
 	t.Run("non-empty list, no match (other subject and ID)", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.addAsServer(testServiceID, vpBob))
+		require.NoError(t, m.add(testServiceID, vpBob, 0))
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
 	t.Run("non-empty list, no match (other list)", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.addAsServer(testServiceID, vpAlice))
+		require.NoError(t, m.add(testServiceID, vpAlice, 0))
 		exists, err := m.exists("other", aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
 	t.Run("non-empty list, match", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.addAsServer(testServiceID, vpAlice))
+		require.NoError(t, m.add(testServiceID, vpAlice, 0))
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.True(t, exists)
@@ -70,7 +70,7 @@ func Test_sqlStore_add(t *testing.T) {
 
 	t.Run("no credentials in presentation", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		err := m.addAsServer(testServiceID, createPresentation(aliceDID))
+		err := m.add(testServiceID, createPresentation(aliceDID), 0)
 		assert.NoError(t, err)
 	})
 
@@ -78,8 +78,8 @@ func Test_sqlStore_add(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 
 		secondVP := createPresentation(aliceDID, vcAlice)
-		require.NoError(t, m.addAsServer(testServiceID, vpAlice))
-		require.NoError(t, m.addAsServer(testServiceID, secondVP))
+		require.NoError(t, m.add(testServiceID, vpAlice, 0))
+		require.NoError(t, m.add(testServiceID, secondVP, 0))
 
 		// First VP should not exist
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
@@ -97,47 +97,47 @@ func Test_sqlStore_get(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 
-	t.Run("empty list, empty tag", func(t *testing.T) {
+	t.Run("empty list, 0 timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		presentations, tag, err := m.get(testServiceID, 0)
+		presentations, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Empty(t, presentations)
-		assert.Equal(t, 0, *tag)
+		assert.Equal(t, 0, *timestamp)
 	})
-	t.Run("1 entry, empty tag", func(t *testing.T) {
+	t.Run("1 entry, 0 timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.addAsServer(testServiceID, vpAlice))
-		presentations, tag, err := m.get(testServiceID, 0)
+		require.NoError(t, m.add(testServiceID, vpAlice, 0))
+		presentations, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice}, presentations)
-		assert.Equal(t, 1, *tag)
+		assert.Equal(t, 1, *timestamp)
 	})
-	t.Run("2 entries, empty tag", func(t *testing.T) {
+	t.Run("2 entries, 0 timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.addAsServer(testServiceID, vpAlice))
-		require.NoError(t, m.addAsServer(testServiceID, vpBob))
-		presentations, tag, err := m.get(testServiceID, 0)
+		require.NoError(t, m.add(testServiceID, vpAlice, 0))
+		require.NoError(t, m.add(testServiceID, vpBob, 0))
+		presentations, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice, "2": vpBob}, presentations)
-		assert.Equal(t, 2, *tag)
+		assert.Equal(t, 2, *timestamp)
 	})
 	t.Run("2 entries, start after first", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.addAsServer(testServiceID, vpAlice))
-		require.NoError(t, m.addAsServer(testServiceID, vpBob))
-		presentations, tag, err := m.get(testServiceID, 1)
+		require.NoError(t, m.add(testServiceID, vpAlice, 0))
+		require.NoError(t, m.add(testServiceID, vpBob, 0))
+		presentations, timestamp, err := m.get(testServiceID, 1)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"2": vpBob}, presentations)
-		assert.Equal(t, 2, *tag)
+		assert.Equal(t, 2, *timestamp)
 	})
 	t.Run("2 entries, start at end", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.addAsServer(testServiceID, vpAlice))
-		require.NoError(t, m.addAsServer(testServiceID, vpBob))
-		presentations, tag, err := m.get(testServiceID, 2)
+		require.NoError(t, m.add(testServiceID, vpAlice, 0))
+		require.NoError(t, m.add(testServiceID, vpBob, 0))
+		presentations, timestamp, err := m.get(testServiceID, 2)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{}, presentations)
-		assert.Equal(t, 2, *tag)
+		assert.Equal(t, 2, *timestamp)
 	})
 	t.Run("concurrency", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
@@ -146,7 +146,7 @@ func Test_sqlStore_get(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				err := c.addAsServer(testServiceID, createPresentation(aliceDID, vcAlice))
+				err := c.add(testServiceID, createPresentation(aliceDID, vcAlice), 0)
 				require.NoError(t, err)
 			}()
 		}
@@ -172,7 +172,7 @@ func Test_sqlStore_search(t *testing.T) {
 		vps := []vc.VerifiablePresentation{vpAlice}
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		for _, vp := range vps {
-			err := c.addAsServer(testServiceID, vp)
+			err := c.add(testServiceID, vp, 0)
 			require.NoError(t, err)
 		}
 
@@ -187,7 +187,7 @@ func Test_sqlStore_search(t *testing.T) {
 		vps := []vc.VerifiablePresentation{vpAlice, vpBob}
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		for _, vp := range vps {
-			err := c.addAsServer(testServiceID, vp)
+			err := c.add(testServiceID, vp, 0)
 			require.NoError(t, err)
 		}
 		actualVPs, err := c.search(testServiceID, map[string]string{

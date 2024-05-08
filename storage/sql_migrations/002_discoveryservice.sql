@@ -1,6 +1,6 @@
 -- +goose ENVSUB ON
 -- +goose Up
--- discovery contains the known discovery services and the associated tags.
+-- discovery contains the known discovery services and the associated timestamp.
 create table discovery_service
 (
     -- id is the unique identifier for the service. It comes from the service definition.

@@ -40,7 +40,7 @@ type Server interface {
 	// Register registers a presentation on the given Discovery Service.
 	// If the presentation is not valid, or it does not conform to the Service ServiceDefinition, it returns an error.
 	Register(serviceID string, presentation vc.VerifiablePresentation) error
-	// Get retrieves the presentations for the given service, starting at the given Timestamp.
+	// Get retrieves the presentations for the given service, starting from the given Timestamp.
 	Get(serviceID string, startAt int) (map[string]vc.VerifiablePresentation, *int, error)
 }
 
@@ -65,7 +65,7 @@ type Client interface {
 	Services() []ServiceDefinition
 
 	// GetServiceActivation returns the activation status of a DID on a Discovery Service.
-	// The boolean indicates whether the DID is acitvated on the Discovery Service (ActivateServiceForDID() has been called).
+	// The boolean indicates whether the DID is activated on the Discovery Service (ActivateServiceForDID() has been called).
 	// It also returns the Verifiable Presentation that is registered on the Discovery Service, if any.
 	GetServiceActivation(ctx context.Context, serviceID string, subjectDID did.DID) (bool, *vc.VerifiablePresentation, error)
 }

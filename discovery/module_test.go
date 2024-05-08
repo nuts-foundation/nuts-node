@@ -64,9 +64,9 @@ func Test_Module_Register(t *testing.T) {
 		err := m.Register(testServiceID, vpAlice)
 		require.EqualError(t, err, "presentation is invalid for registration\npresentation verification failed: failed")
 
-		_, tag, err := m.Get(testServiceID, 0)
+		_, timestamp, err := m.Get(testServiceID, 0)
 		require.NoError(t, err)
-		assert.Equal(t, 0, *tag)
+		assert.Equal(t, 0, *timestamp)
 	})
 	t.Run("already exists", func(t *testing.T) {
 		m, presentationVerifier, _ := setupModule(t, storageEngine)
@@ -118,9 +118,9 @@ func Test_Module_Register(t *testing.T) {
 			err := m.Register(testServiceID, vpAlice)
 			require.NoError(t, err)
 
-			_, tag, err := m.Get(testServiceID, 0)
+			_, timestamp, err := m.Get(testServiceID, 0)
 			require.NoError(t, err)
-			assert.Equal(t, 1, *tag)
+			assert.Equal(t, 1, *timestamp)
 		})
 		t.Run("valid longer than its credentials", func(t *testing.T) {
 			m, _, _ := setupModule(t, storageEngine)
@@ -145,8 +145,8 @@ func Test_Module_Register(t *testing.T) {
 			err := m.Register(testServiceID, otherVP)
 			require.ErrorContains(t, err, "presentation does not fulfill Presentation ServiceDefinition")
 
-			_, tag, _ := m.Get(testServiceID, 0)
-			assert.Equal(t, 0, *tag)
+			_, timestamp, _ := m.Get(testServiceID, 0)
+			assert.Equal(t, 0, *timestamp)
 		})
 	})
 	t.Run("retraction", func(t *testing.T) {
@@ -215,15 +215,15 @@ func Test_Module_Get(t *testing.T) {
 	require.NoError(t, storageEngine.Start())
 	t.Run("ok", func(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.addAsServer(testServiceID, vpAlice))
-		presentations, tag, err := m.Get(testServiceID, 0)
+		require.NoError(t, m.store.add(testServiceID, vpAlice, 0))
+		presentations, timestamp, err := m.Get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice}, presentations)
-		assert.Equal(t, 1, *tag)
+		assert.Equal(t, 1, *timestamp)
 	})
 	t.Run("ok - retrieve delta", func(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.addAsServer(testServiceID, vpAlice))
+		require.NoError(t, m.store.add(testServiceID, vpAlice, 0))
 		presentations, _, err := m.Get(testServiceID, 0)
 		require.NoError(t, err)
 		require.Len(t, presentations, 1)
@@ -316,7 +316,7 @@ func TestModule_Search(t *testing.T) {
 	require.NoError(t, storageEngine.Start())
 	t.Run("ok", func(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.addAsServer(testServiceID, vpAlice))
+		require.NoError(t, m.store.add(testServiceID, vpAlice, 0))
 		results, err := m.Search(testServiceID, map[string]string{
 			"credentialSubject.id": aliceDID.String(),
 		})
@@ -452,7 +452,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		m, _, _ := setupModule(t, storageEngine)
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceDID, &next)
-		_ = m.store.addAsServer(testServiceID, vpAlice)
+		_ = m.store.add(testServiceID, vpAlice, 0)
 
 		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
 

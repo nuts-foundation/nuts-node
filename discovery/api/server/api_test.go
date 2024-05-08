@@ -35,35 +35,34 @@ const serviceID = "wonderland"
 var subjectDID = did.MustParseDID("did:web:example.com")
 
 func TestWrapper_GetPresentations(t *testing.T) {
-	beginning := 0
-	latestTag := 1
+	lastTimestamp := 1
 	presentations := map[string]vc.VerifiablePresentation{}
-	t.Run("no tag", func(t *testing.T) {
+	t.Run("no timestamp", func(t *testing.T) {
 		test := newMockContext(t)
-		test.server.EXPECT().Get(serviceID, beginning).Return(presentations, &latestTag, nil)
+		test.server.EXPECT().Get(serviceID, 0).Return(presentations, &lastTimestamp, nil)
 
 		response, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{ServiceID: serviceID})
 
 		require.NoError(t, err)
 		require.IsType(t, GetPresentations200JSONResponse{}, response)
-		assert.Equal(t, latestTag, response.(GetPresentations200JSONResponse).Timestamp)
+		assert.Equal(t, lastTimestamp, response.(GetPresentations200JSONResponse).Timestamp)
 		assert.Equal(t, presentations, response.(GetPresentations200JSONResponse).Entries)
 	})
-	t.Run("with tag", func(t *testing.T) {
-		givenTag := 1
+	t.Run("with timestamp", func(t *testing.T) {
+		givenTimestamp := 1
 		test := newMockContext(t)
-		test.server.EXPECT().Get(serviceID, 1).Return(presentations, &latestTag, nil)
+		test.server.EXPECT().Get(serviceID, 1).Return(presentations, &lastTimestamp, nil)
 
 		response, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{
 			ServiceID: serviceID,
 			Params: GetPresentationsParams{
-				Timestamp: &givenTag,
+				Timestamp: &givenTimestamp,
 			},
 		})
 
 		require.NoError(t, err)
 		require.IsType(t, GetPresentations200JSONResponse{}, response)
-		assert.Equal(t, latestTag, response.(GetPresentations200JSONResponse).Timestamp)
+		assert.Equal(t, lastTimestamp, response.(GetPresentations200JSONResponse).Timestamp)
 		assert.Equal(t, presentations, response.(GetPresentations200JSONResponse).Entries)
 	})
 	t.Run("error", func(t *testing.T) {

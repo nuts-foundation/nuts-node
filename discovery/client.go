@@ -221,7 +221,7 @@ func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefini
 			log.Logger().WithError(err).Warnf("Presentation verification failed, not adding it (service=%s, id=%s)", service.ID, presentation.ID)
 			continue
 		}
-		if err := u.store.addAsClient(service.ID, presentation, serverTimestamp); err != nil {
+		if err := u.store.add(service.ID, presentation, serverTimestamp); err != nil {
 			return fmt.Errorf("failed to store presentation (service=%s, id=%s): %w", service.ID, presentation.ID, err)
 		}
 		log.Logger().

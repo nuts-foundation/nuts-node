@@ -151,7 +151,7 @@ func Test_scheduledRegistrationManager_deregister(t *testing.T) {
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
-		require.NoError(t, store.addAsClient(testServiceID, vpAlice, 1))
+		require.NoError(t, store.add(testServiceID, vpAlice, 1))
 
 		err := manager.deactivate(audit.TestContext(), testServiceID, aliceDID)
 
@@ -167,7 +167,7 @@ func Test_scheduledRegistrationManager_deregister(t *testing.T) {
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR)
-		require.NoError(t, store.addAsClient(testServiceID, vpAlice, 1))
+		require.NoError(t, store.add(testServiceID, vpAlice, 1))
 
 		err := manager.deactivate(audit.TestContext(), testServiceID, aliceDID)
 
@@ -274,11 +274,11 @@ func Test_clientUpdater_updateService(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, exists)
 	})
-	t.Run("pass tag", func(t *testing.T) {
+	t.Run("pass timestamp", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		httpClient := client.NewMockHTTPClient(ctrl)
-		err := store.updateTagForClient(store.db, testServiceID, 1)
+		err := store.setTimestamp(store.db, testServiceID, 1)
 		require.NoError(t, err)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 

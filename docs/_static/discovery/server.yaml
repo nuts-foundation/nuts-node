@@ -16,7 +16,7 @@ paths:
     get:
       summary: Retrieves the presentations of a Discovery Service.
       description: |
-        An API provided by the discovery server to retrieve the presentations of a Discovery Service, starting at the given timestamp.
+        An API provided by the discovery server to retrieve the presentations of a Discovery Service, starting from the given timestamp.
         The client should provide the timestamp it was returned in the last response.
         If no timestamp is given, it will return all presentations.
 
