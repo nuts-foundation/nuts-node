@@ -21,6 +21,10 @@
 package rfc019_selfsigned
 
 import (
+	"os"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
 	"github.com/nuts-foundation/nuts-node/e2e-tests/browser"
@@ -28,9 +32,6 @@ import (
 	didAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"testing"
-	"time"
 )
 
 func Test_LoginWithSelfSignedMeans(t *testing.T) {
@@ -51,14 +52,14 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 	require.NoError(t, err)
 	err = registerCompoundService(verifyingOrganization.ID, purposeOfUse)
 	require.NoError(t, err)
-	err = browser.IssueOrganizationCredential(verifyingOrganization, "Verifying Organization", "Testland")
+	err = browser.IssueOrganizationCredential(verifyingOrganization, "Verifying Organization", "Testland", apps.NodeClientConfig)
 	require.NoError(t, err)
 
 	issuingOrganization, err := createDID()
 	require.NoError(t, err)
 	err = registerCompoundService(issuingOrganization.ID, purposeOfUse)
 	require.NoError(t, err)
-	err = browser.IssueOrganizationCredential(issuingOrganization, "Issuing Organization", "Testland")
+	err = browser.IssueOrganizationCredential(issuingOrganization, "Issuing Organization", "Testland", apps.NodeClientConfig)
 	require.NoError(t, err)
 
 	selfSigned := apps.SelfSigned{
