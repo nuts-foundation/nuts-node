@@ -21,8 +21,9 @@ package oauth
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/url"
+
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
@@ -180,12 +181,12 @@ func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url
 // Specified by https://www.rfc-editor.org/rfc/rfc8414.txt
 type AuthorizationServerMetadata struct {
 	// Issuer defines the authorization server's identifier, which is a URL that uses the "https" scheme and has no query or fragment components.
-	Issuer string `json:"issuer"`
+	Issuer string `json:"issuer,omitempty"`
 
 	/* ******** /authorize ******** */
 
 	// AuthorizationEndpoint defines the URL of the authorization server's authorization endpoint [RFC6749]
-	AuthorizationEndpoint string `json:"authorization_endpoint"`
+	AuthorizationEndpoint string `json:"authorization_endpoint,omitempty"`
 
 	// ResponseTypesSupported defines what response types a client can request
 	ResponseTypesSupported []string `json:"response_types_supported,omitempty"`
@@ -200,7 +201,7 @@ type AuthorizationServerMetadata struct {
 	/* ******** /token ******** */
 
 	// TokenEndpoint defines the URL of the authorization server's token endpoint [RFC6749].
-	TokenEndpoint string `json:"token_endpoint"`
+	TokenEndpoint string `json:"token_endpoint,omitempty"`
 
 	// GrantTypesSupported is a list of the OAuth 2.0 grant type values that this authorization server supports.
 	GrantTypesSupported []string `json:"grant_types_supported,omitempty"`

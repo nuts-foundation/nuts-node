@@ -19,12 +19,13 @@
 package iam
 
 import (
+	"net/http"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/http"
 )
 
 // DIDDocument is an alias
@@ -91,12 +92,9 @@ const (
 	// responseTypeVPToken is defined in the OpenID4VP vp_token flow
 	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#appendix-B
 	responseTypeVPToken = "vp_token"
-	// responseTypeVPIDToken is defined in the OpenID4VP flow that combines its vp_token with SIOPv2's id_token
-	// https://openid.bitbucket.io/connect/openid-4-verifiable-presentations-1_0.html#appendix-B
-	responseTypeVPIDToken = "vp_token id_token"
 )
 
-var responseTypesSupported = []string{responseTypeCode, responseTypeVPToken, responseTypeVPIDToken}
+var responseTypesSupported = []string{responseTypeCode, responseTypeVPToken}
 
 const (
 	// responseModeParam is the name of the OAuth2 response_mode parameter.
