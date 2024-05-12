@@ -101,8 +101,9 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		}
 		// this causes the session cookie to be set
 		if err = r.createUserSession(echoCtx, UserSession{
-			TenantDID: redirectSession.OwnDID,
-			Wallet:    *wallet,
+			TenantDID:         redirectSession.OwnDID,
+			Wallet:            *wallet,
+			PreAuthorizedUser: accessTokenRequest.Body.PreauthorizedUser,
 		}); err != nil {
 			return fmt.Errorf("create user session: %w", err)
 		}
