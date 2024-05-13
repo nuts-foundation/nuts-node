@@ -91,7 +91,7 @@ In addition, it requires ``auth.irma.schememanager=pbdf``.
 
 As a general safety precaution ``auth.contractvalidators`` ignores the ``dummy`` option if configured,
 requesting an access token from another node on ``/n2n/auth/v1/accesstoken`` does not return any error details,
-``auth.accesstokenlifespan`` is always 60 seconds, ``http.default.cors.origin`` does not allow a wildcard (``*``),
+``auth.accesstokenlifespan`` is always 60 seconds,
 json-ld context can only be downloaded from trusted domains configured in ``jsonld.contexts.remoteallowlist``,
 and the ``internalratelimiter`` is always on.
 
