@@ -5,8 +5,8 @@ create table discovery_service
 (
     -- id is the unique identifier for the service. It comes from the service definition.
     id varchar(200)  not null primary key,
-    -- last_timestamp is the latest lamport_timestamp pointing to the last presentation registered on the service.
-    last_timestamp   integer  not null
+    -- last_lamport_timestamp is the latest lamport_timestamp pointing to the last presentation registered on the service.
+    last_lamport_timestamp   integer  not null
 );
 
 -- discovery_presentation contains the presentations of the discovery services

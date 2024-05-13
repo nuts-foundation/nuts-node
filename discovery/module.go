@@ -283,7 +283,7 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	return nil
 }
 
-// Get is a Discovery Server function that retrieves the presentations for the given service, starting from the given timestamp.
+// Get is a Discovery Server function that retrieves the presentations for the given service, starting at timestamp+1.
 // See interface.go for more information.
 func (m *Module) Get(context context.Context, serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, int, error) {
 	_, exists := m.serverDefinitions[serviceID]

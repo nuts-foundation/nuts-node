@@ -42,9 +42,9 @@ func (m *MockServer) EXPECT() *MockServerMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockServer) Get(context context.Context, serviceID string, startAt int) (map[string]vc.VerifiablePresentation, int, error) {
+func (m *MockServer) Get(context context.Context, serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", context, serviceID, startAt)
+	ret := m.ctrl.Call(m, "Get", context, serviceID, startAfter)
 	ret0, _ := ret[0].(map[string]vc.VerifiablePresentation)
 	ret1, _ := ret[1].(int)
 	ret2, _ := ret[2].(error)
@@ -52,9 +52,9 @@ func (m *MockServer) Get(context context.Context, serviceID string, startAt int)
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockServerMockRecorder) Get(context, serviceID, startAt any) *gomock.Call {
+func (mr *MockServerMockRecorder) Get(context, serviceID, startAfter any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockServer)(nil).Get), context, serviceID, startAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockServer)(nil).Get), context, serviceID, startAfter)
 }
 
 // Register mocks base method.

@@ -35,8 +35,8 @@ import (
 )
 
 type serviceRecord struct {
-	ID            string `gorm:"primaryKey"`
-	LastTimestamp int
+	ID                   string `gorm:"primaryKey"`
+	LastLamportTimestamp int
 }
 
 func (s serviceRecord) TableName() string {
@@ -193,7 +193,7 @@ func (s *sqlStore) get(serviceID string, startAfter int) (map[string]vc.Verifiab
 		}
 		presentations[fmt.Sprintf("%d", row.LamportTimestamp)] = *presentation
 	}
-	return presentations, service.LastTimestamp, nil
+	return presentations, service.LastLamportTimestamp, nil
 }
 
 // search searches for presentations, registered on the given service, matching the given query.
@@ -235,12 +235,12 @@ func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string) (*int, erro
 		return nil, err
 	}
 	service.ID = serviceID
-	service.LastTimestamp = service.LastTimestamp + 1
+	service.LastLamportTimestamp = service.LastLamportTimestamp + 1
 
 	if err := tx.Save(service).Error; err != nil {
 		return nil, err
 	}
-	return &service.LastTimestamp, nil
+	return &service.LastLamportTimestamp, nil
 }
 
 // setTimestamp sets the last_timestamp of the given service.
@@ -254,7 +254,7 @@ func (s *sqlStore) setTimestamp(tx *gorm.DB, serviceID string, timestamp int) er
 		return err
 	}
 	service.ID = serviceID
-	service.LastTimestamp = timestamp
+	service.LastLamportTimestamp = timestamp
 	return tx.Save(service).Error
 }
 
@@ -344,5 +344,5 @@ func (s *sqlStore) getTimestamp(serviceID string) (int, error) {
 	} else if err != nil {
 		return 0, fmt.Errorf("query service '%s': %w", serviceID, err)
 	}
-	return service.LastTimestamp, nil
+	return service.LastLamportTimestamp, nil
 }
