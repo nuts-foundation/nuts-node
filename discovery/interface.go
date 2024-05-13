@@ -42,7 +42,7 @@ type Server interface {
 	// If the node is not configured as server for the given serviceID, the call will be forwarded to the configured server.
 	Register(context context.Context, serviceID string, presentation vc.VerifiablePresentation) error
 	// Get retrieves the presentations for the given service, starting from the given timestamp.
-	// If the serviceID is not configured as server definition, the call will be forwarded to the configured server.
+	// If the node is not configured as server for the given serviceID, the call will be forwarded to the configured server.
 	Get(context context.Context, serviceID string, startAt int) (map[string]vc.VerifiablePresentation, int, error)
 }
 
