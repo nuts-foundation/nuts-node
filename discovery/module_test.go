@@ -43,89 +43,98 @@ func TestModule_Name(t *testing.T) {
 }
 
 func TestModule_Shutdown(t *testing.T) {
-	module, _, _ := setupModule(t, storage.NewTestStorageEngine(t))
-	require.NoError(t, module.Shutdown())
+	m, _ := setupModule(t, storage.NewTestStorageEngine(t))
+	require.NoError(t, m.Shutdown())
 }
 
 func Test_Module_Register(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
-
-	t.Run("not a server", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
-
-		err := m.Register("other", vpAlice)
-		require.EqualError(t, err, "node is not a discovery server for this service")
-	})
-	t.Run("VP verification fails (e.g. invalid signature)", func(t *testing.T) {
-		m, presentationVerifier, _ := setupModule(t, storageEngine)
-		presentationVerifier.EXPECT().VerifyVP(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
-
-		err := m.Register(testServiceID, vpAlice)
-		require.EqualError(t, err, "presentation is invalid for registration\npresentation verification failed: failed")
-
-		_, tag, err := m.Get(testServiceID, nil)
-		require.NoError(t, err)
-		expectedTag := tagForTimestamp(t, m.store, testServiceID, 0)
-		assert.Equal(t, expectedTag, *tag)
-	})
-	t.Run("already exists", func(t *testing.T) {
-		m, presentationVerifier, _ := setupModule(t, storageEngine)
-		presentationVerifier.EXPECT().VerifyVP(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
-
-		err := m.Register(testServiceID, vpAlice)
-		assert.NoError(t, err)
-		err = m.Register(testServiceID, vpAlice)
-		assert.ErrorIs(t, err, ErrPresentationAlreadyExists)
-	})
-	t.Run("valid for too long", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine, func(module *Module) {
-			def := module.allDefinitions[testServiceID]
-			def.PresentationMaxValidity = 1
-			module.allDefinitions[testServiceID] = def
-			module.serverDefinitions[testServiceID] = def
-		})
-		err := m.Register(testServiceID, vpAlice)
-		assert.EqualError(t, err, "presentation is invalid for registration\npresentation is valid for too long (max 1s)")
-	})
-	t.Run("no expiration", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
-		err := m.Register(testServiceID, createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
-			claims[jwt.AudienceKey] = []string{testServiceID}
-			delete(claims, "exp")
-		}))
-		assert.ErrorIs(t, err, errPresentationWithoutExpiration)
-	})
-	t.Run("presentation does not contain an ID", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
-
-		vpWithoutID := createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
-			claims[jwt.AudienceKey] = []string{testServiceID}
-			delete(claims, "jti")
-		}, vcAlice)
-		err := m.Register(testServiceID, vpWithoutID)
-		assert.ErrorIs(t, err, errPresentationWithoutID)
-	})
-	t.Run("not a JWT", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
-		err := m.Register(testServiceID, vc.VerifiablePresentation{})
-		assert.ErrorIs(t, err, errUnsupportedPresentationFormat)
-	})
+	ctx := context.Background()
 
 	t.Run("registration", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			m, presentationVerifier, _ := setupModule(t, storageEngine)
-			presentationVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil)
+			m, testContext := setupModule(t, storageEngine)
+			testContext.verifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil)
 
-			err := m.Register(testServiceID, vpAlice)
+			err := m.Register(ctx, testServiceID, vpAlice)
 			require.NoError(t, err)
 
-			_, tag, err := m.Get(testServiceID, nil)
+			_, timestamp, err := m.Get(ctx, testServiceID, 0)
 			require.NoError(t, err)
-			assert.Equal(t, "1", string(*tag)[tagPrefixLength:])
+			assert.Equal(t, 1, timestamp)
+		})
+		t.Run("not a server", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine, func(module *Module) {
+				module.allDefinitions["someother"] = ServiceDefinition{
+					ID:       "someother",
+					Endpoint: "https://example.com/someother",
+				}
+				mockhttpclient := module.httpClient.(*client.MockHTTPClient)
+				mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", gomock.Any()).Return(nil, 0, nil).AnyTimes()
+				mockhttpclient.EXPECT().Register(gomock.Any(), "https://example.com/someother", vpAlice).Return(nil)
+			})
+
+			err := m.Register(ctx, "someother", vpAlice)
+
+			assert.NoError(t, err)
+		})
+		t.Run("VP verification fails (e.g. invalid signature)", func(t *testing.T) {
+			m, testContext := setupModule(t, storageEngine)
+			testContext.verifier.EXPECT().VerifyVP(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
+
+			err := m.Register(ctx, testServiceID, vpAlice)
+			require.EqualError(t, err, "presentation is invalid for registration\npresentation verification failed: failed")
+
+			_, timestamp, err := m.Get(ctx, testServiceID, 0)
+			require.NoError(t, err)
+			assert.Equal(t, 0, timestamp)
+		})
+		t.Run("already exists", func(t *testing.T) {
+			m, testContext := setupModule(t, storageEngine)
+			testContext.verifier.EXPECT().VerifyVP(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
+
+			err := m.Register(ctx, testServiceID, vpAlice)
+			assert.NoError(t, err)
+			err = m.Register(ctx, testServiceID, vpAlice)
+			assert.ErrorIs(t, err, ErrPresentationAlreadyExists)
+		})
+		t.Run("valid for too long", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine, func(module *Module) {
+				def := module.allDefinitions[testServiceID]
+				def.PresentationMaxValidity = 1
+				module.allDefinitions[testServiceID] = def
+			})
+
+			err := m.Register(ctx, testServiceID, vpAlice)
+
+			assert.EqualError(t, err, "presentation is invalid for registration\npresentation is valid for too long (max 1s)")
+		})
+		t.Run("no expiration", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine)
+			err := m.Register(ctx, testServiceID, createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
+				claims[jwt.AudienceKey] = []string{testServiceID}
+				delete(claims, "exp")
+			}))
+			assert.ErrorIs(t, err, errPresentationWithoutExpiration)
+		})
+		t.Run("presentation does not contain an ID", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine)
+
+			vpWithoutID := createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
+				claims[jwt.AudienceKey] = []string{testServiceID}
+				delete(claims, "jti")
+			}, vcAlice)
+			err := m.Register(ctx, testServiceID, vpWithoutID)
+			assert.ErrorIs(t, err, errPresentationWithoutID)
+		})
+		t.Run("not a JWT", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine)
+			err := m.Register(ctx, testServiceID, vc.VerifiablePresentation{})
+			assert.ErrorIs(t, err, errUnsupportedPresentationFormat)
 		})
 		t.Run("valid longer than its credentials", func(t *testing.T) {
-			m, _, _ := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 
 			vcAlice := createCredential(authorityDID, aliceDID, nil, func(claims map[string]interface{}) {
 				claims[jwt.AudienceKey] = []string{testServiceID}
@@ -134,21 +143,36 @@ func Test_Module_Register(t *testing.T) {
 			vpAlice := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			}, vcAlice)
-			err := m.Register(testServiceID, vpAlice)
+			err := m.Register(ctx, testServiceID, vpAlice)
 			assert.ErrorIs(t, err, errPresentationValidityExceedsCredentials)
 		})
 		t.Run("not conform to Presentation Definition", func(t *testing.T) {
-			m, _, _ := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 
 			// Presentation Definition only allows did:example DIDs
 			otherVP := createPresentationCustom(unsupportedDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			}, createCredential(unsupportedDID, unsupportedDID, nil, nil))
-			err := m.Register(testServiceID, otherVP)
+			err := m.Register(ctx, testServiceID, otherVP)
 			require.ErrorContains(t, err, "presentation does not fulfill Presentation ServiceDefinition")
 
-			_, tag, _ := m.Get(testServiceID, nil)
-			assert.Equal(t, "0", string(*tag)[tagPrefixLength:])
+			_, timestamp, _ := m.Get(ctx, testServiceID, 0)
+			assert.Equal(t, 0, timestamp)
+		})
+		t.Run("cycle detected", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine, func(module *Module) {
+				module.allDefinitions["someother"] = ServiceDefinition{
+					ID:       "someother",
+					Endpoint: "https://example.com/someother",
+				}
+				mockhttpclient := module.httpClient.(*client.MockHTTPClient)
+				mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", gomock.Any()).Return(nil, 0, nil).AnyTimes()
+			})
+			ctx := context.WithValue(ctx, XForwardedHostContextKey{}, "https://example.com")
+
+			err := m.Register(ctx, "someother", vc.VerifiablePresentation{})
+
+			assert.ErrorIs(t, err, errCyclicForwardingDetected)
 		})
 	})
 	t.Run("retraction", func(t *testing.T) {
@@ -158,55 +182,55 @@ func Test_Module_Register(t *testing.T) {
 			claims[jwt.AudienceKey] = []string{testServiceID}
 		})
 		t.Run("ok", func(t *testing.T) {
-			m, presentationVerifier, _ := setupModule(t, storageEngine)
-			presentationVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Times(2)
+			m, testContext := setupModule(t, storageEngine)
+			testContext.verifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Times(2)
 
-			err := m.Register(testServiceID, vpAlice)
+			err := m.Register(ctx, testServiceID, vpAlice)
 			require.NoError(t, err)
-			err = m.Register(testServiceID, vpAliceRetract)
+			err = m.Register(ctx, testServiceID, vpAliceRetract)
 			assert.NoError(t, err)
 		})
 		t.Run("non-existent presentation", func(t *testing.T) {
-			m, _, _ := setupModule(t, storageEngine)
-			err := m.Register(testServiceID, vpAliceRetract)
+			m, _ := setupModule(t, storageEngine)
+			err := m.Register(ctx, testServiceID, vpAliceRetract)
 			assert.ErrorIs(t, err, errRetractionReferencesUnknownPresentation)
 		})
 		t.Run("must not contain credentials", func(t *testing.T) {
-			m, _, _ := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			}, vcAlice)
-			err := m.Register(testServiceID, vp)
+			err := m.Register(ctx, testServiceID, vp)
 			assert.ErrorIs(t, err, errRetractionContainsCredentials)
 		})
 		t.Run("missing 'retract_jti' claim", func(t *testing.T) {
-			m, _, _ := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			})
-			err := m.Register(testServiceID, vp)
+			err := m.Register(ctx, testServiceID, vp)
 			assert.ErrorIs(t, err, errInvalidRetractionJTIClaim)
 		})
 		t.Run("'retract_jti' claim is not a string", func(t *testing.T) {
-			m, _, _ := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 				claims["retract_jti"] = 10
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			})
-			err := m.Register(testServiceID, vp)
+			err := m.Register(ctx, testServiceID, vp)
 			assert.ErrorIs(t, err, errInvalidRetractionJTIClaim)
 		})
 		t.Run("'retract_jti' claim is an empty string", func(t *testing.T) {
-			m, _, _ := setupModule(t, storageEngine)
+			m, _ := setupModule(t, storageEngine)
 			vp := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				vp.Type = append(vp.Type, retractionPresentationType)
 				claims["retract_jti"] = ""
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			})
-			err := m.Register(testServiceID, vp)
+			err := m.Register(ctx, testServiceID, vp)
 			assert.ErrorIs(t, err, errInvalidRetractionJTIClaim)
 		})
 	})
@@ -215,29 +239,62 @@ func Test_Module_Register(t *testing.T) {
 func Test_Module_Get(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
+	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, ""))
-		presentations, tag, err := m.Get(testServiceID, nil)
+		m, _ := setupModule(t, storageEngine)
+		require.NoError(t, m.store.add(testServiceID, vpAlice, 0))
+		presentations, timestamp, err := m.Get(ctx, testServiceID, 0)
 		assert.NoError(t, err)
-		assert.Equal(t, []vc.VerifiablePresentation{vpAlice}, presentations)
-		assert.Equal(t, "1", string(*tag)[tagPrefixLength:])
+		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice}, presentations)
+		assert.Equal(t, 1, timestamp)
 	})
 	t.Run("ok - retrieve delta", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, ""))
-		presentations, _, err := m.Get(testServiceID, nil)
+		m, _ := setupModule(t, storageEngine)
+		require.NoError(t, m.store.add(testServiceID, vpAlice, 0))
+		presentations, _, err := m.Get(ctx, testServiceID, 0)
 		require.NoError(t, err)
 		require.Len(t, presentations, 1)
 	})
-	t.Run("not a server for this service ID", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
-		_, _, err := m.Get("other", nil)
-		assert.ErrorIs(t, err, ErrServerModeDisabled)
+	t.Run("not a server for this service ID, call forwarded", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine, func(module *Module) {
+			module.allDefinitions["someother"] = ServiceDefinition{
+				ID:       "someother",
+				Endpoint: "https://example.com/someother",
+			}
+			mockhttpclient := module.httpClient.(*client.MockHTTPClient)
+			mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, 1, nil).AnyTimes()
+		})
+
+		presentations, timestamp, err := m.Get(ctx, "someother", 0)
+
+		require.NoError(t, err)
+		assert.Equal(t, 1, timestamp)
+		assert.Len(t, presentations, 1)
+	})
+	t.Run("not a server for this service ID, call forwarded, cycle detected", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine, func(module *Module) {
+			module.allDefinitions["someother"] = ServiceDefinition{
+				ID:       "someother",
+				Endpoint: "https://example.com/someother",
+			}
+			mockhttpclient := module.httpClient.(*client.MockHTTPClient)
+			mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", 0).Return(nil, 0, nil).AnyTimes()
+		})
+		ctx := context.WithValue(ctx, XForwardedHostContextKey{}, "https://example.com")
+
+		_, _, err := m.Get(ctx, "someother", 0)
+
+		assert.ErrorIs(t, err, errCyclicForwardingDetected)
 	})
 }
 
-func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(*Module)) (*Module, *verifier.MockVerifier, *management.MockDocumentOwner) {
+type mockContext struct {
+	ctrl          *gomock.Controller
+	documentOwner *management.MockDocumentOwner
+	verifier      *verifier.MockVerifier
+}
+
+func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(module *Module)) (*Module, mockContext) {
 	resetStore(t, storageInstance.GetSQLDatabase())
 	ctrl := gomock.NewController(t)
 	mockVerifier := verifier.NewMockVerifier(ctrl)
@@ -248,20 +305,27 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 	m.config = DefaultConfig()
 	require.NoError(t, m.Configure(core.TestServerConfig()))
 	httpClient := client.NewMockHTTPClient(ctrl)
-	httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil).AnyTimes()
+	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, 0, nil).AnyTimes()
+	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/usecase", gomock.Any()).Return(nil, 0, nil).AnyTimes()
 	m.httpClient = httpClient
 	m.allDefinitions = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{
 		testServiceID: m.allDefinitions[testServiceID],
 	}
+
 	for _, visitor := range visitors {
 		visitor(m)
 	}
+
 	require.NoError(t, m.Start())
 	t.Cleanup(func() {
 		_ = m.Shutdown()
 	})
-	return m, mockVerifier, documentOwner
+	return m, mockContext{
+		ctrl:          ctrl,
+		documentOwner: documentOwner,
+		verifier:      mockVerifier,
+	}
 }
 
 func TestModule_Configure(t *testing.T) {
@@ -317,8 +381,10 @@ func TestModule_Search(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 	t.Run("ok", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, ""))
+		m, _ := setupModule(t, storageEngine)
+
+		require.NoError(t, m.store.add(testServiceID, vpAlice, 0))
+
 		results, err := m.Search(testServiceID, map[string]string{
 			"credentialSubject.id": aliceDID.String(),
 		})
@@ -333,7 +399,7 @@ func TestModule_Search(t *testing.T) {
 		assert.JSONEq(t, string(expectedJSON), string(actualJSON))
 	})
 	t.Run("unknown service ID", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
+		m, _ := setupModule(t, storageEngine)
 		_, err := m.Search("unknown", nil)
 		assert.ErrorIs(t, err, ErrServiceNotFound)
 	})
@@ -343,25 +409,25 @@ func TestModule_update(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 	t.Run("Start() initiates update", func(t *testing.T) {
-		_, _, _ = setupModule(t, storageEngine, func(module *Module) {
+		_, _ = setupModule(t, storageEngine, func(module *Module) {
 			// we want to assert the job runs, so make it run very often to make the test faster
 			module.config.Client.RefreshInterval = 1 * time.Millisecond
 			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
 			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
 			// Get() should be called at least twice (times the number of Service Definitions), once for the initial run on startup, then again after the refresh interval
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil).MinTimes(2 * len(module.allDefinitions))
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil).MinTimes(2 * len(module.allDefinitions))
 			module.httpClient = httpClient
 		})
 		time.Sleep(10 * time.Millisecond)
 	})
 	t.Run("update() runs on node startup", func(t *testing.T) {
-		_, _, _ = setupModule(t, storageEngine, func(module *Module) {
+		_, _ = setupModule(t, storageEngine, func(module *Module) {
 			// we want to assert the job immediately executes on node startup, even if the refresh interval hasn't passed
 			module.config.Client.RefreshInterval = time.Hour
 			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
 			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
 			// update causes call to HttpClient.Get(), once for each Service Definition
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil).Times(len(module.allDefinitions))
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil).Times(len(module.allDefinitions))
 			module.httpClient = httpClient
 		})
 	})
@@ -371,11 +437,11 @@ func TestModule_ActivateServiceForDID(t *testing.T) {
 	t.Run("ok, syncs VPs immediately after registration", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
-		m, _, documentOwner := setupModule(t, storageEngine, func(module *Module) {
+		m, testContext := setupModule(t, storageEngine, func(module *Module) {
 			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
 			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
 			httpClient.EXPECT().Register(gomock.Any(), gomock.Any(), vpAlice).Return(nil)
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", nil)
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil)
 			module.httpClient = httpClient
 			// disable auto-refresh job to have deterministic assertions
 			module.config.Client.RefreshInterval = 0
@@ -385,7 +451,7 @@ func TestModule_ActivateServiceForDID(t *testing.T) {
 		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&vpAlice, nil)
-		documentOwner.EXPECT().IsOwner(gomock.Any(), aliceDID).Return(true, nil)
+		testContext.documentOwner.EXPECT().IsOwner(gomock.Any(), aliceDID).Return(true, nil)
 
 		err := m.ActivateServiceForDID(context.Background(), testServiceID, aliceDID)
 
@@ -394,8 +460,8 @@ func TestModule_ActivateServiceForDID(t *testing.T) {
 	t.Run("not owned", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
-		m, _, documentOwner := setupModule(t, storageEngine)
-		documentOwner.EXPECT().IsOwner(gomock.Any(), aliceDID).Return(false, nil)
+		m, testContext := setupModule(t, storageEngine)
+		testContext.documentOwner.EXPECT().IsOwner(gomock.Any(), aliceDID).Return(false, nil)
 
 		err := m.ActivateServiceForDID(context.Background(), testServiceID, aliceDID)
 
@@ -404,11 +470,11 @@ func TestModule_ActivateServiceForDID(t *testing.T) {
 	t.Run("ok, but couldn't register presentation -> maps to ErrRegistrationFailed", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
-		m, _, documentOwner := setupModule(t, storageEngine)
+		m, testContext := setupModule(t, storageEngine)
 		wallet := holder.NewMockWallet(gomock.NewController(t))
 		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed")).MinTimes(1)
-		documentOwner.EXPECT().IsOwner(gomock.Any(), aliceDID).Return(true, nil)
+		testContext.documentOwner.EXPECT().IsOwner(gomock.Any(), aliceDID).Return(true, nil)
 
 		err := m.ActivateServiceForDID(context.Background(), testServiceID, aliceDID)
 
@@ -431,7 +497,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 	t.Run("not activated", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
+		m, _ := setupModule(t, storageEngine)
 
 		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
 
@@ -440,7 +506,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		assert.Nil(t, presentation)
 	})
 	t.Run("activated, no VP", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
+		m, _ := setupModule(t, storageEngine)
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceDID, &next)
 
@@ -451,10 +517,10 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		assert.Nil(t, presentation)
 	})
 	t.Run("activated, with VP", func(t *testing.T) {
-		m, _, _ := setupModule(t, storageEngine)
+		m, _ := setupModule(t, storageEngine)
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceDID, &next)
-		_ = m.store.add(testServiceID, vpAlice, "")
+		_ = m.store.add(testServiceID, vpAlice, 0)
 
 		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
 

@@ -19,8 +19,8 @@
 package server
 
 import (
+	"context"
 	"errors"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/stretchr/testify/assert"
@@ -32,58 +32,56 @@ import (
 
 const serviceID = "wonderland"
 
-var subjectDID = did.MustParseDID("did:web:example.com")
-
 func TestWrapper_GetPresentations(t *testing.T) {
-	t.Run("no tag", func(t *testing.T) {
-		latestTag := discovery.Tag("latest")
+	lastTimestamp := 1
+	presentations := map[string]vc.VerifiablePresentation{}
+	ctx := context.Background()
+	t.Run("no timestamp", func(t *testing.T) {
 		test := newMockContext(t)
-		presentations := []vc.VerifiablePresentation{}
-		test.server.EXPECT().Get(serviceID, nil).Return(presentations, &latestTag, nil)
+		test.server.EXPECT().Get(gomock.Any(), serviceID, 0).Return(presentations, lastTimestamp, nil)
 
-		response, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{ServiceID: serviceID})
+		response, err := test.wrapper.GetPresentations(ctx, GetPresentationsRequestObject{ServiceID: serviceID})
 
 		require.NoError(t, err)
 		require.IsType(t, GetPresentations200JSONResponse{}, response)
-		assert.Equal(t, latestTag, discovery.Tag(response.(GetPresentations200JSONResponse).Tag))
+		assert.Equal(t, lastTimestamp, response.(GetPresentations200JSONResponse).Timestamp)
 		assert.Equal(t, presentations, response.(GetPresentations200JSONResponse).Entries)
 	})
-	t.Run("with tag", func(t *testing.T) {
-		givenTag := discovery.Tag("given")
-		latestTag := discovery.Tag("latest")
+	t.Run("with timestamp", func(t *testing.T) {
+		givenTimestamp := 1
 		test := newMockContext(t)
-		presentations := []vc.VerifiablePresentation{}
-		test.server.EXPECT().Get(serviceID, &givenTag).Return(presentations, &latestTag, nil)
+		test.server.EXPECT().Get(gomock.Any(), serviceID, 1).Return(presentations, lastTimestamp, nil)
 
-		response, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{
+		response, err := test.wrapper.GetPresentations(ctx, GetPresentationsRequestObject{
 			ServiceID: serviceID,
 			Params: GetPresentationsParams{
-				Tag: (*string)(&givenTag),
+				Timestamp: &givenTimestamp,
 			},
 		})
 
 		require.NoError(t, err)
 		require.IsType(t, GetPresentations200JSONResponse{}, response)
-		assert.Equal(t, latestTag, discovery.Tag(response.(GetPresentations200JSONResponse).Tag))
+		assert.Equal(t, lastTimestamp, response.(GetPresentations200JSONResponse).Timestamp)
 		assert.Equal(t, presentations, response.(GetPresentations200JSONResponse).Entries)
 	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
-		test.server.EXPECT().Get(serviceID, nil).Return(nil, nil, errors.New("foo"))
+		test.server.EXPECT().Get(gomock.Any(), serviceID, 0).Return(nil, 0, errors.New("foo"))
 
-		_, err := test.wrapper.GetPresentations(nil, GetPresentationsRequestObject{ServiceID: serviceID})
+		_, err := test.wrapper.GetPresentations(ctx, GetPresentationsRequestObject{ServiceID: serviceID})
 
 		assert.Error(t, err)
 	})
 }
 
 func TestWrapper_RegisterPresentation(t *testing.T) {
+	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
 		presentation := vc.VerifiablePresentation{}
-		test.server.EXPECT().Register(serviceID, presentation).Return(nil)
+		test.server.EXPECT().Register(gomock.Any(), serviceID, presentation).Return(nil)
 
-		response, err := test.wrapper.RegisterPresentation(nil, RegisterPresentationRequestObject{
+		response, err := test.wrapper.RegisterPresentation(ctx, RegisterPresentationRequestObject{
 			ServiceID: serviceID,
 			Body:      &presentation,
 		})
@@ -94,9 +92,9 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
 		presentation := vc.VerifiablePresentation{}
-		test.server.EXPECT().Register(serviceID, presentation).Return(discovery.ErrInvalidPresentation)
+		test.server.EXPECT().Register(gomock.Any(), serviceID, presentation).Return(discovery.ErrInvalidPresentation)
 
-		_, err := test.wrapper.RegisterPresentation(nil, RegisterPresentationRequestObject{
+		_, err := test.wrapper.RegisterPresentation(ctx, RegisterPresentationRequestObject{
 			ServiceID: serviceID,
 			Body:      &presentation,
 		})
@@ -107,7 +105,6 @@ func TestWrapper_RegisterPresentation(t *testing.T) {
 
 func TestWrapper_ResolveStatusCode(t *testing.T) {
 	expected := map[error]int{
-		discovery.ErrServerModeDisabled:  http.StatusBadRequest,
 		discovery.ErrInvalidPresentation: http.StatusBadRequest,
 		errors.New("foo"):                http.StatusInternalServerError,
 	}

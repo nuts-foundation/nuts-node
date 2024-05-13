@@ -16,9 +16,9 @@ paths:
     get:
       summary: Retrieves the presentations of a Discovery Service.
       description: |
-        An API provided by the discovery server to retrieve the presentations of a Discovery Service, starting at the given tag.
-        The client should provide the tag it was returned in the last response.
-        If no tag is given, it will return all presentations.
+        An API provided by the discovery server to retrieve the presentations of a Discovery Service, starting from the given timestamp.
+        The client should provide the timestamp it was returned in the last response.
+        If no timestamp is given, it will return all presentations.
 
         error returns:
         * 404 - unknown service ID
@@ -26,13 +26,13 @@ paths:
       tags:
         - discovery
       parameters:
-        - name: tag
+        - name: timestamp
           in: query
           schema:
-            type: string
+            type: integer
       responses:
         "200":
-          description: Presentations are returned, alongside the tag which should be provided at the next query.
+          description: Presentations are returned, alongside the timestamp which should be provided at the next query.
           content:
             application/json:
               schema:
@@ -76,14 +76,16 @@ components:
     PresentationsResponse:
       type: object
       required:
-        - tag
+        - timestamp
         - entries
       properties:
-        tag:
-          type: string
+        timestamp:
+          description: highest timestamp of the returned presentations, should be used as the timestamp for the next query
+          type: integer
         entries:
-          type: array
-          items:
+          type: object
+          description: A map of timestamp (as string) to presentation.
+          additionalProperties:
             $ref: "#/components/schemas/VerifiablePresentation"
     SearchResult:
       type: object

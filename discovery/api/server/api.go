@@ -41,8 +41,6 @@ type Wrapper struct {
 
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	switch {
-	case errors.Is(err, discovery.ErrServerModeDisabled):
-		return http.StatusBadRequest
 	case errors.Is(err, discovery.ErrInvalidPresentation):
 		return http.StatusBadRequest
 	default:
@@ -63,27 +61,36 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 	}))
 }
 
-func (w *Wrapper) GetPresentations(_ context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error) {
-	var tag *discovery.Tag
-	if request.Params.Tag != nil {
-		// *string to *Tag
-		tag = new(discovery.Tag)
-		*tag = discovery.Tag(*request.Params.Tag)
+func (w *Wrapper) GetPresentations(ctx context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error) {
+	var timestamp int
+	if request.Params.Timestamp != nil {
+		timestamp = *request.Params.Timestamp
 	}
-	presentations, newTag, err := w.Server.Get(request.ServiceID, tag)
+
+	presentations, newTimestamp, err := w.Server.Get(contextWithForwardedHost(ctx), request.ServiceID, timestamp)
 	if err != nil {
 		return nil, err
 	}
 	return GetPresentations200JSONResponse{
-		Entries: presentations,
-		Tag:     string(*newTag),
+		Entries:   presentations,
+		Timestamp: newTimestamp,
 	}, nil
 }
 
-func (w *Wrapper) RegisterPresentation(_ context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error) {
-	err := w.Server.Register(request.ServiceID, *request.Body)
+func (w *Wrapper) RegisterPresentation(ctx context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error) {
+	err := w.Server.Register(contextWithForwardedHost(ctx), request.ServiceID, *request.Body)
 	if err != nil {
 		return nil, err
 	}
 	return RegisterPresentation201Response{}, nil
+}
+
+func contextWithForwardedHost(ctx context.Context) context.Context {
+	// cast context to echo.Context
+	echoCtx := ctx.Value("echo.Context")
+	if echoCtx != nil {
+		// forward X-Forwarded-Host header via context
+		ctx = context.WithValue(ctx, discovery.XForwardedHostContextKey{}, echoCtx.(echo.Context).Request().Header.Get("X-Forwarded-Host"))
+	}
+	return ctx
 }

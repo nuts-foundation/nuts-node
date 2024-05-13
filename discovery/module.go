@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -41,10 +42,6 @@ import (
 )
 
 const ModuleName = "Discovery"
-
-// ErrServerModeDisabled is returned when a client invokes a Discovery Server (Register or Get) operation on the node,
-// for a Discovery Service which it doesn't serve.
-var ErrServerModeDisabled = errors.New("node is not a discovery server for this service")
 
 // ErrInvalidPresentation is returned when a client tries to register a Verifiable Presentation that is invalid.
 var ErrInvalidPresentation = errors.New("presentation is invalid for registration")
@@ -58,6 +55,7 @@ var (
 	errRetractionReferencesUnknownPresentation = errors.New("retraction presentation refers to a non-existing presentation")
 	errRetractionContainsCredentials           = errors.New("retraction presentation must not contain credentials")
 	errInvalidRetractionJTIClaim               = errors.New("invalid/missing 'retract_jti' claim for retraction presentation")
+	errCyclicForwardingDetected                = errors.New("cyclic forwarding detected")
 )
 
 var _ core.Injectable = &Module{}
@@ -118,11 +116,11 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 	if len(m.config.Server.IDs) > 0 {
 		// Get the definitions that are enabled for this server
 		serverDefinitions := make(map[string]ServiceDefinition)
-		for _, definitionID := range m.config.Server.IDs {
-			if definition, exists := m.allDefinitions[definitionID]; !exists {
-				return fmt.Errorf("service definition '%s' not found", definitionID)
+		for _, serviceID := range m.config.Server.IDs {
+			if service, exists := m.allDefinitions[serviceID]; !exists {
+				return fmt.Errorf("service definition '%s' not found", serviceID)
 			} else {
-				serverDefinitions[definitionID] = definition
+				serverDefinitions[serviceID] = service
 			}
 		}
 		m.serverDefinitions = serverDefinitions
@@ -133,7 +131,7 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 
 func (m *Module) Start() error {
 	var err error
-	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.allDefinitions, m.serverDefinitions)
+	m.store, err = newSQLStore(m.storageInstance.GetSQLDatabase(), m.allDefinitions)
 	if err != nil {
 		return err
 	}
@@ -165,16 +163,31 @@ func (m *Module) Config() interface{} {
 
 // Register is a Discovery Server function that registers a presentation on the given Discovery Service.
 // See interface.go for more information.
-func (m *Module) Register(serviceID string, presentation vc.VerifiablePresentation) error {
+func (m *Module) Register(context context.Context, serviceID string, presentation vc.VerifiablePresentation) error {
 	// First, simple sanity checks
-	definition, isServer := m.serverDefinitions[serviceID]
+	_, isServer := m.serverDefinitions[serviceID]
 	if !isServer {
-		return ErrServerModeDisabled
+		// forward to configured server
+		service, exists := m.allDefinitions[serviceID]
+		if !exists {
+			return ErrServiceNotFound
+		}
+
+		// check If X-Forwarded-Host header is set, if set it must not be the same as service.Endpoint
+		if cycleDetected(context, service) {
+			return errCyclicForwardingDetected
+		}
+
+		// forward to configured server
+		log.Logger().Infof("Forwarding Register request to configured server (service=%s)", serviceID)
+		return m.httpClient.Register(context, service.Endpoint, presentation)
 	}
+	definition := m.allDefinitions[serviceID]
 	if err := m.verifyRegistration(definition, presentation); err != nil {
 		return err
 	}
-	return m.store.add(definition.ID, presentation, "")
+
+	return m.store.add(serviceID, presentation, 0)
 }
 
 func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
@@ -270,13 +283,53 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	return nil
 }
 
-// Get is a Discovery Server function that retrieves the presentations for the given service, starting at the given tag.
+// Get is a Discovery Server function that retrieves the presentations for the given service, starting at timestamp+1.
 // See interface.go for more information.
-func (m *Module) Get(serviceID string, tag *Tag) ([]vc.VerifiablePresentation, *Tag, error) {
-	if _, exists := m.serverDefinitions[serviceID]; !exists {
-		return nil, nil, ErrServerModeDisabled
+func (m *Module) Get(context context.Context, serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, int, error) {
+	_, exists := m.serverDefinitions[serviceID]
+	if !exists {
+		// forward to configured server
+		service, exists := m.allDefinitions[serviceID]
+		if !exists {
+			return nil, 0, ErrServiceNotFound
+		}
+
+		// check If X-Forwarded-Host header is set, if set it must not be the same as service.Endpoint
+		if cycleDetected(context, service) {
+			return nil, 0, errCyclicForwardingDetected
+		}
+
+		log.Logger().Infof("Forwarding Get request to configured server (service=%s)", serviceID)
+		return m.httpClient.Get(context, service.Endpoint, startAfter)
 	}
-	return m.store.get(serviceID, tag)
+	return m.store.get(serviceID, startAfter)
+}
+
+func cycleDetected(ctx context.Context, service ServiceDefinition) bool {
+	host := forwardedHost(ctx)
+	if host == "" {
+		return false
+	}
+	myUri, err := url.Parse(host)
+	if err != nil {
+		return false
+	}
+	targetUri, err := url.Parse(service.Endpoint)
+	if err != nil {
+		return false
+	}
+
+	return myUri.Host == targetUri.Host
+}
+
+func forwardedHost(ctx context.Context) string {
+	// get value from context using "X-Forwarded-Host" key
+	forwardedHostValue := ctx.Value(XForwardedHostContextKey{})
+	host, ok := forwardedHostValue.(string)
+	if !ok {
+		return ""
+	}
+	return host
 }
 
 // ActivateServiceForDID is a Discovery Client function that activates a service for a DID.

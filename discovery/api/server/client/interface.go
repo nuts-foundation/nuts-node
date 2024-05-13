@@ -28,8 +28,8 @@ type HTTPClient interface {
 	// Register registers a Verifiable Presentation on the remote Discovery Service.
 	Register(ctx context.Context, serviceEndpointURL string, presentation vc.VerifiablePresentation) error
 
-	// Get retrieves Verifiable Presentations from the remote Discovery Service, that were added since the given tag.
-	// If the call succeeds it returns the Verifiable Presentations and the tag that was returned by the server.
-	// If tag is empty, all Verifiable Presentations are retrieved.
-	Get(ctx context.Context, serviceEndpointURL string, tag string) ([]vc.VerifiablePresentation, string, error)
+	// Get retrieves Verifiable Presentations from the remote Discovery Service, that were added since the given timestamp.
+	// If the call succeeds it returns the Verifiable Presentations and the timestamp that was returned by the server.
+	// If the given timestamp is 0, all Verifiable Presentations are retrieved.
+	Get(ctx context.Context, serviceEndpointURL string, timestamp int) (map[string]vc.VerifiablePresentation, int, error)
 }
