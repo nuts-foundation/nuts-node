@@ -89,6 +89,7 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
 }
 
+// RequestObject retrieves the Authorization Request Object from the requestURI using the GET method
 func (hb HTTPClient) RequestObject(ctx context.Context, requestURI string) (string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURI, nil)
 	if err != nil {
@@ -111,6 +112,8 @@ func (hb HTTPClient) RequestObject(ctx context.Context, requestURI string) (stri
 	return string(data), err
 }
 
+// RequestObjectPost retrieves the Authorization Request Object from the requestURI using the POST method.
+// additional request parameters (wallet_metadata and wallet_nonce) are provided as url.Values.
 func (hb HTTPClient) RequestObjectPost(ctx context.Context, requestURI string, form url.Values) (string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURI, strings.NewReader(form.Encode()))
 	if err != nil {

@@ -323,18 +323,20 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
-	queryParams := httpRequest.URL.Query()
+	return r.handleAuthorizeRequest(ctx, *ownDID, *httpRequest.URL)
+}
 
+// handleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
+// ownDID must be validated by the caller
+func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, request url.URL) (HandleAuthorizeRequestResponseObject, error) {
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	authzParams, err := r.jar.Parse(ctx, *ownDID, queryParams)
+	authzParams, err := r.jar.Parse(ctx, ownDID, request.Query())
 	if err != nil {
 		// already an oauth.OAuth2Error
 		return nil, err
 	}
 
-	session := createSession(authzParams, *ownDID)
-
-	switch session.ResponseType {
+	switch authzParams.get(oauth.ResponseTypeParam) {
 	case responseTypeCode:
 		// Options:
 		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.
@@ -347,10 +349,10 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		// when client_id is a did:web, it is a cloud/server wallet
 		// otherwise it's a normal registered client which we do not support yet
 		// Note: this is the user facing OpenID4VP flow with a "vp_token" responseType, the demo uses the "vp_token id_token" responseType
-		clientId := session.ClientID
+		clientId := authzParams.get(oauth.ClientIDParam)
 		if strings.HasPrefix(clientId, "did:web:") {
 			// client is a cloud wallet with user
-			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, authzParams)
+			return r.handleAuthorizeRequestFromHolder(ctx, ownDID, authzParams)
 		} else {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
@@ -364,13 +366,13 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		//           Requests to user wallets can then be rendered as QR-code (or use a cloud wallet).
 		//           Note that it can't be called from the outside, but only by internal dispatch (since Echo doesn't handle openid4vp:, obviously).
 		walletOwnerType := pe.WalletOwnerOrganization
-		if strings.HasPrefix(httpRequest.URL.String(), "openid4vp:") {
+		if strings.HasPrefix(request.String(), "openid4vp:") {
 			walletOwnerType = pe.WalletOwnerUser
 		}
-		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, authzParams, walletOwnerType)
+		return r.handleAuthorizeRequestFromVerifier(ctx, ownDID, authzParams, walletOwnerType)
 	default:
 		// TODO: This should be a redirect?
-		redirectURI, _ := url.Parse(session.RedirectURI)
+		redirectURI, _ := url.Parse(authzParams.get(oauth.RedirectURIParam))
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedResponseType,
 			RedirectURI: redirectURI,
@@ -394,7 +396,7 @@ func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequest
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
 			Description:   "request object not found",
-			InternalError: errors.New("DID does not match client_id for requestID. Possible authorization RequestObject phishing"),
+			InternalError: errors.New("DID does not match client_id for requestID"),
 		}
 	}
 	if ro.RequestURIMethod != "get" {
@@ -406,6 +408,8 @@ func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequest
 			InternalError: errors.New("wrong 'request_uri_method' authorization server or wallet probably does not support 'request_uri_method'"),
 		}
 	}
+
+	// TODO: supported signature types should be checked
 	token, err := r.jar.Sign(ctx, ro.Claims)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -432,18 +436,18 @@ func (r Wrapper) PostRequestJWT(ctx context.Context, request PostRequestJWTReque
 			Description: "request object not found",
 		}
 	}
-	if ro.RequestURIMethod != "post" {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: "used request_uri_method 'post' on a 'get' request_uri",
-		}
-	}
 	// compare raw strings, don't waste a db call to see if we own the request.Did.
 	if ro.Client.String() != request.Did {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
 			Description:   "request object not found",
-			InternalError: errors.New("DID does not match client_id for requestID. Possible authorization RequestObject phishing"),
+			InternalError: errors.New("DID does not match client_id for requestID"),
+		}
+	}
+	if ro.RequestURIMethod != "post" {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "used request_uri_method 'post' on a 'get' request_uri",
 		}
 	}
 
@@ -687,22 +691,6 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		RedirectUri: redirectURL.String(),
 		SessionId:   sessionID,
 	}, nil
-}
-
-func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
-	session := OAuthSession{}
-	session.ClientID = params.get(oauth.ClientIDParam)
-	session.Scope = params.get(oauth.ScopeParam)
-	session.ClientState = params.get(oauth.StateParam)
-	session.RedirectURI = params.get(oauth.RedirectURIParam)
-	session.OwnDID = &ownDID
-	session.ResponseType = params.get(oauth.ResponseTypeParam)
-	session.PKCEParams = PKCEParams{
-		Challenge:       params.get(oauth.CodeChallengeParam),
-		ChallengeMethod: params.get(oauth.CodeChallengeMethodParam),
-	}
-
-	return &session
 }
 
 func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject) (StatusListResponseObject, error) {

@@ -337,7 +337,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 	}
 
 	// any error here is a server error, might need a fixup to prevent exposing to a user
-	return r.sendAndHandleDirectPost(ctx, tenantDID, *vp, *submission, responseURI, state)
+	return r.sendAndHandleDirectPost(ctx, userSession.Wallet.DID, *vp, *submission, responseURI, state)
 }
 
 func (r Wrapper) getClientMetadataFromRequest(ctx context.Context, params oauthParameters) (*oauth.OAuthClientMetadata, *oauth.OAuth2Error) {
@@ -383,7 +383,7 @@ func (r Wrapper) getPresentationDefinitionFromRequest(ctx context.Context, param
 
 // sendAndHandleDirectPost sends OpenID4VP direct_post to the verifier. The verifier responds with a redirect to the client (including error fields if needed).
 // If the direct post fails, the user-agent will be redirected back to the client with an error. (Original redirect_uri).
-func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, walletDID did.DID, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (HandleAuthorizeRequestResponseObject, error) {
+func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, userWalletDID did.DID, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (HandleAuthorizeRequestResponseObject, error) {
 	redirectURI, err := r.auth.IAMClient().PostAuthorizationResponse(ctx, vp, presentationSubmission, verifierResponseURI, state)
 	if err != nil {
 		return nil, err
@@ -397,13 +397,8 @@ func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, walletDID did.DID,
 		}
 		// Dispatch a new HTTP request to the local OpenID4VP wallet's authorization endpoint that includes request parameters,
 		// but with openid4vp: as scheme.
-		originalRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
-		dispatchHttpRequest := *originalRequest
-		dispatchHttpRequest.URL = parsedRedirectURI
-		ctx = context.WithValue(ctx, httpRequestContextKey{}, &dispatchHttpRequest)
-		response, err := r.HandleAuthorizeRequest(ctx, HandleAuthorizeRequestRequestObject{
-			Did: walletDID.String(),
-		})
+		// The context contains data from the previous request. Usage by the handler will probably result in incorrect behavior.
+		response, err := r.handleAuthorizeRequest(ctx, userWalletDID, *parsedRedirectURI)
 		if err != nil {
 			return nil, err
 		}

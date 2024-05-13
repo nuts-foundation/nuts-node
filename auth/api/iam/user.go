@@ -194,7 +194,7 @@ func (r Wrapper) loadUserSession(cookies CookieReader, tenantDID did.DID, preAut
 	}
 	// Note that the session itself does not have an expiration field:
 	// it depends on the session store to clean up when it expires.
-	if !session.TenantDID.Equals(tenantDID) {
+	if !session.TenantDID.Equals(tenantDID) && !session.Wallet.DID.Equals(tenantDID) {
 		return nil, fmt.Errorf("session belongs to another tenant (%s)", session.TenantDID)
 	}
 	// If the existing session was created for a pre-authorized user, the call to RequestUserAccessToken() must be
