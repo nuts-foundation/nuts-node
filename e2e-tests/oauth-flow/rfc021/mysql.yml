@@ -4,13 +4,13 @@ services:
       db:
         condition: service_healthy
     environment:
-      NUTS_STORAGE_SQL_CONNECTION: mysql://root:root@db:3306/node_a?charset=utf8mb4&parseTime=True&loc=Local
+      NUTS_STORAGE_SQL_CONNECTION: mysql://root:root@tcp(db:3306)/node_a?charset=utf8mb4&parseTime=True&loc=Local
   nodeB-backend:
     depends_on:
       db:
         condition: service_healthy
     environment:
-      NUTS_STORAGE_SQL_CONNECTION: mysql://root:root@db:3306/node_b?charset=utf8mb4&parseTime=True&loc=Local
+      NUTS_STORAGE_SQL_CONNECTION: mysql://root:root@tcp(db:3306)/node_b?charset=utf8mb4&parseTime=True&loc=Local
   db:
     image: mysql:8.3.0
     restart: always

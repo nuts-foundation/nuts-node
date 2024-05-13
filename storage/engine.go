@@ -188,7 +188,11 @@ func (e *engine) initSQLDatabase() error {
 	// Find right SQL adapter for ORM and migrations
 	dbType := strings.Split(connectionString, ":")[0]
 	if dbType == "sqlite" {
-		connectionString = strings.Join(strings.Split(connectionString, ":")[1:], ":")
+		connectionString = connectionString[strings.Index(connectionString, ":")+1:]
+	} else if dbType == "mysql" {
+		// MySQL DSN needs to be without mysql://
+		// See https://github.com/go-sql-driver/mysql#examples
+		connectionString = strings.TrimPrefix(connectionString, "mysql://")
 	}
 	db, err := goose.OpenDBWithDriver(dbType, connectionString)
 	if err != nil {
