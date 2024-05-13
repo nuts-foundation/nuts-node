@@ -83,3 +83,6 @@ type SearchResult struct {
 }
 
 type presentationVerifier func(definition ServiceDefinition, presentation vc.VerifiablePresentation) error
+
+// XForwardedHostContextKey is the context key for the X-Forwarded-Host header.
+type XForwardedHostContextKey struct{}

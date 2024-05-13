@@ -168,7 +168,7 @@ func Test_Module_Register(t *testing.T) {
 				mockhttpclient := module.httpClient.(*client.MockHTTPClient)
 				mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", gomock.Any()).Return(nil, 0, nil).AnyTimes()
 			})
-			ctx := context.WithValue(ctx, "X-Forwarded-Host", "https://example.com")
+			ctx := context.WithValue(ctx, XForwardedHostContextKey{}, "https://example.com")
 
 			err := m.Register(ctx, "someother", vc.VerifiablePresentation{})
 
@@ -280,7 +280,7 @@ func Test_Module_Get(t *testing.T) {
 			mockhttpclient := module.httpClient.(*client.MockHTTPClient)
 			mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", 0).Return(nil, 0, nil).AnyTimes()
 		})
-		ctx := context.WithValue(ctx, "X-Forwarded-Host", "https://example.com")
+		ctx := context.WithValue(ctx, XForwardedHostContextKey{}, "https://example.com")
 
 		_, _, err := m.Get(ctx, "someother", 0)
 

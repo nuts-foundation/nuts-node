@@ -324,7 +324,7 @@ func cycleDetected(ctx context.Context, service ServiceDefinition) bool {
 
 func forwardedHost(ctx context.Context) string {
 	// get value from context using "X-Forwarded-Host" key
-	forwardedHostValue := ctx.Value("X-Forwarded-Host")
+	forwardedHostValue := ctx.Value(XForwardedHostContextKey{})
 	host, ok := forwardedHostValue.(string)
 	if !ok {
 		return ""

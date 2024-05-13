@@ -90,7 +90,7 @@ func contextWithForwardedHost(ctx context.Context) context.Context {
 	echoCtx := ctx.Value("echo.Context")
 	if echoCtx != nil {
 		// forward X-Forwarded-Host header via context
-		ctx = context.WithValue(ctx, "X-Forwarded-Host", echoCtx.(echo.Context).Request().Header.Get("X-Forwarded-Host"))
+		ctx = context.WithValue(ctx, discovery.XForwardedHostContextKey{}, echoCtx.(echo.Context).Request().Header.Get("X-Forwarded-Host"))
 	}
 	return ctx
 }
