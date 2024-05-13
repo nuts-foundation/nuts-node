@@ -127,6 +127,7 @@ func (j jar) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthPara
 		case "post":
 			md, err := authorizationServerMetadata(ownDID)
 			if err != nil {
+				// DB error
 				return nil, err
 			}
 			rawRequestObject, err = j.auth.IAMClient().RequestObject(ctx, requestURI, "post", md)
@@ -134,7 +135,7 @@ func (j jar) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthPara
 				return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURI, Description: "failed to get Request Object", InternalError: err}
 			}
 		default:
-			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "unsupported request_uri_method"}
+			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURIMethod, Description: "unsupported request_uri_method"}
 		}
 	} else {
 		// require_signed_request_object is true, so we reject anything that isn't

@@ -322,7 +322,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 }
 
 func TestIAMClient_RequestObject(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ok - get", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		requestURI := ctx.tlsServer.URL + "/request.jwt"
 
@@ -330,6 +330,24 @@ func TestIAMClient_RequestObject(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "Request Object", response)
+	})
+	t.Run("ok - post", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		requestURI := ctx.tlsServer.URL + "/request.jwt"
+
+		response, err := ctx.client.RequestObject(context.Background(), requestURI, "post", &oauth.AuthorizationServerMetadata{Issuer: "me"})
+
+		require.NoError(t, err)
+		assert.Equal(t, "Request Object", response)
+	})
+	t.Run("error - unsupported request_uri_method", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		requestURI := ctx.tlsServer.URL + "/request.jwt"
+
+		response, err := ctx.client.RequestObject(context.Background(), requestURI, "fail", nil)
+
+		assert.EqualError(t, err, "failed to retrieve JAR Request Object: unsupported request_uri_method: fail")
+		assert.Empty(t, response)
 	})
 	t.Run("error - failed to get access token", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)

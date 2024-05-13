@@ -51,6 +51,7 @@ type Client interface {
 	OpenIdCredentialIssuerMetadata(ctx context.Context, webDID did.DID) (*oauth.OpenIDCredentialIssuerMetadata, error)
 
 	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
-	// RequestObject is returned from the authorization request's 'request_uri' defined in RFC9101.
+	// RequestObject is returned from the authorization request's 'request_uri' endpoint defined in RFC9101
+	// If 'request_uri_method' is 'post', a 'wallet_metadata' object can be provided to send with the request, OpenID4VP.
 	RequestObject(ctx context.Context, requestURI, requestURIMethod string, walletMetadata *oauth.AuthorizationServerMetadata) (string, error)
 }

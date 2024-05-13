@@ -327,16 +327,16 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 }
 
 // handleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
-// ownDID must be validated by the caller
+// The caller must ensure ownDID is actually owned by this node.
 func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, request url.URL) (HandleAuthorizeRequestResponseObject, error) {
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	authzParams, err := r.jar.Parse(ctx, ownDID, request.Query())
+	requestObject, err := r.jar.Parse(ctx, ownDID, request.Query())
 	if err != nil {
 		// already an oauth.OAuth2Error
 		return nil, err
 	}
 
-	switch authzParams.get(oauth.ResponseTypeParam) {
+	switch requestObject.get(oauth.ResponseTypeParam) {
 	case responseTypeCode:
 		// Options:
 		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.
@@ -349,10 +349,10 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, req
 		// when client_id is a did:web, it is a cloud/server wallet
 		// otherwise it's a normal registered client which we do not support yet
 		// Note: this is the user facing OpenID4VP flow with a "vp_token" responseType, the demo uses the "vp_token id_token" responseType
-		clientId := authzParams.get(oauth.ClientIDParam)
+		clientId := requestObject.get(oauth.ClientIDParam)
 		if strings.HasPrefix(clientId, "did:web:") {
 			// client is a cloud wallet with user
-			return r.handleAuthorizeRequestFromHolder(ctx, ownDID, authzParams)
+			return r.handleAuthorizeRequestFromHolder(ctx, ownDID, requestObject)
 		} else {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
@@ -369,10 +369,10 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, req
 		if strings.HasPrefix(request.String(), "openid4vp:") {
 			walletOwnerType = pe.WalletOwnerUser
 		}
-		return r.handleAuthorizeRequestFromVerifier(ctx, ownDID, authzParams, walletOwnerType)
+		return r.handleAuthorizeRequestFromVerifier(ctx, ownDID, requestObject, walletOwnerType)
 	default:
 		// TODO: This should be a redirect?
-		redirectURI, _ := url.Parse(authzParams.get(oauth.RedirectURIParam))
+		redirectURI, _ := url.Parse(requestObject.get(oauth.RedirectURIParam))
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedResponseType,
 			RedirectURI: redirectURI,
@@ -395,7 +395,7 @@ func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequest
 	if ro.Client.String() != request.Did {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
-			Description:   "request object not found",
+			Description:   "client_id does not match request",
 			InternalError: errors.New("DID does not match client_id for requestID"),
 		}
 	}
@@ -440,7 +440,7 @@ func (r Wrapper) PostRequestJWT(ctx context.Context, request PostRequestJWTReque
 	if ro.Client.String() != request.Did {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
-			Description:   "request object not found",
+			Description:   "client_id does not match request",
 			InternalError: errors.New("DID does not match client_id for requestID"),
 		}
 	}

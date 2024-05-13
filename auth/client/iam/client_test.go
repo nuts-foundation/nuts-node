@@ -269,6 +269,41 @@ func TestHTTPClient_RequestObject(t *testing.T) {
 	})
 }
 
+func TestHTTPClient_RequestObjectPost(t *testing.T) {
+	ctx := context.Background()
+	// params are checked server side, so we don't need to provide valid values here
+	t.Run("ok", func(t *testing.T) {
+		responseData := "signed request object"
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: responseData}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.RequestObjectPost(ctx, tlsServer.URL, url.Values{})
+
+		require.NoError(t, err)
+		assert.Equal(t, responseData, response)
+	})
+	t.Run("error - invalid request_uri", func(t *testing.T) {
+		_, client := testServerAndClient(t, &http2.Handler{})
+
+		response, err := client.RequestObjectPost(ctx, ":", url.Values{})
+
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+		assert.Empty(t, response)
+	})
+	t.Run("error - not found", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "throw this away"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.RequestObjectPost(ctx, tlsServer.URL, url.Values{})
+
+		var httpErr core.HttpError
+		require.ErrorAs(t, err, &httpErr)
+		assert.Equal(t, http.StatusNotFound, httpErr.StatusCode)
+		assert.Empty(t, response)
+
+	})
+}
+
 func testServerAndClient(t *testing.T, handler http.Handler) (*httptest.Server, *HTTPClient) {
 	tlsServer := http2.TestTLSServer(t, handler)
 	return tlsServer, &HTTPClient{

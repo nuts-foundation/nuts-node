@@ -113,18 +113,61 @@ func TestJar_Parse(t *testing.T) {
 	require.NoError(t, err)
 	token := string(bytes)
 	ctx := newJarTestCtx(t)
-	t.Run("ok - 'request_uri'", func(t *testing.T) {
-		ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri", "get", nil).Return(token, nil)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
+	t.Run("request_uri_method", func(t *testing.T) {
+		t.Run("ok - get", func(t *testing.T) {
+			ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri", "get", nil).Return(token, nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
 
-		res, err := ctx.jar.Parse(context.Background(), verifierDID,
-			map[string][]string{
-				oauth.ClientIDParam:   {holderDID.String()},
-				oauth.RequestURIParam: {"request_uri"},
-			})
+			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+				map[string][]string{
+					oauth.ClientIDParam:         {holderDID.String()},
+					oauth.RequestURIParam:       {"request_uri"},
+					oauth.RequestURIMethodParam: {"get"},
+				})
 
-		assert.NoError(t, err)
-		require.NotNil(t, res)
+			assert.NoError(t, err)
+			require.NotNil(t, res)
+		})
+		t.Run("ok - param not supported", func(t *testing.T) {
+			ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri", "get", nil).Return(token, nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
+
+			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+				map[string][]string{
+					oauth.ClientIDParam:         {holderDID.String()},
+					oauth.RequestURIParam:       {"request_uri"},
+					oauth.RequestURIMethodParam: {""},
+				})
+
+			assert.NoError(t, err)
+			require.NotNil(t, res)
+		})
+		t.Run("ok - post", func(t *testing.T) {
+			md, _ := authorizationServerMetadata(verifierDID)
+			ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri", "post", md).Return(token, nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
+
+			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+				map[string][]string{
+					oauth.ClientIDParam:         {holderDID.String()},
+					oauth.RequestURIParam:       {"request_uri"},
+					oauth.RequestURIMethodParam: {"post"},
+				})
+
+			assert.NoError(t, err)
+			require.NotNil(t, res)
+		})
+		t.Run("error - unsupported method", func(t *testing.T) {
+			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+				map[string][]string{
+					oauth.ClientIDParam:         {holderDID.String()},
+					oauth.RequestURIParam:       {"request_uri"},
+					oauth.RequestURIMethodParam: {"invalid"},
+				})
+
+			assert.EqualError(t, err, "invalid_request_uri_method - unsupported request_uri_method")
+			assert.Nil(t, res)
+		})
 	})
 	t.Run("ok - 'request'", func(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
@@ -138,15 +181,29 @@ func TestJar_Parse(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, res)
 	})
-	t.Run("error - server error", func(t *testing.T) {
-		ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri", "get", nil).Return("", errors.New("server error"))
-		res, err := ctx.jar.Parse(context.Background(), verifierDID,
-			map[string][]string{
-				oauth.RequestURIParam: {"request_uri"},
-			})
+	t.Run("server error", func(t *testing.T) {
+		t.Run("get", func(t *testing.T) {
+			ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri", "get", nil).Return("", errors.New("server error"))
+			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+				map[string][]string{
+					oauth.RequestURIParam: {"request_uri"},
+				})
 
-		requireOAuthError(t, err, oauth.InvalidRequestURI, "failed to get Request Object")
-		assert.Nil(t, res)
+			requireOAuthError(t, err, oauth.InvalidRequestURI, "failed to get Request Object")
+			assert.Nil(t, res)
+		})
+		t.Run("post", func(t *testing.T) {
+			md, _ := authorizationServerMetadata(verifierDID)
+			ctx.iamClient.EXPECT().RequestObject(context.Background(), "request_uri", "post", md).Return("", errors.New("server error"))
+			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+				map[string][]string{
+					oauth.RequestURIParam:       {"request_uri"},
+					oauth.RequestURIMethodParam: {"post"},
+				})
+
+			requireOAuthError(t, err, oauth.InvalidRequestURI, "failed to get Request Object")
+			assert.Nil(t, res)
+		})
 	})
 	t.Run("error - both 'request' and 'request_uri'", func(t *testing.T) {
 		res, err := ctx.jar.Parse(context.Background(), verifierDID,

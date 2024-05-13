@@ -27,14 +27,13 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -158,7 +157,7 @@ func (c *OpenID4VPClient) RequestObject(ctx context.Context, requestURI, request
 		}
 		requestObject, err = iamClient.RequestObjectPost(ctx, parsedURL.String(), form)
 	default:
-		err = fmt.Errorf("invalid request_uri_method: %s", requestURIMethod)
+		err = fmt.Errorf("unsupported request_uri_method: %s", requestURIMethod)
 	}
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve JAR Request Object: %w", err)
