@@ -39,7 +39,7 @@ var ErrPresentationRegistrationFailed = errors.New("registration of Verifiable P
 type Server interface {
 	// Register registers a presentation on the given Discovery Service.
 	// If the presentation is not valid, or it does not conform to the Service ServiceDefinition, it returns an error.
-	// If the serviceID is not configured as server definition, the call will be forwarded to the configured server.
+	// If the node is not configured as server for the given serviceID, the call will be forwarded to the configured server.
 	Register(context context.Context, serviceID string, presentation vc.VerifiablePresentation) error
 	// Get retrieves the presentations for the given service, starting from the given timestamp.
 	// If the serviceID is not configured as server definition, the call will be forwarded to the configured server.
