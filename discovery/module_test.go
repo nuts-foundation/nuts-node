@@ -159,6 +159,21 @@ func Test_Module_Register(t *testing.T) {
 			_, timestamp, _ := m.Get(ctx, testServiceID, 0)
 			assert.Equal(t, 0, timestamp)
 		})
+		t.Run("cycle detected", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine, func(module *Module) {
+				module.allDefinitions["someother"] = ServiceDefinition{
+					ID:       "someother",
+					Endpoint: "https://example.com/someother",
+				}
+				mockhttpclient := module.httpClient.(*client.MockHTTPClient)
+				mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", gomock.Any()).Return(nil, 0, nil).AnyTimes()
+			})
+			ctx := context.WithValue(ctx, "X-Forwarded-Host", "https://example.com")
+
+			err := m.Register(ctx, "someother", vc.VerifiablePresentation{})
+
+			assert.ErrorIs(t, err, errCyclicForwardingDetected)
+		})
 	})
 	t.Run("retraction", func(t *testing.T) {
 		vpAliceRetract := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
@@ -255,6 +270,21 @@ func Test_Module_Get(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, timestamp)
 		assert.Len(t, presentations, 1)
+	})
+	t.Run("not a server for this service ID, call forwarded, cycle detected", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine, func(module *Module) {
+			module.allDefinitions["someother"] = ServiceDefinition{
+				ID:       "someother",
+				Endpoint: "https://example.com/someother",
+			}
+			mockhttpclient := module.httpClient.(*client.MockHTTPClient)
+			mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", 0).Return(nil, 0, nil).AnyTimes()
+		})
+		ctx := context.WithValue(ctx, "X-Forwarded-Host", "https://example.com")
+
+		_, _, err := m.Get(ctx, "someother", 0)
+
+		assert.ErrorIs(t, err, errCyclicForwardingDetected)
 	})
 }
 

@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -54,6 +55,7 @@ var (
 	errRetractionReferencesUnknownPresentation = errors.New("retraction presentation refers to a non-existing presentation")
 	errRetractionContainsCredentials           = errors.New("retraction presentation must not contain credentials")
 	errInvalidRetractionJTIClaim               = errors.New("invalid/missing 'retract_jti' claim for retraction presentation")
+	errCyclicForwardingDetected                = errors.New("cyclic forwarding detected")
 )
 
 var _ core.Injectable = &Module{}
@@ -170,6 +172,12 @@ func (m *Module) Register(context context.Context, serviceID string, presentatio
 		if !exists {
 			return ErrServiceNotFound
 		}
+
+		// check If X-Forwarded-Host header is set, if set it must not be the same as service.Endpoint
+		if cycleDetected(context, service) {
+			return errCyclicForwardingDetected
+		}
+
 		// forward to configured server
 		log.Logger().Infof("Forwarding Register request to configured server (service=%s)", serviceID)
 		return m.httpClient.Register(context, service.Endpoint, presentation)
@@ -285,10 +293,43 @@ func (m *Module) Get(context context.Context, serviceID string, startAfter int) 
 		if !exists {
 			return nil, 0, ErrServiceNotFound
 		}
+
+		// check If X-Forwarded-Host header is set, if set it must not be the same as service.Endpoint
+		if cycleDetected(context, service) {
+			return nil, 0, errCyclicForwardingDetected
+		}
+
 		log.Logger().Infof("Forwarding Get request to configured server (service=%s)", serviceID)
 		return m.httpClient.Get(context, service.Endpoint, startAfter)
 	}
 	return m.store.get(serviceID, startAfter)
+}
+
+func cycleDetected(ctx context.Context, service ServiceDefinition) bool {
+	host := forwardedHost(ctx)
+	if host == "" {
+		return false
+	}
+	myUri, err := url.Parse(host)
+	if err != nil {
+		return false
+	}
+	targetUri, err := url.Parse(service.Endpoint)
+	if err != nil {
+		return false
+	}
+
+	return myUri.Host == targetUri.Host
+}
+
+func forwardedHost(ctx context.Context) string {
+	// get value from context using "X-Forwarded-Host" key
+	forwardedHostValue := ctx.Value("X-Forwarded-Host")
+	host, ok := forwardedHostValue.(string)
+	if !ok {
+		return ""
+	}
+	return host
 }
 
 // ActivateServiceForDID is a Discovery Client function that activates a service for a DID.

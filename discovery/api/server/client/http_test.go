@@ -24,8 +24,10 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	testHTTP "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -93,6 +95,22 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		assert.Len(t, presentations, 1)
 		assert.Equal(t, "1", handler.RequestQuery.Get("timestamp"))
 		assert.Equal(t, 1, timestamp)
+	})
+	t.Run("check X-Forwarded-Host header", func(t *testing.T) {
+		// custom handler to check the X-Forwarded-Host header
+		var capturedRequest *http.Request
+		handler := func(writer http.ResponseWriter, request *http.Request) {
+			capturedRequest = request
+			writer.WriteHeader(http.StatusOK)
+			writer.Write([]byte("{}"))
+		}
+		server := httptest.NewServer(http.HandlerFunc(handler))
+		client := New(false, time.Minute, server.TLS)
+
+		_, _, err := client.Get(context.Background(), server.URL, 0)
+
+		require.NoError(t, err)
+		assert.True(t, strings.HasPrefix(capturedRequest.Header.Get("X-Forwarded-Host"), "127.0.0.1"))
 	})
 	t.Run("server returns invalid status code", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusInternalServerError}

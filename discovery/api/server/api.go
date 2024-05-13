@@ -66,7 +66,8 @@ func (w *Wrapper) GetPresentations(ctx context.Context, request GetPresentations
 	if request.Params.Timestamp != nil {
 		timestamp = *request.Params.Timestamp
 	}
-	presentations, newTimestamp, err := w.Server.Get(ctx, request.ServiceID, timestamp)
+
+	presentations, newTimestamp, err := w.Server.Get(contextWithForwardedHost(ctx), request.ServiceID, timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -77,9 +78,19 @@ func (w *Wrapper) GetPresentations(ctx context.Context, request GetPresentations
 }
 
 func (w *Wrapper) RegisterPresentation(ctx context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error) {
-	err := w.Server.Register(ctx, request.ServiceID, *request.Body)
+	err := w.Server.Register(contextWithForwardedHost(ctx), request.ServiceID, *request.Body)
 	if err != nil {
 		return nil, err
 	}
 	return RegisterPresentation201Response{}, nil
+}
+
+func contextWithForwardedHost(ctx context.Context) context.Context {
+	// cast context to echo.Context
+	echoCtx := ctx.Value("echo.Context")
+	if echoCtx != nil {
+		// forward X-Forwarded-Host header via context
+		ctx = context.WithValue(ctx, "X-Forwarded-Host", echoCtx.(echo.Context).Request().Header.Get("X-Forwarded-Host"))
+	}
+	return ctx
 }

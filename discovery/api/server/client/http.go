@@ -54,6 +54,7 @@ func (h DefaultHTTPClient) Register(ctx context.Context, serviceEndpointURL stri
 		return err
 	}
 	httpRequest.Header.Set("Content-Type", "application/json")
+	httpRequest.Header.Set("X-Forwarded-Host", httpRequest.Host) // prevent cycles
 	httpResponse, err := h.client.Do(httpRequest)
 	if err != nil {
 		return fmt.Errorf("failed to invoke remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
@@ -71,6 +72,7 @@ func (h DefaultHTTPClient) Get(ctx context.Context, serviceEndpointURL string, t
 	if err != nil {
 		return nil, 0, err
 	}
+	httpRequest.Header.Set("X-Forwarded-Host", httpRequest.Host) // prevent cycles
 	httpResponse, err := h.client.Do(httpRequest)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to invoke remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
