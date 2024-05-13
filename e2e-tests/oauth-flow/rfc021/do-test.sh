@@ -11,7 +11,9 @@ db_dc="docker compose -f docker-compose.yml -f ${1}.yml"
 echo "------------------------------------"
 echo "Cleaning up running Docker containers and volumes, and key material..."
 echo "------------------------------------"
-$db_dc down
+# --remove-orphans to ensure that DB containers of previous runs (on e.g. Postgres) are removed when testing with SQLite.
+# Nothing breaks otherwise, but it prevents annoying warnings in the log.
+$db_dc down --remove-orphans
 $db_dc rm -f -v
 
 echo "------------------------------------"
