@@ -337,7 +337,7 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, req
 	}
 
 	switch requestObject.get(oauth.ResponseTypeParam) {
-	case responseTypeCode:
+	case oauth.CodeResponseType:
 		// Options:
 		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.
 		// - OpenID4VCI; authorization code flow for credential issuance to (end-user) wallet
@@ -359,7 +359,7 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, req
 				Description: "client_id must be a did:web",
 			}
 		}
-	case responseTypeVPToken:
+	case oauth.VPTokenResponseType:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
 		// non-spec: if the scheme is openid4vp (URL starts with openid4vp:), the OpenID4VP request should be handled by a user wallet, rather than an organization wallet.
@@ -773,13 +773,13 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 	}
 	// Build the redirect URL, the client browser should be redirected to.
 	redirectUrl := nutsHttp.AddQueryParams(*endpoint, map[string]string{
-		"response_type":         "code",
-		"state":                 state,
-		"client_id":             requestHolder.String(),
-		"authorization_details": string(authorizationDetails),
-		"redirect_uri":          redirectUri.String(),
-		"code_challenge":        pkceParams.Challenge,
-		"code_challenge_method": pkceParams.ChallengeMethod,
+		oauth.ResponseTypeParam:         oauth.CodeResponseType,
+		oauth.StateParam:                state,
+		oauth.ClientIDParam:             requestHolder.String(),
+		oauth.AuthorizationDetailsParam: string(authorizationDetails),
+		oauth.RedirectURIParam:          redirectUri.String(),
+		oauth.CodeChallengeParam:        pkceParams.Challenge,
+		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
 	})
 
 	log.Logger().Debugf("generated the following redirect_uri for did %s, to issuer %s: %s", requestHolder.String(), issuerDid.String(), redirectUri.String())

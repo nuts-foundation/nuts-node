@@ -109,6 +109,7 @@ const (
 	AccessTokenRequestStatusActive = "active"
 )
 
+// metadata endpoints
 const (
 	// AuthzServerWellKnown is the well-known base path for the oauth authorization server metadata as defined in RFC8414
 	AuthzServerWellKnown = "/.well-known/oauth-authorization-server"
@@ -118,50 +119,80 @@ const (
 	// OpenID4VCI specification
 	OpenIdCredIssuerWellKnown    = "/.well-known/openid-credential-issuer"
 	OpenIdConfigurationWellKnown = "/.well-known/openid-configuration"
-	// AssertionParam is the parameter name for the assertion parameter
+)
+
+// oauth parameter keys
+const (
+	// AssertionParam is the parameter name for the assertion parameter. (RFC021)
 	AssertionParam = "assertion"
-	// AuthorizationCodeGrantType is the grant_type for the authorization_code grant type
-	AuthorizationCodeGrantType = "authorization_code"
-	// ClientIDParam is the parameter name for the client_id parameter
+	// AuthorizationDetailsParam is the parameter name for the authorization_details parameter. (RFC9396)
+	AuthorizationDetailsParam = "authorization_details"
+	// ClientIDParam is the parameter name for the client_id parameter. (RFC6749)
 	ClientIDParam = "client_id"
-	// CodeChallengeParam is the parameter name for the code_challenge parameter
+	// ClientIDSchemeParam is the parameter name for the client_id_scheme parameter. (OpenID4VP)
+	ClientIDSchemeParam = "client_id_scheme"
+	// ClientMetadataParam is the parameter name for the client_metadata parameter. (OpenID4VP)
+	ClientMetadataParam = "client_metadata"
+	// ClientMetadataURIParam is the parameter name for the client_metadata_uri parameter. (OpenID4VP)
+	ClientMetadataURIParam = "client_metadata_uri"
+	// CNonceParam is the parameter name for the c_nonce parameter. (OpenID4VCI)
+	CNonceParam = "c_nonce"
+	// CodeChallengeParam is the parameter name for the code_challenge parameter. (RFC7636)
 	CodeChallengeParam = "code_challenge"
-	// CodeChallengeMethodParam is the parameter name for the code_challenge_method parameter
+	// CodeChallengeMethodParam is the parameter name for the code_challenge_method parameter. (RFC7636)
 	CodeChallengeMethodParam = "code_challenge_method"
-	// CodeVerifierParam is the parameter name for the code_verifier parameter
+	// CodeVerifierParam is the parameter name for the code_verifier parameter. (RFC7636)
 	CodeVerifierParam = "code_verifier"
-	// CodeParam is the parameter name for the code parameter
-	CodeParam = "code"
-	// GrantTypeParam is the parameter name for the grant_type parameter
+	// GrantTypeParam is the parameter name for the grant_type parameter. (RFC6749)
 	GrantTypeParam = "grant_type"
 	// NonceParam is the parameter name for the nonce parameter
 	NonceParam = "nonce"
-	// RedirectURIParam is the parameter name for the redirect_uri parameter
-	RedirectURIParam = "redirect_uri"
-	// RequestParam is the parameter name for the request parameter.	Defined in RFC9101
-	RequestParam = "request"
-	// RequestURIParam is the parameter name for the request parameter. Defined in RFC9101
-	RequestURIParam = "request_uri"
-	// RequestURIMethodParam states what http method (get/post) should be used for RequestURIParam. Defined in OpenID4VP
-	RequestURIMethodParam = "request_uri_method"
-	// ResponseTypeParam is the parameter name for the response_type parameter
-	ResponseTypeParam = "response_type"
-	// ScopeParam is the parameter name for the scope parameter
-	ScopeParam = "scope"
-	// StateParam is the parameter name for the state parameter
-	StateParam = "state"
-	// PresentationSubmissionParam is the parameter name for the presentation_submission parameter
+	// PresentationDefParam is the parameter name for the OpenID4VP presentation_definition parameter. (OpenID4VP)
+	PresentationDefParam = "presentation_definition"
+	// PresentationDefUriParam is the parameter name for the OpenID4VP presentation_definition_uri parameter. (OpenID4VP)
+	PresentationDefUriParam = "presentation_definition_uri"
+	// PresentationSubmissionParam is the parameter name for the presentation_submission parameter. (OpenID4VP)
 	PresentationSubmissionParam = "presentation_submission"
-	// VpTokenParam is the parameter name for the vp_token parameter
+	// RedirectURIParam is the parameter name for the redirect_uri parameter. (RFC6749)
+	RedirectURIParam = "redirect_uri"
+	// RequestParam is the parameter name for the request parameter.	(RFC9101)
+	RequestParam = "request"
+	// RequestURIParam is the parameter name for the request parameter. (RFC9101)
+	RequestURIParam = "request_uri"
+	// RequestURIMethodParam states what http method (get/post) should be used for RequestURIParam. (OpenID4VP)
+	RequestURIMethodParam = "request_uri_method"
+	// ResponseModeParam is the parameter name for the OAuth2 response_mode parameter.
+	ResponseModeParam = "response_mode"
+	// ResponseTypeParam is the parameter name for the response_type parameter. (RFC6749)
+	ResponseTypeParam = "response_type"
+	// ResponseURIParam is the parameter name for the OpenID4VP response_uri parameter.
+	ResponseURIParam = "response_uri"
+	// ScopeParam is the parameter name for the scope parameter. (RFC6749)
+	ScopeParam = "scope"
+	// StateParam is the parameter name for the state parameter. (RFC6749)
+	StateParam = "state"
+	// VpTokenParam is the parameter name for the vp_token parameter. (OpenID4VP)
 	VpTokenParam = "vp_token"
 	// WalletMetadataParam is used by the wallet to provide its metadata in an authorization request when RequestURIMethodParam is 'post'
 	WalletMetadataParam = "wallet_metadata"
 	// WalletNonceParam is a wallet generated nonce to prevent authorization request replay when RequestURIMethodParam is 'post'
 	WalletNonceParam = "wallet_nonce"
-	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type
+)
+
+// grant types
+const (
+	// AuthorizationCodeGrantType is the grant_type for the authorization_code grant type. (RFC6749)
+	AuthorizationCodeGrantType = "authorization_code"
+	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type. (RFC021)
 	VpTokenGrantType = "vp_token-bearer"
-	// CNonceParam is the parameter name for the c_nonce parameter. Defined in OpenID4VCI.
-	CNonceParam = "c_nonce"
+)
+
+// response types
+const (
+	// CodeResponseType is the parameter name for the code parameter. (RFC6749)
+	CodeResponseType = "code"
+	// VPTokenResponseType is paramter name for the vp_token repsponse type. (OpenID4VP)
+	VPTokenResponseType = "vp_token"
 )
 
 const (

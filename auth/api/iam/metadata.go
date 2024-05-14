@@ -72,7 +72,7 @@ func staticAuthorizationServerMetadata() oauth.AuthorizationServerMetadata {
 	return oauth.AuthorizationServerMetadata{
 		Issuer:                 "https://self-issued.me/v2",
 		AuthorizationEndpoint:  "openid4vp:",
-		ResponseTypesSupported: []string{responseTypeVPToken},
+		ResponseTypesSupported: []string{oauth.VPTokenResponseType},
 		VPFormatsSupported: map[string]map[string][]string{
 			"jwt_vp_json": {"alg_values_supported": []string{string(jwa.ES256)}},
 			"jwt_vc_json": {"alg_values_supported": []string{string(jwa.ES256)}},
@@ -91,6 +91,6 @@ func clientMetadata(identity url.URL) oauth.OAuthClientMetadata {
 		SoftwareID:              softwareID,      // nuts-node-refimpl
 		SoftwareVersion:         softwareVersion, // version tag or "unknown"
 		VPFormats:               oauth.DefaultOpenIDSupportedFormats(),
-		ClientIdScheme:          didScheme,
+		ClientIdScheme:          didClientIDScheme,
 	}
 }

@@ -25,13 +25,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -83,7 +82,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 	serverMetadata := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:      "https://example.com/authorize",
-		ClientIdSchemesSupported:   []string{didScheme},
+		ClientIdSchemesSupported:   []string{didClientIDScheme},
 		VPFormats:                  oauth.DefaultOpenIDSupportedFormats(),
 		RequireSignedRequestObject: true,
 	}

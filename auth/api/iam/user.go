@@ -28,18 +28,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
-
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 )
 
 const (
@@ -148,7 +147,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.CodeChallengeParam] = oauthSession.PKCEParams.Challenge
 		values[oauth.CodeChallengeMethodParam] = oauthSession.PKCEParams.ChallengeMethod
 		values[oauth.RedirectURIParam] = callbackURL.String()
-		values[oauth.ResponseTypeParam] = responseTypeCode
+		values[oauth.ResponseTypeParam] = oauth.CodeResponseType
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}

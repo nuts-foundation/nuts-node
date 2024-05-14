@@ -315,7 +315,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ClientIDParam:            holderDID.String(),
 			oauth.NonceParam:               "nonce",
 			oauth.RedirectURIParam:         "https://example.com",
-			oauth.ResponseTypeParam:        responseTypeCode,
+			oauth.ResponseTypeParam:        oauth.CodeResponseType,
 			oauth.ScopeParam:               "test",
 			oauth.StateParam:               "state",
 			oauth.CodeChallengeParam:       "code_challenge",
@@ -328,7 +328,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier&request_uri=https://example.com/oauth2/" + verifierDID.String() + "/request.jwt/&request_uri_method=get"
 		serverMetadata := oauth.AuthorizationServerMetadata{
 			AuthorizationEndpoint:      "https://example.com/authorize",
-			ClientIdSchemesSupported:   []string{didScheme},
+			ClientIdSchemesSupported:   []string{didClientIDScheme},
 			VPFormats:                  oauth.DefaultOpenIDSupportedFormats(),
 			RequireSignedRequestObject: true,
 		}
@@ -339,11 +339,11 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			params := req.Claims
 			// check the parameters
 			assert.NotEmpty(t, params[oauth.NonceParam])
-			assert.Equal(t, didScheme, params[clientIDSchemeParam])
-			assert.Equal(t, responseTypeVPToken, params[oauth.ResponseTypeParam])
-			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", params[responseURIParam])
-			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/oauth-client", params[clientMetadataURIParam])
-			assert.Equal(t, responseModeDirectPost, params[responseModeParam])
+			assert.Equal(t, didClientIDScheme, params[oauth.ClientIDSchemeParam])
+			assert.Equal(t, oauth.VPTokenResponseType, params[oauth.ResponseTypeParam])
+			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", params[oauth.ResponseURIParam])
+			assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:verifier/oauth-client", params[oauth.ClientMetadataURIParam])
+			assert.Equal(t, responseModeDirectPost, params[oauth.ResponseModeParam])
 			assert.NotEmpty(t, params[oauth.StateParam])
 			return req
 		})
@@ -370,16 +370,16 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 
 		// HandleAuthorizeRequest
 		requestParams := oauthParameters{
-			oauth.ClientIDParam:     verifierDID.String(),
-			clientIDSchemeParam:     didScheme,
-			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
-			oauth.NonceParam:        "nonce",
-			presentationDefUriParam: "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test",
-			responseURIParam:        "https://example.com/oauth2/did:web:example.com:iam:verifier/response",
-			responseModeParam:       responseModeDirectPost,
-			oauth.ResponseTypeParam: responseTypeVPToken,
-			oauth.ScopeParam:        "test",
-			oauth.StateParam:        "state",
+			oauth.ClientIDParam:           verifierDID.String(),
+			oauth.ClientIDSchemeParam:     didClientIDScheme,
+			oauth.ClientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
+			oauth.NonceParam:              "nonce",
+			oauth.PresentationDefUriParam: "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test",
+			oauth.ResponseURIParam:        "https://example.com/oauth2/did:web:example.com:iam:verifier/response",
+			oauth.ResponseModeParam:       responseModeDirectPost,
+			oauth.ResponseTypeParam:       oauth.VPTokenResponseType,
+			oauth.ScopeParam:              "test",
+			oauth.StateParam:              "state",
 		}
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		ctx.jar.EXPECT().Parse(gomock.Any(), holderDID, gomock.Any()).Return(requestParams, nil)

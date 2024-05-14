@@ -21,17 +21,16 @@ package iam
 import (
 	"context"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/policy"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -154,7 +153,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
 		params := defaultParams()
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderDID).Return(&oauth.AuthorizationServerMetadata{
-			ClientIdSchemesSupported: []string{didScheme},
+			ClientIdSchemesSupported: []string{didClientIDScheme},
 		}, nil).Times(2)
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
@@ -171,16 +170,16 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	pdEndpoint := "https://example.com/iam/verifier/presentation_definition?scope=test"
 	defaultParams := func() map[string]interface{} {
 		return map[string]interface{}{
-			oauth.ClientIDParam:     verifierDID.String(),
-			clientIDSchemeParam:     didScheme,
-			clientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
-			oauth.NonceParam:        "nonce",
-			presentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
-			responseModeParam:       responseModeDirectPost,
-			responseURIParam:        responseURI,
-			oauth.ResponseTypeParam: responseTypeVPToken,
-			oauth.ScopeParam:        "test",
-			oauth.StateParam:        "state",
+			oauth.ClientIDParam:           verifierDID.String(),
+			oauth.ClientIDSchemeParam:     didClientIDScheme,
+			oauth.ClientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
+			oauth.NonceParam:              "nonce",
+			oauth.PresentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
+			oauth.ResponseModeParam:       responseModeDirectPost,
+			oauth.ResponseURIParam:        responseURI,
+			oauth.ResponseTypeParam:       oauth.VPTokenResponseType,
+			oauth.ScopeParam:              "test",
+			oauth.StateParam:              "state",
 		}
 	}
 	authzCodeSession := OAuthSession{
@@ -216,7 +215,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("invalid client_id_scheme", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		params[clientIDSchemeParam] = "other"
+		params[oauth.ClientIDSchemeParam] = "other"
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_id_scheme parameter", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
@@ -247,7 +246,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("client_metadata and client_metadata_uri are mutually exclusive", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		params[clientMetadataParam] = "not empty"
+		params[oauth.ClientMetadataParam] = "not empty"
 		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 		expectPostError(t, ctx, oauth.InvalidRequest, "client_metadata and client_metadata_uri are mutually exclusive", responseURI, "state")
 
@@ -258,8 +257,8 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("invalid client_metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		delete(params, clientMetadataURIParam)
-		params[clientMetadataParam] = "{invalid"
+		delete(params, oauth.ClientMetadataURIParam)
+		params[oauth.ClientMetadataParam] = "{invalid"
 		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_metadata", responseURI, "state")
 
@@ -281,7 +280,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("missing response_mode", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		delete(params, responseModeParam)
+		delete(params, oauth.ResponseModeParam)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
@@ -290,7 +289,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("missing response_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		delete(params, responseURIParam)
+		delete(params, oauth.ResponseURIParam)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
@@ -309,7 +308,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		params := defaultParams()
-		params[presentationDefParam] = "not empty"
+		params[oauth.PresentationDefParam] = "not empty"
 		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 		expectPostError(t, ctx, oauth.InvalidRequest, "presentation_definition and presentation_definition_uri are mutually exclusive", responseURI, "state")
 
@@ -320,8 +319,8 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	t.Run("invalid presentation_definition", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		delete(params, presentationDefUriParam)
-		params[presentationDefParam] = "{invalid"
+		delete(params, oauth.PresentationDefUriParam)
+		params[oauth.PresentationDefParam] = "{invalid"
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid presentation_definition", responseURI, "state")
