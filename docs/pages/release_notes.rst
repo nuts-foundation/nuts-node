@@ -3,7 +3,7 @@ Release notes
 #############
 
 *******************
-Peanut (v6.0.0)
+Peanut (6.0.0)
 *******************
 
 **Release date:** TBD
@@ -15,6 +15,7 @@ Breaking changes
 
 - Container user has changed from root to ``18081``. (see :ref:`running-docker`)
   When migrating from v5, change the owner of the data directory on the host to that of the container's user. (``chown -R 18081:18081 /path/to/host/data-dir``)
+- Docker image tags have been changed: previously version tags had were prefixed with ``v`` (e.g., ``v5.0.0``), this prefix has been dropped to better adhere to industry standards.
 
 ============
 New Features
@@ -27,9 +28,16 @@ The following new features have been added:
 - Running a Discovery Server and Client (see :ref:`discovery`)
 - Added a Verifiable Credential system-wallet, which is used in Presentation Exchanges (e.g. OpenID4VP).
   See the VCR API reference for usage.
+- Added a VCR API operation to list Verifiable Credentials in a local wallet.
+- Added a VCR API operation to delete Verifiable Credentials from a local wallet.
+- Added support in the ``IssueVC`` VCR API operation to issue Verifiable Credentials that don't use the ``nuts.nl`` JSON-LD context.
 - Added support for OpenID4VP (OpenID for Verifiable Presentations)
+- Added support for OpenID4VCI (OpenID for Verifiable Credential Issuance)
 - Added support for Nuts RFC021, which negotiates an OAuth2 access token for a system through a Presentation Exchange using Verifiable Credentials.
 - Added support for `StatusList2021 <https://www.w3.org/TR/2023/WD-vc-status-list-20230427/>`_ as revocation means for Verifiable Credentials.
+- Added support for storage in SQL databases (PostgreSQL, MySQL, SQLite and Microsoft SQL Server, see :ref:`storage-configuration`) for ``did:web``-related features.
+- Added a Docker developer image (see :ref:`running-docker`) which is useful for local development. It is built from the latest ``master`` build.
+- Added a VDR API operation to list locally managed DIDs.
 
 =======
 Changes
@@ -40,6 +48,7 @@ Changes
 - Removed support for the UZI authentication means.
 - Documentation of ``did:nuts``-related features have been removed (refer to v5 documentation).
 - Documentation of specific use cases (e.g. health care in general or eOverdracht) has been moved to the `Nuts wiki <https://wiki.nuts.nl>`_.
+- Node can now be run without configuring TLS when the gRPC network isn't used (no bootstrap node configured and no network state), to cater use cases that don't use ``did:nuts``.
 
 The following features have also been changed:
 
