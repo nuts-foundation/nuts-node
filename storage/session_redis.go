@@ -22,10 +22,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/storage/log"
-	"github.com/redis/go-redis/v9"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/redis/go-redis/v9"
 )
 
 func NewRedisSessionDatabase(client *redis.Client, prefix string) SessionDatabase {
@@ -96,7 +97,18 @@ func (s redisSessionStore) Put(key string, value interface{}) error {
 		return err
 	}
 	return s.client.Set(context.Background(), s.toRedisKey(key), marshal, s.ttl).Err()
+}
 
+func (s redisSessionStore) GetAndDelete(key string, target interface{}) error {
+	// GetDel requires redis-server version >= 6.2.0.
+	result, err := s.client.GetDel(context.Background(), s.toRedisKey(key)).Result()
+	if err != nil {
+		if errors.Is(redis.Nil, err) {
+			return ErrNotFound
+		}
+		return err
+	}
+	return json.Unmarshal([]byte(result), target)
 }
 
 func (s redisSessionStore) toRedisKey(key string) string {

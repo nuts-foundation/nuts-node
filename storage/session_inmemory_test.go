@@ -19,10 +19,11 @@
 package storage
 
 import (
-	"github.com/nuts-foundation/nuts-node/test"
-	"go.uber.org/goleak"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/test"
+	"go.uber.org/goleak"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -176,6 +177,26 @@ func TestInMemorySessionStore_Delete(t *testing.T) {
 		err := store.Delete(t.Name())
 
 		assert.NoError(t, err)
+	})
+}
+
+func TestInMemorySessionStore_GetAndDelete(t *testing.T) {
+	db := createDatabase(t)
+	store := db.GetStore(time.Minute, "prefix").(InMemorySessionStore)
+
+	t.Run("ok", func(t *testing.T) {
+		_ = store.Put(t.Name(), "value")
+		var actual string
+
+		err := store.GetAndDelete(t.Name(), &actual)
+
+		require.NoError(t, err)
+		assert.Equal(t, "value", actual)
+		// is deleted
+		assert.ErrorIs(t, store.Get(t.Name(), new(string)), ErrNotFound)
+	})
+	t.Run("error", func(t *testing.T) {
+		assert.ErrorIs(t, store.GetAndDelete(t.Name(), new(string)), ErrNotFound)
 	})
 }
 

@@ -20,10 +20,11 @@ package storage
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/storage/log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/storage/log"
 )
 
 var _ SessionDatabase = (*InMemorySessionDatabase)(nil)
@@ -133,7 +134,10 @@ func (i InMemorySessionStore) Exists(key string) bool {
 func (i InMemorySessionStore) Get(key string, target interface{}) error {
 	i.db.mux.Lock()
 	defer i.db.mux.Unlock()
+	return i.get(key, target)
+}
 
+func (i InMemorySessionStore) get(key string, target interface{}) error {
 	fullKey := i.getFullKey(key)
 	entry, ok := i.db.entries[fullKey]
 	if !ok {
@@ -161,6 +165,15 @@ func (i InMemorySessionStore) Put(key string, value interface{}) error {
 	}
 
 	i.db.entries[i.getFullKey(key)] = entry
+	return nil
+}
+func (i InMemorySessionStore) GetAndDelete(key string, target interface{}) error {
+	i.db.mux.Lock()
+	defer i.db.mux.Unlock()
+	if err := i.get(key, target); err != nil {
+		return err
+	}
+	delete(i.db.entries, i.getFullKey(key))
 	return nil
 }
 
