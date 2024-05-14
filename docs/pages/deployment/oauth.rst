@@ -25,6 +25,7 @@ Authorization Code Flow
 For the authorization code flow, the Nuts node implements the following:
 
 - JAR (JWT Secured Authorization Request) for both the initial authorization request as well as the OpenID4VP authorization request.
+  All request use the ``request_uri`` parameter meaning that other request parameters cannot be inspected in the authorization request itself.
 - PKCE (Proof Key for Code Exchange) for the authorization code flow. The call of the initial authorization request is linked to the token request.
 - DPoP (Demonstrating Proof of Possession) for the token request. Each resources request will require a new DPoP Proof header.
   The resource server is also required to check this header in an additional step after the token introspection.
