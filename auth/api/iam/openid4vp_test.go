@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"net/http"
 	"net/url"
 	"strings"
@@ -116,6 +117,20 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "missing code_challenge parameter")
 
+	})
+	t.Run("unknown scope", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+			AuthorizationEndpoint:    "http://example.com",
+			ClientIdSchemesSupported: []string{"did"},
+		}, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), gomock.Any()).Return(pe.WalletOwnerMapping{}, policy.ErrNotFound)
+		params := defaultParams()
+		params[oauth.ScopeParam] = "unknown"
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+
+		requireOAuthError(t, err, oauth.InvalidScope, "unsupported scope (unknown) for presentation exchange: not found")
 	})
 	t.Run("missing code_challenge_method", func(t *testing.T) {
 		ctx := newTestClient(t)

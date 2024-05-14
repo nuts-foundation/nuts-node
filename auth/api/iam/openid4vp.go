@@ -128,7 +128,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	// TODO: Support multiple scopes?
 	presentationDefinitions, err := r.presentationDefinitionForScope(ctx, verifier, params.get(oauth.ScopeParam))
 	if err != nil {
-		return nil, err
+		return nil, withCallbackURI(err, redirectURL)
 	}
 
 	session := OAuthSession{
