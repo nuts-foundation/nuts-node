@@ -997,7 +997,7 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{Did: webDID.String(), Id: requestID})
 
 		assert.Nil(t, response)
-		assert.EqualError(t, err, "server_error - failed to sign authorization RequestObject :fail - unable to create RequestObject")
+		assert.EqualError(t, err, "server_error - failed to sign authorization Request Object: fail - unable to create Request Object")
 	})
 }
 
@@ -1085,7 +1085,7 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Did: webDID.String(), Id: requestID})
 
 		assert.Nil(t, response)
-		assert.EqualError(t, err, "server_error - failed to sign authorization RequestObject :fail - unable to create RequestObject")
+		assert.EqualError(t, err, "server_error - failed to sign authorization Request Object: fail - unable to create Request Object")
 	})
 }
 

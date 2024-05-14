@@ -384,6 +384,7 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, req
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
 func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetRequestObject) (RequestJWTByGetResponseObject, error) {
 	ro := new(jarRequest)
+	// TODO: burn request object to prevent DoS through signing requests https://github.com/nuts-foundation/nuts-node/issues/3063
 	err := r.authzRequestObjectStore().Get(request.Id, ro)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -399,8 +400,7 @@ func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetReq
 		}
 	}
 	if ro.RequestURIMethod != "get" { // case sensitive
-		// TODO: wallet does not support `request_uri_method=post`. Signing the current jarRequest would leave it without 'aud'.
-		//		 is this acceptable, should it fail, or does it default to using staticAuthorizationServerMetadata.
+		// TODO: wallet does not support `request_uri_method=post`. Unclear if this should fail, or fallback to using staticAuthorizationServerMetadata().
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
 			Description:   "used request_uri_method 'get' on a 'post' request_uri",
@@ -413,8 +413,8 @@ func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetReq
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
-			Description:   "unable to create RequestObject",
-			InternalError: fmt.Errorf("failed to sign authorization RequestObject :%w", err),
+			Description:   "unable to create Request Object",
+			InternalError: fmt.Errorf("failed to sign authorization Request Object: %w", err),
 		}
 	}
 	return RequestJWTByGet200ApplicationoauthAuthzReqJwtResponse{
@@ -428,6 +428,7 @@ func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetReq
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
 func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostRequestObject) (RequestJWTByPostResponseObject, error) {
 	ro := new(jarRequest)
+	// TODO: burn request object to prevent DoS through signing requests https://github.com/nuts-foundation/nuts-node/issues/3063
 	err := r.authzRequestObjectStore().Get(request.Id, ro)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -465,8 +466,8 @@ func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostR
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
-			Description:   "unable to create RequestObject",
-			InternalError: fmt.Errorf("failed to sign authorization RequestObject :%w", err),
+			Description:   "unable to create Request Object",
+			InternalError: fmt.Errorf("failed to sign authorization Request Object: %w", err),
 		}
 	}
 	return RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse{

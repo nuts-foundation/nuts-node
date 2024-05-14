@@ -31,35 +31,8 @@ import (
 )
 
 func authorizationServerMetadata(ownedDID did.DID) (*oauth.AuthorizationServerMetadata, error) {
-	if ownedDID.Method == "web" {
-		return _authzMetadataDidWeb(ownedDID)
-	}
-	return _authzMetadataBase(ownedDID), nil
-}
-
-// _authzMetadataDidWeb should not be used directly, use authorizationServerMetadata instead.
-func _authzMetadataDidWeb(ownedDID did.DID) (*oauth.AuthorizationServerMetadata, error) {
-	identity, err := didweb.DIDToURL(ownedDID)
-	if err != nil {
-		return nil, err
-	}
-	oauth2BaseURL, err := createOAuth2BaseURL(ownedDID)
-	if err != nil {
-		// can't fail, already did DIDToURL above
-		return nil, err
-	}
-	metadata := _authzMetadataBase(ownedDID)
-	metadata.Issuer = identity.String()
-	metadata.AuthorizationEndpoint = oauth2BaseURL.JoinPath("authorize").String()
-	metadata.PresentationDefinitionEndpoint = oauth2BaseURL.JoinPath("presentation_definition").String()
-	metadata.TokenEndpoint = oauth2BaseURL.JoinPath("token").String()
-	return metadata, nil
-}
-
-// _authzMetadataBase should not be used directly, use authorizationServerMetadata instead.
-func _authzMetadataBase(ownedDID did.DID) *oauth.AuthorizationServerMetadata {
 	presentationDefinitionURISupported := true
-	return &oauth.AuthorizationServerMetadata{
+	metadata := &oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
@@ -74,6 +47,23 @@ func _authzMetadataBase(ownedDID did.DID) *oauth.AuthorizationServerMetadata {
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
+	if ownedDID.Method == "web" {
+		// add endpoints for did:web
+		identity, err := didweb.DIDToURL(ownedDID)
+		if err != nil {
+			return nil, err
+		}
+		oauth2BaseURL, err := createOAuth2BaseURL(ownedDID)
+		if err != nil {
+			// can't fail, already did DIDToURL above
+			return nil, err
+		}
+		metadata.Issuer = identity.String()
+		metadata.AuthorizationEndpoint = oauth2BaseURL.JoinPath("authorize").String()
+		metadata.PresentationDefinitionEndpoint = oauth2BaseURL.JoinPath("presentation_definition").String()
+		metadata.TokenEndpoint = oauth2BaseURL.JoinPath("token").String()
+	}
+	return metadata, nil
 }
 
 // staticAuthorizationServerMetadata is used in the OpenID4VP flow when authorization server (wallet) issuer is unknown.
