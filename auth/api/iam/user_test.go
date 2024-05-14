@@ -140,6 +140,8 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		userSession := new(UserSession)
 		require.NoError(t, ctx.client.userSessionStore().Get(capturedCookie.Value, userSession))
 		assert.Equal(t, walletDID, userSession.TenantDID)
+		require.NotNil(t, userSession.PreAuthorizedUser)
+		assert.Equal(t, userDetails.Id, userSession.PreAuthorizedUser.Id)
 		require.Len(t, userSession.Wallet.Credentials, 1)
 		// check the JWK can be parsed and contains a private key
 		sessionKey, err := jwk.ParseKey(userSession.Wallet.JWK)
@@ -275,6 +277,25 @@ func TestWrapper_loadUserSession(t *testing.T) {
 		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil)
 
 		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expected, *actual)
+	})
+	t.Run("ok - no pre-authorized user", func(t *testing.T) {
+		ctx := newTestClient(t)
+		expected := UserSession{
+			TenantDID:         walletDID,
+			PreAuthorizedUser: user,
+			Wallet: UserWallet{
+				DID: userDID,
+			},
+		}
+		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
+		ctrl := gomock.NewController(t)
+		echoCtx := mock.NewMockContext(ctrl)
+		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil)
+
+		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, nil)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, *actual)
