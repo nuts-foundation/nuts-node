@@ -347,6 +347,20 @@ func (mr *MockSessionStoreMockRecorder) Get(key, target any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSessionStore)(nil).Get), key, target)
 }
 
+// GetAndDelete mocks base method.
+func (m *MockSessionStore) GetAndDelete(key string, target any) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAndDelete", key, target)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// GetAndDelete indicates an expected call of GetAndDelete.
+func (mr *MockSessionStoreMockRecorder) GetAndDelete(key, target any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAndDelete", reflect.TypeOf((*MockSessionStore)(nil).GetAndDelete), key, target)
+}
+
 // Put mocks base method.
 func (m *MockSessionStore) Put(key string, value any) error {
 	m.ctrl.T.Helper()

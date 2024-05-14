@@ -21,11 +21,12 @@ package storage
 import (
 	"encoding/json"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/go-redis/redismock/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 const testKey = "keyname"
@@ -93,7 +94,6 @@ func TestRedisSessionStore_Delete(t *testing.T) {
 	// We make sure the value exists in another store,
 	// to test partitioning
 	otherStore := sessions.GetStore(time.Second, "unit_other")
-
 	assert.NoError(t, otherStore.Put(testKey, testValue))
 
 	t.Run("non-existing key", func(t *testing.T) {
@@ -104,6 +104,47 @@ func TestRedisSessionStore_Delete(t *testing.T) {
 
 		// Make sure it did not delete an entry with the same key from another store
 		assert.True(t, otherStore.Exists(testKey))
+	})
+}
+
+func TestRedisSessionStore_GetAndDelete(t *testing.T) {
+	storageEngine, miniRedis := NewTestStorageEngineRedis(t)
+	require.NoError(t, storageEngine.Start())
+	sessions := storageEngine.GetSessionDatabase()
+	defer sessions.close()
+
+	t.Run("ok", func(t *testing.T) {
+		var actual testType
+
+		store := sessions.GetStore(time.Minute, "storename")
+		assert.NoError(t, store.Put(testKey, testValue))
+		// We make sure the value exists in another store,
+		// to test partitioning
+		otherStore := sessions.GetStore(time.Second, "unit_other")
+		assert.NoError(t, otherStore.Put(testKey, testValue))
+
+		err := store.GetAndDelete(testKey, &actual)
+		assert.NoError(t, err)
+		// deleted
+		assert.False(t, store.Exists(testKey))
+
+		// Make sure it did not delete an entry with the same key from another store
+		assert.True(t, otherStore.Exists(testKey))
+	})
+	t.Run("non-existing key", func(t *testing.T) {
+		store := sessions.GetStore(time.Minute, "storename")
+		err := store.GetAndDelete(testKey, new(testType))
+
+		assert.ErrorIs(t, err, ErrNotFound)
+	})
+	t.Run("expired entry", func(t *testing.T) {
+		store := sessions.GetStore(time.Minute, "otherstore")
+		assert.NoError(t, store.Put(testKey, testValue))
+		miniRedis.FastForward(2 * time.Minute) // cause the entry to expire
+
+		err := store.GetAndDelete(testKey, new(testType))
+
+		assert.ErrorIs(t, err, ErrNotFound)
 	})
 }
 
