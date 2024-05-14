@@ -35,7 +35,7 @@ Refer to the documentation of the driver for the database you are using for the 
 
 - Postgres `github.com/jackc/pgx <https://github.com/jackc/pgx?tab=readme-ov-file#example-usage>`_ (e.g. ``postgres://user:password@localhost:5432/dbname?sslmode=disable``)
 - MySql: `github.com/go-sql-driver/mysql <https://github.com/go-sql-driver/mysql?tab=readme-ov-file#dsn-data-source-name>`_ (e.g. ``mysql://user:password@tcp(localhost:3306)/dbname?charset=utf8mb4&parseTime=True&loc=Local``)
-- MS SQL Server: `github.com/microsoft/go-mssqldb <https://github.com/microsoft/go-mssqldb>`_
+- MS SQL Server: `github.com/microsoft/go-mssqldb <https://github.com/microsoft/go-mssqldb>`_ (e.g. ``sqlserver://user:password@localhost:1433?database=dbname``)
 - SQLite (e.g. ``sqlite:file:/some/path/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)``)
 
 Private Keys
