@@ -413,8 +413,8 @@ func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetReq
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
-			Description:   "unable to create RequestObjectByGet",
-			InternalError: fmt.Errorf("failed to sign authorization RequestObjectByGet :%w", err),
+			Description:   "unable to create RequestObject",
+			InternalError: fmt.Errorf("failed to sign authorization RequestObject :%w", err),
 		}
 	}
 	return RequestJWTByGet200ApplicationoauthAuthzReqJwtResponse{
@@ -465,8 +465,8 @@ func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostR
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
-			Description:   "unable to create RequestObjectByGet",
-			InternalError: fmt.Errorf("failed to sign authorization RequestObjectByGet :%w", err),
+			Description:   "unable to create RequestObject",
+			InternalError: fmt.Errorf("failed to sign authorization RequestObject :%w", err),
 		}
 	}
 	return RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse{
