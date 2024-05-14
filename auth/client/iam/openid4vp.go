@@ -133,32 +133,30 @@ func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, webdi
 	return metadata, nil
 }
 
-func (c *OpenID4VPClient) RequestObject(ctx context.Context, requestURI, requestURIMethod string, walletMetadata *oauth.AuthorizationServerMetadata) (string, error) {
+func (c *OpenID4VPClient) RequestObjectByGet(ctx context.Context, requestURI string) (string, error) {
 	iamClient := c.httpClient
 	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
 	if err != nil {
 		return "", fmt.Errorf("invalid request_uri: %w", err)
 	}
 
-	var requestObject string
-	switch requestURIMethod {
-	case "", "get":
-		// the wallet/client acts as authorization server
-		requestObject, err = iamClient.RequestObject(ctx, parsedURL.String())
-	case "post":
-		// TODO: consider adding a 'wallet_nonce'
-		form := url.Values{}
-		if walletMetadata != nil {
-			metadataBytes, err := json.Marshal(*walletMetadata)
-			if err != nil {
-				return "", fmt.Errorf("failed to serialize wallet_metadata: %w", err)
-			}
-			form.Set(oauth.WalletMetadataParam, string(metadataBytes))
-		}
-		requestObject, err = iamClient.RequestObjectPost(ctx, parsedURL.String(), form)
-	default:
-		err = fmt.Errorf("unsupported request_uri_method: %s", requestURIMethod)
+	requestObject, err := iamClient.RequestObjectByGet(ctx, parsedURL.String())
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve JAR Request Object: %w", err)
 	}
+	return requestObject, nil
+}
+func (c *OpenID4VPClient) RequestObjectByPost(ctx context.Context, requestURI string, walletMetadata oauth.AuthorizationServerMetadata) (string, error) {
+	iamClient := c.httpClient
+	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
+	if err != nil {
+		return "", fmt.Errorf("invalid request_uri: %w", err)
+	}
+
+	// TODO: consider adding a 'wallet_nonce'
+	metadataBytes, _ := json.Marshal(walletMetadata)
+	form := url.Values{oauth.WalletMetadataParam: {string(metadataBytes)}}
+	requestObject, err := iamClient.RequestObjectByPost(ctx, parsedURL.String(), form)
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve JAR Request Object: %w", err)
 	}

@@ -120,7 +120,7 @@ func (j jar) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthPara
 	} else if requestURI := q.Get(oauth.RequestURIParam); requestURI != "" {
 		switch q.Get(oauth.RequestURIMethodParam) {
 		case "", "get": // empty string means client does not support request_uri_method, use 'get'
-			rawRequestObject, err = j.auth.IAMClient().RequestObject(ctx, requestURI, "get", nil)
+			rawRequestObject, err = j.auth.IAMClient().RequestObjectByGet(ctx, requestURI)
 			if err != nil {
 				return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURI, Description: "failed to get Request Object", InternalError: err}
 			}
@@ -130,7 +130,7 @@ func (j jar) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthPara
 				// DB error
 				return nil, err
 			}
-			rawRequestObject, err = j.auth.IAMClient().RequestObject(ctx, requestURI, "post", md)
+			rawRequestObject, err = j.auth.IAMClient().RequestObjectByPost(ctx, requestURI, *md)
 			if err != nil {
 				return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURI, Description: "failed to get Request Object", InternalError: err}
 			}

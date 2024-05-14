@@ -242,7 +242,7 @@ func TestHTTPClient_RequestObject(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: responseData}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.RequestObject(ctx, tlsServer.URL)
+		response, err := client.RequestObjectByGet(ctx, tlsServer.URL)
 
 		require.NoError(t, err)
 		assert.Equal(t, responseData, response)
@@ -250,7 +250,7 @@ func TestHTTPClient_RequestObject(t *testing.T) {
 	t.Run("error - invalid request_uri", func(t *testing.T) {
 		_, client := testServerAndClient(t, &http2.Handler{})
 
-		response, err := client.RequestObject(ctx, ":")
+		response, err := client.RequestObjectByGet(ctx, ":")
 
 		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
 		assert.Empty(t, response)
@@ -259,7 +259,7 @@ func TestHTTPClient_RequestObject(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "throw this away"}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.RequestObject(ctx, tlsServer.URL)
+		response, err := client.RequestObjectByGet(ctx, tlsServer.URL)
 
 		var httpErr core.HttpError
 		require.ErrorAs(t, err, &httpErr)
@@ -277,7 +277,7 @@ func TestHTTPClient_RequestObjectPost(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: responseData}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.RequestObjectPost(ctx, tlsServer.URL, url.Values{})
+		response, err := client.RequestObjectByPost(ctx, tlsServer.URL, url.Values{})
 
 		require.NoError(t, err)
 		assert.Equal(t, responseData, response)
@@ -285,7 +285,7 @@ func TestHTTPClient_RequestObjectPost(t *testing.T) {
 	t.Run("error - invalid request_uri", func(t *testing.T) {
 		_, client := testServerAndClient(t, &http2.Handler{})
 
-		response, err := client.RequestObjectPost(ctx, ":", url.Values{})
+		response, err := client.RequestObjectByPost(ctx, ":", url.Values{})
 
 		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
 		assert.Empty(t, response)
@@ -294,7 +294,7 @@ func TestHTTPClient_RequestObjectPost(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "throw this away"}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.RequestObjectPost(ctx, tlsServer.URL, url.Values{})
+		response, err := client.RequestObjectByPost(ctx, tlsServer.URL, url.Values{})
 
 		var httpErr core.HttpError
 		require.ErrorAs(t, err, &httpErr)

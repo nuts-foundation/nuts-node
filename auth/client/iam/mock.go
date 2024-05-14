@@ -163,19 +163,34 @@ func (mr *MockClientMockRecorder) PresentationDefinition(ctx, endpoint any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockClient)(nil).PresentationDefinition), ctx, endpoint)
 }
 
-// RequestObject mocks base method.
-func (m *MockClient) RequestObject(ctx context.Context, requestURI, requestURIMethod string, walletMetadata *oauth.AuthorizationServerMetadata) (string, error) {
+// RequestObjectByGet mocks base method.
+func (m *MockClient) RequestObjectByGet(ctx context.Context, requestURI string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestObject", ctx, requestURI, requestURIMethod, walletMetadata)
+	ret := m.ctrl.Call(m, "RequestObjectByGet", ctx, requestURI)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// RequestObject indicates an expected call of RequestObject.
-func (mr *MockClientMockRecorder) RequestObject(ctx, requestURI, requestURIMethod, walletMetadata any) *gomock.Call {
+// RequestObjectByGet indicates an expected call of RequestObjectByGet.
+func (mr *MockClientMockRecorder) RequestObjectByGet(ctx, requestURI any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestObject", reflect.TypeOf((*MockClient)(nil).RequestObject), ctx, requestURI, requestURIMethod, walletMetadata)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestObjectByGet", reflect.TypeOf((*MockClient)(nil).RequestObjectByGet), ctx, requestURI)
+}
+
+// RequestObjectByPost mocks base method.
+func (m *MockClient) RequestObjectByPost(ctx context.Context, requestURI string, walletMetadata oauth.AuthorizationServerMetadata) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestObjectByPost", ctx, requestURI, walletMetadata)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestObjectByPost indicates an expected call of RequestObjectByPost.
+func (mr *MockClientMockRecorder) RequestObjectByPost(ctx, requestURI, walletMetadata any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestObjectByPost", reflect.TypeOf((*MockClient)(nil).RequestObjectByPost), ctx, requestURI, walletMetadata)
 }
 
 // RequestRFC021AccessToken mocks base method.

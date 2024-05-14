@@ -380,9 +380,9 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, req
 	}
 }
 
-// GetRequestJWT returns the Request Object referenced as 'request_uri' in an authorization request.
+// RequestJWTByGet returns the Request Object referenced as 'request_uri' in an authorization request.
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
-func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequestObject) (GetRequestJWTResponseObject, error) {
+func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetRequestObject) (RequestJWTByGetResponseObject, error) {
 	ro := new(jarRequest)
 	err := r.authzRequestObjectStore().Get(request.Id, ro)
 	if err != nil {
@@ -394,12 +394,11 @@ func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequest
 	// compare raw strings, don't waste a db call to see if we own the request.Did.
 	if ro.Client.String() != request.Did {
 		return nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidRequest,
-			Description:   "client_id does not match request",
-			InternalError: errors.New("DID does not match client_id for requestID"),
+			Code:        oauth.InvalidRequest,
+			Description: "client_id does not match request",
 		}
 	}
-	if ro.RequestURIMethod != "get" {
+	if ro.RequestURIMethod != "get" { // case sensitive
 		// TODO: wallet does not support `request_uri_method=post`. Signing the current jarRequest would leave it without 'aud'.
 		//		 is this acceptable, should it fail, or does it default to using staticAuthorizationServerMetadata.
 		return nil, oauth.OAuth2Error{
@@ -414,20 +413,20 @@ func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequest
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
-			Description:   "failed to sign authorization RequestObject",
-			InternalError: err,
+			Description:   "unable to create RequestObjectByGet",
+			InternalError: fmt.Errorf("failed to sign authorization RequestObjectByGet :%w", err),
 		}
 	}
-	return GetRequestJWT200ApplicationoauthAuthzReqJwtResponse{
+	return RequestJWTByGet200ApplicationoauthAuthzReqJwtResponse{
 		Body:          bytes.NewReader([]byte(token)),
 		ContentLength: int64(len(token)),
 	}, nil
 }
 
-// PostRequestJWT returns the Request Object referenced as 'request_uri' in an authorization request.
+// RequestJWTByPost returns the Request Object referenced as 'request_uri' in an authorization request.
 // Extension of OpenID 4 Verifiable Presentations (OpenID4VP) on
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
-func (r Wrapper) PostRequestJWT(ctx context.Context, request PostRequestJWTRequestObject) (PostRequestJWTResponseObject, error) {
+func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostRequestObject) (RequestJWTByPostResponseObject, error) {
 	ro := new(jarRequest)
 	err := r.authzRequestObjectStore().Get(request.Id, ro)
 	if err != nil {
@@ -439,12 +438,11 @@ func (r Wrapper) PostRequestJWT(ctx context.Context, request PostRequestJWTReque
 	// compare raw strings, don't waste a db call to see if we own the request.Did.
 	if ro.Client.String() != request.Did {
 		return nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidRequest,
-			Description:   "client_id does not match request",
-			InternalError: errors.New("DID does not match client_id for requestID"),
+			Code:        oauth.InvalidRequest,
+			Description: "client_id does not match request",
 		}
 	}
-	if ro.RequestURIMethod != "post" {
+	if ro.RequestURIMethod != "post" { // case sensitive
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: "used request_uri_method 'post' on a 'get' request_uri",
@@ -467,11 +465,11 @@ func (r Wrapper) PostRequestJWT(ctx context.Context, request PostRequestJWTReque
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
-			Description:   "failed to sign authorization RequestObject",
-			InternalError: err,
+			Description:   "unable to create RequestObjectByGet",
+			InternalError: fmt.Errorf("failed to sign authorization RequestObjectByGet :%w", err),
 		}
 	}
-	return PostRequestJWT200ApplicationoauthAuthzReqJwtResponse{
+	return RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse{
 		Body:          bytes.NewReader([]byte(token)),
 		ContentLength: int64(len(token)),
 	}, nil
@@ -880,8 +878,6 @@ func (r Wrapper) openidIssuerEndpoints(ctx context.Context, issuerDid did.DID) (
 // - nonce
 // any of these params can be overridden by the requestObjectModifier.
 func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID, server *did.DID, modifier requestObjectModifier) (*url.URL, error) {
-	// if the server is unknown/nil we are talking to a wallet.
-	// by default requireSignedRequestObject=true to make sure the produced Authorization Request URL does not exceed request URL limit on mobile devices
 	metadata := new(oauth.AuthorizationServerMetadata)
 	if server != nil {
 		// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
@@ -891,15 +887,16 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 		}
+		if len(metadata.AuthorizationEndpoint) == 0 {
+			return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", *server)
+		}
 	} else {
-		// use static configuration until while we try to determine the wallet that will answer the authorization request. (user wallet / QR code flow)
+		// if the server is unknown/nil we are talking to a wallet.
+		// use static configuration while we try to determine the wallet that will answer the authorization request. (user wallet / QR code flow)
 		*metadata = staticAuthorizationServerMetadata()
 		// TODO: metadata.RequireSignedRequestObject == false.
 		// 		This means we send both a request_uri and add all params to the authorization request as query params.
 		//		The resulting url is too long and will be rejected by mobile devices.
-	}
-	if len(metadata.AuthorizationEndpoint) == 0 {
-		return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", *server)
 	}
 	endpoint, err := url.Parse(metadata.AuthorizationEndpoint)
 	if err != nil {

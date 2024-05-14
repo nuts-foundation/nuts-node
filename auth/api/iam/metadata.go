@@ -37,6 +37,7 @@ func authorizationServerMetadata(ownedDID did.DID) (*oauth.AuthorizationServerMe
 	return _authzMetadataBase(ownedDID), nil
 }
 
+// _authzMetadataDidWeb should not be used directly, use authorizationServerMetadata instead.
 func _authzMetadataDidWeb(ownedDID did.DID) (*oauth.AuthorizationServerMetadata, error) {
 	identity, err := didweb.DIDToURL(ownedDID)
 	if err != nil {
@@ -55,6 +56,7 @@ func _authzMetadataDidWeb(ownedDID did.DID) (*oauth.AuthorizationServerMetadata,
 	return metadata, nil
 }
 
+// _authzMetadataBase should not be used directly, use authorizationServerMetadata instead.
 func _authzMetadataBase(ownedDID did.DID) *oauth.AuthorizationServerMetadata {
 	presentationDefinitionURISupported := true
 	return &oauth.AuthorizationServerMetadata{

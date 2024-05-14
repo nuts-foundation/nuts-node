@@ -321,32 +321,22 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 }
 
-func TestIAMClient_RequestObject(t *testing.T) {
-	t.Run("ok - get", func(t *testing.T) {
+func TestIAMClient_RequestObjectByGet(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		requestURI := ctx.tlsServer.URL + "/request.jwt"
 
-		response, err := ctx.client.RequestObject(context.Background(), requestURI, "get", nil)
+		response, err := ctx.client.RequestObjectByGet(context.Background(), requestURI)
 
 		require.NoError(t, err)
 		assert.Equal(t, "Request Object", response)
 	})
-	t.Run("ok - post", func(t *testing.T) {
+	t.Run("error - invalid request_uri", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
-		requestURI := ctx.tlsServer.URL + "/request.jwt"
 
-		response, err := ctx.client.RequestObject(context.Background(), requestURI, "post", &oauth.AuthorizationServerMetadata{Issuer: "me"})
+		response, err := ctx.client.RequestObjectByGet(context.Background(), ":")
 
-		require.NoError(t, err)
-		assert.Equal(t, "Request Object", response)
-	})
-	t.Run("error - unsupported request_uri_method", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-		requestURI := ctx.tlsServer.URL + "/request.jwt"
-
-		response, err := ctx.client.RequestObject(context.Background(), requestURI, "fail", nil)
-
-		assert.EqualError(t, err, "failed to retrieve JAR Request Object: unsupported request_uri_method: fail")
+		assert.EqualError(t, err, "invalid request_uri: parse \":\": missing protocol scheme")
 		assert.Empty(t, response)
 	})
 	t.Run("error - failed to get access token", func(t *testing.T) {
@@ -354,7 +344,38 @@ func TestIAMClient_RequestObject(t *testing.T) {
 		ctx.requestObjectJWT = nil
 		requestURI := ctx.tlsServer.URL + "/request.jwt"
 
-		response, err := ctx.client.RequestObject(context.Background(), requestURI, "get", nil)
+		response, err := ctx.client.RequestObjectByGet(context.Background(), requestURI)
+
+		assert.EqualError(t, err, "failed to retrieve JAR Request Object: server returned HTTP 404 (expected: 200)")
+		assert.Empty(t, response)
+	})
+}
+
+func TestIAMClient_RequestObjectByPost(t *testing.T) {
+	metadata := oauth.AuthorizationServerMetadata{Issuer: "me"}
+	t.Run("ok", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		requestURI := ctx.tlsServer.URL + "/request.jwt"
+
+		response, err := ctx.client.RequestObjectByPost(context.Background(), requestURI, metadata)
+
+		require.NoError(t, err)
+		assert.Equal(t, "Request Object", response)
+	})
+	t.Run("error - invalid request_uri", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+
+		response, err := ctx.client.RequestObjectByPost(context.Background(), ":", metadata)
+
+		assert.EqualError(t, err, "invalid request_uri: parse \":\": missing protocol scheme")
+		assert.Empty(t, response)
+	})
+	t.Run("error - failed to get access token", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.requestObjectJWT = nil
+		requestURI := ctx.tlsServer.URL + "/request.jwt"
+
+		response, err := ctx.client.RequestObjectByPost(context.Background(), requestURI, metadata)
 
 		assert.EqualError(t, err, "failed to retrieve JAR Request Object: server returned HTTP 404 (expected: 200)")
 		assert.Empty(t, response)
