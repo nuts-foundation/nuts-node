@@ -109,5 +109,5 @@ fi
 echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"
-#$db_dc down
+$db_dc down
 rm node-*/*.txt
