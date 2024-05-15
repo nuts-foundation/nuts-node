@@ -37,7 +37,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   []string{"did"},
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
-		GrantTypesSupported:                        []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
+		GrantTypesSupported:                        []string{"authorization_code", "vp_token-bearer"},
 		Issuer:                                     didExample.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionUriSupported:         &presentationDefinitionURISupported,
@@ -75,7 +75,7 @@ func Test_clientMetadata(t *testing.T) {
 	expected := OAuthClientMetadata{
 		RedirectURIs:            nil,
 		TokenEndpointAuthMethod: "none",
-		GrantTypes:              []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
+		GrantTypes:              []string{"authorization_code", "vp_token-bearer"},
 		ResponseTypes:           []string{"code", "vp_token"},
 		Scope:                   "",
 		Contacts:                nil,

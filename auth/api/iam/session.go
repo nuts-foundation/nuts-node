@@ -21,12 +21,13 @@ package iam
 import (
 	"errors"
 	"fmt"
+	"net/url"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"net/url"
 )
 
 // OAuthSession is the session object that is used to store information about the OAuth request.

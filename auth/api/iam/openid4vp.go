@@ -119,7 +119,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet", err), redirectURL)
 	}
 	// check metadata for supported client_id_schemes
-	if !slices.Contains(metadata.ClientIdSchemesSupported, didScheme) {
+	if !slices.Contains(metadata.ClientIdSchemesSupported, didClientIDScheme) {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "wallet metadata does not contain did in client_id_schemes_supported"), redirectURL)
 	}
 
@@ -200,12 +200,12 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 	metadataURL := ownURL.JoinPath(oauth.ClientMetadataPath)
 
 	modifier := func(values map[string]string) {
-		values[oauth.ResponseTypeParam] = responseTypeVPToken
-		values[clientIDSchemeParam] = didScheme
-		values[responseURIParam] = callbackURL.String()
-		values[presentationDefUriParam] = presentationDefinitionURI.String()
-		values[clientMetadataURIParam] = metadataURL.String()
-		values[responseModeParam] = responseModeDirectPost
+		values[oauth.ResponseTypeParam] = oauth.VPTokenResponseType
+		values[oauth.ClientIDSchemeParam] = didClientIDScheme
+		values[oauth.ResponseURIParam] = callbackURL.String()
+		values[oauth.PresentationDefUriParam] = presentationDefinitionURI.String()
+		values[oauth.ClientMetadataURIParam] = metadataURL.String()
+		values[oauth.ResponseModeParam] = responseModeDirectPost
 		values[oauth.NonceParam] = nonce
 		values[oauth.StateParam] = state
 	}
@@ -243,7 +243,7 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 // response_type, REQUIRED.  Value MUST be set to "vp_token".
 // client_id, REQUIRED. This must be a did:web
 // client_id_scheme, REQUIRED. This must be did
-// clientMetadataURIParam, REQUIRED. This must be the verifier metadata endpoint
+// client_metadata_uri, REQUIRED. This must be the verifier metadata endpoint
 // nonce, REQUIRED.
 // response_uri, REQUIRED. This must be the verifier node url
 // response_mode, REQUIRED. Value MUST be "direct_post"
@@ -253,13 +253,13 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 // missing or invalid parameters are all mapped to invalid_request
 // any operation that fails is mapped to server_error, this includes unreachable or broken backends.
 func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantDID did.DID, params oauthParameters, walletOwnerType WalletOwnerType) (HandleAuthorizeRequestResponseObject, error) {
-	responseMode := params.get(responseModeParam)
+	responseMode := params.get(oauth.ResponseModeParam)
 	if responseMode != responseModeDirectPost {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid response_mode parameter"}
 	}
 
 	// check the response URL because later errors will redirect to this URL
-	responseURI := params.get(responseURIParam)
+	responseURI := params.get(oauth.ResponseURIParam)
 	if responseURI == "" {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing response_uri parameter"}
 	}
@@ -269,7 +269,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing state parameter"}
 	}
 
-	if params.get(clientIDSchemeParam) != didScheme {
+	if params.get(oauth.ClientIDSchemeParam) != didClientIDScheme {
 		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_id_scheme parameter"}, responseURI, state)
 	}
 
@@ -343,8 +343,8 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 func (r Wrapper) getClientMetadataFromRequest(ctx context.Context, params oauthParameters) (*oauth.OAuthClientMetadata, *oauth.OAuth2Error) {
 	var metadata *oauth.OAuthClientMetadata
 	var err error
-	if metadataString := params.get(clientMetadataParam); metadataString != "" {
-		if params.get(clientMetadataURIParam) != "" {
+	if metadataString := params.get(oauth.ClientMetadataParam); metadataString != "" {
+		if params.get(oauth.ClientMetadataURIParam) != "" {
 			return nil, &oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "client_metadata and client_metadata_uri are mutually exclusive", InternalError: err}
 		}
 		err = json.Unmarshal([]byte(metadataString), &metadata)
@@ -352,7 +352,7 @@ func (r Wrapper) getClientMetadataFromRequest(ctx context.Context, params oauthP
 			return nil, &oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid client_metadata", InternalError: err}
 		}
 	} else {
-		metadata, err = r.auth.IAMClient().ClientMetadata(ctx, params.get(clientMetadataURIParam))
+		metadata, err = r.auth.IAMClient().ClientMetadata(ctx, params.get(oauth.ClientMetadataURIParam))
 		if err != nil {
 			return nil, &oauth.OAuth2Error{Code: oauth.ServerError, Description: "failed to get client metadata (verifier)", InternalError: err}
 		}
@@ -363,8 +363,8 @@ func (r Wrapper) getClientMetadataFromRequest(ctx context.Context, params oauthP
 func (r Wrapper) getPresentationDefinitionFromRequest(ctx context.Context, params oauthParameters) (*pe.PresentationDefinition, *oauth.OAuth2Error) {
 	var presentationDefinition *pe.PresentationDefinition
 	var err error
-	if pdString := params.get(presentationDefParam); pdString != "" {
-		if params.get(presentationDefUriParam) != "" {
+	if pdString := params.get(oauth.PresentationDefParam); pdString != "" {
+		if params.get(oauth.PresentationDefUriParam) != "" {
 			return nil, &oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "presentation_definition and presentation_definition_uri are mutually exclusive"}
 		}
 		err = json.Unmarshal([]byte(pdString), &presentationDefinition)
@@ -372,7 +372,7 @@ func (r Wrapper) getPresentationDefinitionFromRequest(ctx context.Context, param
 			return nil, &oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid presentation_definition", InternalError: err}
 		}
 	} else {
-		presentationDefinitionURI := params.get(presentationDefUriParam)
+		presentationDefinitionURI := params.get(oauth.PresentationDefUriParam)
 		presentationDefinition, err = r.auth.IAMClient().PresentationDefinition(ctx, presentationDefinitionURI)
 		if err != nil {
 			return nil, &oauth.OAuth2Error{Code: oauth.InvalidPresentationDefinitionURI, Description: fmt.Sprintf("failed to retrieve presentation definition on %s", presentationDefinitionURI), InternalError: err}
@@ -605,8 +605,8 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 
 	// construct redirect URI according to RFC6749
 	redirectURI := httpNuts.AddQueryParams(*callbackURI, map[string]string{
-		oauth.CodeParam:  authorizationCode,
-		oauth.StateParam: session.ClientState,
+		oauth.CodeResponseType: authorizationCode,
+		oauth.StateParam:       session.ClientState,
 	})
 	return HandleAuthorizeResponse200JSONResponse{RedirectURI: redirectURI.String()}, nil
 }

@@ -176,7 +176,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier
 	data := url.Values{}
 	data.Set(oauth.ClientIDParam, clientID.String())
 	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
-	data.Set(oauth.CodeParam, code)
+	data.Set(oauth.CodeResponseType, code)
 	data.Set(oauth.RedirectURIParam, callbackURI)
 	data.Set(oauth.CodeVerifierParam, codeVerifier)
 
