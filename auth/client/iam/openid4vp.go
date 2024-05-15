@@ -23,7 +23,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"net/http"
 	"net/url"
 	"time"
@@ -34,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -133,14 +133,30 @@ func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, webdi
 	return metadata, nil
 }
 
-func (c *OpenID4VPClient) RequestObject(ctx context.Context, requestURI string) (string, error) {
+func (c *OpenID4VPClient) RequestObjectByGet(ctx context.Context, requestURI string) (string, error) {
 	iamClient := c.httpClient
 	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
 	if err != nil {
 		return "", fmt.Errorf("invalid request_uri: %w", err)
 	}
-	// the wallet/client acts as authorization server
-	requestObject, err := iamClient.RequestObject(ctx, parsedURL.String())
+
+	requestObject, err := iamClient.RequestObjectByGet(ctx, parsedURL.String())
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve JAR Request Object: %w", err)
+	}
+	return requestObject, nil
+}
+func (c *OpenID4VPClient) RequestObjectByPost(ctx context.Context, requestURI string, walletMetadata oauth.AuthorizationServerMetadata) (string, error) {
+	iamClient := c.httpClient
+	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
+	if err != nil {
+		return "", fmt.Errorf("invalid request_uri: %w", err)
+	}
+
+	// TODO: consider adding a 'wallet_nonce'
+	metadataBytes, _ := json.Marshal(walletMetadata)
+	form := url.Values{oauth.WalletMetadataParam: {string(metadataBytes)}}
+	requestObject, err := iamClient.RequestObjectByPost(ctx, parsedURL.String(), form)
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve JAR Request Object: %w", err)
 	}

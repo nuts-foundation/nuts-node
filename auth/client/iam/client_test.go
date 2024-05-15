@@ -20,6 +20,11 @@ package iam
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -31,10 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"testing"
 )
 
 func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
@@ -241,7 +242,7 @@ func TestHTTPClient_RequestObject(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: responseData}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.RequestObject(ctx, tlsServer.URL)
+		response, err := client.RequestObjectByGet(ctx, tlsServer.URL)
 
 		require.NoError(t, err)
 		assert.Equal(t, responseData, response)
@@ -249,7 +250,7 @@ func TestHTTPClient_RequestObject(t *testing.T) {
 	t.Run("error - invalid request_uri", func(t *testing.T) {
 		_, client := testServerAndClient(t, &http2.Handler{})
 
-		response, err := client.RequestObject(ctx, ":")
+		response, err := client.RequestObjectByGet(ctx, ":")
 
 		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
 		assert.Empty(t, response)
@@ -258,7 +259,42 @@ func TestHTTPClient_RequestObject(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "throw this away"}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.RequestObject(ctx, tlsServer.URL)
+		response, err := client.RequestObjectByGet(ctx, tlsServer.URL)
+
+		var httpErr core.HttpError
+		require.ErrorAs(t, err, &httpErr)
+		assert.Equal(t, http.StatusNotFound, httpErr.StatusCode)
+		assert.Empty(t, response)
+
+	})
+}
+
+func TestHTTPClient_RequestObjectPost(t *testing.T) {
+	ctx := context.Background()
+	// params are checked server side, so we don't need to provide valid values here
+	t.Run("ok", func(t *testing.T) {
+		responseData := "signed request object"
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: responseData}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.RequestObjectByPost(ctx, tlsServer.URL, url.Values{})
+
+		require.NoError(t, err)
+		assert.Equal(t, responseData, response)
+	})
+	t.Run("error - invalid request_uri", func(t *testing.T) {
+		_, client := testServerAndClient(t, &http2.Handler{})
+
+		response, err := client.RequestObjectByPost(ctx, ":", url.Values{})
+
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+		assert.Empty(t, response)
+	})
+	t.Run("error - not found", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "throw this away"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.RequestObjectByPost(ctx, tlsServer.URL, url.Values{})
 
 		var httpErr core.HttpError
 		require.ErrorAs(t, err, &httpErr)

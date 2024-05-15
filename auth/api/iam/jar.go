@@ -118,20 +118,24 @@ func (j jar) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthPara
 			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "claims 'request' and 'request_uri' are mutually exclusive"}
 		}
 	} else if requestURI := q.Get(oauth.RequestURIParam); requestURI != "" {
-		if q.Get(oauth.RequestURIMethodParam) == "post" { // case-sensitive match
-			baseURL, err := createOAuth2BaseURL(ownDID)
+		switch q.Get(oauth.RequestURIMethodParam) {
+		case "", "get": // empty string means client does not support request_uri_method, use 'get'
+			rawRequestObject, err = j.auth.IAMClient().RequestObjectByGet(ctx, requestURI)
 			if err != nil {
-				// can't fail
+				return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURI, Description: "failed to get Request Object", InternalError: err}
+			}
+		case "post":
+			md, err := authorizationServerMetadata(ownDID)
+			if err != nil {
+				// DB error
 				return nil, err
 			}
-			walletMetadata := authorizationServerMetadata(ownDID.URI().URL, *baseURL)
-			// TODO: create wallet_metadata and post to requestURI.
-			_ = walletMetadata
-			// TODO: do we need wallet_nonce? only way to reach nuts_node is server2server comms.
-		}
-		rawRequestObject, err = j.auth.IAMClient().RequestObject(ctx, requestURI)
-		if err != nil {
-			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURI, Description: "failed to get Request Object", InternalError: err}
+			rawRequestObject, err = j.auth.IAMClient().RequestObjectByPost(ctx, requestURI, *md)
+			if err != nil {
+				return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURI, Description: "failed to get Request Object", InternalError: err}
+			}
+		default:
+			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURIMethod, Description: "unsupported request_uri_method"}
 		}
 	} else {
 		// require_signed_request_object is true, so we reject anything that isn't

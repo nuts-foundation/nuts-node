@@ -20,11 +20,12 @@ package iam
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -274,10 +275,15 @@ func TestWrapper_loadUserSession(t *testing.T) {
 		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
 		ctrl := gomock.NewController(t)
 		echoCtx := mock.NewMockContext(ctrl)
-		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil)
+		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil).Times(2)
 
+		// organisation wallet
 		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, *actual)
 
+		// user wallet
+		actual, err = ctx.client.loadUserSession(echoCtx, userDID, user)
 		assert.NoError(t, err)
 		assert.Equal(t, expected, *actual)
 	})

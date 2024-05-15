@@ -454,12 +454,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
-			redirectURL, _ := url.Parse("https://redirect-url")
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
-				AuthorizationEndpoint:    redirectURL.String(),
-				ClientIdSchemesSupported: []string{"did"},
-			}, nil)
-			ctx.jar.EXPECT().Create(verifierDID, &holderDID, gomock.Any())
+			ctx.jar.EXPECT().Create(verifierDID, nil, gomock.Any())
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 

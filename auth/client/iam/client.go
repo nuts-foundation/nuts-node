@@ -23,6 +23,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
@@ -30,10 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -88,12 +89,38 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
 }
 
-func (hb HTTPClient) RequestObject(ctx context.Context, requestURI string) (string, error) {
+// RequestObjectByGet retrieves the Authorization Request Object from the requestURI using the GET method
+func (hb HTTPClient) RequestObjectByGet(ctx context.Context, requestURI string) (string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURI, nil)
 	if err != nil {
 		return "", err
 	}
 	request.Header.Add("Accept", "application/oauth-authz-req+jwt")
+
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
+		return "", httpErr
+	}
+
+	data, err := core.LimitedReadAll(response.Body)
+	if err != nil {
+		return "", fmt.Errorf("unable to read response: %w", err)
+	}
+	return string(data), err
+}
+
+// RequestObjectByPost retrieves the Authorization Request Object from the requestURI using the POST method.
+// additional request parameters (wallet_metadata and wallet_nonce) are provided as url.Values.
+func (hb HTTPClient) RequestObjectByPost(ctx context.Context, requestURI string, form url.Values) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURI, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", err
+	}
+	request.Header.Add("Accept", "application/oauth-authz-req+jwt")
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	response, err := hb.httpClient.Do(request.WithContext(ctx))
 	if err != nil {

@@ -22,29 +22,62 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 )
 
-func authorizationServerMetadata(identity url.URL, oauth2BaseURL url.URL) oauth.AuthorizationServerMetadata {
+func authorizationServerMetadata(ownedDID did.DID) (*oauth.AuthorizationServerMetadata, error) {
 	presentationDefinitionURISupported := true
-	return oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:                      oauth2BaseURL.JoinPath("authorize").String(),
+	metadata := &oauth.AuthorizationServerMetadata{
+		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        grantTypesSupported,
-		Issuer:                                     identity.String(),
+		Issuer:                                     ownedDID.String(), // todo: according to RFC8414 this should be a URL starting with https
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionUriSupported:         &presentationDefinitionURISupported,
-		PresentationDefinitionEndpoint:             oauth2BaseURL.JoinPath("presentation_definition").String(),
 		RequireSignedRequestObject:                 true,
 		ResponseModesSupported:                     responseModesSupported,
 		ResponseTypesSupported:                     responseTypesSupported,
-		TokenEndpoint:                              oauth2BaseURL.JoinPath("token").String(),
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
+	}
+	if ownedDID.Method == "web" {
+		// add endpoints for did:web
+		identity, err := didweb.DIDToURL(ownedDID)
+		if err != nil {
+			return nil, err
+		}
+		oauth2BaseURL, err := createOAuth2BaseURL(ownedDID)
+		if err != nil {
+			// can't fail, already did DIDToURL above
+			return nil, err
+		}
+		metadata.Issuer = identity.String()
+		metadata.AuthorizationEndpoint = oauth2BaseURL.JoinPath("authorize").String()
+		metadata.PresentationDefinitionEndpoint = oauth2BaseURL.JoinPath("presentation_definition").String()
+		metadata.TokenEndpoint = oauth2BaseURL.JoinPath("token").String()
+	}
+	return metadata, nil
+}
+
+// staticAuthorizationServerMetadata is used in the OpenID4VP flow when authorization server (wallet) issuer is unknown.
+// Note: several specs (OpenID4VP, SIOPv2, OpenID core) define a static authorization server configuration that currently are conflicting.
+func staticAuthorizationServerMetadata() oauth.AuthorizationServerMetadata {
+	return oauth.AuthorizationServerMetadata{
+		Issuer:                 "https://self-issued.me/v2",
+		AuthorizationEndpoint:  "openid4vp:",
+		ResponseTypesSupported: []string{responseTypeVPToken},
+		VPFormatsSupported: map[string]map[string][]string{
+			"jwt_vp_json": {"alg_values_supported": []string{string(jwa.ES256)}},
+			"jwt_vc_json": {"alg_values_supported": []string{string(jwa.ES256)}},
+		},
+		RequestObjectSigningAlgValuesSupported: []string{string(jwa.ES256)},
 	}
 }
 

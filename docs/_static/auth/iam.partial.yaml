@@ -45,7 +45,7 @@ paths:
   /oauth2/{did}/token:
     post:
       summary: Used by to request access- or refresh tokens.
-      description: | 
+      description: |
         Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint.
         Requires the use of PKCE as specified by https://datatracker.ietf.org/doc/html/rfc7636 and optionally DPoP as specified by https://datatracker.ietf.org/doc/html/rfc9449.
       operationId: handleTokenRequest
@@ -162,7 +162,7 @@ paths:
         Get the Request Object containing the OAuth 2.0 authorization request parameters, including extension parameters.
         The Request Object is a JWT with signature (JWS).
         See [RFC9101] The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR) for details.
-      operationId: getRequestJWT
+      operationId: requestJWTByGet
       tags:
         - oauth2
       responses:
@@ -176,7 +176,7 @@ paths:
           $ref: '../common/error_response.yaml'
     post:
       summary: Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
-      operationId: postRequestJWT
+      operationId: requestJWTByPost
       tags:
         - oauth2
       requestBody:
@@ -277,7 +277,7 @@ paths:
           required: true
           schema:
             type: string
-            description: | 
+            description: |
               The scope for which a presentation definition is requested. Multiple scopes can be specified by separating them with a space.
             example: usecase patient:x:read
         - name: wallet_owner_type
@@ -296,7 +296,7 @@ paths:
   /oauth2/{did}/response:
     post:
       summary: Used by wallets to post the authorization response or error to.
-      description: | 
+      description: |
         Specified by https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-response-mode-direct_postjw
         The response is either an error response with error, error_description and state filled or a submission with vp_token and presentation_submission filled.
         When an error is posted, the state is used to fetch the holder's callbackURI from the verifiers client state.
@@ -344,10 +344,10 @@ paths:
   # TODO: What format to use? (codegenerator breaks on aliases)
   # See issue https://github.com/nuts-foundation/nuts-node/issues/2365
   # create aliases for the specced path
-#  /iam/{did}/oauth-authorization-server:
-#    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
-#  /iam/{did}/.well-known/oauth-authorization-server:
-#    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
+  #  /iam/{did}/oauth-authorization-server:
+  #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
+  #  /iam/{did}/.well-known/oauth-authorization-server:
+  #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
   /.well-known/oauth-authorization-server/iam/{id}:
     get:
       tags:
@@ -458,7 +458,7 @@ paths:
       summary: Get the StatusList2021Credential for the given DID and page
       description: >
         Returns the StatusList2021Credential as specified in https://www.w3.org/TR/2023/WD-vc-status-list-20230427/
-  
+        
         error returns:
         * 404 - id or page not found; possibly be non-existing, deactivated, or not managed by this node
         * 500 - internal server error
@@ -488,7 +488,7 @@ paths:
         * invalid_request - one of the provided parameters is wrong.
         * server_error - internal processing of the Oid4VCI flow has a system error.
         * access_denied - an access problem occurred with the internal processing of the Oid4VCI flow.
-      
+        
         If the system is somehow not able to return a redirect, the following HTTP status codes will be 
         returned:
         * 500 - an system error occurred during processing

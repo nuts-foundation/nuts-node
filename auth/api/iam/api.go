@@ -27,14 +27,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -322,17 +323,20 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
-	queryParams := httpRequest.URL.Query()
+	return r.handleAuthorizeRequest(ctx, *ownDID, *httpRequest.URL)
+}
 
+// handleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
+// The caller must ensure ownDID is actually owned by this node.
+func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, request url.URL) (HandleAuthorizeRequestResponseObject, error) {
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	authzParams, err := r.jar.Parse(ctx, *ownDID, queryParams)
+	requestObject, err := r.jar.Parse(ctx, ownDID, request.Query())
 	if err != nil {
+		// already an oauth.OAuth2Error
 		return nil, err
 	}
 
-	session := createSession(authzParams, *ownDID)
-
-	switch session.ResponseType {
+	switch requestObject.get(oauth.ResponseTypeParam) {
 	case responseTypeCode:
 		// Options:
 		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.
@@ -345,10 +349,10 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		// when client_id is a did:web, it is a cloud/server wallet
 		// otherwise it's a normal registered client which we do not support yet
 		// Note: this is the user facing OpenID4VP flow with a "vp_token" responseType, the demo uses the "vp_token id_token" responseType
-		clientId := session.ClientID
+		clientId := requestObject.get(oauth.ClientIDParam)
 		if strings.HasPrefix(clientId, "did:web:") {
 			// client is a cloud wallet with user
-			return r.handleAuthorizeRequestFromHolder(ctx, *ownDID, authzParams)
+			return r.handleAuthorizeRequestFromHolder(ctx, ownDID, requestObject)
 		} else {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
@@ -362,13 +366,13 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 		//           Requests to user wallets can then be rendered as QR-code (or use a cloud wallet).
 		//           Note that it can't be called from the outside, but only by internal dispatch (since Echo doesn't handle openid4vp:, obviously).
 		walletOwnerType := pe.WalletOwnerOrganization
-		if strings.HasPrefix(httpRequest.URL.String(), "openid4vp:") {
+		if strings.HasPrefix(request.String(), "openid4vp:") {
 			walletOwnerType = pe.WalletOwnerUser
 		}
-		return r.handleAuthorizeRequestFromVerifier(ctx, *ownDID, authzParams, walletOwnerType)
+		return r.handleAuthorizeRequestFromVerifier(ctx, ownDID, requestObject, walletOwnerType)
 	default:
 		// TODO: This should be a redirect?
-		redirectURI, _ := url.Parse(session.RedirectURI)
+		redirectURI, _ := url.Parse(requestObject.get(oauth.RedirectURIParam))
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedResponseType,
 			RedirectURI: redirectURI,
@@ -376,43 +380,100 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	}
 }
 
-// GetRequestJWT returns the Request Object referenced as 'request_uri' in an authorization request.
+// RequestJWTByGet returns the Request Object referenced as 'request_uri' in an authorization request.
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
-func (r Wrapper) GetRequestJWT(ctx context.Context, request GetRequestJWTRequestObject) (GetRequestJWTResponseObject, error) {
+func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetRequestObject) (RequestJWTByGetResponseObject, error) {
 	ro := new(jarRequest)
+	// TODO: burn request object to prevent DoS through signing requests https://github.com/nuts-foundation/nuts-node/issues/3063
 	err := r.authzRequestObjectStore().Get(request.Id, ro)
 	if err != nil {
-		return nil, err
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "request object not found",
+		}
 	}
 	// compare raw strings, don't waste a db call to see if we own the request.Did.
 	if ro.Client.String() != request.Did {
-		return nil, errors.New("invalid request")
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "client_id does not match request",
+		}
 	}
-	if ro.RequestURIMethod != "get" {
-		// TODO: wallet does not support `request_uri_method=post`. Signing the current jarRequest would leave it without 'aud'.
-		//		 is this acceptable or should it fail?
+	if ro.RequestURIMethod != "get" { // case sensitive
+		// TODO: wallet does not support `request_uri_method=post`. Unclear if this should fail, or fallback to using staticAuthorizationServerMetadata().
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
 			Description:   "used request_uri_method 'get' on a 'post' request_uri",
 			InternalError: errors.New("wrong 'request_uri_method' authorization server or wallet probably does not support 'request_uri_method'"),
 		}
 	}
+
+	// TODO: supported signature types should be checked
 	token, err := r.jar.Sign(ctx, ro.Claims)
 	if err != nil {
-		// TODO: oauth.OAuth2Error?
-		return nil, err
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			Description:   "unable to create Request Object",
+			InternalError: fmt.Errorf("failed to sign authorization Request Object: %w", err),
+		}
 	}
-	return GetRequestJWT200ApplicationoauthAuthzReqJwtResponse{
+	return RequestJWTByGet200ApplicationoauthAuthzReqJwtResponse{
 		Body:          bytes.NewReader([]byte(token)),
 		ContentLength: int64(len(token)),
 	}, nil
 }
 
-// PostRequestJWT returns the Request Object referenced as 'request_uri' in an authorization request.
+// RequestJWTByPost returns the Request Object referenced as 'request_uri' in an authorization request.
 // Extension of OpenID 4 Verifiable Presentations (OpenID4VP) on
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
-func (r Wrapper) PostRequestJWT(ctx context.Context, request PostRequestJWTRequestObject) (PostRequestJWTResponseObject, error) {
-	return nil, errors.New("not implemented")
+func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostRequestObject) (RequestJWTByPostResponseObject, error) {
+	ro := new(jarRequest)
+	// TODO: burn request object to prevent DoS through signing requests https://github.com/nuts-foundation/nuts-node/issues/3063
+	err := r.authzRequestObjectStore().Get(request.Id, ro)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "request object not found",
+		}
+	}
+	// compare raw strings, don't waste a db call to see if we own the request.Did.
+	if ro.Client.String() != request.Did {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "client_id does not match request",
+		}
+	}
+	if ro.RequestURIMethod != "post" { // case sensitive
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "used request_uri_method 'post' on a 'get' request_uri",
+		}
+	}
+
+	walletMetadata := staticAuthorizationServerMetadata()
+	if request.Body != nil {
+		if request.Body.WalletMetadata != nil {
+			walletMetadata = *request.Body.WalletMetadata
+		}
+		if request.Body.WalletNonce != nil {
+			ro.Claims[oauth.WalletNonceParam] = *request.Body.WalletNonce
+		}
+	}
+	ro.Claims[jwt.AudienceKey] = walletMetadata.Issuer
+
+	// TODO: supported signature types should be checked
+	token, err := r.jar.Sign(ctx, ro.Claims)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			Description:   "unable to create Request Object",
+			InternalError: fmt.Errorf("failed to sign authorization Request Object: %w", err),
+		}
+	}
+	return RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse{
+		Body:          bytes.NewReader([]byte(token)),
+		ContentLength: int64(len(token)),
+	}, nil
 }
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
@@ -438,17 +499,7 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsStri
 	if err != nil {
 		return nil, err
 	}
-	identity, err := didweb.DIDToURL(*ownDID)
-	if err != nil {
-		return nil, err
-	}
-	oauth2BaseURL, err := createOAuth2BaseURL(*ownDID)
-	if err != nil {
-		// can't fail, already did DIDToURL above
-		return nil, err
-	}
-	md := authorizationServerMetadata(*identity, *oauth2BaseURL)
-	return &md, nil
+	return authorizationServerMetadata(*ownDID)
 }
 
 func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
@@ -641,22 +692,6 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}, nil
 }
 
-func createSession(params oauthParameters, ownDID did.DID) *OAuthSession {
-	session := OAuthSession{}
-	session.ClientID = params.get(oauth.ClientIDParam)
-	session.Scope = params.get(oauth.ScopeParam)
-	session.ClientState = params.get(oauth.StateParam)
-	session.RedirectURI = params.get(oauth.RedirectURIParam)
-	session.OwnDID = &ownDID
-	session.ResponseType = params.get(oauth.ResponseTypeParam)
-	session.PKCEParams = PKCEParams{
-		Challenge:       params.get(oauth.CodeChallengeParam),
-		ChallengeMethod: params.get(oauth.CodeChallengeMethodParam),
-	}
-
-	return &session
-}
-
 func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject) (StatusListResponseObject, error) {
 	requestDID, err := did.ParseDID(request.Did)
 	if err != nil {
@@ -843,15 +878,26 @@ func (r Wrapper) openidIssuerEndpoints(ctx context.Context, issuerDid did.DID) (
 // - jwt.Audience
 // - nonce
 // any of these params can be overridden by the requestObjectModifier.
-func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID, server did.DID, modifier requestObjectModifier) (*url.URL, error) {
-	// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
-	// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
-	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, server)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
-	}
-	if len(metadata.AuthorizationEndpoint) == 0 {
-		return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", server)
+func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID, server *did.DID, modifier requestObjectModifier) (*url.URL, error) {
+	metadata := new(oauth.AuthorizationServerMetadata)
+	if server != nil {
+		// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
+		// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
+		var err error
+		metadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, *server)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+		}
+		if len(metadata.AuthorizationEndpoint) == 0 {
+			return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", *server)
+		}
+	} else {
+		// if the server is unknown/nil we are talking to a wallet.
+		// use static configuration while we try to determine the wallet that will answer the authorization request. (user wallet / QR code flow)
+		*metadata = staticAuthorizationServerMetadata()
+		// TODO: metadata.RequireSignedRequestObject == false.
+		// 		This means we send both a request_uri and add all params to the authorization request as query params.
+		//		The resulting url is too long and will be rejected by mobile devices.
 	}
 	endpoint, err := url.Parse(metadata.AuthorizationEndpoint)
 	if err != nil {
@@ -860,8 +906,8 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 
 	// request_uri
 	requestURIID := nutsCrypto.GenerateNonce()
-	requestObj := r.jar.Create(client, &server, modifier)
-	if err = r.authzRequestObjectStore().Put(requestURIID, requestObj); err != nil {
+	requestObj := r.jar.Create(client, server, modifier)
+	if err := r.authzRequestObjectStore().Put(requestURIID, requestObj); err != nil {
 		return nil, err
 	}
 	baseURL, err := createOAuth2BaseURL(client)
@@ -883,7 +929,7 @@ func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID,
 	// else; unclear if AS has support for RFC9101, so also add all modifiers to the query itself
 	// left here for completeness, node 2 node interaction always uses JAR since the AS metadata has it hardcoded
 	// TODO: in the user flow we have no AS metadata, meaning that we add all params to the query.
-	// 		 This is most likely going to fail on mobile devices due to request url length.
+	//         This is most likely going to fail on mobile devices due to request url length.
 	modifier(params)
 	redirectURL := nutsHttp.AddQueryParams(*endpoint, params)
 	return &redirectURL, nil

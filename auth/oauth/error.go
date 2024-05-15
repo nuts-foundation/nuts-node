@@ -22,13 +22,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/core"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/auth/log"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // ErrorCode specifies error codes as defined by the OAuth2 specifications.
@@ -56,10 +57,12 @@ const (
 	InvalidScope ErrorCode = "invalid_scope"
 	// InvalidPresentationDefinitionURI is returned when the requested presentation definition URI is invalid or can't be reached.
 	InvalidPresentationDefinitionURI ErrorCode = "invalid_presentation_definition_uri"
-	// InvalidRequestObject is returned when the JAR Request Object signature validation or decryption fails. RFC9101
+	// InvalidRequestObject is returned when the JAR Request Object signature validation or decryption fails. (RFC9101)
 	InvalidRequestObject ErrorCode = "invalid_request_object"
-	// InvalidRequestURI is returned whn the request_uri in the authorization request returns an error or contains invalid data. RFC9101
+	// InvalidRequestURI is returned whn the request_uri in the authorization request returns an error or contains invalid data. (RFC9101)
 	InvalidRequestURI ErrorCode = "invalid_request_uri"
+	// InvalidRequestURIMethod is returned when the request_uri_method is not 'get' or 'post'. (OpenID4VP)
+	InvalidRequestURIMethod ErrorCode = "invalid_request_uri_method"
 )
 
 // Make sure the error implements core.HTTPStatusCodeError, so the HTTP request logger can log the correct status code.

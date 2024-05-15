@@ -154,6 +154,10 @@ const (
 	PresentationSubmissionParam = "presentation_submission"
 	// VpTokenParam is the parameter name for the vp_token parameter
 	VpTokenParam = "vp_token"
+	// WalletMetadataParam is used by the wallet to provide its metadata in an authorization request when RequestURIMethodParam is 'post'
+	WalletMetadataParam = "wallet_metadata"
+	// WalletNonceParam is a wallet generated nonce to prevent authorization request replay when RequestURIMethodParam is 'post'
+	WalletNonceParam = "wallet_nonce"
 	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type
 	VpTokenGrantType = "vp_token-bearer"
 	// CNonceParam is the parameter name for the c_nonce parameter. Defined in OpenID4VCI.

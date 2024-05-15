@@ -942,20 +942,19 @@ func TestWrapper_StatusList(t *testing.T) {
 }
 
 func TestWrapper_GetRequestJWT(t *testing.T) {
+	cont := context.Background()
+	requestID := "thisID"
+	expectedToken := "validToken"
 	t.Run("ok", func(t *testing.T) {
-		cont := context.Background()
-		requestID := "thisID"
-		expectedToken := "validToken"
-		ro := jar{}.Create(webDID, &holderDID, func(claims map[string]string) {})
-
 		ctx := newTestClient(t)
-		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return(expectedToken, nil)
+		ro := jar{}.Create(webDID, &holderDID, func(claims map[string]string) {})
 		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
+		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return(expectedToken, nil)
 
-		response, err := ctx.client.GetRequestJWT(cont, GetRequestJWTRequestObject{Did: webDID.String(), Id: requestID})
+		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{Did: webDID.String(), Id: requestID})
 
 		assert.NoError(t, err)
-		assert.Equal(t, GetRequestJWT200ApplicationoauthAuthzReqJwtResponse{
+		assert.Equal(t, RequestJWTByGet200ApplicationoauthAuthzReqJwtResponse{
 			Body:          bytes.NewReader([]byte(expectedToken)),
 			ContentLength: 10,
 		}, response)
@@ -963,20 +962,131 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		response, err := ctx.client.GetRequestJWT(nil, GetRequestJWTRequestObject{Id: "unknownID"})
+		response, err := ctx.client.RequestJWTByGet(nil, RequestJWTByGetRequestObject{Id: "unknownID"})
 
 		assert.Nil(t, response)
-		assert.ErrorIs(t, err, storage.ErrNotFound)
+		assert.EqualError(t, err, "invalid_request - request object not found")
+	})
+	t.Run("error - clientID does not match request", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ro := jar{}.Create(webDID, &holderDID, func(claims map[string]string) {})
+		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
+
+		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{Did: holderDID.String(), Id: requestID})
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "invalid_request - client_id does not match request")
+	})
+	t.Run("error - wrong request_uri_method used", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ro := jar{}.Create(webDID, &holderDID, func(claims map[string]string) {})
+		ro.RequestURIMethod = "post"
+		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
+
+		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{Did: webDID.String(), Id: requestID})
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "invalid_request - wrong 'request_uri_method' authorization server or wallet probably does not support 'request_uri_method' - used request_uri_method 'get' on a 'post' request_uri")
+	})
+	t.Run("error - signing failed", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ro := jar{}.Create(webDID, &holderDID, func(claims map[string]string) {})
+		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
+		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return("", errors.New("fail"))
+
+		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{Did: webDID.String(), Id: requestID})
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "server_error - failed to sign authorization Request Object: fail - unable to create Request Object")
 	})
 }
 
 func TestWrapper_PostRequestJWT(t *testing.T) {
-	ctx := newTestClient(t)
+	cont := context.Background()
+	requestID := "thisID"
+	expectedToken := "validToken"
+	newReqObj := func(issuer, nonce string) jarRequest {
+		ro := jar{}.Create(webDID, nil, func(claims map[string]string) {})
+		if issuer != "" {
+			ro.Claims[jwt.AudienceKey] = issuer
+		}
+		if nonce != "" {
+			ro.Claims[oauth.WalletNonceParam] = nonce
+		}
+		return ro
+	}
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ro := newReqObj("https://self-issued.me/v2", "")
+		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
+		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return(expectedToken, nil)
 
-	response, err := ctx.client.PostRequestJWT(nil, PostRequestJWTRequestObject{Id: "unknownID"})
+		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Did: webDID.String(), Id: requestID})
 
-	assert.Nil(t, response)
-	assert.EqualError(t, err, "not implemented")
+		assert.NoError(t, err)
+		assert.Equal(t, RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse{
+			Body:          bytes.NewReader([]byte(expectedToken)),
+			ContentLength: 10,
+		}, response)
+	})
+	t.Run("ok - with metadata and nonce", func(t *testing.T) {
+		wallet_nonce := "wallet_nonce"
+		ctx := newTestClient(t)
+		ro := newReqObj("mario", wallet_nonce)
+		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
+		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return(expectedToken, nil)
+		body := RequestJWTByPostFormdataRequestBody(RequestJWTByPostFormdataBody{
+			WalletMetadata: &oauth.AuthorizationServerMetadata{Issuer: "mario"},
+			WalletNonce:    &wallet_nonce,
+		})
+
+		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Did: webDID.String(), Id: requestID, Body: &body})
+
+		assert.NoError(t, err)
+		assert.Equal(t, RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse{
+			Body:          bytes.NewReader([]byte(expectedToken)),
+			ContentLength: 10,
+		}, response)
+	})
+	t.Run("error - not found", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		response, err := ctx.client.RequestJWTByPost(nil, RequestJWTByPostRequestObject{Id: "unknownID"})
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "invalid_request - request object not found")
+	})
+	t.Run("error - clientID does not match request", func(t *testing.T) {
+		ctx := newTestClient(t)
+		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, newReqObj("", "")))
+
+		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Did: holderDID.String(), Id: requestID})
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "invalid_request - client_id does not match request")
+	})
+	t.Run("error - wrong request_uri_method used", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ro := newReqObj("", "")
+		ro.RequestURIMethod = "get"
+		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
+
+		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Did: webDID.String(), Id: requestID})
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "invalid_request - used request_uri_method 'post' on a 'get' request_uri")
+	})
+	t.Run("error - signing failed", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ro := newReqObj("https://self-issued.me/v2", "")
+		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
+		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return("", errors.New("fail"))
+
+		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Did: webDID.String(), Id: requestID})
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "server_error - failed to sign authorization Request Object: fail - unable to create Request Object")
+	})
 }
 
 func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
@@ -1001,7 +1111,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 			return expectedJarReq
 		})
 
-		redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
+		redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
 		// return
 		assert.NoError(t, err)
@@ -1014,29 +1124,28 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 		require.NoError(t, ctx.client.authzRequestObjectStore().Get(requestURIID, &jarReq))
 		assert.Equal(t, expectedJarReq, jarReq)
 	})
-	t.Run("ok - RequireSignedRequestObject=false", func(t *testing.T) {
+	t.Run("ok - no server -> RequireSignedRequestObject=false", func(t *testing.T) {
 		var expectedJarReq jarRequest
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{AuthorizationEndpoint: serverMetadata.AuthorizationEndpoint}, nil)
-		ctx.jar.EXPECT().Create(clientDID, &serverDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
+		ctx.jar.EXPECT().Create(clientDID, nil, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
 			expectedJarReq = createJarRequest(client, server, modifier)
 			assert.Equal(t, "value", expectedJarReq.Claims.get("custom"))
 			return expectedJarReq
 		})
 
-		redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
+		redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, nil, modifier)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "value", redirectURL.Query().Get("custom"))
 		assert.Equal(t, clientDID.String(), redirectURL.Query().Get(oauth.ClientIDParam))
-		assert.Equal(t, "get", redirectURL.Query().Get(oauth.RequestURIMethodParam))
+		assert.Equal(t, "post", redirectURL.Query().Get(oauth.RequestURIMethodParam))
 		assert.NotEmpty(t, redirectURL.Query().Get(oauth.RequestURIParam))
 	})
 	t.Run("error - missing authorization endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
 
-		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
+		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "no authorization endpoint found in metadata for")
@@ -1045,7 +1154,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(nil, assert.AnError)
 
-		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
+		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
 		assert.Error(t, err)
 	})
@@ -1053,7 +1162,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{AuthorizationEndpoint: ":"}, nil)
 
-		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, serverDID, modifier)
+		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "failed to parse authorization endpoint URL")
