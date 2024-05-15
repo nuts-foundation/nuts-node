@@ -122,12 +122,15 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 		if timestamp == 0 {
 			var newTs *int
 			newTs, err = s.incrementTimestamp(tx, serviceID)
+			if err != nil {
+				return err
+			}
 			timestamp = *newTs
 		} else {
 			err = s.setTimestamp(tx, serviceID, timestamp)
-		}
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
 		}
 		// Delete any previous presentations of the subject
 		if err := tx.Delete(&presentationRecord{}, "service_id = ? AND credential_subject_id = ?", serviceID, credentialSubjectID.String()).
