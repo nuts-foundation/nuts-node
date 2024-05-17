@@ -1111,7 +1111,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 			return expectedJarReq
 		})
 
-		redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
+		redirectURL, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
 		// return
 		assert.NoError(t, err)
@@ -1133,7 +1133,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 			return expectedJarReq
 		})
 
-		redirectURL, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, nil, modifier)
+		redirectURL, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, nil, modifier)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "value", redirectURL.Query().Get("custom"))
@@ -1145,7 +1145,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
 
-		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
+		_, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "no authorization endpoint found in metadata for")
@@ -1154,7 +1154,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(nil, assert.AnError)
 
-		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
+		_, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
 		assert.Error(t, err)
 	})
@@ -1162,7 +1162,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{AuthorizationEndpoint: ":"}, nil)
 
-		_, err := ctx.client.CreateAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
+		_, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "failed to parse authorization endpoint URL")

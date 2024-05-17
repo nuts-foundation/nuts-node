@@ -212,10 +212,10 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 	var authServerURL *url.URL
 	if *walletOwnerType == pe.WalletOwnerUser {
 		// User wallet, make an openid4vp: request URL
-		authServerURL, err = r.CreateAuthorizationRequest(ctx, *session.OwnDID, nil, modifier)
+		authServerURL, err = r.createAuthorizationRequest(ctx, *session.OwnDID, nil, modifier)
 	} else {
 		walletDID, _ := did.ParseDID(session.ClientID)
-		authServerURL, err = r.CreateAuthorizationRequest(ctx, *session.OwnDID, walletDID, modifier)
+		authServerURL, err = r.createAuthorizationRequest(ctx, *session.OwnDID, walletDID, modifier)
 	}
 	if err != nil {
 		return nil, oauth.OAuth2Error{

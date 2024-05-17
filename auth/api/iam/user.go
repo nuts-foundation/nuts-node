@@ -152,7 +152,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
 	// TODO: First create user session, or AuthorizationRequest first? (which one is more expensive? both sign stuff)
-	redirectURL, err := r.CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, verifier, modifier)
+	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, verifier, modifier)
 	if err != nil {
 		return err
 	}
