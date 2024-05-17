@@ -92,12 +92,6 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	if params.get(jwt.AudienceKey) != verifier.String() {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("invalid audience, verifier = %s, audience = %s", verifier.String(), params.get(jwt.AudienceKey))), redirectURL)
 	}
-	// check nonce
-	// nonce in JWT must be present for signing to be unique for every request
-	// we currently do not check the nonce against a nonce store, but we could do that in the future
-	if params.get(oauth.NonceParam) == "" {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "missing nonce parameter"), redirectURL)
-	}
 	// we require PKCE (RFC7636) for authorization code flows
 	// check code_challenge and code_challenge_method
 	if params.get(oauth.CodeChallengeParam) == "" {
