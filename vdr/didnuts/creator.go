@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -119,7 +120,7 @@ func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 // It wraps the KIDNamingFunc with the context of the DID of the document.
 // It returns a keyID in the form of the documents DID with the new keys thumbprint as fragment.
 // E.g. for a assertionMethod key that differs from the key the DID document was created with.
-func didSubKIDNamingFunc(owningDID did.DID) nutsCrypto.KIDNamingFunc {
+func didSubKIDNamingFunc(owningDID did.DID) storage.KIDNamingFunc {
 	return func(pKey crypto.PublicKey) (string, error) {
 		return getKIDName(pKey, func(_ jwk.Key) (string, error) {
 			return owningDID.ID, nil

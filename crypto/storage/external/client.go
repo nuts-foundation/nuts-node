@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"net/http"
 	"net/url"
 	"time"
@@ -40,6 +41,10 @@ const StorageType = "external"
 // It allows us to keep the codebase clean and allow other parties to write their own adaptor.
 type APIClient struct {
 	httpClient *ClientWithResponses
+}
+
+func (c APIClient) NewPrivateKey(ctx context.Context, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, c, namingFunc)
 }
 
 func (c APIClient) Name() string {

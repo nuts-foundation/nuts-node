@@ -21,6 +21,7 @@ package crypto
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -29,7 +30,7 @@ import (
 
 func TestNewEphemeralKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		key, err := NewEphemeralKey(StringNamingFunc("kid"))
+		key, err := NewEphemeralKey(test.StringNamingFunc("kid"))
 
 		require.NoError(t, err)
 
@@ -39,7 +40,7 @@ func TestNewEphemeralKey(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		_, err := NewEphemeralKey(ErrorNamingFunc(errors.New("b00m!")))
+		_, err := NewEphemeralKey(test.ErrorNamingFunc(errors.New("b00m!")))
 
 		assert.EqualError(t, err, "b00m!")
 	})

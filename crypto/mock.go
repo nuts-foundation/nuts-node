@@ -15,6 +15,7 @@ import (
 	reflect "reflect"
 
 	dpop "github.com/nuts-foundation/nuts-node/crypto/dpop"
+	storage "github.com/nuts-foundation/nuts-node/crypto/storage"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,7 +43,7 @@ func (m *MockKeyCreator) EXPECT() *MockKeyCreatorMockRecorder {
 }
 
 // New mocks base method.
-func (m *MockKeyCreator) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
+func (m *MockKeyCreator) New(ctx context.Context, namingFunc storage.KIDNamingFunc) (Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", ctx, namingFunc)
 	ret0, _ := ret[0].(Key)
@@ -236,7 +237,7 @@ func (mr *MockKeyStoreMockRecorder) List(ctx any) *gomock.Call {
 }
 
 // New mocks base method.
-func (m *MockKeyStore) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
+func (m *MockKeyStore) New(ctx context.Context, namingFunc storage.KIDNamingFunc) (Key, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", ctx, namingFunc)
 	ret0, _ := ret[0].(Key)

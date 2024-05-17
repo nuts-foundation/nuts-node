@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -90,6 +91,10 @@ func NewFileSystemBackend(fspath string) (spi.Storage, error) {
 	}
 
 	return fsc, nil
+}
+
+func (fsc fileSystemBackend) NewPrivateKey(ctx context.Context, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, fsc, namingFunc)
 }
 
 func (fsc fileSystemBackend) PrivateKeyExists(_ context.Context, kid string) (bool, error) {

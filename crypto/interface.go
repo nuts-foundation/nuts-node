@@ -23,19 +23,17 @@ import (
 	"crypto"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
 // ErrPrivateKeyNotFound is returned when the private key doesn't exist
 var ErrPrivateKeyNotFound = errors.New("private key not found")
 
-// KIDNamingFunc is a function passed to New() which generates the kid for the pub/priv key
-type KIDNamingFunc func(key crypto.PublicKey) (string, error)
-
 // KeyCreator is the interface for creating key pairs.
 type KeyCreator interface {
 	// New generates a keypair and returns a Key. The context is used to pass audit information.
 	// The KIDNamingFunc will provide the kid.
-	New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error)
+	New(ctx context.Context, namingFunc storage.KIDNamingFunc) (Key, error)
 }
 
 // KeyResolver is the interface for resolving keys.

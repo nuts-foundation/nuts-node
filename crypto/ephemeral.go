@@ -19,9 +19,14 @@
 
 package crypto
 
+import (
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+)
+
 // NewEphemeralKey returns a Key for single use.
-func NewEphemeralKey(namingFunc KIDNamingFunc) (Key, error) {
-	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
+func NewEphemeralKey(namingFunc storage.KIDNamingFunc) (Key, error) {
+	keyPair, kid, err := spi.GenerateKeyPairAndKID(namingFunc)
 	if err != nil {
 		return nil, err
 	}

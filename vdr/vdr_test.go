@@ -30,6 +30,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	cryptoTest "github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
@@ -257,7 +258,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			client := crypto.NewMemoryCryptoInstance()
 			keyID := did.DIDURL{DID: TestDIDA}
 			keyID.Fragment = "1"
-			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
+			_, _ = client.New(audit.TestContext(), cryptoTest.StringNamingFunc(keyID.String()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
 			_ = vdr.Configure(core.TestServerConfig())
 			//vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})
@@ -303,8 +304,8 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			require.NoError(t, err)
 
 			client := crypto.NewMemoryCryptoInstance()
-			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyVendor.KID()))
-			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyOrg.KID()))
+			_, _ = client.New(audit.TestContext(), cryptoTest.StringNamingFunc(keyVendor.KID()))
+			_, _ = client.New(audit.TestContext(), cryptoTest.StringNamingFunc(keyOrg.KID()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
 			_ = vdr.Configure(*core.NewServerConfig())
 			vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})

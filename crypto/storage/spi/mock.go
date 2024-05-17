@@ -15,6 +15,7 @@ import (
 	reflect "reflect"
 
 	core "github.com/nuts-foundation/nuts-node/core"
+	storage "github.com/nuts-foundation/nuts-node/crypto/storage"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -110,6 +111,22 @@ func (m *MockStorage) Name() string {
 func (mr *MockStorageMockRecorder) Name() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockStorage)(nil).Name))
+}
+
+// NewPrivateKey mocks base method.
+func (m *MockStorage) NewPrivateKey(ctx context.Context, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewPrivateKey", ctx, namingFunc)
+	ret0, _ := ret[0].(crypto.PublicKey)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// NewPrivateKey indicates an expected call of NewPrivateKey.
+func (mr *MockStorageMockRecorder) NewPrivateKey(ctx, namingFunc any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewPrivateKey", reflect.TypeOf((*MockStorage)(nil).NewPrivateKey), ctx, namingFunc)
 }
 
 // PrivateKeyExists mocks base method.

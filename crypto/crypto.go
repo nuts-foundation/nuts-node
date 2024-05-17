@@ -21,12 +21,10 @@ package crypto
 import (
 	"context"
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"path"
 	"time"
 
@@ -152,25 +150,14 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 // New generates a new key pair.
 // Stores the private key, returns the public basicKey.
 // It returns an error when a key with the resulting ID already exists.
-func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
-	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
+func (client *Crypto) New(ctx context.Context, namingFunc storage.KIDNamingFunc) (Key, error) {
+	publicKey, kid, err := client.storage.NewPrivateKey(ctx, namingFunc)
 	if err != nil {
 		return nil, err
 	}
-
-	audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generating new key pair: %s", kid)
-	exists, err := client.storage.PrivateKeyExists(ctx, kid)
-	if err != nil {
-		return nil, err
-	}
-	if exists {
-		return nil, errors.New("key with the given ID already exists")
-	}
-	if err = client.storage.SavePrivateKey(ctx, kid, keyPair); err != nil {
-		return nil, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
-	}
+	audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generated new key pair: %s", kid)
 	return basicKey{
-		publicKey: keyPair.Public(),
+		publicKey: publicKey,
 		kid:       kid,
 	}, nil
 }
@@ -181,30 +168,10 @@ func (client *Crypto) Delete(ctx context.Context, kid string) error {
 	return client.storage.DeletePrivateKey(ctx, kid)
 }
 
-func generateKeyPairAndKID(namingFunc KIDNamingFunc) (*ecdsa.PrivateKey, string, error) {
-	keyPair, err := generateECKeyPair()
-	if err != nil {
-		return nil, "", err
-	}
-
-	kid, err := namingFunc(keyPair.Public())
-	if err != nil {
-		return nil, "", err
-	}
-	log.Logger().
-		WithField(core.LogFieldKeyID, kid).
-		Debug("Generated new key pair")
-	return keyPair, kid, nil
-}
-
-func generateECKeyPair() (*ecdsa.PrivateKey, error) {
-	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-}
-
 // GenerateJWK a new in-memory key pair and returns it as JWK.
 // It sets the alg field of the JWK.
 func GenerateJWK() (jwk.Key, error) {
-	keyPair, err := generateECKeyPair()
+	keyPair, err := spi.GenerateKeyPair()
 	if err != nil {
 		return nil, nil
 	}

@@ -19,10 +19,12 @@
 package test
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
 // GenerateRSAKey generates a 1024 bits RSA key
@@ -38,4 +40,17 @@ func GenerateRSAKey() *rsa.PrivateKey {
 func GenerateECKey() *ecdsa.PrivateKey {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return key
+}
+
+// StringNamingFunc can be used to give a key a simple string name
+func StringNamingFunc(name string) storage.KIDNamingFunc {
+	return func(key crypto.PublicKey) (string, error) {
+		return name, nil
+	}
+}
+
+func ErrorNamingFunc(err error) storage.KIDNamingFunc {
+	return func(key crypto.PublicKey) (string, error) {
+		return "", err
+	}
 }

@@ -21,9 +21,13 @@ package spi
 import (
 	"context"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"regexp"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -42,11 +46,15 @@ var KidPattern = regexp.MustCompile(`^(?:(?:[\da-zA-Z_\- :#.])|(?:%[0-9a-fA-F]{2
 // Storage interface containing functions for storing and retrieving keys.
 type Storage interface {
 	core.HealthCheckable
+	// NewPrivateKey creates a new private key and returns its handler as an implementation of crypto.Signer.
+	// It should be preferred over generating a key in the application and saving it to the storage,
+	// as it allows for unexportable (safer) keys. If the resulting kid already exists, it returns an error
+	NewPrivateKey(ctx context.Context, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error)
 	// GetPrivateKey from the storage backend and return its handler as an implementation of crypto.Signer.
 	GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error)
 	// PrivateKeyExists checks if the private key indicated with the kid is stored in the storage backend.
 	PrivateKeyExists(ctx context.Context, kid string) (bool, error)
-	// SavePrivateKey stores the key under the kid in the storage backend.
+	// SavePrivateKey imports the key under the kid in the storage backend.
 	SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error
 	// ListPrivateKeys returns the KIDs of the private keys that are present. Returns a []string(nil) if there was a problem.
 	ListPrivateKeys(ctx context.Context) []string
@@ -95,4 +103,40 @@ func (pke *PublicKeyEntry) UnmarshalJSON(bytes []byte) error {
 // JWK returns the key as JSON Web Key.
 func (pke PublicKeyEntry) JWK() jwk.Key {
 	return pke.parsedJWK
+}
+
+func GenerateAndStore(ctx context.Context, store Storage, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error) {
+	keyPair, kid, err := GenerateKeyPairAndKID(namingFunc)
+	if err != nil {
+		return nil, "", err
+	}
+	if store.PrivateKeyExists(ctx, kid) {
+		return nil, "", errors.New("key with the given ID already exists")
+	}
+	if err = store.SavePrivateKey(ctx, kid, keyPair); err != nil {
+		return nil, "", fmt.Errorf("could not create new keypair: could not save private key: %w", err)
+	}
+	return keyPair.Public(), kid, nil
+}
+
+// GenerateKeyPair generates a new key pair using the default key type.
+// It's intended to be used by crypto backends that don't create unexportable keys.
+func GenerateKeyPair() (*ecdsa.PrivateKey, error) {
+	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+}
+
+// GenerateKeyPairAndKID generates a new key pair and a KID using the provided naming function.
+// It's intended to be used by crypto backends that don't create unexportable keys.
+func GenerateKeyPairAndKID(namingFunc storage.KIDNamingFunc) (*ecdsa.PrivateKey, string, error) {
+	keyPair, err := GenerateKeyPair()
+	if err != nil {
+		return nil, "", err
+	}
+
+	kid, err := namingFunc(keyPair.Public())
+	if err != nil {
+		return nil, "", err
+	}
+
+	return keyPair, kid, nil
 }

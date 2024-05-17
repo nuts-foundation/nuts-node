@@ -23,3 +23,8 @@
 //     Will be removed in a future release, in favor of the `external` storage backend.
 //   - `external` (External): a secret storage backend that stores secrets externally (e.g. Vault).
 package storage
+
+import "crypto"
+
+// KIDNamingFunc is a function passed to New() which generates the kid for the pub/priv key
+type KIDNamingFunc func(key crypto.PublicKey) (string, error)
