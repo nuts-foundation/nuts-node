@@ -46,12 +46,11 @@ func TestJar_Create(t *testing.T) {
 		req := jar{}.Create(verifierDID, &holderDID, modifier)
 		assert.Equal(t, "get", req.RequestURIMethod)
 		assert.Equal(t, verifierDID, req.Client)
-		assert.Len(t, req.Claims, 5)
+		assert.Len(t, req.Claims, 4)
 		assert.Equal(t, req.Claims[oauth.ClientIDParam], verifierDID.String())
 		assert.Equal(t, req.Claims[jwt.IssuerKey], verifierDID.String())
 		assert.Equal(t, req.Claims[jwt.AudienceKey], holderDID.String())
 		assert.Equal(t, req.Claims["requestObjectModifier"], "works")
-		assert.NotEmpty(t, req.Claims[oauth.NonceParam])
 	})
 	t.Run("request_uri_method=post", func(t *testing.T) {
 		modifier := func(claims map[string]string) {
@@ -60,11 +59,10 @@ func TestJar_Create(t *testing.T) {
 		req := jar{}.Create(verifierDID, nil, modifier)
 		assert.Equal(t, "post", req.RequestURIMethod)
 		assert.Equal(t, verifierDID, req.Client)
-		assert.Len(t, req.Claims, 3)
+		assert.Len(t, req.Claims, 2)
 		assert.Equal(t, req.Claims[jwt.IssuerKey], holderDID.String())
 		assert.Equal(t, req.Claims[oauth.ClientIDParam], verifierDID.String())
 		assert.Empty(t, req.Claims[jwt.AudienceKey])
-		assert.NotEmpty(t, req.Claims[oauth.NonceParam])
 	})
 }
 func TestJar_Sign(t *testing.T) {

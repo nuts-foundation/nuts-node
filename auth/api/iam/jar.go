@@ -75,8 +75,6 @@ func createJarRequest(client did.DID, server *did.DID, modifier requestObjectMod
 	params := map[string]string{
 		jwt.IssuerKey:       client.String(),
 		oauth.ClientIDParam: client.String(),
-		// added by default, can be overriden by the caller
-		oauth.NonceParam: cryptoNuts.GenerateNonce(),
 	}
 	if server != nil {
 		requestURIMethod = "get"
