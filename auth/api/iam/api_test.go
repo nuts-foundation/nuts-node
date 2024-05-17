@@ -65,6 +65,7 @@ import (
 var rootWebDID = did.MustParseDID("did:web:example.com")
 var webDID = did.MustParseDID("did:web:example.com:iam:123")
 var verifierDID = did.MustParseDID("did:web:example.com:iam:verifier")
+var verifierURL = "https://example.com/iam/verifier"
 
 func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
@@ -305,6 +306,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 }
 
 func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
+
 	t.Run("ok - response_type=code", func(t *testing.T) {
 		ctx := newTestClient(t)
 
@@ -333,7 +335,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			RequireSignedRequestObject: true,
 		}
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&serverMetadata, nil).Times(2)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(&serverMetadata, nil).Times(2)
 		ctx.jar.EXPECT().Create(verifierDID, &holderDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, server, modifier)
 			params := req.Claims
@@ -1117,6 +1119,7 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 	clientDID := did.MustParseDID("did:web:client.test:iam:123")
 	serverDID := did.MustParseDID("did:web:server.test:iam:123")
+	var serverURL = "https://server.test/iam/123"
 	modifier := func(values map[string]string) {
 		values["custom"] = "value"
 	}
@@ -1128,7 +1131,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 		expectedRedirect := "https://server.test/authorize?client_id=did%3Aweb%3Aclient.test%3Aiam%3A123&request_uri=https://client.test/oauth2/&request_uri_method=custom"
 		var expectedJarReq jarRequest
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&serverMetadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverURL).Return(&serverMetadata, nil)
 		ctx.jar.EXPECT().Create(clientDID, &serverDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
 			expectedJarReq = createJarRequest(client, server, modifier)
 			expectedJarReq.RequestURIMethod = "custom"
@@ -1168,7 +1171,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 	})
 	t.Run("error - missing authorization endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{}, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverURL).Return(&oauth.AuthorizationServerMetadata{}, nil)
 
 		_, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
@@ -1177,7 +1180,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 	})
 	t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverURL).Return(nil, assert.AnError)
 
 		_, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
@@ -1185,7 +1188,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 	})
 	t.Run("error - failed to get metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverDID).Return(&oauth.AuthorizationServerMetadata{AuthorizationEndpoint: ":"}, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverURL).Return(&oauth.AuthorizationServerMetadata{AuthorizationEndpoint: ":"}, nil)
 
 		_, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
@@ -1230,13 +1233,10 @@ func Test_createOAuth2BaseURL(t *testing.T) {
 }
 
 func TestWrapper_RequestOid4vciCredentialIssuance(t *testing.T) {
-	holderDID := did.MustParseDID("did:web:holder.test:iam:123")
-	issuerDID := did.MustParseDID("did:web:issuer.test:iam:456")
 	redirectURI := "https://test.test/iam/123/cb"
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		authServer := "https://auth.server/"
-		authServerUrl, _ := url.Parse(authServer)
 		metadata := oauth.OpenIDCredentialIssuerMetadata{
 			CredentialIssuer:     "issuer",
 			CredentialEndpoint:   "endpoint",
@@ -1244,13 +1244,13 @@ func TestWrapper_RequestOid4vciCredentialIssuance(t *testing.T) {
 			Display:              nil,
 		}
 		ctx.vdr.EXPECT().IsOwner(nil, holderDID).Return(true, nil)
-		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerDID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerURL).Return(&metadata, nil)
 		openidMetadata := oauth.OpenIDConfigurationMetadata{
 			AuthorizationEndpoint: "https://auth.server/authorize",
 			TokenEndpoint:         "https://auth.server/token",
 		}
-		ctx.iamClient.EXPECT().OpenIdConfiguration(nil, authServerUrl.String()).Return(&openidMetadata, nil)
-		issuance, err := ctx.client.RequestOid4vciCredentialIssuance(nil, RequestOid4vciCredentialIssuanceRequestObject{
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&openidMetadata, nil)
+		response, err := ctx.client.RequestOid4vciCredentialIssuance(nil, RequestOid4vciCredentialIssuanceRequestObject{
 			Did: holderDID.String(),
 			Body: &RequestOid4vciCredentialIssuanceJSONRequestBody{
 				AuthorizationDetails: []struct {
@@ -1267,33 +1267,34 @@ func TestWrapper_RequestOid4vciCredentialIssuance(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		require.NotNil(t, issuance)
-		actual := issuance.(RequestOid4vciCredentialIssuance200JSONResponse)
-		redirectUri, _ := url.Parse(actual.RedirectURI)
+		require.NotNil(t, response)
+		redirectUri, err := url.Parse(response.(RequestOid4vciCredentialIssuance200JSONResponse).RedirectURI)
+		require.NoError(t, err)
 		assert.Equal(t, "auth.server", redirectUri.Host)
 		assert.Equal(t, "/authorize", redirectUri.Path)
 		assert.True(t, redirectUri.Query().Has("state"))
 		assert.True(t, redirectUri.Query().Has("code_challenge"))
-		assert.Equal(t, "https://holder.test/iam/oid4vci/callback", redirectUri.Query().Get("redirect_uri"))
+		assert.Equal(t, "https://example.com/iam/oid4vci/callback", redirectUri.Query().Get("redirect_uri"))
 		assert.Equal(t, holderDID.String(), redirectUri.Query().Get("client_id"))
 		assert.Equal(t, "S256", redirectUri.Query().Get("code_challenge_method"))
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
 	})
-	t.Run("no_auth_endpoint_err_1", func(t *testing.T) {
+	t.Run("ok - fallback to issuerDID on empty AuthorizationServers", func(t *testing.T) {
 		ctx := newTestClient(t)
 		metadata := oauth.OpenIDCredentialIssuerMetadata{
 			CredentialIssuer:     "issuer",
 			CredentialEndpoint:   "endpoint",
-			AuthorizationServers: []string{},
+			AuthorizationServers: []string{}, // empty
 			Display:              nil,
 		}
 		ctx.vdr.EXPECT().IsOwner(nil, holderDID).Return(true, nil)
-		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerDID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerURL).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, issuerURL).Return(nil, errors.New("ERROR"))
 		_, err := ctx.client.RequestOid4vciCredentialIssuance(nil, requestCredentials(holderDID, issuerDID, redirectURI))
 		require.Error(t, err)
 	})
 
-	t.Run("no_auth_no_owner", func(t *testing.T) {
+	t.Run("error - did not owned by this node", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, holderDID).Return(false, nil)
 		_, err := ctx.client.RequestOid4vciCredentialIssuance(nil, requestCredentials(holderDID, issuerDID, redirectURI))
@@ -1303,23 +1304,7 @@ func TestWrapper_RequestOid4vciCredentialIssuance(t *testing.T) {
 	t.Run("no_auth_endpoint_err_2", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, holderDID).Return(true, nil)
-		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerDID).Return(nil, errors.New("ERROR"))
-		_, err := ctx.client.RequestOid4vciCredentialIssuance(nil, requestCredentials(holderDID, issuerDID, redirectURI))
-		require.Error(t, err)
-	})
-	t.Run("no_auth_endpoint_err_3", func(t *testing.T) {
-		ctx := newTestClient(t)
-		authServer := "https://auth.server/"
-		authServerUrl, _ := url.Parse(authServer)
-		metadata := oauth.OpenIDCredentialIssuerMetadata{
-			CredentialIssuer:     "issuer",
-			CredentialEndpoint:   "endpoint",
-			AuthorizationServers: []string{authServer},
-			Display:              nil,
-		}
-		ctx.vdr.EXPECT().IsOwner(nil, holderDID).Return(true, nil)
-		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerDID).Return(&metadata, nil)
-		ctx.iamClient.EXPECT().OpenIdConfiguration(nil, authServerUrl.String()).Return(nil, errors.New("ERROR"))
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerURL).Return(nil, errors.New("ERROR"))
 		_, err := ctx.client.RequestOid4vciCredentialIssuance(nil, requestCredentials(holderDID, issuerDID, redirectURI))
 		require.Error(t, err)
 	})

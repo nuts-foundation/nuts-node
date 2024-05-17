@@ -42,6 +42,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -108,7 +109,12 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	if err != nil || walletDID.Method != "web" {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), redirectURL)
 	}
-	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, *walletDID)
+	oauthIssuer, err := didweb.DIDToURL(*walletDID)
+	if err != nil {
+		// can't fail since it's a valid did:web
+		return nil, err
+	}
+	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet", err), redirectURL)
 	}

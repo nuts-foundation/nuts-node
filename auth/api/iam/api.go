@@ -848,21 +848,38 @@ func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request 
 }
 
 func (r Wrapper) openidIssuerEndpoints(ctx context.Context, issuerDid did.DID) (string, string, string, error) {
-	metadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, issuerDid)
+	oauthIssuer, err := didweb.DIDToURL(issuerDid)
 	if err != nil {
 		return "", "", "", err
 	}
-	if len(metadata.AuthorizationServers) == 0 {
-		return "", "", "", fmt.Errorf("cannot locate any authorization endpoint in %s", issuerDid.String())
-	}
-	serverURL := metadata.AuthorizationServers[0]
-	openIdConfiguration, err := r.auth.IAMClient().OpenIdConfiguration(ctx, serverURL)
+	credentialIssuerMetadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, oauthIssuer.String())
 	if err != nil {
 		return "", "", "", err
 	}
-	authorizationEndpoint := openIdConfiguration.AuthorizationEndpoint
-	tokenEndpoint := openIdConfiguration.TokenEndpoint
-	credentialEndpoint := metadata.CredentialEndpoint
+	var authzServerMetadata *oauth.AuthorizationServerMetadata
+	if len(credentialIssuerMetadata.AuthorizationServers) == 0 {
+		// no authorization servers listed, issuer is the authorization server
+		authzServerMetadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
+		if err != nil {
+			return "", "", "", err
+		}
+	} else {
+		// TODO: smart select the correct authorization server based on the metadata
+		//		 https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata-p
+		// For now just accept the first successful result
+		for _, serverURL := range credentialIssuerMetadata.AuthorizationServers {
+			authzServerMetadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, serverURL)
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			return "", "", "", err
+		}
+	}
+	authorizationEndpoint := authzServerMetadata.AuthorizationEndpoint
+	tokenEndpoint := authzServerMetadata.TokenEndpoint
+	credentialEndpoint := credentialIssuerMetadata.CredentialEndpoint
 	return authorizationEndpoint, tokenEndpoint, credentialEndpoint, nil
 }
 
@@ -875,8 +892,11 @@ func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID,
 	if server != nil {
 		// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
 		// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
-		var err error
-		metadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, *server)
+		oauthIssuer, err := didweb.DIDToURL(*server)
+		if err != nil {
+			return nil, err
+		}
+		metadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 		}

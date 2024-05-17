@@ -26,14 +26,12 @@ import (
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,9 +43,8 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		result := oauth.AuthorizationServerMetadata{TokenEndpoint: "/token"}
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: result}
 		tlsServer, client := testServerAndClient(t, &handler)
-		testDID := didweb.ServerURLToDIDWeb(t, tlsServer.URL)
 
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
+		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL)
 
 		require.NoError(t, err)
 		require.NotNil(t, metadata)
@@ -60,10 +57,8 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		result := oauth.AuthorizationServerMetadata{TokenEndpoint: "/token"}
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: result}
 		tlsServer, client := testServerAndClient(t, &handler)
-		testDID := didweb.ServerURLToDIDWeb(t, tlsServer.URL)
-		testDID = did.MustParseDID(testDID.String() + ":iam:123")
 
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
+		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
 
 		require.NoError(t, err)
 		require.NotNil(t, metadata)

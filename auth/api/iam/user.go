@@ -39,6 +39,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 )
 
 const (
@@ -115,7 +116,11 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	//
-	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(echoCtx.Request().Context(), *verifier)
+	oauthIssuer, err := didweb.DIDToURL(*verifier)
+	if err != nil {
+		return err
+	}
+	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(echoCtx.Request().Context(), oauthIssuer.String())
 	if err != nil {
 		return fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 	}

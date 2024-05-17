@@ -111,7 +111,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			employeeCredentialOptions = o
 			return &t, nil
 		})
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil).Times(2)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(&serverMetadata, nil).Times(2)
 		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, server, modifier)
 			params := req.Claims
@@ -178,7 +178,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			return nil
 		})
 		echoCtx.EXPECT().Cookie(gomock.Any()).Return(&sessionCookie, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil).Times(2)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(&serverMetadata, nil).Times(2)
 		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any())
 		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
 		session := UserSession{
@@ -252,7 +252,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(nil, assert.AnError)
 
 		err = ctx.client.handleUserLanding(echoCtx)
 
