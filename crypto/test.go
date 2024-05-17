@@ -39,27 +39,27 @@ func NewTestCryptoInstance(storage spi.Storage) *Crypto {
 	return newInstance
 }
 
-func NewMemoryStorage() MemoryStorage {
-	return MemoryStorage{}
+func NewMemoryStorage() spi.Storage {
+	return memoryStorage{}
 }
 
-var _ spi.Storage = &MemoryStorage{}
+var _ spi.Storage = &memoryStorage{}
 
-type MemoryStorage map[string]crypto.PrivateKey
+type memoryStorage map[string]crypto.PrivateKey
 
-func (m MemoryStorage) NewPrivateKey(ctx context.Context, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error) {
+func (m memoryStorage) NewPrivateKey(ctx context.Context, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error) {
 	return spi.GenerateAndStore(ctx, m, namingFunc)
 }
 
-func (m MemoryStorage) Name() string {
+func (m memoryStorage) Name() string {
 	return "memory"
 }
 
-func (m MemoryStorage) CheckHealth() map[string]core.Health {
+func (m memoryStorage) CheckHealth() map[string]core.Health {
 	return map[string]core.Health{"memory": {Status: core.HealthStatusUp}}
 }
 
-func (m MemoryStorage) ListPrivateKeys(_ context.Context) []string {
+func (m memoryStorage) ListPrivateKeys(_ context.Context) []string {
 	var result []string
 	for key := range m {
 		result = append(result, key)
@@ -67,7 +67,7 @@ func (m MemoryStorage) ListPrivateKeys(_ context.Context) []string {
 	return result
 }
 
-func (m MemoryStorage) GetPrivateKey(_ context.Context, kid string) (crypto.Signer, error) {
+func (m memoryStorage) GetPrivateKey(_ context.Context, kid string) (crypto.Signer, error) {
 	pk, ok := m[kid]
 	if !ok {
 		return nil, ErrPrivateKeyNotFound
@@ -75,12 +75,12 @@ func (m MemoryStorage) GetPrivateKey(_ context.Context, kid string) (crypto.Sign
 	return pk.(crypto.Signer), nil
 }
 
-func (m MemoryStorage) PrivateKeyExists(_ context.Context, kid string) (bool, error) {
+func (m memoryStorage) PrivateKeyExists(_ context.Context, kid string) (bool, error) {
 	_, ok := m[kid]
 	return ok, nil
 }
 
-func (m MemoryStorage) DeletePrivateKey(_ context.Context, kid string) error {
+func (m memoryStorage) DeletePrivateKey(_ context.Context, kid string) error {
 	_, ok := m[kid]
 	if !ok {
 		return ErrPrivateKeyNotFound
@@ -89,7 +89,7 @@ func (m MemoryStorage) DeletePrivateKey(_ context.Context, kid string) error {
 	return nil
 }
 
-func (m MemoryStorage) SavePrivateKey(_ context.Context, kid string, key crypto.PrivateKey) error {
+func (m memoryStorage) SavePrivateKey(_ context.Context, kid string, key crypto.PrivateKey) error {
 	m[kid] = key
 	return nil
 }
