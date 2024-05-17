@@ -179,20 +179,21 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		return nil, err
 	}
 	switch request.Body.GrantType {
-	case "authorization_code":
+	case oauth.AuthorizationCodeGrantType:
 		// Options:
 		// - OpenID4VCI
 		// - OpenID4VP
 		// verifier DID is taken from code->oauthSession storage
 		return r.handleAccessTokenRequest(ctx, *request.Body)
-	case "urn:ietf:params:oauth:grant-type:pre-authorized_code":
+	case oauth.PreAuthorizedCodeGrantType:
 		// Options:
 		// - OpenID4VCI
+		// todo: add to grantTypesSupported in AS metadata once supported
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
 		}
-	case "vp_token-bearer":
+	case oauth.VpTokenGrantType:
 		// Nuts RFC021 vp_token bearer flow
 		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil {
 			return nil, oauth.OAuth2Error{
