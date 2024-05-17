@@ -163,27 +163,26 @@ func (c *OpenID4VPClient) RequestObjectByPost(ctx context.Context, requestURI st
 	return requestObject, nil
 }
 
-func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
+func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEndpoint string, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
+	// validate tokenEndpoint
+	parsedURL, err := core.ParsePublicURL(tokenEndpoint, c.strictMode)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+		return nil, err
 	}
-	if len(metadata.TokenEndpoint) == 0 {
-		return nil, fmt.Errorf("no token endpoint found in Authorization Server metadata: %s", verifier)
-	}
+
 	// call token endpoint
 	data := url.Values{}
 	data.Set(oauth.ClientIDParam, clientID.String())
 	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
-	data.Set(oauth.CodeResponseType, code)
+	data.Set(oauth.CodeParam, code)
 	data.Set(oauth.RedirectURIParam, callbackURI)
 	data.Set(oauth.CodeVerifierParam, codeVerifier)
 
 	var dpopHeader string
 	if useDPoP {
 		// create DPoP header
-		request, err := http.NewRequestWithContext(ctx, http.MethodPost, metadata.TokenEndpoint, nil)
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, parsedURL.String(), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +192,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier
 		}
 	}
 
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
+	token, err := iamClient.AccessToken(ctx, parsedURL.String(), data, dpopHeader)
 	if err != nil {
 		return nil, fmt.Errorf("remote server: error creating access token: %w", err)
 	}

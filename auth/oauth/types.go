@@ -137,6 +137,8 @@ const (
 	ClientMetadataURIParam = "client_metadata_uri"
 	// CNonceParam is the parameter name for the c_nonce parameter. (OpenID4VCI)
 	CNonceParam = "c_nonce"
+	// CodeParam is the parameter name for the code parameter. (RFC6749)
+	CodeParam = CodeResponseType
 	// CodeChallengeParam is the parameter name for the code_challenge parameter. (RFC7636)
 	CodeChallengeParam = "code_challenge"
 	// CodeChallengeMethodParam is the parameter name for the code_challenge_method parameter. (RFC7636)

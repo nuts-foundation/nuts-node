@@ -113,16 +113,29 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	if redirectSession.AccessTokenRequest.Body.TokenType != nil && strings.ToLower(string(*redirectSession.AccessTokenRequest.Body.TokenType)) == strings.ToLower(AccessTokenTypeBearer) {
 		useDPoP = false
 	}
+
+	//
+	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(echoCtx.Request().Context(), *verifier)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+	}
+	if len(metadata.AuthorizationEndpoint) == 0 {
+		return fmt.Errorf("no authorization endpoint found in metadata for %s", verifier.String())
+	}
+	if len(metadata.TokenEndpoint) == 0 {
+		return fmt.Errorf("no token endpoint found in metadata for %s", verifier.String())
+	}
 	// create oauthSession with userID from request
 	// generate new sessionID and clientState with crypto.GenerateNonce()
 	oauthSession := OAuthSession{
-		ClientState: crypto.GenerateNonce(),
-		OwnDID:      &redirectSession.OwnDID,
-		PKCEParams:  generatePKCEParams(),
-		RedirectURI: accessTokenRequest.Body.RedirectUri,
-		SessionID:   redirectSession.SessionID,
-		UseDPoP:     useDPoP,
-		VerifierDID: verifier,
+		ClientState:   crypto.GenerateNonce(),
+		OwnDID:        &redirectSession.OwnDID,
+		PKCEParams:    generatePKCEParams(),
+		RedirectURI:   accessTokenRequest.Body.RedirectUri,
+		SessionID:     redirectSession.SessionID,
+		UseDPoP:       useDPoP,
+		VerifierDID:   verifier,
+		TokenEndpoint: metadata.TokenEndpoint,
 	}
 	// store user session in session store under sessionID and clientState
 	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession)

@@ -57,7 +57,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier, false)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, clientID, codeVerifier, false)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -69,7 +69,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKey(clientID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid.String()).Return("dpop", nil)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier, true)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, clientID, codeVerifier, true)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -80,7 +80,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.token = nil
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier, false)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, clientID, codeVerifier, false)
 
 		assert.EqualError(t, err, "remote server: error creating access token: server returned HTTP 404 (expected: 200)")
 		assert.Nil(t, response)
@@ -90,7 +90,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKey(clientID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid.String()).Return("", assert.AnError)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier, true)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, clientID, codeVerifier, true)
 
 		assert.Error(t, err)
 		assert.Nil(t, response)

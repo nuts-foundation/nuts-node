@@ -754,11 +754,12 @@ func Test_handleCallback(t *testing.T) {
 	state := "state"
 
 	session := OAuthSession{
-		SessionID:   "token",
-		OwnDID:      &holderDID,
-		RedirectURI: "https://example.com/iam/holder/cb",
-		VerifierDID: &verifierDID,
-		PKCEParams:  generatePKCEParams(),
+		SessionID:     "token",
+		OwnDID:        &holderDID,
+		RedirectURI:   "https://example.com/iam/holder/cb",
+		VerifierDID:   &verifierDID,
+		PKCEParams:    generatePKCEParams(),
+		TokenEndpoint: "https://example.com/token",
 	}
 
 	t.Run("err - missing state", func(t *testing.T) {
@@ -804,7 +805,7 @@ func Test_handleCallback(t *testing.T) {
 		putState(ctx, "state", session)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier, false).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier, false).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
 			Did: webDID.String(),

@@ -32,7 +32,7 @@ type Client interface {
 	// AccessToken requests an access token at the oauth2 token endpoint.
 	// The token endpoint can be a regular OAuth2 token endpoint or OpenID4VCI-related endpoint.
 	// The response will be unmarshalled into the given tokenResponseOut parameter.
-	AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error)
+	AccessToken(ctx context.Context, code string, tokenURI, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error)
 	// AuthorizationServerMetadata returns the metadata of the remote wallet.
 	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
 	// ClientMetadata returns the metadata of the remote verifier.

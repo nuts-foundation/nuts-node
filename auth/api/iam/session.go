@@ -43,6 +43,7 @@ type OAuthSession struct {
 	ResponseType      string       `json:"response_type,omitempty"`
 	Scope             string       `json:"scope,omitempty"`
 	SessionID         string       `json:"session_id,omitempty"`
+	TokenEndpoint     string       `json:"token_endpoint,omitempty"`
 	UseDPoP           bool         `json:"use_dpop,omitempty"`
 	VerifierDID       *did.DID     `json:"verifier_did,omitempty"`
 }

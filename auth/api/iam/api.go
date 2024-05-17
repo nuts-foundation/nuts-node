@@ -814,7 +814,7 @@ func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request 
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("cannot fetch the right endpoints: %s", err.Error())), oid4vciSession.remoteRedirectUri())
 	}
-	response, err := r.auth.IAMClient().AccessToken(ctx, code, *issuerDid, oid4vciSession.RedirectUri, *holderDid, pkceParams.Verifier, false)
+	response, err := r.auth.IAMClient().AccessToken(ctx, code, tokenEndpoint, oid4vciSession.RedirectUri, *holderDid, pkceParams.Verifier, false)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", tokenEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
 	}

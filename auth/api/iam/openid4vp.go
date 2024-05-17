@@ -797,7 +797,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	checkURL = checkURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}

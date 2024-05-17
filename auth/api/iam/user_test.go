@@ -83,6 +83,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 	serverMetadata := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:      "https://example.com/authorize",
+		TokenEndpoint:              "https://example.com/token",
 		ClientIdSchemesSupported:   []string{didClientIDScheme},
 		VPFormats:                  oauth.DefaultOpenIDSupportedFormats(),
 		RequireSignedRequestObject: true,
@@ -110,7 +111,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			employeeCredentialOptions = o
 			return &t, nil
 		})
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil).Times(2)
 		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, server, modifier)
 			params := req.Claims
@@ -177,7 +178,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			return nil
 		})
 		echoCtx.EXPECT().Cookie(gomock.Any()).Return(&sessionCookie, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil).Times(2)
 		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any())
 		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
 		session := UserSession{
