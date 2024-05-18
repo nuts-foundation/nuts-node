@@ -22,8 +22,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/azure"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/external"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
@@ -38,12 +40,16 @@ func FlagSet() *pflag.FlagSet {
 
 	defs := cryptoEngine.DefaultCryptoConfig()
 	flags.String("crypto.storage", defs.Storage, fmt.Sprintf("Storage to use, '%s' for file system (for development purposes), "+
-		"'%s' for HashiCorp Vault KV store,"+
-		"'%s' for an external backend (deprecated).", fs.StorageType, vault.StorageType, external.StorageType))
+		"'%s' for HashiCorp Vault KV store, "+
+		"'%s' for Azure Key Vault.",
+		"'%s' for an external backend (deprecated).", fs.StorageType, vault.StorageType, azure.StorageType, external.StorageType))
 	flags.String("crypto.vault.token", defs.Vault.Token, "The Vault token. If set it overwrites the VAULT_TOKEN env var.")
 	flags.String("crypto.vault.address", defs.Vault.Address, "The Vault address. If set it overwrites the VAULT_ADDR env var.")
 	flags.Duration("crypto.vault.timeout", defs.Vault.Timeout, "Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s).")
 	flags.String("crypto.vault.pathprefix", defs.Vault.PathPrefix, "The Vault path prefix.")
+	flags.String("crypto.azurekv.url", defs.AzureKeyVault.URL, "The URL of the Azure Key Vault.")
+	flags.Duration("crypto.azurekv.timeout", defs.AzureKeyVault.Timeout, "Timeout of client calls to Azure Key Vault, in Golang time.Duration string format (e.g. 10s).")
+	flags.String("crypto.azurekv.keytype", string(defs.AzureKeyVault.KeyType), fmt.Sprintf("The type of key to create in Azure Key Vault. Supported values are '%s' and '%s'.", azkeys.KeyTypeEC, azkeys.KeyTypeECHSM))
 	flags.String("crypto.external.address", defs.External.Address, "Address of the external storage service.")
 	flags.Duration("crypto.external.timeout", defs.External.Timeout, "Time-out when invoking the external storage backend, in Golang time.Duration string format (e.g. 1s).")
 

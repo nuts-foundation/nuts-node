@@ -104,7 +104,11 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 
 	audit.Log(ctx, log.Logger(), audit.CryptoDecryptJWEEvent).Infof("Decrypting a JWE with kid: %s", kid)
 
-	body, err = jwe.Decrypt([]byte(message), jwe.WithKey(protectedHeaders.Algorithm(), privateKey))
+	keyJWK, err := jwk.FromRaw(privateKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("keys stored in '%s' do not support JWE decryption", client.storage.Name())
+	}
+	body, err = jwe.Decrypt([]byte(message), jwe.WithKey(protectedHeaders.Algorithm(), keyJWK))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -413,6 +417,9 @@ func encryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, erro
 
 // Thumbprint generates a Nuts compatible thumbprint: Base58(SHA256(rfc7638-json))
 func Thumbprint(key jwk.Key) (string, error) {
+	if key == nil {
+		return "", errors.New("key is nil")
+	}
 	pkHash, err := key.Thumbprint(crypto.SHA256)
 	if err != nil {
 		return "", err

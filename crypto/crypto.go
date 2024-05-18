@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/azure"
 	"path"
 	"time"
 
@@ -44,15 +45,17 @@ const (
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage  string          `koanf:"storage"`
-	Vault    vault.Config    `koanf:"vault"`
-	External external.Config `koanf:"external"`
+	Storage       string          `koanf:"storage"`
+	Vault         vault.Config    `koanf:"vault"`
+	AzureKeyVault azure.Config    `koanf:"azurekv"`
+	External      external.Config `koanf:"external"`
 }
 
 // DefaultCryptoConfig returns a Config with a fs backend storage
 func DefaultCryptoConfig() Config {
 	return Config{
-		Vault: vault.DefaultConfig(),
+		Vault:         vault.DefaultConfig(),
+		AzureKeyVault: azure.DefaultConfig(),
 		External: external.Config{
 			Timeout: 100 * time.Millisecond,
 		},
@@ -123,6 +126,17 @@ func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 	return nil
 }
 
+func (client *Crypto) setupAzureKeyVaultBackend(_ core.ServerConfig) error {
+	log.Logger().Debug("Setting up Azure Key Vault backend for storage of private key material. ")
+	var err error
+	azureBackend, err := azure.New(client.config.AzureKeyVault.URL, client.config.AzureKeyVault.Timeout, client.config.AzureKeyVault.KeyType)
+	if err != nil {
+		return err
+	}
+	client.storage = spi.NewValidatedKIDBackendWrapper(azureBackend, spi.KidPattern)
+	return nil
+}
+
 // List returns the KIDs of the private keys that are present in the key store.
 func (client *Crypto) List(ctx context.Context) []string {
 	return client.storage.ListPrivateKeys(ctx)
@@ -135,6 +149,8 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 		return client.setupFSBackend(config)
 	case vault.StorageType:
 		return client.setupVaultBackend(config)
+	case azure.StorageType:
+		return client.setupAzureKeyVaultBackend(config)
 	case external.StorageType:
 		return client.setupStorageAPIBackend()
 	case "":

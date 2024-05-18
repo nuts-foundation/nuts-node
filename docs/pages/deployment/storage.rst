@@ -42,8 +42,8 @@ Private Keys
 ************
 
 Your node generates and stores private keys when you create DID documents or add new keys to it.
-Private keys are very sensitive! If you leak them, others could alter your presence on the Nuts network and possibly worse.
-If you lose them you need to re-register your presence on the Nuts network, which could be very cumbersome.
+Private keys are very sensitive! If you leak them, others could impersonate your identity and possibly worse.
+If you lose them you need to re-create your identity, which could be very cumbersome.
 Thus, it's very important the private key storage is both secure and reliable.
 
 Filesystem
@@ -53,10 +53,20 @@ This is the default backend but not recommended for production. It stores keys u
 Make sure to include the directory in your backups and keep these in a safe place.
 If you want to use filesystem in strict mode, you have to set it explicitly, otherwise the node fails during startup.
 
+Microsoft Azure Key Vault
+=========================
+
+This storage backend uses Microsoft Azure's Key Vault. It authenticates to the Azure Key Vault at the configured URL using the default credential,
+typically an Azure Entra ID Managed Identity. If the Azure Key Vault stores keys in an HSM, set the ``keytype`` option to ``EC-HSM``.
+
+The keys creates in this storage backend are marked as non-exportable.
+
+Note that Azure Key Vault storage can't be used for nodes that produce ``did:nuts`` DIDs.
+
 HashiCorp Vault
 ===============
 
-This storage backend is the current recommended way of storing secrets. It uses the `Vault KV version 1 store <https://www.vaultproject.io/docs/secrets/kv/kv-v1>`_.
+This storage backend uses the `Vault KV version 1 store <https://www.vaultproject.io/docs/secrets/kv/kv-v1>`_.
 The path prefix defaults to ``kv`` and can be configured using the ``crypto.vault.pathprefix`` option.
 There needs to be a KV Secrets Engine (v1) enabled under this prefix path.
 
