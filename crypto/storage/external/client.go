@@ -108,12 +108,17 @@ func (c APIClient) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer
 	}
 }
 
-func (c APIClient) PrivateKeyExists(ctx context.Context, kid string) bool {
+func (c APIClient) PrivateKeyExists(ctx context.Context, kid string) (bool, error) {
 	response, err := c.httpClient.LookupSecretWithResponse(ctx, url.PathEscape(kid))
 	if err != nil {
-		return false
+		return false, err
 	}
-	return response.StatusCode() == http.StatusOK
+	if response.StatusCode() == http.StatusOK {
+		return true, nil
+	} else if response.StatusCode() == http.StatusNotFound {
+		return false, nil
+	}
+	return false, fmt.Errorf("unable to check if private key exists: server returned HTTP %d", response.StatusCode())
 }
 
 func (c APIClient) SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error {

@@ -80,11 +80,12 @@ func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
 }
 
 // Exists mocks base method.
-func (m *MockKeyResolver) Exists(ctx context.Context, kid string) bool {
+func (m *MockKeyResolver) Exists(ctx context.Context, kid string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Exists", ctx, kid)
 	ret0, _ := ret[0].(bool)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Exists indicates an expected call of Exists.
@@ -206,11 +207,12 @@ func (mr *MockKeyStoreMockRecorder) EncryptJWE(ctx, payload, headers, publicKey 
 }
 
 // Exists mocks base method.
-func (m *MockKeyStore) Exists(ctx context.Context, kid string) bool {
+func (m *MockKeyStore) Exists(ctx context.Context, kid string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Exists", ctx, kid)
 	ret0, _ := ret[0].(bool)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Exists indicates an expected call of Exists.

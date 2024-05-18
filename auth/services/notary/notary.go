@@ -112,7 +112,11 @@ func (n *notary) DrawUpContract(ctx context.Context, template contract.Template,
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
 
-	if !n.privateKeyStore.Exists(ctx, signingKeyID.String()) {
+	exists, err := n.privateKeyStore.Exists(ctx, signingKeyID.String())
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
 		return nil, services.InvalidContractRequestError{Message: fmt.Errorf("organization is not managed by this node: %w", ErrMissingOrganizationKey)}
 	}
 

@@ -49,15 +49,21 @@ func TestCrypto_Exists(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("returns true for existing key", func(t *testing.T) {
-		assert.True(t, client.Exists(ctx, kid))
+		exists, err := client.Exists(ctx, kid)
+		require.NoError(t, err)
+		assert.True(t, exists)
 	})
 
 	t.Run("returns false for non-existing key", func(t *testing.T) {
-		assert.False(t, client.Exists(ctx, "unknown"))
+		exists, err := client.Exists(ctx, "unknown")
+		require.NoError(t, err)
+		assert.False(t, exists)
 	})
 
 	t.Run("returns false for invalid kid", func(t *testing.T) {
-		assert.False(t, client.Exists(ctx, "../"))
+		exists, err := client.Exists(ctx, "../")
+		require.Error(t, err)
+		assert.False(t, exists)
 	})
 }
 
@@ -98,7 +104,7 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("error - save public key returns an error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().PrivateKeyExists(ctx, "123").Return(false)
+		storageMock.EXPECT().PrivateKeyExists(ctx, "123").Return(false, nil)
 		storageMock.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
 		client := &Crypto{storage: storageMock}
@@ -111,7 +117,7 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("error - ID already in use", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().PrivateKeyExists(ctx, "123").Return(true)
+		storageMock.EXPECT().PrivateKeyExists(ctx, "123").Return(true, nil)
 
 		client := &Crypto{storage: storageMock}
 		key, err := client.New(ctx, StringNamingFunc("123"))

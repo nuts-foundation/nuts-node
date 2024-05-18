@@ -159,7 +159,11 @@ func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, e
 	}
 
 	audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generating new key pair: %s", kid)
-	if client.storage.PrivateKeyExists(ctx, kid) {
+	exists, err := client.storage.PrivateKeyExists(ctx, kid)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
 		return nil, errors.New("key with the given ID already exists")
 	}
 	if err = client.storage.SavePrivateKey(ctx, kid, keyPair); err != nil {
@@ -212,7 +216,7 @@ func GenerateJWK() (jwk.Key, error) {
 }
 
 // Exists checks storage for an entry for the given legal entity and returns true if it exists
-func (client *Crypto) Exists(ctx context.Context, kid string) bool {
+func (client *Crypto) Exists(ctx context.Context, kid string) (bool, error) {
 	return client.storage.PrivateKeyExists(ctx, kid)
 }
 

@@ -113,11 +113,12 @@ func (mr *MockStorageMockRecorder) Name() *gomock.Call {
 }
 
 // PrivateKeyExists mocks base method.
-func (m *MockStorage) PrivateKeyExists(ctx context.Context, kid string) bool {
+func (m *MockStorage) PrivateKeyExists(ctx context.Context, kid string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PrivateKeyExists", ctx, kid)
 	ret0, _ := ret[0].(bool)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // PrivateKeyExists indicates an expected call of PrivateKeyExists.

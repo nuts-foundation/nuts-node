@@ -81,9 +81,9 @@ func (m memoryStorage) GetPrivateKey(_ context.Context, kid string) (crypto.Sign
 	return pk.(crypto.Signer), nil
 }
 
-func (m memoryStorage) PrivateKeyExists(_ context.Context, kid string) bool {
+func (m memoryStorage) PrivateKeyExists(_ context.Context, kid string) (bool, error) {
 	_, ok := m[kid]
-	return ok
+	return ok, nil
 }
 
 func (m memoryStorage) DeletePrivateKey(_ context.Context, kid string) error {

@@ -78,7 +78,11 @@ func createTokenCommand() *cobra.Command {
 				return err
 			}
 
-			if !instance.Exists(cmd.Context(), http.AdminTokenSigningKID) {
+			exists, err := instance.Exists(cmd.Context(), http.AdminTokenSigningKID)
+			if err != nil {
+				return err
+			}
+			if !exists {
 				cmd.Println("Token signing key not found, generating new key...")
 				_, err := instance.New(ctx, func(key crypto.PublicKey) (string, error) {
 					return http.AdminTokenSigningKID, nil
