@@ -48,22 +48,12 @@ func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}
 
 	audit.Log(ctx, log.Logger(), audit.CryptoSignJWTEvent).Infof("Signing a JWT with key: %s (issuer: %s, subject: %s)", kid, claims["iss"], claims["sub"])
 
-	// We want to set the kid claim as headers, but we don't want to modify the original headers map.
-	// So we copy the headers map and add the kid claim to it.
-	headersCopy := make(map[string]interface{})
-	if headers != nil {
-		for k, v := range headers {
-			headersCopy[k] = v
-		}
-	}
-	headersCopy["kid"] = kid
-
 	alg, err := signingAlg(privateKey.Public())
 	if err != nil {
 		return "", err
 	}
 
-	return signJWT(privateKey, alg, claims, headersCopy)
+	return signJWT(privateKey, alg, claims, headerWithKID(headers, kid))
 }
 
 // SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
@@ -116,6 +106,19 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 		return nil, nil, err
 	}
 	return body, headers, err
+}
+
+func headerWithKID(headers map[string]interface{}, kid string) map[string]interface{} {
+	// We want to set the kid claim as headers, but we don't want to modify the original headers map.
+	// So we copy the headers map and add the kid claim to it.
+	headersCopy := make(map[string]interface{})
+	if headers != nil {
+		for k, v := range headers {
+			headersCopy[k] = v
+		}
+	}
+	headersCopy["kid"] = kid
+	return headersCopy
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {

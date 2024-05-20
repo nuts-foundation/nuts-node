@@ -51,7 +51,7 @@ func (m MemoryJWTSigner) SignJWT(_ context.Context, claims map[string]interface{
 	if err != nil {
 		return "", err
 	}
-	return signJWT(signer, alg, claims, headers)
+	return signJWT(signer, alg, claims, headerWithKID(headers, keyID))
 }
 
 func (m MemoryJWTSigner) SignJWS(_ context.Context, _ []byte, _ map[string]interface{}, _ interface{}, _ bool) (string, error) {
