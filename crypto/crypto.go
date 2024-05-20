@@ -26,6 +26,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"path"
 	"time"
@@ -204,11 +205,11 @@ func GenerateJWK() (jwk.Key, error) {
 	if err != nil {
 		return nil, nil
 	}
-	result, err := jwkKey(keyPair)
+	result, err := jwk.FromRaw(keyPair)
 	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	return result, result.Set(jwk.AlgorithmKey, jwa.ES256)
 }
 
 // Exists checks storage for an entry for the given legal entity and returns true if it exists

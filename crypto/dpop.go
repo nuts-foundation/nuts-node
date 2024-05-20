@@ -24,15 +24,15 @@ import (
 )
 
 func (client *Crypto) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
-	privateKey, kid, err := client.getPrivateKey(ctx, kid)
+	privateKey, _, err := client.getPrivateKey(ctx, kid)
 	if err != nil {
 		return "", err
 	}
 
-	keyAsJWK, err := jwkKey(privateKey)
+	alg, err := signingAlg(privateKey.Public())
 	if err != nil {
 		return "", err
 	}
 
-	return token.Sign(keyAsJWK)
+	return token.Sign(privateKey, alg)
 }

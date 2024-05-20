@@ -121,27 +121,6 @@ func headerWithKID(headers map[string]interface{}, kid string) map[string]interf
 	return headersCopy
 }
 
-func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
-	key, err = jwk.FromRaw(signer)
-	if err != nil {
-		return nil, err
-	}
-
-	switch k := signer.(type) {
-	case *rsa.PrivateKey:
-		_ = key.Set(jwk.AlgorithmKey, jwa.PS256)
-	case *ecdsa.PrivateKey:
-		var alg jwa.SignatureAlgorithm
-		alg, err = ecAlg(k)
-		if err == nil {
-			_ = key.Set(jwk.AlgorithmKey, alg)
-		}
-	default:
-		err = errors.New("unsupported signing private key")
-	}
-	return
-}
-
 // signJWT signs claims with the signer and returns the compacted token. The headers param can be used to add additional headers
 func signJWT(key crypto.Signer, alg jwa.SignatureAlgorithm, claims map[string]interface{}, headers map[string]interface{}) (token string, err error) {
 	var sig []byte
