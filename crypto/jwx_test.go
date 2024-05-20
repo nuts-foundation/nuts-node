@@ -638,3 +638,42 @@ func (w wrappedSigner) Public() crypto.PublicKey {
 func (w wrappedSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
 	return w.target.Sign(rand, digest, opts)
 }
+
+func Test_signingAlg(t *testing.T) {
+	t.Run("RSA", func(t *testing.T) {
+		key, _ := rsa.GenerateKey(rand.Reader, 1024)
+		alg, err := signingAlg(key.Public())
+		require.NoError(t, err)
+		assert.Equal(t, jwa.PS256, alg)
+	})
+	t.Run("EC", func(t *testing.T) {
+		t.Run("P256", func(t *testing.T) {
+			key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			alg, err := signingAlg(key.Public())
+			require.NoError(t, err)
+			assert.Equal(t, jwa.ES256, alg)
+		})
+		t.Run("P384", func(t *testing.T) {
+			key, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+			alg, err := signingAlg(key.Public())
+			require.NoError(t, err)
+			assert.Equal(t, jwa.ES384, alg)
+		})
+		t.Run("P521", func(t *testing.T) {
+			key, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+			alg, err := signingAlg(key.Public())
+			require.NoError(t, err)
+			assert.Equal(t, jwa.ES512, alg)
+		})
+	})
+	t.Run("ED25519", func(t *testing.T) {
+		key, _, _ := ed25519.GenerateKey(rand.Reader)
+		alg, err := signingAlg(key)
+		require.NoError(t, err)
+		assert.Equal(t, jwa.EdDSA, alg)
+	})
+	t.Run("unsupported key", func(t *testing.T) {
+		_, err := signingAlg(nil)
+		assert.EqualError(t, err, "could not determine signature algorithm for key type '<nil>'")
+	})
+}
