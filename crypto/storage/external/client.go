@@ -23,7 +23,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"net/http"
 	"net/url"
 	"time"
@@ -43,7 +42,7 @@ type APIClient struct {
 	httpClient *ClientWithResponses
 }
 
-func (c APIClient) NewPrivateKey(ctx context.Context, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error) {
+func (c APIClient) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
 	return spi.GenerateAndStore(ctx, c, namingFunc)
 }
 

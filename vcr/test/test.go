@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -57,7 +56,7 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 		tokenVisitor(unsignedToken)
 	}
 	keyStore := crypto.NewMemoryCryptoInstance()
-	key, err := keyStore.New(audit.TestContext(), test.StringNamingFunc(subjectDID.String()))
+	key, err := keyStore.New(audit.TestContext(), crypto.StringNamingFunc(subjectDID.String()))
 	require.NoError(t, err)
 	claims, err = unsignedToken.AsMap(context.Background())
 	signedToken, err := keyStore.SignJWT(audit.TestContext(), claims, headers, key.KID())

@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -32,7 +31,7 @@ func TestCrypto_Decrypt(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		client := createCrypto(t)
 		kid := "kid"
-		key, _ := client.New(audit.TestContext(), test.StringNamingFunc(kid))
+		key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
 		pubKey := key.Public().(*ecdsa.PublicKey)
 
 		cipherText, err := EciesEncrypt(pubKey, []byte("hello!"))

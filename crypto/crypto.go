@@ -24,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"path"
 	"time"
 
@@ -150,7 +149,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 // New generates a new key pair.
 // Stores the private key, returns the public basicKey.
 // It returns an error when a key with the resulting ID already exists.
-func (client *Crypto) New(ctx context.Context, namingFunc storage.KIDNamingFunc) (Key, error) {
+func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
 	publicKey, kid, err := client.storage.NewPrivateKey(ctx, namingFunc)
 	if err != nil {
 		return nil, err

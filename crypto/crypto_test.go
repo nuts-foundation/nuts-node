@@ -23,7 +23,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -44,7 +43,7 @@ func TestCrypto_Exists(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	_, err := client.New(audit.TestContext(), test.StringNamingFunc(kid))
+	_, err := client.New(audit.TestContext(), StringNamingFunc(kid))
 	require.NoError(t, err)
 
 	t.Run("returns true for existing key", func(t *testing.T) {
@@ -75,7 +74,7 @@ func TestCrypto_New(t *testing.T) {
 		kid := "kid"
 		auditLogs := audit.CaptureLogs(t)
 
-		key, err := client.New(ctx, test.StringNamingFunc(kid))
+		key, err := client.New(ctx, StringNamingFunc(kid))
 
 		assert.NoError(t, err)
 		assert.NotNil(t, key.Public())
@@ -86,7 +85,7 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("error - invalid KID", func(t *testing.T) {
 		kid := "../certificate"
 
-		key, err := client.New(ctx, test.StringNamingFunc(kid))
+		key, err := client.New(ctx, StringNamingFunc(kid))
 
 		assert.ErrorContains(t, err, "invalid key ID")
 		assert.Nil(t, key)
@@ -116,7 +115,7 @@ func TestCrypto_Resolve(t *testing.T) {
 	ctx := context.Background()
 	client := createCrypto(t)
 	kid := "kid"
-	key, _ := client.New(audit.TestContext(), test.StringNamingFunc(kid))
+	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
 
 	t.Run("ok", func(t *testing.T) {
 		resolvedKey, err := client.Resolve(ctx, "kid")

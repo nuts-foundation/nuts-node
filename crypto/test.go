@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	log "github.com/sirupsen/logrus"
 )
@@ -39,6 +38,19 @@ func NewTestCryptoInstance(storage spi.Storage) *Crypto {
 	return newInstance
 }
 
+// StringNamingFunc can be used to give a key a simple string name
+func StringNamingFunc(name string) KIDNamingFunc {
+	return func(key crypto.PublicKey) (string, error) {
+		return name, nil
+	}
+}
+
+func ErrorNamingFunc(err error) KIDNamingFunc {
+	return func(key crypto.PublicKey) (string, error) {
+		return "", err
+	}
+}
+
 func NewMemoryStorage() spi.Storage {
 	return memoryStorage{}
 }
@@ -47,7 +59,7 @@ var _ spi.Storage = &memoryStorage{}
 
 type memoryStorage map[string]crypto.PrivateKey
 
-func (m memoryStorage) NewPrivateKey(ctx context.Context, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error) {
+func (m memoryStorage) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
 	return spi.GenerateAndStore(ctx, m, namingFunc)
 }
 

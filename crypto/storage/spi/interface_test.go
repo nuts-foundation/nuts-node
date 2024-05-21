@@ -24,7 +24,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"testing"
@@ -75,7 +74,9 @@ func TestGenerateAndStore(t *testing.T) {
 		store.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(nil)
 		kid := "123"
 
-		key, kid, err := GenerateAndStore(ctx, store, test.StringNamingFunc(kid))
+		key, kid, err := GenerateAndStore(ctx, store, func(_ crypto.PublicKey) (string, error) {
+			return kid, nil
+		})
 
 		assert.NoError(t, err)
 		assert.NotNil(t, key)
@@ -99,7 +100,9 @@ func TestGenerateAndStore(t *testing.T) {
 		store.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 		kid := "123"
 
-		_, _, err := GenerateAndStore(ctx, store, test.StringNamingFunc(kid))
+		_, _, err := GenerateAndStore(ctx, store, func(_ crypto.PublicKey) (string, error) {
+			return kid, nil
+		})
 
 		assert.ErrorContains(t, err, "could not create new keypair: could not save private key: foo")
 	})
@@ -110,7 +113,9 @@ func TestGenerateAndStore(t *testing.T) {
 		store.EXPECT().PrivateKeyExists(ctx, "123").Return(true)
 		kid := "123"
 
-		_, _, err := GenerateAndStore(ctx, store, test.StringNamingFunc(kid))
+		_, _, err := GenerateAndStore(ctx, store, func(_ crypto.PublicKey) (string, error) {
+			return kid, nil
+		})
 
 		assert.ErrorContains(t, err, "key with the given ID already exists")
 	})

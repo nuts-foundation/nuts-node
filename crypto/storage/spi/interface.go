@@ -27,7 +27,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"regexp"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -49,7 +48,7 @@ type Storage interface {
 	// NewPrivateKey creates a new private key and returns its handler as an implementation of crypto.Signer.
 	// It should be preferred over generating a key in the application and saving it to the storage,
 	// as it allows for unexportable (safer) keys. If the resulting kid already exists, it returns an error
-	NewPrivateKey(ctx context.Context, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error)
+	NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error)
 	// GetPrivateKey from the storage backend and return its handler as an implementation of crypto.Signer.
 	GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error)
 	// PrivateKeyExists checks if the private key indicated with the kid is stored in the storage backend.
@@ -105,7 +104,7 @@ func (pke PublicKeyEntry) JWK() jwk.Key {
 	return pke.parsedJWK
 }
 
-func GenerateAndStore(ctx context.Context, store Storage, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error) {
+func GenerateAndStore(ctx context.Context, store Storage, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
 	keyPair, kid, err := GenerateKeyPairAndKID(namingFunc)
 	if err != nil {
 		return nil, "", err
@@ -127,7 +126,7 @@ func GenerateKeyPair() (*ecdsa.PrivateKey, error) {
 
 // GenerateKeyPairAndKID generates a new key pair and a KID using the provided naming function.
 // It's intended to be used by crypto backends that don't create unexportable keys.
-func GenerateKeyPairAndKID(namingFunc storage.KIDNamingFunc) (*ecdsa.PrivateKey, string, error) {
+func GenerateKeyPairAndKID(namingFunc func(crypto.PublicKey) (string, error)) (*ecdsa.PrivateKey, string, error) {
 	keyPair, err := GenerateKeyPair()
 	if err != nil {
 		return nil, "", err

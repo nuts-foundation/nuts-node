@@ -20,7 +20,6 @@ package crypto
 
 import (
 	"encoding/base64"
-	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"net/http"
 	"testing"
 
@@ -35,7 +34,7 @@ import (
 
 func TestDPOP(t *testing.T) {
 	client := createCrypto(t)
-	privateKey, _ := client.New(audit.TestContext(), test.StringNamingFunc("kid"))
+	privateKey, _ := client.New(audit.TestContext(), StringNamingFunc("kid"))
 	keyAsJWK, _ := jwk.FromRaw(privateKey.Public())
 	_ = keyAsJWK.Set(jwk.AlgorithmKey, jwa.ES256)
 	request, _ := http.NewRequest("POST", "https://server.example.com/token", nil)

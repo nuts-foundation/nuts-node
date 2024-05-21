@@ -26,7 +26,6 @@ import (
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"path/filepath"
@@ -104,7 +103,7 @@ func NewVaultKVStorage(config Config) (spi.Storage, error) {
 	return vaultStorage, nil
 }
 
-func (v vaultKVStorage) NewPrivateKey(ctx context.Context, namingFunc storage.KIDNamingFunc) (crypto.PublicKey, string, error) {
+func (v vaultKVStorage) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
 	return spi.GenerateAndStore(ctx, v, namingFunc)
 }
 

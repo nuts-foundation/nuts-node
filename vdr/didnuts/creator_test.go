@@ -26,7 +26,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -171,7 +170,7 @@ func TestCreator_Create(t *testing.T) {
 			keyCreator := nutsCrypto.NewMockKeyCreator(ctrl)
 			creator := Creator{KeyStore: keyCreator}
 
-			keyCreator.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn storage.KIDNamingFunc) (nutsCrypto.Key, error) {
+			keyCreator.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
 				key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				keyName, _ := fn(key.Public())
 				return nutsCrypto.TestKey{
