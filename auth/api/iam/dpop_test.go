@@ -29,7 +29,6 @@ import (
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -242,11 +241,9 @@ func newSignedTestDPoP() (*dpop.DPoP, *dpop.DPoP, string) {
 	dpopToken := newTestDPoP()
 	withProof := newTestDPoP()
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	jwkKey, _ := jwk.FromRaw(keyPair)
-	jwkKey.Set(jwk.AlgorithmKey, jwa.ES256)
 	_ = withProof.GenerateProof("token")
-	_, _ = withProof.Sign(jwkKey)
-	_, _ = dpopToken.Sign(jwkKey)
+	_, _ = withProof.Sign(keyPair, jwa.ES256)
+	_, _ = dpopToken.Sign(keyPair, jwa.ES256)
 	thumbprintBytes, _ := dpopToken.Headers.JWK().Thumbprint(crypto2.SHA256)
 	thumbprint := base64.RawURLEncoding.EncodeToString(thumbprintBytes)
 	return dpopToken, withProof, thumbprint
