@@ -217,7 +217,11 @@ func GenerateJWK() (jwk.Key, error) {
 
 // Exists checks storage for an entry for the given legal entity and returns true if it exists
 func (client *Crypto) Exists(ctx context.Context, kid string) (bool, error) {
-	return client.storage.PrivateKeyExists(ctx, kid)
+	exists, err := client.storage.PrivateKeyExists(ctx, kid)
+	if err != nil {
+		return false, fmt.Errorf("could not check if private key exists: %w", err)
+	}
+	return exists, nil
 }
 
 func (client *Crypto) Resolve(ctx context.Context, kid string) (Key, error) {
