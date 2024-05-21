@@ -70,7 +70,7 @@ func TestGenerateAndStore(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockStorage(ctrl)
-		store.EXPECT().PrivateKeyExists(ctx, "123").Return(false)
+		store.EXPECT().PrivateKeyExists(ctx, "123").Return(false, nil)
 		store.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(nil)
 		kid := "123"
 
@@ -96,7 +96,7 @@ func TestGenerateAndStore(t *testing.T) {
 	t.Run("error - save public key returns an error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockStorage(ctrl)
-		store.EXPECT().PrivateKeyExists(ctx, "123").Return(false)
+		store.EXPECT().PrivateKeyExists(ctx, "123").Return(false, nil)
 		store.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 		kid := "123"
 
@@ -110,7 +110,7 @@ func TestGenerateAndStore(t *testing.T) {
 	t.Run("error - ID already in use", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockStorage(ctrl)
-		store.EXPECT().PrivateKeyExists(ctx, "123").Return(true)
+		store.EXPECT().PrivateKeyExists(ctx, "123").Return(true, nil)
 		kid := "123"
 
 		_, _, err := GenerateAndStore(ctx, store, func(_ crypto.PublicKey) (string, error) {

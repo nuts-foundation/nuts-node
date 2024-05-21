@@ -104,12 +104,17 @@ func (pke PublicKeyEntry) JWK() jwk.Key {
 	return pke.parsedJWK
 }
 
+// GenerateAndStore generates a new key pair and stores it in the provided storage.
 func GenerateAndStore(ctx context.Context, store Storage, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
 	keyPair, kid, err := GenerateKeyPairAndKID(namingFunc)
 	if err != nil {
 		return nil, "", err
 	}
-	if store.PrivateKeyExists(ctx, kid) {
+	exists, err := store.PrivateKeyExists(ctx, kid)
+	if err != nil {
+		return nil, "", err
+	}
+	if exists {
 		return nil, "", errors.New("key with the given ID already exists")
 	}
 	if err = store.SavePrivateKey(ctx, kid, keyPair); err != nil {
