@@ -19,13 +19,14 @@
 package crypto
 
 import (
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEciesEncrypt(t *testing.T) {
-	key, err := generateECKeyPair()
+	key, err := spi.GenerateKeyPair()
 	assert.NoError(t, err)
 
 	cipherText1, err := EciesEncrypt(&key.PublicKey, []byte("hello world"))
@@ -38,7 +39,7 @@ func TestEciesEncrypt(t *testing.T) {
 }
 
 func TestEciesDecrypt(t *testing.T) {
-	key, err := generateECKeyPair()
+	key, err := spi.GenerateKeyPair()
 	assert.NoError(t, err)
 
 	cipherText, err := EciesEncrypt(&key.PublicKey, []byte("hello world"))

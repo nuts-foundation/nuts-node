@@ -88,3 +88,14 @@ func (w wrapper) DeletePrivateKey(ctx context.Context, kid string) error {
 func (w wrapper) ListPrivateKeys(ctx context.Context) []string {
 	return w.wrappedBackend.ListPrivateKeys(ctx)
 }
+
+func (w wrapper) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
+	publicKey, kid, err := w.wrappedBackend.NewPrivateKey(ctx, namingFunc)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := w.validateKID(kid); err != nil {
+		return nil, "", err
+	}
+	return publicKey, kid, err
+}

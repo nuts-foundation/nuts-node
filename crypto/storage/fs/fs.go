@@ -92,6 +92,10 @@ func NewFileSystemBackend(fspath string) (spi.Storage, error) {
 	return fsc, nil
 }
 
+func (fsc fileSystemBackend) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, fsc, namingFunc)
+}
+
 func (fsc fileSystemBackend) PrivateKeyExists(_ context.Context, kid string) (bool, error) {
 	_, err := os.Stat(fsc.getEntryPath(kid, privateKeyEntry))
 	if errors.Is(err, os.ErrNotExist) {

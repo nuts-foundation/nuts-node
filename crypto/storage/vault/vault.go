@@ -103,6 +103,10 @@ func NewVaultKVStorage(config Config) (spi.Storage, error) {
 	return vaultStorage, nil
 }
 
+func (v vaultKVStorage) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, v, namingFunc)
+}
+
 func configureVaultClient(cfg Config) (*vault.Client, error) {
 	vaultConfig := vault.DefaultConfig()
 	vaultConfig.Timeout = cfg.Timeout
