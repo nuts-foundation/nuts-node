@@ -385,35 +385,40 @@ func TestAPIClient_PrivateKeyExists(t *testing.T) {
 	t.Run("ok - it should return true if the key exists", func(t *testing.T) {
 		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
-		exists := client.PrivateKeyExists(ctx, "test")
+		exists, err := client.PrivateKeyExists(ctx, "test")
+		require.NoError(t, err)
 		require.True(t, exists)
 	})
 
 	t.Run("ok - key with a slash in it (should be encoded)", func(t *testing.T) {
 		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
-		exists := client.PrivateKeyExists(ctx, "key/with/slashes")
+		exists, err := client.PrivateKeyExists(ctx, "key/with/slashes")
+		require.NoError(t, err)
 		require.True(t, exists)
 	})
 
 	t.Run("ok - it should return false if the key does not exist", func(t *testing.T) {
 		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
-		exists := client.PrivateKeyExists(ctx, "unknown-key")
+		exists, err := client.PrivateKeyExists(ctx, "unknown-key")
+		require.NoError(t, err)
 		require.False(t, exists)
 	})
 
 	t.Run("error - it returns false if the server returns an error", func(t *testing.T) {
 		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
-		exists := client.PrivateKeyExists(ctx, "server-error")
+		exists, err := client.PrivateKeyExists(ctx, "server-error")
+		require.Error(t, err)
 		require.False(t, exists)
 	})
 
 	t.Run("error - it returns false if the response has an invalid format", func(t *testing.T) {
 		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
-		exists := client.PrivateKeyExists(ctx, "invalid-response")
+		exists, err := client.PrivateKeyExists(ctx, "invalid-response")
+		require.Error(t, err)
 		require.False(t, exists)
 	})
 }

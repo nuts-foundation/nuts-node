@@ -45,7 +45,7 @@ type Storage interface {
 	// GetPrivateKey from the storage backend and return its handler as an implementation of crypto.Signer.
 	GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error)
 	// PrivateKeyExists checks if the private key indicated with the kid is stored in the storage backend.
-	PrivateKeyExists(ctx context.Context, kid string) bool
+	PrivateKeyExists(ctx context.Context, kid string) (bool, error)
 	// SavePrivateKey stores the key under the kid in the storage backend.
 	SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error
 	// ListPrivateKeys returns the KIDs of the private keys that are present. Returns a []string(nil) if there was a problem.

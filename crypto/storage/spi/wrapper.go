@@ -64,9 +64,9 @@ func (w wrapper) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, 
 	return w.wrappedBackend.GetPrivateKey(ctx, kid)
 }
 
-func (w wrapper) PrivateKeyExists(ctx context.Context, kid string) bool {
+func (w wrapper) PrivateKeyExists(ctx context.Context, kid string) (bool, error) {
 	if err := w.validateKID(kid); err != nil {
-		return false
+		return false, err
 	}
 	return w.wrappedBackend.PrivateKeyExists(ctx, kid)
 }
