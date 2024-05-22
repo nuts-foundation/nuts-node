@@ -239,12 +239,10 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 	}
 	// access token is active, return to caller and delete access token from store
 	// change this when tokens can be cached
-	defer func() {
-		err = r.accessTokenClientStore().Delete(request.SessionID)
-		if err != nil {
-			log.Logger().WithError(err).Warn("Failed to delete access token")
-		}
-	}()
+	err = r.accessTokenClientStore().Delete(request.SessionID)
+	if err != nil {
+		log.Logger().WithError(err).Warn("Failed to delete access token")
+	}
 	// return access token
 	return RetrieveAccessToken200JSONResponse(token), nil
 }
