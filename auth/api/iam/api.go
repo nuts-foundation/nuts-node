@@ -720,14 +720,19 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 	if err != nil {
 		return nil, core.InvalidInputError("could not parse Issuer DID: %s: %w", request.Body.Issuer, err)
 	}
-	// Fetch the endpoints
-	authorizationEndpoint, tokenEndpoint, credentialEndpoint, err := r.openid4vciEndpoints(ctx, *issuerDid)
+	// Fetch metadata containing the endpoints
+	credentialIssuerMetadata, authzServerMetadata, err := r.openid4vciMetadata(ctx, *issuerDid)
 	if err != nil {
 		return nil, core.Error(http.StatusFailedDependency, "cannot locate endpoints for %s: %w", issuerDid.String(), err)
 	}
-	endpoint, err := url.Parse(authorizationEndpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse the authorization_endpoint: %w", err)
+	if len(credentialIssuerMetadata.CredentialEndpoint) == 0 {
+		return nil, errors.New("no credential_endpoint found")
+	}
+	if len(authzServerMetadata.AuthorizationEndpoint) == 0 {
+		return nil, errors.New("no authorization_endpoint found")
+	}
+	if len(authzServerMetadata.TokenEndpoint) == 0 {
+		return nil, errors.New("no token_endpoint found")
 	}
 	// Read and parse the authorization details
 	authorizationDetails := []byte("[]")
@@ -749,19 +754,25 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 	}
 	// Store the session
 	err = r.openid4vciSessionStore().Put(state, &Oid4vciSession{
-		HolderDid:                requestHolder,
-		IssuerDid:                issuerDid,
-		RemoteRedirectUri:        request.Body.RedirectUri,
-		RedirectUri:              redirectUri.String(),
-		PKCEParams:               pkceParams,
-		IssuerTokenEndpoint:      tokenEndpoint,
-		IssuerCredentialEndpoint: credentialEndpoint,
+		HolderDid:         requestHolder,
+		IssuerDid:         issuerDid,
+		RemoteRedirectUri: request.Body.RedirectUri,
+		RedirectUri:       redirectUri.String(),
+		PKCEParams:        pkceParams,
+		// OpenID4VCI issuers may use multiple Authorization Servers
+		// We must use the token_endpoint that corresponds to the same Authorization Server used for the authorization_endpoint
+		IssuerTokenEndpoint:      authzServerMetadata.TokenEndpoint,
+		IssuerCredentialEndpoint: credentialIssuerMetadata.CredentialEndpoint,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
 	}
 	// Build the redirect URL, the client browser should be redirected to.
-	redirectUrl := nutsHttp.AddQueryParams(*endpoint, map[string]string{
+	authorizationEndpoint, err := url.Parse(authzServerMetadata.AuthorizationEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse the authorization_endpoint: %w", err)
+	}
+	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, map[string]string{
 		oauth.ResponseTypeParam:         oauth.CodeResponseType,
 		oauth.StateParam:                state,
 		oauth.ClientIDParam:             requestHolder.String(),
@@ -835,46 +846,36 @@ func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request 
 	}, nil
 }
 
-func (r Wrapper) openid4vciEndpoints(ctx context.Context, issuerDid did.DID) (authorization, token, credential string, err error) {
+func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oauth.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
 	oauthIssuer, err := didweb.DIDToURL(issuerDid)
 	if err != nil {
-		return "", "", "", fmt.Errorf("invalid issuer: %w", err)
+		return nil, nil, fmt.Errorf("invalid issuer: %w", err)
 	}
 	credentialIssuerMetadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, oauthIssuer.String())
 	if err != nil {
-		return "", "", "", err
+		return nil, nil, err
 	}
+
+	// OpenID4VCI allows multiple AuthorizationServers in credentialIssuerMetadata for a single issuer. (allows delegating issuance per VC type)
+	// TODO: smart select the correct authorization server based on the metadata
+	//		 https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata-p
+	// For now we just accept the first successful result, and lookup the metadata.
 	var ASMetadata *oauth.AuthorizationServerMetadata
-	if len(credentialIssuerMetadata.AuthorizationServers) == 0 {
-		// This is an optional field. When no authorization servers are listed, the oauth Issuer is the authorization server
+	for _, serverURL := range credentialIssuerMetadata.AuthorizationServers {
+		ASMetadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, serverURL)
+		if err == nil {
+			break
+		}
+	}
+	if ASMetadata == nil {
+		// authorization_servers is an optional field. When no authorization servers are listed, the oauth Issuer is the authorization server.
+		// also try issuer in case all others fail
 		ASMetadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
 		if err != nil {
-			return "", "", "", err
-		}
-	} else {
-		// TODO: smart select the correct authorization server based on the metadata
-		//		 https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata-p
-		// For now just accept the first successful result
-		for _, serverURL := range credentialIssuerMetadata.AuthorizationServers {
-			ASMetadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, serverURL)
-			if err == nil {
-				break
-			}
-		}
-		if err != nil {
-			return "", "", "", err
+			return nil, nil, err
 		}
 	}
-	if len(credentialIssuerMetadata.CredentialEndpoint) == 0 {
-		return "", "", "", errors.New("no credential_endpoint found")
-	}
-	if len(ASMetadata.AuthorizationEndpoint) == 0 {
-		return "", "", "", errors.New("no authorization_endpoint found")
-	}
-	if len(ASMetadata.TokenEndpoint) == 0 {
-		return "", "", "", errors.New("no token_endpoint found")
-	}
-	return ASMetadata.AuthorizationEndpoint, ASMetadata.TokenEndpoint, credentialIssuerMetadata.CredentialEndpoint, nil
+	return credentialIssuerMetadata, ASMetadata, nil
 }
 
 // createAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.

@@ -817,6 +817,8 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	}, nil
 }
 
+// oauthNonceStore is used to map nonce to state. Burn on use.
+// This mapping is needed because we have one OAuthSession (state), but use a new nonce for every OpenID4VP flow.
 func (r Wrapper) oauthNonceStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthNonceKey...)
 }
