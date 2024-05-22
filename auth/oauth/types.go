@@ -117,8 +117,7 @@ const (
 	ClientMetadataPath = "/oauth-client"
 	// OpenIdCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in
 	// OpenID4VCI specification
-	OpenIdCredIssuerWellKnown    = "/.well-known/openid-credential-issuer"
-	OpenIdConfigurationWellKnown = "/.well-known/openid-configuration"
+	OpenIdCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
 )
 
 // oauth parameter keys
@@ -384,8 +383,3 @@ type OpenIDCredentialIssuerMetadata struct {
 	// - Display: a slice of maps where each map represents the display information (optional)
 	Display []map[string]string `json:"display,omitempty"`
 }
-
-// OpenIDConfigurationMetadata is the metadata of an OpenID Connect configuration.
-// It includes the issuer, authorization endpoint, token endpoint, JWKS URI,
-// and supported grant types for authentication and authorization.
-type OpenIDConfigurationMetadata = AuthorizationServerMetadata

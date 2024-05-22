@@ -112,7 +112,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	oauthIssuer, err := didweb.DIDToURL(*walletDID)
 	if err != nil {
 		// can't fail since it's a valid did:web
-		return nil, err
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), redirectURL)
 	}
 	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
 	if err != nil {
@@ -819,6 +819,11 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 
 func (r Wrapper) oauthNonceStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthNonceKey...)
+}
+
+// oauthCodeStore is used to store the authorization server's OAuthSession in the authorization_code flow. Burn on use.
+func (r Wrapper) oauthCodeStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthCodeKey...)
 }
 
 func oauthError(code oauth.ErrorCode, description string, internalError ...error) oauth.OAuth2Error {
