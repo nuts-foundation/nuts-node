@@ -90,9 +90,13 @@ func TestVaultKVStorage(t *testing.T) {
 
 	t.Run("ok - store and retrieve private key", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{}}}
-		assert.False(t, vaultStorage.PrivateKeyExists(ctx, kid), "key should not be in vault")
+		exists, err := vaultStorage.PrivateKeyExists(ctx, kid)
+		assert.NoError(t, err, "checking should work")
+		assert.False(t, exists, "key should not be in vault")
 		assert.NoError(t, vaultStorage.SavePrivateKey(ctx, kid, privateKey), "saving should work")
-		assert.True(t, vaultStorage.PrivateKeyExists(ctx, kid), "key should be in vault")
+		exists, err = vaultStorage.PrivateKeyExists(ctx, kid)
+		assert.NoError(t, err, "checking should work")
+		assert.True(t, exists, "key should be in vault")
 		result, err := vaultStorage.GetPrivateKey(ctx, kid)
 		assert.NoError(t, err, "getting key should work")
 		assert.Equal(t, privateKey, result, "expected retrieved key to equal original")
@@ -103,7 +107,9 @@ func TestVaultKVStorage(t *testing.T) {
 			vaultStorage := vaultKVStorage{client: mockVaultClient{store: map[string]map[string]interface{}{"kv/nuts-private-keys/did:nuts:123#abc": {}}}}
 			err := vaultStorage.DeletePrivateKey(ctx, kid)
 			assert.NoError(t, err)
-			assert.False(t, vaultStorage.PrivateKeyExists(ctx, kid), "key should not be in vault")
+			exists, err := vaultStorage.PrivateKeyExists(ctx, kid)
+			assert.NoError(t, err)
+			assert.False(t, exists, "key should not be in vault")
 		})
 		t.Run("key does not exist", func(t *testing.T) {
 			vaultStorage := vaultKVStorage{client: mockVaultClient{store: map[string]map[string]interface{}{}}}
@@ -131,10 +137,11 @@ func TestVaultKVStorage(t *testing.T) {
 		assert.ErrorIs(t, err, vaultError)
 	})
 
-	t.Run("ok - keyExists return false in case of vault error", func(t *testing.T) {
+	t.Run("ok - vault error", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{client: mockVaultClient{err: vaultError}}
-		result := vaultStorage.PrivateKeyExists(ctx, kid)
-		assert.False(t, result, "expected PrivateKeyExists to return false")
+		result, err := vaultStorage.PrivateKeyExists(ctx, kid)
+		assert.EqualError(t, err, "unable to read key from vault: vault error")
+		assert.False(t, result)
 	})
 
 	t.Run("error - key not found (empty response)", func(t *testing.T) {
@@ -143,7 +150,8 @@ func TestVaultKVStorage(t *testing.T) {
 		assert.Error(t, err, "expected error on unknown kid")
 		assert.EqualError(t, err, "entry not found")
 
-		exists := vaultStorage.PrivateKeyExists(ctx, kid)
+		exists, err := vaultStorage.PrivateKeyExists(ctx, kid)
+		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
 
@@ -156,7 +164,8 @@ func TestVaultKVStorage(t *testing.T) {
 		assert.Error(t, err, "expected error on unknown kid")
 		assert.EqualError(t, err, "entry not found")
 
-		exists := vaultStorage.PrivateKeyExists(ctx, kid)
+		exists, err := vaultStorage.PrivateKeyExists(ctx, kid)
+		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
 

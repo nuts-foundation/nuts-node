@@ -20,10 +20,11 @@ package storage
 
 import (
 	"errors"
+	"time"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"gorm.io/gorm"
-	"time"
 )
 
 const lockAcquireTimeout = time.Second
@@ -94,4 +95,6 @@ type SessionStore interface {
 	Get(key string, target interface{}) error
 	// Put stores the given value for the given key.
 	Put(key string, value interface{}) error
+	// GetAndDelete combines Get and Delete as a convenience for burning nonce entries.
+	GetAndDelete(key string, target interface{}) error
 }

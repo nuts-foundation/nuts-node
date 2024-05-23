@@ -31,6 +31,7 @@ import (
 func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) echo.MiddlewareFunc {
 	return middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		Skipper:     skipper,
+		LogHeaders:  []string{"Authorization", "DPoP"},
 		LogURI:      true,
 		LogStatus:   true,
 		LogMethod:   true,
@@ -42,12 +43,16 @@ func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) e
 				status = core.GetHTTPStatusCode(values.Error, c)
 			}
 
-			logger.WithFields(logrus.Fields{
+			fields := logrus.Fields{
 				"remote_ip": values.RemoteIP,
 				"method":    values.Method,
 				"uri":       values.URI,
 				"status":    status,
-			}).Info("HTTP request")
+			}
+			if logger.Level >= logrus.DebugLevel {
+				fields["headers"] = values.Headers
+			}
+			logger.WithFields(fields).Info("HTTP request")
 
 			return nil
 		},

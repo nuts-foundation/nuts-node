@@ -27,29 +27,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"net/http"
 	"net/url"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
-var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
-const requestQueryContextKey = "request.url.query"
+type requestQueryContextKey struct{}
 
 type Wrapper struct {
-	Server discovery.Server
 	Client discovery.Client
-}
-
-func (w *Wrapper) ResolveStatusCode(err error) int {
-	switch {
-	case errors.Is(err, discovery.ErrServerModeDisabled):
-		return http.StatusBadRequest
-	case errors.Is(err, discovery.ErrInvalidPresentation):
-		return http.StatusBadRequest
-	default:
-		return http.StatusInternalServerError
-	}
 }
 
 func (w *Wrapper) Routes(router core.EchoRouter) {
@@ -62,7 +48,7 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 				// deepmap/openapi codegen does not support dynamic query parameters ("exploded form parameters"),
 				// so we expose the request URL query parameters to the request context,
 				// so the API handler can use them directly.
-				newContext := context.WithValue(ctx.Request().Context(), requestQueryContextKey, ctx.Request().URL.Query())
+				newContext := context.WithValue(ctx.Request().Context(), requestQueryContextKey{}, ctx.Request().URL.Query())
 				newRequest := ctx.Request().WithContext(newContext)
 				ctx.SetRequest(newRequest)
 				return f(ctx, request)
@@ -74,34 +60,9 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 	}))
 }
 
-func (w *Wrapper) GetPresentations(_ context.Context, request GetPresentationsRequestObject) (GetPresentationsResponseObject, error) {
-	var tag *discovery.Tag
-	if request.Params.Tag != nil {
-		// *string to *Tag
-		tag = new(discovery.Tag)
-		*tag = discovery.Tag(*request.Params.Tag)
-	}
-	presentations, newTag, err := w.Server.Get(request.ServiceID, tag)
-	if err != nil {
-		return nil, err
-	}
-	return GetPresentations200JSONResponse{
-		Entries: presentations,
-		Tag:     string(*newTag),
-	}, nil
-}
-
-func (w *Wrapper) RegisterPresentation(_ context.Context, request RegisterPresentationRequestObject) (RegisterPresentationResponseObject, error) {
-	err := w.Server.Register(request.ServiceID, *request.Body)
-	if err != nil {
-		return nil, err
-	}
-	return RegisterPresentation201Response{}, nil
-}
-
 func (w *Wrapper) SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error) {
 	// Use query parameters provided in request context (see Routes())
-	queryValues := ctx.Value(requestQueryContextKey).(url.Values)
+	queryValues := ctx.Value(requestQueryContextKey{}).(url.Values)
 	query := make(map[string]string)
 	for path, values := range queryValues {
 		query[path] = values[0]

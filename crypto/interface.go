@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 )
 
 // ErrPrivateKeyNotFound is returned when the private key doesn't exist
@@ -41,7 +42,7 @@ type KeyCreator interface {
 type KeyResolver interface {
 	// Exists returns if the specified private key exists.
 	// If an error occurs, false is also returned
-	Exists(ctx context.Context, kid string) bool
+	Exists(ctx context.Context, kid string) (bool, error)
 	// Resolve returns a Key for the given KID. ErrPrivateKeyNotFound is returned for an unknown KID.
 	Resolve(ctx context.Context, kid string) (Key, error)
 	// List returns the KIDs of the private keys that are present in the KeyStore.
@@ -51,6 +52,7 @@ type KeyResolver interface {
 // KeyStore defines the functions for working with private keys.
 type KeyStore interface {
 	Decrypter
+	JsonWebEncryptor
 	KeyCreator
 	KeyResolver
 	JWTSigner
@@ -83,7 +85,13 @@ type JWTSigner interface {
 	// context is used to pass audit information.
 	// Returns ErrPrivateKeyNotFound when the private key is not present.
 	SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error)
+	// SignDPoP signs a DPoP token for the given kid.
+	// It adds the requested key as jwk header to the DPoP token.
+	SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error)
+}
 
+// JsonWebEncryptor is the interface used to encrypt and decrypt JWE messages.
+type JsonWebEncryptor interface {
 	// EncryptJWE encrypts a payload as bytes into a JWE message with the given key and kid.
 	// The publicKey must be a public key
 	// The kid must be the KeyID and will be placed in the header, if not set.

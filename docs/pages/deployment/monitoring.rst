@@ -7,7 +7,7 @@ Health checks
 *************
 
 Status
-------
+======
 
 The status endpoint check that the service has been started. It can be used as a ``readiness probe``.
 It does not provide any information on the individual modules running as part of the executable.
@@ -26,7 +26,7 @@ Returns an "OK" response body with status code ``200``.
     Override the default healthcheck to solve this.
 
 Health
-------
+======
 
 The health endpoint provides more fine grained health checks on the Nuts node. It can be used as a ``liveness probe``.
 It reports in a format compatible with `Spring Boot's Health Actuator <https://docs.spring.io/spring-boot/docs/2.0.x/actuator-api/html/#health>`__.

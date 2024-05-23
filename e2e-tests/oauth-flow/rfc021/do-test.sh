@@ -11,7 +11,9 @@ db_dc="docker compose -f docker-compose.yml -f ${1}.yml"
 echo "------------------------------------"
 echo "Cleaning up running Docker containers and volumes, and key material..."
 echo "------------------------------------"
-$db_dc down
+# --remove-orphans to ensure that DB containers of previous runs (on e.g. Postgres) are removed when testing with SQLite.
+# Nothing breaks otherwise, but it prevents annoying warnings in the log.
+$db_dc down --remove-orphans
 $db_dc rm -f -v
 
 echo "------------------------------------"
@@ -64,7 +66,7 @@ echo "Perform OAuth 2.0 rfc021 flow..."
 echo "---------------------------------------"
 # Request access token
 REQUEST="{\"verifier\":\"${VENDOR_A_DID}\",\"scope\":\"test\"}"
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/request-service-access-token -H "Content-Type:application/json" -v)
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/request-service-access-token -H "Content-Type: application/json" -v)
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/accesstoken.txt
   echo "access token stored in ./node-B/accesstoken.txt"
@@ -74,10 +76,28 @@ else
   exitWithDockerLogs 1
 fi
 
+ACCESS_TOKEN=$(cat ./node-B/accesstoken.txt)
+
+echo "------------------------------------"
+echo "Create DPoP header..."
+echo "------------------------------------"
+REQUEST="{\"htm\":\"GET\",\"htu\":\"https://nodeA:443/resource\", \"token\":\"$ACCESS_TOKEN\"}"
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/dpop -H "Content-Type: application/json" -v)
+if echo $RESPONSE | grep -q "dpop"; then
+  echo $RESPONSE | sed -E 's/.*"dpop":"([^"]*).*/\1/' > ./node-B/dpop.txt
+  echo "dpop token stored in ./node-B/dpop.txt"
+else
+  echo "FAILED: Could not get dpop token from node-B" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+DPOP=$(cat ./node-B/dpop.txt)
+
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
-RESPONSE=$($db_dc exec nodeB curl --http1.1 --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/resource -H "Authorization: bearer $(cat ./node-B/accesstoken.txt)" -v)
+RESPONSE=$($db_dc exec nodeB curl --http1.1 --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/resource -H "Authorization: DPoP $ACCESS_TOKEN" -H "DPoP: $DPOP" -v)
 if echo $RESPONSE | grep -q "OK"; then
   echo "success!"
 else
@@ -89,5 +109,5 @@ fi
 echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"
-$db_dc stop
-rm node-*/accesstoken.txt
+$db_dc down
+rm node-*/*.txt

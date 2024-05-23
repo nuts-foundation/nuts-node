@@ -126,7 +126,10 @@ func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*
 		newDID = m.rootDID
 		newDID.ID += ":" + m.tenantPath + ":" + uuid.NewString()
 	}
-	parsedNewDID, _ := did.ParseDID(newDID.String()) // make sure internal state is consistent (DecodedID)
+	parsedNewDID, err := did.ParseDID(newDID.String()) // make sure internal state is consistent (DecodedID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid new DID: %s: %w", newDID.String(), err)
+	}
 	return m.create(ctx, *parsedNewDID)
 }
 
@@ -237,11 +240,6 @@ func (m Manager) DeleteService(_ context.Context, subjectDID did.DID, serviceID 
 }
 
 func buildDocument(subject did.DID, verificationMethods []did.VerificationMethod, services []did.Service) did.Document {
-	var vms []*did.VerificationMethod
-	for _, verificationMethod := range verificationMethods {
-		vms = append(vms, &verificationMethod)
-	}
-
 	document := did.Document{
 		Context: []interface{}{
 			ssi.MustParseURI(jsonld.Jws2020Context),

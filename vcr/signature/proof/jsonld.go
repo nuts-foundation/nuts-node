@@ -150,7 +150,7 @@ func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.Pub
 
 // Sign signs the provided document with this proof and a signature suite and signer.
 // It returns the complete signed JSON-LD document
-func (p *LDProof) Sign(ctx context.Context, document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error) {
+func (p *LDProof) Sign(ctx context.Context, document Document, suite signature.Suite, keyID string) (interface{}, error) {
 	p.Type = suite.GetType()
 	if len(p.ProofPurpose) == 0 {
 		p.ProofPurpose = AssertionMethodProofPurpose
@@ -158,7 +158,7 @@ func (p *LDProof) Sign(ctx context.Context, document Document, suite signature.S
 	if p.Created.IsZero() {
 		p.Created = time.Now()
 	}
-	p.VerificationMethod = ssi.MustParseURI(key.KID())
+	p.VerificationMethod = ssi.MustParseURI(keyID)
 
 	canonicalDocument, err := suite.CanonicalizeDocument(document)
 	if err != nil {
@@ -177,7 +177,7 @@ func (p *LDProof) Sign(ctx context.Context, document Document, suite signature.S
 
 	tbs := append(suite.CalculateDigest(canonicalProof), suite.CalculateDigest(canonicalDocument)...)
 
-	sig, err := suite.Sign(ctx, tbs, key)
+	sig, err := suite.Sign(ctx, tbs, keyID)
 	if err != nil {
 		return nil, fmt.Errorf("error while signing: %w", err)
 	}

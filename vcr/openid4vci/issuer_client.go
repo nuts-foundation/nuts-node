@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"io"
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
@@ -168,7 +167,7 @@ func httpDo(httpClient core.HTTPRequestDoer, httpRequest *http.Request, result i
 		return fmt.Errorf("http request error: %w", err)
 	}
 	defer httpResponse.Body.Close()
-	responseBody, err := io.ReadAll(httpResponse.Body)
+	responseBody, err := core.LimitedReadAll(httpResponse.Body)
 	if err != nil {
 		return fmt.Errorf("read error (%s): %w", httpRequest.URL, err)
 	}

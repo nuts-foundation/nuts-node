@@ -1,0 +1,573 @@
+openapi: 3.0.0
+info:
+  title: Auth v2 API (experimental)
+  version: 0.0.0
+servers:
+  - url: http://localhost:8081
+    description: For internal-facing endpoints.
+  - url: http://localhost:8080
+    description: For public-facing endpoints.
+paths:
+  /internal/auth/v2/{did}/request-service-access-token:
+    post:
+      operationId: requestServiceAccessToken
+      summary: Start the authorization flow to get an access token from a remote authorization server.
+      description: |
+        Initiates an OAuth2 flow to request an access token from a remote authorization server.
+        It'll initiate a s2s (RFC021) flow.
+
+        error returns:
+        * 400 - one of the parameters has the wrong format or an OAuth error occurred
+        * 412 - the organization wallet does not contain the correct credentials
+        * 503 - the authorizer could not be reached or returned an error
+      tags:
+        - auth
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: The DID of the requester, a Wallet owner at this node.
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceAccessTokenRequest'
+      responses:
+        '200':
+          description: Successful request. Responds with an access token as described in rfc6749 section 5.1.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/auth/v2/{did}/request-user-access-token:
+    post:
+      operationId: requestUserAccessToken
+      summary: Start the authorization code flow to get an access token from a remote authorization server when user context is required.
+      description: |
+        Initiates an OAuth2 flow to request an access token from a remote authorization server. This call will initiate an OpenID4VP flow.
+        The user must be authorized by the calling system and provided in the preauthorized_user field.
+        The user's ID must be stable across sessions, as it's used to select the right ID Wallet.
+        
+        error returns:
+        * 400 - one of the parameters has the wrong format or an OAuth error occurred
+        * 412 - the organization wallet does not contain the correct credentials
+        * 503 - the authorizer could not be reached or returned an error
+      tags:
+        - auth
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: The DID of the requester, a wallet owner at this node.
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAccessTokenRequest'
+      responses:
+        '200':
+          description: | 
+            Successful request. Responds with a redirect_uri for the user and a token for the calling application.
+            The token can be used by the calling application to get the status of the session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectResponseWithID'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/auth/v2/accesstoken/{sessionID}:
+    get:
+      operationId: retrieveAccessToken
+      summary: Get the access token from the Nuts node that was requested through /request-user-access-token.
+      description: |
+        If the OAuth2 flow has completed, this call will return the access token. 
+        After returning the access token, the token used to retrieve the access token is no longer valid.
+        If the flow hasn't completed yet, the response will contain the 'pending' status value.
+        Therefore this API can be used to poll for the status of the OAuth2 flow.
+      tags:
+        - auth
+      parameters:
+        - name: sessionID
+          in: path
+          required: true
+          description: This ID is given to the calling application as response to the request-user-access-token call.
+          schema:
+            type: string
+            example: eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp
+      responses:
+        '200':
+          description: | 
+            Successful request. Responds with an access token as described in rfc6749 section 5.1 when available.
+            If the OAuth2 flow hasn't completed yet, the response will only contain the 'pending' status value.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/auth/v2/accesstoken/introspect:
+    post:
+      operationId: introspectAccessToken
+      summary: Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/TokenIntrospectionRequest"
+      responses:
+        '200':
+          description: |
+            An Introspection response as described in RFC7662 section 2.2. The Irma, Dummy and Employee identity means all return 'username', 'initials',  'prefix', 'family_name' and 'assurance_level'.
+            'username' should be used as unique identifier for the user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenIntrospectionResponse"
+        '401':
+          description: |
+            This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
+            Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
+  /internal/auth/v2/{did}/dpop:
+    post:
+      operationId: createDPoPProof
+      summary: Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
+      tags:
+        - oauth2
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: The DID of the requester, a wallet owner at this node.
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DPoPRequest"
+      responses:
+        '200':
+          description: A response containing the DPoP proof as specified by RFC9449
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPoPResponse"
+        '401':
+          description: This is returned when an OAuth2 Client is unauthorized to talk to the DPoP endpoint.
+  /internal/auth/v2/dpop_validate:
+    post:
+      operationId: validateDPoPProof
+      summary: Handle some of the validation of a DPoP proof as specified by RFC9449.
+      description: |
+        Handle some of the validation of a DPoP proof as specified by RFC9449.
+        Full validation as specified by RFC9449 is the responsibility of the resource server.
+        This is a convenience API where the the following is validated:
+        * The DPoP proof is a valid JWT
+        * The http method in the DPoP proof is the same as the http method in the request
+        * The URL in the DPoP proof is the same as the URL in the request (fragment and query parameters are ignored)
+        * The thumbprint given (returned from token introspection) is the same as the thumbprint of the public key used to sign the DPoP proof
+        * The ath field in the DPoP proof matches the hash of the access token
+        * The jti field in the DPoP proof is unique
+      tags:
+        - oauth2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DPoPValidateRequest"
+      responses:
+        '200':
+          description: A response containing the validity of the DPoP proof header for the access token and HTTP request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DPoPValidateResponse"
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/auth/v2/{did}/request-credential:
+    post:
+      operationId: requestOid4vciCredentialIssuance
+      summary: Start the Oid4VCI authorization flow.
+      description: |
+        Initiates an Oid4VCI flow to request an VC from a Credential Issuer.
+
+        error returns:
+        * 400 - one of the parameters has the wrong format or an OAuth error occurred
+        * 424 - the issuer does not fulfill the right requirements to issue the requested VC(s)
+        * 412 - the organization wallet does not contain the correct credentials
+      tags:
+        - auth
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: The DID of the requester, a Wallet owner at this node.
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - issuer
+                - authorization_details
+                - redirect_uri
+              properties:
+                issuer:
+                  type: string
+                  example: did:web:example.com
+                authorization_details:
+                  type: array
+                  items:
+                    type: object
+                    description: | 
+                      The request parameter authorization_details defined in Section 2 of [RFC9396] MUST be used to convey the details about the Credentials the Wallet wants to obtain..
+                    properties:
+                      type:
+                        type: string
+                      format:
+                        type: string
+                      credential_definition:
+                        type: object
+                redirect_uri:
+                  type: string
+                  description: |
+                    The URL to which the user-agent will be redirected after the authorization request.
+      responses:
+        '200':
+          description: | 
+            Successful request. Responds with a redirect_uri for the user and a session_id for correlation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectResponse'
+        default:
+          $ref: '../common/error_response.yaml'
+components:
+  schemas:
+    cnf:
+      description: The 'confirmation' claim is used in JWTs to proof the possession of a key.
+      required:
+        - jkt
+      properties:
+        jkt:
+          type: string
+          description: JWK thumbprint
+    DPoPRequest:
+      type: object
+      required:
+        - htm
+        - token
+        - htu
+      properties:
+        htm:
+          type: string
+          description: The HTTP method for which the DPoP proof is requested.
+          example: "POST"
+        token:
+          type: string
+          description: The access token for which the DPoP proof is requested.
+          example: "eyJhbGciOi"
+        htu:
+          type: string
+          description: The URL for which the DPoP proof is requested. Query params and fragments are ignored during validation.
+          example: "https://example.com/resource"
+    DPoPResponse:
+      type: object
+      required:
+        - dpop
+      properties:
+        dpop:
+          type: string
+          description: The DPoP proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+    DPoPValidateRequest:
+      type: object
+      required:
+        - dpop_proof
+        - method
+        - thumbprint
+        - token
+        - url
+      properties:
+        dpop_proof:
+          type: string
+          description: The DPoP Proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+          example: "eyJhbGciOi..lgtla"
+        method:
+          type: string
+          description: The HTTP method against which the DPoP proof is validated.
+          example: "POST"
+        thumbprint:
+          type: string
+          description: The thumbprint of the public key used to sign the DPoP proof. Base64url encoded, no padding.
+          example: "jlkhnp87453slfhansdhf"
+        token:
+          type: string
+          description: The access token against which the DPoP proof is validated.
+          example: "eyJhbGciOi"
+        url:
+          type: string
+          description: The URL against which the DPoP proof is validated. Query params and fragments are ignored during validation.
+          example: "https://example.com/resource"
+    DPoPValidateResponse:
+      type: object
+      required:
+        - valid
+      properties:
+        reason:
+          type: string
+          description: The reason why the DPoP Proof header is invalid.
+        valid:
+          type: boolean
+          description: True if the DPoP Proof header is valid for the access token and HTTP request, false if it is not.
+    ServiceAccessTokenRequest:
+      type: object
+      description: Request for an access token for a service.
+      required:
+        - verifier
+        - scope
+      properties:
+        verifier:
+          type: string
+          example: did:web:example.com
+        scope:
+          type: string
+          description: The scope that will be the service for which this access token can be used.
+          example: eOverdracht-sender
+        tokenType:
+          type: string
+          description: "The type of access token that is prefered, default: DPoP"
+          enum:
+            - Bearer
+            - DPoP
+    UserAccessTokenRequest:
+      type: object
+      description: Request for an access token for a user.
+      required:
+        - redirect_uri
+        - scope
+        - verifier
+      properties:
+        verifier:
+          type: string
+          description: The DID of the verifier, the relying party for which this access token is requested.
+          example: did:web:example.com
+        scope:
+          type: string
+          description: The scope that will be the service for which this access token can be used.
+          example: eOverdracht-sender
+        token_type:
+          type: string
+          description: "The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP"
+          enum:
+            - Bearer
+            - DPoP
+        redirect_uri:
+          type: string
+          description: |
+            The URL to which the user-agent will be redirected after the authorization request.
+            This is the URL of the calling application. 
+            The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
+        preauthorized_user:
+          $ref: '#/components/schemas/UserDetails'
+    VerifiablePresentation:
+      $ref: '../common/ssi_types.yaml#/components/schemas/VerifiablePresentation'
+    RedirectResponse:
+      type: object
+      required:
+        - redirect_uri
+      properties:
+        redirect_uri:
+          type: string
+          description: |
+            The URL to which the user-agent will be redirected after the authorization request.
+          example: "https://example.com/callback"
+    RedirectResponseWithID:
+      type: object
+      required:
+        - redirect_uri
+        - session_id
+      properties:
+        redirect_uri:
+          type: string
+          description: The URL to which the user-agent will be redirected after the authorization request.
+          example: "https://example.com/callback"
+        session_id:
+          type: string
+          description: The session ID that can be used to retrieve the access token by the calling application.
+          example: "eyJhbGciOiJSUzI1NiIsI"
+    UserDetails:
+      type: object
+      description: |
+        Claims about the authorized user.
+      required:
+        - name
+        - id
+        - role
+      properties:
+        name:
+          type: string
+          description: Human-readable name of the user.
+          example: "John Doe"
+        id:
+          type: string
+          description: Machine-readable identifier, uniquely identifying the user in the issuing system.
+          example:
+            - "jdoe"
+            - "123456"
+            - "jdoe@example.com"
+        role:
+          type: string
+          description: Role of the user.
+          example: "Verpleegkundige niveau 4"
+    VerifiableCredential:
+      $ref: '../common/ssi_types.yaml#/components/schemas/VerifiableCredential'
+    TokenResponse:
+      type: object
+      description: |
+        Token Responses are made as defined in (RFC6749)[https://datatracker.ietf.org/doc/html/rfc6749#section-5.1]
+      required:
+        - access_token
+        - token_type
+      properties:
+        access_token:
+          type: string
+          description: |
+            The access token issued by the authorization server.
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+        token_type:
+          type: string
+          description: |
+            The type of the token issued as described in [RFC6749].
+          example: "Bearer"
+        scope:
+          type: string
+        status:
+          type: string
+          description: |
+            The status of the access token request. Can be 'pending' or 'active'.
+            If the status is 'pending', the access token is not yet available.
+            Only used when the access token is requested through /request-user-access-token.
+          enum: [ pending, active ]
+        expires_in:
+          type: integer
+          description: |
+            The lifetime in seconds of the access token.
+          example: 3600
+      example:
+        {
+          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
+          "token_type": "Bearer",
+          "expires_in": 3600,
+        }
+    PresentationDefinition:
+      description: |
+        A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
+        Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
+      type: object
+    PresentationSubmission:
+      description: |
+        A presentation submission is a JSON object that describes the mapping between the required verifiable credentials listed in the presentation definition and the supplied verifiable presentation.
+        Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
+      type: object
+    TokenIntrospectionRequest:
+      description: >
+        Token introspection request as described in RFC7662 section 2.1
+
+        Alongside the defined properties, it can return values (additionalProperties) from the Verifiable Credentials that resulted from the Presentation Exchange.
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          example: spnhVHZ4IFVvuNrpflVaB1A7P3A2xZ7G_a8gF_SHMynYSA
+    TokenIntrospectionResponse:
+      description: Token introspection response as described in RFC7662 section 2.2
+      required:
+        - active
+      additionalProperties: { }
+      properties:
+        active:
+          type: boolean
+          description: True if the token is active, false if the token is expired, malformed etc. Required per RFC7662
+        cnf:
+          $ref: '#/components/schemas/cnf'
+        iss:
+          type: string
+          description: Contains the DID of the authorizer. Should be equal to 'sub'
+          example: did:web:example.com:resource-owner
+        sub:
+          type: string
+          description: Contains the DID of the resource owner
+          example: did:web:example.com:resource-owner
+        aud:
+          type: string
+          description: RFC7662 - Service-specific string identifier or list of string identifiers representing the intended audience for this token, as defined in JWT [RFC7519].
+          example: "https://target_token_endpoint"
+        client_id:
+          type: string
+          description: The client (DID) the access token was issued to
+          example: did:web:example.com:client
+        exp:
+          type: integer
+          description: Expiration date in seconds since UNIX epoch
+        iat:
+          type: integer
+          description: Issuance time in seconds since UNIX epoch
+        scope:
+          type: string
+          description: granted scopes
+        presentation_definitions:
+          $ref: '#/components/schemas/RequiredPresentationDefinitions'
+        presentation_submissions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/PresentationSubmission'
+          description: |
+            Mapping of Presentation Definition IDs that were fulfilled to Presentation Submissions.
+        vps:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifiablePresentation'
+          description: The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
+    RequiredPresentationDefinitions:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/PresentationDefinition'
+      description: |
+        Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token
+        The map key is the wallet owner (user/organization)
+  securitySchemes:
+    jwtBearerAuth:
+      type: http
+      scheme: Bearer
+
+security:
+  - {}
+  - jwtBearerAuth: []

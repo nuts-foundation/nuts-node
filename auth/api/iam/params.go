@@ -18,8 +18,6 @@
 
 package iam
 
-import "net/url"
-
 // oauthParameters is a helper for oauth params.
 // oauth params can be derived from query params or JWT claims (RFC9101).
 // in theory all params could be string, arrays or numbers. Our handlers only want single string values for all params.
@@ -27,21 +25,7 @@ import "net/url"
 // array values with len == 1 will be treated as single string values.
 type oauthParameters map[string]interface{}
 
-func parseQueryParams(values url.Values) oauthParameters {
-	underlying := make(map[string]interface{})
-	for key, value := range values {
-		underlying[key] = value
-	}
-	return underlying
-}
-
-func parseJWTClaims(claims map[string]interface{}) oauthParameters {
-	underlying := make(map[string]interface{})
-	for key, value := range claims {
-		underlying[key] = value
-	}
-	return underlying
-}
+func parseJWTClaims(claims map[string]interface{}) oauthParameters { return claims }
 
 // get returns the string value if present and if an actual string
 // for arrays it'll return the first value if len == 1

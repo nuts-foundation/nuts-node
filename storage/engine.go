@@ -20,30 +20,26 @@ package storage
 
 import (
 	"context"
-	"database/sql"
-	"embed"
 	"errors"
 	"fmt"
-	"io"
-	"net/url"
+	"os"
 	"path"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/nuts-foundation/nuts-node/storage/sql_migrations"
+	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
-
-	"github.com/amacneil/dbmate/v2/pkg/dbmate"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/mysql"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/sqlite"
 )
 
 const storeShutdownTimeout = 5 * time.Second
@@ -52,15 +48,11 @@ const storeShutdownTimeout = 5 * time.Second
 // If SQL queries take longer than this threshold, they will be logged as warnings.
 const sqlSlowQueryThreshold = 200 * time.Millisecond
 
-//go:embed sql_migrations/*.sql
-var sqlMigrationsFS embed.FS
-
 // New creates a new instance of the storage engine.
 func New() Engine {
 	return &engine{
 		storesMux:          &sync.Mutex{},
 		stores:             map[string]stoabs.Store{},
-		sessionDatabase:    NewInMemorySessionDatabase(),
 		sqlMigrationLogger: logrusInfoLogWriter{},
 	}
 }
@@ -73,7 +65,7 @@ type engine struct {
 	sessionDatabase    SessionDatabase
 	sqlDB              *gorm.DB
 	config             Config
-	sqlMigrationLogger io.Writer
+	sqlMigrationLogger goose.Logger
 }
 
 func (e *engine) Config() interface{} {
@@ -132,7 +124,6 @@ func (e *engine) Shutdown() error {
 
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
-
 	if e.config.Redis.isConfigured() {
 		redisDB, err := createRedisDatabase(e.config.Redis)
 		if err != nil {
@@ -151,6 +142,21 @@ func (e *engine) Configure(config core.ServerConfig) error {
 
 	if err := e.initSQLDatabase(); err != nil {
 		return fmt.Errorf("failed to initialize SQL database: %w", err)
+	}
+
+	redisConfig := e.config.Session.Redis
+	if redisConfig.isConfigured() {
+		redisDB, err := createRedisDatabase(redisConfig)
+		if err != nil {
+			return fmt.Errorf("unable to configure Redis session database: %w", err)
+		}
+		client := redisDB.createClient()
+		if err != nil {
+			return fmt.Errorf("unable to configure redis client: %w", err)
+		}
+		e.sessionDatabase = NewRedisSessionDatabase(client, redisConfig.Database)
+	} else {
+		e.sessionDatabase = NewInMemorySessionDatabase()
 	}
 
 	return nil
@@ -179,54 +185,33 @@ func (e *engine) initSQLDatabase() error {
 		connectionString = sqliteConnectionString(e.datadir)
 	}
 
-	// Find right SQL adapter
-	type sqlAdapter struct {
-		connector func(sqlDB *sql.DB) gorm.Dialector
+	// Find right SQL adapter for ORM and migrations
+	dbType := strings.Split(connectionString, ":")[0]
+	if dbType == "sqlite" {
+		connectionString = connectionString[strings.Index(connectionString, ":")+1:]
+	} else if dbType == "mysql" {
+		// MySQL DSN needs to be without mysql://
+		// See https://github.com/go-sql-driver/mysql#examples
+		connectionString = strings.TrimPrefix(connectionString, "mysql://")
 	}
-	adapters := map[string]sqlAdapter{
-		"sqlite": {
-			connector: func(sqlDB *sql.DB) gorm.Dialector {
-				return &sqlite.Dialector{Conn: sqlDB}
-			},
-		},
-		"postgres": {
-			connector: func(sqlDB *sql.DB) gorm.Dialector {
-				return postgres.New(postgres.Config{Conn: sqlDB})
-			},
-		},
-		"mysql": {
-			connector: func(sqlDB *sql.DB) gorm.Dialector {
-				return mysql.New(mysql.Config{Conn: sqlDB})
-			},
-		},
-	}
-	var adapter *sqlAdapter
-	for prefix, curr := range adapters {
-		if strings.HasPrefix(connectionString, prefix+":") {
-			adapter = &curr
-			break
-		}
-	}
-	if adapter == nil {
-		return errors.New("unsupported SQL database")
-	}
-
-	// Open connection and migrate
-	var err error
-	connectionURL, err := url.Parse(connectionString)
+	db, err := goose.OpenDBWithDriver(dbType, connectionString)
 	if err != nil {
 		return err
 	}
-	dbMigrator := dbmate.New(connectionURL)
-	migratorDriver, err := dbMigrator.Driver()
-	if err != nil {
-		return err
+	var dialect goose.Dialect
+	gormConfig := &gorm.Config{
+		TranslateError: true,
+		Logger: gormLogrusLogger{
+			underlying:    log.Logger(),
+			slowThreshold: sqlSlowQueryThreshold,
+		},
 	}
-	sqlDB, err := migratorDriver.Open()
-	if err != nil {
-		return err
-	}
-	if strings.HasPrefix(connectionString, "sqlite:") {
+	// SQL migration files use env variables for substitutions.
+	// TEXT SQL data type is really DB-specific, so we set a default here and override it for a specific database type (MS SQL).
+	_ = os.Setenv("TEXT_TYPE", "TEXT")
+	defer os.Unsetenv("TEXT_TYPE")
+	switch dbType {
+	case "sqlite":
 		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
 		// and any other attempt to acquire a write transaction will directly return an error.
 		// This is in contrast to most other SQL-databases, which let the 2nd thread wait for some time to acquire the lock.
@@ -234,34 +219,57 @@ func (e *engine) initSQLDatabase() error {
 		// So to keep behavior consistent across databases, we'll just limit the number connections to 1 if it's a SQLite store.
 		// With 1 connection, all actions will be performed sequentially. This impacts performance, but SQLite should not be used in production.
 		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
-		sqlDB.SetMaxOpenConns(1)
+		db.SetMaxOpenConns(1)
+		dialector := sqlite.Dialector{Conn: db}
+		e.sqlDB, err = gorm.Open(dialector, gormConfig)
+		if err != nil {
+			return err
+		}
+		dialect = goose.DialectSQLite3
+	case "mysql":
+		e.sqlDB, _ = gorm.Open(mysql.New(mysql.Config{
+			Conn: db,
+		}), gormConfig)
+		dialect = goose.DialectMySQL
+	case "postgres":
+		e.sqlDB, _ = gorm.Open(postgres.New(postgres.Config{
+			Conn: db,
+		}), gormConfig)
+		dialect = goose.DialectPostgres
+	case "sqlserver":
+		_ = os.Setenv("TEXT_TYPE", "VARCHAR(MAX)")
+		e.sqlDB, _ = gorm.Open(sqlserver.New(sqlserver.Config{
+			Conn: db,
+		}), gormConfig)
+		dialect = goose.DialectMSSQL
+	default:
+		return errors.New("unsupported SQL database")
 	}
-	log.Logger().Debug("Running database migrations...")
-
-	// we need the connectionString with adapter specific prefix here
-	dbMigrator.FS = sqlMigrationsFS
-	dbMigrator.MigrationsDir = []string{"sql_migrations"}
-	dbMigrator.AutoDumpSchema = false
-	dbMigrator.Log = e.sqlMigrationLogger
-	if err = dbMigrator.CreateAndMigrate(); err != nil {
-		return fmt.Errorf("failed to migrate database: %w", err)
-	}
-
-	e.sqlDB, err = gorm.Open(adapter.connector(sqlDB), &gorm.Config{
-		TranslateError: true,
-		Logger: gormLogrusLogger{
-			underlying:    log.Logger(),
-			slowThreshold: sqlSlowQueryThreshold,
-		},
-	})
+	goose.SetVerbose(log.Logger().Level >= logrus.DebugLevel)
+	goose.SetLogger(e.sqlMigrationLogger)
 	if err != nil {
 		return err
 	}
+	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS)
+	if err != nil {
+		return err
+	}
+
+	log.Logger().Debug("Running database migrations...")
+	results, err := gooseProvider.Up(context.Background())
+	for _, result := range results {
+		log.Logger().Debug(result.String())
+	}
+	if err != nil {
+		return fmt.Errorf("failed to migrate database: %w", err)
+	}
+	log.Logger().Infof("Completed %d migrations", len(results))
+
 	return nil
 }
 
 func sqliteConnectionString(datadir string) string {
-	return "sqlite:file:" + path.Join(datadir, "sqlite.db?_journal_mode=WAL&_foreign_keys=on")
+	return "sqlite:file:" + path.Join(datadir, "sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)")
 }
 
 type provider struct {
@@ -322,7 +330,10 @@ func (p *provider) getStore(moduleName string, name string, adapter database) (s
 type logrusInfoLogWriter struct {
 }
 
-func (m logrusInfoLogWriter) Write(p []byte) (n int, err error) {
-	log.Logger().Info(string(p))
-	return len(p), nil
+func (m logrusInfoLogWriter) Printf(format string, v ...interface{}) {
+	log.Logger().Info(fmt.Sprintf(format, v...))
+}
+
+func (m logrusInfoLogWriter) Fatalf(format string, v ...interface{}) {
+	log.Logger().Errorf(format, v...)
 }

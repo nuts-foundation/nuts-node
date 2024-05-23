@@ -29,5 +29,5 @@ func TestRandom(t *testing.T) {
 	nonce := GenerateNonce()
 	decoded, _ := base64.RawURLEncoding.DecodeString(nonce)
 
-	assert.Len(t, decoded, 16)
+	assert.Len(t, decoded, 32)
 }

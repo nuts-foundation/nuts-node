@@ -23,7 +23,7 @@ SQL database
 
 By default, storage SQLite will be used in a file called ``sqlite.db`` in the configured data directory.
 This can be overridden by configuring a connection string in ``storage.sql.connection``.
-Other supported SQL databases are Postgres and MySQL.
+Other supported SQL databases are Postgres, MySQL and Microsoft SQL Server.
 
 Connection strings must be in the following format:
 
@@ -31,13 +31,12 @@ Connection strings must be in the following format:
 
     protocol://username:password@host:port/database_name?options
 
-See the `dbmate documentation <https://github.com/amacneil/dbmate?tab=readme-ov-file#connecting-to-the-database>`_ for more information.
+Refer to the documentation of the driver for the database you are using for the correct connection string format:
 
-Examples:
-
-- Postgres: ``postgres://user:password@localhost:5432/dbname?sslmode=disable``
-- MySql: ``mysql://user:password@localhost:3306/dbname?charset=utf8mb4&parseTime=True&loc=Local``
-- SQLite: ``sqlite:file:/some/path/sqlite.db?_journal_mode=WAL&_foreign_keys=on``
+- Postgres `github.com/jackc/pgx <https://github.com/jackc/pgx?tab=readme-ov-file#example-usage>`_ (e.g. ``postgres://user:password@localhost:5432/dbname?sslmode=disable``)
+- MySql: `github.com/go-sql-driver/mysql <https://github.com/go-sql-driver/mysql?tab=readme-ov-file#dsn-data-source-name>`_ (e.g. ``mysql://user:password@tcp(localhost:3306)/dbname?charset=utf8mb4&parseTime=True&loc=Local``)
+- MS SQL Server: `github.com/microsoft/go-mssqldb <https://github.com/microsoft/go-mssqldb>`_ (e.g. ``sqlserver://user:password@localhost:1433?database=dbname``)
+- SQLite (e.g. ``sqlite:file:/some/path/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)``)
 
 Private Keys
 ************
@@ -55,7 +54,7 @@ Make sure to include the directory in your backups and keep these in a safe plac
 If you want to use filesystem in strict mode, you have to set it explicitly, otherwise the node fails during startup.
 
 HashiCorp Vault
-==============
+===============
 
 This storage backend is the current recommended way of storing secrets. It uses the `Vault KV version 1 store <https://www.vaultproject.io/docs/secrets/kv/kv-v1>`_.
 The path prefix defaults to ``kv`` and can be configured using the ``crypto.vault.pathprefix`` option.

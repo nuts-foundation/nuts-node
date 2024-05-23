@@ -25,7 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/discovery/api/v1/client"
+	"github.com/nuts-foundation/nuts-node/discovery/api/server/client"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -205,14 +205,14 @@ func (u *clientUpdater) update(ctx context.Context) error {
 }
 
 func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefinition) error {
-	currentTag, err := u.store.getTag(service.ID)
+	currentTimestamp, err := u.store.getTimestamp(service.ID)
 	if err != nil {
 		return err
 	}
 	log.Logger().
 		WithField("discoveryService", service.ID).
-		Tracef("Checking for new Verifiable Presentations from Discovery Service (tag: %s)", currentTag)
-	presentations, tag, err := u.client.Get(ctx, service.Endpoint, string(currentTag))
+		Tracef("Checking for new Verifiable Presentations from Discovery Service (timestamp: %d)", currentTimestamp)
+	presentations, serverTimestamp, err := u.client.Get(ctx, service.Endpoint, currentTimestamp)
 	if err != nil {
 		return fmt.Errorf("failed to get presentations from discovery service (id=%s): %w", service.ID, err)
 	}
@@ -221,7 +221,7 @@ func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefini
 			log.Logger().WithError(err).Warnf("Presentation verification failed, not adding it (service=%s, id=%s)", service.ID, presentation.ID)
 			continue
 		}
-		if err := u.store.add(service.ID, presentation, Tag(tag)); err != nil {
+		if err := u.store.add(service.ID, presentation, serverTimestamp); err != nil {
 			return fmt.Errorf("failed to store presentation (service=%s, id=%s): %w", service.ID, presentation.ID, err)
 		}
 		log.Logger().

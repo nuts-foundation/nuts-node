@@ -24,20 +24,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 )
 
 const (
@@ -74,9 +75,8 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// extract request from store
-	store := r.userRedirectStore()
 	redirectSession := RedirectSession{}
-	err := store.Get(token, &redirectSession)
+	err := r.userRedirectStore().GetAndDelete(token, &redirectSession)
 	if err != nil {
 		log.Logger().Debug("token not found in store")
 		return echoCtx.NoContent(http.StatusForbidden)
@@ -100,27 +100,29 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		}
 		// this causes the session cookie to be set
 		if err = r.createUserSession(echoCtx, UserSession{
-			TenantDID: redirectSession.OwnDID,
-			Wallet:    *wallet,
+			TenantDID:         redirectSession.OwnDID,
+			Wallet:            *wallet,
+			PreAuthorizedUser: accessTokenRequest.Body.PreauthorizedUser,
 		}); err != nil {
 			return fmt.Errorf("create user session: %w", err)
 		}
 	}
 
-	// burn token
-	err = store.Delete(token)
-	if err != nil {
-		//rare, log just in case
-		log.Logger().WithError(err).Warn("delete token failed")
+	// use DPoP or not
+	useDPoP := true
+	if redirectSession.AccessTokenRequest.Body.TokenType != nil && strings.ToLower(string(*redirectSession.AccessTokenRequest.Body.TokenType)) == strings.ToLower(AccessTokenTypeBearer) {
+		useDPoP = false
 	}
 	// create oauthSession with userID from request
 	// generate new sessionID and clientState with crypto.GenerateNonce()
 	oauthSession := OAuthSession{
 		ClientState: crypto.GenerateNonce(),
 		OwnDID:      &redirectSession.OwnDID,
-		VerifierDID: verifier,
-		SessionID:   redirectSession.SessionID,
+		PKCEParams:  generatePKCEParams(),
 		RedirectURI: accessTokenRequest.Body.RedirectUri,
+		SessionID:   redirectSession.SessionID,
+		UseDPoP:     useDPoP,
+		VerifierDID: verifier,
 	}
 	// store user session in session store under sessionID and clientState
 	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession)
@@ -134,32 +136,38 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		return fmt.Errorf("failed to create callback URL: %w", err)
 	}
 	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
-	modifier := func(values map[string]interface{}) {
+	modifier := func(values map[string]string) {
+		values[oauth.CodeChallengeParam] = oauthSession.PKCEParams.Challenge
+		values[oauth.CodeChallengeMethodParam] = oauthSession.PKCEParams.ChallengeMethod
 		values[oauth.RedirectURIParam] = callbackURL.String()
-		values[oauth.ResponseTypeParam] = responseTypeCode
+		values[oauth.ResponseTypeParam] = oauth.CodeResponseType
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
-	// TODO: First create user session, or AuthorizationRequest first? (which one is more expensive? both sign stuff)
-	redirectURL, err := r.auth.IAMClient().CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, *verifier, modifier)
+	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, verifier, modifier)
 	if err != nil {
 		return err
 	}
 	return echoCtx.Redirect(http.StatusFound, redirectURL.String())
 }
 
+// userRedirectStore is used to store a short-lived RedirectSession that persist state between the RequestUserAccessToken
+// call and the redirect back to this node to initiate the actual authorization request. Burn on use.
 func (r Wrapper) userRedirectStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(userRedirectTimeout, userRedirectSessionKey...)
 }
 
+// userSessionStore is used to keep track of active UserSession
 func (r Wrapper) userSessionStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(userSessionTimeout, userSessionKey...)
 }
 
+// oauthClientStateStore is used tot store the client's OAuthSession
 func (r Wrapper) oauthClientStateStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...)
 }
 
+// oauthCodeStore is used to store the authorization server's OAuthSession in the authorization_code flow. Burn on use.
 func (r Wrapper) oauthCodeStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthCodeKey...)
 }
@@ -179,17 +187,17 @@ func (r Wrapper) loadUserSession(cookies CookieReader, tenantDID did.DID, preAut
 		return nil, errors.New("unknown or expired session")
 	} else if err != nil {
 		// other error occurred
-		return nil, err
+		return nil, fmt.Errorf("invalid user session: %w", err)
 	}
 	// Note that the session itself does not have an expiration field:
 	// it depends on the session store to clean up when it expires.
-	if !session.TenantDID.Equals(tenantDID) {
+	if !session.TenantDID.Equals(tenantDID) && !session.Wallet.DID.Equals(tenantDID) {
 		return nil, fmt.Errorf("session belongs to another tenant (%s)", session.TenantDID)
 	}
 	// If the existing session was created for a pre-authorized user, the call to RequestUserAccessToken() must be
 	// for the same user.
 	// TODO: When we support external Identity Providers, make sure the existing session was not for a preauthorized user.
-	if *preAuthorizedUser != *session.PreAuthorizedUser {
+	if preAuthorizedUser != nil && *preAuthorizedUser != *session.PreAuthorizedUser {
 		return nil, errors.New("session belongs to another pre-authorized user")
 	}
 	return session, nil
@@ -214,7 +222,12 @@ func (r Wrapper) createUserSession(ctx echo.Context, session UserSession) error 
 	} else {
 		path = "/"
 	}
-	ctx.SetCookie(&http.Cookie{
+	ctx.SetCookie(createUserSessionCookie(sessionID, path))
+	return nil
+}
+
+func createUserSessionCookie(sessionID string, path string) *http.Cookie {
+	return &http.Cookie{
 		Name:     userSessionCookieName,
 		Value:    sessionID,
 		Path:     path,
@@ -222,8 +235,7 @@ func (r Wrapper) createUserSession(ctx echo.Context, session UserSession) error 
 		Secure:   true,
 		HttpOnly: true,                    // do not let JavaScript
 		SameSite: http.SameSiteStrictMode, // do not allow the cookie to be sent with cross-site requests
-	})
-	return nil
+	}
 }
 
 func (r Wrapper) createUserWallet(ctx context.Context, issuerDID did.DID, userDetails UserDetails) (*UserWallet, error) {

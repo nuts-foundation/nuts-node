@@ -103,7 +103,14 @@ func (b *Router) PresentationDefinitions(ctx context.Context, authorizer did.DID
 	if b.backend == nil {
 		return nil, errors.New("no policy backend configured")
 	}
-	return b.backend.PresentationDefinitions(ctx, authorizer, scope)
+	definitions, err := b.backend.PresentationDefinitions(ctx, authorizer, scope)
+	if err != nil {
+		return nil, err
+	}
+	if len(definitions) == 0 {
+		return nil, ErrNotFound
+	}
+	return definitions, err
 }
 
 func (b *Router) Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error) {

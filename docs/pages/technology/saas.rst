@@ -26,12 +26,12 @@ Things to consider:
 
 - Securing node API access: the Nuts node provides API security using tokens, which could be extended with additional security measures for administrative access.
 - Database separation: the Nuts node allows logical separation inside a single Redis database, but it's not thoroughly tested for multi-tenancy.
-- TLS certificates: currently every Nuts node has its own certificate, meaning every vendor has their own.
-  In a SaaS setup, having a single certificate for all nodes would be more convenient, but this poses risks:
-   - A misbehaving node could be blocked based on its certificate, blocking all other nodes as well.
-     But: there are rate limiters in place to prevent this from happening.
-   - A certificate could be compromised (private key stolen) and gets revoked by the CA, blocking all SaaS nodes.
-     But: if a single certificate is compromised, it's likely the entire SaaS platform is compromised as well.
+- TLS certificates: currently every Nuts node has its own certificate, meaning every vendor has their own. In a SaaS setup, having a single certificate for all nodes would be more convenient, but this poses risks:
+
+  - | A misbehaving node could be blocked based on its certificate, blocking all other nodes as well.
+    | But: there are rate limiters in place to prevent this from happening.
+  - | A certificate could be compromised (private key stolen) and gets revoked by the CA, blocking all SaaS nodes.
+    | But: if a single certificate is compromised, it's likely the entire SaaS platform is compromised as well.
 
 Architecture
 ^^^^^^^^^^^^

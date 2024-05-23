@@ -157,14 +157,18 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 func Test_fs_KeyExistsFor(t *testing.T) {
 	t.Run("non-existing entry", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
-		assert.False(t, storage.PrivateKeyExists(nil, "unknown"))
+		exists, err := storage.PrivateKeyExists(nil, "unknown")
+		assert.NoError(t, err)
+		assert.False(t, exists)
 	})
 	t.Run("existing entry", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 		pk := test.GenerateECKey()
 		kid := "kid"
 		storage.SavePrivateKey(nil, kid, pk)
-		assert.True(t, storage.PrivateKeyExists(nil, kid))
+		exists, err := storage.PrivateKeyExists(nil, kid)
+		assert.NoError(t, err)
+		assert.True(t, exists)
 	})
 }
 

@@ -20,6 +20,11 @@ package iam
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -31,10 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"testing"
 )
 
 func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
@@ -71,35 +72,6 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.Equal(t, "GET", handler.Request.Method)
 		assert.Equal(t, "/.well-known/oauth-authorization-server/iam/123", handler.Request.URL.Path)
 	})
-	t.Run("error - non 200 return value", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusBadRequest}
-		tlsServer, client := testServerAndClient(t, &handler)
-		testDID := didweb.ServerURLToDIDWeb(t, tlsServer.URL)
-
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
-
-		assert.Error(t, err)
-		assert.Nil(t, metadata)
-	})
-	t.Run("error - bad contents", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "not json"}
-		tlsServer, client := testServerAndClient(t, &handler)
-		testDID := didweb.ServerURLToDIDWeb(t, tlsServer.URL)
-
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
-
-		assert.Error(t, err)
-		assert.Nil(t, metadata)
-	})
-	t.Run("error - server not responding", func(t *testing.T) {
-		_, client := testServerAndClient(t, nil)
-		testDID := didweb.ServerURLToDIDWeb(t, "https://localhost:1234")
-
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, testDID)
-
-		assert.Error(t, err)
-		assert.Nil(t, metadata)
-	})
 }
 
 func TestHTTPClient_PresentationDefinition(t *testing.T) {
@@ -120,26 +92,6 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		assert.Equal(t, definition, *response)
 		require.NotNil(t, handler.Request)
 	})
-	t.Run("error - not found", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusNotFound}
-		tlsServer, client := testServerAndClient(t, &handler)
-		pdUrl := test.MustParseURL(tlsServer.URL)
-
-		_, err := client.PresentationDefinition(ctx, *pdUrl)
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "server returned HTTP 404 (expected: 200)")
-	})
-	t.Run("error - invalid response", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
-		tlsServer, client := testServerAndClient(t, &handler)
-		pdUrl := test.MustParseURL(tlsServer.URL)
-
-		_, err := client.PresentationDefinition(ctx, *pdUrl)
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value")
-	})
 }
 
 func TestHTTPClient_AccessToken(t *testing.T) {
@@ -148,14 +100,14 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 	tokenResponse := oauth.TokenResponse{
 		AccessToken: "token",
 	}
-
+	dpopHeader := "dpop"
 	data := url.Values{}
 
 	t.Run("ok", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: tokenResponse}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		response, err := client.AccessToken(ctx, tlsServer.URL, data)
+		response, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -166,7 +118,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: tokenResponse}
 		_, client := testServerAndClient(t, &handler)
 
-		_, err := client.AccessToken(ctx, ":", data)
+		_, err := client.AccessToken(ctx, ":", data, dpopHeader)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
@@ -175,7 +127,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidRequest}}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		_, err := client.AccessToken(ctx, tlsServer.URL, data)
+		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.Error(t, err)
 		// check if the error is an OAuth error
@@ -187,7 +139,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadGateway, ResponseData: "offline"}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		_, err := client.AccessToken(ctx, tlsServer.URL, data)
+		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.Error(t, err)
 		// check if the error is a http error
@@ -199,7 +151,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
 		tlsServer, client := testServerAndClient(t, &handler)
 
-		_, err := client.AccessToken(ctx, tlsServer.URL, data)
+		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value, }")
@@ -224,23 +176,12 @@ func TestHTTPClient_ClientMetadata(t *testing.T) {
 		assert.Equal(t, metadata, *response)
 		require.NotNil(t, handler.Request)
 	})
-
-	t.Run("error - incorrect url", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: metadata}
-		_, client := testServerAndClient(t, &handler)
-
-		_, err := client.ClientMetadata(ctx, ":")
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
-	})
 }
 
 func TestHTTPClient_PostError(t *testing.T) {
 	redirectReturn := oauth.Redirect{
 		RedirectURI: "http://test.test",
 	}
-	//bytes, _ := json.Marshal(redirectReturn)
 	t.Run("ok", func(t *testing.T) {
 		ctx := context.Background()
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: redirectReturn}
@@ -280,41 +221,86 @@ func TestHTTPClient_postFormExpectRedirect(t *testing.T) {
 	data := url.Values{}
 	data.Set("test", "test")
 
-	t.Run("error - unknown host", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		ctx := context.Background()
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: redirectReturn}
-		_, client := testServerAndClient(t, &handler)
-		tlsServerURL := test.MustParseURL("http://localhost")
-
-		redirectURI, err := client.postFormExpectRedirect(ctx, data, *tlsServerURL)
-
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "connection refused")
-		assert.Empty(t, redirectURI)
-	})
-	t.Run("error - invalid response", func(t *testing.T) {
-		ctx := context.Background()
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
 		tlsServer, client := testServerAndClient(t, &handler)
 		tlsServerURL := test.MustParseURL(tlsServer.URL)
 
 		redirectURI, err := client.postFormExpectRedirect(ctx, data, *tlsServerURL)
 
-		require.Error(t, err)
-		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value")
-		assert.Empty(t, redirectURI)
+		require.NoError(t, err)
+		assert.Equal(t, redirectReturn.RedirectURI, redirectURI)
 	})
-	t.Run("error - server error", func(t *testing.T) {
-		ctx := context.Background()
-		handler := http2.Handler{StatusCode: http.StatusBadGateway, ResponseData: "offline"}
+}
+
+func TestHTTPClient_RequestObject(t *testing.T) {
+	ctx := context.Background()
+	// params are checked server side, so we don't need to provide valid values here
+	t.Run("ok", func(t *testing.T) {
+		responseData := "signed request object"
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: responseData}
 		tlsServer, client := testServerAndClient(t, &handler)
-		tlsServerURL := test.MustParseURL(tlsServer.URL)
 
-		redirectURI, err := client.postFormExpectRedirect(ctx, data, *tlsServerURL)
+		response, err := client.RequestObjectByGet(ctx, tlsServer.URL)
 
-		require.Error(t, err)
-		assert.EqualError(t, err, "server returned HTTP 502 (expected: 200)")
-		assert.Empty(t, redirectURI)
+		require.NoError(t, err)
+		assert.Equal(t, responseData, response)
+	})
+	t.Run("error - invalid request_uri", func(t *testing.T) {
+		_, client := testServerAndClient(t, &http2.Handler{})
+
+		response, err := client.RequestObjectByGet(ctx, ":")
+
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+		assert.Empty(t, response)
+	})
+	t.Run("error - not found", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "throw this away"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.RequestObjectByGet(ctx, tlsServer.URL)
+
+		var httpErr core.HttpError
+		require.ErrorAs(t, err, &httpErr)
+		assert.Equal(t, http.StatusNotFound, httpErr.StatusCode)
+		assert.Empty(t, response)
+
+	})
+}
+
+func TestHTTPClient_RequestObjectPost(t *testing.T) {
+	ctx := context.Background()
+	// params are checked server side, so we don't need to provide valid values here
+	t.Run("ok", func(t *testing.T) {
+		responseData := "signed request object"
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: responseData}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.RequestObjectByPost(ctx, tlsServer.URL, url.Values{})
+
+		require.NoError(t, err)
+		assert.Equal(t, responseData, response)
+	})
+	t.Run("error - invalid request_uri", func(t *testing.T) {
+		_, client := testServerAndClient(t, &http2.Handler{})
+
+		response, err := client.RequestObjectByPost(ctx, ":", url.Values{})
+
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+		assert.Empty(t, response)
+	})
+	t.Run("error - not found", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "throw this away"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.RequestObjectByPost(ctx, tlsServer.URL, url.Values{})
+
+		var httpErr core.HttpError
+		require.ErrorAs(t, err, &httpErr)
+		assert.Equal(t, http.StatusNotFound, httpErr.StatusCode)
+		assert.Empty(t, response)
+
 	})
 }
 
@@ -323,4 +309,32 @@ func testServerAndClient(t *testing.T, handler http.Handler) (*httptest.Server, 
 	return tlsServer, &HTTPClient{
 		httpClient: tlsServer.Client(),
 	}
+}
+
+func TestHTTPClient_doGet(t *testing.T) {
+	t.Run("error - non 200 return value", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusBadRequest}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		err := client.doGet(context.Background(), tlsServer.URL, nil)
+
+		assert.Error(t, err)
+	})
+	t.Run("error - bad contents", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "not json"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		var target interface{}
+		err := client.doGet(context.Background(), tlsServer.URL, &target)
+
+		assert.Error(t, err)
+	})
+	t.Run("error - server not responding", func(t *testing.T) {
+		_, client := testServerAndClient(t, nil)
+
+		var target interface{}
+		err := client.doGet(context.Background(), "https://localhost:9999", &target)
+
+		assert.Error(t, err)
+	})
 }

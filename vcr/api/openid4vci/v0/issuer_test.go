@@ -22,6 +22,7 @@ import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	oauth2 "github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -115,7 +116,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "access-token", response.(RequestAccessToken200JSONResponse).AccessToken)
-		assert.Equal(t, "c_nonce", *response.(RequestAccessToken200JSONResponse).CNonce)
+		assert.Equal(t, "c_nonce", oauth2.TokenResponse(response.(RequestAccessToken200JSONResponse)).Get("c_nonce"))
 	})
 	t.Run("unknown tenant", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

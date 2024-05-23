@@ -92,9 +92,16 @@ func NewFileSystemBackend(fspath string) (spi.Storage, error) {
 	return fsc, nil
 }
 
-func (fsc fileSystemBackend) PrivateKeyExists(_ context.Context, kid string) bool {
+func (fsc fileSystemBackend) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, fsc, namingFunc)
+}
+
+func (fsc fileSystemBackend) PrivateKeyExists(_ context.Context, kid string) (bool, error) {
 	_, err := os.Stat(fsc.getEntryPath(kid, privateKeyEntry))
-	return err == nil
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // GetPrivateKey loads the private key for the given legalEntity from disk. Since a legalEntity has a URI as identifier, the URI is base64 encoded and postfixed with '_private.pem'. Keys are stored in pem format and are 2k RSA keys.

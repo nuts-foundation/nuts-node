@@ -42,7 +42,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.String("http.internal.auth.type", string(defs.Internal.Auth.Type), fmt.Sprintf("Whether to enable authentication for /internal endpoints, specify '%s' for bearer token mode or '%s' for legacy bearer token mode.", http.BearerTokenAuthV2, http.BearerTokenAuth))
 	flags.String("http.internal.auth.audience", defs.Internal.Auth.Audience, "Expected audience for JWT tokens (default: hostname)")
 	flags.String("http.internal.auth.authorizedkeyspath", defs.Internal.Auth.AuthorizedKeysPath, "Path to an authorized_keys file for trusted JWT signers")
-	flags.String("http.log", string(defs.Log), fmt.Sprintf("What to log about HTTP requests. Options are '%s', '%s' (log request method, URI, IP and response code), and '%s' (log the request and response body, in addition to the metadata).", http.LogNothingLevel, http.LogMetadataLevel, http.LogMetadataAndBodyLevel))
+	flags.String("http.log", string(defs.Log), fmt.Sprintf("What to log about HTTP requests. Options are '%s', '%s' (log request method, URI, IP and response code), and '%s' (log the request and response body, in addition to the metadata). When debug vebosity is set the authorization headers are also logged when the request is fully logged.", http.LogNothingLevel, http.LogMetadataLevel, http.LogMetadataAndBodyLevel))
 
 	return flags
 }
@@ -78,7 +78,11 @@ func createTokenCommand() *cobra.Command {
 				return err
 			}
 
-			if !instance.Exists(cmd.Context(), http.AdminTokenSigningKID) {
+			exists, err := instance.Exists(cmd.Context(), http.AdminTokenSigningKID)
+			if err != nil {
+				return err
+			}
+			if !exists {
 				cmd.Println("Token signing key not found, generating new key...")
 				_, err := instance.New(ctx, func(key crypto.PublicKey) (string, error) {
 					return http.AdminTokenSigningKID, nil

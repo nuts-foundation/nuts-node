@@ -111,10 +111,21 @@ paths:
       summary: Issues a new Verifiable Credential
       description: |
         Issues a new Verifiable Credential for provided type in the context.
+        It can issue credentials from did:web and did:nuts issuer DIDs.
+        
+        When the issuer is identified by a did:web DID, the following rules apply:
+        - withStatusList2021Revocation and/or expirationDate MUST be set
+        - publishToNetwork MUST NOT be set
+        - visibility MUST NOT be set
+      
+        When the issuer is identified by a did:nuts DID, the following rules apply:
+        - withStatusList2021Revocation MUST NOT be set
+        - when publishToNetwork is set, visibility MUST be set as well
+        - when publishToNetwork is set, the credential format MUST be ldp_vc (which is the default).
         
         error returns:
         * 400 - One or more of the given parameters are invalid
-        * 412 - A private transaction is issued for a subject that does not have a NutsComm address
+        * 412 - A private transaction is issued for a subject that does not have a NutsComm address (did:nuts DIDs only)
         * 500 - An error occurred while processing the request
       operationId: "issueVC"
       tags:
@@ -125,6 +136,53 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/IssueVCRequest'
+            examples:
+              "did:web":
+                value:
+                  {
+                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+                    "type": ["VerifiableCredential", "NutsOrganizationCredential"],
+                    "issuer": "did:web:example.com",
+                    "expirationDate": "2022-01-02T12:00:00Z",
+                    "credentialSubject": {
+                      "organization": {
+                        "name": "Zorggroep de Nootjes",
+                        "city": "Amandelmere"
+                      }
+                    },
+                    "withStatusList2021Revocation": true
+                  }
+              "did:nuts (public)":
+                value:
+                  {
+                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+                    "type": ["VerifiableCredential", "NutsOrganizationCredential"],
+                    "issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
+                    "credentialSubject": {
+                      "organization": {
+                        "name": "Zorggroep de Nootjes",
+                        "city": "Amandelmere"
+                      }
+                    },
+                    "publishToNetwork": true,
+                    "visibility": "public"
+                  }
+              "did:nuts (private)":
+                value:
+                  {
+                    "@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+                    "type": ["VerifiableCredential", "NutsAuthorizationCredential"],
+                    "issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
+                    "credentialSubject": {
+                        "id": "did:nuts:123",
+                        "purposeOfUse": "eOverdracht-receiver",
+                        "resources": {
+                            "path":"/Task/123"
+                        }
+                    },
+                    "publishToNetwork": true,
+                    "visibility": "private"
+                  }
       responses:
         "200":
           description: "New VC has been created successfully. Returns the Verifiable Credential."

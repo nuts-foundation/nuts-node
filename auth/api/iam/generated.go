@@ -19,6 +19,63 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// Defines values for ServiceAccessTokenRequestTokenType.
+const (
+	ServiceAccessTokenRequestTokenTypeBearer ServiceAccessTokenRequestTokenType = "Bearer"
+	ServiceAccessTokenRequestTokenTypeDPoP   ServiceAccessTokenRequestTokenType = "DPoP"
+)
+
+// Defines values for UserAccessTokenRequestTokenType.
+const (
+	UserAccessTokenRequestTokenTypeBearer UserAccessTokenRequestTokenType = "Bearer"
+	UserAccessTokenRequestTokenTypeDPoP   UserAccessTokenRequestTokenType = "DPoP"
+)
+
+// DPoPRequest defines model for DPoPRequest.
+type DPoPRequest struct {
+	// Htm The HTTP method for which the DPoP proof is requested.
+	Htm string `json:"htm"`
+
+	// Htu The URL for which the DPoP proof is requested. Query params and fragments are ignored during validation.
+	Htu string `json:"htu"`
+
+	// Token The access token for which the DPoP proof is requested.
+	Token string `json:"token"`
+}
+
+// DPoPResponse defines model for DPoPResponse.
+type DPoPResponse struct {
+	// Dpop The DPoP proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+	Dpop string `json:"dpop"`
+}
+
+// DPoPValidateRequest defines model for DPoPValidateRequest.
+type DPoPValidateRequest struct {
+	// DpopProof The DPoP Proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+	DpopProof string `json:"dpop_proof"`
+
+	// Method The HTTP method against which the DPoP proof is validated.
+	Method string `json:"method"`
+
+	// Thumbprint The thumbprint of the public key used to sign the DPoP proof. Base64url encoded, no padding.
+	Thumbprint string `json:"thumbprint"`
+
+	// Token The access token against which the DPoP proof is validated.
+	Token string `json:"token"`
+
+	// Url The URL against which the DPoP proof is validated. Query params and fragments are ignored during validation.
+	Url string `json:"url"`
+}
+
+// DPoPValidateResponse defines model for DPoPValidateResponse.
+type DPoPValidateResponse struct {
+	// Reason The reason why the DPoP Proof header is invalid.
+	Reason *string `json:"reason,omitempty"`
+
+	// Valid True if the DPoP Proof header is valid for the access token and HTTP request, false if it is not.
+	Valid bool `json:"valid"`
+}
+
 // RedirectResponseWithID defines model for RedirectResponseWithID.
 type RedirectResponseWithID struct {
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
@@ -27,6 +84,22 @@ type RedirectResponseWithID struct {
 	// SessionId The session ID that can be used to retrieve the access token by the calling application.
 	SessionId string `json:"session_id"`
 }
+
+// RequestObjectResponse A JSON Web Token (JWT) whose JWT Claims Set holds the JSON-encoded OAuth 2.0 authorization request parameters.
+type RequestObjectResponse = string
+
+// ServiceAccessTokenRequest Request for an access token for a service.
+type ServiceAccessTokenRequest struct {
+	// Scope The scope that will be the service for which this access token can be used.
+	Scope string `json:"scope"`
+
+	// TokenType The type of access token that is prefered, default: DPoP
+	TokenType *ServiceAccessTokenRequestTokenType `json:"tokenType,omitempty"`
+	Verifier  string                              `json:"verifier"`
+}
+
+// ServiceAccessTokenRequestTokenType The type of access token that is prefered, default: DPoP
+type ServiceAccessTokenRequestTokenType string
 
 // TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
 // Alongside the defined properties, it can return values (additionalProperties) from the Verifiable Credentials that resulted from the Presentation Exchange.
@@ -45,6 +118,9 @@ type TokenIntrospectionResponse struct {
 	// ClientId The client (DID) the access token was issued to
 	ClientId *string `json:"client_id,omitempty"`
 
+	// Cnf The 'confirmation' claim is used in JWTs to proof the possession of a key.
+	Cnf *Cnf `json:"cnf,omitempty"`
+
 	// Exp Expiration date in seconds since UNIX epoch
 	Exp *int `json:"exp,omitempty"`
 
@@ -54,11 +130,12 @@ type TokenIntrospectionResponse struct {
 	// Iss Contains the DID of the authorizer. Should be equal to 'sub'
 	Iss *string `json:"iss,omitempty"`
 
-	// PresentationDefinition presentation definition, as described in presentation exchange specification, fulfilled to obtain the access token
-	PresentationDefinition *map[string]interface{} `json:"presentation_definition,omitempty"`
+	// PresentationDefinitions Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token
+	// The map key is the wallet owner (user/organization)
+	PresentationDefinitions *RequiredPresentationDefinitions `json:"presentation_definitions,omitempty"`
 
-	// PresentationSubmission mapping of 'vps' contents to the 'presentation_definition'
-	PresentationSubmission *map[string]interface{} `json:"presentation_submission,omitempty"`
+	// PresentationSubmissions Mapping of Presentation Definition IDs that were fulfilled to Presentation Submissions.
+	PresentationSubmissions *map[string]PresentationSubmission `json:"presentation_submissions,omitempty"`
 
 	// Scope granted scopes
 	Scope *string `json:"scope,omitempty"`
@@ -70,6 +147,29 @@ type TokenIntrospectionResponse struct {
 	Vps                  *[]VerifiablePresentation `json:"vps,omitempty"`
 	AdditionalProperties map[string]interface{}    `json:"-"`
 }
+
+// UserAccessTokenRequest Request for an access token for a user.
+type UserAccessTokenRequest struct {
+	// PreauthorizedUser Claims about the authorized user.
+	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
+
+	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
+	// This is the URL of the calling application.
+	// The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
+	RedirectUri string `json:"redirect_uri"`
+
+	// Scope The scope that will be the service for which this access token can be used.
+	Scope string `json:"scope"`
+
+	// TokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP
+	TokenType *UserAccessTokenRequestTokenType `json:"token_type,omitempty"`
+
+	// Verifier The DID of the verifier, the relying party for which this access token is requested.
+	Verifier string `json:"verifier"`
+}
+
+// UserAccessTokenRequestTokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP
+type UserAccessTokenRequestTokenType string
 
 // UserDetails Claims about the authorized user.
 type UserDetails struct {
@@ -83,28 +183,38 @@ type UserDetails struct {
 	Role string `json:"role"`
 }
 
-// RequestServiceAccessTokenJSONBody defines parameters for RequestServiceAccessToken.
-type RequestServiceAccessTokenJSONBody struct {
-	// Scope The scope that will be the service for which this access token can be used.
-	Scope    string `json:"scope"`
-	Verifier string `json:"verifier"`
+// Cnf The 'confirmation' claim is used in JWTs to proof the possession of a key.
+type Cnf struct {
+	// Jkt JWK thumbprint
+	Jkt string `json:"jkt"`
 }
 
-// RequestUserAccessTokenJSONBody defines parameters for RequestUserAccessToken.
-type RequestUserAccessTokenJSONBody struct {
-	// PreauthorizedUser Claims about the authorized user.
-	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
+// CallbackOid4vciCredentialIssuanceParams defines parameters for CallbackOid4vciCredentialIssuance.
+type CallbackOid4vciCredentialIssuanceParams struct {
+	// Code The oauth2 code response.
+	Code string `form:"code" json:"code"`
+
+	// State The oauth2 state, required as the authorize request sends it.
+	State string `form:"state" json:"state"`
+
+	// Error The error code.
+	Error *string `form:"error,omitempty" json:"error,omitempty"`
+
+	// ErrorDescription The error description.
+	ErrorDescription *string `form:"error_description,omitempty" json:"error_description,omitempty"`
+}
+
+// RequestOid4vciCredentialIssuanceJSONBody defines parameters for RequestOid4vciCredentialIssuance.
+type RequestOid4vciCredentialIssuanceJSONBody struct {
+	AuthorizationDetails []struct {
+		CredentialDefinition *map[string]interface{} `json:"credential_definition,omitempty"`
+		Format               *string                 `json:"format,omitempty"`
+		Type                 *string                 `json:"type,omitempty"`
+	} `json:"authorization_details"`
+	Issuer string `json:"issuer"`
 
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
-	// This is the URL of the calling application.
-	// The OAuth2 flow will finish at the /callback URL of the node and the node will redirect the user to this redirect_uri.
 	RedirectUri string `json:"redirect_uri"`
-
-	// Scope The scope that will be the service for which this access token can be used.
-	Scope string `json:"scope"`
-
-	// Verifier The DID of the verifier, the relying party for which this access token is requested.
-	Verifier string `json:"verifier"`
 }
 
 // HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
@@ -133,6 +243,17 @@ type PresentationDefinitionParams struct {
 	WalletOwnerType *WalletOwnerType `form:"wallet_owner_type,omitempty" json:"wallet_owner_type,omitempty"`
 }
 
+// RequestJWTByPostFormdataBody defines parameters for RequestJWTByPost.
+type RequestJWTByPostFormdataBody struct {
+	// WalletMetadata OAuth2 Authorization Server Metadata
+	// Contain properties from several specifications and may grow over time
+	WalletMetadata *OAuthAuthorizationServerMetadata `form:"wallet_metadata,omitempty" json:"wallet_metadata,omitempty"`
+
+	// WalletNonce A String value used to mitigate replay attacks of the Authorization Request.
+	// When received, the Verifier MUST use it as the wallet_nonce value in the signed authorization request object.
+	WalletNonce *string `form:"wallet_nonce,omitempty" json:"wallet_nonce,omitempty"`
+}
+
 // HandleAuthorizeResponseFormdataBody defines parameters for HandleAuthorizeResponse.
 type HandleAuthorizeResponseFormdataBody struct {
 	// Error error code as defined by the OAuth2 specification
@@ -154,20 +275,32 @@ type HandleTokenRequestFormdataBody struct {
 	Assertion              *string `form:"assertion,omitempty" json:"assertion,omitempty"`
 	ClientId               *string `form:"client_id,omitempty" json:"client_id,omitempty"`
 	Code                   *string `form:"code,omitempty" json:"code,omitempty"`
+	CodeVerifier           *string `form:"code_verifier,omitempty" json:"code_verifier,omitempty"`
 	GrantType              string  `form:"grant_type" json:"grant_type"`
 	PresentationSubmission *string `form:"presentation_submission,omitempty" json:"presentation_submission,omitempty"`
-	RedirectUri            *string `form:"redirect_uri,omitempty" json:"redirect_uri,omitempty"`
 	Scope                  *string `form:"scope,omitempty" json:"scope,omitempty"`
 }
 
 // IntrospectAccessTokenFormdataRequestBody defines body for IntrospectAccessToken for application/x-www-form-urlencoded ContentType.
 type IntrospectAccessTokenFormdataRequestBody = TokenIntrospectionRequest
 
+// ValidateDPoPProofJSONRequestBody defines body for ValidateDPoPProof for application/json ContentType.
+type ValidateDPoPProofJSONRequestBody = DPoPValidateRequest
+
+// CreateDPoPProofJSONRequestBody defines body for CreateDPoPProof for application/json ContentType.
+type CreateDPoPProofJSONRequestBody = DPoPRequest
+
+// RequestOid4vciCredentialIssuanceJSONRequestBody defines body for RequestOid4vciCredentialIssuance for application/json ContentType.
+type RequestOid4vciCredentialIssuanceJSONRequestBody RequestOid4vciCredentialIssuanceJSONBody
+
 // RequestServiceAccessTokenJSONRequestBody defines body for RequestServiceAccessToken for application/json ContentType.
-type RequestServiceAccessTokenJSONRequestBody RequestServiceAccessTokenJSONBody
+type RequestServiceAccessTokenJSONRequestBody = ServiceAccessTokenRequest
 
 // RequestUserAccessTokenJSONRequestBody defines body for RequestUserAccessToken for application/json ContentType.
-type RequestUserAccessTokenJSONRequestBody RequestUserAccessTokenJSONBody
+type RequestUserAccessTokenJSONRequestBody = UserAccessTokenRequest
+
+// RequestJWTByPostFormdataRequestBody defines body for RequestJWTByPost for application/x-www-form-urlencoded ContentType.
+type RequestJWTByPostFormdataRequestBody RequestJWTByPostFormdataBody
 
 // HandleAuthorizeResponseFormdataRequestBody defines body for HandleAuthorizeResponse for application/x-www-form-urlencoded ContentType.
 type HandleAuthorizeResponseFormdataRequestBody HandleAuthorizeResponseFormdataBody
@@ -224,6 +357,14 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 		delete(object, "client_id")
 	}
 
+	if raw, found := object["cnf"]; found {
+		err = json.Unmarshal(raw, &a.Cnf)
+		if err != nil {
+			return fmt.Errorf("error reading 'cnf': %w", err)
+		}
+		delete(object, "cnf")
+	}
+
 	if raw, found := object["exp"]; found {
 		err = json.Unmarshal(raw, &a.Exp)
 		if err != nil {
@@ -248,20 +389,20 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 		delete(object, "iss")
 	}
 
-	if raw, found := object["presentation_definition"]; found {
-		err = json.Unmarshal(raw, &a.PresentationDefinition)
+	if raw, found := object["presentation_definitions"]; found {
+		err = json.Unmarshal(raw, &a.PresentationDefinitions)
 		if err != nil {
-			return fmt.Errorf("error reading 'presentation_definition': %w", err)
+			return fmt.Errorf("error reading 'presentation_definitions': %w", err)
 		}
-		delete(object, "presentation_definition")
+		delete(object, "presentation_definitions")
 	}
 
-	if raw, found := object["presentation_submission"]; found {
-		err = json.Unmarshal(raw, &a.PresentationSubmission)
+	if raw, found := object["presentation_submissions"]; found {
+		err = json.Unmarshal(raw, &a.PresentationSubmissions)
 		if err != nil {
-			return fmt.Errorf("error reading 'presentation_submission': %w", err)
+			return fmt.Errorf("error reading 'presentation_submissions': %w", err)
 		}
-		delete(object, "presentation_submission")
+		delete(object, "presentation_submissions")
 	}
 
 	if raw, found := object["scope"]; found {
@@ -326,6 +467,13 @@ func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		}
 	}
 
+	if a.Cnf != nil {
+		object["cnf"], err = json.Marshal(a.Cnf)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'cnf': %w", err)
+		}
+	}
+
 	if a.Exp != nil {
 		object["exp"], err = json.Marshal(a.Exp)
 		if err != nil {
@@ -347,17 +495,17 @@ func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	if a.PresentationDefinition != nil {
-		object["presentation_definition"], err = json.Marshal(a.PresentationDefinition)
+	if a.PresentationDefinitions != nil {
+		object["presentation_definitions"], err = json.Marshal(a.PresentationDefinitions)
 		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'presentation_definition': %w", err)
+			return nil, fmt.Errorf("error marshaling 'presentation_definitions': %w", err)
 		}
 	}
 
-	if a.PresentationSubmission != nil {
-		object["presentation_submission"], err = json.Marshal(a.PresentationSubmission)
+	if a.PresentationSubmissions != nil {
+		object["presentation_submissions"], err = json.Marshal(a.PresentationSubmissions)
 		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'presentation_submission': %w", err)
+			return nil, fmt.Errorf("error marshaling 'presentation_submissions': %w", err)
 		}
 	}
 
@@ -402,6 +550,9 @@ type ServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> path.
 	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	OAuthAuthorizationServerMetadata(ctx echo.Context, id string) error
+	// Callback for the Oid4VCI credential issuance flow.
+	// (GET /iam/oid4vci/callback)
+	CallbackOid4vciCredentialIssuance(ctx echo.Context, params CallbackOid4vciCredentialIssuanceParams) error
 	// Returns the did:web DID for the specified tenant.
 	// (GET /iam/{id}/did.json)
 	GetTenantWebDID(ctx echo.Context, id string) error
@@ -411,6 +562,15 @@ type ServerInterface interface {
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx echo.Context, sessionID string) error
+	// Handle some of the validation of a DPoP proof as specified by RFC9449.
+	// (POST /internal/auth/v2/dpop_validate)
+	ValidateDPoPProof(ctx echo.Context) error
+	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
+	// (POST /internal/auth/v2/{did}/dpop)
+	CreateDPoPProof(ctx echo.Context, did string) error
+	// Start the Oid4VCI authorization flow.
+	// (POST /internal/auth/v2/{did}/request-credential)
+	RequestOid4vciCredentialIssuance(ctx echo.Context, did string) error
 	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{did}/request-service-access-token)
 	RequestServiceAccessToken(ctx echo.Context, did string) error
@@ -429,6 +589,12 @@ type ServerInterface interface {
 	// Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
 	// (GET /oauth2/{did}/presentation_definition)
 	PresentationDefinition(ctx echo.Context, did string, params PresentationDefinitionParams) error
+	// Get Request Object referenced in an authorization request to the Authorization Server.
+	// (GET /oauth2/{did}/request.jwt/{id})
+	RequestJWTByGet(ctx echo.Context, did string, id string) error
+	// Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
+	// (POST /oauth2/{did}/request.jwt/{id})
+	RequestJWTByPost(ctx echo.Context, did string, id string) error
 	// Used by wallets to post the authorization response or error to.
 	// (POST /oauth2/{did}/response)
 	HandleAuthorizeResponse(ctx echo.Context, did string) error
@@ -485,6 +651,47 @@ func (w *ServerInterfaceWrapper) OAuthAuthorizationServerMetadata(ctx echo.Conte
 	return err
 }
 
+// CallbackOid4vciCredentialIssuance converts echo context to params.
+func (w *ServerInterfaceWrapper) CallbackOid4vciCredentialIssuance(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CallbackOid4vciCredentialIssuanceParams
+	// ------------- Required query parameter "code" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "code", ctx.QueryParams(), &params.Code)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter code: %s", err))
+	}
+
+	// ------------- Required query parameter "state" -------------
+
+	err = runtime.BindQueryParameter("form", true, true, "state", ctx.QueryParams(), &params.State)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter state: %s", err))
+	}
+
+	// ------------- Optional query parameter "error" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "error", ctx.QueryParams(), &params.Error)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter error: %s", err))
+	}
+
+	// ------------- Optional query parameter "error_description" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "error_description", ctx.QueryParams(), &params.ErrorDescription)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter error_description: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CallbackOid4vciCredentialIssuance(ctx, params)
+	return err
+}
+
 // GetTenantWebDID converts echo context to params.
 func (w *ServerInterfaceWrapper) GetTenantWebDID(ctx echo.Context) error {
 	var err error
@@ -529,6 +736,47 @@ func (w *ServerInterfaceWrapper) RetrieveAccessToken(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.RetrieveAccessToken(ctx, sessionID)
+	return err
+}
+
+// ValidateDPoPProof converts echo context to params.
+func (w *ServerInterfaceWrapper) ValidateDPoPProof(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ValidateDPoPProof(ctx)
+	return err
+}
+
+// CreateDPoPProof converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateDPoPProof(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	did = ctx.Param("did")
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CreateDPoPProof(ctx, did)
+	return err
+}
+
+// RequestOid4vciCredentialIssuance converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestOid4vciCredentialIssuance(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	did = ctx.Param("did")
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RequestOid4vciCredentialIssuance(ctx, did)
 	return err
 }
 
@@ -677,6 +925,52 @@ func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error 
 	return err
 }
 
+// RequestJWTByGet converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestJWTByGet(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	did = ctx.Param("did")
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RequestJWTByGet(ctx, did, id)
+	return err
+}
+
+// RequestJWTByPost converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestJWTByPost(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	did = ctx.Param("did")
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RequestJWTByPost(ctx, did, id)
+	return err
+}
+
 // HandleAuthorizeResponse converts echo context to params.
 func (w *ServerInterfaceWrapper) HandleAuthorizeResponse(ctx echo.Context) error {
 	var err error
@@ -761,15 +1055,21 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/.well-known/did.json", wrapper.GetRootWebDID)
 	router.GET(baseURL+"/.well-known/oauth-authorization-server", wrapper.RootOAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:id", wrapper.OAuthAuthorizationServerMetadata)
+	router.GET(baseURL+"/iam/oid4vci/callback", wrapper.CallbackOid4vciCredentialIssuance)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetTenantWebDID)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
+	router.POST(baseURL+"/internal/auth/v2/dpop_validate", wrapper.ValidateDPoPProof)
+	router.POST(baseURL+"/internal/auth/v2/:did/dpop", wrapper.CreateDPoPProof)
+	router.POST(baseURL+"/internal/auth/v2/:did/request-credential", wrapper.RequestOid4vciCredentialIssuance)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-service-access-token", wrapper.RequestServiceAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:did/request-user-access-token", wrapper.RequestUserAccessToken)
 	router.GET(baseURL+"/oauth2/:did/authorize", wrapper.HandleAuthorizeRequest)
 	router.GET(baseURL+"/oauth2/:did/callback", wrapper.Callback)
 	router.GET(baseURL+"/oauth2/:did/oauth-client", wrapper.OAuthClientMetadata)
 	router.GET(baseURL+"/oauth2/:did/presentation_definition", wrapper.PresentationDefinition)
+	router.GET(baseURL+"/oauth2/:did/request.jwt/:id", wrapper.RequestJWTByGet)
+	router.POST(baseURL+"/oauth2/:did/request.jwt/:id", wrapper.RequestJWTByPost)
 	router.POST(baseURL+"/oauth2/:did/response", wrapper.HandleAuthorizeResponse)
 	router.POST(baseURL+"/oauth2/:did/token", wrapper.HandleTokenRequest)
 	router.GET(baseURL+"/statuslist/:did/:page", wrapper.StatusList)
@@ -875,6 +1175,49 @@ func (response OAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSON
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type CallbackOid4vciCredentialIssuanceRequestObject struct {
+	Params CallbackOid4vciCredentialIssuanceParams
+}
+
+type CallbackOid4vciCredentialIssuanceResponseObject interface {
+	VisitCallbackOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error
+}
+
+type CallbackOid4vciCredentialIssuance302ResponseHeaders struct {
+	Location string
+}
+
+type CallbackOid4vciCredentialIssuance302Response struct {
+	Headers CallbackOid4vciCredentialIssuance302ResponseHeaders
+}
+
+func (response CallbackOid4vciCredentialIssuance302Response) VisitCallbackOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type CallbackOid4vciCredentialIssuancedefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response CallbackOid4vciCredentialIssuancedefaultApplicationProblemPlusJSONResponse) VisitCallbackOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 type GetTenantWebDIDRequestObject struct {
 	Id string `json:"id"`
 }
@@ -957,6 +1300,109 @@ type RetrieveAccessTokendefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response RetrieveAccessTokendefaultApplicationProblemPlusJSONResponse) VisitRetrieveAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ValidateDPoPProofRequestObject struct {
+	Body *ValidateDPoPProofJSONRequestBody
+}
+
+type ValidateDPoPProofResponseObject interface {
+	VisitValidateDPoPProofResponse(w http.ResponseWriter) error
+}
+
+type ValidateDPoPProof200JSONResponse DPoPValidateResponse
+
+func (response ValidateDPoPProof200JSONResponse) VisitValidateDPoPProofResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ValidateDPoPProofdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response ValidateDPoPProofdefaultApplicationProblemPlusJSONResponse) VisitValidateDPoPProofResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type CreateDPoPProofRequestObject struct {
+	Did  string `json:"did"`
+	Body *CreateDPoPProofJSONRequestBody
+}
+
+type CreateDPoPProofResponseObject interface {
+	VisitCreateDPoPProofResponse(w http.ResponseWriter) error
+}
+
+type CreateDPoPProof200JSONResponse DPoPResponse
+
+func (response CreateDPoPProof200JSONResponse) VisitCreateDPoPProofResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateDPoPProof401Response struct {
+}
+
+func (response CreateDPoPProof401Response) VisitCreateDPoPProofResponse(w http.ResponseWriter) error {
+	w.WriteHeader(401)
+	return nil
+}
+
+type RequestOid4vciCredentialIssuanceRequestObject struct {
+	Did  string `json:"did"`
+	Body *RequestOid4vciCredentialIssuanceJSONRequestBody
+}
+
+type RequestOid4vciCredentialIssuanceResponseObject interface {
+	VisitRequestOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error
+}
+
+type RequestOid4vciCredentialIssuance200JSONResponse RedirectResponse
+
+func (response RequestOid4vciCredentialIssuance200JSONResponse) VisitRequestOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestOid4vciCredentialIssuancedefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RequestOid4vciCredentialIssuancedefaultApplicationProblemPlusJSONResponse) VisitRequestOid4vciCredentialIssuanceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -1204,6 +1650,105 @@ func (response PresentationDefinitiondefaultApplicationProblemPlusJSONResponse) 
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type RequestJWTByGetRequestObject struct {
+	Did string `json:"did"`
+	Id  string `json:"id"`
+}
+
+type RequestJWTByGetResponseObject interface {
+	VisitRequestJWTByGetResponse(w http.ResponseWriter) error
+}
+
+type RequestJWTByGet200ApplicationoauthAuthzReqJwtResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response RequestJWTByGet200ApplicationoauthAuthzReqJwtResponse) VisitRequestJWTByGetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/oauth-authz-req+jwt")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type RequestJWTByGetdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RequestJWTByGetdefaultApplicationProblemPlusJSONResponse) VisitRequestJWTByGetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type RequestJWTByPostRequestObject struct {
+	Did  string `json:"did"`
+	Id   string `json:"id"`
+	Body *RequestJWTByPostFormdataRequestBody
+}
+
+type RequestJWTByPostResponseObject interface {
+	VisitRequestJWTByPostResponse(w http.ResponseWriter) error
+}
+
+type RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse) VisitRequestJWTByPostResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/oauth-authz-req+jwt")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type RequestJWTByPostdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RequestJWTByPostdefaultApplicationProblemPlusJSONResponse) VisitRequestJWTByPostResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 type HandleAuthorizeResponseRequestObject struct {
 	Did  string `json:"did"`
 	Body *HandleAuthorizeResponseFormdataRequestBody
@@ -1240,22 +1785,13 @@ func (response HandleTokenRequest200JSONResponse) VisitHandleTokenRequestRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type HandleTokenRequestdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+type HandleTokenRequestdefaultJSONResponse struct {
+	Body       ErrorResponse
 	StatusCode int
 }
 
-func (response HandleTokenRequestdefaultApplicationProblemPlusJSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
+func (response HandleTokenRequestdefaultJSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(response.StatusCode)
 
 	return json.NewEncoder(w).Encode(response.Body)
@@ -1311,6 +1847,9 @@ type StrictServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> path.
 	// (GET /.well-known/oauth-authorization-server/iam/{id})
 	OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error)
+	// Callback for the Oid4VCI credential issuance flow.
+	// (GET /iam/oid4vci/callback)
+	CallbackOid4vciCredentialIssuance(ctx context.Context, request CallbackOid4vciCredentialIssuanceRequestObject) (CallbackOid4vciCredentialIssuanceResponseObject, error)
 	// Returns the did:web DID for the specified tenant.
 	// (GET /iam/{id}/did.json)
 	GetTenantWebDID(ctx context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error)
@@ -1320,6 +1859,15 @@ type StrictServerInterface interface {
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
+	// Handle some of the validation of a DPoP proof as specified by RFC9449.
+	// (POST /internal/auth/v2/dpop_validate)
+	ValidateDPoPProof(ctx context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error)
+	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
+	// (POST /internal/auth/v2/{did}/dpop)
+	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
+	// Start the Oid4VCI authorization flow.
+	// (POST /internal/auth/v2/{did}/request-credential)
+	RequestOid4vciCredentialIssuance(ctx context.Context, request RequestOid4vciCredentialIssuanceRequestObject) (RequestOid4vciCredentialIssuanceResponseObject, error)
 	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{did}/request-service-access-token)
 	RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error)
@@ -1338,6 +1886,12 @@ type StrictServerInterface interface {
 	// Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
 	// (GET /oauth2/{did}/presentation_definition)
 	PresentationDefinition(ctx context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error)
+	// Get Request Object referenced in an authorization request to the Authorization Server.
+	// (GET /oauth2/{did}/request.jwt/{id})
+	RequestJWTByGet(ctx context.Context, request RequestJWTByGetRequestObject) (RequestJWTByGetResponseObject, error)
+	// Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
+	// (POST /oauth2/{did}/request.jwt/{id})
+	RequestJWTByPost(ctx context.Context, request RequestJWTByPostRequestObject) (RequestJWTByPostResponseObject, error)
 	// Used by wallets to post the authorization response or error to.
 	// (POST /oauth2/{did}/response)
 	HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error)
@@ -1432,6 +1986,31 @@ func (sh *strictHandler) OAuthAuthorizationServerMetadata(ctx echo.Context, id s
 	return nil
 }
 
+// CallbackOid4vciCredentialIssuance operation middleware
+func (sh *strictHandler) CallbackOid4vciCredentialIssuance(ctx echo.Context, params CallbackOid4vciCredentialIssuanceParams) error {
+	var request CallbackOid4vciCredentialIssuanceRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CallbackOid4vciCredentialIssuance(ctx.Request().Context(), request.(CallbackOid4vciCredentialIssuanceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CallbackOid4vciCredentialIssuance")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CallbackOid4vciCredentialIssuanceResponseObject); ok {
+		return validResponse.VisitCallbackOid4vciCredentialIssuanceResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // GetTenantWebDID operation middleware
 func (sh *strictHandler) GetTenantWebDID(ctx echo.Context, id string) error {
 	var request GetTenantWebDIDRequestObject
@@ -1509,6 +2088,97 @@ func (sh *strictHandler) RetrieveAccessToken(ctx echo.Context, sessionID string)
 		return err
 	} else if validResponse, ok := response.(RetrieveAccessTokenResponseObject); ok {
 		return validResponse.VisitRetrieveAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ValidateDPoPProof operation middleware
+func (sh *strictHandler) ValidateDPoPProof(ctx echo.Context) error {
+	var request ValidateDPoPProofRequestObject
+
+	var body ValidateDPoPProofJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ValidateDPoPProof(ctx.Request().Context(), request.(ValidateDPoPProofRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ValidateDPoPProof")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ValidateDPoPProofResponseObject); ok {
+		return validResponse.VisitValidateDPoPProofResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateDPoPProof operation middleware
+func (sh *strictHandler) CreateDPoPProof(ctx echo.Context, did string) error {
+	var request CreateDPoPProofRequestObject
+
+	request.Did = did
+
+	var body CreateDPoPProofJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateDPoPProof(ctx.Request().Context(), request.(CreateDPoPProofRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateDPoPProof")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateDPoPProofResponseObject); ok {
+		return validResponse.VisitCreateDPoPProofResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RequestOid4vciCredentialIssuance operation middleware
+func (sh *strictHandler) RequestOid4vciCredentialIssuance(ctx echo.Context, did string) error {
+	var request RequestOid4vciCredentialIssuanceRequestObject
+
+	request.Did = did
+
+	var body RequestOid4vciCredentialIssuanceJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestOid4vciCredentialIssuance(ctx.Request().Context(), request.(RequestOid4vciCredentialIssuanceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestOid4vciCredentialIssuance")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RequestOid4vciCredentialIssuanceResponseObject); ok {
+		return validResponse.VisitRequestOid4vciCredentialIssuanceResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -1674,6 +2344,68 @@ func (sh *strictHandler) PresentationDefinition(ctx echo.Context, did string, pa
 		return err
 	} else if validResponse, ok := response.(PresentationDefinitionResponseObject); ok {
 		return validResponse.VisitPresentationDefinitionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RequestJWTByGet operation middleware
+func (sh *strictHandler) RequestJWTByGet(ctx echo.Context, did string, id string) error {
+	var request RequestJWTByGetRequestObject
+
+	request.Did = did
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestJWTByGet(ctx.Request().Context(), request.(RequestJWTByGetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestJWTByGet")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RequestJWTByGetResponseObject); ok {
+		return validResponse.VisitRequestJWTByGetResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RequestJWTByPost operation middleware
+func (sh *strictHandler) RequestJWTByPost(ctx echo.Context, did string, id string) error {
+	var request RequestJWTByPostRequestObject
+
+	request.Did = did
+	request.Id = id
+
+	if form, err := ctx.FormParams(); err == nil {
+		var body RequestJWTByPostFormdataRequestBody
+		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
+			return err
+		}
+		request.Body = &body
+	} else {
+		return err
+	}
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestJWTByPost(ctx.Request().Context(), request.(RequestJWTByPostRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestJWTByPost")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RequestJWTByPostResponseObject); ok {
+		return validResponse.VisitRequestJWTByPostResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

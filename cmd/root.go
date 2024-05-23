@@ -44,6 +44,7 @@ import (
 	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
 	didmanCmd "github.com/nuts-foundation/nuts-node/didman/cmd"
 	"github.com/nuts-foundation/nuts-node/discovery"
+	discoveryServerAPI "github.com/nuts-foundation/nuts-node/discovery/api/server"
 	discoveryAPI "github.com/nuts-foundation/nuts-node/discovery/api/v1"
 	discoveryCmd "github.com/nuts-foundation/nuts-node/discovery/cmd"
 	"github.com/nuts-foundation/nuts-node/events"
@@ -135,7 +136,9 @@ func startServer(ctx context.Context, system *core.System) error {
 			if err != nil {
 				return err
 			}
-			pprof.StartCPUProfile(f)
+			if err := pprof.StartCPUProfile(f); err != nil {
+				return err
+			}
 			defer pprof.StopCPUProfile()
 		} else {
 			logrus.Warn("Ignoring CPU profile option, strictmode is enabled")
@@ -221,10 +224,11 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPIv1.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
-	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance, policyInstance))
+	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance, policyInstance, cryptoInstance, jsonld))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
-	system.RegisterRoutes(&discoveryAPI.Wrapper{Server: discoveryInstance, Client: discoveryInstance})
+	system.RegisterRoutes(&discoveryAPI.Wrapper{Client: discoveryInstance})
+	system.RegisterRoutes(&discoveryServerAPI.Wrapper{Server: discoveryInstance})
 
 	// Register engines
 	// without dependencies

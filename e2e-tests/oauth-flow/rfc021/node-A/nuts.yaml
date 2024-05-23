@@ -3,6 +3,7 @@ verbosity: debug
 strictmode: false
 internalratelimiter: false
 http:
+  log: metadata-and-body
   internal:
     address: :8081
 auth:

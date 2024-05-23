@@ -30,10 +30,10 @@ pushd openid4vci
 ./run-tests.sh
 popd
 
-echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-echo "!! Running test suite: Auth !!"
-echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-pushd auth
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+echo "!! Running test suite: browser !!"
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+pushd browser
 ./run-tests.sh
 popd
 

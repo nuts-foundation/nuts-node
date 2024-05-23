@@ -100,6 +100,91 @@ func TestParsePresentationDefinition(t *testing.T) {
 	})
 }
 
+func TestEmployeeCredential(t *testing.T) {
+	pd, err := ParsePresentationDefinition([]byte(`{
+      "format": {
+        "ldp_vc": {
+          "proof_type": [
+            "JsonWebSignature2020"
+          ]
+        },
+        "ldp_vp": {
+          "proof_type": [
+            "JsonWebSignature2020"
+          ]
+        },
+        "jwt_vc": {
+          "alg": [
+            "ES256"
+          ]
+        },
+        "jwt_vp": {
+          "alg": [
+            "ES256"
+          ]
+        }
+      },
+      "id": "pd_any_employee_credential",
+      "name": "Employee",
+      "purpose": "Finding an employee for authorizing access to medical metadata",
+      "input_descriptors": [
+        {
+          "id": "id_employee_credential_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "EmployeeCredential"
+                }
+              },
+              {
+                "id": "employee_identifier",
+                "path": [
+                  "$.credentialSubject.identifier",
+                  "$.credentialSubject[0].identifier"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "employee_name",
+                "path": [
+                  "$.credentialSubject.name",
+                  "$.credentialSubject[0].name"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "employee_role",
+                "path": [
+                  "$.credentialSubject.roleName",
+                  "$.credentialSubject[0].roleName"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }`))
+	require.NoError(t, err)
+	cred, err := vc.ParseVerifiableCredential(`eyJhbGciOiJFUzI1NiIsImtpZCI6ImRpZDp3ZWI6bm9kZUE6aWFtOnJlcXVlc3RlciMwIiwidHlwIjoiSldUIn0.eyJleHAiOjE3MTI1NzI2MTIsImlzcyI6ImRpZDp3ZWI6bm9kZUE6aWFtOnJlcXVlc3RlciIsImp0aSI6ImRpZDp3ZWI6bm9kZUE6aWFtOnJlcXVlc3RlciM4ZjNkMWI0OS1iODYzLTQxZjYtYmY4Ny05ZTVhODY2YWMyMzEiLCJuYmYiOjE3MTI1NjkwMTIsInN1YiI6ImRpZDpqd2s6ZXlKamNuWWlPaUpRTFRJMU5pSXNJbXQwZVNJNklrVkRJaXdpZUNJNklsOVFVVk5TVkY5UmRFWmpOMFpvU0VwUGFGVXRibEJ2TVVaNGRFZDRTRmRqUzJ0b2FqUTVhRE5hT1VVaUxDSjVJam9pTmpoek16TTFOVkJIYm5CcVVVSkVNamRKTjE4NVpFUnpkRzU2TVVwZlZtZzNZVlprUlVOVlNHOXpRU0o5IiwidmMiOnsiQGNvbnRleHQiOlsiaHR0cHM6Ly93d3cudzMub3JnLzIwMTgvY3JlZGVudGlhbHMvdjEiLCJodHRwczovL251dHMubmwvY3JlZGVudGlhbHMvdjEiXSwiY3JlZGVudGlhbFN1YmplY3QiOlt7ImlkIjoiZGlkOmp3azpleUpqY25ZaU9pSlFMVEkxTmlJc0ltdDBlU0k2SWtWRElpd2llQ0k2SWw5UVVWTlNWRjlSZEVaak4wWm9TRXBQYUZVdGJsQnZNVVo0ZEVkNFNGZGpTMnRvYWpRNWFETmFPVVVpTENKNUlqb2lOamh6TXpNMU5WQkhibkJxVVVKRU1qZEpOMTg1WkVSemRHNTZNVXBmVm1nM1lWWmtSVU5WU0c5elFTSjkiLCJpZGVudGlmaWVyIjoiamRvZUBleGFtcGxlLmNvbSIsIm5hbWUiOiJKb2huIERvZSIsInJvbGVOYW1lIjoiQWNjb3VudGFudCJ9XSwidHlwZSI6WyJFbXBsb3llZUNyZWRlbnRpYWwiLCJWZXJpZmlhYmxlQ3JlZGVudGlhbCJdfX0.6VeGDsTEy2BpQW3RKCiczIVoAAdlfl_EP4KioE9lavWIuXTASTAPkcY9oOlfG_HFLZvu82Nnt6L-ntK8XzR7Ew`)
+
+	credentials, _, err := pd.Match([]vc.VerifiableCredential{*cred})
+
+	require.NoError(t, err)
+	require.Len(t, credentials, 1)
+}
+
 func TestMatch(t *testing.T) {
 	jsonldVC := vcrTest.ValidNutsOrganizationCredential(t)
 	jwtVC := vcrTest.JWTNutsOrganizationCredential(t, did.MustParseDID("did:web:example.com"))

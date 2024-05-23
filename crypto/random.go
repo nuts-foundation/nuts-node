@@ -23,9 +23,9 @@ import (
 	"encoding/base64"
 )
 
-// GenerateNonce creates a 128 bit secure random
+// GenerateNonce creates a 256 bit secure random
 func GenerateNonce() string {
-	buf := make([]byte, 128/8)
+	buf := make([]byte, 256/8)
 	_, err := rand.Read(buf)
 	if err != nil {
 		panic(err)

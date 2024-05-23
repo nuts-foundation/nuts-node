@@ -4,12 +4,14 @@ run-generators: gen-mocks gen-api gen-protobuf
 
 install-tools:
 	go install github.com/deepmap/oapi-codegen/v2/cmd/oapi-codegen@v2.1.0
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.33.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.1
 	go install go.uber.org/mock/mockgen@v0.4.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.57.2
 
 gen-mocks:
 	mockgen -destination=auth/mock.go -package=auth -source=auth/interface.go
+	mockgen -destination=auth/api/iam/jar_mock.go -package=iam -source=auth/api/iam/jar.go
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
 	mockgen -destination=auth/client/iam/mock.go -package=iam -source=auth/client/iam/interface.go
 	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
@@ -21,7 +23,7 @@ gen-mocks:
 	mockgen -destination=crypto/storage/spi/mock.go -package spi -source=crypto/storage/spi/interface.go
 	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
 	mockgen -destination=discovery/mock.go -package=discovery -source=discovery/interface.go
-	mockgen -destination=discovery/api/v1/client/mock.go -package=client -source=discovery/api/v1/client/interface.go
+	mockgen -destination=discovery/api/server/client/mock.go -package=client -source=discovery/api/server/client/interface.go
 	mockgen -destination=events/events_mock.go -package=events -source=events/interface.go Event
 	mockgen -destination=events/mock.go -package=events -source=events/conn.go Conn ConnectionPool
 	mockgen -destination=http/echo_mock.go -package=http -source=http/echo.go -imports echo=github.com/labstack/echo/v4
@@ -72,11 +74,16 @@ gen-api:
 	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth/v1/generated.go
 	oapi-codegen --config codegen/configs/auth_client_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth/v1/client/generated.go
 	oapi-codegen --config codegen/configs/auth_employeeid.yaml auth/services/selfsigned/web/spec.yaml | gofmt > auth/services/selfsigned/web/generated.go
-	oapi-codegen --config codegen/configs/auth_iam.yaml docs/_static/auth/iam.yaml | gofmt > auth/api/iam/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 	oapi-codegen --config codegen/configs/discovery_v1.yaml docs/_static/discovery/v1.yaml | gofmt > discovery/api/v1/generated.go
+	oapi-codegen --config codegen/configs/discovery_server.yaml docs/_static/discovery/server.yaml | gofmt > discovery/api/server/generated.go
 	oapi-codegen --config codegen/configs/crypto_store_client.yaml https://raw.githubusercontent.com/nuts-foundation/secret-store-api/main/nuts-storage-api-v1.yaml | gofmt > crypto/storage/external/generated.go
 	oapi-codegen --config codegen/configs/policy_client_v1.yaml docs/_static/policy/v1.yaml | gofmt > policy/api/v1/client/generated.go
+
+	# IAM is a special case, needs merging of the "integrator's" OAS with the OAuth2/OpenID4VCI/OpenID4VP spec
+	go run ./codegen/oas-merge/main.go docs/_static/auth/v2.yaml docs/_static/auth/iam.partial.yaml 2> docs/_static/auth/v2-iam-combined.tmp.yaml
+	oapi-codegen --config codegen/configs/auth_v2.yaml docs/_static/auth/v2-iam-combined.tmp.yaml | gofmt > auth/api/iam/generated.go
+	oapi-codegen -generate client,types --config codegen/configs/auth_v2.yaml docs/_static/auth/v2.yaml | gofmt > e2e-tests/browser/client/iam/generated.go
 
 gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/v2/protocol.proto
@@ -99,6 +106,9 @@ all-docs: cli-docs gen-diagrams
 
 fix-copyright:
 	go run ./docs copyright
+
+lint:
+	golangci-lint run -v
 
 test:
 	go test ./...

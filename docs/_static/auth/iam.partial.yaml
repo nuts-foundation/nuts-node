@@ -1,0 +1,587 @@
+# Note: no code is directly generated from this file, it is merged into v2.yaml and then code is generated from the merged file.
+paths:
+  /iam/{id}/did.json:
+    parameters:
+      - name: id
+        in: path
+        description: ID of DID.
+        required: true
+        example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+        schema:
+          type: string
+    get:
+      summary: Returns the did:web DID for the specified tenant.
+      description: |
+        Returns the did:web DID for the specified tenant, if it is owned by this node.
+      operationId: "getTenantWebDID"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: DID has been found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DIDDocument'
+        "404":
+          description: DID does not exist.
+  /.well-known/did.json:
+    get:
+      summary: Returns the root did:web DID of this domain.
+      description: |
+        Returns the root did:web DID of this domain, if it is owned by this node.
+      operationId: "getRootWebDID"
+      tags:
+        - DID
+      responses:
+        "200":
+          description: DID has been found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DIDDocument'
+        "404":
+          description: DID does not exist.
+  /oauth2/{did}/token:
+    post:
+      summary: Used by to request access- or refresh tokens.
+      description: |
+        Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint.
+        Requires the use of PKCE as specified by https://datatracker.ietf.org/doc/html/rfc7636 and optionally DPoP as specified by https://datatracker.ietf.org/doc/html/rfc9449.
+      operationId: handleTokenRequest
+      tags:
+        - oauth2
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: DID that is the subject of the token request
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+              properties:
+                grant_type:
+                  type: string
+                  example: urn:ietf:params:oauth:grant-type:authorized_code
+                code:
+                  type: string
+                client_id:
+                  type: string
+                assertion:
+                  type: string
+                presentation_submission:
+                  type: string
+                scope:
+                  type: string
+                code_verifier:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TokenResponse"
+        "default":
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /oauth2/{did}/authorize:
+    get:
+      summary: Used by resource owners to initiate the authorization code flow.
+      description: Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
+      operationId: handleAuthorizeRequest
+      tags:
+        - oauth2
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: DID that is the subject of the authorization request
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+        # Way to specify dynamic query parameters
+        # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
+        - in: query
+          name: params
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+          style: form
+          explode: true
+      responses:
+        "200":
+          description: Authorization request accepted, user is asked for consent.
+          content:
+            text/html:
+              schema:
+                type: string
+        "302":
+          description: >
+            If an error occurs, the user-agent is redirected, the authorization server redirects the user-agent to the provided redirect URI.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+  /oauth2/{did}/request.jwt/{id}:
+    parameters:
+      - name: did
+        in: path
+        required: true
+        description: DID acting as the client for the authorization request
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: did:web:example.com
+      - name: id
+        in: path
+        required: true
+        description: Identifier of the Request Object
+        schema:
+          type: string
+    get:
+      summary: Get Request Object referenced in an authorization request to the Authorization Server.
+      description: |
+        Get the Request Object containing the OAuth 2.0 authorization request parameters, including extension parameters.
+        The Request Object is a JWT with signature (JWS).
+        See [RFC9101] The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR) for details.
+      operationId: requestJWTByGet
+      tags:
+        - oauth2
+      responses:
+        200:
+          description: Authorization Request Object is found
+          content:
+            application/oauth-authz-req+jwt:
+              schema:
+                "$ref": "#/components/schemas/RequestObjectResponse"
+        default:
+          $ref: '../common/error_response.yaml'
+    post:
+      summary: Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
+      operationId: requestJWTByPost
+      tags:
+        - oauth2
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                wallet_metadata:
+                  $ref: '#/components/schemas/OAuthAuthorizationServerMetadata'
+                wallet_nonce:
+                  description: |
+                    A String value used to mitigate replay attacks of the Authorization Request. 
+                    When received, the Verifier MUST use it as the wallet_nonce value in the signed authorization request object.
+                  type: string
+      responses:
+        200:
+          description: Authorization Request Object is found
+          content:
+            application/oauth-authz-req+jwt:
+              schema:
+                "$ref": "#/components/schemas/RequestObjectResponse"
+        default:
+          $ref: '../common/error_response.yaml'
+  /oauth2/{did}/callback:
+    get:
+      summary: The OAuth2 callback endpoint of the client.
+      description: |
+        When the OAuth2 flow is completed, the user-agent is redirected to this endpoint.
+        This can be the result of a successful authorization request or an error.
+        The result of this callback is a redirect back to the calling application.
+      operationId: callback
+      tags:
+        - oauth2
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: DID that is the subject of the callback
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+        - name: code
+          in: query
+          description: The authorization code received from the authorization server.
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: The client state.
+          schema:
+            type: string
+        - name: error
+          in: query
+          description: The error code.
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          description: The error description.
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the calling application.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "default":
+          $ref: '../common/error_response.yaml'
+  /oauth2/{did}/presentation_definition:
+    get:
+      summary: Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
+      description: |
+        The presentation definition (specified by https://identity.foundation/presentation-exchange/spec/v2.0.0/) is a JSON object that describes the desired verifiable credentials and presentation formats.
+        A presentation definition is matched against a wallet. If verifiable credentials matching the definition are found, 
+        a presentation can created together with a presentation submission.
+        The API returns an array of definitions, one per scope/backend combination if applicable.
+      operationId: presentationDefinition
+      tags:
+        - oauth2
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: DID that holds the presentation definition.
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+        - name: scope
+          in: query
+          required: true
+          schema:
+            type: string
+            description: |
+              The scope for which a presentation definition is requested. Multiple scopes can be specified by separating them with a space.
+            example: usecase patient:x:read
+        - name: wallet_owner_type
+          in: query
+          schema:
+            $ref: '#/components/schemas/WalletOwnerType'
+      responses:
+        "200":
+          description: PresentationDefinition that matches scope is found.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PresentationDefinition"
+        "default":
+          $ref: '../common/error_response.yaml'
+  /oauth2/{did}/response:
+    post:
+      summary: Used by wallets to post the authorization response or error to.
+      description: |
+        Specified by https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-response-mode-direct_postjw
+        The response is either an error response with error, error_description and state filled or a submission with vp_token and presentation_submission filled.
+        When an error is posted, the state is used to fetch the holder's callbackURI from the verifiers client state.
+      operationId: handleAuthorizeResponse
+      tags:
+        - oauth2
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: DID that is the subject of the authorization response
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                error:
+                  description: error code as defined by the OAuth2 specification
+                  type: string
+                error_description:
+                  description: error description as defined by the OAuth2 specification
+                  type: string
+                presentation_submission:
+                  type: string
+                state:
+                  description: the client state for the verifier
+                  type: string
+                vp_token:
+                  description: A Verifiable Presentation in either JSON-LD or JWT format.
+                  type: string
+      responses:
+        "200":
+          description: Authorization response with a redirect URL, also used for error returns if possible.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectResponse'
+  # TODO: What format to use? (codegenerator breaks on aliases)
+  # See issue https://github.com/nuts-foundation/nuts-node/issues/2365
+  # create aliases for the specced path
+  #  /iam/{did}/oauth-authorization-server:
+  #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
+  #  /iam/{did}/.well-known/oauth-authorization-server:
+  #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
+  /.well-known/oauth-authorization-server/iam/{id}:
+    get:
+      tags:
+        - well-known
+      summary: Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> path.
+      description: >
+        Specified by https://www.rfc-editor.org/info/rfc8414
+        The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
+
+        error returns:
+        * 400 - invalid input
+        * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
+        * 500 - internal server error
+      operationId: OAuthAuthorizationServerMetadata
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of did:web DID that serves the metadata
+          schema:
+            type: string
+            example: did:web:example.com
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
+        default:
+          $ref: '../common/error_response.yaml'
+  /.well-known/oauth-authorization-server:
+    get:
+      tags:
+        - well-known
+      summary: Get the OAuth2 Authorization Server metadata of a root did:web DID.
+      description: >
+        Specified by https://www.rfc-editor.org/info/rfc8414
+        The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
+
+        error returns:
+        * 400 - invalid input
+        * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
+        * 500 - internal server error
+      operationId: RootOAuthAuthorizationServerMetadata
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
+        default:
+          $ref: '../common/error_response.yaml'
+  /oauth2/{did}/oauth-client:
+    get:
+      tags:
+        - well-known
+      summary: Get the OAuth2 Client metadata
+      description: >
+        Returns relevant OAuth Client metadata as defined in 
+        https://www.iana.org/assignments/oauth-parameters/oauth-parameters.xhtml#client-metadata
+        and other OpenID4VC specification set.
+        
+        error returns:
+        * 400 - invalid input
+        * 404 - did not found; possibly be non-existing, deactivated, or not managed by this node
+        * 500 - internal server error
+      operationId: OAuthClientMetadata
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: DID that serves the metadata
+          content:
+            plain/text:
+              schema:
+                type: string
+                example: did:web:example.com
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OAuthClientMetadata"
+        default:
+          $ref: '../common/error_response.yaml'
+  /statuslist/{did}/{page}:
+    parameters:
+      - name: did
+        in: path
+        required: true
+        description: DID that owns the status list
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: did:web:example.com
+      - name: page
+        in: path
+        required: true
+        description: StatusListCredential page number for this DID
+        schema:
+          type: integer
+          example: 1
+    get:
+      summary: Get the StatusList2021Credential for the given DID and page
+      description: >
+        Returns the StatusList2021Credential as specified in https://www.w3.org/TR/2023/WD-vc-status-list-20230427/
+        
+        error returns:
+        * 404 - id or page not found; possibly be non-existing, deactivated, or not managed by this node
+        * 500 - internal server error
+      operationId: statusList
+      responses:
+        "200":
+          description: OK, StatusList2021Credential found and returned
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/VerifiableCredential"
+        default:
+          $ref: '../common/error_response.yaml'
+  /iam/oid4vci/callback:
+    get:
+      operationId: callbackOid4vciCredentialIssuance
+      summary: Callback for the Oid4VCI credential issuance flow.
+      description: |
+        The callback for the requestOid4vciCredentialIssuance request.
+        
+        This method will in most cases try to redirect (302) to the redirect_uri of the 
+        requestOid4vciCredentialIssuance request with an error code. The only case
+        where the status will not be 302 is when something in the processing of the 
+        redirect_uri itself goes wrong.
+        
+        302 error returns:
+        * invalid_request - one of the provided parameters is wrong.
+        * server_error - internal processing of the Oid4VCI flow has a system error.
+        * access_denied - an access problem occurred with the internal processing of the Oid4VCI flow.
+        
+        If the system is somehow not able to return a redirect, the following HTTP status codes will be 
+        returned:
+        * 500 - an system error occurred during processing
+      tags:
+        - auth
+      parameters:
+        - name: code
+          in: query
+          required: true
+          description: The oauth2 code response.
+          schema:
+            type: string
+            example: 55d7a35d-d7bf-436f-80f7-3fef4077f8a8
+        - name: state
+          in: query
+          required: true
+          description: The oauth2 state, required as the authorize request sends it.
+          schema:
+            type: string
+            example: 55d7a35d-d7bf-436f-80f7-3fef4077f8a8
+        - name: error
+          in: query
+          description: The error code.
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          description: The error description.
+          schema:
+            type: string
+      responses:
+        '302':
+          description: |
+            The user-agent is redirected to the redirect_uri submitted at the request-credential request.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        default:
+          $ref: '../common/error_response.yaml'
+components:
+  schemas:
+    DIDDocument:
+      $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
+    RedirectResponse:
+      type: object
+      required:
+        - redirect_uri
+      properties:
+        redirect_uri:
+          type: string
+          description: |
+            The URL to which the user-agent will be redirected after the authorization request.
+          example: "https://example.com/callback"
+    RequestObjectResponse:
+      description: "A JSON Web Token (JWT) whose JWT Claims Set holds the JSON-encoded OAuth 2.0 authorization request parameters."
+      type: string
+    VerifiableCredential:
+      $ref: '../common/ssi_types.yaml#/components/schemas/VerifiableCredential'
+    OAuthAuthorizationServerMetadata:
+      description: |
+        OAuth2 Authorization Server Metadata
+        Contain properties from several specifications and may grow over time
+      type: object
+    OAuthClientMetadata:
+      description: |
+        OAuth2 Client Metadata
+        Contain properties from several specifications and may grow over time
+      type: object
+    PresentationDefinition:
+      description: |
+        A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
+        Specified at https://identity.foundation/presentation-exchange/spec/v2.0.0/
+      type: object
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Code identifying the error that occurred.
+          example: invalid_request
+        error_description:
+          type: string
+          description: Human-readable description of the error.
+          example: The request is missing a required parameter.
+    WalletOwnerType:
+      type: string
+      description: |
+        Wallet owner type that should fulfill the presentation definition.
+        Can either be an organization wallet or a user (personal) wallet.
+      enum:
+        - organization
+        - user

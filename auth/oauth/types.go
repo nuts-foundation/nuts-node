@@ -20,20 +20,86 @@
 package oauth
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
+	"encoding/json"
 	"net/url"
+
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
 
-// TokenResponse is the OAuth access token response
+// TokenResponse is the OAuth access token response.
+// Through With() and Get() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`
 	TokenType   string  `json:"token_type"`
-	CNonce      *string `json:"c_nonce,omitempty"`
 	Scope       *string `json:"scope,omitempty"`
-	Status      *string `json:"status,omitempty"`
+
+	additionalParams map[string]interface{}
+}
+
+var _ json.Unmarshaler = (*TokenResponse)(nil)
+var _ json.Marshaler = (*TokenResponse)(nil)
+
+func (t *TokenResponse) UnmarshalJSON(data []byte) error {
+	type Alias TokenResponse
+	var result Alias
+	// base parameters
+	if err := json.Unmarshal(data, &result); err != nil {
+		return err
+	}
+	// extension parameters
+	additionalParams := map[string]interface{}{}
+	_ = json.Unmarshal(data, &additionalParams) // can't fail, already unmarshalled
+	delete(additionalParams, "access_token")
+	delete(additionalParams, "expires_in")
+	delete(additionalParams, "token_type")
+	delete(additionalParams, "scope")
+	*t = TokenResponse(result)
+	if len(additionalParams) > 0 {
+		t.additionalParams = additionalParams
+	}
+	return nil
+}
+
+func (t TokenResponse) MarshalJSON() ([]byte, error) {
+	result := make(map[string]interface{})
+	for key, value := range t.additionalParams {
+		result[key] = value
+	}
+	result["access_token"] = t.AccessToken
+	result["expires_in"] = t.ExpiresIn
+	result["token_type"] = t.TokenType
+	result["scope"] = t.Scope
+
+	return json.Marshal(result)
+}
+
+// With adds a parameter to the token response.
+// It's a builder-style function.
+// It should not be used to set any of the base parameters (access_token, expires_in, token_type, scope).
+func (t *TokenResponse) With(key string, value interface{}) *TokenResponse {
+	if t.additionalParams == nil {
+		t.additionalParams = make(map[string]interface{})
+	}
+	t.additionalParams[key] = value
+	return t
+}
+
+// Get returns the value of the additional parameter with the given key as a string.
+// If the key does not exist or the value is not a string, it returns an empty string.
+// It should not be used to get any of the base parameters (access_token, expires_in, token_type, scope).
+func (t TokenResponse) Get(key string) string {
+	if t.additionalParams == nil {
+		return ""
+	}
+	if val, ok := t.additionalParams[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
 }
 
 const (
@@ -43,45 +109,92 @@ const (
 	AccessTokenRequestStatusActive = "active"
 )
 
+// metadata endpoints
 const (
 	// AuthzServerWellKnown is the well-known base path for the oauth authorization server metadata as defined in RFC8414
 	AuthzServerWellKnown = "/.well-known/oauth-authorization-server"
 	// ClientMetadataPath is the path to the client metadata relative to the complete did:web URL
 	ClientMetadataPath = "/oauth-client"
-	// openidCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in OpenID4VCI specification
-	openidCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
-	// openidCredWalletWellKnown is the well-known path element we created for openid4vci to retrieve the oauth client metadata
-	openidCredWalletWellKnown = "/.well-known/openid-credential-wallet"
-	// AssertionParam is the parameter name for the assertion parameter
+	// OpenIdCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in
+	// OpenID4VCI specification
+	OpenIdCredIssuerWellKnown    = "/.well-known/openid-credential-issuer"
+	OpenIdConfigurationWellKnown = "/.well-known/openid-configuration"
+)
+
+// oauth parameter keys
+const (
+	// AssertionParam is the parameter name for the assertion parameter. (RFC021)
 	AssertionParam = "assertion"
-	// AuthorizationCodeGrantType is the grant_type for the authorization_code grant type
-	AuthorizationCodeGrantType = "authorization_code"
-	// ClientIDParam is the parameter name for the client_id parameter
+	// AuthorizationDetailsParam is the parameter name for the authorization_details parameter. (RFC9396)
+	AuthorizationDetailsParam = "authorization_details"
+	// ClientIDParam is the parameter name for the client_id parameter. (RFC6749)
 	ClientIDParam = "client_id"
-	// CodeParam is the parameter name for the code parameter
-	CodeParam = "code"
-	// GrantTypeParam is the parameter name for the grant_type parameter
+	// ClientIDSchemeParam is the parameter name for the client_id_scheme parameter. (OpenID4VP)
+	ClientIDSchemeParam = "client_id_scheme"
+	// ClientMetadataParam is the parameter name for the client_metadata parameter. (OpenID4VP)
+	ClientMetadataParam = "client_metadata"
+	// ClientMetadataURIParam is the parameter name for the client_metadata_uri parameter. (OpenID4VP)
+	ClientMetadataURIParam = "client_metadata_uri"
+	// CNonceParam is the parameter name for the c_nonce parameter. (OpenID4VCI)
+	CNonceParam = "c_nonce"
+	// CodeChallengeParam is the parameter name for the code_challenge parameter. (RFC7636)
+	CodeChallengeParam = "code_challenge"
+	// CodeChallengeMethodParam is the parameter name for the code_challenge_method parameter. (RFC7636)
+	CodeChallengeMethodParam = "code_challenge_method"
+	// CodeVerifierParam is the parameter name for the code_verifier parameter. (RFC7636)
+	CodeVerifierParam = "code_verifier"
+	// GrantTypeParam is the parameter name for the grant_type parameter. (RFC6749)
 	GrantTypeParam = "grant_type"
 	// NonceParam is the parameter name for the nonce parameter
 	NonceParam = "nonce"
-	// MaxAgeParam is the parameter name for the max_age parameter
-	MaxAgeParam = "max_age"
-	// RedirectURIParam is the parameter name for the redirect_uri parameter
-	RedirectURIParam = "redirect_uri"
-	// RequestParam is the parameter name for the request parameter
-	RequestParam = "request"
-	// ResponseTypeParam is the parameter name for the response_type parameter
-	ResponseTypeParam = "response_type"
-	// ScopeParam is the parameter name for the scope parameter
-	ScopeParam = "scope"
-	// StateParam is the parameter name for the state parameter
-	StateParam = "state"
-	// PresentationSubmissionParam is the parameter name for the presentation_submission parameter
+	// PresentationDefParam is the parameter name for the OpenID4VP presentation_definition parameter. (OpenID4VP)
+	PresentationDefParam = "presentation_definition"
+	// PresentationDefUriParam is the parameter name for the OpenID4VP presentation_definition_uri parameter. (OpenID4VP)
+	PresentationDefUriParam = "presentation_definition_uri"
+	// PresentationSubmissionParam is the parameter name for the presentation_submission parameter. (OpenID4VP)
 	PresentationSubmissionParam = "presentation_submission"
-	// VpTokenParam is the parameter name for the vp_token parameter
+	// RedirectURIParam is the parameter name for the redirect_uri parameter. (RFC6749)
+	RedirectURIParam = "redirect_uri"
+	// RequestParam is the parameter name for the request parameter.	(RFC9101)
+	RequestParam = "request"
+	// RequestURIParam is the parameter name for the request parameter. (RFC9101)
+	RequestURIParam = "request_uri"
+	// RequestURIMethodParam states what http method (get/post) should be used for RequestURIParam. (OpenID4VP)
+	RequestURIMethodParam = "request_uri_method"
+	// ResponseModeParam is the parameter name for the OAuth2 response_mode parameter.
+	ResponseModeParam = "response_mode"
+	// ResponseTypeParam is the parameter name for the response_type parameter. (RFC6749)
+	ResponseTypeParam = "response_type"
+	// ResponseURIParam is the parameter name for the OpenID4VP response_uri parameter.
+	ResponseURIParam = "response_uri"
+	// ScopeParam is the parameter name for the scope parameter. (RFC6749)
+	ScopeParam = "scope"
+	// StateParam is the parameter name for the state parameter. (RFC6749)
+	StateParam = "state"
+	// VpTokenParam is the parameter name for the vp_token parameter. (OpenID4VP)
 	VpTokenParam = "vp_token"
-	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type
+	// WalletMetadataParam is used by the wallet to provide its metadata in an authorization request when RequestURIMethodParam is 'post'
+	WalletMetadataParam = "wallet_metadata"
+	// WalletNonceParam is a wallet generated nonce to prevent authorization request replay when RequestURIMethodParam is 'post'
+	WalletNonceParam = "wallet_nonce"
+)
+
+// grant types
+const (
+	// AuthorizationCodeGrantType is the grant_type for the authorization_code grant type. (RFC6749)
+	AuthorizationCodeGrantType = "authorization_code"
+	// PreAuthorizedCodeGrantType is the grant_type for the pre-authorized_code grant type. (OpenID4VCI)
+	PreAuthorizedCodeGrantType = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
+	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type. (RFC021)
 	VpTokenGrantType = "vp_token-bearer"
+)
+
+// response types
+const (
+	// CodeResponseType is the parameter name for the code parameter. (RFC6749)
+	CodeResponseType = "code"
+	// VPTokenResponseType is paramter name for the vp_token repsponse type. (OpenID4VP)
+	VPTokenResponseType = "vp_token"
 )
 
 const (
@@ -105,12 +218,12 @@ func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url
 // Specified by https://www.rfc-editor.org/rfc/rfc8414.txt
 type AuthorizationServerMetadata struct {
 	// Issuer defines the authorization server's identifier, which is a URL that uses the "https" scheme and has no query or fragment components.
-	Issuer string `json:"issuer"`
+	Issuer string `json:"issuer,omitempty"`
 
 	/* ******** /authorize ******** */
 
 	// AuthorizationEndpoint defines the URL of the authorization server's authorization endpoint [RFC6749]
-	AuthorizationEndpoint string `json:"authorization_endpoint"`
+	AuthorizationEndpoint string `json:"authorization_endpoint,omitempty"`
 
 	// ResponseTypesSupported defines what response types a client can request
 	ResponseTypesSupported []string `json:"response_types_supported,omitempty"`
@@ -125,7 +238,7 @@ type AuthorizationServerMetadata struct {
 	/* ******** /token ******** */
 
 	// TokenEndpoint defines the URL of the authorization server's token endpoint [RFC6749].
-	TokenEndpoint string `json:"token_endpoint"`
+	TokenEndpoint string `json:"token_endpoint,omitempty"`
 
 	// GrantTypesSupported is a list of the OAuth 2.0 grant type values that this authorization server supports.
 	GrantTypesSupported []string `json:"grant_types_supported,omitempty"`
@@ -157,18 +270,28 @@ type AuthorizationServerMetadata struct {
 	// If omitted, the default value is true. (hence pointer, or add custom unmarshalling)
 	PresentationDefinitionUriSupported *bool `json:"presentation_definition_uri_supported,omitempty"`
 
-	// RequireSignedRequestObject specifies if the authorization server requires the use of signed request objects.
-	RequireSignedRequestObject bool `json:"require_signed_request_object,omitempty"`
-
 	// VPFormatsSupported is an object containing a list of key value pairs, where the key is a string identifying a Credential format supported by the Wallet.
 	VPFormatsSupported map[string]map[string][]string `json:"vp_formats_supported,omitempty"`
 
 	// VPFormats is an object containing a list of key value pairs, where the key is a string identifying a Credential format supported by the Verifier.
+	// TODO: Remove. VPFormatsSupported is the correct param, but the OpenID4VP spec is ambiguous so support both for now.
 	VPFormats map[string]map[string][]string `json:"vp_formats,omitempty"`
 
 	// ClientIdSchemesSupported defines the `client_id_schemes` currently supported.
 	// If omitted, the default value is `pre-registered` (referring to the client), which is currently not supported.
 	ClientIdSchemesSupported []string `json:"client_id_schemes_supported,omitempty"`
+
+	// DPoPSigningAlgValuesSupported is a JSON array containing a list of the DPoP proof JWS signing algorithms ("alg" values) supported by the token endpoint.
+	DPoPSigningAlgValuesSupported []string `json:"dpop_signing_alg_values_supported,omitempty"`
+
+	/* ******** JWT-Secured Authorization Request RFC9101 & OpenID Connect Core v1.0: §6. Passing Request Parameters as JWTs ******** */
+
+	// RequireSignedRequestObject specifies if the authorization server requires the use of signed request objects.
+	RequireSignedRequestObject bool `json:"require_signed_request_object,omitempty"`
+
+	// RequestObjectSigningAlgValuesSupported is a JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for Request Objects, which are described in Section 6.1 of OpenID Connect Core 1.0 [OpenID.Core].
+	// These algorithms are used both when the Request Object is passed by value (using the request parameter) and when it is passed by reference (using the request_uri parameter).
+	RequestObjectSigningAlgValuesSupported []string `json:"request_object_signing_alg_values_supported,omitempty"`
 }
 
 // OAuthClientMetadata defines the OAuth Client metadata.
@@ -247,3 +370,20 @@ type Redirect struct {
 	// RedirectURI is the URI to redirect the user-agent to.
 	RedirectURI string `json:"redirect_uri"`
 }
+
+// OpenIDCredentialIssuerMetadata represents the metadata of an OpenID credential issuer
+type OpenIDCredentialIssuerMetadata struct {
+	// - CredentialIssuer: an url representing the credential issuer
+	CredentialIssuer string `json:"credential_issuer"`
+	// - CredentialEndpoint: an url representing the credential endpoint
+	CredentialEndpoint string `json:"credential_endpoint"`
+	// - AuthorizationServers: a slice of urls representing the authorization servers (optional)
+	AuthorizationServers []string `json:"authorization_servers,omitempty"`
+	// - Display: a slice of maps where each map represents the display information (optional)
+	Display []map[string]string `json:"display,omitempty"`
+}
+
+// OpenIDConfigurationMetadata is the metadata of an OpenID Connect configuration.
+// It includes the issuer, authorization endpoint, token endpoint, JWKS URI,
+// and supported grant types for authentication and authorization.
+type OpenIDConfigurationMetadata = AuthorizationServerMetadata

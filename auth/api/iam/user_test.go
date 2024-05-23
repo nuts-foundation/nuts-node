@@ -1,41 +1,43 @@
 /*
- * Copyright (C) 2023 Nuts community
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
+* Copyright (C) 2023 Nuts community
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*
  */
 
 package iam
 
 import (
 	"context"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/client/iam"
-	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"go.uber.org/mock/gomock"
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 var walletDID = did.MustParseDID("did:web:example.com:iam:123")
@@ -68,13 +70,34 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		},
 	}
 
+	// setup did document and keys
+	vmId := did.DIDURL{
+		DID:             walletDID,
+		Fragment:        "key",
+		DecodedFragment: "key",
+	}
+	key := cryptoNuts.NewTestKey(vmId.String())
+	didDocument := did.Document{ID: walletDID}
+	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, did.DID{}, key.Public())
+	didDocument.AddAssertionMethod(vm)
+
+	serverMetadata := oauth.AuthorizationServerMetadata{
+		AuthorizationEndpoint:      "https://example.com/authorize",
+		ClientIdSchemesSupported:   []string{didClientIDScheme},
+		VPFormats:                  oauth.DefaultOpenIDSupportedFormats(),
+		RequireSignedRequestObject: true,
+	}
+
 	t.Run("new session", func(t *testing.T) {
 		ctx := newTestClient(t)
-		expectedURL, _ := url.Parse("https://example.com/iam/123/user?token=token")
+		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3A123&request_uri=https://example.com/oauth2/" + webDID.String() + "/request.jwt/&request_uri_method=get"
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
-		echoCtx.EXPECT().Redirect(http.StatusFound, expectedURL.String())
+		echoCtx.EXPECT().Redirect(http.StatusFound, gomock.Any()).DoAndReturn(func(_ int, arg1 string) error {
+			testAuthzReqRedirectURI(t, expectedURL, arg1)
+			return nil
+		})
 		var capturedCookie *http.Cookie
 		echoCtx.EXPECT().Cookie(gomock.Any()).Return(nil, http.ErrNoCookie)
 		echoCtx.EXPECT().SetCookie(gomock.Any()).DoAndReturn(func(cookie *http.Cookie) {
@@ -87,14 +110,17 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			employeeCredentialOptions = o
 			return &t, nil
 		})
-		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, gomock.Any()).DoAndReturn(func(_ interface{}, did, verifier did.DID, modifier iam.RequestModifier) (*url.URL, error) {
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil)
+		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
+			req := createJarRequest(client, server, modifier)
+			params := req.Claims
+
 			// check the parameters
-			params := map[string]interface{}{}
-			modifier(params)
 			assert.Equal(t, "first second", params["scope"])
 			assert.NotEmpty(t, params["state"])
-			return expectedURL, nil
+			return req
 		})
+
 		store := ctx.client.userRedirectStore()
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
@@ -115,6 +141,8 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		userSession := new(UserSession)
 		require.NoError(t, ctx.client.userSessionStore().Get(capturedCookie.Value, userSession))
 		assert.Equal(t, walletDID, userSession.TenantDID)
+		require.NotNil(t, userSession.PreAuthorizedUser)
+		assert.Equal(t, userDetails.Id, userSession.PreAuthorizedUser.Id)
 		require.Len(t, userSession.Wallet.Credentials, 1)
 		// check the JWK can be parsed and contains a private key
 		sessionKey, err := jwk.ParseKey(userSession.Wallet.JWK)
@@ -140,13 +168,17 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 	})
 	t.Run("existing session", func(t *testing.T) {
 		ctx := newTestClient(t)
-		expectedURL, _ := url.Parse("https://example.com/iam/123/user?token=token")
+		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3A123&request_uri=https://example.com/oauth2/" + webDID.String() + "/request.jwt/&request_uri_method="
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
-		echoCtx.EXPECT().Redirect(http.StatusFound, expectedURL.String())
+		echoCtx.EXPECT().Redirect(http.StatusFound, gomock.Any()).DoAndReturn(func(_ int, arg1 string) error {
+			testAuthzReqRedirectURI(t, expectedURL, arg1)
+			return nil
+		})
 		echoCtx.EXPECT().Cookie(gomock.Any()).Return(&sessionCookie, nil)
-		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, gomock.Any()).Return(expectedURL, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil)
+		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any())
 		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
 		session := UserSession{
 			TenantDID:         walletDID,
@@ -159,7 +191,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 	t.Run("error - no token", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -169,7 +201,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 	t.Run("error - token not found", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -179,7 +211,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 	t.Run("error - verifier did parse error", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -201,7 +233,9 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err = ctx.client.handleUserLanding(echoCtx)
 
-		require.Error(t, err)
+		assert.EqualError(t, err, "invalid DID")
+		// token has been burned
+		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
 	t.Run("error - authorization request error", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -217,11 +251,13 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
-		ctx.iamClient.EXPECT().CreateAuthorizationRequest(gomock.Any(), walletDID, verifierDID, gomock.Any()).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(nil, assert.AnError)
 
 		err = ctx.client.handleUserLanding(echoCtx)
 
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, assert.AnError)
+		// token has been burned
+		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
 }
 
@@ -243,9 +279,33 @@ func TestWrapper_loadUserSession(t *testing.T) {
 		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
 		ctrl := gomock.NewController(t)
 		echoCtx := mock.NewMockContext(ctrl)
+		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil).Times(2)
+
+		// organisation wallet
+		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, *actual)
+
+		// user wallet
+		actual, err = ctx.client.loadUserSession(echoCtx, userDID, user)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, *actual)
+	})
+	t.Run("ok - no pre-authorized user", func(t *testing.T) {
+		ctx := newTestClient(t)
+		expected := UserSession{
+			TenantDID:         walletDID,
+			PreAuthorizedUser: user,
+			Wallet: UserWallet{
+				DID: userDID,
+			},
+		}
+		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
+		ctrl := gomock.NewController(t)
+		echoCtx := mock.NewMockContext(ctrl)
 		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil)
 
-		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
+		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, nil)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, *actual)
@@ -310,4 +370,12 @@ func TestWrapper_loadUserSession(t *testing.T) {
 		assert.EqualError(t, err, "session belongs to another pre-authorized user")
 		assert.Nil(t, actual)
 	})
+}
+
+func Test_generateUserSessionJWK(t *testing.T) {
+	key, userDID, err := generateUserSessionJWK()
+	require.NoError(t, err)
+	require.NotNil(t, key)
+	require.NotNil(t, userDID)
+	assert.True(t, strings.HasPrefix(userDID.String(), "did:jwk:"))
 }

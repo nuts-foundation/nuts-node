@@ -1,0 +1,20 @@
+package: iam
+generate:
+  echo-server: true
+  models: true
+  strict-server: true
+output-options:
+  skip-prune: false
+  exclude-schemas:
+    - DIDDocument
+    - OAuthAuthorizationServerMetadata
+    - OAuthClientMetadata
+    - PresentationDefinition
+    - PresentationSubmission
+    - RedirectResponse
+    - TokenResponse
+    - VerifiablePresentation
+    - VerifiableCredential
+    - WalletOwnerType
+    - RequiredPresentationDefinitions
+    - ErrorResponse

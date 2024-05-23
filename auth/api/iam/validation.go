@@ -77,42 +77,21 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 	}
 }
 
-// validatePresentationSubmission checks if the presentation submission is valid for the given scope:
-//  1. Resolve presentation definition for the requested scope
-//  2. Check submission against presentation and definition
-//
-// Errors are returned as OAuth2 errors.
-func (r Wrapper) validatePresentationSubmission(ctx context.Context, authorizer did.DID, scope string, submission *pe.PresentationSubmission, pexEnvelope *pe.Envelope) (map[string]vc.VerifiableCredential, *PresentationDefinition, error) {
+func (r Wrapper) presentationDefinitionForScope(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error) {
 	mapping, err := r.policyBackend.PresentationDefinitions(ctx, authorizer, scope)
 	if err != nil {
 		if errors.Is(err, policy.ErrNotFound) {
-			return nil, nil, oauth.OAuth2Error{
+			return nil, oauth.OAuth2Error{
 				Code:          oauth.InvalidScope,
 				InternalError: err,
 				Description:   fmt.Sprintf("unsupported scope (%s) for presentation exchange: %s", scope, err.Error()),
 			}
 		}
-		return nil, nil, oauth.OAuth2Error{
+		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
 			InternalError: err,
 			Description:   fmt.Sprintf("failed to retrieve presentation definition for scope (%s): %s", scope, err.Error()),
 		}
 	}
-
-	// todo, for now take the organization definition
-	var definition PresentationDefinition
-	var ok bool
-	if definition, ok = mapping[pe.WalletOwnerOrganization]; !ok {
-		return nil, nil, oauthError(oauth.ServerError, "no presentation definition found for organization wallet")
-	}
-
-	credentialMap, err := submission.Validate(*pexEnvelope, mapping[pe.WalletOwnerOrganization])
-	if err != nil {
-		return nil, nil, oauth.OAuth2Error{
-			Code:          oauth.InvalidRequest,
-			Description:   "presentation submission does not conform to Presentation Definition",
-			InternalError: err,
-		}
-	}
-	return credentialMap, &definition, err
+	return mapping, err
 }

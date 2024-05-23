@@ -26,21 +26,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"sort"
-
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // DIDDocumentType contains network transaction mime-type to identify a DID Document in the network.
@@ -347,48 +344,6 @@ func (n *ambassador) resolveControllers(document did.Document, transaction dag.T
 	}
 
 	return controllers, nil
-}
-
-func sortHashes(input []hash.SHA256Hash) {
-	sort.Slice(input, func(i, j int) bool {
-		return bytes.Compare(input[i].Slice(), input[j].Slice()) < 0
-	})
-}
-
-// missingTransactions does: current - incoming. Non conflicted updates will have an empty slice
-func missingTransactions(current []hash.SHA256Hash, incoming []hash.SHA256Hash) []hash.SHA256Hash {
-	j := 0
-	for _, h := range current {
-		found := false
-		for _, h2 := range incoming {
-			if h.Equals(h2) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			current[j] = h
-			j++
-		}
-	}
-
-	return current[:j]
-}
-
-// uniqueTransactions does: Set(current + incoming).
-func uniqueTransactions(current []hash.SHA256Hash, incoming hash.SHA256Hash) []hash.SHA256Hash {
-	set := map[hash.SHA256Hash]bool{}
-	for _, h := range current {
-		set[h] = true
-	}
-	set[incoming] = true
-
-	list := make([]hash.SHA256Hash, 0)
-	for k := range set {
-		list = append(list, k)
-	}
-
-	return list
 }
 
 // checkTransactionIntegrity performs basic integrity checks on the Transaction fields

@@ -468,7 +468,6 @@ func TestWrapper_DecryptJwe(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, "unencrypted", string(resp.(DecryptJwe200JSONResponse).Body))
 	})
-
 }
 
 type mockContext struct {

@@ -19,32 +19,55 @@
 package iam
 
 import (
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/stretchr/testify/assert"
 	"net/url"
 	"testing"
+
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
+	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_authorizationServerMetadata(t *testing.T) {
-	identity := test.MustParseURL("https://example.com/iam/123")
-	oauth2Base := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:123")
-	expected := oauth.AuthorizationServerMetadata{
-		Issuer:                 identity.String(),
-		AuthorizationEndpoint:  oauth2Base.String() + "/authorize",
-		ResponseTypesSupported: []string{"code", "vp_token", "vp_token id_token"},
-		ResponseModesSupported: []string{"query", "direct_post"},
-		TokenEndpoint:          oauth2Base.String() + "/token",
-		GrantTypesSupported:    []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
+	presentationDefinitionURISupported := true
+	didExample := did.MustParseDID("did:example:test")
+	baseExpected := oauth.AuthorizationServerMetadata{
+		AuthorizationEndpoint:                      "openid4vp:",
+		ClientIdSchemesSupported:                   []string{"did"},
+		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
+		GrantTypesSupported:                        []string{"authorization_code", "vp_token-bearer"},
+		Issuer:                                     didExample.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
-		PresentationDefinitionEndpoint:             oauth2Base.String() + "/presentation_definition",
+		PresentationDefinitionUriSupported:         &presentationDefinitionURISupported,
 		RequireSignedRequestObject:                 true,
+		ResponseTypesSupported:                     []string{"code", "vp_token"},
+		ResponseModesSupported:                     []string{"query", "direct_post"},
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
-		ClientIdSchemesSupported:                   []string{"did"},
+		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
-	assert.Equal(t, expected, authorizationServerMetadata(*identity, *oauth2Base))
+	t.Run("base", func(t *testing.T) {
+		md, err := authorizationServerMetadata(didExample)
+		assert.NoError(t, err)
+		assert.Equal(t, baseExpected, *md)
+	})
+	t.Run("did:web", func(t *testing.T) {
+		didWeb := did.MustParseDID("did:web:example.com:iam:123")
+		identity := test.MustParseURL("https://example.com/iam/123")
+		oauth2Base := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:123")
+
+		webExpected := baseExpected
+		webExpected.Issuer = identity.String()
+		webExpected.AuthorizationEndpoint = oauth2Base.String() + "/authorize"
+		webExpected.PresentationDefinitionEndpoint = oauth2Base.String() + "/presentation_definition"
+		webExpected.TokenEndpoint = oauth2Base.String() + "/token"
+
+		md, err := authorizationServerMetadata(didWeb)
+		assert.NoError(t, err)
+		assert.Equal(t, webExpected, *md)
+	})
 }
 
 func Test_clientMetadata(t *testing.T) {
@@ -52,8 +75,8 @@ func Test_clientMetadata(t *testing.T) {
 	expected := OAuthClientMetadata{
 		RedirectURIs:            nil,
 		TokenEndpointAuthMethod: "none",
-		GrantTypes:              []string{"authorization_code", "vp_token", "urn:ietf:params:oauth:grant-type:pre-authorized_code"},
-		ResponseTypes:           []string{"code", "vp_token", "vp_token id_token"},
+		GrantTypes:              []string{"authorization_code", "vp_token-bearer"},
+		ResponseTypes:           []string{"code", "vp_token"},
 		Scope:                   "",
 		Contacts:                nil,
 		JwksURI:                 "",

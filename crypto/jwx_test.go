@@ -29,6 +29,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"testing"
 	"time"
 
@@ -248,7 +249,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 	public := key.Public()
 
 	headers := map[string]interface{}{"typ": "JWT", "kid": key.KID()}
-	t.Run("creates valid JWE", func(t *testing.T) {
+	t.Run("creates valid JWE (EC)", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
 
@@ -257,7 +258,24 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(context.Background(), key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(defaultEcEncryptionAlgorithm, privateKey))
+		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwx.DefaultEcEncryptionAlgorithm, privateKey))
+		require.NoError(t, err)
+
+		var body = make(map[string]interface{})
+		err = json.Unmarshal(token, &body)
+
+		require.NoError(t, err)
+
+		assert.Equal(t, "nuts", body["iss"])
+	})
+	t.Run("creates valid JWE (RSA)", func(t *testing.T) {
+		keyPair, _ := rsa.GenerateKey(rand.Reader, 1024)
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, keyPair.Public())
+
+		require.NoError(t, err)
+
+		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwx.DefaultRsaEncryptionAlgorithm, keyPair))
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -297,7 +315,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(context.Background(), key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(defaultEcEncryptionAlgorithm, privateKey))
+		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwx.DefaultEcEncryptionAlgorithm, privateKey))
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -319,7 +337,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		_, err := client.EncryptJWE(audit.TestContext(), []byte{1, 2, 3}, headers, public)
 
 		require.NoError(t, err)
-		auditLogs.AssertContains(t, ModuleName, "EncryptJWE", audit.TestActor, fmt.Sprintf("Encrypting a JWE"))
+		auditLogs.AssertContains(t, ModuleName, "EncryptJWE", audit.TestActor, "Encrypting a JWE")
 	})
 }
 
@@ -451,7 +469,6 @@ func TestSignJWS(t *testing.T) {
 			assert.Contains(t, signature, "..")
 		})
 	})
-
 }
 
 func TestCrypto_convertHeaders(t *testing.T) {
@@ -484,9 +501,9 @@ func TestCrypto_convertHeaders(t *testing.T) {
 }
 
 func Test_isAlgorithmSupported(t *testing.T) {
-	assert.True(t, isAlgorithmSupported(jwa.PS256))
-	assert.False(t, isAlgorithmSupported(jwa.RS256))
-	assert.False(t, isAlgorithmSupported(""))
+	assert.True(t, jwx.IsAlgorithmSupported(jwa.PS256))
+	assert.False(t, jwx.IsAlgorithmSupported(jwa.RS256))
+	assert.False(t, jwx.IsAlgorithmSupported(""))
 }
 
 func TestSignatureAlgorithm(t *testing.T) {
@@ -506,7 +523,7 @@ func TestSignatureAlgorithm(t *testing.T) {
 		ecKey224, _ := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
 		_, err := SignatureAlgorithm(ecKey224)
 
-		assert.Equal(t, ErrUnsupportedSigningKey, err)
+		assert.Equal(t, jwx.ErrUnsupportedSigningKey, err)
 	})
 
 	tests := []struct {
