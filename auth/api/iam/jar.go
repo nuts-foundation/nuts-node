@@ -51,10 +51,10 @@ type jar struct {
 type JAR interface {
 	// Create an unsigned request object.
 	// By default, it adds the following parameters:
-	// - client_id
-	// - jwt.Issuer
-	// - jwt.Audience (if server is not nil)
-	// - nonce
+	//  - client_id
+	//  - iss
+	//  - aud (if server is not nil)
+	// the request_uri_method is determined by the presence of a server (get) or not (post)
 	Create(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest
 	// Sign the jarRequest, which is available on jarRequest.Token.
 	// Returns an error if the jarRequest already contains a signed JWT.
@@ -75,8 +75,6 @@ func createJarRequest(client did.DID, server *did.DID, modifier requestObjectMod
 	params := map[string]string{
 		jwt.IssuerKey:       client.String(),
 		oauth.ClientIDParam: client.String(),
-		// added by default, can be overriden by the caller
-		oauth.NonceParam: cryptoNuts.GenerateNonce(),
 	}
 	if server != nil {
 		requestURIMethod = "get"

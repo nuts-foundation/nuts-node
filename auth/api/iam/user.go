@@ -144,7 +144,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
-	redirectURL, err := r.CreateAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, verifier, modifier)
+	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, verifier, modifier)
 	if err != nil {
 		return err
 	}

@@ -866,18 +866,11 @@ func (r Wrapper) openidIssuerEndpoints(ctx context.Context, issuerDid did.DID) (
 	return authorizationEndpoint, tokenEndpoint, credentialEndpoint, nil
 }
 
-// CreateAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
-// It can create both regular OAuth2 requests and OpenID4VP requests due to the RequestModifier.
+// createAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
+// It can create both regular OAuth2 requests and OpenID4VP requests due to the requestObjectModifier.
+// This modifier is used by JAR.Create to generate a (JAR) request object that is added as 'request_uri' parameter.
 // It's able to create an unsigned request and a signed request (JAR) based on the OAuth Server Metadata.
-// By default, it adds the following parameters to a regular request:
-// - client_id
-// and to a signed request:
-// - client_id
-// - jwt.Issuer
-// - jwt.Audience
-// - nonce
-// any of these params can be overridden by the requestObjectModifier.
-func (r Wrapper) CreateAuthorizationRequest(ctx context.Context, client did.DID, server *did.DID, modifier requestObjectModifier) (*url.URL, error) {
+func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID, server *did.DID, modifier requestObjectModifier) (*url.URL, error) {
 	metadata := new(oauth.AuthorizationServerMetadata)
 	if server != nil {
 		// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
