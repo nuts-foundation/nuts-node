@@ -565,12 +565,11 @@ func TestWrapper_RetrieveAccessToken(t *testing.T) {
 		assert.IsType(t, RetrieveAccessToken200JSONResponse{}, res)
 		assert.ErrorIs(t, ctx.client.accessTokenClientStore().Get("id", new(TokenResponse)), storage.ErrNotFound)
 	})
-	t.Run("error - unknown sessionID", func(t *testing.T) {
+	t.Run("error - 404 unknown sessionID", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		res, err := ctx.client.RetrieveAccessToken(nil, request)
-
-		assert.ErrorIs(t, err, storage.ErrNotFound)
+		assert.ErrorIs(t, err, core.NotFoundError(""))
 		assert.Nil(t, res)
 	})
 }
