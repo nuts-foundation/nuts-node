@@ -20,6 +20,8 @@ package iam
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth/api/iam/usersession"
 	"net/http"
 	"strings"
 	"testing"
@@ -89,21 +91,22 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		RequireSignedRequestObject: true,
 	}
 
-	t.Run("new session", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3A123&request_uri=https://example.com/oauth2/" + webDID.String() + "/request.jwt/&request_uri_method=get"
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
-		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
+		httpRequest := &http.Request{
+			Host: "example.com",
+		}
+		requestCtx, userSession := usersession.CreateTestSession(context.Background(), walletDID)
+		httpRequest = httpRequest.WithContext(requestCtx)
+		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		echoCtx.EXPECT().Redirect(http.StatusFound, gomock.Any()).DoAndReturn(func(_ int, arg1 string) error {
 			testAuthzReqRedirectURI(t, expectedURL, arg1)
 			return nil
 		})
-		var capturedCookie *http.Cookie
-		echoCtx.EXPECT().Cookie(gomock.Any()).Return(nil, http.ErrNoCookie)
-		echoCtx.EXPECT().SetCookie(gomock.Any()).DoAndReturn(func(cookie *http.Cookie) {
-			capturedCookie = cookie
-		})
+
 		var employeeCredentialTemplate vc.VerifiableCredential
 		var employeeCredentialOptions issuer.CredentialOptions
 		ctx.vcIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, t vc.VerifiableCredential, o issuer.CredentialOptions) (*vc.VerifiableCredential, error) {
@@ -127,23 +130,10 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		require.NoError(t, err)
 
 		err = ctx.client.handleUserLanding(echoCtx)
-
 		require.NoError(t, err)
-		// check security settings of session cookie
-		assert.Equal(t, "/", capturedCookie.Path)
-		assert.Equal(t, "__Host-SID", capturedCookie.Name)
-		assert.Empty(t, capturedCookie.Domain)
-		assert.Empty(t, capturedCookie.Expires)
-		assert.NotEmpty(t, capturedCookie.MaxAge)
-		assert.Equal(t, http.SameSiteStrictMode, capturedCookie.SameSite)
-		assert.True(t, capturedCookie.Secure)
-		assert.True(t, capturedCookie.HttpOnly)
 		// check for issued EmployeeCredential in session wallet
-		userSession := new(UserSession)
-		require.NoError(t, ctx.client.userSessionStore().Get(capturedCookie.Value, userSession))
+		require.NoError(t, err)
 		assert.Equal(t, walletDID, userSession.TenantDID)
-		require.NotNil(t, userSession.PreAuthorizedUser)
-		assert.Equal(t, userDetails.Id, userSession.PreAuthorizedUser.Id)
 		require.Len(t, userSession.Wallet.Credentials, 1)
 		// check the JWK can be parsed and contains a private key
 		sessionKey, err := jwk.ParseKey(userSession.Wallet.JWK)
@@ -166,33 +156,6 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		// check for deleted token
 		err = store.Get("token", &RedirectSession{})
 		assert.Error(t, err)
-	})
-	t.Run("existing session", func(t *testing.T) {
-		ctx := newTestClient(t)
-		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3A123&request_uri=https://example.com/oauth2/" + webDID.String() + "/request.jwt/&request_uri_method="
-		echoCtx := mock.NewMockContext(ctx.ctrl)
-		echoCtx.EXPECT().QueryParam("token").Return("token")
-		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
-		echoCtx.EXPECT().Redirect(http.StatusFound, gomock.Any()).DoAndReturn(func(_ int, arg1 string) error {
-			testAuthzReqRedirectURI(t, expectedURL, arg1)
-			return nil
-		})
-		echoCtx.EXPECT().Cookie(gomock.Any()).Return(&sessionCookie, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(&serverMetadata, nil).Times(2)
-		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any())
-		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
-		session := UserSession{
-			TenantDID:         walletDID,
-			PreAuthorizedUser: &userDetails,
-			Wallet: UserWallet{
-				DID: userDID,
-			},
-		}
-		require.NoError(t, ctx.client.userSessionStore().Put(sessionCookie.Value, session))
-
-		err := ctx.client.handleUserLanding(echoCtx)
-
-		assert.NoError(t, err)
 	})
 	t.Run("error - no token", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -246,9 +209,12 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		})
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
-		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
-		echoCtx.EXPECT().Cookie(gomock.Any()).Return(nil, http.ErrNoCookie)
-		echoCtx.EXPECT().SetCookie(gomock.Any())
+		httpRequest := &http.Request{
+			Host: "example.com",
+		}
+		requestCtx, _ := usersession.CreateTestSession(context.Background(), walletDID)
+		httpRequest = httpRequest.WithContext(requestCtx)
+		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
@@ -260,6 +226,9 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		// token has been burned
 		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
+	httpRequest := &http.Request{Host: "example.com"}
+	session, _ := usersession.CreateTestSession(audit.TestContext(), walletDID)
+	httpRequest = httpRequest.WithContext(session)
 	t.Run("error - missing authorization_endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, t vc.VerifiableCredential, _ issuer.CredentialOptions) (*vc.VerifiableCredential, error) {
@@ -268,7 +237,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		})
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
-		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
+		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		echoCtx.EXPECT().Cookie(gomock.Any()).Return(nil, http.ErrNoCookie)
 		echoCtx.EXPECT().SetCookie(gomock.Any())
 		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
@@ -291,7 +260,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		})
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
-		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
+		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		echoCtx.EXPECT().Cookie(gomock.Any()).Return(nil, http.ErrNoCookie)
 		echoCtx.EXPECT().SetCookie(gomock.Any())
 		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
@@ -306,123 +275,4 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		// token has been burned
 		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
-}
-
-func TestWrapper_loadUserSession(t *testing.T) {
-	user := &UserDetails{
-		Id:   "test",
-		Name: "John Doe",
-		Role: "Caregiver",
-	}
-	t.Run("ok", func(t *testing.T) {
-		ctx := newTestClient(t)
-		expected := UserSession{
-			TenantDID:         walletDID,
-			PreAuthorizedUser: user,
-			Wallet: UserWallet{
-				DID: userDID,
-			},
-		}
-		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
-		ctrl := gomock.NewController(t)
-		echoCtx := mock.NewMockContext(ctrl)
-		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil).Times(2)
-
-		// organisation wallet
-		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
-		assert.NoError(t, err)
-		assert.Equal(t, expected, *actual)
-
-		// user wallet
-		actual, err = ctx.client.loadUserSession(echoCtx, userDID, user)
-		assert.NoError(t, err)
-		assert.Equal(t, expected, *actual)
-	})
-	t.Run("ok - no pre-authorized user", func(t *testing.T) {
-		ctx := newTestClient(t)
-		expected := UserSession{
-			TenantDID:         walletDID,
-			PreAuthorizedUser: user,
-			Wallet: UserWallet{
-				DID: userDID,
-			},
-		}
-		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
-		ctrl := gomock.NewController(t)
-		echoCtx := mock.NewMockContext(ctrl)
-		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil)
-
-		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, nil)
-
-		assert.NoError(t, err)
-		assert.Equal(t, expected, *actual)
-	})
-	t.Run("error - no session cookie", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctrl := gomock.NewController(t)
-		echoCtx := mock.NewMockContext(ctrl)
-		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(nil, http.ErrNoCookie)
-
-		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
-
-		assert.NoError(t, err)
-		assert.Nil(t, actual)
-	})
-	t.Run("error - session not found", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctrl := gomock.NewController(t)
-		echoCtx := mock.NewMockContext(ctrl)
-		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil)
-
-		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
-
-		assert.EqualError(t, err, "unknown or expired session")
-		assert.Nil(t, actual)
-	})
-	t.Run("error - session belongs to a different tenant", func(t *testing.T) {
-		ctx := newTestClient(t)
-		expected := UserSession{
-			TenantDID: did.MustParseDID("did:web:someone-else"),
-			Wallet: UserWallet{
-				DID: userDID,
-			},
-		}
-		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
-		ctrl := gomock.NewController(t)
-		echoCtx := mock.NewMockContext(ctrl)
-		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil)
-
-		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
-
-		assert.EqualError(t, err, "session belongs to another tenant (did:web:someone-else)")
-		assert.Nil(t, actual)
-	})
-	t.Run("error - session belongs to a different pre-authorized user", func(t *testing.T) {
-		ctx := newTestClient(t)
-		expected := UserSession{
-			TenantDID:         walletDID,
-			PreAuthorizedUser: &UserDetails{Id: "someone-else"},
-			Wallet: UserWallet{
-				DID: userDID,
-			},
-		}
-
-		_ = ctx.client.userSessionStore().Put(sessionCookie.Value, expected)
-		ctrl := gomock.NewController(t)
-		echoCtx := mock.NewMockContext(ctrl)
-		echoCtx.EXPECT().Cookie(sessionCookie.Name).Return(&sessionCookie, nil)
-
-		actual, err := ctx.client.loadUserSession(echoCtx, walletDID, user)
-
-		assert.EqualError(t, err, "session belongs to another pre-authorized user")
-		assert.Nil(t, actual)
-	})
-}
-
-func Test_generateUserSessionJWK(t *testing.T) {
-	key, userDID, err := generateUserSessionJWK()
-	require.NoError(t, err)
-	require.NotNil(t, key)
-	require.NotNil(t, userDID)
-	assert.True(t, strings.HasPrefix(userDID.String(), "did:jwk:"))
 }

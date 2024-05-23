@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/api/iam/usersession"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -396,12 +397,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			RedirectURI:  "https://example.com/iam/holder/cb",
 			ResponseType: "code",
 		})
-		_ = ctx.client.userSessionStore().Put("session-id", UserSession{
-			TenantDID: holderDID,
-			Wallet: UserWallet{
-				DID: holderDID,
-			},
-		})
+		callCtx, _ := usersession.CreateTestSession(requestContext(nil), holderDID)
 		clientMetadata := oauth.OAuthClientMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		pdEndpoint := "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test"
@@ -409,10 +405,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "https://example.com/oauth2/did:web:example.com:iam:verifier/response", "state").Return("https://example.com/iam/holder/redirect", nil)
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{}, func(request *http.Request) {
-			request.Header = make(http.Header)
-			request.AddCookie(createUserSessionCookie("session-id", "/"))
-		}), HandleAuthorizeRequestRequestObject{
+		res, err := ctx.client.HandleAuthorizeRequest(callCtx, HandleAuthorizeRequestRequestObject{
 			Did: holderDID.String(),
 		})
 
@@ -710,8 +703,11 @@ func TestWrapper_Routes(t *testing.T) {
 
 	router.EXPECT().GET(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	router.EXPECT().Use(gomock.AssignableToTypeOf(usersession.Middleware{}.Handle))
 
-	(&Wrapper{}).Routes(router)
+	(&Wrapper{
+		storageEngine: storage.NewTestStorageEngine(t),
+	}).Routes(router)
 }
 
 func TestWrapper_middleware(t *testing.T) {
