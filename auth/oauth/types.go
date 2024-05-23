@@ -183,6 +183,8 @@ const (
 const (
 	// AuthorizationCodeGrantType is the grant_type for the authorization_code grant type. (RFC6749)
 	AuthorizationCodeGrantType = "authorization_code"
+	// PreAuthorizedCodeGrantType is the grant_type for the pre-authorized_code grant type. (OpenID4VCI)
+	PreAuthorizedCodeGrantType = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
 	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type. (RFC021)
 	VpTokenGrantType = "vp_token-bearer"
 )

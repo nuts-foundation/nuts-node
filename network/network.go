@@ -464,7 +464,11 @@ func (n *Network) validateNodeDIDKeys(ctx context.Context, nodeDID did.DID) erro
 		return fmt.Errorf("DID document does not contain a keyAgreement key, register a keyAgreement key (did=%s)", nodeDID)
 	}
 	for _, keyAgreement := range document.KeyAgreement {
-		if !n.keyStore.Exists(ctx, keyAgreement.ID.String()) {
+		exists, err := n.keyStore.Exists(ctx, keyAgreement.ID.String())
+		if err != nil {
+			return fmt.Errorf("error checking keyAgreement key existence (did=%s,kid=%s): %w", nodeDID, keyAgreement.ID, err)
+		}
+		if !exists {
 			return fmt.Errorf("keyAgreement private key is not present in key store, recover your key material or register a new keyAgreement key (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
 		}
 	}

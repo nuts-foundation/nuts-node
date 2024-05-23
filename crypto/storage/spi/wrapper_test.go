@@ -83,7 +83,8 @@ func TestWrapper_PrivateKeyExists(t *testing.T) {
 	t.Run("expect error for bad KIDs", func(t *testing.T) {
 		w := wrapper{kidPattern: KidPattern}
 		for _, kid := range badKIDs {
-			exists := w.PrivateKeyExists(ctx, kid)
+			exists, err := w.PrivateKeyExists(ctx, kid)
+			assert.Error(t, err)
 			assert.False(t, exists)
 		}
 	})
@@ -93,8 +94,9 @@ func TestWrapper_PrivateKeyExists(t *testing.T) {
 		w := NewValidatedKIDBackendWrapper(mockStorage, KidPattern)
 
 		for _, kid := range goodKIDs {
-			mockStorage.EXPECT().PrivateKeyExists(ctx, kid).Return(true)
-			exists := w.PrivateKeyExists(ctx, kid)
+			mockStorage.EXPECT().PrivateKeyExists(ctx, kid).Return(true, nil)
+			exists, err := w.PrivateKeyExists(ctx, kid)
+			assert.NoError(t, err)
 			assert.True(t, exists)
 		}
 		ctrl.Finish()

@@ -563,13 +563,14 @@ func TestWrapper_RetrieveAccessToken(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.IsType(t, RetrieveAccessToken200JSONResponse{}, res)
+		assert.ErrorIs(t, ctx.client.accessTokenClientStore().Get("id", new(TokenResponse)), storage.ErrNotFound)
 	})
 	t.Run("error - unknown sessionID", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		res, err := ctx.client.RetrieveAccessToken(nil, request)
 
-		assert.Equal(t, storage.ErrNotFound, err)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
 		assert.Nil(t, res)
 	})
 }
@@ -958,6 +959,8 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 			Body:          bytes.NewReader([]byte(expectedToken)),
 			ContentLength: 10,
 		}, response)
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -966,6 +969,8 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "invalid_request - request object not found")
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 	t.Run("error - clientID does not match request", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -976,6 +981,8 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "invalid_request - client_id does not match request")
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 	t.Run("error - wrong request_uri_method used", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -987,6 +994,8 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "invalid_request - wrong 'request_uri_method' authorization server or wallet probably does not support 'request_uri_method' - used request_uri_method 'get' on a 'post' request_uri")
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 	t.Run("error - signing failed", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -998,6 +1007,8 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "server_error - failed to sign authorization Request Object: fail - unable to create Request Object")
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 }
 
@@ -1028,6 +1039,8 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 			Body:          bytes.NewReader([]byte(expectedToken)),
 			ContentLength: 10,
 		}, response)
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 	t.Run("ok - with metadata and nonce", func(t *testing.T) {
 		wallet_nonce := "wallet_nonce"
@@ -1047,6 +1060,8 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 			Body:          bytes.NewReader([]byte(expectedToken)),
 			ContentLength: 10,
 		}, response)
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -1055,6 +1070,8 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "invalid_request - request object not found")
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 	t.Run("error - clientID does not match request", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -1064,6 +1081,8 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "invalid_request - client_id does not match request")
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 	t.Run("error - wrong request_uri_method used", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -1075,6 +1094,8 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "invalid_request - used request_uri_method 'post' on a 'get' request_uri")
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 	t.Run("error - signing failed", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -1086,6 +1107,8 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "server_error - failed to sign authorization Request Object: fail - unable to create Request Object")
+		// requestObject is burned
+		assert.ErrorIs(t, ctx.client.authzRequestObjectStore().Get(requestID, new(jarRequest)), storage.ErrNotFound)
 	})
 }
 
@@ -1350,7 +1373,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	}
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session)
+		require.NoError(t, ctx.client.openid4vciSessionStore().Put(state, &session))
 		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
@@ -1372,7 +1395,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	})
 	t.Run("error_on_redirect", func(t *testing.T) {
 		ctx := newTestClient(t)
-		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
+		require.NoError(t, ctx.client.openid4vciSessionStore().Put(state, &session))
 		errorCode := "failed"
 		errorDesc := "errorDesc"
 
@@ -1402,7 +1425,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	})
 	t.Run("fail_access_token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session)
+		require.NoError(t, ctx.client.openid4vciSessionStore().Put(state, &session))
 		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(nil, errors.New("FAIL"))
 
 		callback, err := ctx.client.CallbackOid4vciCredentialIssuance(nil, CallbackOid4vciCredentialIssuanceRequestObject{
@@ -1418,7 +1441,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	})
 	t.Run("fail_credential_response", func(t *testing.T) {
 		ctx := newTestClient(t)
-		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
+		require.NoError(t, ctx.client.openid4vciSessionStore().Put(state, &session))
 		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
@@ -1437,7 +1460,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	})
 	t.Run("fail_verify", func(t *testing.T) {
 		ctx := newTestClient(t)
-		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
+		require.NoError(t, ctx.client.openid4vciSessionStore().Put(state, &session))
 		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
@@ -1456,7 +1479,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	})
 	t.Run("error - key not found", func(t *testing.T) {
 		ctx := newTestClient(t)
-		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
+		require.NoError(t, ctx.client.openid4vciSessionStore().Put(state, &session))
 		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.URI{}, nil, resolver.ErrKeyNotFound)
 
@@ -1473,7 +1496,7 @@ func TestWrapper_CallbackOid4vciCredentialIssuance(t *testing.T) {
 	})
 	t.Run("error - signature failure", func(t *testing.T) {
 		ctx := newTestClient(t)
-		require.NoError(t, ctx.client.storageEngine.GetSessionDatabase().GetStore(15*time.Minute, "oid4vci").Put(state, &session))
+		require.NoError(t, ctx.client.openid4vciSessionStore().Put(state, &session))
 		ctx.iamClient.EXPECT().AccessToken(nil, code, issuerDID, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("signature failed"))

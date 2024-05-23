@@ -75,9 +75,8 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// extract request from store
-	store := r.userRedirectStore()
 	redirectSession := RedirectSession{}
-	err := store.Get(token, &redirectSession)
+	err := r.userRedirectStore().GetAndDelete(token, &redirectSession)
 	if err != nil {
 		log.Logger().Debug("token not found in store")
 		return echoCtx.NoContent(http.StatusForbidden)
@@ -109,12 +108,6 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		}
 	}
 
-	// burn token
-	err = store.Delete(token)
-	if err != nil {
-		//rare, log just in case
-		log.Logger().WithError(err).Warn("delete token failed")
-	}
 	// use DPoP or not
 	useDPoP := true
 	if redirectSession.AccessTokenRequest.Body.TokenType != nil && strings.ToLower(string(*redirectSession.AccessTokenRequest.Body.TokenType)) == strings.ToLower(AccessTokenTypeBearer) {
@@ -151,7 +144,6 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
-	// TODO: First create user session, or AuthorizationRequest first? (which one is more expensive? both sign stuff)
 	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, verifier, modifier)
 	if err != nil {
 		return err
@@ -159,18 +151,23 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	return echoCtx.Redirect(http.StatusFound, redirectURL.String())
 }
 
+// userRedirectStore is used to store a short-lived RedirectSession that persist state between the RequestUserAccessToken
+// call and the redirect back to this node to initiate the actual authorization request. Burn on use.
 func (r Wrapper) userRedirectStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(userRedirectTimeout, userRedirectSessionKey...)
 }
 
+// userSessionStore is used to keep track of active UserSession
 func (r Wrapper) userSessionStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(userSessionTimeout, userSessionKey...)
 }
 
+// oauthClientStateStore is used tot store the client's OAuthSession
 func (r Wrapper) oauthClientStateStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...)
 }
 
+// oauthCodeStore is used to store the authorization server's OAuthSession in the authorization_code flow. Burn on use.
 func (r Wrapper) oauthCodeStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthCodeKey...)
 }

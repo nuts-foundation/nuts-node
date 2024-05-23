@@ -21,6 +21,7 @@ package vault
 import (
 	"context"
 	"crypto"
+	"errors"
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -102,6 +103,10 @@ func NewVaultKVStorage(config Config) (spi.Storage, error) {
 	return vaultStorage, nil
 }
 
+func (v vaultKVStorage) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, v, namingFunc)
+}
+
 func configureVaultClient(cfg Config) (*vault.Client, error) {
 	vaultConfig := vault.DefaultConfig()
 	vaultConfig.Timeout = cfg.Timeout
@@ -175,10 +180,13 @@ func (v vaultKVStorage) storeValue(ctx context.Context, path, key string, value 
 	return nil
 }
 
-func (v vaultKVStorage) PrivateKeyExists(ctx context.Context, kid string) bool {
+func (v vaultKVStorage) PrivateKeyExists(ctx context.Context, kid string) (bool, error) {
 	path := privateKeyPath(v.config.PathPrefix, kid)
 	_, err := v.getValue(ctx, path, keyName)
-	return err == nil
+	if errors.Is(err, spi.ErrNotFound) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 func (v vaultKVStorage) ListPrivateKeys(ctx context.Context) []string {

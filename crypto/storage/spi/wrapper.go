@@ -64,9 +64,9 @@ func (w wrapper) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, 
 	return w.wrappedBackend.GetPrivateKey(ctx, kid)
 }
 
-func (w wrapper) PrivateKeyExists(ctx context.Context, kid string) bool {
+func (w wrapper) PrivateKeyExists(ctx context.Context, kid string) (bool, error) {
 	if err := w.validateKID(kid); err != nil {
-		return false
+		return false, err
 	}
 	return w.wrappedBackend.PrivateKeyExists(ctx, kid)
 }
@@ -87,4 +87,15 @@ func (w wrapper) DeletePrivateKey(ctx context.Context, kid string) error {
 
 func (w wrapper) ListPrivateKeys(ctx context.Context) []string {
 	return w.wrappedBackend.ListPrivateKeys(ctx)
+}
+
+func (w wrapper) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
+	publicKey, kid, err := w.wrappedBackend.NewPrivateKey(ctx, namingFunc)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := w.validateKID(kid); err != nil {
+		return nil, "", err
+	}
+	return publicKey, kid, err
 }

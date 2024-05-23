@@ -42,7 +42,7 @@ type KeyCreator interface {
 type KeyResolver interface {
 	// Exists returns if the specified private key exists.
 	// If an error occurs, false is also returned
-	Exists(ctx context.Context, kid string) bool
+	Exists(ctx context.Context, kid string) (bool, error)
 	// Resolve returns a Key for the given KID. ErrPrivateKeyNotFound is returned for an unknown KID.
 	Resolve(ctx context.Context, kid string) (Key, error)
 	// List returns the KIDs of the private keys that are present in the KeyStore.

@@ -476,7 +476,9 @@ func TestManager_Deactivate(t *testing.T) {
 		require.NoError(t, err)
 
 		// Sanity check for assertion after deactivation, check that we can find the private key
-		require.True(t, cryptoInstance.Exists(ctx, document.VerificationMethod[0].ID.String()))
+		exists, err := cryptoInstance.Exists(ctx, document.VerificationMethod[0].ID.String())
+		require.NoError(t, err)
+		require.True(t, exists)
 
 		err = m.Deactivate(ctx, document.ID)
 		require.NoError(t, err)
@@ -485,7 +487,9 @@ func TestManager_Deactivate(t *testing.T) {
 		require.ErrorIs(t, err, resolver.ErrNotFound)
 
 		// Make sure it cleans up private keys
-		require.False(t, cryptoInstance.Exists(ctx, document.VerificationMethod[0].ID.String()))
+		exists, err = cryptoInstance.Exists(ctx, document.VerificationMethod[0].ID.String())
+		require.NoError(t, err)
+		require.False(t, exists)
 	})
 	t.Run("unable to delete private key", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
@@ -494,7 +498,9 @@ func TestManager_Deactivate(t *testing.T) {
 		document, _, err := m.Create(ctx, DefaultCreationOptions())
 		require.NoError(t, err)
 
-		require.True(t, cryptoInstance.Exists(ctx, document.VerificationMethod[0].ID.String()))
+		exists, err := cryptoInstance.Exists(ctx, document.VerificationMethod[0].ID.String())
+		require.NoError(t, err)
+		require.True(t, exists)
 		require.NoError(t, cryptoInstance.Delete(ctx, document.VerificationMethod[0].ID.String()))
 
 		err = m.Deactivate(ctx, document.ID)

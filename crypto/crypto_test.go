@@ -20,8 +20,6 @@ package crypto
 
 import (
 	"context"
-	"crypto"
-	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
@@ -49,15 +47,21 @@ func TestCrypto_Exists(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("returns true for existing key", func(t *testing.T) {
-		assert.True(t, client.Exists(ctx, kid))
+		exists, err := client.Exists(ctx, kid)
+		require.NoError(t, err)
+		assert.True(t, exists)
 	})
 
 	t.Run("returns false for non-existing key", func(t *testing.T) {
-		assert.False(t, client.Exists(ctx, "unknown"))
+		exists, err := client.Exists(ctx, "unknown")
+		require.NoError(t, err)
+		assert.False(t, exists)
 	})
 
 	t.Run("returns false for invalid kid", func(t *testing.T) {
-		assert.False(t, client.Exists(ctx, "../"))
+		exists, err := client.Exists(ctx, "../")
+		require.Error(t, err)
+		assert.False(t, exists)
 	})
 }
 
@@ -75,7 +79,7 @@ func TestCrypto_New(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, key.Public())
 		assert.Equal(t, kid, key.KID())
-		auditLogs.AssertContains(t, ModuleName, "CreateNewKey", audit.TestActor, "Generating new key pair: kid")
+		auditLogs.AssertContains(t, ModuleName, "CreateNewKey", audit.TestActor, "Generated new key pair: kid")
 	})
 
 	t.Run("error - invalid KID", func(t *testing.T) {
@@ -85,38 +89,6 @@ func TestCrypto_New(t *testing.T) {
 
 		assert.ErrorContains(t, err, "invalid key ID")
 		assert.Nil(t, key)
-	})
-
-	t.Run("error - NamingFunction returns err", func(t *testing.T) {
-		errorNamingFunc := func(key crypto.PublicKey) (string, error) {
-			return "", errors.New("b00m!")
-		}
-		_, err := client.New(ctx, errorNamingFunc)
-		assert.Error(t, err)
-	})
-
-	t.Run("error - save public key returns an error", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().PrivateKeyExists(ctx, "123").Return(false)
-		storageMock.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(errors.New("foo"))
-
-		client := &Crypto{storage: storageMock}
-		key, err := client.New(ctx, StringNamingFunc("123"))
-		assert.Nil(t, key)
-		assert.Error(t, err)
-		assert.Equal(t, "could not create new keypair: could not save private key: foo", err.Error())
-	})
-
-	t.Run("error - ID already in use", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().PrivateKeyExists(ctx, "123").Return(true)
-
-		client := &Crypto{storage: storageMock}
-		key, err := client.New(ctx, StringNamingFunc("123"))
-		assert.Nil(t, key)
-		assert.EqualError(t, err, "key with the given ID already exists", err)
 	})
 }
 
