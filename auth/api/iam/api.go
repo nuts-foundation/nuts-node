@@ -179,20 +179,21 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		return nil, err
 	}
 	switch request.Body.GrantType {
-	case "authorization_code":
+	case oauth.AuthorizationCodeGrantType:
 		// Options:
 		// - OpenID4VCI
 		// - OpenID4VP
 		// verifier DID is taken from code->oauthSession storage
 		return r.handleAccessTokenRequest(ctx, *request.Body)
-	case "urn:ietf:params:oauth:grant-type:pre-authorized_code":
+	case oauth.PreAuthorizedCodeGrantType:
 		// Options:
 		// - OpenID4VCI
+		// todo: add to grantTypesSupported in AS metadata once supported
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
 		}
-	case "vp_token-bearer":
+	case oauth.VpTokenGrantType:
 		// Nuts RFC021 vp_token bearer flow
 		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil {
 			return nil, oauth.OAuth2Error{
@@ -236,11 +237,11 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 		// return pending status
 		return RetrieveAccessToken200JSONResponse(token), nil
 	}
-	// delete access token from store
+	// access token is active, return to caller and delete access token from store
 	// change this when tokens can be cached
 	err = r.accessTokenClientStore().Delete(request.SessionID)
 	if err != nil {
-		return nil, err
+		log.Logger().WithError(err).Warn("Failed to delete access token")
 	}
 	// return access token
 	return RetrieveAccessToken200JSONResponse(token), nil
@@ -384,8 +385,7 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, req
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
 func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetRequestObject) (RequestJWTByGetResponseObject, error) {
 	ro := new(jarRequest)
-	// TODO: burn request object to prevent DoS through signing requests https://github.com/nuts-foundation/nuts-node/issues/3063
-	err := r.authzRequestObjectStore().Get(request.Id, ro)
+	err := r.authzRequestObjectStore().GetAndDelete(request.Id, ro)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
@@ -400,7 +400,7 @@ func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetReq
 		}
 	}
 	if ro.RequestURIMethod != "get" { // case sensitive
-		// TODO: wallet does not support `request_uri_method=post`. Unclear if this should fail, or fallback to using staticAuthorizationServerMetadata().
+		// TODO: wallet does not support `request_uri_method=post`. Spec is unclear if this should fail, or fallback to using staticAuthorizationServerMetadata().
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.InvalidRequest,
 			Description:   "used request_uri_method 'get' on a 'post' request_uri",
@@ -428,8 +428,7 @@ func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetReq
 // RFC9101: The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR).
 func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostRequestObject) (RequestJWTByPostResponseObject, error) {
 	ro := new(jarRequest)
-	// TODO: burn request object to prevent DoS through signing requests https://github.com/nuts-foundation/nuts-node/issues/3063
-	err := r.authzRequestObjectStore().Get(request.Id, ro)
+	err := r.authzRequestObjectStore().GetAndDelete(request.Id, ro)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
@@ -758,7 +757,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		return nil, err
 	}
 	// Store the session
-	err = r.oid4vciSssionStore().Put(state, &Oid4vciSession{
+	err = r.openid4vciSessionStore().Put(state, &Oid4vciSession{
 		HolderDid:                requestHolder,
 		IssuerDid:                issuerDid,
 		RemoteRedirectUri:        request.Body.RedirectUri,
@@ -792,7 +791,7 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request CallbackOid4vciCredentialIssuanceRequestObject) (CallbackOid4vciCredentialIssuanceResponseObject, error) {
 	state := request.Params.State
 	oid4vciSession := Oid4vciSession{}
-	err := r.oid4vciSssionStore().Get(state, &oid4vciSession)
+	err := r.openid4vciSessionStore().Get(state, &oid4vciSession)
 	if err != nil {
 		return nil, core.NotFoundError("Cannot locate active session for state: %s", state)
 	}
@@ -1001,6 +1000,11 @@ func (r Wrapper) authzRequestObjectStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, oauthRequestObjectKey...)
 }
 
+// openid4vciSessionStore is used by the Client to keep track of OpenID4VCI requests
+func (r Wrapper) openid4vciSessionStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(oid4vciSessionValidity, "openid4vci")
+}
+
 // createOAuth2BaseURL creates an OAuth2 base URL for an owned did:web DID
 // It creates a URL in the following format: https://<did:web host>/oauth2/<did>
 func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
@@ -1009,8 +1013,4 @@ func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
 	}
 	return didURL.Parse("/oauth2/" + webDID.String())
-}
-
-func (r Wrapper) oid4vciSssionStore() storage.SessionStore {
-	return r.storageEngine.GetSessionDatabase().GetStore(oid4vciSessionValidity, "oid4vci")
 }

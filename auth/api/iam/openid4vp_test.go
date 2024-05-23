@@ -475,13 +475,13 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			oauthErr := assertOAuthError(t, err, "presentation(s) or contained credential(s) are invalid")
 			assert.Equal(t, "https://example.com/iam/holder/cb", oauthErr.RedirectURI.String())
 		})
-		t.Run("expired nonce", func(t *testing.T) {
+		t.Run("expired session", func(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 
-			_ = assertOAuthError(t, err, "invalid or expired nonce")
+			_ = assertOAuthError(t, err, "invalid or expired session")
 		})
 		t.Run("missing challenge in proof", func(t *testing.T) {
 			ctx := newTestClient(t)
@@ -494,7 +494,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
-			_ = assertOAuthError(t, err, "failed to extract nonce from vp_token")
+			_ = assertOAuthError(t, err, "invalid or missing nonce/challenge in presentation")
 		})
 		t.Run("unknown verifier id", func(t *testing.T) {
 			ctx := newTestClient(t)
@@ -682,7 +682,8 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		assert.Equal(t, "DPoP", token.TokenType)
 		assert.Equal(t, 900, *token.ExpiresIn)
 		assert.Equal(t, "scope", *token.Scope)
-
+		// authz code is burned
+		assert.ErrorIs(t, ctx.client.oauthCodeStore().Get(code, new(OAuthSession)), storage.ErrNotFound)
 	})
 	t.Run("invalid authorization code", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -707,6 +708,8 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		_ = assertOAuthError(t, err, "client_id does not match: did:web:example.com:iam:holder vs other")
+		// authz code is burned in failed requests
+		assert.ErrorIs(t, ctx.client.oauthCodeStore().Get(code, new(OAuthSession)), storage.ErrNotFound)
 	})
 	t.Run("missing code", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -823,15 +826,15 @@ func Test_validatePresentationNonce(t *testing.T) {
 		vps := []vc.VerifiablePresentation{*vp, *vp}
 		ctx := newTestClient(t)
 		putNonce(ctx, "1")
+		require.NoError(t, ctx.client.oauthNonceStore().Get("1", new(string)), "if this fails, all 'burn nonce' checks are invalid")
 
 		// call also burns the nonce
-		err = ctx.client.validatePresentationNonce(vps)
+		err = ctx.client.validatePresentationNonce(vps, "state")
 
 		require.NoError(t, err)
-		err = ctx.client.oauthNonceStore().Get("1", nil)
-		assert.Equal(t, storage.ErrNotFound, err)
+		assert.ErrorIs(t, ctx.client.oauthNonceStore().Get("1", new(string)), storage.ErrNotFound)
 	})
-	t.Run("different nonce", func(t *testing.T) {
+	t.Run("error - valid and unknown nonce", func(t *testing.T) {
 		vpStr1 := `{"@context":["https://www.w3.org/2018/credentials/v1","https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"],"proof":{"challenge":"1"}}`
 		vpStr2 := `{"@context":["https://www.w3.org/2018/credentials/v1","https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"],"proof":{"challenge":"2"}}`
 		vp1, err := vc.ParseVerifiablePresentation(vpStr1)
@@ -841,16 +844,58 @@ func Test_validatePresentationNonce(t *testing.T) {
 		vps := []vc.VerifiablePresentation{*vp1, *vp2}
 		ctx := newTestClient(t)
 		putNonce(ctx, "1")
-		putNonce(ctx, "2")
+		// nonce 2 is not in store. method does not panic/fail
 
 		// call also burns the nonce
-		err = ctx.client.validatePresentationNonce(vps)
+		err = ctx.client.validatePresentationNonce(vps, "state")
 
-		assert.EqualError(t, err, "invalid_request - not all presentations have the same nonce")
-		err = ctx.client.oauthNonceStore().Get("1", nil)
-		assert.Equal(t, storage.ErrNotFound, err)
-		err = ctx.client.oauthNonceStore().Get("2", nil)
-		assert.Equal(t, storage.ErrNotFound, err)
+		assert.EqualError(t, err, "invalid_request - not all presentations have the same nonce - invalid or missing nonce/challenge in presentation")
+		assert.ErrorIs(t, ctx.client.oauthNonceStore().Get("1", new(string)), storage.ErrNotFound)
+		assert.ErrorIs(t, ctx.client.oauthNonceStore().Get("2", new(string)), storage.ErrNotFound)
+	})
+	t.Run("error - valid and missing nonce", func(t *testing.T) {
+		vpStr1 := `{"@context":["https://www.w3.org/2018/credentials/v1","https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"],"proof":{"challenge":"1"}}`
+		vpStr2 := `{"@context":["https://www.w3.org/2018/credentials/v1","https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"],"proof":{}}`
+		vp1, err := vc.ParseVerifiablePresentation(vpStr1)
+		require.NoError(t, err)
+		vp2, err := vc.ParseVerifiablePresentation(vpStr2)
+		require.NoError(t, err)
+		vps := []vc.VerifiablePresentation{*vp1, *vp2}
+		ctx := newTestClient(t)
+		putNonce(ctx, "1")
+
+		// call also burns the nonce
+		err = ctx.client.validatePresentationNonce(vps, "state")
+
+		assert.EqualError(t, err, "invalid_request - presentation is missing nonce - invalid or missing nonce/challenge in presentation")
+		assert.ErrorIs(t, ctx.client.oauthNonceStore().Get("1", new(string)), storage.ErrNotFound)
+	})
+	t.Run("error - invalid or expired nonce", func(t *testing.T) {
+		vpStr := `{"@context":["https://www.w3.org/2018/credentials/v1","https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"],"proof":{"challenge":"1"}}`
+		vp, err := vc.ParseVerifiablePresentation(vpStr)
+		require.NoError(t, err)
+		vps := []vc.VerifiablePresentation{*vp, *vp}
+		ctx := newTestClient(t)
+
+		// call also burns the nonce
+		err = ctx.client.validatePresentationNonce(vps, "state")
+
+		assert.EqualError(t, err, "invalid_request - not found - invalid or expired session")
+		assert.ErrorIs(t, ctx.client.oauthNonceStore().Get("1", new(string)), storage.ErrNotFound)
+	})
+	t.Run("error - nonce does not match state", func(t *testing.T) {
+		vpStr := `{"@context":["https://www.w3.org/2018/credentials/v1","https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"],"proof":{"challenge":"1"}}`
+		vp, err := vc.ParseVerifiablePresentation(vpStr)
+		require.NoError(t, err)
+		vps := []vc.VerifiablePresentation{*vp, *vp}
+		ctx := newTestClient(t)
+		putNonce(ctx, "1")
+
+		// call also burns the nonce
+		err = ctx.client.validatePresentationNonce(vps, "wrong state")
+
+		assert.EqualError(t, err, "invalid_request - invalid nonce/state")
+		assert.ErrorIs(t, ctx.client.oauthNonceStore().Get("1", new(string)), storage.ErrNotFound)
 	})
 }
 

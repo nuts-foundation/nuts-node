@@ -171,8 +171,7 @@ func (r Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresenta
 			Description:   "presentation has invalid/missing nonce",
 		}
 	}
-	nonceStore := r.storageEngine.GetSessionDatabase().GetStore(s2sMaxPresentationValidity+s2sMaxClockSkew, "s2s", "nonce")
-	nonceError := nonceStore.Get(nonce, new(bool))
+	nonceError := r.s2sNonceStore().Get(nonce, new(bool))
 	if nonceError != nil && errors.Is(nonceError, storage.ErrNotFound) {
 		// this is OK, nonce has not been used before
 		nonceError = nil
@@ -187,7 +186,7 @@ func (r Wrapper) validateS2SPresentationNonce(presentation vc.VerifiablePresenta
 
 	// Regardless the result of the nonce checking, the nonce of the VP must not be used again.
 	// So always store the nonce.
-	if err := nonceStore.Put(nonce, true); err != nil {
+	if err := r.s2sNonceStore().Put(nonce, true); err != nil {
 		nonceError = errors.Join(fmt.Errorf("unable to store nonce: %w", err), nonceError)
 	}
 	return nonceError
@@ -212,4 +211,12 @@ func extractNonce(presentation vc.VerifiablePresentation) (string, error) {
 		}
 	}
 	return nonce, nil
+}
+
+// s2sNonceKey is used in the s2sNonceStore
+var s2sNonceKey = []string{"s2s", "nonce"}
+
+// s2sNonceStore is used by the authorization server for replay prevention by keeping track of used nonces in the s2s flow
+func (r Wrapper) s2sNonceStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(s2sMaxPresentationValidity+s2sMaxClockSkew, s2sNonceKey...)
 }

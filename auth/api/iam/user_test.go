@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -190,7 +191,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 	t.Run("error - no token", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -200,7 +201,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 	t.Run("error - token not found", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -210,7 +211,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 	t.Run("error - verifier did parse error", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -232,7 +233,9 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err = ctx.client.handleUserLanding(echoCtx)
 
-		require.Error(t, err)
+		assert.EqualError(t, err, "invalid DID")
+		// token has been burned
+		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
 	t.Run("error - authorization request error", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -252,7 +255,9 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err = ctx.client.handleUserLanding(echoCtx)
 
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, assert.AnError)
+		// token has been burned
+		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
 }
 

@@ -503,31 +503,22 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		return nil, oauthError(oauth.InvalidRequest, "invalid vp_token", err)
 	}
 
-	// note: instead of using the challenge to lookup the oauth session, we could also add a client state from the verifier.
-	// this would allow us to lookup the redirectURI without checking the VP first.
-
-	// extract the nonce from the vp(s)
-	nonce, err := extractChallenge(pexEnvelope.Presentations[0])
-	if nonce == "" || err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "failed to extract nonce from vp_token", err)
-	}
-	var stateFromNonce string
-	if err = r.oauthNonceStore().Get(nonce, &stateFromNonce); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid or expired nonce", err)
-	}
 	// Retrieve session through state, since we need to update it given the state.
-	// Also asserts that nonce and state reference the same OAuthSession
 	var session OAuthSession
 	state := *request.Body.State
-	if state != stateFromNonce {
-		return nil, oauthError(oauth.InvalidRequest, "invalid nonce/state")
-	}
 	if err = r.oauthClientStateStore().Get(state, &session); err != nil {
 		return nil, oauthError(oauth.InvalidRequest, "invalid or expired session", err)
 	}
 
 	// any future error can be sent to the client using the redirectURI from the oauthSession
+	// Also asserts that nonce and state reference the same OAuthSession.
 	callbackURI := session.redirectURI()
+
+	// check presence of the nonce and make sure the nonce is burned in the process.
+	// Also asserts that nonce and state reference the same OAuthSession.
+	if err = r.validatePresentationNonce(pexEnvelope.Presentations, state); err != nil {
+		return nil, withCallbackURI(err, callbackURI)
+	}
 
 	if request.Body.PresentationSubmission == nil {
 		return nil, oauthError(oauth.InvalidRequest, "missing presentation_submission")
@@ -551,11 +542,6 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		if err := r.validatePresentationAudience(presentation, *verifier); err != nil {
 			return nil, withCallbackURI(err, callbackURI)
 		}
-	}
-
-	// check presence of the nonce and make sure the nonce is burned in the process.
-	if err := r.validatePresentationNonce(pexEnvelope.Presentations); err != nil {
-		return nil, withCallbackURI(err, callbackURI)
 	}
 
 	// Check signatures of VP and VCs. Trust should be established by the Presentation Definition.
@@ -592,7 +578,6 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 	}
 	// Completed all OpenID4VP flows, issue the authorization code
 	authorizationCode := crypto.GenerateNonce()
-	// TODO: should we store a reference to session via state, instead? Like we did with the nonce? Although strictly not required here.
 	err = r.oauthCodeStore().Put(authorizationCode, session)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -637,40 +622,67 @@ func extractChallenge(presentation vc.VerifiablePresentation) (string, error) {
 	return nonce, nil
 }
 
-// validatePresentationNonce checks if the nonce is the same for all presentations.
+// validatePresentationNonce checks if the nonce is the same for all presentations
 // it deletes all nonces from the session store in the process.
 // errors are returned as OAuth2 errors.
-func (r Wrapper) validatePresentationNonce(presentations []vc.VerifiablePresentation) error {
-	var nonce string
-	var returnErr error
+func (r Wrapper) validatePresentationNonce(presentations []vc.VerifiablePresentation, state string) error {
+	// we loop over all presentations and extract all nonces we can find.
+	// Errors are accumulated until all presentations are checked.
+	// If anything goes wrong, burn all nonces before returning an error.
+	allPresent := true
+	nonces := make([]string, 0, 1)
+	var errs []error
 	for _, presentation := range presentations {
-		nextNonce, err := extractChallenge(presentation)
+		nonce, err := extractChallenge(presentation)
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
-		if nextNonce == "" {
+		if nonce == "" {
 			// fallback on nonce instead of challenge, todo: should be uniform, check vc data model specs for JWT/JSON-LD
-			nextNonce, err = extractNonce(presentation)
-			if nextNonce == "" {
-				// error when all presentations are missing nonce's
-				returnErr = oauth.OAuth2Error{
-					Code:          oauth.InvalidRequest,
-					InternalError: err,
-					Description:   "presentation has invalid/missing nonce",
-				}
+			nonce, err = extractNonce(presentation)
+			if err != nil {
+				errs = append(errs, err)
 			}
 		}
-		_ = r.oauthNonceStore().Delete(nextNonce)
-		if nonce != "" && nonce != nextNonce {
-			returnErr = oauth.OAuth2Error{
-				Code:        oauth.InvalidRequest,
-				Description: "not all presentations have the same nonce",
-			}
+		if nonce == "" {
+			allPresent = false
 		}
-		nonce = nextNonce
+		if nonce != "" && !slices.Contains(nonces, nonce) {
+			nonces = append(nonces, nonce)
+		}
+	}
+	// accumulate all errors
+	if len(nonces) > 1 {
+		errs = append(errs, errors.New("not all presentations have the same nonce"))
+	}
+	if !allPresent { // also covers len(nonces) == 0
+		errs = append(errs, errors.New("presentation is missing nonce"))
+	}
+	if len(errs) > 0 {
+		// Something went wrong. We don't know what the real nonce is, so burn them all
+		for _, nonce := range nonces {
+			_ = r.oauthNonceStore().Delete(nonce)
+		}
+		return oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "invalid or missing nonce/challenge in presentation",
+			InternalError: errors.Join(errs...),
+		}
 	}
 
-	return returnErr
+	// check that the nonce belongs to this state
+	// a sessions can have multiple flows with each its own nonce, so we have to use the mapping from nonce to state.
+	var stateFromNonce string
+	err := r.oauthNonceStore().GetAndDelete(nonces[0], &stateFromNonce)
+	if err != nil {
+		return oauthError(oauth.InvalidRequest, "invalid or expired session", err)
+	}
+	if state != stateFromNonce {
+		return oauthError(oauth.InvalidRequest, "invalid nonce/state")
+	}
+
+	// nonce is valid and burned
+	return nil
 }
 
 func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTokenRequestFormdataRequestBody) (HandleTokenRequestResponseObject, error) {
@@ -678,6 +690,10 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	if request.Code == nil {
 		return nil, oauthError(oauth.InvalidRequest, "missing code parameter")
 	}
+	defer func() {
+		// a failing request could indicate a stolen authorization code. always burn a code once presented.
+		_ = r.oauthCodeStore().Delete(*request.Code)
+	}()
 	// check if code_verifier is present
 	if request.CodeVerifier == nil {
 		return nil, oauthError(oauth.InvalidRequest, "missing code_verifier parameter")
@@ -688,7 +704,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	}
 	// check if the authorization code is valid
 	var oauthSession OAuthSession
-	err := r.oauthCodeStore().Get(*request.Code, &oauthSession)
+	err := r.oauthCodeStore().GetAndDelete(*request.Code, &oauthSession)
 	if err != nil {
 		return nil, oauthError(oauth.InvalidGrant, "invalid authorization code", err)
 	}
