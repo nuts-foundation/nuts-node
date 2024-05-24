@@ -41,7 +41,8 @@ type HTTPClient struct {
 	httpClient core.HTTPRequestDoer
 }
 
-// OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given web DID.
+// OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given oauth issuer.
+// oauthIssuer is the oauth.AuthorizationServerMetadata.Issuer from which the metadata endpoint is derived.
 func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauthIssuer string) (*oauth.AuthorizationServerMetadata, error) {
 	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuer, oauth.AuthzServerWellKnown, hb.strictMode)
 	if err != nil {
