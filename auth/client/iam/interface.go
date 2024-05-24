@@ -34,7 +34,8 @@ type Client interface {
 	// The response will be unmarshalled into the given tokenResponseOut parameter.
 	AccessToken(ctx context.Context, code string, tokenURI, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error)
 	// AuthorizationServerMetadata returns the metadata of the remote wallet.
-	AuthorizationServerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.AuthorizationServerMetadata, error)
+	// oauthIssuer is the address that identifies the Authorization Server. For a did:web it is its URL. (same as oauth.AuthorizationServerMetadata.Issuer)
+	AuthorizationServerMetadata(ctx context.Context, oauthIssuer string) (*oauth.AuthorizationServerMetadata, error)
 	// ClientMetadata returns the metadata of the remote verifier.
 	ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error)
 	// PostError posts an error to the verifier. If it fails, an error is returned.

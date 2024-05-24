@@ -59,18 +59,18 @@ func (mr *MockClientMockRecorder) AccessToken(ctx, code, tokenURI, callbackURI, 
 }
 
 // AuthorizationServerMetadata mocks base method.
-func (m *MockClient) AuthorizationServerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.AuthorizationServerMetadata, error) {
+func (m *MockClient) AuthorizationServerMetadata(ctx context.Context, oauthIssuer string) (*oauth.AuthorizationServerMetadata, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AuthorizationServerMetadata", ctx, oauthIssuerURI)
+	ret := m.ctrl.Call(m, "AuthorizationServerMetadata", ctx, oauthIssuer)
 	ret0, _ := ret[0].(*oauth.AuthorizationServerMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AuthorizationServerMetadata indicates an expected call of AuthorizationServerMetadata.
-func (mr *MockClientMockRecorder) AuthorizationServerMetadata(ctx, oauthIssuerURI any) *gomock.Call {
+func (mr *MockClientMockRecorder) AuthorizationServerMetadata(ctx, oauthIssuer any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthorizationServerMetadata", reflect.TypeOf((*MockClient)(nil).AuthorizationServerMetadata), ctx, oauthIssuerURI)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthorizationServerMetadata", reflect.TypeOf((*MockClient)(nil).AuthorizationServerMetadata), ctx, oauthIssuer)
 }
 
 // ClientMetadata mocks base method.
