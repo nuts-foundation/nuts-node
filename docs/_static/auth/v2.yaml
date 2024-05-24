@@ -80,7 +80,7 @@ paths:
               $ref: '#/components/schemas/UserAccessTokenRequest'
       responses:
         '200':
-          description: | 
+          description: |
             Successful request. Responds with a redirect_uri for the user and a token for the calling application.
             The token can be used by the calling application to get the status of the session.
           content:
@@ -110,7 +110,7 @@ paths:
             example: eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp
       responses:
         '200':
-          description: | 
+          description: |
             Successful request. Responds with an access token as described in rfc6749 section 5.1 when available.
             If the OAuth2 flow hasn't completed yet, the response will only contain the 'pending' status value.
           content:
@@ -241,27 +241,29 @@ paths:
               properties:
                 issuer:
                   type: string
-                  example: did:web:example.com
+                  example: did:web:issuer.example.com
                 authorization_details:
                   type: array
                   items:
                     type: object
-                    description: | 
-                      The request parameter authorization_details defined in Section 2 of [RFC9396] MUST be used to convey the details about the Credentials the Wallet wants to obtain..
-                    properties:
-                      type:
-                        type: string
-                      format:
-                        type: string
-                      credential_definition:
-                        type: object
+                    description: |
+                      The request parameter authorization_details defined in Section 2 of [RFC9396] MUST be used to convey the details about the Credentials the Wallet wants to obtain.
+                      See the RFC9396/OpenID4VCI for the format of an authorization_details object, and consult the Credential Issuer for requestable credentials.
+                  example: |
+                    [
+                      {
+                        "type": "openid_credential",
+                        "credential_configuration_id": "UniversityDegreeCredential"
+                      }
+                    ]
                 redirect_uri:
                   type: string
                   description: |
                     The URL to which the user-agent will be redirected after the authorization request.
+                  example: https://my-xis.example.com/callback
       responses:
         '200':
-          description: | 
+          description: |
             Successful request. Responds with a redirect_uri for the user and a session_id for correlation.
           content:
             application/json:
@@ -569,5 +571,5 @@ components:
       scheme: Bearer
 
 security:
-  - {}
-  - jwtBearerAuth: []
+  - { }
+  - jwtBearerAuth: [ ]

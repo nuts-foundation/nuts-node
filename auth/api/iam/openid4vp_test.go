@@ -42,6 +42,8 @@ import (
 
 var holderDID = did.MustParseDID("did:web:example.com:iam:holder")
 var issuerDID = did.MustParseDID("did:web:example.com:iam:issuer")
+var holderURL = "https://example.com/iam/holder"
+var issuerURL = "https://example.com/iam/issuer"
 
 func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	defaultParams := func() oauthParameters {
@@ -98,7 +100,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	t.Run("missing did in supported_client_id_schemes", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(&oauth.AuthorizationServerMetadata{
 			AuthorizationEndpoint:    "http://example.com",
 			ClientIdSchemesSupported: []string{"not_did"},
 		}, nil)
@@ -119,7 +121,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	})
 	t.Run("unknown scope", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(&oauth.AuthorizationServerMetadata{
 			AuthorizationEndpoint:    "http://example.com",
 			ClientIdSchemesSupported: []string{"did"},
 		}, nil)
@@ -142,7 +144,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	})
 	t.Run("error on authorization server metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderDID).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
 
@@ -152,7 +154,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
 		params := defaultParams()
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderDID).Return(&oauth.AuthorizationServerMetadata{
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderURL).Return(&oauth.AuthorizationServerMetadata{
 			ClientIdSchemesSupported: []string{didClientIDScheme},
 		}, nil).Times(2)
 
@@ -754,11 +756,12 @@ func Test_handleCallback(t *testing.T) {
 	state := "state"
 
 	session := OAuthSession{
-		SessionID:   "token",
-		OwnDID:      &holderDID,
-		RedirectURI: "https://example.com/iam/holder/cb",
-		VerifierDID: &verifierDID,
-		PKCEParams:  generatePKCEParams(),
+		SessionID:     "token",
+		OwnDID:        &holderDID,
+		RedirectURI:   "https://example.com/iam/holder/cb",
+		VerifierDID:   &verifierDID,
+		PKCEParams:    generatePKCEParams(),
+		TokenEndpoint: "https://example.com/token",
 	}
 
 	t.Run("err - missing state", func(t *testing.T) {
@@ -804,7 +807,7 @@ func Test_handleCallback(t *testing.T) {
 		putState(ctx, "state", session)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, verifierDID, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier, false).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier, false).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
 			Did: webDID.String(),

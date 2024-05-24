@@ -189,12 +189,8 @@ type Cnf struct {
 
 // RequestOid4vciCredentialIssuanceJSONBody defines parameters for RequestOid4vciCredentialIssuance.
 type RequestOid4vciCredentialIssuanceJSONBody struct {
-	AuthorizationDetails []struct {
-		CredentialDefinition *map[string]interface{} `json:"credential_definition,omitempty"`
-		Format               *string                 `json:"format,omitempty"`
-		Type                 *string                 `json:"type,omitempty"`
-	} `json:"authorization_details"`
-	Issuer string `json:"issuer"`
+	AuthorizationDetails []map[string]interface{} `json:"authorization_details"`
+	Issuer               string                   `json:"issuer"`
 
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
 	RedirectUri string `json:"redirect_uri"`

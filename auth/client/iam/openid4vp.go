@@ -37,6 +37,7 @@ import (
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -123,10 +124,14 @@ func (c *OpenID4VPClient) PresentationDefinition(ctx context.Context, endpoint s
 	return presentationDefinition, nil
 }
 
-func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error) {
+func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, oauthIssuer string) (*oauth.AuthorizationServerMetadata, error) {
 	iamClient := c.httpClient
+	parsedURL, err := core.ParsePublicURL(oauthIssuer, c.strictMode)
+	if err != nil {
+		return nil, fmt.Errorf("invalid oauth issuer url: %w", err)
+	}
 	// the wallet/client acts as authorization server
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, webdid)
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, parsedURL.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 	}
@@ -163,27 +168,26 @@ func (c *OpenID4VPClient) RequestObjectByPost(ctx context.Context, requestURI st
 	return requestObject, nil
 }
 
-func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
+func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEndpoint string, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
+	// validate tokenEndpoint
+	parsedURL, err := core.ParsePublicURL(tokenEndpoint, c.strictMode)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+		return nil, err
 	}
-	if len(metadata.TokenEndpoint) == 0 {
-		return nil, fmt.Errorf("no token endpoint found in Authorization Server metadata: %s", verifier)
-	}
+
 	// call token endpoint
 	data := url.Values{}
 	data.Set(oauth.ClientIDParam, clientID.String())
 	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
-	data.Set(oauth.CodeResponseType, code)
+	data.Set(oauth.CodeParam, code)
 	data.Set(oauth.RedirectURIParam, callbackURI)
 	data.Set(oauth.CodeVerifierParam, codeVerifier)
 
 	var dpopHeader string
 	if useDPoP {
 		// create DPoP header
-		request, err := http.NewRequestWithContext(ctx, http.MethodPost, metadata.TokenEndpoint, nil)
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, parsedURL.String(), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +197,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier
 		}
 	}
 
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
+	token, err := iamClient.AccessToken(ctx, parsedURL.String(), data, dpopHeader)
 	if err != nil {
 		return nil, fmt.Errorf("remote server: error creating access token: %w", err)
 	}
@@ -202,7 +206,11 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, verifier
 
 func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, verifier)
+	oauthIssuer, err := didweb.DIDToURL(verifier)
+	if err != nil {
+		return nil, err
+	}
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, oauthIssuer.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 	}
@@ -264,18 +272,15 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		Scope:       &scopes,
 	}, nil
 }
-func (c *OpenID4VPClient) OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error) {
-	iamClient := c.httpClient
-	rsp, err := iamClient.OpenIdConfiguration(ctx, serverURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve Openid configuration: %w", err)
-	}
-	return rsp, nil
-}
 
-func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, webDID did.DID) (*oauth.OpenIDCredentialIssuerMetadata, error) {
+func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
 	iamClient := c.httpClient
-	rsp, err := iamClient.OpenIdCredentialIssuerMetadata(ctx, webDID)
+	parsedURL, err := core.ParsePublicURL(oauthIssuerURI, c.strictMode)
+	if err != nil {
+		return nil, fmt.Errorf("invalid oauth issuer url: %w", err)
+	}
+
+	rsp, err := iamClient.OpenIdCredentialIssuerMetadata(ctx, parsedURL.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve Openid credential issuer metadata: %w", err)
 	}

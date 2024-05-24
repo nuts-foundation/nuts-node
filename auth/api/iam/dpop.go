@@ -133,3 +133,9 @@ func dpopFromRequest(httpRequest http.Request) (*dpop.DPoP, error) {
 	}
 	return dpopProof, nil
 }
+
+// useNonceOnceStore is used to store nonces that are used once, e.g. DPoP jti
+// it uses the access token validity as the expiration time
+func (r Wrapper) useNonceOnceStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "nonceonce")
+}

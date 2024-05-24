@@ -57,7 +57,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier, false)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, clientID, codeVerifier, false)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -69,7 +69,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKey(clientID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid.String()).Return("dpop", nil)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier, true)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, clientID, codeVerifier, true)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -80,7 +80,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.token = nil
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier, false)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, clientID, codeVerifier, false)
 
 		assert.EqualError(t, err, "remote server: error creating access token: server returned HTTP 404 (expected: 200)")
 		assert.Nil(t, response)
@@ -90,7 +90,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKey(clientID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid.String()).Return("", assert.AnError)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.verifierDID, callbackURI, clientID, codeVerifier, true)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, clientID, codeVerifier, true)
 
 		assert.Error(t, err)
 		assert.Nil(t, response)
@@ -211,7 +211,7 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 
-		metadata, err := ctx.client.AuthorizationServerMetadata(context.Background(), ctx.verifierDID)
+		metadata, err := ctx.client.AuthorizationServerMetadata(context.Background(), ctx.tlsServer.URL)
 
 		require.NoError(t, err)
 		require.NotNil(t, metadata)
@@ -221,7 +221,7 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.metadata = nil
 
-		_, err := ctx.client.AuthorizationServerMetadata(context.Background(), ctx.verifierDID)
+		_, err := ctx.client.AuthorizationServerMetadata(context.Background(), ctx.tlsServer.URL)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
@@ -422,7 +422,6 @@ type clientTestContext struct {
 type clientServerTestContext struct {
 	*clientTestContext
 	authzServerMetadata            *oauth.AuthorizationServerMetadata
-	openIDConfigurationMetadata    *oauth.OpenIDConfigurationMetadata
 	openIDCredentialIssuerMetadata *oauth.OpenIDCredentialIssuerMetadata
 	handler                        http.HandlerFunc
 	tlsServer                      *httptest.Server
@@ -509,11 +508,6 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 				ctx.metadata(writer)
 				return
 			}
-		case "/.well-known/openid-configuration":
-			if ctx.metadata != nil {
-				ctx.metadata(writer)
-				return
-			}
 		case "/.well-known/openid-credential-issuer/issuer":
 			if ctx.credentialIssuerMetadata != nil {
 				ctx.credentialIssuerMetadata(writer)
@@ -565,7 +559,6 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	ctx.authzServerMetadata.AuthorizationEndpoint = ctx.tlsServer.URL + "/authorize"
 	ctx.authzServerMetadata.RequireSignedRequestObject = true
 
-	ctx.openIDConfigurationMetadata = metadata
 	ctx.openIDCredentialIssuerMetadata = credentialIssuerMetadata
 	ctx.openIDCredentialIssuerMetadata.AuthorizationServers = []string{ctx.authzServerMetadata.AuthorizationEndpoint}
 	ctx.openIDCredentialIssuerMetadata.CredentialIssuer = "issuer"
@@ -574,35 +567,11 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	return ctx
 }
 
-func TestIAMClient_OpenIdConfiguration(t *testing.T) {
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-
-		serverURL := ctx.tlsServer.URL
-		metadata, err := ctx.client.OpenIdConfiguration(context.Background(), serverURL)
-
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, *ctx.openIDConfigurationMetadata, *metadata)
-	})
-	t.Run("error - failed to get access token", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-		ctx.metadata = nil
-
-		serverURL := ctx.tlsServer.URL
-		response, err := ctx.client.OpenIdConfiguration(context.Background(), serverURL)
-
-		assert.Error(t, err)
-		assert.Nil(t, response)
-		assert.EqualError(t, err, "failed to retrieve Openid configuration: server returned HTTP 404 (expected: 200)")
-	})
-}
 func TestIAMClient_OpenIdCredentialIssuerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 
-		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.issuerDID)
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
 
 		require.NoError(t, err)
 		require.NotNil(t, metadata)
@@ -612,20 +581,16 @@ func TestIAMClient_OpenIdCredentialIssuerMetadata(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.credentialIssuerMetadata = nil
 
-		response, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.issuerDID)
+		response, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
 
 		require.Error(t, err)
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "failed to retrieve Openid credential issuer metadata: server returned HTTP 404 (expected: 200)")
 	})
-
 }
 
 func TestIAMClient_VerifiableCredentials(t *testing.T) {
-	//walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	accessToken := "code"
-	//cNonce := crypto.GenerateNonce()
-
 	proowJWT := "top secret"
 
 	t.Run("ok", func(t *testing.T) {

@@ -28,13 +28,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
@@ -43,14 +41,10 @@ type HTTPClient struct {
 	httpClient core.HTTPRequestDoer
 }
 
-// OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given web DID.
-func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, webDID did.DID) (*oauth.AuthorizationServerMetadata, error) {
-	serverURL, err := didweb.DIDToURL(webDID)
-	if err != nil {
-		return nil, err
-	}
-
-	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL.String(), oauth.AuthzServerWellKnown, hb.strictMode)
+// OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given oauth issuer.
+// oauthIssuer is the oauth.AuthorizationServerMetadata.Issuer from which the metadata endpoint is derived.
+func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauthIssuer string) (*oauth.AuthorizationServerMetadata, error) {
+	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuer, oauth.AuthzServerWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}
@@ -211,25 +205,8 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
 }
 
-func (hb HTTPClient) OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error) {
-	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
-	if err != nil {
-		return nil, err
-	}
-	var metadata oauth.OpenIDConfigurationMetadata
-	err = hb.doGet(ctx, metadataURL.String(), &metadata)
-	if err != nil {
-		return nil, err
-	}
-	return &metadata, err
-}
-
-func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, webDID did.DID) (*oauth.OpenIDCredentialIssuerMetadata, error) {
-	serverURL, err := didweb.DIDToURL(webDID)
-	if err != nil {
-		return nil, err
-	}
-	metadataURL, err := oauth.IssuerIdToWellKnown(serverURL.String(), oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
+func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
+	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuerURI, oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}

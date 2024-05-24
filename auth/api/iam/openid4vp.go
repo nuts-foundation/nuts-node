@@ -42,6 +42,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -108,7 +109,12 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	if err != nil || walletDID.Method != "web" {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), redirectURL)
 	}
-	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, *walletDID)
+	oauthIssuer, err := didweb.DIDToURL(*walletDID)
+	if err != nil {
+		// can't fail since it's a valid did:web
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), redirectURL)
+	}
+	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet", err), redirectURL)
 	}
@@ -797,7 +803,7 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	checkURL = checkURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, *oauthSession.VerifierDID, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}
@@ -811,8 +817,15 @@ func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObje
 	}, nil
 }
 
+// oauthNonceStore is used to map nonce to state. Burn on use.
+// This mapping is needed because we have one OAuthSession (state), but use a new nonce for every OpenID4VP flow.
 func (r Wrapper) oauthNonceStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthNonceKey...)
+}
+
+// oauthCodeStore is used to store the authorization server's OAuthSession in the authorization_code flow. Burn on use.
+func (r Wrapper) oauthCodeStore() storage.SessionStore {
+	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthCodeKey...)
 }
 
 func oauthError(code oauth.ErrorCode, description string, internalError ...error) oauth.OAuth2Error {

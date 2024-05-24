@@ -32,9 +32,10 @@ type Client interface {
 	// AccessToken requests an access token at the oauth2 token endpoint.
 	// The token endpoint can be a regular OAuth2 token endpoint or OpenID4VCI-related endpoint.
 	// The response will be unmarshalled into the given tokenResponseOut parameter.
-	AccessToken(ctx context.Context, code string, verifier did.DID, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error)
+	AccessToken(ctx context.Context, code string, tokenURI, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error)
 	// AuthorizationServerMetadata returns the metadata of the remote wallet.
-	AuthorizationServerMetadata(ctx context.Context, webdid did.DID) (*oauth.AuthorizationServerMetadata, error)
+	// oauthIssuer is the address that identifies the Authorization Server. For a did:web it is its URL. (same as oauth.AuthorizationServerMetadata.Issuer)
+	AuthorizationServerMetadata(ctx context.Context, oauthIssuer string) (*oauth.AuthorizationServerMetadata, error)
 	// ClientMetadata returns the metadata of the remote verifier.
 	ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error)
 	// PostError posts an error to the verifier. If it fails, an error is returned.
@@ -46,9 +47,7 @@ type Client interface {
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC021.
 	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, useDPoP bool) (*oauth.TokenResponse, error)
 
-	OpenIdConfiguration(ctx context.Context, serverURL string) (*oauth.OpenIDConfigurationMetadata, error)
-
-	OpenIdCredentialIssuerMetadata(ctx context.Context, webDID did.DID) (*oauth.OpenIDCredentialIssuerMetadata, error)
+	OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error)
 
 	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
 	// RequestObjectByGet retrieves the RequestObjectByGet from the authorization request's 'request_uri' endpoint using a GET method as defined in RFC9101/OpenID4VP.

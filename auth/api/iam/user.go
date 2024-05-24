@@ -39,6 +39,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 )
 
 const (
@@ -113,16 +114,33 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	if redirectSession.AccessTokenRequest.Body.TokenType != nil && strings.ToLower(string(*redirectSession.AccessTokenRequest.Body.TokenType)) == strings.ToLower(AccessTokenTypeBearer) {
 		useDPoP = false
 	}
+
+	// get AS metadata
+	oauthIssuer, err := didweb.DIDToURL(*verifier)
+	if err != nil {
+		return err
+	}
+	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(echoCtx.Request().Context(), oauthIssuer.String())
+	if err != nil {
+		return fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+	}
+	if len(metadata.AuthorizationEndpoint) == 0 {
+		return fmt.Errorf("no authorization_endpoint found for %s", verifier.String())
+	}
+	if len(metadata.TokenEndpoint) == 0 {
+		return fmt.Errorf("no token_endpoint found for %s", verifier.String())
+	}
 	// create oauthSession with userID from request
 	// generate new sessionID and clientState with crypto.GenerateNonce()
 	oauthSession := OAuthSession{
-		ClientState: crypto.GenerateNonce(),
-		OwnDID:      &redirectSession.OwnDID,
-		PKCEParams:  generatePKCEParams(),
-		RedirectURI: accessTokenRequest.Body.RedirectUri,
-		SessionID:   redirectSession.SessionID,
-		UseDPoP:     useDPoP,
-		VerifierDID: verifier,
+		ClientState:   crypto.GenerateNonce(),
+		OwnDID:        &redirectSession.OwnDID,
+		PKCEParams:    generatePKCEParams(),
+		RedirectURI:   accessTokenRequest.Body.RedirectUri,
+		SessionID:     redirectSession.SessionID,
+		UseDPoP:       useDPoP,
+		VerifierDID:   verifier,
+		TokenEndpoint: metadata.TokenEndpoint,
 	}
 	// store user session in session store under sessionID and clientState
 	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession)
@@ -165,11 +183,6 @@ func (r Wrapper) userSessionStore() storage.SessionStore {
 // oauthClientStateStore is used tot store the client's OAuthSession
 func (r Wrapper) oauthClientStateStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...)
-}
-
-// oauthCodeStore is used to store the authorization server's OAuthSession in the authorization_code flow. Burn on use.
-func (r Wrapper) oauthCodeStore() storage.SessionStore {
-	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthCodeKey...)
 }
 
 // loadUserSession loads the user session given the session ID in the cookie.

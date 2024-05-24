@@ -83,6 +83,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 	serverMetadata := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:      "https://example.com/authorize",
+		TokenEndpoint:              "https://example.com/token",
 		ClientIdSchemesSupported:   []string{didClientIDScheme},
 		VPFormats:                  oauth.DefaultOpenIDSupportedFormats(),
 		RequireSignedRequestObject: true,
@@ -110,7 +111,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			employeeCredentialOptions = o
 			return &t, nil
 		})
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(&serverMetadata, nil).Times(2)
 		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, server, modifier)
 			params := req.Claims
@@ -177,7 +178,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			return nil
 		})
 		echoCtx.EXPECT().Cookie(gomock.Any()).Return(&sessionCookie, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(&serverMetadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(&serverMetadata, nil).Times(2)
 		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any())
 		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
 		session := UserSession{
@@ -251,13 +252,59 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
 		err := store.Put("token", redirectSession)
 		require.NoError(t, err)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierDID).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(nil, assert.AnError)
 
 		err = ctx.client.handleUserLanding(echoCtx)
 
 		assert.ErrorIs(t, err, assert.AnError)
 		// token has been burned
 		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
+	})
+	t.Run("error - missing authorization_endpoint", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vcIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, t vc.VerifiableCredential, _ issuer.CredentialOptions) (*vc.VerifiableCredential, error) {
+			// just return whatever template was given to avoid nil deref
+			return &t, nil
+		})
+		echoCtx := mock.NewMockContext(ctx.ctrl)
+		echoCtx.EXPECT().QueryParam("token").Return("token")
+		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
+		echoCtx.EXPECT().Cookie(gomock.Any()).Return(nil, http.ErrNoCookie)
+		echoCtx.EXPECT().SetCookie(gomock.Any())
+		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(&oauth.AuthorizationServerMetadata{
+			AuthorizationEndpoint: "",
+			TokenEndpoint:         "",
+		}, nil)
+
+		err := ctx.client.handleUserLanding(echoCtx)
+
+		assert.EqualError(t, err, "no authorization_endpoint found for did:web:example.com:iam:verifier")
+		// token has been burned
+		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
+	})
+	t.Run("error - missing authorization_endpoint", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vcIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, t vc.VerifiableCredential, _ issuer.CredentialOptions) (*vc.VerifiableCredential, error) {
+			// just return whatever template was given to avoid nil deref
+			return &t, nil
+		})
+		echoCtx := mock.NewMockContext(ctx.ctrl)
+		echoCtx.EXPECT().QueryParam("token").Return("token")
+		echoCtx.EXPECT().Request().MinTimes(1).Return(&http.Request{Host: "example.com"})
+		echoCtx.EXPECT().Cookie(gomock.Any()).Return(nil, http.ErrNoCookie)
+		echoCtx.EXPECT().SetCookie(gomock.Any())
+		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(&oauth.AuthorizationServerMetadata{
+			AuthorizationEndpoint: "https://example.com/authorize",
+			TokenEndpoint:         "",
+		}, nil)
+
+		err := ctx.client.handleUserLanding(echoCtx)
+
+		assert.EqualError(t, err, "no token_endpoint found for did:web:example.com:iam:verifier")
+		// token has been burned
+		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
 }
 
