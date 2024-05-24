@@ -231,6 +231,9 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 	var token TokenResponse
 	err := r.accessTokenClientStore().Get(request.SessionID, &token)
 	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, core.NotFoundError("session not found")
+		}
 		return nil, err
 	}
 	if token.Get("status") == oauth.AccessTokenRequestStatusPending {
