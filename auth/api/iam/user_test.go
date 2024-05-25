@@ -238,8 +238,6 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
-		echoCtx.EXPECT().Cookie(gomock.Any()).Return(nil, http.ErrNoCookie)
-		echoCtx.EXPECT().SetCookie(gomock.Any())
 		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(&oauth.AuthorizationServerMetadata{
 			AuthorizationEndpoint: "",
@@ -254,15 +252,9 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 	})
 	t.Run("error - missing authorization_endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vcIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, t vc.VerifiableCredential, _ issuer.CredentialOptions) (*vc.VerifiableCredential, error) {
-			// just return whatever template was given to avoid nil deref
-			return &t, nil
-		})
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
-		echoCtx.EXPECT().Cookie(gomock.Any()).Return(nil, http.ErrNoCookie)
-		echoCtx.EXPECT().SetCookie(gomock.Any())
 		require.NoError(t, ctx.client.userRedirectStore().Put("token", redirectSession))
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL).Return(&oauth.AuthorizationServerMetadata{
 			AuthorizationEndpoint: "https://example.com/authorize",
