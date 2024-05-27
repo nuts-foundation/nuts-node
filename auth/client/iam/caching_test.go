@@ -2,12 +2,14 @@ package iam
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func Test_httpClientCache(t *testing.T) {
@@ -33,7 +35,7 @@ func Test_httpClientCache(t *testing.T) {
 	})
 	t.Run("caches GET request with max-age", func(t *testing.T) {
 		requestSink := &stubRequestDoer{
-			statusCode: http.StatusOK,
+			statusCode: http.StatusCreated,
 			data:       []byte("Hello, World!"),
 			headers: map[string]string{
 				"Cache-Control": "max-age=3600",
@@ -41,17 +43,49 @@ func Test_httpClientCache(t *testing.T) {
 		}
 		client := cacheHTTPResponses(requestSink)
 
+		// Initial fetch
 		httpResponse, err := client.Do(httpRequest)
 		require.NoError(t, err)
+		assert.Equal(t, http.StatusCreated, httpResponse.StatusCode)
 		fetchedResponseData, _ := io.ReadAll(httpResponse.Body)
+		assert.Equal(t, "Hello, World!", string(fetchedResponseData))
+
+		// Fetch the response again, should be taken from cache
 		httpResponse, err = client.Do(httpRequest)
 		require.NoError(t, err)
+		assert.Equal(t, http.StatusCreated, httpResponse.StatusCode)
 		cachedResponseData, _ := io.ReadAll(httpResponse.Body)
+		assert.Equal(t, "Hello, World!", string(cachedResponseData))
 
 		assert.Equal(t, 13, client.currentSizeBytes)
 		assert.Equal(t, 1, requestSink.invocations)
-		assert.Equal(t, "Hello, World!", string(fetchedResponseData))
-		assert.Equal(t, "Hello, World!", string(cachedResponseData))
+	})
+	t.Run("does not cache responses with no-store", func(t *testing.T) {
+		client := cacheHTTPResponses(&stubRequestDoer{
+			statusCode: http.StatusOK,
+			data:       []byte("Hello, World!"),
+			headers: map[string]string{
+				"Cache-Control": "nothing",
+			},
+		})
+
+		_, err := client.Do(httpRequest)
+		require.NoError(t, err)
+		assert.Equal(t, 0, client.currentSizeBytes)
+	})
+	t.Run("max-age is too long", func(t *testing.T) {
+		requestSink := &stubRequestDoer{
+			statusCode: http.StatusOK,
+			data:       []byte("Hello, World!"),
+			headers: map[string]string{
+				"Cache-Control": fmt.Sprintf("max-age=%d", int(time.Hour.Seconds()*24)),
+			},
+		}
+		client := cacheHTTPResponses(requestSink)
+
+		_, err := client.Do(httpRequest)
+		require.NoError(t, err)
+		assert.LessOrEqual(t, time.Now().Sub(client.head.expirationTime), time.Hour)
 	})
 	t.Run("2 cache entries with different query parameters", func(t *testing.T) {
 		requestSink := &stubRequestDoer{
@@ -94,16 +128,62 @@ func Test_httpClientCache(t *testing.T) {
 			},
 		}
 		client := cacheHTTPResponses(requestSink)
-		client.MaxBytes = 14
-		client.currentSizeBytes = 5
-		client.head = &cacheEntry{
-			responseData: []byte("Hello"),
-			requestURL:   test.MustParseURL("http://example.com"),
-		}
+		client.maxBytes = 14
+		client.insert(&cacheEntry{
+			responseData:   []byte("Hello"),
+			requestURL:     test.MustParseURL("http://example.com"),
+			expirationTime: time.Now().Add(time.Hour),
+		})
 
 		_, err := client.Do(httpRequest)
 		require.NoError(t, err)
 		assert.Equal(t, 13, client.currentSizeBytes)
+	})
+	t.Run("orders entries by expirationTime for optimized pruning", func(t *testing.T) {
+		requestSink := &stubRequestDoer{
+			statusCode: http.StatusOK,
+			data:       []byte("Hello, World!"),
+			headers: map[string]string{
+				"Cache-Control": "max-age=3600",
+			},
+		}
+		client := cacheHTTPResponses(requestSink)
+		client.maxBytes = 10000
+		client.insert(&cacheEntry{
+			responseData:   []byte("Hello"),
+			requestURL:     test.MustParseURL("http://example.com/3"),
+			expirationTime: time.Now().Add(time.Hour * 3),
+		})
+		assert.Equal(t, client.head.requestURL.String(), "http://example.com/3")
+		client.insert(&cacheEntry{
+			responseData:   []byte("Hello"),
+			requestURL:     test.MustParseURL("http://example.com/2"),
+			expirationTime: time.Now().Add(time.Hour * 2),
+		})
+		assert.Equal(t, client.head.requestURL.String(), "http://example.com/2")
+		client.insert(&cacheEntry{
+			responseData:   []byte("Hello"),
+			requestURL:     test.MustParseURL("http://example.com/1"),
+			expirationTime: time.Now().Add(time.Hour),
+		})
+		assert.Equal(t, client.head.requestURL.String(), "http://example.com/1")
+	})
+	t.Run("entries that exceed max cache size aren't cached", func(t *testing.T) {
+		requestSink := &stubRequestDoer{
+			statusCode: http.StatusOK,
+			data:       []byte("Hello, World!"),
+			headers: map[string]string{
+				"Cache-Control": "max-age=3600",
+			},
+		}
+		client := cacheHTTPResponses(requestSink)
+		client.maxBytes = 5
+
+		httpResponse, err := client.Do(httpRequest)
+		require.NoError(t, err)
+		data, _ := io.ReadAll(httpResponse.Body)
+		assert.Equal(t, "Hello, World!", string(data))
+		assert.Equal(t, 0, client.currentSizeBytes)
 	})
 }
 

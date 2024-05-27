@@ -13,17 +13,19 @@ import (
 	"time"
 )
 
-// CachingHTTPRequestDoer is a cache for HTTP responses for DID/OAuth2/OpenID/StatusList2021 clients.
+// CachingHTTPRequestDoer is a cache for HTTP responses for DID/OAuth2/OpenID clients.
 // It only caches GET requests (since generally only metadata is cacheable), and only if the response is cacheable.
+// It only works on expiration time and does not respect ETags headers.
 type CachingHTTPRequestDoer struct {
-	MaxBytes int
-	Doer     core.HTTPRequestDoer
+	maxBytes    int
+	requestDoer core.HTTPRequestDoer
 
 	// currentSizeBytes is the current size of the cache in bytes.
 	// It's used to make room for new entries when the cache is full.
 	currentSizeBytes int
 	// head is the first entry of a linked list of cache entries, ordered by expiration time.
 	// The first entry is the one that will expire first, which optimizes the removal of expired entries.
+	// When an entry is inserted in the cache, it's inserted in the right place in the linked list (ordered by expiry).
 	head *cacheEntry
 	// entriesByURL is a map of cache entries, indexed by the URL of the request.
 	// This optimizes the lookup of cache entries by URL.
@@ -49,7 +51,7 @@ func (h *CachingHTTPRequestDoer) Do(httpRequest *http.Request) (*http.Response, 
 		}
 	}
 
-	httpResponse, err := h.Doer.Do(httpRequest)
+	httpResponse, err := h.requestDoer.Do(httpRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +59,15 @@ func (h *CachingHTTPRequestDoer) Do(httpRequest *http.Request) (*http.Response, 
 		reasons, expirationTime, err := cachecontrol.CachableResponse(httpRequest, httpResponse, cachecontrol.Options{PrivateCache: false})
 		if err != nil {
 			log.Logger().WithError(err).Infof("error while checking cacheability of response (url=%s), not caching", httpRequest.URL.String())
+			return httpResponse, nil
 		}
-		if len(reasons) > 0 {
+		// We don't want to cache responses for too long, as that increases the risk of staleness,
+		// and could keep cause very long-lived entries to never be pruned.
+		maxExpirationTime := time.Now().Add(time.Hour)
+		if expirationTime.After(maxExpirationTime) {
+			expirationTime = maxExpirationTime
+		}
+		if len(reasons) > 0 || expirationTime.IsZero() {
 			log.Logger().Debugf("response (url=%s) is not cacheable: %v", httpRequest.URL.String(), reasons)
 			return httpResponse, nil
 		}
@@ -68,7 +77,7 @@ func (h *CachingHTTPRequestDoer) Do(httpRequest *http.Request) (*http.Response, 
 		}
 		h.mux.Lock()
 		defer h.mux.Unlock()
-		if len(responseBytes) <= h.MaxBytes { // sanity check
+		if len(responseBytes) <= h.maxBytes { // sanity check
 			h.insert(&cacheEntry{
 				responseData:    responseBytes,
 				requestMethod:   httpRequest.Method,
@@ -116,7 +125,7 @@ func (h *CachingHTTPRequestDoer) removeExpiredEntries() {
 // insert adds a new entry to the cache.
 func (h *CachingHTTPRequestDoer) insert(entry *cacheEntry) {
 	// See if we need to make room for the new entry
-	for h.currentSizeBytes+len(entry.responseData) >= h.MaxBytes {
+	for h.currentSizeBytes+len(entry.responseData) >= h.maxBytes {
 		_ = h.pop()
 	}
 	if h.head == nil {
@@ -127,6 +136,9 @@ func (h *CachingHTTPRequestDoer) insert(entry *cacheEntry) {
 		var current = h.head
 		for current.next != nil && current.next.expirationTime.Before(entry.expirationTime) {
 			current = current.next
+		}
+		if current == h.head {
+			h.head = entry
 		}
 		entry.next = current.next
 		current.next = entry
@@ -160,8 +172,8 @@ func (h *CachingHTTPRequestDoer) pop() *cacheEntry {
 
 func cacheHTTPResponses(requestDoer core.HTTPRequestDoer) *CachingHTTPRequestDoer {
 	return &CachingHTTPRequestDoer{
-		MaxBytes:     10 * 1024 * 1024,
-		Doer:         requestDoer,
+		maxBytes:     10 * 1024 * 1024,
+		requestDoer:  requestDoer,
 		entriesByURL: map[string][]*cacheEntry{},
 		mux:          sync.RWMutex{},
 	}
