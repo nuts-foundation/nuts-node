@@ -56,7 +56,7 @@ func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner
 	return &OpenID4VPClient{
 		httpClient: HTTPClient{
 			strictMode: strictMode,
-			httpClient: core.NewStrictHTTPClient(strictMode, httpClientTimeout, nil),
+			httpClient: cacheHTTPResponses(core.NewStrictHTTPClient(strictMode, httpClientTimeout, nil)),
 		},
 		keyResolver: keyResolver,
 		jwtSigner:   jwtSigner,
