@@ -125,11 +125,15 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 		require.NoError(t, err)
 		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
-		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
-		assert.Equal(t, "DPoP", tokenResponse.TokenType)
-		assert.Equal(t, requestedScope, *tokenResponse.Scope)
-		assert.Equal(t, int(accessTokenValidity.Seconds()), *tokenResponse.ExpiresIn)
-		assert.NotEmpty(t, tokenResponse.AccessToken)
+		// Assert access token
+		tokenResponse := resp.(HandleTokenRequest200JSONResponse)
+		assert.Equal(t, "DPoP", tokenResponse.Body.TokenType)
+		assert.Equal(t, requestedScope, *tokenResponse.Body.Scope)
+		assert.Equal(t, int(accessTokenValidity.Seconds()), *tokenResponse.Body.ExpiresIn)
+		assert.NotEmpty(t, tokenResponse.Body.AccessToken)
+		// Assert caching headers
+		assert.Equal(t, "no-cache", tokenResponse.Headers.CacheControl)
+		assert.Equal(t, "no-cache", tokenResponse.Headers.Pragma)
 	})
 	t.Run("missing presentation expiry date", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -173,11 +177,11 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 		require.NoError(t, err)
 		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
-		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
-		assert.Equal(t, "DPoP", tokenResponse.TokenType)
-		assert.Equal(t, requestedScope, *tokenResponse.Scope)
-		assert.Equal(t, int(accessTokenValidity.Seconds()), *tokenResponse.ExpiresIn)
-		assert.NotEmpty(t, tokenResponse.AccessToken)
+		tokenResponse := resp.(HandleTokenRequest200JSONResponse)
+		assert.Equal(t, "DPoP", tokenResponse.Body.TokenType)
+		assert.Equal(t, requestedScope, *tokenResponse.Body.Scope)
+		assert.Equal(t, int(accessTokenValidity.Seconds()), *tokenResponse.Body.ExpiresIn)
+		assert.NotEmpty(t, tokenResponse.Body.AccessToken)
 	})
 	t.Run("VP is not valid JSON", func(t *testing.T) {
 		ctx := newTestClient(t)

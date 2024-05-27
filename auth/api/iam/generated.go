@@ -1772,13 +1772,23 @@ type HandleTokenRequestResponseObject interface {
 	VisitHandleTokenRequestResponse(w http.ResponseWriter) error
 }
 
-type HandleTokenRequest200JSONResponse TokenResponse
+type HandleTokenRequest200ResponseHeaders struct {
+	CacheControl string
+	Pragma       string
+}
+
+type HandleTokenRequest200JSONResponse struct {
+	Body    TokenResponse
+	Headers HandleTokenRequest200ResponseHeaders
+}
 
 func (response HandleTokenRequest200JSONResponse) VisitHandleTokenRequestResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", fmt.Sprint(response.Headers.CacheControl))
+	w.Header().Set("Pragma", fmt.Sprint(response.Headers.Pragma))
 	w.WriteHeader(200)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type HandleTokenRequestdefaultJSONResponse struct {

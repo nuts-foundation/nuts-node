@@ -113,7 +113,13 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	if err != nil {
 		return nil, err
 	}
-	return HandleTokenRequest200JSONResponse(*response), nil
+	return HandleTokenRequest200JSONResponse{
+		Body: *response,
+		Headers: HandleTokenRequest200ResponseHeaders{
+			CacheControl: "no-cache",
+			Pragma:       "no-cache",
+		},
+	}, nil
 }
 
 func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {
