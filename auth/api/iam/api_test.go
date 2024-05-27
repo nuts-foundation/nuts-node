@@ -710,7 +710,7 @@ func TestWrapper_Routes(t *testing.T) {
 			storageEngine: storage.NewTestStorageEngine(t),
 		}).Routes(router)
 	})
-	t.Run("middleware cache-control: max-age URLs match registered paths", func(t *testing.T) {
+	t.Run("cache middleware URLs match registered paths", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		router := core.NewMockEchoRouter(ctrl)
 
@@ -719,12 +719,19 @@ func TestWrapper_Routes(t *testing.T) {
 			registeredPaths = append(registeredPaths, path)
 			return nil
 		}).AnyTimes()
-		router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+		router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(path string, _ echo.HandlerFunc, _ ...echo.MiddlewareFunc) *echo.Route {
+			registeredPaths = append(registeredPaths, path)
+			return nil
+		}).AnyTimes()
 		router.EXPECT().Use(gomock.Any()).AnyTimes()
 		(&Wrapper{}).Routes(router)
 
 		// Check that all cache-control max-age paths are actual paths
 		for _, path := range cacheControlMaxAgeURLs {
+			assert.Contains(t, registeredPaths, path)
+		}
+		// Check that all cache-control no-cache paths are actual paths
+		for _, path := range cacheControlNoCacheURLs {
 			assert.Contains(t, registeredPaths, path)
 		}
 	})

@@ -87,13 +87,6 @@ paths:
       responses:
         "200":
           description: OK
-          headers:
-            Cache-Control:
-              schema:
-                type: string
-            Pragma:
-              schema:
-                type: string
           content:
             application/json:
               schema:

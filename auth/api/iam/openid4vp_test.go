@@ -659,14 +659,10 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		require.NoError(t, err)
 		token, ok := response.(HandleTokenRequest200JSONResponse)
 		require.True(t, ok)
-		// Assert access token
-		assert.NotEmpty(t, token.Body.AccessToken)
-		assert.Equal(t, "DPoP", token.Body.TokenType)
-		assert.Equal(t, 900, *token.Body.ExpiresIn)
-		assert.Equal(t, "scope", *token.Body.Scope)
-		// Assert proper caching headers (as specified by OAuth2 RFC)
-		assert.Equal(t, "no-cache", token.Headers.CacheControl)
-		assert.Equal(t, "no-cache", token.Headers.Pragma)
+		assert.NotEmpty(t, token.AccessToken)
+		assert.Equal(t, "DPoP", token.TokenType)
+		assert.Equal(t, 900, *token.ExpiresIn)
+		assert.Equal(t, "scope", *token.Scope)
 		// authz code is burned
 		assert.ErrorIs(t, ctx.client.oauthCodeStore().Get(code, new(OAuthSession)), storage.ErrNotFound)
 	})

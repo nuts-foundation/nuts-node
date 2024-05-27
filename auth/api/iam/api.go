@@ -83,6 +83,11 @@ var cacheControlMaxAgeURLs = []string{
 	"/statuslist/:did/:page",
 }
 
+// cacheControlNoCacheURLs holds API endpoints that should have a no-cache cache control header set.
+var cacheControlNoCacheURLs = []string{
+	"/oauth2/:did/token",
+}
+
 //go:embed assets
 var assetsFS embed.FS
 
@@ -142,7 +147,8 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			return next(c)
 		}
 	}, audit.Middleware(apiModuleName))
-	router.Use(cache.MaxAge(5*time.Minute, cacheControlMaxAgeURLs).Handle)
+	router.Use(cache.MaxAge(5*time.Minute, cacheControlMaxAgeURLs...).Handle)
+	router.Use(cache.NoCache(cacheControlNoCacheURLs...).Handle)
 	router.Use(user.SessionMiddleware{
 		Skipper: func(c echo.Context) bool {
 			// The following URLs require a user session:
