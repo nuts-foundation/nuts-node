@@ -742,7 +742,13 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	if err != nil {
 		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}
-	return HandleTokenRequest200JSONResponse(*response), nil
+	return HandleTokenRequest200JSONResponse{
+		Body: *response,
+		Headers: HandleTokenRequest200ResponseHeaders{
+			CacheControl: "no-cache",
+			Pragma:       "no-cache",
+		},
+	}, nil
 }
 
 func (r Wrapper) handleCallbackError(request CallbackRequestObject) (CallbackResponseObject, error) {
