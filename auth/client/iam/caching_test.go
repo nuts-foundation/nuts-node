@@ -95,20 +95,15 @@ func Test_httpClientCache(t *testing.T) {
 		}
 		client := cacheHTTPResponses(requestSink)
 		client.MaxBytes = 14
-		client.currentSizeBytes = 1
+		client.currentSizeBytes = 5
+		client.head = &cacheEntry{
+			responseData: []byte("Hello"),
+			requestURL:   test.MustParseURL("http://example.com"),
+		}
 
-		// Fill the cache
 		_, err := client.Do(httpRequest)
 		require.NoError(t, err)
-		_, err = client.Do(httpRequest)
-		require.NoError(t, err)
 		assert.Equal(t, 13, client.currentSizeBytes)
-
-		// Add a new entry, should prune the first one
-		_, err = client.Do(httpRequest)
-		require.NoError(t, err)
-		assert.Equal(t, 13, client.currentSizeBytes)
-		assert.Equal(t, 2, requestSink.invocations)
 	})
 }
 

@@ -68,15 +68,17 @@ func (h *CachingHTTPRequestDoer) Do(httpRequest *http.Request) (*http.Response, 
 		}
 		h.mux.Lock()
 		defer h.mux.Unlock()
-		h.insert(&cacheEntry{
-			responseData:    responseBytes,
-			requestMethod:   httpRequest.Method,
-			requestURL:      httpRequest.URL,
-			requestRawQuery: httpRequest.URL.RawQuery,
-			responseStatus:  httpResponse.StatusCode,
-			responseHeaders: httpResponse.Header,
-			expirationTime:  expirationTime,
-		})
+		if len(responseBytes) <= h.MaxBytes { // sanity check
+			h.insert(&cacheEntry{
+				responseData:    responseBytes,
+				requestMethod:   httpRequest.Method,
+				requestURL:      httpRequest.URL,
+				requestRawQuery: httpRequest.URL.RawQuery,
+				responseStatus:  httpResponse.StatusCode,
+				responseHeaders: httpResponse.Header,
+				expirationTime:  expirationTime,
+			})
+		}
 		httpResponse.Body = io.NopCloser(bytes.NewReader(responseBytes))
 	}
 	return httpResponse, nil
@@ -111,15 +113,12 @@ func (h *CachingHTTPRequestDoer) removeExpiredEntries() {
 	}
 }
 
-func (h *CachingHTTPRequestDoer) prune(bytesRequired int) {
-	// See if we need to make room for the new entry
-	for h.currentSizeBytes+bytesRequired >= h.MaxBytes {
-		_ = h.pop()
-	}
-}
-
 // insert adds a new entry to the cache.
 func (h *CachingHTTPRequestDoer) insert(entry *cacheEntry) {
+	// See if we need to make room for the new entry
+	for h.currentSizeBytes+len(entry.responseData) >= h.MaxBytes {
+		_ = h.pop()
+	}
 	if h.head == nil {
 		// First entry
 		h.head = entry
@@ -140,6 +139,9 @@ func (h *CachingHTTPRequestDoer) insert(entry *cacheEntry) {
 
 // pop removes the first entry from the linked list
 func (h *CachingHTTPRequestDoer) pop() *cacheEntry {
+	if h.head == nil {
+		return nil
+	}
 	requestURL := h.head.requestURL.String()
 	entries := h.entriesByURL[requestURL]
 	for i, entry := range entries {
