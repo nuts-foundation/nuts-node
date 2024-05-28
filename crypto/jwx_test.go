@@ -174,7 +174,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		assert.Equal(t, kid, actualKID)
 	})
 	t.Run("creates valid JWT using external key", func(t *testing.T) {
-		keyPair, _ := generateECKeyPair()
+		keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		key := &wrappedSigner{keyPair}
 
 		ctrl := gomock.NewController(t)
@@ -244,7 +244,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 		assert.Equal(t, "nuts", body["iss"])
 	})
 	t.Run("creates valid JWS using external key", func(t *testing.T) {
-		keyPair, _ := generateECKeyPair()
+		keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		key := &wrappedSigner{keyPair}
 
 		ctrl := gomock.NewController(t)
