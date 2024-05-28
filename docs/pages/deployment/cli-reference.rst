@@ -20,7 +20,7 @@ The following options apply to the server commands below:
       --auth.irma.schememanager string                    IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'. (default "pbdf")
       --configfile string                                 Nuts config file (default "./config/nuts.yaml")
       --cpuprofile string                                 When set, a CPU profile is written to the given path. Ignored when strictmode is set.
-      --crypto.storage string                             Storage to use, 'fs' for file system (for development purposes), 'vaultkv' for HashiCorp Vault KV store, 'external' for an external backend (deprecated).
+      --crypto.storage string                             Storage to use, 'fs' for file system (for development purposes), 'vaultkv' for HashiCorp Vault KV store,'external' for an external backend (deprecated).
       --crypto.vault.address string                       The Vault address. If set it overwrites the VAULT_ADDR env var.
       --crypto.vault.pathprefix string                    The Vault path prefix. (default "kv")
       --crypto.vault.timeout duration                     Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s). (default 5s)
