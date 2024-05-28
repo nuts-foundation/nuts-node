@@ -20,6 +20,7 @@ package crypto
 
 import (
 	"context"
+	"crypto"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
@@ -42,7 +43,15 @@ func (m MemoryJWTSigner) SignJWT(_ context.Context, claims map[string]interface{
 	if keyID != m.Key.KeyID() {
 		return "", ErrPrivateKeyNotFound
 	}
-	return signJWT(m.Key, claims, headers)
+	var signer crypto.Signer
+	if err := m.Key.Raw(&signer); err != nil {
+		return "", err
+	}
+	alg, err := signingAlg(signer.Public())
+	if err != nil {
+		return "", err
+	}
+	return signJWT(signer, alg, claims, headerWithKID(headers, keyID))
 }
 
 func (m MemoryJWTSigner) SignJWS(_ context.Context, _ []byte, _ map[string]interface{}, _ interface{}, _ bool) (string, error) {

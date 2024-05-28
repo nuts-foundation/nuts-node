@@ -24,11 +24,11 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/base64"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"net/http"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/assert"
@@ -66,31 +66,29 @@ func TestDPoP_Proof(t *testing.T) {
 }
 
 func TestDPoP_Sign(t *testing.T) {
+	const alg = jwa.ES256
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	jwkKey, _ := jwk.FromRaw(keyPair)
-	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256)
-	publicKey, _ := jwkKey.PublicKey()
 	request, _ := http.NewRequest("POST", "https://server.example.com/token", nil)
 
 	t.Run("ok", func(t *testing.T) {
 		token := New(*request)
 		token.GenerateProof("token")
 
-		tokenString, err := token.Sign(jwkKey)
+		tokenString, err := token.Sign(keyPair, alg)
 
 		require.NoError(t, err)
 		// check if jwk header is set and if the private part of the is omitted
 		message, err := jws.ParseString(tokenString)
 		require.NoError(t, err)
-		jwk, ok := message.Signatures()[0].ProtectedHeaders().Get(jws.JWKKey)
+		actualJWK, ok := message.Signatures()[0].ProtectedHeaders().Get(jws.JWKKey)
 		require.True(t, ok)
-		assert.Equal(t, publicKey, jwk)
+		assert.Equal(t, alg, actualJWK.(jwk.Key).Algorithm())
 	})
 	t.Run("already signed", func(t *testing.T) {
 		token := New(*request)
-		_, _ = token.Sign(jwkKey)
+		_, _ = token.Sign(keyPair, alg)
 
-		_, err := token.Sign(nil)
+		_, err := token.Sign(keyPair, alg)
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "already signed")
@@ -98,6 +96,7 @@ func TestDPoP_Sign(t *testing.T) {
 }
 
 func TestParseDPoP(t *testing.T) {
+	const alg = jwa.ES256
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	jwkKey, _ := jwk.FromRaw(keyPair)
 	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256)
@@ -106,7 +105,7 @@ func TestParseDPoP(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		dpopToken := New(*request)
-		dpopString, err := dpopToken.Sign(jwkKey)
+		dpopString, err := dpopToken.Sign(keyPair, alg)
 		require.NoError(t, err)
 
 		token, err := Parse(dpopString)
@@ -135,7 +134,7 @@ func TestParseDPoP(t *testing.T) {
 	t.Run("invalid type", func(t *testing.T) {
 		dpopToken := New(*request)
 		dpopToken.Headers.Set(jws.TypeKey, "JWT")
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 
 		_, err := Parse(dpopString)
 
@@ -169,7 +168,7 @@ func TestParseDPoP(t *testing.T) {
 	})
 	t.Run("jwt parsing failed due to wrong signature", func(t *testing.T) {
 		dpopToken := New(*request)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 
 		_, err := Parse(dpopString + "0")
 
@@ -179,7 +178,7 @@ func TestParseDPoP(t *testing.T) {
 	t.Run("missing iat claim", func(t *testing.T) {
 		dpopToken := New(*request)
 		_ = dpopToken.Token.Remove(jwt.IssuedAtKey)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 
 		_, err := Parse(dpopString)
 
@@ -190,7 +189,7 @@ func TestParseDPoP(t *testing.T) {
 	t.Run("missing htu claim", func(t *testing.T) {
 		dpopToken := New(*request)
 		_ = dpopToken.Token.Remove(HTUKey)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 
 		_, err := Parse(dpopString)
 
@@ -200,7 +199,7 @@ func TestParseDPoP(t *testing.T) {
 	t.Run("missing htm claim", func(t *testing.T) {
 		dpopToken := New(*request)
 		_ = dpopToken.Token.Remove(HTMKey)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 
 		_, err := Parse(dpopString)
 
@@ -210,7 +209,7 @@ func TestParseDPoP(t *testing.T) {
 	t.Run("missing jti claim", func(t *testing.T) {
 		dpopToken := New(*request)
 		_ = dpopToken.Token.Remove(jwt.JwtIDKey)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 
 		_, err := Parse(dpopString)
 
@@ -222,7 +221,7 @@ func TestParseDPoP(t *testing.T) {
 		bytes := make([]byte, maxJtiLength+1)
 		_, _ = rand.Reader.Read(bytes)
 		dpopToken.Token.Set(jwt.JwtIDKey, string(bytes))
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 
 		_, err := Parse(dpopString)
 
@@ -232,6 +231,7 @@ func TestParseDPoP(t *testing.T) {
 }
 
 func TestDPoP_Match(t *testing.T) {
+	const alg = jwa.ES256
 	accessToken := "token"
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	jwkKey, _ := jwk.FromRaw(keyPair)
@@ -242,7 +242,7 @@ func TestDPoP_Match(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof(accessToken)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 		parsedToken, _ := Parse(dpopString)
 
 		ok, err := parsedToken.Match(thumbprintString, "POST", "https://server.example.com/token")
@@ -252,7 +252,7 @@ func TestDPoP_Match(t *testing.T) {
 	})
 	t.Run("ok with different port", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof(accessToken)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 		parsedToken, _ := Parse(dpopString)
 
 		ok, err := parsedToken.Match(thumbprintString, "POST", "https://server.example.com:443/token")
@@ -262,7 +262,7 @@ func TestDPoP_Match(t *testing.T) {
 	})
 	t.Run("ok with different scheme", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof(accessToken)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 		parsedToken, _ := Parse(dpopString)
 
 		ok, err := parsedToken.Match(thumbprintString, "POST", "http://server.example.com/token")
@@ -272,7 +272,7 @@ func TestDPoP_Match(t *testing.T) {
 	})
 	t.Run("ok with query/fragment", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof(accessToken)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 		parsedToken, _ := Parse(dpopString)
 
 		ok, err := parsedToken.Match(thumbprintString, "POST", "https://server.example.com/token?a=b#c")
@@ -282,7 +282,7 @@ func TestDPoP_Match(t *testing.T) {
 	})
 	t.Run("invalid thumbprint", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof(accessToken)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 		parsedToken, _ := Parse(dpopString)
 
 		ok, err := parsedToken.Match("jkt", "POST", "https://server.example.com/token")
@@ -293,7 +293,7 @@ func TestDPoP_Match(t *testing.T) {
 	})
 	t.Run("invalid method", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof(accessToken)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 		parsedToken, _ := Parse(dpopString)
 
 		ok, err := parsedToken.Match(thumbprintString, "GET", "https://server.example.com/token")
@@ -304,7 +304,7 @@ func TestDPoP_Match(t *testing.T) {
 	})
 	t.Run("invalid url", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof(accessToken)
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 		parsedToken, _ := Parse(dpopString)
 
 		ok, err := parsedToken.Match(thumbprintString, "POST", "https://server.example.com/token2")
@@ -316,6 +316,7 @@ func TestDPoP_Match(t *testing.T) {
 }
 
 func TestDPoP_marshalling(t *testing.T) {
+	const alg = jwa.ES256
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	jwkKey, _ := jwk.FromRaw(keyPair)
 	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256)
@@ -323,7 +324,7 @@ func TestDPoP_marshalling(t *testing.T) {
 
 	t.Run("marshal", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof("token")
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 
 		marshalled, err := dpopToken.MarshalJSON()
 
@@ -332,7 +333,7 @@ func TestDPoP_marshalling(t *testing.T) {
 	})
 	t.Run("unmarshal", func(t *testing.T) {
 		dpopToken := New(*request).GenerateProof("token")
-		dpopString, _ := dpopToken.Sign(jwkKey)
+		dpopString, _ := dpopToken.Sign(keyPair, alg)
 
 		var token DPoP
 		err := token.UnmarshalJSON([]byte("\"" + dpopString + "\""))
