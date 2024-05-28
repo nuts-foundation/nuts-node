@@ -20,7 +20,7 @@ The following options apply to the server commands below:
       --auth.irma.schememanager string                    IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'. (default "pbdf")
       --configfile string                                 Nuts config file (default "./config/nuts.yaml")
       --cpuprofile string                                 When set, a CPU profile is written to the given path. Ignored when strictmode is set.
-      --crypto.storage string                             Storage to use, 'fs' for file system (for development purposes), 'vaultkv' for HashiCorp Vault KV store,'external' for an external backend (deprecated).
+      --crypto.storage string                             Storage to use, 'fs' for file system (for development purposes), 'vaultkv' for HashiCorp Vault KV store, 'external' for an external backend (deprecated).
       --crypto.vault.address string                       The Vault address. If set it overwrites the VAULT_ADDR env var.
       --crypto.vault.pathprefix string                    The Vault path prefix. (default "kv")
       --crypto.vault.timeout duration                     Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s). (default 5s)
@@ -43,7 +43,7 @@ The following options apply to the server commands below:
       --http.public.address string                        Address and port the server will be listening to for public-facing endpoints. (default ":8080")
       --httpclient.timeout duration                       Request time-out for HTTP clients, such as '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 30s)
       --internalratelimiter                               When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString       This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://w3id.org/vc/status-list/2021/v1=assets/contexts/w3c-statuslist2021.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson])
+      --jsonld.contexts.localmapping stringToString       This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3id.org/vc/status-list/2021/v1=assets/contexts/w3c-statuslist2021.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings           In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json,https://w3id.org/vc/status-list/2021/v1])
       --loggerformat string                               Log format (text, json) (default "text")
       --network.bootstrapnodes strings                    List of bootstrap nodes ('<host>:<port>') which the node initially connect to.
@@ -96,16 +96,6 @@ Prints the current config
 ::
 
   nuts config [flags]
-
-
-nuts crypto fs2external
-^^^^^^^^^^^^^^^^^^^^^^^
-
-Imports private keys from filesystem based storage into the secret store server. The given directory must contain the private key files. The Nuts node must be configured to use storage-api as crypto storage. Can only be run on the local Nuts node, from the directory where nuts.yaml resides.
-
-::
-
-  nuts crypto fs2external [directory] [flags]
 
 
 nuts crypto fs2vault

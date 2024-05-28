@@ -60,43 +60,7 @@ func ServerCmd() *cobra.Command {
 		Short: "crypto commands",
 	}
 	cmd.AddCommand(fs2VaultCommand())
-	cmd.AddCommand(fs2ExternalStore())
 	return cmd
-}
-
-func fs2ExternalStore() *cobra.Command {
-	return &cobra.Command{
-		Use:   "fs2external [directory]",
-		Short: "Imports private keys from filesystem based storage (located at the given directory) into the storage server.",
-		Long: "Imports private keys from filesystem based storage into the secret store server. The given directory must contain the private key files. " +
-			"The Nuts node must be configured to use storage-api as crypto storage. Can only be run on the local Nuts node, from the directory where nuts.yaml resides.",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Println("Exporting keys from FileSystem storage to the external storage service...")
-
-			instance, err := LoadCryptoModule(cmd)
-			if err != nil {
-				return err
-			}
-			config := instance.Config().(*cryptoEngine.Config)
-			targetStorage, err := external.NewAPIClient(config.External)
-			if err != nil {
-				return fmt.Errorf("unable to set up external crypto API client: %w", err)
-			}
-
-			directory := args[0]
-			keys, err := fsToOtherStorage(cmd.Context(), directory, targetStorage)
-			cmd.Println(fmt.Sprintf("Imported %d keys:", len(keys)))
-			for _, key := range keys {
-				cmd.Println("  ", key)
-			}
-			if err != nil {
-				cmd.Println("Failed to import all fs keys into external store:", err)
-				return err
-			}
-			return nil
-		},
-	}
 }
 
 func fs2VaultCommand() *cobra.Command {
