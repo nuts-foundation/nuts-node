@@ -190,3 +190,10 @@ require (
 	modernc.org/sqlite v1.29.8 // indirect
 	rsc.io/qr v0.2.0 // indirect
 )
+
+require (
+	github.com/coreos/go-oidc/v3 v3.10.0 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
+	golang.org/x/oauth2 v0.18.0 // indirect
+	google.golang.org/appengine v1.6.8 // indirect
+)

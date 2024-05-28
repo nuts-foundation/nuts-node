@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"golang.org/x/oauth2"
 	"net/http"
 	"time"
 )
@@ -60,6 +61,12 @@ type Middleware struct {
 	Store storage.SessionStore
 	// CookiePath is a function that returns the path for the user session cookie.
 	CookiePath func(tenantDID did.DID) string
+	OIDCConfig *OIDCConfig
+}
+
+type OIDCConfig struct {
+	ClientID     string
+	ClientSecret string
 }
 
 func (u Middleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
@@ -83,6 +90,17 @@ func (u Middleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
 			log.Logger().WithError(err).Info("Invalid user session, a new session will be created")
 		}
 		if sessionData == nil {
+			if u.OIDCConfig != nil {
+
+				oauth2.Config{
+					ClientID:     "",
+					ClientSecret: "",
+					Endpoint:     oauth2.Endpoint{},
+					RedirectURL:  "",
+					Scopes:       nil,
+				}
+			}
+
 			sessionData, err = createUserSession(*tenantDID, u.TimeOut)
 			sessionID = crypto.GenerateNonce()
 			if err := u.Store.Put(sessionID, sessionData); err != nil {
