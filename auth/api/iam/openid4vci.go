@@ -29,17 +29,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
-func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request RequestOid4vciCredentialIssuanceRequestObject) (RequestOid4vciCredentialIssuanceResponseObject, error) {
+func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error) {
 	if request.Body == nil {
 		// why did oapi-codegen generate a pointer for the body??
 		return nil, core.InvalidInputError("missing request body")
@@ -79,24 +76,21 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 	pkceParams := generatePKCEParams()
 
 	// Figure out our own redirect URL by parsing the did:web and extracting the host.
-	requesterDidUrl, err := didweb.DIDToURL(*requestHolder)
+	redirectUri, err := createOAuth2BaseURL(*requestHolder)
 	if err != nil {
-		return nil, fmt.Errorf("failed convert did (%s) to url: %w", requestHolder.String(), err)
+		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
 	}
-	redirectUri, err := url.Parse(fmt.Sprintf("https://%s/iam/oid4vci/callback", requesterDidUrl.Host))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create the url for host: %w", err)
-	}
+	redirectUri = redirectUri.JoinPath(oauth.CallbackPath)
 	// Store the session
-	err = r.openid4vciSessionStore().Put(state, &Oid4vciSession{
-		HolderDid:         requestHolder,
-		IssuerDid:         issuerDid,
-		RemoteRedirectUri: request.Body.RedirectUri,
-		RedirectUri:       redirectUri.String(),
-		PKCEParams:        pkceParams,
+	err = r.oauthClientStateStore().Put(state, &OAuthSession{
+		ClientFlow:  "openid4vci_credential_request",
+		OwnDID:      requestHolder,
+		OtherDID:    issuerDid,
+		RedirectURI: request.Body.RedirectUri,
+		PKCEParams:  pkceParams,
 		// OpenID4VCI issuers may use multiple Authorization Servers
 		// We must use the token_endpoint that corresponds to the same Authorization Server used for the authorization_endpoint
-		IssuerTokenEndpoint:      authzServerMetadata.TokenEndpoint,
+		TokenEndpoint:            authzServerMetadata.TokenEndpoint,
 		IssuerCredentialEndpoint: credentialIssuerMetadata.CredentialEndpoint,
 	})
 	if err != nil {
@@ -111,77 +105,65 @@ func (r Wrapper) RequestOid4vciCredentialIssuance(ctx context.Context, request R
 		oauth.ResponseTypeParam:         oauth.CodeResponseType,
 		oauth.StateParam:                state,
 		oauth.ClientIDParam:             requestHolder.String(),
+		oauth.ClientIDSchemeParam:       didClientIDScheme,
 		oauth.AuthorizationDetailsParam: string(authorizationDetails),
 		oauth.RedirectURIParam:          redirectUri.String(),
 		oauth.CodeChallengeParam:        pkceParams.Challenge,
 		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
 	})
 
-	return RequestOid4vciCredentialIssuance200JSONResponse{
+	return RequestOpenid4VCICredentialIssuance200JSONResponse{
 		RedirectURI: redirectUrl.String(),
 	}, nil
 }
 
-func (r Wrapper) CallbackOid4vciCredentialIssuance(ctx context.Context, request CallbackOid4vciCredentialIssuanceRequestObject) (CallbackOid4vciCredentialIssuanceResponseObject, error) {
-	state := request.Params.State
-	oid4vciSession := Oid4vciSession{}
-	err := r.openid4vciSessionStore().Get(state, &oid4vciSession)
+func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode string, oauthSession *OAuthSession) (CallbackResponseObject, error) {
+	// extract callback URI at calling app from OAuthSession
+	// this is the URI where the user-agent will be redirected to
+	appCallbackURI := oauthSession.redirectURI()
+
+	checkURL, err := createOAuth2BaseURL(*oauthSession.OwnDID)
 	if err != nil {
-		return nil, core.NotFoundError("Cannot locate active session for state: %s", state)
+		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
 	}
-	if request.Params.Error != nil {
-		errorCode := oauth.ErrorCode(*request.Params.Error)
-		errorDescription := ""
-		if request.Params.ErrorDescription != nil {
-			errorDescription = *request.Params.ErrorDescription
-		} else {
-			errorDescription = fmt.Sprintf("Issuer returned error code: %s", *request.Params.Error)
-		}
-		return nil, withCallbackURI(oauthError(errorCode, errorDescription), oid4vciSession.remoteRedirectUri())
-	}
-	code := request.Params.Code
-	pkceParams := oid4vciSession.PKCEParams
-	issuerDid := oid4vciSession.IssuerDid
-	holderDid := oid4vciSession.HolderDid
-	tokenEndpoint := oid4vciSession.IssuerTokenEndpoint
-	credentialEndpoint := oid4vciSession.IssuerCredentialEndpoint
+	checkURL = checkURL.JoinPath(oauth.CallbackPath)
+
+	// use code to request access token from remote token endpoint
+	response, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, false)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("cannot fetch the right endpoints: %s", err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", oauthSession.TokenEndpoint, err.Error())), appCallbackURI)
 	}
-	response, err := r.auth.IAMClient().AccessToken(ctx, code, tokenEndpoint, oid4vciSession.RedirectUri, *holderDid, pkceParams.Verifier, false)
+
+	// make proof and collect credential
+	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, *oauthSession.OtherDID, response.Get(oauth.CNonceParam))
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", tokenEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error building proof to fetch the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 	}
-	cNonce := response.Get(oauth.CNonceParam)
-	proofJWT, err := r.proofJwt(ctx, *holderDid, *issuerDid, &cNonce)
+	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, response.AccessToken, proofJWT)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error building proof to fetch the credential from endpoint %s, error: %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 	}
-	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, credentialEndpoint, response.AccessToken, proofJWT)
-	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", credentialEndpoint, err.Error())), oid4vciSession.remoteRedirectUri())
-	}
+	// validate credential
+	// TODO: check that issued credential is bound to DID that requested it (OwnDID)???
 	credential, err := vc.ParseVerifiableCredential(credentials.Credential)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentials.Credential, err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentials.Credential, err.Error())), appCallbackURI)
 	}
 	err = r.vcr.Verifier().Verify(*credential, true, true, nil)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while verifying the credential from issuer: %s, error: %s", credential.Issuer.String(), err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while verifying the credential from issuer: %s, error: %s", credential.Issuer.String(), err.Error())), appCallbackURI)
 	}
+	// store credential in wallet
 	err = r.vcr.Wallet().Put(ctx, *credential)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while storing credential with id: %s, error: %s", credential.ID, err.Error())), oid4vciSession.remoteRedirectUri())
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while storing credential with id: %s, error: %s", credential.ID, err.Error())), appCallbackURI)
 	}
-
-	log.Logger().Debugf("stored the credential with id: %s, now redirecting to %s", credential.ID, oid4vciSession.RemoteRedirectUri)
-
-	return CallbackOid4vciCredentialIssuance302Response{
-		Headers: CallbackOid4vciCredentialIssuance302ResponseHeaders{Location: oid4vciSession.RemoteRedirectUri},
+	return Callback302Response{
+		Headers: Callback302ResponseHeaders{Location: appCallbackURI.String()},
 	}, nil
 }
 
-func (r *Wrapper) proofJwt(ctx context.Context, holderDid did.DID, audienceDid did.DID, nonce *string) (string, error) {
+func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audienceDid did.DID, nonce string) (string, error) {
 	// TODO: is this the right key type?
 	kid, _, err := r.keyResolver.ResolveKey(holderDid, nil, resolver.NutsSigningKeyType)
 	if err != nil {
@@ -193,7 +175,7 @@ func (r *Wrapper) proofJwt(ctx context.Context, holderDid did.DID, audienceDid d
 		"aud": audienceDid.String(),
 		"jti": jti.String(),
 	}
-	if nonce != nil {
+	if nonce != "" {
 		claims["nonce"] = nonce
 	}
 	proofJwt, err := r.jwtSigner.SignJWT(ctx, claims, nil, kid.String())
@@ -201,9 +183,4 @@ func (r *Wrapper) proofJwt(ctx context.Context, holderDid did.DID, audienceDid d
 		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid.String(), err)
 	}
 	return proofJwt, nil
-}
-
-// openid4vciSessionStore is used by the Client to keep track of OpenID4VCI requests
-func (r Wrapper) openid4vciSessionStore() storage.SessionStore {
-	return r.storageEngine.GetSessionDatabase().GetStore(oid4vciSessionValidity, "openid4vci")
 }

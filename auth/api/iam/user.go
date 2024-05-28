@@ -133,13 +133,14 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	// create oauthSession with userID from request
 	// generate new sessionID and clientState with crypto.GenerateNonce()
 	oauthSession := OAuthSession{
+		ClientFlow:    "access_token_request",
 		ClientState:   crypto.GenerateNonce(),
 		OwnDID:        &redirectSession.OwnDID,
 		PKCEParams:    generatePKCEParams(),
 		RedirectURI:   accessTokenRequest.Body.RedirectUri,
 		SessionID:     redirectSession.SessionID,
 		UseDPoP:       useDPoP,
-		VerifierDID:   verifier,
+		OtherDID:      verifier,
 		TokenEndpoint: metadata.TokenEndpoint,
 	}
 	// store user session in session store under sessionID and clientState

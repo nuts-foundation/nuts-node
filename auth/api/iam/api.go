@@ -208,19 +208,52 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 }
 
 func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error) {
-	// check id in path
-	_, err := r.toOwnedDID(ctx, request.Did)
+	// validate request
+	// check did in path
+	ownDID, err := r.toOwnedDID(ctx, request.Did)
 	if err != nil {
-		// this is an OAuthError already, will be rendered as 400 but that's fine (for now) for an illegal id
 		return nil, err
 	}
-
-	// if error is present, delegate call to error handler
-	if request.Params.Error != nil {
-		return r.handleCallbackError(request)
+	// check if state is present and resolves to a client state
+	if request.Params.State == nil || *request.Params.State == "" {
+		return nil, oauthError(oauth.InvalidRequest, "missing state parameter")
+	}
+	oauthSession := new(OAuthSession)
+	if err = r.oauthClientStateStore().Get(*request.Params.State, oauthSession); err != nil {
+		return nil, oauthError(oauth.InvalidRequest, "invalid or expired state", err)
+	}
+	if !ownDID.Equals(*oauthSession.OwnDID) {
+		// TODO: this is a manipulated request, add error logging?
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "session DID does not match request"), oauthSession.redirectURI())
 	}
 
-	return r.handleCallback(ctx, request)
+	// if error is present, redirect error back to application initiating the flow
+	if request.Params.Error != nil && *request.Params.Error != "" {
+		requestErr := oauth.OAuth2Error{
+			Code:        oauth.ErrorCode(*request.Params.Error),
+			RedirectURI: oauthSession.redirectURI(),
+		}
+		if request.Params.ErrorDescription != nil {
+			requestErr.Description = *request.Params.ErrorDescription
+		}
+		return nil, requestErr
+	}
+
+	// check if code is present
+	if request.Params.Code == nil || *request.Params.Code == "" {
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "missing code parameter"), oauthSession.redirectURI())
+	}
+
+	// continue flow
+	switch oauthSession.ClientFlow {
+	case "openid4vci_credential_request":
+		return r.handleOpenID4VCICallback(ctx, *request.Params.Code, oauthSession)
+	case "access_token_request":
+		return r.handleCallback(ctx, *request.Params.Code, oauthSession)
+	default:
+		// programming error, should never happen
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "unknown client flow for callback: '"+oauthSession.ClientFlow+"'"), oauthSession.redirectURI())
+	}
 }
 
 func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error) {

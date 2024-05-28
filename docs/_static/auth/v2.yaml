@@ -208,7 +208,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/{did}/request-credential:
     post:
-      operationId: requestOid4vciCredentialIssuance
+      operationId: requestOpenid4VCICredentialIssuance
       summary: Start the Oid4VCI authorization flow.
       description: |
         Initiates an Oid4VCI flow to request an VC from a Credential Issuer.
