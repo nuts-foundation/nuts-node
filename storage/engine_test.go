@@ -104,6 +104,23 @@ func Test_engine_Shutdown(t *testing.T) {
 	})
 }
 
+func Test_engine_AzureSQLServer(t *testing.T) {
+	// Set env:
+	//  AZURE_TENANT_ID=73de52a2-551c-4fcf-a4a5-334f65383ed9 AZURE_CLIENT_ID=aff93857-e041-43d0-8e9f-b3caf761200e AZURE_CLIENT_SECRET=5277ef29-ae4a-48bb-b1df-b52f5dce94cb
+	//os.Setenv("AZURE_TENANT_ID", "73de52a2-551c-4fcf-a4a5-334f65383ed9")
+	//os.Setenv("AZURE_CLIENT_ID", "aff93857-e041-43d0-8e9f-b3caf761200e")
+	e := New().(*engine)
+	e.config.SQL.ConnectionString = "sqlserver://orcaazmssqlservertest.database.windows.net?database=orcaazmssqlservertest&fedauth=ActiveDirectoryMSI&log=128"
+	//e.config.SQL.ConnectionString = "sqlserver://orcaazmssqlservertest.database.windows.net:1433?database=orcaazmssqlservertest&encrypt=true&trustServerCertificate=false&hostNameInCertificate=*.database.windows.net&loginTimeout=30&Authentication=ActiveDirectoryIntegrated"
+	dataDir := io.TestDirectory(t)
+	require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+	require.NoError(t, e.Start())
+	t.Cleanup(func() {
+		_ = e.Shutdown()
+	})
+	assert.FileExists(t, path.Join(dataDir, "sqlite.db"))
+}
+
 func Test_engine_sqlDatabase(t *testing.T) {
 	t.Run("defaults to SQLite in data directory", func(t *testing.T) {
 		e := New()

@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/microsoft/go-mssqldb/azuread"
 	"os"
 	"path"
 	"strings"
@@ -193,6 +194,9 @@ func (e *engine) initSQLDatabase() error {
 		// MySQL DSN needs to be without mysql://
 		// See https://github.com/go-sql-driver/mysql#examples
 		connectionString = strings.TrimPrefix(connectionString, "mysql://")
+	} else if dbType == "sqlserver" {
+		// Use azuresql driver which wraps MS SQL Server driver, but adds Azure AD token provider.
+		dbType = azuread.DriverName
 	}
 	db, err := goose.OpenDBWithDriver(dbType, connectionString)
 	if err != nil {
@@ -236,10 +240,13 @@ func (e *engine) initSQLDatabase() error {
 			Conn: db,
 		}), gormConfig)
 		dialect = goose.DialectPostgres
+	case azuread.DriverName:
+		fallthrough
 	case "sqlserver":
 		_ = os.Setenv("TEXT_TYPE", "VARCHAR(MAX)")
 		e.sqlDB, _ = gorm.Open(sqlserver.New(sqlserver.Config{
-			Conn: db,
+			Conn:       db,
+			DriverName: azuread.DriverName,
 		}), gormConfig)
 		dialect = goose.DialectMSSQL
 	default:
