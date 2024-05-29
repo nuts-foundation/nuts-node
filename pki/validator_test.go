@@ -27,15 +27,15 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
-	"go.uber.org/goleak"
-	"go.uber.org/mock/gomock"
 	"math/big"
 	"net/http"
 	"os"
 	"sync"
 	"testing"
-	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"go.uber.org/goleak"
+	"go.uber.org/mock/gomock"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,6 +54,7 @@ var crlPathMap = map[string]string{
 	"/RootCALatest.crl":          testdatapath + "/RootCALatest.crl",
 	"/IntermediateCAALatest.crl": testdatapath + "/IntermediateCAALatest.crl",
 	"/IntermediateCABLatest.crl": "does not exist",
+	"/IntermediateCACLatest.crl": testdatapath + "/IntermediateCACLatest.crl",
 }
 
 func TestValidator_Start(t *testing.T) {
@@ -93,6 +94,7 @@ func TestValidator_Validate(t *testing.T) {
 	validCertA := loadCert(t, testdatapath+"/A-valid.pem")
 	revokedCertA := loadCert(t, testdatapath+"/A-revoked.pem")
 	validCertBWithRevokedCA := loadCert(t, testdatapath+"/B-valid_revoked-CA.pem")
+	validCertC := loadCert(t, testdatapath+"/C-valid.pem")
 
 	block, _ := pem.Decode([]byte(bannedTestCertificate))
 	bannedCert, err := x509.ParseCertificate(block.Bytes)
@@ -131,10 +133,7 @@ func TestValidator_Validate(t *testing.T) {
 		testSoftHard(t, val, validCertBWithRevokedCA, nil, ErrCRLMissing)
 	})
 	t.Run("expired crl", func(t *testing.T) {
-		nowFunc = func() time.Time { return time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC) }
-		defer func() { nowFunc = time.Now }()
-
-		testSoftHard(t, val, validCertA, nil, ErrCRLExpired)
+		testSoftHard(t, val, validCertC, nil, ErrCRLExpired)
 	})
 	t.Run("blocked cert", func(t *testing.T) {
 		ts := denylistTestServer(trustedDenylist(t))
@@ -391,7 +390,7 @@ func Test_ValidatorUpdateCRL(t *testing.T) {
 func testValidator(t *testing.T) *validator {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
-	require.Len(t, store.Certificates(), 3)
+	require.Len(t, store.Certificates(), 4)
 	val, err := newValidatorWithHTTPClient(DefaultConfig(), newClient())
 	require.NoError(t, err)
 	require.NoError(t, val.AddTruststore(store.Certificates()))
