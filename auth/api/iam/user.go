@@ -140,7 +140,6 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		RedirectURI:   accessTokenRequest.Body.RedirectUri,
 		SessionID:     redirectSession.SessionID,
 		UseDPoP:       useDPoP,
-		OtherDID:      verifier,
 		TokenEndpoint: metadata.TokenEndpoint,
 	}
 	// store user session in session store under sessionID and clientState

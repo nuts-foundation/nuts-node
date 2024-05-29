@@ -25,16 +25,23 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
-	"github.com/google/uuid"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
+
+var timeFunc = time.Now
+
+// jwtTypeOpenID4VCIProof defines the OpenID4VCI JWT-subtype (used as typ claim in the JWT).
+const jwtTypeOpenID4VCIProof = "openid4vci-proof+jwt"
 
 func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error) {
 	if request.Body == nil {
@@ -164,21 +171,28 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 }
 
 func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audienceDid did.DID, nonce string) (string, error) {
-	// TODO: is this the right key type?
-	kid, _, err := r.keyResolver.ResolveKey(holderDid, nil, resolver.NutsSigningKeyType)
+	kid, _, err := r.keyResolver.ResolveKey(holderDid, nil, resolver.AssertionMethod)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve key for did (%s): %w", holderDid.String(), err)
 	}
-	jti, _ := uuid.NewUUID()
+	headers := map[string]interface{}{
+		"typ": jwtTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
+		"kid": kid.String(),           // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
+	}
+	audURL, err := didweb.DIDToURL(audienceDid)
+	if err != nil {
+		// can't fail or would have failed before
+		return "", err
+	}
 	claims := map[string]interface{}{
-		"iss": holderDid.String(),
-		"aud": audienceDid.String(),
-		"jti": jti.String(),
+		jwt.IssuerKey:   holderDid.String(),
+		jwt.AudienceKey: audURL.String(), // Credential Issuer Identifier (did:web URL)
+		jwt.IssuedAtKey: timeFunc().Unix(),
 	}
 	if nonce != "" {
-		claims["nonce"] = nonce
+		claims[oauth.NonceParam] = nonce
 	}
-	proofJwt, err := r.jwtSigner.SignJWT(ctx, claims, nil, kid.String())
+	proofJwt, err := r.jwtSigner.SignJWT(ctx, claims, headers, kid.String())
 	if err != nil {
 		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid.String(), err)
 	}

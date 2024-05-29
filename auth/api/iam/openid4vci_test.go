@@ -19,9 +19,11 @@
 package iam
 
 import (
+	"context"
 	"errors"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -228,16 +230,28 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 	}
 	tokenResponse := oauth.NewTokenResponse(accessToken, "Bearer", 0, "").With("c_nonce", cNonce)
 	credentialResponse := iam.CredentialResponse{
-		Format:     "jwt_vc",
 		Credential: verifiableCredential.Raw(),
 	}
+	now := time.Now()
+	timeFunc = func() time.Time { return now }
+	defer func() { timeFunc = time.Now }()
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.oauthClientStateStore().Put(state, &session))
 		ctx.vdr.EXPECT().IsOwner(nil, holderDID).Return(true, nil)
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderDID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
-		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").DoAndReturn(func(_ context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
+			assert.Equal(t, map[string]interface{}{"typ": "openid4vci-proof+jwt", "kid": "kid"}, headers)
+			expectedClaims := map[string]interface{}{
+				"iss":   holderDID.String(),
+				"aud":   issuerURL, // must be the URL, not the DID
+				"iat":   timeFunc().Unix(),
+				"nonce": cNonce,
+			}
+			assert.Equal(t, expectedClaims, claims)
+			return "signed-proof", nil
+		})
 		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(&credentialResponse, nil)
 		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
 		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
@@ -254,9 +268,6 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		assert.NotNil(t, callback)
 		actual := callback.(Callback302Response)
 		assert.Equal(t, redirectUrl, actual.Headers.Location)
-	})
-	t.Run("err - missing code", func(t *testing.T) {
-
 	})
 	t.Run("fail_access_token", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -286,7 +297,6 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("kid"), nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
 		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(&iam.CredentialResponse{
-			Format:     "jwt_vc",
 			Credential: "super invalid",
 		}, nil)
 

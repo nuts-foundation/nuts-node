@@ -389,12 +389,11 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		// handleAuthorizeRequestFromVerifier
 		_ = ctx.client.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...).Put("state", OAuthSession{
 			// this is the state from the holder that was stored at the creation of the first authorization request to the verifier
-			ClientID:     holderDID.String(),
-			Scope:        "test",
-			OwnDID:       &holderDID,
-			ClientState:  "state",
-			RedirectURI:  "https://example.com/iam/holder/cb",
-			ResponseType: "code",
+			ClientID:    holderDID.String(),
+			Scope:       "test",
+			OwnDID:      &holderDID,
+			ClientState: "state",
+			RedirectURI: "https://example.com/iam/holder/cb",
 		})
 		_ = ctx.client.userSessionStore().Put("session-id", UserSession{
 			TenantDID: holderDID,

@@ -42,13 +42,11 @@ type OAuthSession struct {
 	OtherDID          *did.DID     `json:"other_did,omitempty"`
 	PKCEParams        PKCEParams   `json:"pkce_params"`
 	RedirectURI       string       `json:"redirect_uri,omitempty"`
-	ResponseType      string       `json:"response_type,omitempty"`
 	Scope             string       `json:"scope,omitempty"`
 	SessionID         string       `json:"session_id,omitempty"`
 	TokenEndpoint     string       `json:"token_endpoint,omitempty"`
 	UseDPoP           bool         `json:"use_dpop,omitempty"`
-	// IssuerCredentialEndpoint: the endpoint for fetching the credential from the issuer with
-	// the access_token fetched from the TokenEndpoint.
+	// IssuerCredentialEndpoint: endpoint to exchange the access_token for a credential in the OpenID4VCI flow
 	IssuerCredentialEndpoint string `json:"issuer_credential_endpoint,omitempty"`
 }
 

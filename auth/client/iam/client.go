@@ -233,7 +233,6 @@ type CredentialRequestProof struct {
 // CredentialResponse represents the response of a verifiable credential request.
 // It contains the Format and the actual Credential in JSON format.
 type CredentialResponse struct {
-	Format     string `json:"format"`
 	Credential string `json:"credential"`
 }
 
