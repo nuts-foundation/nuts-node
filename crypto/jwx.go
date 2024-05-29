@@ -27,6 +27,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwe"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -112,11 +114,7 @@ func headerWithKID(headers map[string]interface{}, kid string) map[string]interf
 	// We want to set the kid claim as headers, but we don't want to modify the original headers map.
 	// So we copy the headers map and add the kid claim to it.
 	headersCopy := make(map[string]interface{})
-	if headers != nil {
-		for k, v := range headers {
-			headersCopy[k] = v
-		}
-	}
+	maps.Copy(headersCopy, headers)
 	headersCopy["kid"] = kid
 	return headersCopy
 }
@@ -351,11 +349,6 @@ func signingAlg(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 	default:
 		return "", fmt.Errorf(`could not determine signature algorithm for key type '%T'`, key)
 	}
-}
-
-func ecAlg(key *ecdsa.PrivateKey) (alg jwa.SignatureAlgorithm, err error) {
-	alg, err = ecAlgUsingPublicKey(key.PublicKey)
-	return
 }
 
 func ecAlgUsingPublicKey(key ecdsa.PublicKey) (alg jwa.SignatureAlgorithm, err error) {
