@@ -320,6 +320,9 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 		// User wallet
 		var privateKey jwk.Key
 		privateKey, err = userSession.Wallet.Key()
+		if err != nil {
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: "no key found", InternalError: err}, responseURI, state)
+		}
 		walletDID = userSession.Wallet.DID
 		targetWallet = holder.NewMemoryWallet(
 			r.jsonldManager.DocumentLoader(),
@@ -723,14 +726,6 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	dpopProof, err := dpopFromRequest(*httpRequest)
 	if err != nil {
 		return nil, err
-	}
-	var submissions []PresentationSubmission
-	for _, submission := range oauthSession.OpenID4VPVerifier.Submissions {
-		submissions = append(submissions, submission)
-	}
-	presentationDefinitions := make([]PresentationDefinition, 0)
-	for _, curr := range oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions {
-		presentationDefinitions = append(presentationDefinitions, curr)
 	}
 
 	// All done, issue access token

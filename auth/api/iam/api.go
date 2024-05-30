@@ -621,7 +621,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	}
 
 	useDPoP := true
-	if request.Body.TokenType != nil && strings.ToLower(string(*request.Body.TokenType)) == strings.ToLower(AccessTokenTypeBearer) {
+	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
 	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope, useDPoP)

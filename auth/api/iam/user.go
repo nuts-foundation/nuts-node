@@ -111,7 +111,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 
 	// use DPoP or not
 	useDPoP := true
-	if redirectSession.AccessTokenRequest.Body.TokenType != nil && strings.ToLower(string(*redirectSession.AccessTokenRequest.Body.TokenType)) == strings.ToLower(AccessTokenTypeBearer) {
+	if redirectSession.AccessTokenRequest.Body.TokenType != nil && strings.EqualFold(string(*redirectSession.AccessTokenRequest.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
 

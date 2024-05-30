@@ -22,6 +22,8 @@ import (
 	"context"
 	"crypto"
 	"errors"
+	"maps"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 )
@@ -36,6 +38,10 @@ type MemoryJWTSigner struct {
 }
 
 func (m MemoryJWTSigner) SignJWT(_ context.Context, claims map[string]interface{}, headers map[string]interface{}, rawKey interface{}) (string, error) {
+	// copy headers so we don't change the input
+	headersLocal := make(map[string]interface{})
+	maps.Copy(headersLocal, headers)
+
 	keyID, ok := rawKey.(string)
 	if !ok {
 		return "", errors.New("key should be string (key ID)")
@@ -51,7 +57,9 @@ func (m MemoryJWTSigner) SignJWT(_ context.Context, claims map[string]interface{
 	if err != nil {
 		return "", err
 	}
-	return signJWT(signer, alg, claims, headerWithKID(headers, keyID))
+
+	headersLocal["kid"] = keyID
+	return signJWT(signer, alg, claims, headersLocal)
 }
 
 func (m MemoryJWTSigner) SignJWS(_ context.Context, _ []byte, _ map[string]interface{}, _ interface{}, _ bool) (string, error) {

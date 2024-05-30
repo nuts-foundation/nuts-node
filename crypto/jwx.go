@@ -27,6 +27,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwe"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -41,6 +43,10 @@ import (
 
 // SignJWT creates a JWT from the given claims and signs it with the given key.
 func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
+	// copy headers so we don't change the input
+	headersLocal := make(map[string]interface{})
+	maps.Copy(headersLocal, headers)
+
 	privateKey, kid, err := client.getPrivateKey(ctx, key)
 	if err != nil {
 		return "", err
@@ -53,7 +59,8 @@ func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}
 		return "", err
 	}
 
-	return signJWT(privateKey, alg, claims, headerWithKID(headers, kid))
+	headersLocal["kid"] = kid
+	return signJWT(privateKey, alg, claims, headersLocal)
 }
 
 // SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
@@ -106,19 +113,6 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 		return nil, nil, err
 	}
 	return body, headers, err
-}
-
-func headerWithKID(headers map[string]interface{}, kid string) map[string]interface{} {
-	// We want to set the kid claim as headers, but we don't want to modify the original headers map.
-	// So we copy the headers map and add the kid claim to it.
-	headersCopy := make(map[string]interface{})
-	if headers != nil {
-		for k, v := range headers {
-			headersCopy[k] = v
-		}
-	}
-	headersCopy["kid"] = kid
-	return headersCopy
 }
 
 // signJWT signs claims with the signer and returns the compacted token. The headers param can be used to add additional headers
@@ -351,11 +345,6 @@ func signingAlg(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 	default:
 		return "", fmt.Errorf(`could not determine signature algorithm for key type '%T'`, key)
 	}
-}
-
-func ecAlg(key *ecdsa.PrivateKey) (alg jwa.SignatureAlgorithm, err error) {
-	alg, err = ecAlgUsingPublicKey(key.PublicKey)
-	return
 }
 
 func ecAlgUsingPublicKey(key ecdsa.PublicKey) (alg jwa.SignatureAlgorithm, err error) {
