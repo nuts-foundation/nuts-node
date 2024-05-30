@@ -379,9 +379,12 @@ func (n *Network) Start() error {
 			return err
 		}
 	}
-	// Start connection management and protocols
+	// Start connection management, protocols and connections
 	err := n.connectionManager.Start()
 	if err != nil {
+		return err
+	}
+	if err = n.connectToKnownNodes(n.nodeDID); err != nil {
 		return err
 	}
 
@@ -392,7 +395,7 @@ func (n *Network) Start() error {
 			return fmt.Errorf("failed to start notifiers: %w", err)
 		}
 	}
-	return n.connectToKnownNodes(n.nodeDID)
+	return nil
 }
 
 func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
