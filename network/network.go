@@ -384,6 +384,14 @@ func (n *Network) Start() error {
 	if err != nil {
 		return err
 	}
+
+	// Resume all notifiers. Notifiers may access other components of the network stack.
+	// To prevent nil derefs run the notifiers last. https://github.com/nuts-foundation/nuts-node/issues/3155
+	for _, notifier := range n.state.Notifiers() {
+		if err = notifier.Run(); err != nil {
+			return fmt.Errorf("failed to start notifiers: %w", err)
+		}
+	}
 	return n.connectToKnownNodes(n.nodeDID)
 }
 

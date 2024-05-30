@@ -80,6 +80,7 @@ func (cxt *networkTestContext) start() error {
 	cxt.connectionManager.EXPECT().Start()
 	cxt.protocol.EXPECT().Start()
 	cxt.state.EXPECT().Start()
+	cxt.state.EXPECT().Notifiers()
 
 	return cxt.network.Start()
 }
