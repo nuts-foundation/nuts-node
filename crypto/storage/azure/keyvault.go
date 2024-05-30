@@ -40,16 +40,8 @@ import (
 )
 
 // New creates a new Azure Key Vault storage backend.
-// It creates keys of the given keyType (supported are azkeys.KeyTypeEC or azkeys.KeyTypeECHSM).
-func New(keyVaultUrl string, timeout time.Duration, keyType azkeys.KeyType) (spi.Storage, error) {
-	switch keyType {
-	case azkeys.KeyTypeEC:
-		// Supported
-	case azkeys.KeyTypeECHSM:
-		// Supported
-	default:
-		return nil, fmt.Errorf("unsupported key type: %s", keyType)
-	}
+// If useHSM is true, the key type will be azkeys.KeyTypeECHSM, otherwise azkeys.KeyTypeEC.
+func New(keyVaultUrl string, timeout time.Duration, useHSM bool) (spi.Storage, error) {
 	if keyVaultUrl == "" {
 		return nil, errors.New("missing Azure Key Vault URL")
 	}
@@ -58,7 +50,7 @@ func New(keyVaultUrl string, timeout time.Duration, keyType azkeys.KeyType) (spi
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Azure Key Vault client: %w", err)
 	}
-	return &keyvault{client: client, timeOut: timeout, keyType: keyType}, nil
+	return &keyvault{client: client, timeOut: timeout, useHSM: useHSM}, nil
 }
 
 // StorageType is the name of this storage type, used in health check reports and configuration.
@@ -67,7 +59,7 @@ const StorageType = "azure-keyvault"
 type keyvault struct {
 	client  keyVaultClient
 	timeOut time.Duration
-	keyType azkeys.KeyType
+	useHSM  bool
 }
 
 func (a keyvault) Name() string {
@@ -94,8 +86,15 @@ func (a keyvault) NewPrivateKey(ctx context.Context, namingFunc func(crypto.Publ
 
 	keyName := keyIDToKeyName(keyID)
 
+	var keyType azkeys.KeyType
+	if a.useHSM {
+		keyType = azkeys.KeyTypeECHSM
+	} else {
+		keyType = azkeys.KeyTypeEC
+	}
+
 	response, err := a.client.CreateKey(ctx, keyName, azkeys.CreateKeyParameters{
-		Kty:   to.Ptr(a.keyType),
+		Kty:   to.Ptr(keyType),
 		Curve: to.Ptr(azkeys.CurveNameP256),
 		KeyAttributes: &azkeys.KeyAttributes{
 			Enabled:    to.Ptr(true),

@@ -57,7 +57,7 @@ Microsoft Azure Key Vault
 =========================
 
 This storage backend uses Microsoft Azure's Key Vault. It authenticates to the Azure Key Vault at the configured URL using the default credential,
-typically an Azure Entra ID Managed Identity. If the Azure Key Vault stores keys in an HSM, set the ``keytype`` option to ``EC-HSM``.
+typically an Azure Entra ID Managed Identity. If you wish to store private keys in an Azure Key Vault HSM, set ``crypto.azurekv.hsm`` to ``true``.
 
 The keys creates in this storage backend are marked as non-exportable.
 

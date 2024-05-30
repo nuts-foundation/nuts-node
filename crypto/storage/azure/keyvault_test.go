@@ -283,7 +283,7 @@ func TestIntegrationTest(t *testing.T) {
 	// Either set credential environment variables (e.g., AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET) or use az login
 	t.Skip()
 
-	store, err := New("https://geheim-keyvault.vault.azure.net/", 10*time.Second, azkeys.KeyTypeEC)
+	store, err := New("https://geheim-keyvault.vault.azure.net/", 10*time.Second, false)
 	assert.NoError(t, err)
 
 	const kid = "did:web:example.com#0"

@@ -22,7 +22,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/azure"
@@ -49,7 +48,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.String("crypto.vault.pathprefix", defs.Vault.PathPrefix, "The Vault path prefix.")
 	flags.String("crypto.azurekv.url", defs.AzureKeyVault.URL, "The URL of the Azure Key Vault.")
 	flags.Duration("crypto.azurekv.timeout", defs.AzureKeyVault.Timeout, "Timeout of client calls to Azure Key Vault, in Golang time.Duration string format (e.g. 10s).")
-	flags.String("crypto.azurekv.keytype", string(defs.AzureKeyVault.KeyType), fmt.Sprintf("The type of key to create in Azure Key Vault. Supported values are '%s' and '%s'.", azkeys.KeyTypeEC, azkeys.KeyTypeECHSM))
+	flags.Bool("crypto.azurekv.hsm", defs.AzureKeyVault.UseHSM, fmt.Sprintf("Whether to store the key in a hardware security module (HSM). If true, the Azure Key Vault must be configured for HSM usage. Default: %t", defs.AzureKeyVault.UseHSM))
 	flags.String("crypto.external.address", defs.External.Address, "Address of the external storage service.")
 	flags.Duration("crypto.external.timeout", defs.External.Timeout, "Time-out when invoking the external storage backend, in Golang time.Duration string format (e.g. 1s).")
 

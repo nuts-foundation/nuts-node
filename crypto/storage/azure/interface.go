@@ -30,15 +30,16 @@ type Config struct {
 	URL string `koanf:"url"`
 	// Timeout specifies the Vault client timeout.
 	Timeout time.Duration `koanf:"timeout"`
-	// KeyType specifies the type of key to create.
-	KeyType azkeys.KeyType `koanf:"keytype"`
+	// UseHSM specifies whether	to store the key in a hardware security module (HSM).
+	// If true, the Azure Key Vault must be configured for HSM usage.
+	UseHSM bool `koanf:"hsm"`
 }
 
 // DefaultConfig returns the default configuration for the Azure Key Vault storage backend.
 func DefaultConfig() Config {
 	return Config{
 		Timeout: 10 * time.Second,
-		KeyType: azkeys.KeyTypeEC,
+		UseHSM:  false,
 	}
 }
 

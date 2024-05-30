@@ -129,7 +129,7 @@ func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 func (client *Crypto) setupAzureKeyVaultBackend(_ core.ServerConfig) error {
 	log.Logger().Debug("Setting up Azure Key Vault backend for storage of private key material. ")
 	var err error
-	azureBackend, err := azure.New(client.config.AzureKeyVault.URL, client.config.AzureKeyVault.Timeout, client.config.AzureKeyVault.KeyType)
+	azureBackend, err := azure.New(client.config.AzureKeyVault.URL, client.config.AzureKeyVault.Timeout, client.config.AzureKeyVault.UseHSM)
 	if err != nil {
 		return err
 	}
