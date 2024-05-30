@@ -74,6 +74,17 @@ The new HTTP configuration reflects this,
 Note that ``8081`` by default maps to ``127.0.0.1`` only, so you might need to configure it to allow it to be accessible from other machines.
 
 ************************
+Hazelnut update (v5.4.7)
+************************
+
+Release date: 2024-05-30
+
+- Fixed an issue where the node would panic during startup when retrying unfinished private transactions.
+- Updated dependencies
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.6...v5.4.7
+
+************************
 Hazelnut update (v5.4.6)
 ************************
 
