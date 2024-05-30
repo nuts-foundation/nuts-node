@@ -1,6 +1,7 @@
 
 # Generate chain
 `sh generate.sh` creates the trust chain using the configuration in `openssl.conf`. 
+Set your machine time 1+ hours in the past to ensure Intermediate C's CRL is expired immediately.
 
 All sub/intermediate CAs use the same config and therefore same certificate administration. 
 Revocations are currently only generated correctly because of the order of revocation and CRL generation.
@@ -44,30 +45,43 @@ Intermediate B CA
 - Issues: CertB Valid
 - File: truststore.pem
 
-CertA Valid
+Intermediate C CA
 - serial: 04
+- status: valid
+- CRL: IntermediateCACLatest.crl that expires after 1 hour
+- Issues: CertC Valid
+- File: truststore.pem
+
+CertA Valid
+- serial: 05
 - status: valid
 - File: A-valid.pem
 
 CertA Revoked
-- serial: 05
+- serial: 06
 - status: revoked
 - File: A-revoked.pem
 
 CertA Expired
-- serial: 06
+- serial: 07
 - status: expired
 - File: A-expired.pem
 
 CertB Valid
-- serial: 07
+- serial: 08
 - status: valid (but CA is revoked)
 - File: B-valid_revoked-CA.pem
+
+CertC Valid
+- serial: 09
+- status: valid (but CRL is expired)
+- File: C-valid.pem
 ```
 
 `truststore.pem` contains in order:
 - `Intermediate A CA`
 - `Intermediate B CA`
+- `Intermediate C CA`
 - `Root CA`
 
 It also creates `truststore_withPKIOverheid.pem` that appends the following files
