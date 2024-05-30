@@ -54,6 +54,6 @@ The following components are supported:
 3. SIOP V2 (Not relevant for organisation wallet agents)
 4. DIF Presentation Exchange :green:`✓`
 5. W3C Verifiable Credential JWT :green:`✓`
-6. DID methods: DID:WEB en DID:JWK :green:`✓`
-7. Signature types ES256 :green:`✓`
+6. DID methods: ``did:web`` and ``did:jwk`` :green:`✓`
+7. Signature types ``ES256`` :green:`✓`
 8. Revocation method: StatusList 2021 :green:`✓`
