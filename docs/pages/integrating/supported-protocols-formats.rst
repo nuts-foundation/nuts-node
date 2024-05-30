@@ -35,6 +35,25 @@ Credentials
 `W3C Verifiable Credentials v1 <https://www.w3.org/TR/vc-data-model/>`_ and Presentations are supported (issuing and verifying) in JSON-LD and JWT format.
 
 The following protocols are being implemented (work in progress):
+
 - OpenID4VP verifier and SIOPv2 relying party for requesting a presentation from a wallet.
 - OpenID4VCI issuer for issuing a credential to a wallet.
 - OpenID4VCI wallet for receiving a credential from an issuer.
+
+
+DIIP Compliance
+***************
+
+We strive to be complient with the `DIIP components <https://dutchblockchaincoalition.org/bouwstenen/diip-2>`_ as specified by the Dutch Blockchain Coalition.
+The following components are supported:
+
+.. role:: green
+
+1. OpenID for Verifiable Credential Issuance :green:`✓`
+2. OpenID for Verifiable Presentations :green:`✓`
+3. SIOP V2 (Not relevant for organisation wallet agents)
+4. DIF Presentation Exchange :green:`✓`
+5. W3C Verifiable Credential JWT :green:`✓`
+6. DID methods: DID:WEB en DID:JWK :green:`✓`
+7. Signature types ES256 :green:`✓`
+8. Revocation method: StatusList 2021 :green:`✓`
