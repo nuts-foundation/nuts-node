@@ -1,6 +1,8 @@
 module github.com/nuts-foundation/nuts-node
 
-go 1.22
+go 1.21
+
+toolchain go1.21.10
 
 require (
 	github.com/alicebob/miniredis/v2 v2.33.0
