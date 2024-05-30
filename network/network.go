@@ -25,13 +25,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
