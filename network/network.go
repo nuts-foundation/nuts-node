@@ -367,12 +367,23 @@ func (n *Network) Start() error {
 			return err
 		}
 	}
-	// Start connection management and protocols
+	// Start connection management, protocols and connections
 	err := n.connectionManager.Start()
 	if err != nil {
 		return err
 	}
-	return n.connectToKnownNodes(n.nodeDID)
+	if err = n.connectToKnownNodes(n.nodeDID); err != nil {
+		return err
+	}
+
+	// Resume all notifiers. Notifiers may access other components of the network stack.
+	// To prevent nil derefs run the notifiers last. https://github.com/nuts-foundation/nuts-node/issues/3155
+	for _, notifier := range n.state.Notifiers() {
+		if err = notifier.Run(); err != nil {
+			return fmt.Errorf("failed to start notifiers: %w", err)
+		}
+	}
+	return nil
 }
 
 func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
