@@ -20,11 +20,12 @@ package pki
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func Test_New(t *testing.T) {

@@ -319,7 +319,7 @@ func Test_ValidatorDownloadCRL(t *testing.T) {
 func Test_ValidatorVerifyCRL(t *testing.T) {
 	v := newValidatorStarted(t)
 	trustStore, _ := core.LoadTrustStore(truststore)
-	issuer := trustStore.Certificates()[2] // rootCA
+	issuer := trustStore.Certificates()[3] // rootCA
 
 	t.Run("ok", func(t *testing.T) {
 		data, err := os.ReadFile(testdatapath + "/RootCALatest.crl")
