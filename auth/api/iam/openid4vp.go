@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/api/iam/usersession"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"net/url"
 	"slices"
@@ -286,7 +286,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing nonce parameter"}, responseURI, state)
 	}
 
-	userSession, err := usersession.Get(ctx)
+	userSession, err := user.GetSession(ctx)
 	if userSession == nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, InternalError: err, Description: "no user session found"}
 	}

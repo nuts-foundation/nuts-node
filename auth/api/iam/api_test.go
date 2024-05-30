@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/api/iam/usersession"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -397,7 +397,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			RedirectURI:  "https://example.com/iam/holder/cb",
 			ResponseType: "code",
 		})
-		callCtx, _ := usersession.CreateTestSession(requestContext(nil), holderDID)
+		callCtx, _ := user.CreateTestSession(requestContext(nil), holderDID)
 		clientMetadata := oauth.OAuthClientMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		pdEndpoint := "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test"
@@ -703,7 +703,7 @@ func TestWrapper_Routes(t *testing.T) {
 
 	router.EXPECT().GET(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
-	router.EXPECT().Use(gomock.AssignableToTypeOf(usersession.Middleware{}.Handle))
+	router.EXPECT().Use(gomock.AssignableToTypeOf(user.SessionMiddleware{}.Handle))
 
 	(&Wrapper{
 		storageEngine: storage.NewTestStorageEngine(t),

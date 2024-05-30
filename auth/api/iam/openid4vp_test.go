@@ -21,7 +21,7 @@ package iam
 import (
 	"context"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/auth/api/iam/usersession"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"net/url"
 	"strings"
@@ -191,7 +191,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		RedirectURI: "https://example.com/iam/holder/cb",
 		VerifierDID: &verifierDID,
 	}
-	httpRequestCtx, _ := usersession.CreateTestSession(context.Background(), holderDID)
+	httpRequestCtx, _ := user.CreateTestSession(context.Background(), holderDID)
 	t.Run("invalid client_id", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()

@@ -16,7 +16,7 @@
  *
  */
 
-package usersession
+package user
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-func CreateTestSession(ctx context.Context, tenantDID did.DID) (context.Context, *Data) {
+func CreateTestSession(ctx context.Context, tenantDID did.DID) (context.Context, *Session) {
 	session, _ := createUserSession(tenantDID, time.Hour)
 	session.Save = func() error {
 		return nil

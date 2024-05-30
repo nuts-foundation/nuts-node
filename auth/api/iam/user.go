@@ -21,7 +21,7 @@ package iam
 import (
 	"context"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/api/iam/usersession"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"strings"
 	"time"
@@ -83,7 +83,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// Make sure there's a user session, loaded with EmployeeCredential
-	userSession, err := usersession.Get(echoCtx.Request().Context())
+	userSession, err := user.GetSession(echoCtx.Request().Context())
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func (r Wrapper) oauthClientStateStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...)
 }
 
-func (r Wrapper) provisionUserSession(ctx context.Context, session *usersession.Data, preAuthorizedUser UserDetails) error {
+func (r Wrapper) provisionUserSession(ctx context.Context, session *user.Session, preAuthorizedUser UserDetails) error {
 	if len(session.Wallet.Credentials) > 0 {
 		// already provisioned
 		return nil
@@ -175,7 +175,7 @@ func (r Wrapper) provisionUserSession(ctx context.Context, session *usersession.
 	return session.Save()
 }
 
-func (r Wrapper) issueEmployeeCredential(ctx context.Context, session usersession.Data, userDetails UserDetails) (*vc.VerifiableCredential, error) {
+func (r Wrapper) issueEmployeeCredential(ctx context.Context, session user.Session, userDetails UserDetails) (*vc.VerifiableCredential, error) {
 	issuanceDate := time.Now()
 	expirationDate := session.ExpiresAt
 	template := vc.VerifiableCredential{

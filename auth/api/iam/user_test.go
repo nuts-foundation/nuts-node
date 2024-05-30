@@ -21,7 +21,7 @@ package iam
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/auth/api/iam/usersession"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"strings"
 	"testing"
@@ -99,7 +99,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		httpRequest := &http.Request{
 			Host: "example.com",
 		}
-		requestCtx, userSession := usersession.CreateTestSession(context.Background(), walletDID)
+		requestCtx, userSession := user.CreateTestSession(context.Background(), walletDID)
 		httpRequest = httpRequest.WithContext(requestCtx)
 		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		echoCtx.EXPECT().Redirect(http.StatusFound, gomock.Any()).DoAndReturn(func(_ int, arg1 string) error {
@@ -212,7 +212,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		httpRequest := &http.Request{
 			Host: "example.com",
 		}
-		requestCtx, _ := usersession.CreateTestSession(context.Background(), walletDID)
+		requestCtx, _ := user.CreateTestSession(context.Background(), walletDID)
 		httpRequest = httpRequest.WithContext(requestCtx)
 		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
@@ -227,7 +227,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
 	httpRequest := &http.Request{Host: "example.com"}
-	session, _ := usersession.CreateTestSession(audit.TestContext(), walletDID)
+	session, _ := user.CreateTestSession(audit.TestContext(), walletDID)
 	httpRequest = httpRequest.WithContext(session)
 	t.Run("error - missing authorization_endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)

@@ -27,7 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/api/iam/usersession"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -133,7 +133,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			return next(c)
 		}
 	}, audit.Middleware(apiModuleName))
-	router.Use(usersession.Middleware{
+	router.Use(user.SessionMiddleware{
 		Skipper: func(c echo.Context) bool {
 			// The following URLs require a user session:
 			paths := []string{

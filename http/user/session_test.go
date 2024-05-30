@@ -16,10 +16,15 @@
  *
  */
 
-package usersession
+package user
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/json"
 	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -62,10 +67,10 @@ func TestMiddleware_Handle(t *testing.T) {
 		echoContext.SetParamNames("did")
 		echoContext.SetParamValues(tenantDID.String())
 
-		var capturedSession *Data
+		var capturedSession *Session
 		err := instance.Handle(func(c echo.Context) error {
 			var err error
-			capturedSession, err = Get(c.Request().Context())
+			capturedSession, err = GetSession(c.Request().Context())
 			return err
 		})(echoContext)
 
@@ -73,7 +78,7 @@ func TestMiddleware_Handle(t *testing.T) {
 		assert.NotNil(t, capturedSession)
 		assert.Equal(t, tenantDID, capturedSession.TenantDID)
 		// Assert stored session
-		var storedSession = new(Data)
+		var storedSession = new(Session)
 		cookie := httpResponse.Result().Cookies()[0]
 		require.NoError(t, sessionStore.Get(cookie.Value, storedSession))
 		assert.Equal(t, tenantDID, storedSession.TenantDID)
@@ -90,9 +95,9 @@ func TestMiddleware_Handle(t *testing.T) {
 		echoContext.SetParamValues(tenantDID.String())
 		echoContext.Request().AddCookie(&sessionCookie)
 
-		var capturedSession *Data
+		var capturedSession *Session
 		err := instance.Handle(func(c echo.Context) error {
-			capturedSession, _ = Get(c.Request().Context())
+			capturedSession, _ = GetSession(c.Request().Context())
 			capturedSession.Wallet.Credentials = append(capturedSession.Wallet.Credentials, vc.VerifiableCredential{})
 			return capturedSession.Save()
 		})(echoContext)
@@ -160,10 +165,10 @@ func TestMiddleware_Handle(t *testing.T) {
 		// Session is not in storage, so error will be triggered and new session be created
 		echoContext.Request().AddCookie(&sessionCookie)
 
-		var capturedSession *Data
+		var capturedSession *Session
 		err := instance.Handle(func(c echo.Context) error {
 			var err error
-			capturedSession, err = Get(c.Request().Context())
+			capturedSession, err = GetSession(c.Request().Context())
 			return err
 		})(echoContext)
 
@@ -215,9 +220,9 @@ func TestMiddleware_loadUserSession(t *testing.T) {
 	})
 	t.Run("error - expired", func(t *testing.T) {
 		instance, sessionStore := createInstance(t)
-		expected := Data{
+		expected := Session{
 			TenantDID: tenantDID,
-			Wallet: UserWallet{
+			Wallet: Wallet{
 				DID: userDID,
 			},
 			ExpiresAt: time.Now().Add(-time.Hour),
@@ -239,9 +244,9 @@ func Test_generateUserSessionJWK(t *testing.T) {
 	assert.True(t, strings.HasPrefix(userDID.String(), "did:jwk:"))
 }
 
-func createInstance(t *testing.T) (Middleware, storage.SessionStore) {
+func createInstance(t *testing.T) (SessionMiddleware, storage.SessionStore) {
 	store := storage.NewTestInMemorySessionDatabase(t).GetStore(time.Hour, "sessions")
-	return Middleware{
+	return SessionMiddleware{
 		Skipper: func(c echo.Context) bool {
 			return false
 		},
@@ -254,7 +259,7 @@ func createInstance(t *testing.T) (Middleware, storage.SessionStore) {
 }
 
 func TestMiddleware_createUserSessionCookie(t *testing.T) {
-	cookie := Middleware{
+	cookie := SessionMiddleware{
 		TimeOut: 30 * time.Minute,
 	}.createUserSessionCookie("sessionID", "/iam/did:web:example.com:iam:123")
 	assert.Equal(t, "/iam/did:web:example.com:iam:123", cookie.Path)
@@ -265,4 +270,19 @@ func TestMiddleware_createUserSessionCookie(t *testing.T) {
 	assert.Equal(t, http.SameSiteStrictMode, cookie.SameSite)
 	assert.True(t, cookie.Secure)
 	assert.True(t, cookie.HttpOnly)
+}
+
+func TestUserWallet_Key(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		keyAsJWK, err := jwk.FromRaw(pk)
+		require.NoError(t, err)
+		jwkAsJSON, _ := json.Marshal(keyAsJWK)
+		wallet := Wallet{
+			JWK: jwkAsJSON,
+		}
+		key, err := wallet.Key()
+		require.NoError(t, err)
+		assert.Equal(t, keyAsJWK, key)
+	})
 }
