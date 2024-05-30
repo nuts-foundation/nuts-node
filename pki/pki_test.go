@@ -126,11 +126,6 @@ func TestPKI_CheckHealth(t *testing.T) {
 	})
 
 	t.Run("crl + denylist outdated", func(t *testing.T) {
-		nowFunc = func() time.Time {
-			return time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-		}
-		defer func() { nowFunc = time.Now }()
-
 		// Check health
 		results := e.CheckHealth()
 		assert.Len(t, results, 2)
