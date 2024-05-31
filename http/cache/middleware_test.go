@@ -31,6 +31,7 @@ func TestMaxAge(t *testing.T) {
 		e := echo.New()
 		httpResponse := httptest.NewRecorder()
 		echoContext := e.NewContext(httptest.NewRequest("GET", "/a", nil), httpResponse)
+		echoContext.SetPath("/a")
 
 		err := MaxAge(time.Minute, "/a", "/b").Handle(func(c echo.Context) error {
 			return c.String(200, "OK")
@@ -43,6 +44,7 @@ func TestMaxAge(t *testing.T) {
 		e := echo.New()
 		httpResponse := httptest.NewRecorder()
 		echoContext := e.NewContext(httptest.NewRequest("GET", "/c", nil), httpResponse)
+		echoContext.SetPath("/c")
 
 		err := MaxAge(time.Minute, "/a", "/b").Handle(func(c echo.Context) error {
 			return c.String(200, "OK")
@@ -59,6 +61,7 @@ func TestNoCache(t *testing.T) {
 		e := echo.New()
 		httpResponse := httptest.NewRecorder()
 		echoContext := e.NewContext(httptest.NewRequest("GET", "/a", nil), httpResponse)
+		echoContext.SetPath("/a")
 
 		err := NoCache("/a", "/b").Handle(func(c echo.Context) error {
 			return c.String(200, "OK")
@@ -72,6 +75,7 @@ func TestNoCache(t *testing.T) {
 		e := echo.New()
 		httpResponse := httptest.NewRecorder()
 		echoContext := e.NewContext(httptest.NewRequest("GET", "/c", nil), httpResponse)
+		echoContext.SetPath("/c")
 
 		err := NoCache("/a", "/b").Handle(func(c echo.Context) error {
 			return c.String(200, "OK")
@@ -80,5 +84,26 @@ func TestNoCache(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, httpResponse.Header().Get("Cache-Control"))
 		require.Empty(t, httpResponse.Header().Get("Pragma"))
+	})
+}
+
+func Test_matchRequestPathSkipper(t *testing.T) {
+	t.Run("matches on path with path variable", func(t *testing.T) {
+		e := echo.New()
+		httpResponse := httptest.NewRecorder()
+		echoContext := e.NewContext(httptest.NewRequest("GET", "/a/foo", nil), httpResponse)
+		echoContext.SetPath("/a/:id")
+
+		actual := matchRequestPathSkipper([]string{"/a/:id"})(echoContext)
+		require.False(t, actual)
+	})
+	t.Run("no match", func(t *testing.T) {
+		e := echo.New()
+		httpResponse := httptest.NewRecorder()
+		echoContext := e.NewContext(httptest.NewRequest("GET", "/a/foo", nil), httpResponse)
+		echoContext.SetPath("/a/foo")
+
+		actual := matchRequestPathSkipper([]string{"/a/bar"})(echoContext)
+		require.True(t, actual)
 	})
 }

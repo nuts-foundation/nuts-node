@@ -67,7 +67,7 @@ func NoCache(requestURLs ...string) Middleware {
 func matchRequestPathSkipper(requestURLs []string) func(c echo.Context) bool {
 	return func(c echo.Context) bool {
 		for _, curr := range requestURLs {
-			if c.Request().URL.Path == curr {
+			if c.Path() == curr {
 				return false
 			}
 		}
