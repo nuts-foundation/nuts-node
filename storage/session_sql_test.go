@@ -156,7 +156,7 @@ func TestSQLSessionStore_Pruning(t *testing.T) {
 	// don't use the store funcs, since they check for the expires property of an entry
 	var count int64
 	err := db.Model(&sessionStoreRecord{}).
-		Where("store = ? AND key = ?", "storename", testKey).
+		Where("store = ? AND entry_key = ?", "storename", testKey).
 		Count(&count).Error
 	assert.NoError(t, err)
 	assert.Equal(t, int64(0), count)
