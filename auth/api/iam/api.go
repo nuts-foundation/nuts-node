@@ -26,6 +26,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/http/cache"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"html/template"
 	"net/http"
@@ -70,6 +71,22 @@ type httpRequestContextKey struct{}
 const accessTokenValidity = 15 * time.Minute
 
 const oid4vciSessionValidity = 15 * time.Minute
+
+// cacheControlMaxAgeURLs holds API endpoints that should have a max-age cache control header set.
+var cacheControlMaxAgeURLs = []string{
+	"/.well-known/did.json",
+	"/iam/:id/did.json",
+	"/oauth2/:did/presentation_definition",
+	"/.well-known/oauth-authorization-server/iam/:id",
+	"/.well-known/oauth-authorization-server",
+	"/oauth2/:did/oauth-client",
+	"/statuslist/:did/:page",
+}
+
+// cacheControlNoCacheURLs holds API endpoints that should have a no-cache cache control header set.
+var cacheControlNoCacheURLs = []string{
+	"/oauth2/:did/token",
+}
 
 //go:embed assets
 var assetsFS embed.FS
@@ -130,6 +147,8 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			return next(c)
 		}
 	}, audit.Middleware(apiModuleName))
+	router.Use(cache.MaxAge(5*time.Minute, cacheControlMaxAgeURLs...).Handle)
+	router.Use(cache.NoCache(cacheControlNoCacheURLs...).Handle)
 	router.Use(user.SessionMiddleware{
 		Skipper: func(c echo.Context) bool {
 			// The following URLs require a user session:

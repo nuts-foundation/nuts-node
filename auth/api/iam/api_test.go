@@ -698,16 +698,45 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 }
 
 func TestWrapper_Routes(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	router := core.NewMockEchoRouter(ctrl)
+	t.Run("it registers handlers", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		router := core.NewMockEchoRouter(ctrl)
 
-	router.EXPECT().GET(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
-	router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
-	router.EXPECT().Use(gomock.AssignableToTypeOf(user.SessionMiddleware{}.Handle))
+		router.EXPECT().Use(gomock.Any()).AnyTimes()
+		router.EXPECT().GET(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+		router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
-	(&Wrapper{
-		storageEngine: storage.NewTestStorageEngine(t),
-	}).Routes(router)
+		(&Wrapper{
+			storageEngine: storage.NewTestStorageEngine(t),
+		}).Routes(router)
+	})
+	t.Run("cache middleware URLs match registered paths", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		router := core.NewMockEchoRouter(ctrl)
+
+		var registeredPaths []string
+		router.EXPECT().GET(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(path string, _ echo.HandlerFunc, _ ...echo.MiddlewareFunc) *echo.Route {
+			registeredPaths = append(registeredPaths, path)
+			return nil
+		}).AnyTimes()
+		router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(path string, _ echo.HandlerFunc, _ ...echo.MiddlewareFunc) *echo.Route {
+			registeredPaths = append(registeredPaths, path)
+			return nil
+		}).AnyTimes()
+		router.EXPECT().Use(gomock.Any()).AnyTimes()
+		(&Wrapper{
+			storageEngine: storage.NewTestStorageEngine(t),
+		}).Routes(router)
+
+		// Check that all cache-control max-age paths are actual paths
+		for _, path := range cacheControlMaxAgeURLs {
+			assert.Contains(t, registeredPaths, path)
+		}
+		// Check that all cache-control no-cache paths are actual paths
+		for _, path := range cacheControlNoCacheURLs {
+			assert.Contains(t, registeredPaths, path)
+		}
+	})
 }
 
 func TestWrapper_middleware(t *testing.T) {
