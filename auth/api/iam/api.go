@@ -216,6 +216,12 @@ func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (C
 	}
 	// check if state is present and resolves to a client state
 	if request.Params.State == nil || *request.Params.State == "" {
+		// without state it is an invalid request, but try to provide as much useful information as possible
+		if request.Params.Error != nil && *request.Params.Error != "" {
+			callbackError := callbackRequestToError(request, nil)
+			callbackError.InternalError = errors.New("missing state parameter")
+			return nil, callbackError
+		}
 		return nil, oauthError(oauth.InvalidRequest, "missing state parameter")
 	}
 	oauthSession := new(OAuthSession)
@@ -229,14 +235,7 @@ func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (C
 
 	// if error is present, redirect error back to application initiating the flow
 	if request.Params.Error != nil && *request.Params.Error != "" {
-		requestErr := oauth.OAuth2Error{
-			Code:        oauth.ErrorCode(*request.Params.Error),
-			RedirectURI: oauthSession.redirectURI(),
-		}
-		if request.Params.ErrorDescription != nil {
-			requestErr.Description = *request.Params.ErrorDescription
-		}
-		return nil, requestErr
+		return nil, callbackRequestToError(request, oauthSession.redirectURI())
 	}
 
 	// check if code is present
@@ -246,14 +245,26 @@ func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (C
 
 	// continue flow
 	switch oauthSession.ClientFlow {
-	case "openid4vci_credential_request":
+	case credentialRequestClientFlow:
 		return r.handleOpenID4VCICallback(ctx, *request.Params.Code, oauthSession)
-	case "access_token_request":
+	case accessTokenRequestClientFlow:
 		return r.handleCallback(ctx, *request.Params.Code, oauthSession)
 	default:
 		// programming error, should never happen
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "unknown client flow for callback: '"+oauthSession.ClientFlow+"'"), oauthSession.redirectURI())
 	}
+}
+
+// callbackRequestToError should only be used if request.params.Error is present
+func callbackRequestToError(request CallbackRequestObject, redirectURI *url.URL) oauth.OAuth2Error {
+	requestErr := oauth.OAuth2Error{
+		Code:        oauth.ErrorCode(*request.Params.Error),
+		RedirectURI: redirectURI,
+	}
+	if request.Params.ErrorDescription != nil {
+		requestErr.Description = *request.Params.ErrorDescription
+	}
+	return requestErr
 }
 
 func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error) {

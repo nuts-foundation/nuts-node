@@ -208,6 +208,8 @@ paths:
         When the OAuth2 flow is completed, the user-agent is redirected to this endpoint.
         This can be the result of a successful authorization request or an error.
         The result of this callback is a redirect back to the calling application.
+        
+        This callback is used as the redirect_uri in multiple authorization request flows.
       operationId: callback
       tags:
         - oauth2

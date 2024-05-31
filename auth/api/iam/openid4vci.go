@@ -90,7 +90,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	redirectUri = redirectUri.JoinPath(oauth.CallbackPath)
 	// Store the session
 	err = r.oauthClientStateStore().Put(state, &OAuthSession{
-		ClientFlow:  "openid4vci_credential_request",
+		ClientFlow:  credentialRequestClientFlow,
 		OwnDID:      requestHolder,
 		OtherDID:    issuerDid,
 		RedirectURI: request.Body.RedirectUri,

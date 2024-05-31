@@ -592,6 +592,21 @@ func TestWrapper_Callback(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "missing state parameter")
 	})
+	t.Run("err - error flow but missing state", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+
+		_, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Did: holderDID.String(),
+			Params: CallbackParams{
+				Error:            &errorCode,
+				ErrorDescription: &errorDescription,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.ErrorCode(errorCode), errorDescription)
+		assert.EqualError(t, err, "error - missing state parameter - error description")
+	})
 	t.Run("err - expired state/session", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
