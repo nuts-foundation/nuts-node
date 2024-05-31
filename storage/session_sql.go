@@ -36,7 +36,7 @@ var _ schema.Tabler = (*sessionStoreRecord)(nil)
 
 type sessionStoreRecord struct {
 	Store   string `gorm:"primaryKey"`
-	Key     string `gorm:"primaryKey"`
+	Key     string `gorm:"primaryKey;column:entry_key"`
 	Expires int
 	Value   string
 }
@@ -101,18 +101,18 @@ type sqlSessionStore struct {
 }
 
 func (s sqlSessionStore) Delete(key string) error {
-	return s.db.Model(&sessionStoreRecord{}).Where("store = ? AND key = ?", s.storeName, key).Delete(&sessionStoreRecord{}).Error
+	return s.db.Model(&sessionStoreRecord{}).Where("store = ? AND entry_key = ?", s.storeName, key).Delete(&sessionStoreRecord{}).Error
 }
 
 func (s sqlSessionStore) Exists(key string) bool {
 	var count int64
-	s.db.Model(&sessionStoreRecord{}).Where("store = ? AND key = ? AND expires > ?", s.storeName, key, time.Now().Unix()).Count(&count)
+	s.db.Model(&sessionStoreRecord{}).Where("store = ? AND entry_key = ? AND expires > ?", s.storeName, key, time.Now().Unix()).Count(&count)
 	return count > 0
 }
 
 func (s sqlSessionStore) Get(key string, target interface{}) error {
 	var record sessionStoreRecord
-	err := s.db.Model(&sessionStoreRecord{}).Where("store = ? AND key = ?", s.storeName, key).First(&record).Error
+	err := s.db.Model(&sessionStoreRecord{}).Where("store = ? AND entry_key = ?", s.storeName, key).First(&record).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ErrNotFound
 	} else if err != nil {
@@ -144,7 +144,7 @@ func (s sqlSessionStore) Put(key string, value interface{}) error {
 	}
 	// Create or Update
 	return s.db.Model(&sessionStoreRecord{}).
-		Where("store = ? AND key = ?", s.storeName, key).
+		Where("store = ? AND entry_key = ?", s.storeName, key).
 		Assign(record).
 		FirstOrCreate(&record).Error
 }
