@@ -16,6 +16,7 @@ The following options apply to the server commands below:
       --auth.accesstokenlifespan int                      defines how long (in seconds) an access token is valid. Uses default in strict mode. (default 60)
       --auth.clockskew int                                allowed JWT Clock skew in milliseconds (default 5000)
       --auth.contractvalidators strings                   sets the different contract validators to use (default [irma,dummy,employeeid])
+      --auth.http.cache.maxbytes int                      HTTP client maximum size of the response cache in bytes. If 0, the HTTP client does not cache responses. (default 10485760)
       --auth.irma.autoupdateschemas                       set if you want automatically update the IRMA schemas every 60 minutes. (default true)
       --auth.irma.schememanager string                    IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'. (default "pbdf")
       --configfile string                                 Nuts config file (default "./config/nuts.yaml")

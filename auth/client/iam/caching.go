@@ -31,9 +31,14 @@ import (
 	"time"
 )
 
+// maxCacheTime is the maximum time responses are cached.
+// Even if the server responds with a longer cache time, responses are never cached longer than maxCacheTime.
+const maxCacheTime = time.Hour
+
 // CachingHTTPRequestDoer is a cache for HTTP responses for DID/OAuth2/OpenID clients.
 // It only caches GET requests (since generally only metadata is cacheable), and only if the response is cacheable.
 // It only works on expiration time and does not respect ETags headers.
+// When maxBytes is reached, the entries that expire first are removed to make room for new entries (since those are the first ones to be pruned any ways).
 type CachingHTTPRequestDoer struct {
 	maxBytes    int
 	requestDoer core.HTTPRequestDoer
@@ -64,54 +69,64 @@ type cacheEntry struct {
 
 func (h *CachingHTTPRequestDoer) Do(httpRequest *http.Request) (*http.Response, error) {
 	if httpRequest.Method == http.MethodGet {
-		if response := h.getCachedEntry(httpRequest); response != nil {
+		if response := h.cachedEntry(httpRequest); response != nil {
 			return response, nil
 		}
 	}
-
 	httpResponse, err := h.requestDoer.Do(httpRequest)
 	if err != nil {
 		return nil, err
 	}
-	if httpRequest.Method == http.MethodGet {
-		reasons, expirationTime, err := cachecontrol.CachableResponse(httpRequest, httpResponse, cachecontrol.Options{PrivateCache: false})
-		if err != nil {
-			log.Logger().WithError(err).Infof("error while checking cacheability of response (url=%s), not caching", httpRequest.URL.String())
-			return httpResponse, nil
-		}
-		// We don't want to cache responses for too long, as that increases the risk of staleness,
-		// and could keep cause very long-lived entries to never be pruned.
-		maxExpirationTime := time.Now().Add(time.Hour)
-		if expirationTime.After(maxExpirationTime) {
-			expirationTime = maxExpirationTime
-		}
-		if len(reasons) > 0 || expirationTime.IsZero() {
-			log.Logger().Debugf("response (url=%s) is not cacheable: %v", httpRequest.URL.String(), reasons)
-			return httpResponse, nil
-		}
-		responseBytes, err := io.ReadAll(httpResponse.Body)
-		if err != nil {
-			return nil, fmt.Errorf("error while reading response body for caching: %w", err)
-		}
-		h.mux.Lock()
-		defer h.mux.Unlock()
-		if len(responseBytes) <= h.maxBytes { // sanity check
-			h.insert(&cacheEntry{
-				responseData:    responseBytes,
-				requestMethod:   httpRequest.Method,
-				requestURL:      httpRequest.URL,
-				requestRawQuery: httpRequest.URL.RawQuery,
-				responseStatus:  httpResponse.StatusCode,
-				responseHeaders: httpResponse.Header,
-				expirationTime:  expirationTime,
-			})
-		}
-		httpResponse.Body = io.NopCloser(bytes.NewReader(responseBytes))
+	err = h.cacheResponse(httpRequest, httpResponse)
+	if err != nil {
+		return nil, err
 	}
 	return httpResponse, nil
 }
 
-func (h *CachingHTTPRequestDoer) getCachedEntry(httpRequest *http.Request) *http.Response {
+// cacheResponse caches the response if it's cacheable.
+func (h *CachingHTTPRequestDoer) cacheResponse(httpRequest *http.Request, httpResponse *http.Response) error {
+	if httpRequest.Method != http.MethodGet {
+		return nil
+	}
+	reasons, expirationTime, err := cachecontrol.CachableResponse(httpRequest, httpResponse, cachecontrol.Options{PrivateCache: false})
+	if err != nil {
+		log.Logger().WithError(err).Infof("error while checking cacheability of response (url=%s), not caching", httpRequest.URL.String())
+		return nil
+	}
+	// We don't want to cache responses for too long, as that increases the risk of staleness,
+	// and could keep cause very long-lived entries to never be pruned.
+	maxExpirationTime := time.Now().Add(maxCacheTime)
+	if expirationTime.After(maxExpirationTime) {
+		expirationTime = maxExpirationTime
+	}
+	if len(reasons) > 0 || expirationTime.IsZero() {
+		log.Logger().Debugf("response (url=%s) is not cacheable: %v", httpRequest.URL.String(), reasons)
+		return nil
+	}
+	responseBytes, err := io.ReadAll(httpResponse.Body)
+	if err != nil {
+		return fmt.Errorf("error while reading response body for caching: %w", err)
+	}
+	h.mux.Lock()
+	defer h.mux.Unlock()
+	if len(responseBytes) <= h.maxBytes { // sanity check
+		h.insert(&cacheEntry{
+			responseData:    responseBytes,
+			requestMethod:   httpRequest.Method,
+			requestURL:      httpRequest.URL,
+			requestRawQuery: httpRequest.URL.RawQuery,
+			responseStatus:  httpResponse.StatusCode,
+			responseHeaders: httpResponse.Header,
+			expirationTime:  expirationTime,
+		})
+	}
+	httpResponse.Body = io.NopCloser(bytes.NewReader(responseBytes))
+	return nil
+}
+
+// cachedEntry returns a cached response if it exists.
+func (h *CachingHTTPRequestDoer) cachedEntry(httpRequest *http.Request) *http.Response {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 	h.removeExpiredEntries()
@@ -188,9 +203,10 @@ func (h *CachingHTTPRequestDoer) pop() *cacheEntry {
 	return h.head
 }
 
-func cacheHTTPResponses(requestDoer core.HTTPRequestDoer) *CachingHTTPRequestDoer {
+// cachingHTTPClient
+func cachingHTTPClient(requestDoer core.HTTPRequestDoer, responsesCacheSize int) *CachingHTTPRequestDoer {
 	return &CachingHTTPRequestDoer{
-		maxBytes:     10 * 1024 * 1024,
+		maxBytes:     responsesCacheSize,
 		requestDoer:  requestDoer,
 		entriesByURL: map[string][]*cacheEntry{},
 		mux:          sync.RWMutex{},

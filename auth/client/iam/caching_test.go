@@ -36,13 +36,13 @@ func Test_httpClientCache(t *testing.T) {
 		URL:    test.MustParseURL("http://example.com"),
 	}
 	t.Run("does not cache POST requests", func(t *testing.T) {
-		client := cacheHTTPResponses(&stubRequestDoer{
+		client := cachingHTTPClient(&stubRequestDoer{
 			statusCode: http.StatusOK,
 			data:       []byte("Hello, World!"),
 			headers: map[string]string{
 				"Cache-Control": "public, max-age=3600",
 			},
-		})
+		}, 1000)
 
 		_, err := client.Do(&http.Request{
 			Method: http.MethodPost,
@@ -59,7 +59,7 @@ func Test_httpClientCache(t *testing.T) {
 				"Cache-Control": "max-age=3600",
 			},
 		}
-		client := cacheHTTPResponses(requestSink)
+		client := cachingHTTPClient(requestSink, 1000)
 
 		// Initial fetch
 		httpResponse, err := client.Do(httpRequest)
@@ -79,13 +79,13 @@ func Test_httpClientCache(t *testing.T) {
 		assert.Equal(t, 1, requestSink.invocations)
 	})
 	t.Run("does not cache responses with no-store", func(t *testing.T) {
-		client := cacheHTTPResponses(&stubRequestDoer{
+		client := cachingHTTPClient(&stubRequestDoer{
 			statusCode: http.StatusOK,
 			data:       []byte("Hello, World!"),
 			headers: map[string]string{
 				"Cache-Control": "nothing",
 			},
-		})
+		}, 1000)
 
 		_, err := client.Do(httpRequest)
 		require.NoError(t, err)
@@ -99,7 +99,7 @@ func Test_httpClientCache(t *testing.T) {
 				"Cache-Control": fmt.Sprintf("max-age=%d", int(time.Hour.Seconds()*24)),
 			},
 		}
-		client := cacheHTTPResponses(requestSink)
+		client := cachingHTTPClient(requestSink, 1000)
 
 		_, err := client.Do(httpRequest)
 		require.NoError(t, err)
@@ -115,7 +115,7 @@ func Test_httpClientCache(t *testing.T) {
 		requestSink.dataFn = func(req *http.Request) []byte {
 			return []byte(req.URL.String())
 		}
-		client := cacheHTTPResponses(requestSink)
+		client := cachingHTTPClient(requestSink, 1000)
 
 		// Initial fetch of the resources
 		_, err := client.Do(httpRequest)
@@ -145,8 +145,7 @@ func Test_httpClientCache(t *testing.T) {
 				"Cache-Control": "max-age=3600",
 			},
 		}
-		client := cacheHTTPResponses(requestSink)
-		client.maxBytes = 14
+		client := cachingHTTPClient(requestSink, 14)
 		client.insert(&cacheEntry{
 			responseData:   []byte("Hello"),
 			requestURL:     test.MustParseURL("http://example.com"),
@@ -165,8 +164,7 @@ func Test_httpClientCache(t *testing.T) {
 				"Cache-Control": "max-age=3600",
 			},
 		}
-		client := cacheHTTPResponses(requestSink)
-		client.maxBytes = 10000
+		client := cachingHTTPClient(requestSink, 10000)
 		client.insert(&cacheEntry{
 			responseData:   []byte("Hello"),
 			requestURL:     test.MustParseURL("http://example.com/3"),
@@ -194,8 +192,7 @@ func Test_httpClientCache(t *testing.T) {
 				"Cache-Control": "max-age=3600",
 			},
 		}
-		client := cacheHTTPResponses(requestSink)
-		client.maxBytes = 5
+		client := cachingHTTPClient(requestSink, 5)
 
 		httpResponse, err := client.Do(httpRequest)
 		require.NoError(t, err)

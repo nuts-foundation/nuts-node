@@ -38,6 +38,9 @@ const ConfIrmaSchemeManager = "auth.irma.schememanager"
 // ConfHTTPTimeout defines a timeout (in seconds) which is used by the Auth API HTTP client
 const ConfHTTPTimeout = "auth.http.timeout"
 
+// ConfHTTPResponseCacheSize defines the maximum HTTP client response cache size in bytes.
+const ConfHTTPResponseCacheSize = "auth.http.cache.maxbytes"
+
 // ConfAccessTokenLifeSpan defines how long (in seconds) an access token is valid
 const ConfAccessTokenLifeSpan = "auth.accesstokenlifespan"
 
@@ -49,6 +52,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.String(ConfIrmaSchemeManager, defs.Irma.SchemeManager, "IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.")
 	flags.Bool(ConfAutoUpdateIrmaSchemas, defs.Irma.AutoUpdateSchemas, "set if you want automatically update the IRMA schemas every 60 minutes.")
 	flags.Int(ConfHTTPTimeout, defs.HTTPTimeout, "HTTP timeout (in seconds) used by the Auth API HTTP client")
+	flags.Int(ConfHTTPResponseCacheSize, defs.HTTPResponseCacheSize, "HTTP client maximum size of the response cache in bytes. If 0, the HTTP client does not cache responses.")
 	flags.Int(ConfClockSkew, defs.ClockSkew, "allowed JWT Clock skew in milliseconds")
 	flags.Int(ConfAccessTokenLifeSpan, defs.AccessTokenLifeSpan, "defines how long (in seconds) an access token is valid. Uses default in strict mode.")
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
