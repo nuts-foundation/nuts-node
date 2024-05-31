@@ -26,6 +26,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -69,17 +70,6 @@ type httpRequestContextKey struct{}
 const accessTokenValidity = 15 * time.Minute
 
 const oid4vciSessionValidity = 15 * time.Minute
-
-// userSessionCookieName is the name of the cookie used to store the user session.
-// It uses the __Host prefix, that instructs the user agent to treat it as a secure cookie:
-// - Must be set with the Secure attribute
-// - Must be set from an HTTPS uri
-// - Must not contain a Domain attribute
-// - Must contain a Path attribute
-// Also see:
-// - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/02-Testing_for_Cookies_Attributes
-// - https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
-const userSessionCookieName = "__Host-SID"
 
 //go:embed assets
 var assetsFS embed.FS
@@ -140,6 +130,29 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			return next(c)
 		}
 	}, audit.Middleware(apiModuleName))
+	router.Use(user.SessionMiddleware{
+		Skipper: func(c echo.Context) bool {
+			// The following URLs require a user session:
+			paths := []string{
+				"/oauth2/:did/user",
+				"/oauth2/:did/authorize",
+				"/oauth2/:did/callback",
+			}
+			for _, path := range paths {
+				if c.Path() == path {
+					return false
+				}
+			}
+			return true
+		},
+		TimeOut: time.Hour,
+		Store:   r.storageEngine.GetSessionDatabase().GetStore(time.Hour, "user", "session"),
+		CookiePath: func(tenantDID did.DID) string {
+			baseURL, _ := createOAuth2BaseURL(tenantDID)
+			// error only happens on invalid did:web DID, which can't happen here
+			return baseURL.Path
+		},
+	}.Handle)
 }
 
 func (r Wrapper) strictMiddleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {

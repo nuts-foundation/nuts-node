@@ -19,8 +19,6 @@
 package iam
 
 import (
-	"net/http"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -65,13 +63,6 @@ type WalletOwnerType = pe.WalletOwnerType
 
 // RequiredPresentationDefinitions is an alias
 type RequiredPresentationDefinitions = pe.WalletOwnerMapping
-
-// CookieReader is an interface for reading cookies from an HTTP request.
-// It is implemented by echo.Context and http.Request.
-type CookieReader interface {
-	// Cookie returns the named cookie provided in the request.
-	Cookie(name string) (*http.Cookie, error)
-}
 
 const (
 	// responseModeQuery returns the answer to the authorization request append as query parameters to the provided redirect_uri

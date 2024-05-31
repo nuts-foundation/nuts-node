@@ -44,7 +44,7 @@ paths:
           description: DID does not exist.
   /oauth2/{did}/token:
     post:
-      summary: Used by to request access- or refresh tokens.
+      summary: Used by the OAuth2 client (backend, not the browser) to request access- or refresh tokens.
       description: |
         Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint.
         Requires the use of PKCE as specified by https://datatracker.ietf.org/doc/html/rfc7636 and optionally DPoP as specified by https://datatracker.ietf.org/doc/html/rfc9449.
@@ -99,7 +99,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /oauth2/{did}/authorize:
     get:
-      summary: Used by resource owners to initiate the authorization code flow.
+      summary: Used by resource owners (the browser) to initiate the authorization code flow.
       description: Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
       operationId: handleAuthorizeRequest
       tags:

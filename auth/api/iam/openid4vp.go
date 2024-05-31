@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"net/url"
 	"slices"
@@ -285,9 +286,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing nonce parameter"}, responseURI, state)
 	}
 
-	// TODO: Create session if it does not exist (use client state to get original Authorization Code request)?
-	//       Although it would be quite weird (maybe it expired).
-	userSession, err := r.loadUserSession(ctx.Value(httpRequestContextKey{}).(*http.Request), tenantDID, nil)
+	userSession, err := user.GetSession(ctx)
 	if userSession == nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, InternalError: err, Description: "no user session found"}
 	}
