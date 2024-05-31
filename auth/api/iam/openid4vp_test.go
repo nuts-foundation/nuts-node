@@ -189,7 +189,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		SessionID:   "token",
 		OwnDID:      &holderDID,
 		RedirectURI: "https://example.com/iam/holder/cb",
-		VerifierDID: &verifierDID,
+		OtherDID:    &verifierDID,
 	}
 	httpRequestCtx, _ := user.CreateTestSession(context.Background(), holderDID)
 	t.Run("invalid client_id", func(t *testing.T) {
@@ -732,69 +732,23 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 
 func Test_handleCallback(t *testing.T) {
 	code := "code"
-	state := "state"
 
 	session := OAuthSession{
 		SessionID:     "token",
 		OwnDID:        &holderDID,
 		RedirectURI:   "https://example.com/iam/holder/cb",
-		VerifierDID:   &verifierDID,
+		OtherDID:      &verifierDID,
 		PKCEParams:    generatePKCEParams(),
 		TokenEndpoint: "https://example.com/token",
 	}
-
-	t.Run("err - missing state", func(t *testing.T) {
-		ctx := newTestClient(t)
-
-		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Did: webDID.String(),
-			Params: CallbackParams{
-				Code: &code,
-			},
-		})
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "missing state parameter")
-	})
-	t.Run("err - expired state", func(t *testing.T) {
-		ctx := newTestClient(t)
-
-		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Did: webDID.String(),
-			Params: CallbackParams{
-				Code:  &code,
-				State: &state,
-			},
-		})
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid or expired state")
-	})
-	t.Run("err - missing code", func(t *testing.T) {
-		ctx := newTestClient(t)
-		putState(ctx, "state", session)
-
-		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Did: webDID.String(),
-			Params: CallbackParams{
-				State: &state,
-			},
-		})
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "missing code parameter")
-	})
 	t.Run("err - failed to retrieve access token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putState(ctx, "state", session)
-		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier, false).Return(nil, assert.AnError)
+		callbackURI := "https://example.com/oauth2/" + holderDID.String() + "/callback"
+		codeVerifier := session.PKCEParams.Verifier
 
-		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Did: webDID.String(),
-			Params: CallbackParams{
-				Code:  &code,
-				State: &state,
-			},
-		})
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, callbackURI, holderDID, codeVerifier, false).Return(nil, assert.AnError)
+
+		_, err := ctx.client.handleCallback(nil, code, &session)
 
 		requireOAuthError(t, err, oauth.ServerError, "failed to retrieve access token: assert.AnError general error for testing")
 	})

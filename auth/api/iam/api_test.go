@@ -390,12 +390,11 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		// handleAuthorizeRequestFromVerifier
 		_ = ctx.client.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...).Put("state", OAuthSession{
 			// this is the state from the holder that was stored at the creation of the first authorization request to the verifier
-			ClientID:     holderDID.String(),
-			Scope:        "test",
-			OwnDID:       &holderDID,
-			ClientState:  "state",
-			RedirectURI:  "https://example.com/iam/holder/cb",
-			ResponseType: "code",
+			ClientID:    holderDID.String(),
+			Scope:       "test",
+			OwnDID:      &holderDID,
+			ClientState: "state",
+			RedirectURI: "https://example.com/iam/holder/cb",
 		})
 		callCtx, _ := user.CreateTestSession(requestContext(nil), holderDID)
 		clientMetadata := oauth.OAuthClientMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
@@ -454,22 +453,25 @@ func TestWrapper_Callback(t *testing.T) {
 	errorDescription := "error description"
 	state := "state"
 	token := "token"
+	redirectURI, parseErr := url.Parse("https://example.com/iam/holder/cb")
+	require.NoError(t, parseErr)
 
 	session := OAuthSession{
+		ClientFlow:    "access_token_request",
 		SessionID:     "token",
 		OwnDID:        &holderDID,
-		RedirectURI:   "https://example.com/iam/holder/cb",
-		VerifierDID:   &verifierDID,
+		RedirectURI:   redirectURI.String(),
+		OtherDID:      &verifierDID,
 		TokenEndpoint: "https://example.com/token",
 	}
 
 	t.Run("ok - error flow", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		putState(ctx, "state", session)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			Did: webDID.String(),
+			Did: holderDID.String(),
 			Params: CallbackParams{
 				State:            &state,
 				Error:            &errorCode,
@@ -477,8 +479,14 @@ func TestWrapper_Callback(t *testing.T) {
 			},
 		})
 
-		require.NoError(t, err)
-		assert.Equal(t, "https://example.com/iam/holder/cb?error=error&error_description=error+description", res.(Callback302Response).Headers.Location)
+		var oauthErr oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErr)
+		assert.Equal(t, oauth.OAuth2Error{
+			Code:        oauth.ErrorCode(errorCode),
+			Description: errorDescription,
+			RedirectURI: redirectURI,
+		}, err)
+		assert.Nil(t, res)
 	})
 	t.Run("ok - success flow", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -487,11 +495,11 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", withDPoP)
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/did:web:example.com:iam:holder/callback", holderDID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			Did: webDID.String(),
+			Did: holderDID.String(),
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -511,21 +519,22 @@ func TestWrapper_Callback(t *testing.T) {
 	t.Run("ok - no DPoP", func(t *testing.T) {
 		ctx := newTestClient(t)
 		_ = ctx.client.oauthClientStateStore().Put(state, OAuthSession{
+			ClientFlow:    "access_token_request",
 			OwnDID:        &holderDID,
 			PKCEParams:    generatePKCEParams(),
 			RedirectURI:   "https://example.com/iam/holder/cb",
 			SessionID:     "token",
 			UseDPoP:       false,
-			VerifierDID:   &verifierDID,
+			OtherDID:      &verifierDID,
 			TokenEndpoint: session.TokenEndpoint,
 		})
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil).Times(2)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/did:web:example.com:iam:123/callback", holderDID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/did:web:example.com:iam:holder/callback", holderDID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			Did: webDID.String(),
+			Did: holderDID.String(),
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -535,16 +544,107 @@ func TestWrapper_Callback(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
-	t.Run("unknown did", func(t *testing.T) {
+	t.Run("err - unknown did", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(false, nil)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			Did: webDID.String(),
+			Did: holderDID.String(),
 		})
 
 		assert.EqualError(t, err, "DID document not managed by this node")
 		assert.Nil(t, res)
+	})
+	t.Run("err - did mismatch", func(t *testing.T) {
+		ctx := newTestClient(t)
+		putState(ctx, "state", session)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+
+		res, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Did: webDID.String(),
+			Params: CallbackParams{
+				Code:  &code,
+				State: &state,
+			},
+		})
+
+		assert.Nil(t, res)
+		requireOAuthError(t, err, oauth.InvalidRequest, "session DID does not match request")
+
+	})
+	t.Run("err - missing state", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+
+		_, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Did: holderDID.String(),
+			Params: CallbackParams{
+				Code: &code,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing state parameter")
+	})
+	t.Run("err - error flow but missing state", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+
+		_, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Did: holderDID.String(),
+			Params: CallbackParams{
+				Error:            &errorCode,
+				ErrorDescription: &errorDescription,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.ErrorCode(errorCode), errorDescription)
+		assert.EqualError(t, err, "error - missing state parameter - error description")
+	})
+	t.Run("err - expired state/session", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+
+		_, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Did: webDID.String(),
+			Params: CallbackParams{
+				Code:  &code,
+				State: &state,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid or expired state")
+	})
+	t.Run("err - missing code", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		putState(ctx, "state", session)
+
+		_, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Did: holderDID.String(),
+			Params: CallbackParams{
+				State: &state,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing code parameter")
+	})
+	t.Run("err - unknown flow", func(t *testing.T) {
+		ctx := newTestClient(t)
+		_ = ctx.client.oauthClientStateStore().Put(state, OAuthSession{
+			ClientFlow: "",
+			OwnDID:     &holderDID,
+		})
+		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+
+		_, err := ctx.client.Callback(nil, CallbackRequestObject{
+			Did: holderDID.String(),
+			Params: CallbackParams{
+				Code:  &code,
+				State: &state,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.ServerError, "unknown client flow for callback: ''")
 	})
 }
 

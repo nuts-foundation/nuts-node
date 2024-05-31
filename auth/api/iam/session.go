@@ -33,19 +33,31 @@ import (
 // The client state (and nonce/redirectToken as well) is used to refer to this session.
 // Both the client and the server use this session to store information about the request.
 type OAuthSession struct {
-	ClientID          string       `json:"client_id,omitempty"`
-	ClientState       string       `json:"client_state,omitempty"`
-	OpenID4VPVerifier *PEXConsumer `json:"openid4vp_verifier,omitempty"`
-	OwnDID            *did.DID     `json:"own_did,omitempty"`
-	PKCEParams        PKCEParams   `json:"pkce_params"`
-	RedirectURI       string       `json:"redirect_uri,omitempty"`
-	ResponseType      string       `json:"response_type,omitempty"`
-	Scope             string       `json:"scope,omitempty"`
-	SessionID         string       `json:"session_id,omitempty"`
-	TokenEndpoint     string       `json:"token_endpoint,omitempty"`
-	UseDPoP           bool         `json:"use_dpop,omitempty"`
-	VerifierDID       *did.DID     `json:"verifier_did,omitempty"`
+	ClientFlow        oauthClientFlow `json:"client_flow,omitempty"`
+	ClientID          string          `json:"client_id,omitempty"`
+	ClientState       string          `json:"client_state,omitempty"`
+	OpenID4VPVerifier *PEXConsumer    `json:"openid4vp_verifier,omitempty"`
+	OwnDID            *did.DID        `json:"own_did,omitempty"`
+	OtherDID          *did.DID        `json:"other_did,omitempty"`
+	PKCEParams        PKCEParams      `json:"pkce_params"`
+	RedirectURI       string          `json:"redirect_uri,omitempty"`
+	Scope             string          `json:"scope,omitempty"`
+	SessionID         string          `json:"session_id,omitempty"`
+	TokenEndpoint     string          `json:"token_endpoint,omitempty"`
+	UseDPoP           bool            `json:"use_dpop,omitempty"`
+	// IssuerCredentialEndpoint: endpoint to exchange the access_token for a credential in the OpenID4VCI flow
+	IssuerCredentialEndpoint string `json:"issuer_credential_endpoint,omitempty"`
 }
+
+// oauthClientFlow is used by a client to identify the flow a particular callback is part of
+type oauthClientFlow = string
+
+const (
+	// accessTokenRequestClientFlow is used in the standard authorization_code flow to request an access_token
+	accessTokenRequestClientFlow oauthClientFlow = "access_token_request"
+	// credentialRequestClientFlow is used in the OpenID4VCI Credential Request flow
+	credentialRequestClientFlow oauthClientFlow = "openid4vci_credential_request"
+)
 
 // PEXConsumer consumes Presentation Submissions, according to https://identity.foundation/presentation-exchange/
 // This is a component of a OpenID4VP Verifier.
@@ -162,33 +174,5 @@ func (s OAuthSession) CreateRedirectURI(params map[string]string) string {
 
 func (s OAuthSession) redirectURI() *url.URL {
 	redirectURL, _ := url.Parse(s.RedirectURI)
-	return redirectURL
-}
-
-// The Oid4vciSession is used to hold the state of an OIDC4VCi request between the moment
-// the client application does the request, the OIDC4VCi flow and the redirect back to the
-// client. The Oid4vciSession is referred to by a generated session id shared with the downstream
-// OIDC4VCi issuer.
-type Oid4vciSession struct {
-	// HolderDid: the DID of the wallet holder to who the VC will be issued to.
-	HolderDid *did.DID
-	// IssuerDid: the DID of the VC issuer, the party that will issue the VC to the holders' wallet
-	IssuerDid *did.DID
-	// RemoteRedirectUri: The redirect URL as provided by the external application requesting the issuance.
-	RemoteRedirectUri string
-	// RedirectUri: the URL send to the issuer as the redirect_uri of this nuts-node.
-	RedirectUri string
-	// PKCEParams: a set of Proof Key for Code Exchange parameters generated for this request.
-	PKCEParams PKCEParams
-	// IssuerTokenEndpoint: the endpoint for fetching the access token of the issuer.
-	IssuerTokenEndpoint string
-	// IssuerCredentialEndpoint: the endpoint for fetching the credential from the issuer with
-	// the access_token fetched from the IssuerTokenEndpoint.
-	IssuerCredentialEndpoint string
-}
-
-// The remoteRedirectUri returns the RemoteRedirectUri as pared URL reference.
-func (s Oid4vciSession) remoteRedirectUri() *url.URL {
-	redirectURL, _ := url.Parse(s.RemoteRedirectUri)
 	return redirectURL
 }
