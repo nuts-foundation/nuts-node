@@ -114,11 +114,13 @@ func TestAuth_IAMClient(t *testing.T) {
 		config := DefaultConfig()
 		config.ContractValidators = []string{"dummy"}
 		ctrl := gomock.NewController(t)
-		pkiMock := pki.NewMockProvider(ctrl) // no calls are expected
+		pkiMock := pki.NewMockProvider(ctrl)
+		pkiMock.EXPECT().CreateTLSConfig(gomock.Any()) // for v5 HTTP client
 		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 
 		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
+		require.NoError(t, i.Configure(core.TestServerConfig()))
 
 		assert.NotNil(t, i.IAMClient())
 	})

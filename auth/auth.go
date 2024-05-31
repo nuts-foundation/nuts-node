@@ -108,8 +108,7 @@ func (auth *Auth) RelyingParty() oauth.RelyingParty {
 }
 
 func (auth *Auth) IAMClient() iam.Client {
-	keyResolver := resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}
-	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.keyStore, auth.strictMode, auth.httpClientTimeout, auth.config.HTTPResponseCacheSize)
+	return auth.iamClient
 }
 
 // Configure the Auth struct by creating a validator and create an Irma server
@@ -147,18 +146,19 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
+	var httpClientTimeout time.Duration
 	if auth.config.HTTPTimeout >= 0 {
-		auth.httpClientTimeout = time.Duration(auth.config.HTTPTimeout) * time.Second
+		httpClientTimeout = time.Duration(auth.config.HTTPTimeout) * time.Second
 	} else {
 		// auth.http.config got deprecated in favor of httpclient.timeout
-		auth.httpClientTimeout = config.HTTPClient.Timeout
+		httpClientTimeout = config.HTTPClient.Timeout
 	}
 	// V1 API related stuff
 	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second
 	auth.authzServer = oauth.NewAuthorizationServer(auth.vdrInstance.Resolver(), auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
 		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenLifeSpan)
 	auth.relyingParty = oauth.NewRelyingParty(auth.vdrInstance.Resolver(), auth.serviceResolver,
-		auth.keyStore, auth.vcr.Wallet(), auth.httpClientTimeout, auth.tlsConfig, config.Strictmode)
+		auth.keyStore, auth.vcr.Wallet(), httpClientTimeout, auth.tlsConfig, config.Strictmode)
 
 	if err := auth.authzServer.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err
@@ -166,7 +166,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 
 	keyResolver := resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}
 	auth.iamClient = iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.keyStore, auth.strictMode,
-		auth.httpClientTimeout, auth.config.HTTPResponseCacheSize)
+		httpClientTimeout, auth.config.HTTPResponseCacheSize)
 
 	return nil
 }
