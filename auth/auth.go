@@ -60,6 +60,7 @@ type Auth struct {
 	strictMode        bool
 	httpClientTimeout time.Duration
 	tlsConfig         *tls.Config
+	iamClient         *iam.OpenID4VPClient
 }
 
 // Name returns the name of the module.
@@ -162,6 +163,10 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	if err := auth.authzServer.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err
 	}
+
+	keyResolver := resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}
+	auth.iamClient = iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.keyStore, auth.strictMode,
+		auth.httpClientTimeout, auth.config.HTTPResponseCacheSize)
 
 	return nil
 }
