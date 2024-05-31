@@ -28,6 +28,7 @@ func DefaultConfig() Config {
 		Public: PublicConfig{
 			Address: ":8080",
 		},
+		ResponseCacheSize: 10 * 1024 * 1024, // 10mb
 	}
 }
 
@@ -37,6 +38,8 @@ type Config struct {
 	Log      LogLevel       `koanf:"log"`
 	Public   PublicConfig   `koanf:"public"`
 	Internal InternalConfig `koanf:"internal"`
+	// ResponseCacheSize is the maximum number of bytes cached by HTTP clients.
+	ResponseCacheSize int `koanf:"cache.maxbytes"`
 }
 
 // PublicConfig contains the configuration for outside-facing HTTP endpoints.

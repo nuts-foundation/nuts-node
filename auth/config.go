@@ -26,13 +26,11 @@ import (
 
 // Config holds all the configuration params
 type Config struct {
-	Irma        IrmaConfig `koanf:"irma"`
-	HTTPTimeout int        `koanf:"http.timeout"`
-	// HTTPResponseCacheSize is the maximum number of bytes cached by the HTTP client.
-	HTTPResponseCacheSize int      `koanf:"http.cache.maxbytes"`
-	ClockSkew             int      `koanf:"clockskew"`
-	ContractValidators    []string `koanf:"contractvalidators"`
-	AccessTokenLifeSpan   int      `koanf:"accesstokenlifespan"`
+	Irma                IrmaConfig `koanf:"irma"`
+	HTTPTimeout         int        `koanf:"http.timeout"`
+	ClockSkew           int        `koanf:"clockskew"`
+	ContractValidators  []string   `koanf:"contractvalidators"`
+	AccessTokenLifeSpan int        `koanf:"accesstokenlifespan"`
 }
 
 type IrmaConfig struct {
@@ -53,7 +51,6 @@ func DefaultConfig() Config {
 			dummy.ContractFormat,
 			selfsigned.ContractFormat,
 		},
-		AccessTokenLifeSpan:   60,               // seconds, as specced in RFC003
-		HTTPResponseCacheSize: 10 * 1024 * 1024, // 10mb
+		AccessTokenLifeSpan: 60, // seconds, as specced in RFC003
 	}
 }

@@ -16,7 +16,7 @@
  *
  */
 
-package iam
+package client
 
 import (
 	"bytes"
@@ -36,7 +36,7 @@ func Test_httpClientCache(t *testing.T) {
 		URL:    test.MustParseURL("http://example.com"),
 	}
 	t.Run("does not cache POST requests", func(t *testing.T) {
-		client := cachingHTTPClient(&stubRequestDoer{
+		client := NewCachingTransport(&stubRoundTripper{
 			statusCode: http.StatusOK,
 			data:       []byte("Hello, World!"),
 			headers: map[string]string{
@@ -44,7 +44,7 @@ func Test_httpClientCache(t *testing.T) {
 			},
 		}, 1000)
 
-		_, err := client.Do(&http.Request{
+		_, err := client.RoundTrip(&http.Request{
 			Method: http.MethodPost,
 		})
 
@@ -52,24 +52,24 @@ func Test_httpClientCache(t *testing.T) {
 		assert.Equal(t, 0, client.currentSizeBytes)
 	})
 	t.Run("caches GET request with max-age", func(t *testing.T) {
-		requestSink := &stubRequestDoer{
+		requestSink := &stubRoundTripper{
 			statusCode: http.StatusCreated,
 			data:       []byte("Hello, World!"),
 			headers: map[string]string{
 				"Cache-Control": "max-age=3600",
 			},
 		}
-		client := cachingHTTPClient(requestSink, 1000)
+		client := NewCachingTransport(requestSink, 1000)
 
 		// Initial fetch
-		httpResponse, err := client.Do(httpRequest)
+		httpResponse, err := client.RoundTrip(httpRequest)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusCreated, httpResponse.StatusCode)
 		fetchedResponseData, _ := io.ReadAll(httpResponse.Body)
 		assert.Equal(t, "Hello, World!", string(fetchedResponseData))
 
 		// Fetch the response again, should be taken from cache
-		httpResponse, err = client.Do(httpRequest)
+		httpResponse, err = client.RoundTrip(httpRequest)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusCreated, httpResponse.StatusCode)
 		cachedResponseData, _ := io.ReadAll(httpResponse.Body)
@@ -79,7 +79,7 @@ func Test_httpClientCache(t *testing.T) {
 		assert.Equal(t, 1, requestSink.invocations)
 	})
 	t.Run("does not cache responses with no-store", func(t *testing.T) {
-		client := cachingHTTPClient(&stubRequestDoer{
+		client := NewCachingTransport(&stubRoundTripper{
 			statusCode: http.StatusOK,
 			data:       []byte("Hello, World!"),
 			headers: map[string]string{
@@ -87,26 +87,26 @@ func Test_httpClientCache(t *testing.T) {
 			},
 		}, 1000)
 
-		_, err := client.Do(httpRequest)
+		_, err := client.RoundTrip(httpRequest)
 		require.NoError(t, err)
 		assert.Equal(t, 0, client.currentSizeBytes)
 	})
 	t.Run("max-age is too long", func(t *testing.T) {
-		requestSink := &stubRequestDoer{
+		requestSink := &stubRoundTripper{
 			statusCode: http.StatusOK,
 			data:       []byte("Hello, World!"),
 			headers: map[string]string{
 				"Cache-Control": fmt.Sprintf("max-age=%d", int(time.Hour.Seconds()*24)),
 			},
 		}
-		client := cachingHTTPClient(requestSink, 1000)
+		client := NewCachingTransport(requestSink, 1000)
 
-		_, err := client.Do(httpRequest)
+		_, err := client.RoundTrip(httpRequest)
 		require.NoError(t, err)
 		assert.LessOrEqual(t, time.Now().Sub(client.head.expirationTime), time.Hour)
 	})
 	t.Run("2 cache entries with different query parameters", func(t *testing.T) {
-		requestSink := &stubRequestDoer{
+		requestSink := &stubRoundTripper{
 			statusCode: http.StatusOK,
 			headers: map[string]string{
 				"Cache-Control": "max-age=3600",
@@ -115,56 +115,56 @@ func Test_httpClientCache(t *testing.T) {
 		requestSink.dataFn = func(req *http.Request) []byte {
 			return []byte(req.URL.String())
 		}
-		client := cachingHTTPClient(requestSink, 1000)
+		client := NewCachingTransport(requestSink, 1000)
 
 		// Initial fetch of the resources
-		_, err := client.Do(httpRequest)
+		_, err := client.RoundTrip(httpRequest)
 		require.NoError(t, err)
 		alternativeRequest := &http.Request{
 			Method: http.MethodGet,
 			URL:    test.MustParseURL("http://example.com?foo=bar"),
 		}
-		_, err = client.Do(alternativeRequest)
+		_, err = client.RoundTrip(alternativeRequest)
 		require.NoError(t, err)
 		assert.Equal(t, 2, requestSink.invocations)
 
 		// Fetch the responses again, should be taken from cache
-		response1, _ := client.Do(httpRequest)
+		response1, _ := client.RoundTrip(httpRequest)
 		response1Data, _ := io.ReadAll(response1.Body)
-		response2, _ := client.Do(alternativeRequest)
+		response2, _ := client.RoundTrip(alternativeRequest)
 		response2Data, _ := io.ReadAll(response2.Body)
 		assert.Equal(t, 2, requestSink.invocations)
 		assert.Equal(t, "http://example.com", string(response1Data))
 		assert.Equal(t, "http://example.com?foo=bar", string(response2Data))
 	})
 	t.Run("prunes cache when full", func(t *testing.T) {
-		requestSink := &stubRequestDoer{
+		requestSink := &stubRoundTripper{
 			statusCode: http.StatusOK,
 			data:       []byte("Hello, World!"),
 			headers: map[string]string{
 				"Cache-Control": "max-age=3600",
 			},
 		}
-		client := cachingHTTPClient(requestSink, 14)
+		client := NewCachingTransport(requestSink, 14)
 		client.insert(&cacheEntry{
 			responseData:   []byte("Hello"),
 			requestURL:     test.MustParseURL("http://example.com"),
 			expirationTime: time.Now().Add(time.Hour),
 		})
 
-		_, err := client.Do(httpRequest)
+		_, err := client.RoundTrip(httpRequest)
 		require.NoError(t, err)
 		assert.Equal(t, 13, client.currentSizeBytes)
 	})
 	t.Run("orders entries by expirationTime for optimized pruning", func(t *testing.T) {
-		requestSink := &stubRequestDoer{
+		requestSink := &stubRoundTripper{
 			statusCode: http.StatusOK,
 			data:       []byte("Hello, World!"),
 			headers: map[string]string{
 				"Cache-Control": "max-age=3600",
 			},
 		}
-		client := cachingHTTPClient(requestSink, 10000)
+		client := NewCachingTransport(requestSink, 10000)
 		client.insert(&cacheEntry{
 			responseData:   []byte("Hello"),
 			requestURL:     test.MustParseURL("http://example.com/3"),
@@ -185,16 +185,16 @@ func Test_httpClientCache(t *testing.T) {
 		assert.Equal(t, client.head.requestURL.String(), "http://example.com/1")
 	})
 	t.Run("entries that exceed max cache size aren't cached", func(t *testing.T) {
-		requestSink := &stubRequestDoer{
+		requestSink := &stubRoundTripper{
 			statusCode: http.StatusOK,
 			data:       []byte("Hello, World!"),
 			headers: map[string]string{
 				"Cache-Control": "max-age=3600",
 			},
 		}
-		client := cachingHTTPClient(requestSink, 5)
+		client := NewCachingTransport(requestSink, 5)
 
-		httpResponse, err := client.Do(httpRequest)
+		httpResponse, err := client.RoundTrip(httpRequest)
 		require.NoError(t, err)
 		data, _ := io.ReadAll(httpResponse.Body)
 		assert.Equal(t, "Hello, World!", string(data))
@@ -202,7 +202,7 @@ func Test_httpClientCache(t *testing.T) {
 	})
 }
 
-type stubRequestDoer struct {
+type stubRoundTripper struct {
 	statusCode  int
 	data        []byte
 	dataFn      func(r *http.Request) []byte
@@ -210,7 +210,7 @@ type stubRequestDoer struct {
 	invocations int
 }
 
-func (s *stubRequestDoer) Do(req *http.Request) (*http.Response, error) {
+func (s *stubRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	s.invocations++
 	response := &http.Response{
 		StatusCode: s.statusCode,

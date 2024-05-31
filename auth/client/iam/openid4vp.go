@@ -52,17 +52,11 @@ type OpenID4VPClient struct {
 }
 
 // NewClient returns an implementation of Holder
-// responsesCacheSizeInBytes specifies the max. number of bytes to cache in memory. If 0, no caching is done.
-func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner nutsCrypto.JWTSigner, strictMode bool,
-	httpClientTimeout time.Duration, responsesCacheSizeInBytes int) *OpenID4VPClient {
-	var requestDoer core.HTTPRequestDoer = core.NewStrictHTTPClient(strictMode, httpClientTimeout, nil)
-	if responsesCacheSizeInBytes > 0 {
-		requestDoer = cachingHTTPClient(requestDoer, responsesCacheSizeInBytes)
-	}
+func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner nutsCrypto.JWTSigner, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
 	return &OpenID4VPClient{
 		httpClient: HTTPClient{
 			strictMode: strictMode,
-			httpClient: requestDoer,
+			httpClient: core.NewStrictHTTPClient(strictMode, httpClientTimeout, nil),
 		},
 		keyResolver: keyResolver,
 		jwtSigner:   jwtSigner,

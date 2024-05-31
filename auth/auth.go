@@ -165,8 +165,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	}
 
 	keyResolver := resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}
-	auth.iamClient = iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.keyStore, auth.strictMode,
-		httpClientTimeout, auth.config.HTTPResponseCacheSize)
+	auth.iamClient = iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.keyStore, auth.strictMode, httpClientTimeout)
 
 	return nil
 }

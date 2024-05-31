@@ -1,28 +1,9 @@
-/*
- * Copyright (C) 2024 Nuts community
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- */
-
-package iam
+package client
 
 import (
 	"bytes"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/pquerna/cachecontrol"
 	"io"
 	"net/http"
@@ -35,13 +16,15 @@ import (
 // Even if the server responds with a longer cache time, responses are never cached longer than maxCacheTime.
 const maxCacheTime = time.Hour
 
+var _ http.RoundTripper = &CachingHTTPRequestDoer{}
+
 // CachingHTTPRequestDoer is a cache for HTTP responses for DID/OAuth2/OpenID clients.
 // It only caches GET requests (since generally only metadata is cacheable), and only if the response is cacheable.
 // It only works on expiration time and does not respect ETags headers.
 // When maxBytes is reached, the entries that expire first are removed to make room for new entries (since those are the first ones to be pruned any ways).
 type CachingHTTPRequestDoer struct {
-	maxBytes    int
-	requestDoer core.HTTPRequestDoer
+	maxBytes         int
+	wrappedTransport http.RoundTripper
 
 	// currentSizeBytes is the current size of the cache in bytes.
 	// It's used to make room for new entries when the cache is full.
@@ -67,13 +50,13 @@ type cacheEntry struct {
 	responseHeaders http.Header
 }
 
-func (h *CachingHTTPRequestDoer) Do(httpRequest *http.Request) (*http.Response, error) {
+func (h *CachingHTTPRequestDoer) RoundTrip(httpRequest *http.Request) (*http.Response, error) {
 	if httpRequest.Method == http.MethodGet {
 		if response := h.cachedEntry(httpRequest); response != nil {
 			return response, nil
 		}
 	}
-	httpResponse, err := h.requestDoer.Do(httpRequest)
+	httpResponse, err := h.wrappedTransport.RoundTrip(httpRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -203,12 +186,12 @@ func (h *CachingHTTPRequestDoer) pop() *cacheEntry {
 	return h.head
 }
 
-// cachingHTTPClient
-func cachingHTTPClient(requestDoer core.HTTPRequestDoer, responsesCacheSize int) *CachingHTTPRequestDoer {
+// NewCachingTransport creates a new CachingHTTPTransport with the given underlying transport and cache size.
+func NewCachingTransport(underlyingTransport http.RoundTripper, responsesCacheSize int) *CachingHTTPRequestDoer {
 	return &CachingHTTPRequestDoer{
-		maxBytes:     responsesCacheSize,
-		requestDoer:  requestDoer,
-		entriesByURL: map[string][]*cacheEntry{},
-		mux:          sync.RWMutex{},
+		maxBytes:         responsesCacheSize,
+		wrappedTransport: underlyingTransport,
+		entriesByURL:     map[string][]*cacheEntry{},
+		mux:              sync.RWMutex{},
 	}
 }

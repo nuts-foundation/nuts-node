@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"net/http"
 	"os"
 	"strings"
@@ -67,6 +68,12 @@ func (h Engine) Router() core.EchoRouter {
 
 // Configure loads the configuration for the HTTP engine.
 func (h *Engine) Configure(serverConfig core.ServerConfig) error {
+	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
+	if h.config.ResponseCacheSize > 0 {
+		defaultTransport := http.DefaultTransport.(*http.Transport)
+		http.DefaultTransport = client.NewCachingTransport(defaultTransport, h.config.ResponseCacheSize)
+	}
+
 	// Override default Echo HTTP error when bearer token is expected but not provided.
 	// Echo returns "Bad Request (400)" by default, but we use this for incorrect use of API parameters.
 	// "Unauthorized (401)" is a better fit.
