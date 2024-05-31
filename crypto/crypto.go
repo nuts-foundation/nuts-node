@@ -101,6 +101,7 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 
 func (client *Crypto) setupStorageAPIBackend() error {
 	log.Logger().Debug("Setting up StorageAPI backend for storage of private key material.")
+	log.Logger().Warn("External key storage backend is deprecated and will be removed in the future.")
 	apiBackend, err := external.NewAPIClient(client.config.External)
 	if err != nil {
 		return fmt.Errorf("unable to set up external crypto API client: %w", err)

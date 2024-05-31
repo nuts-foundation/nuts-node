@@ -81,48 +81,13 @@ In any case, make sure the key-value secret engine exists before trying to migra
 External Store API
 ==================
 
-.. note::
-
-    The external store API is still experimental and may change in the future.
 
 .. warning::
 
+    The external store API is deprecated and will be removed in the next major release.
     Anyone with access to the external store can read/write your private keys, so make sure it's properly secured and only the Nuts node can access it.
 
 
 The Nuts node can be configured to use an external store for private keys. This allows you to use your own key management system.
 The external store must implement the Nuts Secret store API specification.
 This OpenAPI specification is available from the `Secret Store API repository <https://github.com/nuts-foundation/secret-store-api>`__ on GitHub.
-
-Configuration
-^^^^^^^^^^^^^
-
-In order to use an external store, you need to set the ``crypto.storage`` option to ``external``. You also need to configure the ``crypto.external.address`` option to the address of the external store. The following example shows the typical configuration for a Nuts Vault proxy.
-
-.. code-block:: yaml
-
-    crypto:
-      storage: external
-      external:
-        address: https://localhost:8210
-
-Migrating to external storage
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If you want to migrate your private keys from the filesystem to an external store, you can use the Nuts command line interface with the ``fs2external`` crypto command. It takes the directory containing the private keys as argument (the example assumes the container is called *nuts-node* and *NUTS_DATADIR=/opt/nuts/data*):
-
-.. code-block:: shell
-
-    docker exec nuts-node nuts crypto fs2external /opt/nuts/data/crypto
-
-If you use the `vaultkv` store and want to start using the vault proxy, read the documentation of the Nuts Vault proxy.
-
-
-Available external storage implementations
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The following list contains all the known implementations of the Nuts external store API:
-
-- `Nuts Vault proxy <https://github.com/nuts-foundation/hashicorp-vault-proxy>`__. This is a proxy that integrates with Hashicorp Vault. It uses the Vault KV store to store the keys. The proxy is developed by the Nuts foundation and is available under an open source license.
-
-If you want to build your own store, take a look at the documentation at :ref:`external-secret-store`.

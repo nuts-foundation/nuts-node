@@ -20,9 +20,7 @@ The following options apply to the server commands below:
       --auth.irma.schememanager string                    IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'. (default "pbdf")
       --configfile string                                 Nuts config file (default "./config/nuts.yaml")
       --cpuprofile string                                 When set, a CPU profile is written to the given path. Ignored when strictmode is set.
-      --crypto.external.address string                    Address of the external storage service.
-      --crypto.external.timeout duration                  Time-out when invoking the external storage backend, in Golang time.Duration string format (e.g. 1s). (default 100ms)
-      --crypto.storage string                             Storage to use, 'external' for an external backend (experimental), 'fs' for file system (for development purposes), 'vaultkv' for Vault KV store (recommended, will be replaced by external backend in future).
+      --crypto.storage string                             Storage to use, 'fs' for file system (for development purposes), 'vaultkv' for HashiCorp Vault KV store,'external' for an external backend (deprecated).
       --crypto.vault.address string                       The Vault address. If set it overwrites the VAULT_ADDR env var.
       --crypto.vault.pathprefix string                    The Vault path prefix. (default "kv")
       --crypto.vault.timeout duration                     Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s). (default 5s)
@@ -98,16 +96,6 @@ Prints the current config
 ::
 
   nuts config [flags]
-
-
-nuts crypto fs2external
-^^^^^^^^^^^^^^^^^^^^^^^
-
-Imports private keys from filesystem based storage into the secret store server. The given directory must contain the private key files. The Nuts node must be configured to use storage-api as crypto storage. Can only be run on the local Nuts node, from the directory where nuts.yaml resides.
-
-::
-
-  nuts crypto fs2external [directory] [flags]
 
 
 nuts crypto fs2vault
