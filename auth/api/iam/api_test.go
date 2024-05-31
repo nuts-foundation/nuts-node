@@ -724,7 +724,9 @@ func TestWrapper_Routes(t *testing.T) {
 			return nil
 		}).AnyTimes()
 		router.EXPECT().Use(gomock.Any()).AnyTimes()
-		(&Wrapper{}).Routes(router)
+		(&Wrapper{
+			storageEngine: storage.NewTestStorageEngine(t),
+		}).Routes(router)
 
 		// Check that all cache-control max-age paths are actual paths
 		for _, path := range cacheControlMaxAgeURLs {
