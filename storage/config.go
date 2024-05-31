@@ -42,7 +42,7 @@ type SQLConfig struct {
 
 // SessionConfig specifies config for the session storage engine.
 type SessionConfig struct {
-	// Type is the type of session storage engine to use.
+	// Type is the type of session storage to use.
 	Type string `koanf:"type"`
 	// Redis is the configuration for the Redis session storage engine.
 	Redis RedisConfig `koanf:"redis"`
