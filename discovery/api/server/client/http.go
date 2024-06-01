@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"io"
 	"net/http"
 	"net/url"
@@ -36,7 +37,7 @@ import (
 // New creates a new DefaultHTTPClient.
 func New(strictMode bool, timeout time.Duration, tlsConfig *tls.Config) *DefaultHTTPClient {
 	return &DefaultHTTPClient{
-		client: core.NewStrictHTTPClient(strictMode, timeout, tlsConfig),
+		client: client.NewWithTLSConfig(timeout, tlsConfig),
 	}
 }
 

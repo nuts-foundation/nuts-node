@@ -12,20 +12,99 @@ import (
 	"time"
 )
 
+// DefaultCachingTransport is a http.RoundTripper that can be used as a default transport for HTTP clients.
+// If caching is enabled, it will cache responses according to RFC 7234.
+// If caching is disabled, it will behave like http.DefaultTransport.
+var DefaultCachingTransport = http.DefaultTransport
+
 // maxCacheTime is the maximum time responses are cached.
 // Even if the server responds with a longer cache time, responses are never cached longer than maxCacheTime.
 const maxCacheTime = time.Hour
 
-var _ http.RoundTripper = &CachingHTTPRequestDoer{}
+var _ http.RoundTripper = &CachingRoundTripper{}
 
-// CachingHTTPRequestDoer is a cache for HTTP responses for DID/OAuth2/OpenID clients.
-// It only caches GET requests (since generally only metadata is cacheable), and only if the response is cacheable.
+// NewCachingTransport creates a new CachingHTTPTransport with the given underlying transport and cache size.
+func NewCachingTransport(underlyingTransport http.RoundTripper, responsesCacheSize int) *CachingRoundTripper {
+	return &CachingRoundTripper{
+		cache:            newCache(responsesCacheSize),
+		wrappedTransport: underlyingTransport,
+	}
+}
+
+// CachingRoundTripper is a simple HTTP client cache for HTTP responses.
+// It only caches GET requests (since for POST request caching, request bodies need to be cached as well),
+// and only if the response is cacheable according to RFC 7234.
 // It only works on expiration time and does not respect ETags headers.
-// When maxBytes is reached, the entries that expire first are removed to make room for new entries (since those are the first ones to be pruned any ways).
-type CachingHTTPRequestDoer struct {
-	maxBytes         int
+// When the cache is full, the entries that expire first are removed to make room for new entries (since those are the first ones to be pruned any ways).
+type CachingRoundTripper struct {
+	cache            *responseCache
 	wrappedTransport http.RoundTripper
+}
 
+func (r *CachingRoundTripper) RoundTrip(httpRequest *http.Request) (*http.Response, error) {
+	if httpRequest.Method == http.MethodGet {
+		if response := r.cache.get(httpRequest); response != nil {
+			return response, nil
+		}
+	}
+	httpResponse, err := r.wrappedTransport.RoundTrip(httpRequest)
+	if err != nil {
+		return nil, err
+	}
+	err = r.cacheResponse(httpRequest, httpResponse)
+	if err != nil {
+		return nil, err
+	}
+	return httpResponse, nil
+}
+
+// cacheResponse caches the response if it's cacheable.
+func (r *CachingRoundTripper) cacheResponse(httpRequest *http.Request, httpResponse *http.Response) error {
+	if httpRequest.Method != http.MethodGet {
+		return nil
+	}
+	reasons, expirationTime, err := cachecontrol.CachableResponse(httpRequest, httpResponse, cachecontrol.Options{PrivateCache: false})
+	if err != nil {
+		log.Logger().WithError(err).Infof("error while checking cacheability of response (url=%s), not caching", httpRequest.URL.String())
+		return nil
+	}
+	// We don't want to cache responses for too long, as that increases the risk of staleness,
+	// and could keep cause very long-lived entries to never be pruned.
+	maxExpirationTime := time.Now().Add(maxCacheTime)
+	if expirationTime.After(maxExpirationTime) {
+		expirationTime = maxExpirationTime
+	}
+	if len(reasons) > 0 || expirationTime.IsZero() {
+		log.Logger().Debugf("response (url=%s) is not cacheable: %v", httpRequest.URL.String(), reasons)
+		return nil
+	}
+	responseBytes, err := io.ReadAll(httpResponse.Body)
+	if err != nil {
+		return fmt.Errorf("error while reading response body for caching: %w", err)
+	}
+	r.cache.insert(&cacheEntry{
+		responseData:    responseBytes,
+		requestMethod:   httpRequest.Method,
+		requestURL:      httpRequest.URL,
+		requestRawQuery: httpRequest.URL.RawQuery,
+		responseStatus:  httpResponse.StatusCode,
+		responseHeaders: httpResponse.Header,
+		expirationTime:  expirationTime,
+	})
+	httpResponse.Body = io.NopCloser(bytes.NewReader(responseBytes))
+	return nil
+}
+
+func newCache(responsesCacheSize int) *responseCache {
+	return &responseCache{
+		maxBytes:     responsesCacheSize,
+		entriesByURL: map[string][]*cacheEntry{},
+		mux:          sync.RWMutex{},
+	}
+}
+
+type responseCache struct {
+	maxBytes int
 	// currentSizeBytes is the current size of the cache in bytes.
 	// It's used to make room for new entries when the cache is full.
 	currentSizeBytes int
@@ -50,66 +129,8 @@ type cacheEntry struct {
 	responseHeaders http.Header
 }
 
-func (h *CachingHTTPRequestDoer) RoundTrip(httpRequest *http.Request) (*http.Response, error) {
-	if httpRequest.Method == http.MethodGet {
-		if response := h.cachedEntry(httpRequest); response != nil {
-			return response, nil
-		}
-	}
-	httpResponse, err := h.wrappedTransport.RoundTrip(httpRequest)
-	if err != nil {
-		return nil, err
-	}
-	err = h.cacheResponse(httpRequest, httpResponse)
-	if err != nil {
-		return nil, err
-	}
-	return httpResponse, nil
-}
-
-// cacheResponse caches the response if it's cacheable.
-func (h *CachingHTTPRequestDoer) cacheResponse(httpRequest *http.Request, httpResponse *http.Response) error {
-	if httpRequest.Method != http.MethodGet {
-		return nil
-	}
-	reasons, expirationTime, err := cachecontrol.CachableResponse(httpRequest, httpResponse, cachecontrol.Options{PrivateCache: false})
-	if err != nil {
-		log.Logger().WithError(err).Infof("error while checking cacheability of response (url=%s), not caching", httpRequest.URL.String())
-		return nil
-	}
-	// We don't want to cache responses for too long, as that increases the risk of staleness,
-	// and could keep cause very long-lived entries to never be pruned.
-	maxExpirationTime := time.Now().Add(maxCacheTime)
-	if expirationTime.After(maxExpirationTime) {
-		expirationTime = maxExpirationTime
-	}
-	if len(reasons) > 0 || expirationTime.IsZero() {
-		log.Logger().Debugf("response (url=%s) is not cacheable: %v", httpRequest.URL.String(), reasons)
-		return nil
-	}
-	responseBytes, err := io.ReadAll(httpResponse.Body)
-	if err != nil {
-		return fmt.Errorf("error while reading response body for caching: %w", err)
-	}
-	h.mux.Lock()
-	defer h.mux.Unlock()
-	if len(responseBytes) <= h.maxBytes { // sanity check
-		h.insert(&cacheEntry{
-			responseData:    responseBytes,
-			requestMethod:   httpRequest.Method,
-			requestURL:      httpRequest.URL,
-			requestRawQuery: httpRequest.URL.RawQuery,
-			responseStatus:  httpResponse.StatusCode,
-			responseHeaders: httpResponse.Header,
-			expirationTime:  expirationTime,
-		})
-	}
-	httpResponse.Body = io.NopCloser(bytes.NewReader(responseBytes))
-	return nil
-}
-
-// cachedEntry returns a cached response if it exists.
-func (h *CachingHTTPRequestDoer) cachedEntry(httpRequest *http.Request) *http.Response {
+// get is called by the transport to get a cached response.
+func (h *responseCache) get(httpRequest *http.Request) *http.Response {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 	h.removeExpiredEntries()
@@ -127,19 +148,13 @@ func (h *CachingHTTPRequestDoer) cachedEntry(httpRequest *http.Request) *http.Re
 	return nil
 }
 
-func (h *CachingHTTPRequestDoer) removeExpiredEntries() {
-	var current = h.head
-	for current != nil {
-		if current.expirationTime.Before(time.Now()) {
-			current = h.pop()
-		} else {
-			break
-		}
+// insert is called by the transport to insert a new entry to the cache.
+func (h *responseCache) insert(entry *cacheEntry) {
+	if len(entry.responseData) > h.maxBytes { // sanity check: don't cache responses that are larger than the cache
+		return
 	}
-}
-
-// insert adds a new entry to the cache.
-func (h *CachingHTTPRequestDoer) insert(entry *cacheEntry) {
+	h.mux.Lock()
+	defer h.mux.Unlock()
 	// See if we need to make room for the new entry
 	for h.currentSizeBytes+len(entry.responseData) >= h.maxBytes {
 		_ = h.pop()
@@ -165,8 +180,20 @@ func (h *CachingHTTPRequestDoer) insert(entry *cacheEntry) {
 	h.currentSizeBytes += len(entry.responseData)
 }
 
-// pop removes the first entry from the linked list
-func (h *CachingHTTPRequestDoer) pop() *cacheEntry {
+// removeExpiredEntries removes all entries that have expired. Do not call it directly.
+func (h *responseCache) removeExpiredEntries() {
+	var current = h.head
+	for current != nil {
+		if current.expirationTime.Before(time.Now()) {
+			current = h.pop()
+		} else {
+			break
+		}
+	}
+}
+
+// pop removes the first entry from the linked list. Do not call it directly.
+func (h *responseCache) pop() *cacheEntry {
 	if h.head == nil {
 		return nil
 	}
@@ -184,14 +211,4 @@ func (h *CachingHTTPRequestDoer) pop() *cacheEntry {
 	h.currentSizeBytes -= len(h.head.responseData)
 	h.head = h.head.next
 	return h.head
-}
-
-// NewCachingTransport creates a new CachingHTTPTransport with the given underlying transport and cache size.
-func NewCachingTransport(underlyingTransport http.RoundTripper, responsesCacheSize int) *CachingHTTPRequestDoer {
-	return &CachingHTTPRequestDoer{
-		maxBytes:         responsesCacheSize,
-		wrappedTransport: underlyingTransport,
-		entriesByURL:     map[string][]*cacheEntry{},
-		mux:              sync.RWMutex{},
-	}
 }

@@ -45,7 +45,6 @@ func TestFlagSet(t *testing.T) {
 		ConfAccessTokenLifeSpan,
 		ConfClockSkew,
 		ConfContractValidators,
-		ConfHTTPResponseCacheSize,
 		ConfHTTPTimeout,
 		ConfAutoUpdateIrmaSchemas,
 		ConfIrmaSchemeManager,

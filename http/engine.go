@@ -21,6 +21,7 @@ package http
 import (
 	"context"
 	"crypto"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/client"
@@ -68,11 +69,7 @@ func (h Engine) Router() core.EchoRouter {
 
 // Configure loads the configuration for the HTTP engine.
 func (h *Engine) Configure(serverConfig core.ServerConfig) error {
-	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
-	if h.config.ResponseCacheSize > 0 {
-		defaultTransport := http.DefaultTransport.(*http.Transport)
-		http.DefaultTransport = client.NewCachingTransport(defaultTransport, h.config.ResponseCacheSize)
-	}
+	h.configureClient(serverConfig)
 
 	// Override default Echo HTTP error when bearer token is expected but not provided.
 	// Echo returns "Bad Request (400)" by default, but we use this for incorrect use of API parameters.
@@ -102,6 +99,19 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	h.applyRateLimiterMiddleware(h.server, serverConfig)
 	h.applyLoggerMiddleware(h.server, []string{"/metrics", "/status", "/health"}, h.config.Log)
 	return h.applyAuthMiddleware(h.server, "/internal", h.config.Internal.Auth)
+}
+
+func (h *Engine) configureClient(serverConfig core.ServerConfig) {
+	client.StrictMode = serverConfig.Strictmode
+	httpTransport := http.DefaultTransport.(*http.Transport)
+	if httpTransport.TLSClientConfig == nil {
+		httpTransport.TLSClientConfig = &tls.Config{}
+	}
+	httpTransport.TLSClientConfig.MinVersion = tls.VersionTLS12
+	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
+	if h.config.ResponseCacheSize > 0 {
+		client.DefaultCachingTransport = client.NewCachingTransport(http.DefaultTransport, h.config.ResponseCacheSize)
+	}
 }
 
 func (h *Engine) createEchoServer() (EchoServer, error) {

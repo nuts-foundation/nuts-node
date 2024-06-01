@@ -23,12 +23,11 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"github.com/nuts-foundation/nuts-node/core"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -399,7 +398,7 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 			wallet: wallet,
 			httpClient: HTTPClient{
 				strictMode: false,
-				httpClient: core.NewStrictHTTPClient(false, 10*time.Second, tlsConfig),
+				httpClient: client.NewWithTLSConfig(10*time.Second, tlsConfig),
 			},
 			jwtSigner:   jwtSigner,
 			keyResolver: keyResolver,

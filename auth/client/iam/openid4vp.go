@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"net/http"
 	"net/url"
 	"time"
@@ -56,7 +57,7 @@ func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner
 	return &OpenID4VPClient{
 		httpClient: HTTPClient{
 			strictMode: strictMode,
-			httpClient: core.NewStrictHTTPClient(strictMode, httpClientTimeout, nil),
+			httpClient: client.NewWithCache(httpClientTimeout),
 		},
 		keyResolver: keyResolver,
 		jwtSigner:   jwtSigner,

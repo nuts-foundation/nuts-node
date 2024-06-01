@@ -49,7 +49,7 @@ func Test_httpClientCache(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, 0, client.currentSizeBytes)
+		assert.Equal(t, 0, client.cache.currentSizeBytes)
 	})
 	t.Run("caches GET request with max-age", func(t *testing.T) {
 		requestSink := &stubRoundTripper{
@@ -75,7 +75,7 @@ func Test_httpClientCache(t *testing.T) {
 		cachedResponseData, _ := io.ReadAll(httpResponse.Body)
 		assert.Equal(t, "Hello, World!", string(cachedResponseData))
 
-		assert.Equal(t, 13, client.currentSizeBytes)
+		assert.Equal(t, 13, client.cache.currentSizeBytes)
 		assert.Equal(t, 1, requestSink.invocations)
 	})
 	t.Run("does not cache responses with no-store", func(t *testing.T) {
@@ -89,7 +89,7 @@ func Test_httpClientCache(t *testing.T) {
 
 		_, err := client.RoundTrip(httpRequest)
 		require.NoError(t, err)
-		assert.Equal(t, 0, client.currentSizeBytes)
+		assert.Equal(t, 0, client.cache.currentSizeBytes)
 	})
 	t.Run("max-age is too long", func(t *testing.T) {
 		requestSink := &stubRoundTripper{
@@ -103,7 +103,7 @@ func Test_httpClientCache(t *testing.T) {
 
 		_, err := client.RoundTrip(httpRequest)
 		require.NoError(t, err)
-		assert.LessOrEqual(t, time.Now().Sub(client.head.expirationTime), time.Hour)
+		assert.LessOrEqual(t, time.Now().Sub(client.cache.head.expirationTime), time.Hour)
 	})
 	t.Run("2 cache entries with different query parameters", func(t *testing.T) {
 		requestSink := &stubRoundTripper{
@@ -146,7 +146,7 @@ func Test_httpClientCache(t *testing.T) {
 			},
 		}
 		client := NewCachingTransport(requestSink, 14)
-		client.insert(&cacheEntry{
+		client.cache.insert(&cacheEntry{
 			responseData:   []byte("Hello"),
 			requestURL:     test.MustParseURL("http://example.com"),
 			expirationTime: time.Now().Add(time.Hour),
@@ -154,7 +154,7 @@ func Test_httpClientCache(t *testing.T) {
 
 		_, err := client.RoundTrip(httpRequest)
 		require.NoError(t, err)
-		assert.Equal(t, 13, client.currentSizeBytes)
+		assert.Equal(t, 13, client.cache.currentSizeBytes)
 	})
 	t.Run("orders entries by expirationTime for optimized pruning", func(t *testing.T) {
 		requestSink := &stubRoundTripper{
@@ -165,24 +165,24 @@ func Test_httpClientCache(t *testing.T) {
 			},
 		}
 		client := NewCachingTransport(requestSink, 10000)
-		client.insert(&cacheEntry{
+		client.cache.insert(&cacheEntry{
 			responseData:   []byte("Hello"),
 			requestURL:     test.MustParseURL("http://example.com/3"),
 			expirationTime: time.Now().Add(time.Hour * 3),
 		})
-		assert.Equal(t, client.head.requestURL.String(), "http://example.com/3")
-		client.insert(&cacheEntry{
+		assert.Equal(t, client.cache.head.requestURL.String(), "http://example.com/3")
+		client.cache.insert(&cacheEntry{
 			responseData:   []byte("Hello"),
 			requestURL:     test.MustParseURL("http://example.com/2"),
 			expirationTime: time.Now().Add(time.Hour * 2),
 		})
-		assert.Equal(t, client.head.requestURL.String(), "http://example.com/2")
-		client.insert(&cacheEntry{
+		assert.Equal(t, client.cache.head.requestURL.String(), "http://example.com/2")
+		client.cache.insert(&cacheEntry{
 			responseData:   []byte("Hello"),
 			requestURL:     test.MustParseURL("http://example.com/1"),
 			expirationTime: time.Now().Add(time.Hour),
 		})
-		assert.Equal(t, client.head.requestURL.String(), "http://example.com/1")
+		assert.Equal(t, client.cache.head.requestURL.String(), "http://example.com/1")
 	})
 	t.Run("entries that exceed max cache size aren't cached", func(t *testing.T) {
 		requestSink := &stubRoundTripper{
@@ -198,7 +198,7 @@ func Test_httpClientCache(t *testing.T) {
 		require.NoError(t, err)
 		data, _ := io.ReadAll(httpResponse.Body)
 		assert.Equal(t, "Hello, World!", string(data))
-		assert.Equal(t, 0, client.currentSizeBytes)
+		assert.Equal(t, 0, client.cache.currentSizeBytes)
 	})
 }
 

@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	bbolt2 "github.com/nuts-foundation/go-stoabs/bbolt"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -83,6 +84,7 @@ func TestVCR_Configure(t *testing.T) {
 	})
 	t.Run("strictmode passed to client APIs", func(t *testing.T) {
 		// load test VC
+		client.StrictMode = true
 		testVC := test.ValidNutsOrganizationCredential(t)
 		issuerDID := did.MustParseDID(testVC.Issuer.String())
 		testDirectory := io.TestDirectory(t)

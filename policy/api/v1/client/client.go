@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"net/http"
 	"time"
@@ -40,7 +41,7 @@ type HTTPClient struct {
 func NewHTTPClient(strictMode bool, timeout time.Duration, tlsConfig *tls.Config) HTTPClient {
 	return HTTPClient{
 		strictMode: strictMode,
-		httpClient: core.NewStrictHTTPClient(strictMode, timeout, tlsConfig),
+		httpClient: client.NewWithTLSConfig(timeout, tlsConfig),
 	}
 }
 
