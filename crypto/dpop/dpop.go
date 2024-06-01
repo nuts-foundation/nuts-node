@@ -94,18 +94,18 @@ func generateID() string {
 
 // Sign the DPoP token with the given key
 // It also adds the jwk and alg header
-func (t *DPoP) Sign(key jwk.Key) (string, error) {
+func (t *DPoP) Sign(key crypto.Signer, alg jwa.SignatureAlgorithm) (string, error) {
 	if t.raw != "" {
 		return "", errors.New("already signed")
 	}
-	pkey, err := key.PublicKey()
+	publicKeyJWK, err := jwk.FromRaw(key.Public())
 	if err != nil {
 		return "", err
 	}
-	_ = t.Headers.Set(jws.JWKKey, pkey)
+	_ = publicKeyJWK.Set(jwk.AlgorithmKey, alg)
+	_ = t.Headers.Set(jws.JWKKey, publicKeyJWK)
 
-	var sig []byte
-	sig, err = jwt.Sign(t.Token, jwt.WithKey(jwa.SignatureAlgorithm(key.Algorithm().String()), key, jws.WithProtectedHeaders(t.Headers)))
+	sig, err := jwt.Sign(t.Token, jwt.WithKey(alg, key, jws.WithProtectedHeaders(t.Headers)))
 	if err != nil {
 		return "", err
 	}

@@ -20,11 +20,12 @@ package pki
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func Test_New(t *testing.T) {
@@ -125,11 +126,6 @@ func TestPKI_CheckHealth(t *testing.T) {
 	})
 
 	t.Run("crl + denylist outdated", func(t *testing.T) {
-		nowFunc = func() time.Time {
-			return time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-		}
-		defer func() { nowFunc = time.Now }()
-
 		// Check health
 		results := e.CheckHealth()
 		assert.Len(t, results, 2)

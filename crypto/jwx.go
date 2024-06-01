@@ -27,6 +27,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwe"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -41,6 +43,10 @@ import (
 
 // SignJWT creates a JWT from the given claims and signs it with the given key.
 func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
+	// copy headers so we don't change the input
+	headersLocal := make(map[string]interface{})
+	maps.Copy(headersLocal, headers)
+
 	privateKey, kid, err := client.getPrivateKey(ctx, key)
 	if err != nil {
 		return "", err
@@ -48,16 +54,13 @@ func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}
 
 	audit.Log(ctx, log.Logger(), audit.CryptoSignJWTEvent).Infof("Signing a JWT with key: %s (issuer: %s, subject: %s)", kid, claims["iss"], claims["sub"])
 
-	keyAsJWK, err := jwkKey(privateKey)
+	alg, err := signingAlg(privateKey.Public())
 	if err != nil {
 		return "", err
 	}
 
-	if err = keyAsJWK.Set(jwk.KeyIDKey, kid); err != nil {
-		return "", err
-	}
-
-	return signJWT(keyAsJWK, claims, headers)
+	headersLocal["kid"] = kid
+	return signJWT(privateKey, alg, claims, headersLocal)
 }
 
 // SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
@@ -66,10 +69,14 @@ func (client *Crypto) SignJWS(ctx context.Context, payload []byte, headers map[s
 	if err != nil {
 		return "", err
 	}
+	alg, err := SignatureAlgorithm(privateKey.Public())
+	if err != nil {
+		return "", err
+	}
 
 	audit.Log(ctx, log.Logger(), audit.CryptoSignJWSEvent).Infof("Signing a JWS with key: %s", kid)
 
-	return signJWS(payload, headers, privateKey, detached)
+	return signJWS(payload, headers, privateKey, alg, detached)
 }
 
 // EncryptJWE encrypts a payload using the provided public key and key identifier.
@@ -108,29 +115,8 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 	return body, headers, err
 }
 
-func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
-	key, err = jwk.FromRaw(signer)
-	if err != nil {
-		return nil, err
-	}
-
-	switch k := signer.(type) {
-	case *rsa.PrivateKey:
-		_ = key.Set(jwk.AlgorithmKey, jwa.PS256)
-	case *ecdsa.PrivateKey:
-		var alg jwa.SignatureAlgorithm
-		alg, err = ecAlg(k)
-		if err == nil {
-			_ = key.Set(jwk.AlgorithmKey, alg)
-		}
-	default:
-		err = errors.New("unsupported signing private key")
-	}
-	return
-}
-
 // signJWT signs claims with the signer and returns the compacted token. The headers param can be used to add additional headers
-func signJWT(key jwk.Key, claims map[string]interface{}, headers map[string]interface{}) (token string, err error) {
+func signJWT(key crypto.Signer, alg jwa.SignatureAlgorithm, claims map[string]interface{}, headers map[string]interface{}) (token string, err error) {
 	var sig []byte
 	t := jwt.New()
 
@@ -144,7 +130,7 @@ func signJWT(key jwk.Key, claims map[string]interface{}, headers map[string]inte
 		return "", fmt.Errorf("invalid JWT headers: %w", err)
 	}
 
-	sig, err = jwt.Sign(t, jwt.WithKey(jwa.SignatureAlgorithm(key.Algorithm().String()), key, jws.WithProtectedHeaders(hdr)))
+	sig, err = jwt.Sign(t, jwt.WithKey(jwa.SignatureAlgorithm(alg.String()), key, jws.WithProtectedHeaders(hdr)))
 	token = string(sig)
 
 	return
@@ -238,16 +224,12 @@ func ParseJWS(token []byte, f PublicKeyFunc) (payload []byte, err error) {
 	return body, nil
 }
 
-func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer, detachedPayload bool) (string, error) {
+func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer, alg jwa.SignatureAlgorithm, detachedPayload bool) (string, error) {
 	headers := jws.NewHeaders()
 	for key, value := range protectedHeaders {
 		if err := headers.Set(key, value); err != nil {
 			return "", fmt.Errorf("unable to set header %s: %w", key, err)
 		}
-	}
-	privateKeyAsJWK, err := jwkKey(privateKey)
-	if err != nil {
-		return "", err
 	}
 	// The JWX library is fine with creating a JWK for a private key (including the private exponents), so
 	// we want to make sure the `jwk` header (if present) does not (accidentally) contain a private key.
@@ -260,17 +242,17 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 			return "", errors.New("refusing to sign JWS with private key in JWK header")
 		}
 	}
-	algo := jwa.SignatureAlgorithm(privateKeyAsJWK.Algorithm().String())
 
 	var (
 		data []byte
+		err  error
 	)
 	if detachedPayload {
 		// Sign JWS with detached payload
-		data, err = jws.Sign(nil, jws.WithKey(algo, privateKey, jws.WithProtectedHeaders(headers)), jws.WithDetachedPayload(payload))
+		data, err = jws.Sign(nil, jws.WithKey(alg, privateKey, jws.WithProtectedHeaders(headers)), jws.WithDetachedPayload(payload))
 	} else {
 		// Sign normal JWS
-		data, err = jws.Sign(payload, jws.WithKey(algo, privateKey, jws.WithProtectedHeaders(headers)))
+		data, err = jws.Sign(payload, jws.WithKey(alg, privateKey, jws.WithProtectedHeaders(headers)))
 	}
 	if err != nil {
 		return "", fmt.Errorf("unable to sign JWS %w", err)
@@ -352,9 +334,17 @@ func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
 	return hdr, nil
 }
 
-func ecAlg(key *ecdsa.PrivateKey) (alg jwa.SignatureAlgorithm, err error) {
-	alg, err = ecAlgUsingPublicKey(key.PublicKey)
-	return
+func signingAlg(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
+	switch k := key.(type) {
+	case *rsa.PublicKey:
+		return jwa.PS256, nil
+	case *ecdsa.PublicKey:
+		return ecAlgUsingPublicKey(*k)
+	case ed25519.PublicKey:
+		return jwa.EdDSA, nil
+	default:
+		return "", fmt.Errorf(`could not determine signature algorithm for key type '%T'`, key)
+	}
 }
 
 func ecAlgUsingPublicKey(key ecdsa.PublicKey) (alg jwa.SignatureAlgorithm, err error) {

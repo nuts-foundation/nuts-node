@@ -30,7 +30,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -238,8 +239,8 @@ func (h Engine) applyAuthMiddleware(echoServer core.EchoRouter, path string, con
 	case BearerTokenAuth:
 		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
 		signingPublicKey, signingKeyLookupErr := h.getLegacyTokenAuthKey()
-		echoServer.Use(middleware.JWTWithConfig(middleware.JWTConfig{
-			KeyFunc: func(_ *jwt.Token) (interface{}, error) {
+		echoServer.Use(echojwt.WithConfig(echojwt.Config{
+			KeyFunc: func(*jwt.Token) (interface{}, error) {
 				return signingPublicKey, signingKeyLookupErr
 			},
 			Skipper: skipper,

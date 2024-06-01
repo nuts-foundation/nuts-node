@@ -105,7 +105,7 @@ func (r Wrapper) ValidateDPoPProof(_ context.Context, request ValidateDPoPProofR
 
 func (r *Wrapper) DPoPProof(ctx context.Context, requester did.DID, request http.Request, accessToken string) (string, error) {
 	// find the key to sign the DPoP token with
-	keyResolver := resolver.DIDKeyResolver{r.vdr.Resolver()}
+	keyResolver := resolver.DIDKeyResolver{Resolver: r.vdr.Resolver()}
 	keyID, _, err := keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
 	if err != nil {
 		return "", err

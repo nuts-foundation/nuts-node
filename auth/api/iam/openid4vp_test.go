@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"net/url"
 	"strings"
@@ -188,27 +189,14 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		SessionID:   "token",
 		OwnDID:      &holderDID,
 		RedirectURI: "https://example.com/iam/holder/cb",
-		VerifierDID: &verifierDID,
+		OtherDID:    &verifierDID,
 	}
-	userSession := UserSession{
-		TenantDID: holderDID,
-		Wallet: UserWallet{
-			DID: did.MustParseDID("did:jwk:123"),
-		},
-	}
-
-	httpRequest := &http.Request{
-		Header: http.Header{},
-	}
-	const userSessionID = "session_id"
-	httpRequest.AddCookie(createUserSessionCookie(userSessionID, "/"))
-	httpRequestCtx := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
+	httpRequestCtx, _ := user.CreateTestSession(context.Background(), holderDID)
 	t.Run("invalid client_id", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
 		params[oauth.ClientIDParam] = "did:nuts:1"
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", responseURI, "state")
-		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
@@ -229,7 +217,6 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, "failed to get client metadata (verifier)", responseURI, "state")
-		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
@@ -249,7 +236,6 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
 		params[oauth.ClientMetadataParam] = "not empty"
-		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 		expectPostError(t, ctx, oauth.InvalidRequest, "client_metadata and client_metadata_uri are mutually exclusive", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
@@ -261,7 +247,6 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		delete(params, oauth.ClientMetadataURIParam)
 		params[oauth.ClientMetadataParam] = "{invalid"
-		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_metadata", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
@@ -273,7 +258,6 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, "failed to get client metadata (verifier)", responseURI, "state")
-		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
@@ -311,7 +295,6 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		params := defaultParams()
 		params[oauth.PresentationDefParam] = "not empty"
-		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 		expectPostError(t, ctx, oauth.InvalidRequest, "presentation_definition and presentation_definition_uri are mutually exclusive", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
@@ -324,7 +307,6 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		delete(params, oauth.PresentationDefUriParam)
 		params[oauth.PresentationDefParam] = "{invalid"
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
-		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid presentation_definition", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
@@ -338,7 +320,6 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.InvalidPresentationDefinitionURI, "failed to retrieve presentation definition on https://example.com/iam/verifier/presentation_definition?scope=test", responseURI, "state")
-		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
@@ -352,7 +333,6 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, assert.AnError.Error(), responseURI, "state")
-		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
@@ -366,7 +346,6 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
 		expectPostError(t, ctx, oauth.InvalidRequest, "no credentials available (PD ID: , wallet: did:web:example.com:iam:holder)", responseURI, "state")
-		_ = ctx.client.userSessionStore().Put(userSessionID, userSession)
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
 
@@ -753,69 +732,23 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 
 func Test_handleCallback(t *testing.T) {
 	code := "code"
-	state := "state"
 
 	session := OAuthSession{
 		SessionID:     "token",
 		OwnDID:        &holderDID,
 		RedirectURI:   "https://example.com/iam/holder/cb",
-		VerifierDID:   &verifierDID,
+		OtherDID:      &verifierDID,
 		PKCEParams:    generatePKCEParams(),
 		TokenEndpoint: "https://example.com/token",
 	}
-
-	t.Run("err - missing state", func(t *testing.T) {
-		ctx := newTestClient(t)
-
-		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Did: webDID.String(),
-			Params: CallbackParams{
-				Code: &code,
-			},
-		})
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "missing state parameter")
-	})
-	t.Run("err - expired state", func(t *testing.T) {
-		ctx := newTestClient(t)
-
-		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Did: webDID.String(),
-			Params: CallbackParams{
-				Code:  &code,
-				State: &state,
-			},
-		})
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid or expired state")
-	})
-	t.Run("err - missing code", func(t *testing.T) {
-		ctx := newTestClient(t)
-		putState(ctx, "state", session)
-
-		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Did: webDID.String(),
-			Params: CallbackParams{
-				State: &state,
-			},
-		})
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "missing code parameter")
-	})
 	t.Run("err - failed to retrieve access token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		putState(ctx, "state", session)
-		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/"+webDID.String()+"/callback", holderDID, codeVerifier, false).Return(nil, assert.AnError)
+		callbackURI := "https://example.com/oauth2/" + holderDID.String() + "/callback"
+		codeVerifier := session.PKCEParams.Verifier
 
-		_, err := ctx.client.handleCallback(nil, CallbackRequestObject{
-			Did: webDID.String(),
-			Params: CallbackParams{
-				Code:  &code,
-				State: &state,
-			},
-		})
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, callbackURI, holderDID, codeVerifier, false).Return(nil, assert.AnError)
+
+		_, err := ctx.client.handleCallback(nil, code, &session)
 
 		requireOAuthError(t, err, oauth.ServerError, "failed to retrieve access token: assert.AnError general error for testing")
 	})

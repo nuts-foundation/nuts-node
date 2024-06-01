@@ -416,11 +416,8 @@ func (s *state) Start() error {
 		return fmt.Errorf("failed to set initial transaction count metric: %w", err)
 	}
 
-	// resume all notifiers
-	s.notifiers.Range(func(_, value any) bool {
-		err = value.(Notifier).Run()
-		return err == nil
-	})
+	// state does not start the notifiers since they may access other network components before they are initialized.
+	// https://github.com/nuts-foundation/nuts-node/issues/3155
 
 	// start xorTreeRepair that waits until the state has triggered it to start via IncorrectStateDetected()
 	s.xorTreeRepair.start()

@@ -187,8 +187,8 @@ type Cnf struct {
 	Jkt string `json:"jkt"`
 }
 
-// RequestOid4vciCredentialIssuanceJSONBody defines parameters for RequestOid4vciCredentialIssuance.
-type RequestOid4vciCredentialIssuanceJSONBody struct {
+// RequestOpenid4VCICredentialIssuanceJSONBody defines parameters for RequestOpenid4VCICredentialIssuance.
+type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	AuthorizationDetails []map[string]interface{} `json:"authorization_details"`
 	Issuer               string                   `json:"issuer"`
 
@@ -205,8 +205,8 @@ type ValidateDPoPProofJSONRequestBody = DPoPValidateRequest
 // CreateDPoPProofJSONRequestBody defines body for CreateDPoPProof for application/json ContentType.
 type CreateDPoPProofJSONRequestBody = DPoPRequest
 
-// RequestOid4vciCredentialIssuanceJSONRequestBody defines body for RequestOid4vciCredentialIssuance for application/json ContentType.
-type RequestOid4vciCredentialIssuanceJSONRequestBody RequestOid4vciCredentialIssuanceJSONBody
+// RequestOpenid4VCICredentialIssuanceJSONRequestBody defines body for RequestOpenid4VCICredentialIssuance for application/json ContentType.
+type RequestOpenid4VCICredentialIssuanceJSONRequestBody RequestOpenid4VCICredentialIssuanceJSONBody
 
 // RequestServiceAccessTokenJSONRequestBody defines body for RequestServiceAccessToken for application/json ContentType.
 type RequestServiceAccessTokenJSONRequestBody = ServiceAccessTokenRequest
@@ -536,10 +536,10 @@ type ClientInterface interface {
 
 	CreateDPoPProof(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RequestOid4vciCredentialIssuanceWithBody request with any body
-	RequestOid4vciCredentialIssuanceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// RequestOpenid4VCICredentialIssuanceWithBody request with any body
+	RequestOpenid4VCICredentialIssuanceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	RequestOid4vciCredentialIssuance(ctx context.Context, did string, body RequestOid4vciCredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RequestOpenid4VCICredentialIssuance(ctx context.Context, did string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RequestServiceAccessTokenWithBody request with any body
 	RequestServiceAccessTokenWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -636,8 +636,8 @@ func (c *Client) CreateDPoPProof(ctx context.Context, did string, body CreateDPo
 	return c.Client.Do(req)
 }
 
-func (c *Client) RequestOid4vciCredentialIssuanceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRequestOid4vciCredentialIssuanceRequestWithBody(c.Server, did, contentType, body)
+func (c *Client) RequestOpenid4VCICredentialIssuanceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestOpenid4VCICredentialIssuanceRequestWithBody(c.Server, did, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -648,8 +648,8 @@ func (c *Client) RequestOid4vciCredentialIssuanceWithBody(ctx context.Context, d
 	return c.Client.Do(req)
 }
 
-func (c *Client) RequestOid4vciCredentialIssuance(ctx context.Context, did string, body RequestOid4vciCredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRequestOid4vciCredentialIssuanceRequest(c.Server, did, body)
+func (c *Client) RequestOpenid4VCICredentialIssuance(ctx context.Context, did string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestOpenid4VCICredentialIssuanceRequest(c.Server, did, body)
 	if err != nil {
 		return nil, err
 	}
@@ -866,19 +866,19 @@ func NewCreateDPoPProofRequestWithBody(server string, did string, contentType st
 	return req, nil
 }
 
-// NewRequestOid4vciCredentialIssuanceRequest calls the generic RequestOid4vciCredentialIssuance builder with application/json body
-func NewRequestOid4vciCredentialIssuanceRequest(server string, did string, body RequestOid4vciCredentialIssuanceJSONRequestBody) (*http.Request, error) {
+// NewRequestOpenid4VCICredentialIssuanceRequest calls the generic RequestOpenid4VCICredentialIssuance builder with application/json body
+func NewRequestOpenid4VCICredentialIssuanceRequest(server string, did string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewRequestOid4vciCredentialIssuanceRequestWithBody(server, did, "application/json", bodyReader)
+	return NewRequestOpenid4VCICredentialIssuanceRequestWithBody(server, did, "application/json", bodyReader)
 }
 
-// NewRequestOid4vciCredentialIssuanceRequestWithBody generates requests for RequestOid4vciCredentialIssuance with any type of body
-func NewRequestOid4vciCredentialIssuanceRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+// NewRequestOpenid4VCICredentialIssuanceRequestWithBody generates requests for RequestOpenid4VCICredentialIssuance with any type of body
+func NewRequestOpenid4VCICredentialIssuanceRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -1059,10 +1059,10 @@ type ClientWithResponsesInterface interface {
 
 	CreateDPoPProofWithResponse(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
 
-	// RequestOid4vciCredentialIssuanceWithBodyWithResponse request with any body
-	RequestOid4vciCredentialIssuanceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOid4vciCredentialIssuanceResponse, error)
+	// RequestOpenid4VCICredentialIssuanceWithBodyWithResponse request with any body
+	RequestOpenid4VCICredentialIssuanceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error)
 
-	RequestOid4vciCredentialIssuanceWithResponse(ctx context.Context, did string, body RequestOid4vciCredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestOid4vciCredentialIssuanceResponse, error)
+	RequestOpenid4VCICredentialIssuanceWithResponse(ctx context.Context, did string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error)
 
 	// RequestServiceAccessTokenWithBodyWithResponse request with any body
 	RequestServiceAccessTokenWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestServiceAccessTokenResponse, error)
@@ -1183,7 +1183,7 @@ func (r CreateDPoPProofResponse) StatusCode() int {
 	return 0
 }
 
-type RequestOid4vciCredentialIssuanceResponse struct {
+type RequestOpenid4VCICredentialIssuanceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *RedirectResponse
@@ -1200,7 +1200,7 @@ type RequestOid4vciCredentialIssuanceResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r RequestOid4vciCredentialIssuanceResponse) Status() string {
+func (r RequestOpenid4VCICredentialIssuanceResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -1208,7 +1208,7 @@ func (r RequestOid4vciCredentialIssuanceResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r RequestOid4vciCredentialIssuanceResponse) StatusCode() int {
+func (r RequestOpenid4VCICredentialIssuanceResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1339,21 +1339,21 @@ func (c *ClientWithResponses) CreateDPoPProofWithResponse(ctx context.Context, d
 	return ParseCreateDPoPProofResponse(rsp)
 }
 
-// RequestOid4vciCredentialIssuanceWithBodyWithResponse request with arbitrary body returning *RequestOid4vciCredentialIssuanceResponse
-func (c *ClientWithResponses) RequestOid4vciCredentialIssuanceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOid4vciCredentialIssuanceResponse, error) {
-	rsp, err := c.RequestOid4vciCredentialIssuanceWithBody(ctx, did, contentType, body, reqEditors...)
+// RequestOpenid4VCICredentialIssuanceWithBodyWithResponse request with arbitrary body returning *RequestOpenid4VCICredentialIssuanceResponse
+func (c *ClientWithResponses) RequestOpenid4VCICredentialIssuanceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error) {
+	rsp, err := c.RequestOpenid4VCICredentialIssuanceWithBody(ctx, did, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseRequestOid4vciCredentialIssuanceResponse(rsp)
+	return ParseRequestOpenid4VCICredentialIssuanceResponse(rsp)
 }
 
-func (c *ClientWithResponses) RequestOid4vciCredentialIssuanceWithResponse(ctx context.Context, did string, body RequestOid4vciCredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestOid4vciCredentialIssuanceResponse, error) {
-	rsp, err := c.RequestOid4vciCredentialIssuance(ctx, did, body, reqEditors...)
+func (c *ClientWithResponses) RequestOpenid4VCICredentialIssuanceWithResponse(ctx context.Context, did string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error) {
+	rsp, err := c.RequestOpenid4VCICredentialIssuance(ctx, did, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseRequestOid4vciCredentialIssuanceResponse(rsp)
+	return ParseRequestOpenid4VCICredentialIssuanceResponse(rsp)
 }
 
 // RequestServiceAccessTokenWithBodyWithResponse request with arbitrary body returning *RequestServiceAccessTokenResponse
@@ -1526,15 +1526,15 @@ func ParseCreateDPoPProofResponse(rsp *http.Response) (*CreateDPoPProofResponse,
 	return response, nil
 }
 
-// ParseRequestOid4vciCredentialIssuanceResponse parses an HTTP response from a RequestOid4vciCredentialIssuanceWithResponse call
-func ParseRequestOid4vciCredentialIssuanceResponse(rsp *http.Response) (*RequestOid4vciCredentialIssuanceResponse, error) {
+// ParseRequestOpenid4VCICredentialIssuanceResponse parses an HTTP response from a RequestOpenid4VCICredentialIssuanceWithResponse call
+func ParseRequestOpenid4VCICredentialIssuanceResponse(rsp *http.Response) (*RequestOpenid4VCICredentialIssuanceResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &RequestOid4vciCredentialIssuanceResponse{
+	response := &RequestOpenid4VCICredentialIssuanceResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

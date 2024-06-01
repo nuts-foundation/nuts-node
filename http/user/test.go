@@ -16,23 +16,18 @@
  *
  */
 
-package crypto
+package user
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
+	"github.com/nuts-foundation/go-did/did"
+	"time"
 )
 
-func (client *Crypto) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
-	privateKey, _, err := client.getPrivateKey(ctx, kid)
-	if err != nil {
-		return "", err
+func CreateTestSession(ctx context.Context, tenantDID did.DID) (context.Context, *Session) {
+	session, _ := createUserSession(tenantDID, time.Hour)
+	session.Save = func() error {
+		return nil
 	}
-
-	alg, err := signingAlg(privateKey.Public())
-	if err != nil {
-		return "", err
-	}
-
-	return token.Sign(privateKey, alg)
+	return context.WithValue(ctx, userSessionContextKey, session), session
 }

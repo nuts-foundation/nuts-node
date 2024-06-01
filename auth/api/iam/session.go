@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/http"
@@ -34,19 +33,31 @@ import (
 // The client state (and nonce/redirectToken as well) is used to refer to this session.
 // Both the client and the server use this session to store information about the request.
 type OAuthSession struct {
-	ClientID          string       `json:"client_id,omitempty"`
-	ClientState       string       `json:"client_state,omitempty"`
-	OpenID4VPVerifier *PEXConsumer `json:"openid4vp_verifier,omitempty"`
-	OwnDID            *did.DID     `json:"own_did,omitempty"`
-	PKCEParams        PKCEParams   `json:"pkce_params"`
-	RedirectURI       string       `json:"redirect_uri,omitempty"`
-	ResponseType      string       `json:"response_type,omitempty"`
-	Scope             string       `json:"scope,omitempty"`
-	SessionID         string       `json:"session_id,omitempty"`
-	TokenEndpoint     string       `json:"token_endpoint,omitempty"`
-	UseDPoP           bool         `json:"use_dpop,omitempty"`
-	VerifierDID       *did.DID     `json:"verifier_did,omitempty"`
+	ClientFlow        oauthClientFlow `json:"client_flow,omitempty"`
+	ClientID          string          `json:"client_id,omitempty"`
+	ClientState       string          `json:"client_state,omitempty"`
+	OpenID4VPVerifier *PEXConsumer    `json:"openid4vp_verifier,omitempty"`
+	OwnDID            *did.DID        `json:"own_did,omitempty"`
+	OtherDID          *did.DID        `json:"other_did,omitempty"`
+	PKCEParams        PKCEParams      `json:"pkce_params"`
+	RedirectURI       string          `json:"redirect_uri,omitempty"`
+	Scope             string          `json:"scope,omitempty"`
+	SessionID         string          `json:"session_id,omitempty"`
+	TokenEndpoint     string          `json:"token_endpoint,omitempty"`
+	UseDPoP           bool            `json:"use_dpop,omitempty"`
+	// IssuerCredentialEndpoint: endpoint to exchange the access_token for a credential in the OpenID4VCI flow
+	IssuerCredentialEndpoint string `json:"issuer_credential_endpoint,omitempty"`
 }
+
+// oauthClientFlow is used by a client to identify the flow a particular callback is part of
+type oauthClientFlow = string
+
+const (
+	// accessTokenRequestClientFlow is used in the standard authorization_code flow to request an access_token
+	accessTokenRequestClientFlow oauthClientFlow = "access_token_request"
+	// credentialRequestClientFlow is used in the OpenID4VCI Credential Request flow
+	credentialRequestClientFlow oauthClientFlow = "openid4vci_credential_request"
+)
 
 // PEXConsumer consumes Presentation Submissions, according to https://identity.foundation/presentation-exchange/
 // This is a component of a OpenID4VP Verifier.
@@ -138,44 +149,6 @@ func (v *PEXConsumer) credentialMap() (map[string]vc.VerifiableCredential, error
 	return credentialMap, nil
 }
 
-// UserSession is a session-bound Verifiable Credential wallet.
-type UserSession struct {
-	// TenantDID is the requesting DID when the user session was created, typically the employer's (of the user) DID.
-	// A session needs to be scoped to the tenant DID, since the session gives access to the tenant's wallet,
-	// and the user session might contain session-bound credentials (e.g. EmployeeCredential) that were issued by the tenant.
-	TenantDID did.DID `json:"tenantDID"`
-	// PreAuthorizedUser is the user that is pre-authorized by the client application.
-	// It is stored to later assert that subsequent RequestUserAccessToken() calls that (accidentally or intentionally)
-	// re-use the browser session, are indeed for the same client application user.
-	PreAuthorizedUser *UserDetails `json:"preauthorized_user"`
-	Wallet            UserWallet   `json:"wallet"`
-}
-
-// UserWallet is a session-bound Verifiable Credential wallet.
-// It's an in-memory wallet which contains the user's private key in plain text.
-// This is OK, since the associated credentials are intended for protocol compatibility (OpenID4VP with a low-assurance EmployeeCredential),
-// when an actual user wallet is involved, this wallet isn't used.
-type UserWallet struct {
-	Credentials []vc.VerifiableCredential
-	// JWK is an in-memory key pair associated with the user's wallet in JWK form.
-	JWK []byte
-	// DID is the did:jwk DID of the user's wallet.
-	DID did.DID
-}
-
-// Key returns the JWK as jwk.Key
-func (w UserWallet) Key() (jwk.Key, error) {
-	set, err := jwk.Parse(w.JWK)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWK: %w", err)
-	}
-	result, available := set.Key(0)
-	if !available {
-		return nil, errors.New("expected exactly 1 key in the JWK set")
-	}
-	return result, nil
-}
-
 // ServerState is a convenience type for extracting different types of data from the session.
 type ServerState struct {
 	CredentialMap          map[string]vc.VerifiableCredential
@@ -201,33 +174,5 @@ func (s OAuthSession) CreateRedirectURI(params map[string]string) string {
 
 func (s OAuthSession) redirectURI() *url.URL {
 	redirectURL, _ := url.Parse(s.RedirectURI)
-	return redirectURL
-}
-
-// The Oid4vciSession is used to hold the state of an OIDC4VCi request between the moment
-// the client application does the request, the OIDC4VCi flow and the redirect back to the
-// client. The Oid4vciSession is referred to by a generated session id shared with the downstream
-// OIDC4VCi issuer.
-type Oid4vciSession struct {
-	// HolderDid: the DID of the wallet holder to who the VC will be issued to.
-	HolderDid *did.DID
-	// IssuerDid: the DID of the VC issuer, the party that will issue the VC to the holders' wallet
-	IssuerDid *did.DID
-	// RemoteRedirectUri: The redirect URL as provided by the external application requesting the issuance.
-	RemoteRedirectUri string
-	// RedirectUri: the URL send to the issuer as the redirect_uri of this nuts-node.
-	RedirectUri string
-	// PKCEParams: a set of Proof Key for Code Exchange parameters generated for this request.
-	PKCEParams PKCEParams
-	// IssuerTokenEndpoint: the endpoint for fetching the access token of the issuer.
-	IssuerTokenEndpoint string
-	// IssuerCredentialEndpoint: the endpoint for fetching the credential from the issuer with
-	// the access_token fetched from the IssuerTokenEndpoint.
-	IssuerCredentialEndpoint string
-}
-
-// The remoteRedirectUri returns the RemoteRedirectUri as pared URL reference.
-func (s Oid4vciSession) remoteRedirectUri() *url.URL {
-	redirectURL, _ := url.Parse(s.RemoteRedirectUri)
 	return redirectURL
 }

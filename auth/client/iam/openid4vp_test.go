@@ -600,7 +600,6 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, response)
 		assert.Equal(t, "credential", response.Credential)
-		assert.Equal(t, "format", response.Format)
 	})
 	t.Run("error - failed to get access token", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)

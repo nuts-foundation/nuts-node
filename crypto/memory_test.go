@@ -23,9 +23,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"testing"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestMemoryKeyStore_SignJWS(t *testing.T) {
@@ -37,7 +38,7 @@ func TestMemoryKeyStore_SignJWT(t *testing.T) {
 	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	privateKeyJWK, _ := jwk.FromRaw(pk)
 	privateKeyJWK.Set(jwk.KeyIDKey, "123")
-	alg, _ := ecAlg(pk)
+	alg, _ := ecAlgUsingPublicKey(pk.PublicKey)
 	privateKeyJWK.Set(jwk.AlgorithmKey, alg)
 
 	t.Run("ok", func(t *testing.T) {

@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"net/url"
 	"slices"
@@ -285,9 +286,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 		return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "missing nonce parameter"}, responseURI, state)
 	}
 
-	// TODO: Create session if it does not exist (use client state to get original Authorization Code request)?
-	//       Although it would be quite weird (maybe it expired).
-	userSession, err := r.loadUserSession(ctx.Value(httpRequestContextKey{}).(*http.Request), tenantDID, nil)
+	userSession, err := user.GetSession(ctx)
 	if userSession == nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, InternalError: err, Description: "no user session found"}
 	}
@@ -320,6 +319,9 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 		// User wallet
 		var privateKey jwk.Key
 		privateKey, err = userSession.Wallet.Key()
+		if err != nil {
+			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.ServerError, Description: "no key found", InternalError: err}, responseURI, state)
+		}
 		walletDID = userSession.Wallet.DID
 		targetWallet = holder.NewMemoryWallet(
 			r.jsonldManager.DocumentLoader(),
@@ -724,14 +726,6 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	if err != nil {
 		return nil, err
 	}
-	var submissions []PresentationSubmission
-	for _, submission := range oauthSession.OpenID4VPVerifier.Submissions {
-		submissions = append(submissions, submission)
-	}
-	presentationDefinitions := make([]PresentationDefinition, 0)
-	for _, curr := range oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions {
-		presentationDefinitions = append(presentationDefinitions, curr)
-	}
 
 	// All done, issue access token
 	walletDID, err := did.ParseDID(oauthSession.ClientID)
@@ -745,65 +739,21 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r Wrapper) handleCallbackError(request CallbackRequestObject) (CallbackResponseObject, error) {
-	// we know error is not empty
-	code := *request.Params.Error
-	var description string
-	if request.Params.ErrorDescription != nil {
-		description = *request.Params.ErrorDescription
-	}
-
-	// check if the state param is present and if we have a client state for it
-	var oauthSession OAuthSession
-	if request.Params.State != nil {
-		_ = r.oauthClientStateStore().Get(*request.Params.State, &oauthSession)
-		// we use the redirectURI from the oauthSession to redirect the user back to its own error page
-		if oauthSession.redirectURI() != nil {
-			// add code and description
-			location := httpNuts.AddQueryParams(*oauthSession.redirectURI(), map[string]string{
-				oauth.ErrorParam:            code,
-				oauth.ErrorDescriptionParam: description,
-			})
-			return Callback302Response{
-				Headers: Callback302ResponseHeaders{Location: location.String()},
-			}, nil
-		}
-	}
-	// we don't have a client state, so we can't redirect to the holder redirectURI
-	// return an error page instead
-	return nil, oauthError(oauth.ErrorCode(code), description)
-}
-
-func (r Wrapper) handleCallback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error) {
-	// check if state is present and resolves to a client state
-	var oauthSession OAuthSession
-	// return early with an OAuthError if state is nil
-	if request.Params.State == nil {
-		return nil, oauthError(oauth.InvalidRequest, "missing state parameter")
-	}
-	// lookup client state
-	if err := r.oauthClientStateStore().Get(*request.Params.State, &oauthSession); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "invalid or expired state", err)
-	}
+func (r Wrapper) handleCallback(ctx context.Context, authorizationCode string, oauthSession *OAuthSession) (CallbackResponseObject, error) {
 	// extract callback URI at calling app from OAuthSession
 	// this is the URI where the user-agent will be redirected to
 	appCallbackURI := oauthSession.redirectURI()
 
-	// check if code is present
-	if request.Params.Code == nil {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "missing code parameter"), appCallbackURI)
-	}
 	// send callback URL for verification (this method is the handler for that URL) to authorization server to check against earlier redirect_uri
 	// we call it checkURL here because it is used by the authorization server to check if the code is valid
-	requestHolder, _ := r.toOwnedDID(ctx, request.Did) // already checked
-	checkURL, err := createOAuth2BaseURL(*requestHolder)
+	checkURL, err := createOAuth2BaseURL(*oauthSession.OwnDID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
 	}
 	checkURL = checkURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, *request.Params.Code, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}

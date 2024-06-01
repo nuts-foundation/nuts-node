@@ -26,6 +26,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/http/cache"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -70,16 +72,21 @@ const accessTokenValidity = 15 * time.Minute
 
 const oid4vciSessionValidity = 15 * time.Minute
 
-// userSessionCookieName is the name of the cookie used to store the user session.
-// It uses the __Host prefix, that instructs the user agent to treat it as a secure cookie:
-// - Must be set with the Secure attribute
-// - Must be set from an HTTPS uri
-// - Must not contain a Domain attribute
-// - Must contain a Path attribute
-// Also see:
-// - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/06-Session_Management_Testing/02-Testing_for_Cookies_Attributes
-// - https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
-const userSessionCookieName = "__Host-SID"
+// cacheControlMaxAgeURLs holds API endpoints that should have a max-age cache control header set.
+var cacheControlMaxAgeURLs = []string{
+	"/.well-known/did.json",
+	"/iam/:id/did.json",
+	"/oauth2/:did/presentation_definition",
+	"/.well-known/oauth-authorization-server/iam/:id",
+	"/.well-known/oauth-authorization-server",
+	"/oauth2/:did/oauth-client",
+	"/statuslist/:did/:page",
+}
+
+// cacheControlNoCacheURLs holds API endpoints that should have a no-cache cache control header set.
+var cacheControlNoCacheURLs = []string{
+	"/oauth2/:did/token",
+}
 
 //go:embed assets
 var assetsFS embed.FS
@@ -140,6 +147,31 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			return next(c)
 		}
 	}, audit.Middleware(apiModuleName))
+	router.Use(cache.MaxAge(5*time.Minute, cacheControlMaxAgeURLs...).Handle)
+	router.Use(cache.NoCache(cacheControlNoCacheURLs...).Handle)
+	router.Use(user.SessionMiddleware{
+		Skipper: func(c echo.Context) bool {
+			// The following URLs require a user session:
+			paths := []string{
+				"/oauth2/:did/user",
+				"/oauth2/:did/authorize",
+				"/oauth2/:did/callback",
+			}
+			for _, path := range paths {
+				if c.Path() == path {
+					return false
+				}
+			}
+			return true
+		},
+		TimeOut: time.Hour,
+		Store:   r.storageEngine.GetSessionDatabase().GetStore(time.Hour, "user", "session"),
+		CookiePath: func(tenantDID did.DID) string {
+			baseURL, _ := createOAuth2BaseURL(tenantDID)
+			// error only happens on invalid did:web DID, which can't happen here
+			return baseURL.Path
+		},
+	}.Handle)
 }
 
 func (r Wrapper) strictMiddleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
@@ -208,19 +240,63 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 }
 
 func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error) {
-	// check id in path
-	_, err := r.toOwnedDID(ctx, request.Did)
+	// validate request
+	// check did in path
+	ownDID, err := r.toOwnedDID(ctx, request.Did)
 	if err != nil {
-		// this is an OAuthError already, will be rendered as 400 but that's fine (for now) for an illegal id
 		return nil, err
 	}
-
-	// if error is present, delegate call to error handler
-	if request.Params.Error != nil {
-		return r.handleCallbackError(request)
+	// check if state is present and resolves to a client state
+	if request.Params.State == nil || *request.Params.State == "" {
+		// without state it is an invalid request, but try to provide as much useful information as possible
+		if request.Params.Error != nil && *request.Params.Error != "" {
+			callbackError := callbackRequestToError(request, nil)
+			callbackError.InternalError = errors.New("missing state parameter")
+			return nil, callbackError
+		}
+		return nil, oauthError(oauth.InvalidRequest, "missing state parameter")
+	}
+	oauthSession := new(OAuthSession)
+	if err = r.oauthClientStateStore().Get(*request.Params.State, oauthSession); err != nil {
+		return nil, oauthError(oauth.InvalidRequest, "invalid or expired state", err)
+	}
+	if !ownDID.Equals(*oauthSession.OwnDID) {
+		// TODO: this is a manipulated request, add error logging?
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "session DID does not match request"), oauthSession.redirectURI())
 	}
 
-	return r.handleCallback(ctx, request)
+	// if error is present, redirect error back to application initiating the flow
+	if request.Params.Error != nil && *request.Params.Error != "" {
+		return nil, callbackRequestToError(request, oauthSession.redirectURI())
+	}
+
+	// check if code is present
+	if request.Params.Code == nil || *request.Params.Code == "" {
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "missing code parameter"), oauthSession.redirectURI())
+	}
+
+	// continue flow
+	switch oauthSession.ClientFlow {
+	case credentialRequestClientFlow:
+		return r.handleOpenID4VCICallback(ctx, *request.Params.Code, oauthSession)
+	case accessTokenRequestClientFlow:
+		return r.handleCallback(ctx, *request.Params.Code, oauthSession)
+	default:
+		// programming error, should never happen
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "unknown client flow for callback: '"+oauthSession.ClientFlow+"'"), oauthSession.redirectURI())
+	}
+}
+
+// callbackRequestToError should only be used if request.params.Error is present
+func callbackRequestToError(request CallbackRequestObject, redirectURI *url.URL) oauth.OAuth2Error {
+	requestErr := oauth.OAuth2Error{
+		Code:        oauth.ErrorCode(*request.Params.Error),
+		RedirectURI: redirectURI,
+	}
+	if request.Params.ErrorDescription != nil {
+		requestErr.Description = *request.Params.ErrorDescription
+	}
+	return requestErr
 }
 
 func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error) {
@@ -621,7 +697,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	}
 
 	useDPoP := true
-	if request.Body.TokenType != nil && strings.ToLower(string(*request.Body.TokenType)) == strings.ToLower(AccessTokenTypeBearer) {
+	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
 	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope, useDPoP)

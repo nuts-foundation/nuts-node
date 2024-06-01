@@ -69,9 +69,30 @@ To simplify HTTP configuration and proxying and make the default more secure, HT
 - port ``8081`` for all internal-facing endpoints (``/internal``, ``/status``, ``/metrics``, ``/health``)
 - port ``8080`` for all public-facing endpoints (all others)
 
-The new HTTP configuration reflects this,
-
 Note that ``8081`` by default maps to ``127.0.0.1`` only, so you might need to configure it to allow it to be accessible from other machines.
+
+Deprecated features
+===================
+
+The following features have been deprecated:
+
+- The external key store API has been deprecated and will be removed in the next major release.
+  It was introduced to allow flexible support for other key storage backends, while reducing the number of dependencies and clients to maintain in the Nuts node.
+  But, in practice the secret store API is unmaintained itself and lacks features (e.g. authentication/authorization).
+  Starting v6, the preferred way to support other key storage backends is to directly implement it in the Nuts node itself.
+  This also reduces the complexity of a Nuts node deployment (one service less to configure and deploy).
+  Users are recommended to switch to the built-in client of their key storage backend.
+
+************************
+Hazelnut update (v5.4.7)
+************************
+
+Release date: 2024-05-30
+
+- Fixed an issue where the node would panic during startup when retrying unfinished private transactions.
+- Updated dependencies
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.6...v5.4.7
 
 ************************
 Hazelnut update (v5.4.6)
