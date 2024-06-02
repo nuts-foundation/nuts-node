@@ -21,7 +21,6 @@ package http
 import (
 	"context"
 	"crypto"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/client"
@@ -104,11 +103,6 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 
 func (h *Engine) configureClient(serverConfig core.ServerConfig) {
 	client.StrictMode = serverConfig.Strictmode
-	httpTransport := http.DefaultTransport.(*http.Transport)
-	if httpTransport.TLSClientConfig == nil {
-		httpTransport.TLSClientConfig = &tls.Config{}
-	}
-	httpTransport.TLSClientConfig.MinVersion = tls.VersionTLS12
 	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
 	if h.config.ResponseCacheSize > 0 {
 		client.DefaultCachingTransport = client.NewCachingTransport(http.DefaultTransport, h.config.ResponseCacheSize)

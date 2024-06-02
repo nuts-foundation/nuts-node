@@ -7,6 +7,14 @@ import (
 	"time"
 )
 
+func init() {
+	httpTransport := http.DefaultTransport.(*http.Transport)
+	if httpTransport.TLSClientConfig == nil {
+		httpTransport.TLSClientConfig = &tls.Config{}
+	}
+	httpTransport.TLSClientConfig.MinVersion = tls.VersionTLS12
+}
+
 // StrictMode is a flag that can be set to true to enable strict mode for the HTTP client.
 var StrictMode bool
 
