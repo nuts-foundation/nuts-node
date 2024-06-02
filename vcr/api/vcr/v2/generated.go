@@ -39,8 +39,8 @@ const (
 
 // Defines values for IssueVCRequestFormat.
 const (
-	JwtVc IssueVCRequestFormat = "jwt_vc"
-	LdpVc IssueVCRequestFormat = "ldp_vc"
+	JsonLdJwt      IssueVCRequestFormat = "json-ld+jwt"
+	JsonLdLdProofs IssueVCRequestFormat = "json-ld+ld-proofs"
 )
 
 // Defines values for IssueVCRequestVisibility.
@@ -110,7 +110,7 @@ type IssueVCRequest struct {
 	// ExpirationDate RFC3339 time string until when the credential is valid.
 	ExpirationDate *string `json:"expirationDate,omitempty"`
 
-	// Format Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
+	// Format Credential and proof format for the credential. Options: - json-ld+ld-proofs (default) for JSON-LD format with Linked Data Proof of type JsonWebSignature2020 - json-ld+jwt for JWT format with JWT proof, signed with ES256.
 	Format *IssueVCRequestFormat `json:"format,omitempty"`
 
 	// Issuer DID according to Nuts specification.
@@ -152,7 +152,7 @@ type IssueVCRequest_Context struct {
 	union json.RawMessage
 }
 
-// IssueVCRequestFormat Proof format for the credential (ldp_vc for JSON-LD or jwt_vc for JWT). If not set, it defaults to JSON-LD.
+// IssueVCRequestFormat Credential and proof format for the credential. Options: - json-ld+ld-proofs (default) for JSON-LD format with Linked Data Proof of type JsonWebSignature2020 - json-ld+jwt for JWT format with JWT proof, signed with ES256.
 type IssueVCRequestFormat string
 
 // IssueVCRequestType0 defines model for .

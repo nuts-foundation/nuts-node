@@ -94,11 +94,11 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			jsonldManager := jsonld.NewTestJSONLDManager(t)
 			sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: keyStore}
 
-			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{Format: vc.JSONLDCredentialProofFormat})
+			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{Format: credential.VC11JSONLDFormatLinkedDataProof})
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
-			assert.Equal(t, vc.JSONLDCredentialProofFormat, result.Format())
+			assert.Equal(t, credential.VC11JSONLDFormatLinkedDataProof, result.Format())
 			assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
 			assert.Contains(t, result.Context, schemaOrgContext)
 			assert.Contains(t, result.Context, vc.VCContextV1URI())
@@ -118,7 +118,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{})
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			assert.Equal(t, vc.JSONLDCredentialProofFormat, result.Format())
+			assert.Equal(t, credential.VC11JSONLDFormatLinkedDataProof, result.Format())
 		})
 	})
 	t.Run("JWT", func(t *testing.T) {

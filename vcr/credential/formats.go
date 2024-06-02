@@ -18,6 +18,16 @@
 
 package credential
 
+// VCDataModel11CredentialFormat defines formats according to the Verifiable Credential Data Model 1.1.
+type VCDataModel11CredentialFormat string
+
+const (
+	// VC11JSONLDFormatLinkedDataProof indicates a VC in JSON-LD format with Linked Data proof, according to VC Data Model 1.1.
+	VC11JSONLDFormatLinkedDataProof VCDataModel11CredentialFormat = "json-ld+ld-proofs"
+	// VC11JSONLDFormatJWTProof indicates a VC in JSON-LD format with JWT proof, according to VC Data Model 1.1.
+	VC11JSONLDFormatJWTProof VCDataModel11CredentialFormat = "json-ld+jwt"
+)
+
 // DIFClaimFormats returns the given DIF claim formats as specified by https://identity.foundation/claim-format-registry/
 // as Formats.
 func DIFClaimFormats(formats map[string]map[string][]string) Formats {

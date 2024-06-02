@@ -101,7 +101,7 @@ type issuer struct {
 // Use the public flag to pass the visibility settings to the Publisher.
 func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
 	// Until further notice we don't support publishing JWT VCs, since they're not officially supported by Nuts yet.
-	if options.Publish && options.Format == vc.JWTCredentialProofFormat {
+	if options.Publish && options.Format == credential.VC11JSONLDFormatJWTProof {
 		return nil, errors.New("publishing VC JWTs is not supported")
 	}
 
@@ -255,13 +255,13 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 
 	// sign
 	switch options.Format {
-	case vc.JWTCredentialProofFormat:
+	case credential.VC11JSONLDFormatJWTProof:
 		return vc.CreateJWTVerifiableCredential(ctx, unsignedCredential, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
 			return i.keyStore.SignJWT(ctx, claims, headers, key)
 		})
 	case "":
 		fallthrough
-	case vc.JSONLDCredentialProofFormat:
+	case credential.VC11JSONLDFormatLinkedDataProof:
 		return i.buildJSONLDCredential(ctx, unsignedCredential, key)
 	default:
 		return nil, errors.New("unsupported credential proof format")
